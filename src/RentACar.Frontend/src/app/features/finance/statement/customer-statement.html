@@ -1,0 +1,213 @@
+<div class="sayfa">
+  @if (statement.veri(); as s) {
+    <header class="ust">
+      <h1>{{ 'finans.ekstre.baslik' | transloco: { ad: s.cariAd } }}</h1>
+      <div class="ust__eylemler">
+        <a [href]="exportUrl('excel')">Excel</a>
+        <a [href]="exportUrl('csv')">CSV</a>
+        <a [href]="exportUrl('pdf')">PDF</a>
+      </div>
+    </header>
+    <p class="ozet">
+      {{ 'finans.ekstre.bakiye' | transloco }}
+      <strong [class.negatif]="side() === 'borclu'" [class.pozitif]="side() === 'alacakli'">{{
+        s.bakiye | fpara
+      }}</strong>
+      ({{ 'finans.ekstre.pozitifBorclu' | transloco }})
+    </p>
+
+    @if (canWrite()) {
+      <div class="cift-form">
+        <rc-fin-cash-form
+          [cariId]="id"
+          kind="tahsilat"
+          defaultChannel="Masaüstü"
+          [balance]="s.bakiye"
+          [refreshing]="statement.yukleniyor()"
+          (settled)="reload()"
+        />
+        <rc-fin-cash-form
+          [cariId]="id"
+          kind="odeme"
+          defaultChannel="Masaüstü"
+          [refreshing]="statement.yukleniyor()"
+          (settled)="reload()"
+        />
+      </div>
+    }
+
+    <section class="bolum" aria-labelledby="rc-ekstre-hareketler">
+      <h2 id="rc-ekstre-hareketler">{{ 'finans.ekstre.hareketler' | transloco }}</h2>
+      <form class="filtre" [formGroup]="filter" (ngSubmit)="applyFilter()">
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'finans.alan.tarihBas' | transloco">
+            <rc-tarih-secici formControlName="bas" />
+          </rc-alan>
+          <rc-alan [etiket]="'finans.alan.tarihBit' | transloco">
+            <rc-tarih-secici formControlName="bit" />
+          </rc-alan>
+          <rc-alan [etiket]="'finans.alan.doviz' | transloco">
+            <rc-secim
+              formControlName="doviz"
+              [secenekler]="currencyOptions()"
+              [bosEtiket]="'finans.tumu' | transloco"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'finans.ekstre.kaynak' | transloco">
+            <rc-secim
+              formControlName="kaynak"
+              [secenekler]="sourceOptions()"
+              [bosEtiket]="'finans.tumu' | transloco"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'finans.ekstre.sozlesmeDurumu' | transloco">
+            <rc-secim
+              formControlName="kiraDurum"
+              [secenekler]="rentalStatusOptions"
+              [bosEtiket]="'finans.tumu' | transloco"
+            />
+          </rc-alan>
+          <rc-alan [etiket]="'finans.ekstre.gorunum' | transloco">
+            <rc-secim
+              formControlName="mod"
+              [secenekler]="modeOptions"
+              [bosEtiket]="'finans.ekstre.detayGorunum' | transloco"
+            />
+          </rc-alan>
+        </div>
+        <div class="filtre__eylemler">
+          <button type="submit" class="rc-dugme rc-dugme--kucuk">
+            {{ 'finans.uygula' | transloco }}
+          </button>
+          @if (filtered()) {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+              (click)="clearFilter()"
+            >
+              {{ 'finans.temizle' | transloco }}
+            </button>
+          }
+        </div>
+      </form>
+      @if (rentalFilter()) {
+        <p class="not">{{ 'finans.ekstre.kiraDurumuNot' | transloco }}</p>
+      }
+
+      @if (summaryMode()) {
+        <div class="tablo-kap">
+          <table class="duz-tablo">
+            <thead>
+              <tr>
+                <th>{{ 'finans.ekstre.ay' | transloco }}</th>
+                <th>{{ 'finans.ekstre.kaynak' | transloco }}</th>
+                <th class="num">{{ 'finans.ekstre.adet' | transloco }}</th>
+                <th class="num">{{ 'finans.ekstre.borc' | transloco }}</th>
+                <th class="num">{{ 'finans.ekstre.alacak' | transloco }}</th>
+                <th class="num">{{ 'finans.ekstre.net' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (o of s.ozet ?? []; track o.ay + o.kaynak) {
+                <tr>
+                  <td>{{ o.ay }}</td>
+                  <td>{{ o.kaynak }}</td>
+                  <td class="num">{{ o.adet }}</td>
+                  <td class="num">{{ o.borc | fsayi }}</td>
+                  <td class="num">{{ o.alacak | fsayi }}</td>
+                  <td class="num">{{ o.net | fsayi }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6">{{ 'finans.ekstre.hareketYok' | transloco }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="not">{{ 'finans.ekstre.ozetNot' | transloco }}</p>
+      } @else {
+        <div class="tablo-kap" [attr.aria-busy]="statement.yukleniyor()">
+          <table class="duz-tablo">
+            <thead>
+              <tr>
+                <th>{{ 'finans.alan.tarih' | transloco }}</th>
+                <th>{{ 'finans.alan.aciklama' | transloco }}</th>
+                <th>{{ 'finans.ekstre.kaynak' | transloco }}</th>
+                <th>{{ 'finans.alan.doviz' | transloco }}</th>
+                <th class="num">{{ 'finans.ekstre.borc' | transloco }}</th>
+                <th class="num">{{ 'finans.ekstre.alacak' | transloco }}</th>
+                <th class="num">
+                  {{
+                    (s.yuruyenBakiyeMi ? 'finans.ekstre.bakiyeKolon' : 'finans.ekstre.birikim')
+                      | transloco
+                  }}
+                </th>
+                <th>
+                  <span class="rc-gorunmez">{{ 'finans.ekstre.islem' | transloco }}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (!isZero(s.devir)) {
+                <tr class="soluk">
+                  <td>—</td>
+                  <td>
+                    <em>{{ 'finans.ekstre.devir' | transloco }}</em>
+                  </td>
+                  <td>{{ 'finans.ekstre.devirKaynak' | transloco }}</td>
+                  <td>—</td>
+                  <td class="num">{{ (s.devir | negatif) ? '' : (s.devir | fsayi) }}</td>
+                  <td class="num">{{ (s.devir | negatif) ? (abs(s.devir) | fsayi) : '' }}</td>
+                  <td class="num">{{ s.devir | fsayi }}</td>
+                  <td></td>
+                </tr>
+              }
+              @for (e of s.satirlar; track e.id) {
+                <tr>
+                  <td>{{ e.tarih | tarihSaat }}</td>
+                  <td>{{ e.aciklama }}</td>
+                  <td>{{ e.kaynak }}</td>
+                  <td>{{ e.doviz }}</td>
+                  <td class="num">{{ isZero(e.borc) ? '' : (e.borc | fsayi) }}</td>
+                  <td class="num">{{ isZero(e.alacak) ? '' : (e.alacak | fsayi) }}</td>
+                  <td class="num">{{ e.yuruyen | fsayi }}</td>
+                  <td>
+                    @if (e.kasaIslemId && canReverse()) {
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk rc-dugme--tehlike"
+                        [disabled]="reversing() !== null"
+                        (click)="reverse(e)"
+                      >
+                        {{ 'finans.ekstre.ters' | transloco }}
+                      </button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                @if (isZero(s.devir)) {
+                  <tr>
+                    <td colspan="8">
+                      {{
+                        (filtered() ? 'finans.ekstre.filtreyeUyanYok' : 'finans.ekstre.hareketYok')
+                          | transloco
+                      }}
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (!s.yuruyenBakiyeMi) {
+          <p class="not">{{ 'finans.ekstre.birikimNot' | transloco }}</p>
+        }
+      }
+    </section>
+  } @else if (statement.tur() === 'hata') {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ statement.hata()?.detay }}</p>
+  } @else {
+    <div class="rc-iskelet" aria-busy="true"></div>
+  }
+</div>

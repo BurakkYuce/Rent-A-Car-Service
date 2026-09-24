@@ -129,6 +129,9 @@ public static partial class CrmApi
             RentalId = rentalId, Plaka = r.Plaka, AdSoyad = r.AdSoyad, CepTel = r.CepTel, Zaman = F5Ortak.Utc(r.Zaman),
             Mesaj = r.Mesaj, Sebep = r.Sebep, YedekLastikMi = r.YedekLastikMi, AracHareketMi = r.AracHareketMi,
             Kapandi = r.Kapandi, Cozum = r.Cozum,
+            // #295 L1: null = dokunma (boşsa sözleşmeden doldurulur), "" = temizle (yeniden doldurulmaz).
+            ClearContactName = r.AdSoyad is not null && string.IsNullOrWhiteSpace(r.AdSoyad),
+            ClearContactPhone = r.CepTel is not null && string.IsNullOrWhiteSpace(r.CepTel),
         };
     }
 
@@ -152,8 +155,26 @@ public static partial class CrmApi
         if (string.IsNullOrWhiteSpace(request.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         var input = await AssistanceInputAsync(request, user, rentals, locations, ct);
+        KeepStoredContact(current, input);
         if (!await requests.UpdateAsync(id, input, request.Surum, ct)) return AssistanceNotFound();
         return await AssistanceCardAsync(id, requests, user, dbf, locations, ct) is { } c ? TypedResults.Ok(c) : AssistanceNotFound();
+    }
+
+    /// <summary>
+    /// KVKK: anonim müşteriye bağlı talepte ad/telefon yanıtta <c>null</c> döner; tam PUT bu <c>null</c>'ı geri
+    /// gönderince kayıtlı değer silinmemeli ya da servis onu anonim müşterinin kartından yeniden doldurmamalı.
+    /// Sözleşme (#295b, TC/ehliyet ile aynı): <c>""</c> = temizle (<see cref="AssistansInput.ClearContactName"/>);
+    /// <c>null</c> = dokunma — YALNIZ kira değişmediyse saklı değer korunur (temizlenmişse temiz kalır).
+    /// Kira değiştiyse ya da kaldırıldıysa saklı değer TAŞINMAZ: gizli değer yalnız bağlı kiranın müşterisi anonim olduğu
+    /// için gizliydi; yeni bağla (ya da bağsız) düz görünür ve ManageUsers kapısı atlanırdı. O durumda <c>null</c> alanı
+    /// boşaltır; servis yalnız YENİ kiranın görünür müşterisinden doldurabilir (anonim müşteriden asla).
+    /// </summary>
+    private static void KeepStoredContact(AssistansTalep current, AssistansInput input)
+    {
+        var requested = input.RentalId == Guid.Empty ? null : input.RentalId;
+        if (requested != current.RentalId) return;
+        if (input.AdSoyad is null && !input.ClearContactName) input.AdSoyad = current.AdSoyad;
+        if (input.CepTel is null && !input.ClearContactPhone) input.CepTel = current.CepTel;
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAssistance(

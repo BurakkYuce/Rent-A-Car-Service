@@ -118,7 +118,7 @@ public static partial class CustomerApi
         };
         var name = r.AnonimAd ? MusteriGorunumu.AnonimAdEtiketi : r.DisplayName;
         return new CustomerListRow(
-            r.Id, r.Tip.ToString(), name, r.AnonimAd, r.Tip == CariType.Bireysel ? null : r.VergiNo,
+            r.Id, r.Tip.ToString(), name, r.AnonimAd, CustomerInputMapper.TaxNumberHidden(r.Tip, r.VergiNo) ? null : r.VergiNo,
             MusteriGorunumu.Telefon(view), r.AnonimTelefon ? null : r.Gsm2, MusteriGorunumu.Eposta(view),
             r.AnonimAdres ? null : r.Il, r.AnonimAdres ? null : r.Ilce, r.Kaynak, r.MusteriTemsilcisi, r.EntegrasyonKodu,
             r.OzelKod, r.Sinif, r.Ulke, r.VadeGun, r.KiraAdet, r.Ciro, r.SonKira, r.KaraListe, r.Pasif, r.Uyari,

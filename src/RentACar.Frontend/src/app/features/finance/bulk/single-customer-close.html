@@ -1,0 +1,146 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.tekCari.baslik' | transloco }}</h1>
+    <div class="ust__eylemler">
+      <a routerLink="/toplu-tahsilat">{{ 'finans.tekCari.cokCariModu' | transloco }}</a>
+    </div>
+  </header>
+  <p class="aciklama">{{ 'finans.tekCari.aciklama' | transloco }}</p>
+  <p class="aciklama">{{ 'finans.tekCari.kaliciNot' | transloco }}</p>
+
+  <div class="rc-form-izgara">
+    <rc-alan [etiket]="'finans.alan.cari' | transloco">
+      <rc-arama-secim [formControl]="customer" [kaynak]="customers" />
+    </rc-alan>
+  </div>
+
+  @if (items.tur() === 'hata') {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ items.hata()?.detay }}</p>
+  }
+  @if (cariId() && items.veri(); as d) {
+    <dl class="ozet-serit">
+      <div>
+        <dt>
+          {{ 'finans.tekCari.guncelBakiye' | transloco
+          }}{{ side() === 'borclu' ? ' (' + ('finans.cari.borclu' | transloco) + ')' : '' }}
+        </dt>
+        <dd [class.negatif]="side() === 'borclu'">{{ d.bakiye | fpara }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'finans.tekCari.acikKalem' | transloco }}</dt>
+        <dd>{{ openCount() }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'finans.tekCari.borcKalemleri' | transloco }}</dt>
+        <dd>{{ d.acikToplam | fpara }}</dd>
+      </div>
+    </dl>
+
+    <section class="bolum" aria-labelledby="rc-tek-cari-kalemler">
+      <h2 id="rc-tek-cari-kalemler">{{ d.cariAd }}</h2>
+      @if (d.kalemler.length === 0) {
+        <p class="ozet">{{ 'finans.tekCari.kalemYok' | transloco }}</p>
+      } @else {
+        <div class="tablo-kap">
+          <table class="duz-tablo">
+            <thead>
+              <tr>
+                <th>
+                  <span class="rc-gorunmez">{{ 'finans.tekCari.sec' | transloco }}</span>
+                </th>
+                <th>{{ 'finans.alan.tarih' | transloco }}</th>
+                <th>{{ 'finans.ekstre.kaynak' | transloco }}</th>
+                <th>{{ 'finans.alan.aciklama' | transloco }}</th>
+                <th class="num">{{ 'finans.alan.tutar' | transloco }}</th>
+                <th>{{ 'finans.alan.doviz' | transloco }}</th>
+                <th class="num">{{ 'finans.tekCari.baz' | transloco }}</th>
+                <th class="num">{{ 'finans.tekCari.kapanan' | transloco }}</th>
+                <th class="num">{{ 'finans.tekCari.kalan' | transloco }}</th>
+                <th class="num">{{ 'finans.tekCari.kapatilacak' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (k of d.kalemler; track k.id) {
+                <tr [class.soluk]="k.kapali">
+                  @if (row(k.id); as r) {
+                    <td [formGroup]="r">
+                      <rc-alan
+                        [etiket]="
+                          'finans.tekCari.secEtiket'
+                            | transloco: { tarih: (k.tarih | tarih), kaynak: k.kaynak }
+                        "
+                        etiketGizli
+                      >
+                        <rc-onay-kutusu formControlName="secili" />
+                      </rc-alan>
+                    </td>
+                  } @else {
+                    <td>
+                      <span class="rc-rozet rc-rozet--basari">{{
+                        'finans.tekCari.kapali' | transloco
+                      }}</span>
+                    </td>
+                  }
+                  <td>{{ k.tarih | tarih }}</td>
+                  <td>{{ k.kaynak }}</td>
+                  <td>{{ k.aciklama ?? '—' }}</td>
+                  <td class="num">{{ k.tutar | fsayi }}</td>
+                  <td>{{ k.doviz }}</td>
+                  <td class="num">{{ k.baz | fsayi }}</td>
+                  <td class="num">{{ isZero(k.kapanan) ? '—' : (k.kapanan | fsayi) }}</td>
+                  <td class="num">{{ k.kapali ? '—' : (k.kalan | fsayi) }}</td>
+                  <td class="num">
+                    @if (row(k.id); as r) {
+                      <div class="hucre-girdi" [formGroup]="r">
+                        <rc-alan [etiket]="'finans.tekCari.kapatilacak' | transloco" etiketGizli>
+                          <rc-para-girdisi
+                            formControlName="tutar"
+                            [yerTutucu]="'finans.tekCari.tamami' | transloco"
+                          />
+                        </rc-alan>
+                      </div>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="rc-form-izgara" [formGroup]="form">
+          <rc-alan [etiket]="'finans.alan.hesap' | transloco">
+            <rc-secim formControlName="hesap" [secenekler]="kindOptions" />
+          </rc-alan>
+          <rc-alan [etiket]="'finans.alan.kanal' | transloco">
+            <rc-secim formControlName="kanal" [secenekler]="channelOptions" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'finans.alan.tarih' | transloco"
+            [ipucu]="'finans.tekCari.tarihIpucu' | transloco"
+          >
+            <rc-tarih-secici formControlName="tarih" />
+          </rc-alan>
+          <rc-alan [etiket]="'finans.alan.aciklama' | transloco">
+            <rc-metin-girdisi
+              formControlName="aciklama"
+              [azamiUzunluk]="512"
+              [yerTutucu]="'finans.tekCari.aciklamaYerTutucu' | transloco"
+            />
+          </rc-alan>
+        </div>
+        @if (noSelection()) {
+          <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+            {{ 'finans.tekCari.secimYok' | transloco }}
+          </p>
+        }
+        <p class="not">{{ 'finans.tekCari.bazNot' | transloco }}</p>
+        <rc-fin-submit
+          [action]="action"
+          [label]="'finans.tekCari.kapat' | transloco"
+          [disabled]="items.yukleniyor()"
+          (send)="submit()"
+          (giveUp)="abandon()"
+        />
+      }
+    </section>
+  }
+</div>

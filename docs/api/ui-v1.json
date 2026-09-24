@@ -18910,6 +18910,124 @@
         }
       }
     },
+    "/api/ui/v1/vardiyalar/{id}": {
+      "get": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Rapor"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/vardiyalar": {
+      "post": {
+        "tags": [
+          "Rapor"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/platform/oturum/giris": {
       "post": {
         "tags": [
@@ -67370,6 +67488,71 @@
           }
         }
       },
+      "ShiftDto": {
+        "required": [
+          "id",
+          "personelId",
+          "personelAd",
+          "tarih",
+          "baslangicSaat",
+          "bitisSaat",
+          "sureDk",
+          "aralik",
+          "sube",
+          "aciklama",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "personelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "personelAd": {
+            "type": "string"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date"
+          },
+          "baslangicSaat": {
+            "type": "string"
+          },
+          "bitisSaat": {
+            "type": "string"
+          },
+          "sureDk": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "aralik": {
+            "type": "string"
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
+            "type": "string"
+          }
+        }
+      },
       "ShiftMatrixRow": {
         "required": [
           "personelId",
@@ -67464,6 +67647,63 @@
             "items": {
               "$ref": "#/components/schemas/ShiftRow"
             }
+          }
+        }
+      },
+      "ShiftRequest": {
+        "required": [
+          "personelId",
+          "tarih",
+          "baslangicSaat",
+          "bitisSaat",
+          "sube",
+          "aciklama"
+        ],
+        "type": "object",
+        "properties": {
+          "personelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "baslangicSaat": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bitisSaat": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

@@ -7,6 +7,11 @@ export const CEVIRI_BLOKLARI = {
     import('../../../i18n/bloklar/arac.json').then((m) => m.default),
   'arac-finans': (): Promise<Translation> =>
     import('../../../i18n/bloklar/arac-finans.json').then((m) => m.default),
+  cari: (): Promise<Translation> =>
+    import('../../../i18n/bloklar/cari.json').then((m) => m.default),
+  crm: (): Promise<Translation> => import('../../../i18n/bloklar/crm.json').then((m) => m.default),
+  finans: (): Promise<Translation> =>
+    import('../../../i18n/bloklar/finans.json').then((m) => m.default),
   'kira-formu': (): Promise<Translation> =>
     import('../../../i18n/bloklar/kira-formu.json').then((m) => m.default),
   kiralar: (): Promise<Translation> =>

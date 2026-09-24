@@ -39,6 +39,8 @@ import { TabloHucre } from '@shared/tablo/tablo-hucre';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
 import { findReport } from './report-catalog';
+import { ShiftEditor } from './shift-editor/shift-editor';
+import type { ShiftListRow } from './shift-editor/shift-model';
 import type { ListSource, ReportColumn, ReportFilter } from './report-model';
 import {
   VIEW_KEY,
@@ -90,6 +92,7 @@ type FilterValue = string | number | boolean | GunAraligi | SecimSecenegi | null
     TarihSecici,
     Tablo,
     TabloHucre,
+    ShiftEditor,
   ],
   providers: [FetchPolicy],
   templateUrl: './report-page.html',
@@ -170,6 +173,23 @@ export class ReportPage {
 
   /** 403: yetki/kapsam mesajı (hata bandı yerine). */
   protected readonly forbidden = computed(() => this.store.hata()?.status === 403);
+
+  /** F10.3 yazma bölümü (izin varsa); devraldığı özet tablosu ayrıca çizilmez. */
+  protected readonly editor = computed(() => {
+    const e = this.view().duzenleyici;
+    return e && this.session.izinVar(e.izin) ? e : null;
+  });
+
+  /** Vardiya bölümünün girdileri: yalnız vardiya raporunun zarfsız yanıtından (tip daraltma). */
+  protected shiftRows(summary: unknown): readonly ShiftListRow[] {
+    const list = (summary as { liste?: unknown } | null)?.liste;
+    return Array.isArray(list) ? (list as ShiftListRow[]) : [];
+  }
+
+  protected shiftFirstDay(summary: unknown): string | null {
+    const bas = (summary as { bas?: unknown } | null)?.bas;
+    return typeof bas === 'string' ? bas : null;
+  }
 
   // ── süzgeç formu ──
   private readonly allFilters = this.def.gorunumler.flatMap((v) => v.filtreler);
