@@ -90,7 +90,7 @@ public sealed class UcIzinKapsamaTests
     }
 
     /// <summary>
-    /// Kesişi yapılmış fazlarda (F4, F5, F6, F7, F10) silinecek Blazor POST uçları (docs/roadmap/F?.md envanteri, "F? (bu faz)"
+    /// Kesişi yapılmış fazlarda (F4, F5, F6, F7, F10, F8) silinecek Blazor POST uçları (docs/roadmap/F?.md envanteri, "F? (bu faz)"
     /// satırları). Silme PR'ları (F4.6b, F5 silmesi) bu uçları (ör. <c>/kiralar/cancel</c>, <c>/rezervasyonlar/cancel</c>)
     /// sildiğinde tarama çiti boşa düşmesin diye ön koşul onları SAYMAZ.
     /// </summary>
@@ -137,14 +137,26 @@ public sealed class UcIzinKapsamaTests
         Assert.Equal(3, f10.Count);
         Assert.Contains("/raporlar/personel-calisma/create", f10);
         silinecek.UnionWith(f10);
+        // F8.3 devri: F8 envanterinin 36 ucu (/finans/*, /cezalar/*, /depozito/*, /gelen-efatura/*, /giderler/*,
+        // /kurlar/*, /donem-kapanis/*, /satislar/create) da sayılmaz; SPA karşılıkları /api/ui/v1 finans uçları
+        // (F8.1 izin testleri) ve ekranlardaki izin kapılı düğmeler (#299, #300).
+        var f8 = KesisteSilinecekUclar(kok, "F8");
+        Assert.Equal(36, f8.Count);
+        Assert.Contains("/finans/tahsilat/ters", f8);
+        silinecek.UnionWith(f8);
 
         var kalici = DarUclar(kok).Where(u => !silinecek.Contains(u.Rota)).ToList();
         // Taban F6.4'te 10 → 8: F6'nın dar uçları (kredi/müşteri taksit) artık silinecek kümede; bugün 9 kalıcı dar uç
         // var. Üç dar-izin türünün her biri aşağıda ayrıca aranır, bu yüzden taban yalnız kaba bir çittir.
-        Assert.True(kalici.Count >= 8, $"Beklenenden az dar uç bulundu ({kalici.Count}) — tarama bozulmuş olabilir.");
+        // F8.3'te 8 → 5: F8'in dar uçları (fatura iade, tahsilat ters — FinanceReverse; ceza iptal …) artık silinecek
+        // kümede (SPA karşılıklarında düğmeler dar izinle gizli, #300). Bugün 5 kalıcı dar uç var.
+        Assert.True(kalici.Count >= 5, $"Beklenenden az dar uç bulundu ({kalici.Count}) — tarama bozulmuş olabilir.");
         Assert.Contains(kalici, u => u.Etkin == Permission.OperationsDelete && u.Grup == Permission.OperationsWrite);
         Assert.Contains(kalici, u => u.Etkin == Permission.FinanceWrite && u.Grup == Permission.OperationsWrite);
-        Assert.Contains(kalici, u => u.Etkin == Permission.FinanceReverse);
+        // F8.3: kalıcı FinanceReverse ucu kalmadı (hepsi F8 envanterinde: /finans/fatura-iade, /finans/tahsilat/ters).
+        // Taramanın bu türü hâlâ tanıdığı, uçlar yaşadıkça TÜM dar uçlarda aranır; SPA karşılığı iade/ters düğmelerinin
+        // FinanceReverse kapısı (#299, #300). F8 Blazor POST silme PR'ı bu satırı kaldırır.
+        Assert.Contains(DarUclar(kok), u => u.Etkin == Permission.FinanceReverse && f8.Contains(u.Rota));
     }
 
     [Fact]
