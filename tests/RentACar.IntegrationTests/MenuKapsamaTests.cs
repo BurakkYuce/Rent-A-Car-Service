@@ -35,7 +35,10 @@ public sealed class MenuKapsamaTests
     {
         var kok = RepoKok();
         var sayfalar = Path.Combine(kok, "src/RentACar.Web/Components/Pages");
-        var menu = MenuKaydi.Ogeler.Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        // F10.3: rapor öğeleri spa (/app/raporlar/…); Blazor sayfası menüdeki SPA öğesinin Blazor karşılığıyla eşlenir.
+        var menu = MenuKaydi.Ogeler
+            .SelectMany(o => new[] { o.Rota, RentACar.Web.Spa.IlkKesis.BlazorKarsiligi(o.Rota) })
+            .OfType<string>().ToHashSet(StringComparer.Ordinal);
 
         var eksik = new List<string>();
         foreach (var dosya in Directory.EnumerateFiles(sayfalar, "*.razor", SearchOption.AllDirectories))
@@ -52,5 +55,20 @@ public sealed class MenuKapsamaTests
         Assert.True(eksik.Count == 0,
             "Bu rapor sayfaları yazılmış ama menü kaydında (MenuKaydi) yok — kullanıcı ulaşamaz:\n  "
             + string.Join("\n  ", eksik));
+    }
+
+    /// <summary>
+    /// F10.3: SPA'nın rapor rota tablosundaki (<c>reports.routes.ts</c>) her kimliksiz rapor menüde spa öğesi olarak
+    /// var — Blazor sayfaları silindiğinde (pilot sonrası) yukarıdaki çit boşa düşse de kapsama korunur.
+    /// </summary>
+    [Fact]
+    public void SPA_rapor_rotalarinin_TAMAMI_menude()
+    {
+        var tablo = File.ReadAllText(Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features/reports/reports.routes.ts"));
+        var kodlar = Regex.Matches(tablo, @"^\s*\['(?<kod>[a-z-]+)',", RegexOptions.Multiline)
+            .Select(m => m.Groups["kod"].Value).Where(k => k != "arac-karne").ToList();
+        Assert.Equal(25, kodlar.Count);
+        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        Assert.All(kodlar, k => Assert.Contains("/app/raporlar/" + k, menu));
     }
 }

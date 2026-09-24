@@ -23,7 +23,7 @@
 
   <div class="alt-baslik">
     <h2>{{ 'panel.finans.filoBaslik' | transloco }}</h2>
-    <a href="/raporlar/filo-analiz">{{ 'panel.finans.filoAnaliz' | transloco }}</a>
+    <a routerLink="/raporlar/filo-analiz">{{ 'panel.finans.filoAnaliz' | transloco }}</a>
   </div>
   <div class="stat-satiri">
     <div class="stat">
@@ -62,7 +62,7 @@
     <figure class="trend">
       <figcaption class="alt-baslik">
         <span class="trend__baslik">{{ 'panel.finans.trendBaslik' | transloco }}</span>
-        <a href="/raporlar/finans-analiz">{{ 'panel.finans.finansAnaliz' | transloco }}</a>
+        <a routerLink="/raporlar/finans-analiz">{{ 'panel.finans.finansAnaliz' | transloco }}</a>
       </figcaption>
       <!-- Tek seri, tek eksen; değer her çubukta odak/üzerine gelince ve tabloda (ekran okuyucu). -->
       <div class="trend__cubuklar" aria-hidden="true">
