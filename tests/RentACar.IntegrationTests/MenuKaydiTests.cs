@@ -126,16 +126,18 @@ public sealed class MenuKaydiTests
         // F6.4: Araçlar grubunun tamamı (12) + Tanımlar'daki Araç Tipleri ve Segmentler (F6 sayfaları; iki grupta birer kez).
         // F7.3: Cariler & CRM grubunun F7 sayfaları (6; Blog ve Gelen Talepler Blazor'da kalır).
         // F10.3: Raporlar grubunun tamamı (25; araç karnesi kimlikli olduğu için menüde yok).
+        // F9.3: Servis & Sigorta (3) + Fiyat & Tarife (11) gruplarının tamamı + grupsuz Vade Panosu (15).
         // F8.3: Finans grubunun tamamı (17; cari ekstresi ve fatura yazdır kimlikli olduğu için menüde yok).
         Assert.Equal(new[]
             {
                 "/app/anketler", "/app/arac-durum", "/app/arac-kredi", "/app/arac-sahipleri", "/app/arac-siparis", "/app/arac-tipleri",
-                "/app/arac-tipleri", "/app/araclar", "/app/araclar/detayli", "/app/assistans", "/app/baf", "/app/cari-virman",
-                "/app/cariler", "/app/cezalar", "/app/crm", "/app/depozito", "/app/donem-kapanis", "/app/faturalar",
-                "/app/faturalar/detay-listesi", "/app/filo-kiralama", "/app/filo-plan", "/app/finans/bakiye-duzeltme",
-                "/app/finans/nakit-islem", "/app/gelen-efatura", "/app/giderler", "/app/hasar", "/app/hukuk", "/app/kasa",
-                "/app/kiralar", "/app/kiralar/yeni", "/app/kurlar", "/app/musaitlik", "/app/musaitlik", "/app/musteri-taksit",
-                "/app/otomatik-tahsilat", "/app/panel",
+                "/app/arac-tipleri", "/app/araclar", "/app/araclar/detayli", "/app/assistans", "/app/baf", "/app/broker-yasaklari",
+                "/app/cari-virman", "/app/cariler", "/app/cezalar", "/app/crm", "/app/depozito", "/app/donem-kapanis",
+                "/app/ek-hizmetler", "/app/faturalar", "/app/faturalar/detay-listesi", "/app/filo-kiralama", "/app/filo-plan",
+                "/app/finans/bakiye-duzeltme", "/app/finans/nakit-islem", "/app/fiyat-hesapla", "/app/gelen-efatura",
+                "/app/giderler", "/app/hasar", "/app/hukuk", "/app/kasa", "/app/kira-kurallari", "/app/kiralar",
+                "/app/kiralar/yeni", "/app/kurlar", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/app/musaitlik",
+                "/app/musaitlik", "/app/musteri-taksit", "/app/otomatik-tahsilat", "/app/panel",
                 "/app/raporlar/arac-durum-takip", "/app/raporlar/arac-gunluk-durum", "/app/raporlar/cari-bakiye",
                 "/app/raporlar/doluluk", "/app/raporlar/ek-hizmet", "/app/raporlar/extre-ozeti", "/app/raporlar/fatura-donem",
                 "/app/raporlar/filo", "/app/raporlar/filo-analiz", "/app/raporlar/finans-analiz", "/app/raporlar/gelir-gider",
@@ -143,10 +145,11 @@ public sealed class MenuKaydiTests
                 "/app/raporlar/kasa-banka", "/app/raporlar/kdv-listesi", "/app/raporlar/km-detay",
                 "/app/raporlar/otomatik-servisler", "/app/raporlar/periyodik-servis", "/app/raporlar/personel-calisma",
                 "/app/raporlar/rezervasyon-kaynak", "/app/raporlar/servis-ozet", "/app/raporlar/sigorta-muayene",
-                "/app/raporlar/tahsilat-fatura", "/app/raporlar/virman-gecmisi",
+                "/app/raporlar/tahsilat-fatura", "/app/raporlar/virman-gecmisi", "/app/regulasyon",
                 "/app/rez-sartlari", "/app/rezervasyonlar", "/app/rezervasyonlar", "/app/satislar", "/app/segmentler",
-                "/app/segmentler", "/app/sikayetler", "/app/takvim", "/app/tek-cari-toplu", "/app/teklifler",
-                "/app/toplu-gider", "/app/toplu-tahsilat",
+                "/app/segmentler", "/app/servis-tanimlari", "/app/servisler", "/app/sigorta-urunleri", "/app/sikayetler",
+                "/app/takvim", "/app/tarife-aktar", "/app/tarife-gruplari", "/app/tarife-matris", "/app/tarifeler",
+                "/app/tek-cari-toplu", "/app/teklifler", "/app/toplu-gider", "/app/toplu-tahsilat", "/app/vade",
             },
             ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).OrderBy(r => r, StringComparer.Ordinal));
         Assert.All(ogeler, o => Assert.Equal(o.Rota.StartsWith("/app/", StringComparison.Ordinal) ? MenuKaydi.Spa : MenuKaydi.Blazor, o.Sahip));
@@ -275,7 +278,12 @@ public sealed class MenuKaydiTests
         Assert.Contains("Finans|/faturalar", ek);
         Assert.DoesNotContain(YeniGorunur(Kullanici(UserRole.Muhasebe, yasak: ["FinanceWrite"])),
             x => x.StartsWith("Finans|", StringComparison.Ordinal));
+        // F9.3: Servis & Sigorta ve Fiyat & Tarife spa öğeleri de izne bağlı; maliyet ekranları FinanceWrite ister.
+        Assert.DoesNotContain(yasak, x => x.StartsWith("Servis & Sigorta|", StringComparison.Ordinal));
+        Assert.DoesNotContain("Fiyat & Tarife|/tarifeler", yasak);
+        Assert.Contains("Fiyat & Tarife|/maliyet-hesapla", ek);
+        Assert.DoesNotContain("Fiyat & Tarife|/tarife-aktar", ek);   // ManageUsers
         Assert.Contains("|/", yasak);                // Panel ve grupsuz öğeler kalır
-        Assert.Contains("|/vade", yasak);
+        Assert.Contains("|/vade", yasak);            // F9.3: Vade Panosu spa öğesi grupsuz, izinsiz kalır
     }
 }

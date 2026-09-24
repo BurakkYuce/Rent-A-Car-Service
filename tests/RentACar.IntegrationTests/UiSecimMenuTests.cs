@@ -365,7 +365,7 @@ public sealed class UiSecimMenuTests(WebFixture fx)
 
         var (admin, adminGovde) = await MenuAsync(await GirisAsync(o, Kim.Admin));
         // F4.6: Panel, Kiralar, Yeni Kira yeni arayüzün (sahip spa, rota /app/…).
-        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/araclar", "/app/araclar/detayli", "/app/cariler", "/app/crm", "/app/hukuk", "/app/kasa", "/app/faturalar", "/app/raporlar/karlilik", "/app/raporlar/personel-calisma", "/tarife-aktar", "/ayarlar", "/vade", "/bildirimler" })
+        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/araclar", "/app/araclar/detayli", "/app/cariler", "/app/crm", "/app/hukuk", "/app/kasa", "/app/faturalar", "/app/raporlar/karlilik", "/app/raporlar/personel-calisma", "/app/tarife-aktar", "/app/servisler", "/app/regulasyon", "/app/maliyet-teklifleri", "/ayarlar", "/app/vade", "/bildirimler" })
             Assert.Contains(r, admin);
         Assert.DoesNotContain("/web-sitesi", admin);   // modül kapalı
         Assert.DoesNotContain("/site-icerik", admin);
@@ -374,13 +374,17 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         Assert.All(ogeler, e => Assert.Equal(
             e.GetProperty("rota").GetString()!.StartsWith("/app/", StringComparison.Ordinal) ? "spa" : "blazor",
             e.GetProperty("sahip").GetString()));
-        // F4.6: 3, F5.4: +8, F6.4: +14 (Araçlar 12 + Tanımlar 2), F7.3: +6 (Cariler & CRM), F10.3: +25 (Raporlar),
+        // F4.6: 3, F5.4: +8, F6.4: +14 (Araçlar 12 + Tanımlar 2), F7.3: +6 (Cariler & CRM), F10.3: +25 (Raporlar), F9.3: +15 (Servis & Sigorta 3, Fiyat & Tarife 11, Vade Panosu),
         // F8.3: +17 (Finans)
-        Assert.Equal(73, ogeler.Count(e => e.GetProperty("sahip").GetString() == "spa"));
+        Assert.Equal(88, ogeler.Count(e => e.GetProperty("sahip").GetString() == "spa"));
         Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/cariler" or "/crm" or "/anketler" or "/sikayetler" or "/assistans" or "/hukuk");
         Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/kasa" or "/faturalar" or "/kurlar" or "/cezalar" or "/giderler" or "/satislar" or "/donem-kapanis");
         Assert.Equal(17, ogeler.Count(e => e.GetProperty("grup").GetString() == "Finans" && e.GetProperty("sahip").GetString() == "spa"));
         Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString()!.StartsWith("/raporlar/", StringComparison.Ordinal));
+        Assert.DoesNotContain(ogeler, e => e.GetProperty("rota").GetString() is "/servisler" or "/servis-tanimlari" or "/regulasyon"
+            or "/vade" or "/tarifeler" or "/tarife-matris" or "/tarife-gruplari" or "/tarife-aktar" or "/sigorta-urunleri"
+            or "/kira-kurallari" or "/broker-yasaklari" or "/fiyat-hesapla" or "/maliyet-hesapla" or "/maliyet-teklifleri"
+            or "/ek-hizmetler"); // F9.3
         Assert.Equal(3, ogeler.Count(e => e.GetProperty("hizliBaglanti").GetBoolean()));
         var siralar = ogeler.Select(e => e.GetProperty("sira").GetInt32()).ToList();
         Assert.Equal(siralar.Order(), siralar);         // sıralı döner
@@ -390,15 +394,15 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         Assert.False(adminGovde.GetProperty("rozetler").TryGetProperty("yeni-talep", out _)); // modül kapalı → sorulmaz
 
         var (op, _) = await MenuAsync(await GirisAsync(o, Kim.OperatorA));
-        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/rezervasyonlar", "/app/musaitlik", "/app/takvim", "/app/araclar", "/app/arac-durum", "/app/baf", "/app/segmentler", "/app/kiralar", "/app/cariler", "/app/sikayetler", "/vade", "/dokumanlar" })
+        foreach (var r in new[] { "/app/panel", "/app/kiralar/yeni", "/app/rezervasyonlar", "/app/musaitlik", "/app/takvim", "/app/araclar", "/app/arac-durum", "/app/baf", "/app/segmentler", "/app/kiralar", "/app/cariler", "/app/sikayetler", "/app/vade", "/app/servisler", "/app/tarifeler", "/app/fiyat-hesapla", "/dokumanlar" })
             Assert.Contains(r, op);
-        foreach (var r in new[] { "/app/araclar/detayli", "/app/musteri-taksit", "/vehicles", "/app/crm", "/crm", "/maliyet-hesapla", "/tarife-aktar", "/kasa", "/kurlar", "/app/kasa", "/app/kurlar", "/app/cezalar", "/app/raporlar/gunluk", "/app/raporlar/personel-calisma", "/ayarlar", "/subeler" })
+        foreach (var r in new[] { "/app/araclar/detayli", "/app/musteri-taksit", "/vehicles", "/app/crm", "/crm", "/maliyet-hesapla", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/tarife-aktar", "/app/tarife-aktar", "/vade", "/servisler", "/kasa", "/kurlar", "/app/kasa", "/app/kurlar", "/app/cezalar", "/app/raporlar/gunluk", "/app/raporlar/personel-calisma", "/ayarlar", "/subeler" })
             Assert.DoesNotContain(r, op);
 
         var (muh, _) = await MenuAsync(await GirisAsync(o, Kim.Muhasebe));
-        foreach (var r in new[] { "/app/panel", "/app/kasa", "/app/faturalar", "/app/donem-kapanis", "/app/raporlar/gunluk", "/app/raporlar/kasa-banka", "/app/araclar/detayli", "/app/crm", "/maliyet-hesapla", "/app/musteri-taksit", "/vade" })
+        foreach (var r in new[] { "/app/panel", "/app/kasa", "/app/faturalar", "/app/donem-kapanis", "/app/raporlar/gunluk", "/app/raporlar/kasa-banka", "/app/araclar/detayli", "/app/crm", "/app/maliyet-hesapla", "/app/maliyet-teklifleri", "/app/musteri-taksit", "/app/vade" })
             Assert.Contains(r, muh);
-        foreach (var r in new[] { "/app/kiralar/yeni", "/app/kiralar", "/app/araclar", "/vehicles", "/raporlar/gunluk", "/app/cariler", "/cariler", "/tarife-aktar", "/ayarlar", "/kasa", "/faturalar" })
+        foreach (var r in new[] { "/app/kiralar/yeni", "/app/kiralar", "/app/araclar", "/vehicles", "/raporlar/gunluk", "/app/cariler", "/cariler", "/tarife-aktar", "/app/tarife-aktar", "/app/tarifeler", "/app/servisler", "/ayarlar", "/kasa", "/faturalar" })
             Assert.DoesNotContain(r, muh);
     }
 
@@ -415,7 +419,7 @@ public sealed class UiSecimMenuTests(WebFixture fx)
 
         var (yasakli, _) = await MenuAsync(await GirisAsync(o, Kim.AdminYasakli)); // Admin − ManageUsers
         Assert.DoesNotContain("/ayarlar", yasakli);
-        Assert.DoesNotContain("/tarife-aktar", yasakli);
+        Assert.DoesNotContain("/app/tarife-aktar", yasakli);
         Assert.Contains("/app/kasa", yasakli);         // F8.3: Finans spa
 
         var (admin, govde) = await MenuAsync(await GirisAsync(o, Kim.Admin));

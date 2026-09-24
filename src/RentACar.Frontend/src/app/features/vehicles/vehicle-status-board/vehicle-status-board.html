@@ -164,7 +164,7 @@
         @if (satir.serviste) {
           <span class="aciklama">{{ 'arac.durumlar.Serviste' | transloco }}</span>
         } @else {
-          <a href="/servisler" [attr.title]="'arac.durum.servisIpucu' | transloco">
+          <a routerLink="/servisler" [attr.title]="'arac.durum.servisIpucu' | transloco">
             {{ 'arac.durum.servis' | transloco }}
           </a>
         }

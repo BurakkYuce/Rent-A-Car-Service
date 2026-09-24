@@ -4,10 +4,10 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Spa;
 
 /// <summary>
-/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F7.3 cari/CRM, F10.3 rapor, F8.3 finans kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
+/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F7.3 cari/CRM, F10.3 rapor, F9.3 servis/sigorta/fiyat, F8.3 finans kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
 /// middleware test edilemez; karar burada, birim testiyle kilitli). Uygulayan: <see cref="IlkKesisMiddleware"/>.
 ///
-/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6, F7, F10, F8) envanterinde
+/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6, F7, F10, F9, F8) envanterinde
 /// silinecek Blazor <c>@page</c> ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
 /// (<c>/kiralar/{id}/pdf</c>, <c>/kiralar/hesapla</c>, <c>/kiralar/donus-hesapla</c>, <c>/kiralar/musait-arac</c>,
 /// <c>/kiralar/ornek-sozlesme/pdf</c>, export, makbuz…) YÖNLENMEZ: bir şablonla segment segment birebir
@@ -67,6 +67,12 @@ public static class IlkKesis
     /// karnesi <c>/raporlar/arac-karne/{id}</c>). Rapor export'ları (<c>/raporlar/export/{rapor}</c>) segment farkıyla
     /// dışarıda; personel çalışma Blazor POST'ları (<c>/raporlar/personel-calisma/create|update|delete</c>) yöntem
     /// farkıyla dışarıda.</item>
+    /// <item><b>F9</b> (F9.3): 15 servis / sigorta / vade / fiyat-tarife sayfası, hepsi AYNI adla <c>/app</c> altına
+    /// (tek <c>@page</c>'li liste sayfaları). Blazor <c>/regulasyon</c> tek sayfasının MTV ve muayene bölümleri SPA'da
+    /// ayrı rotadır (<c>/app/regulasyon/mtv</c>, <c>/app/regulasyon/muayene</c>); Blazor karşılıkları yok, haritaya
+    /// girmez — Blazor <c>POST /regulasyon/mtv|muayene|sigorta|zeyil</c> yöntem farkıyla zaten dışarıda. SPA'nın kayıt
+    /// rotaları (<c>/servisler/{id}</c>, <c>/maliyet-teklifleri/{id}</c>, <c>/regulasyon/sigortalar/{id}</c> …) Blazor'da
+    /// yoktu. Vade export'u (<c>/listeler/export/vade</c>) ve Blazor POST'ları segment/yöntem farkıyla dışarıda.</item>
     /// <item><b>F8</b> (F8.3): 18 finans sayfası, hepsi AYNI adla <c>/app</c> altına (kasa, nakit işlem, bakiye düzeltme,
     /// cari virman, depozito, toplu işlemler, otomatik tahsilat, dönem kapanışı, kurlar, faturalar + detay listesi +
     /// yazdır, cezalar, giderler, gelen e-fatura, satışlar) ve cari ekstresi <c>/cariler/{id}/ekstre</c> (SPA'da
@@ -141,6 +147,22 @@ public static class IlkKesis
         new("/raporlar/sigorta-muayene", SpaBarindirma.Onek + "/raporlar/sigorta-muayene"),
         new("/raporlar/tahsilat-fatura", SpaBarindirma.Onek + "/raporlar/tahsilat-fatura"),
         new("/raporlar/virman-gecmisi", SpaBarindirma.Onek + "/raporlar/virman-gecmisi"),
+        // F9
+        new("/servisler", SpaBarindirma.Onek + "/servisler"),
+        new("/regulasyon", SpaBarindirma.Onek + "/regulasyon"),
+        new("/vade", SpaBarindirma.Onek + "/vade"),
+        new("/servis-tanimlari", SpaBarindirma.Onek + "/servis-tanimlari"),
+        new("/tarifeler", SpaBarindirma.Onek + "/tarifeler"),
+        new("/tarife-matris", SpaBarindirma.Onek + "/tarife-matris"),
+        new("/tarife-gruplari", SpaBarindirma.Onek + "/tarife-gruplari"),
+        new("/tarife-aktar", SpaBarindirma.Onek + "/tarife-aktar"),
+        new("/sigorta-urunleri", SpaBarindirma.Onek + "/sigorta-urunleri"),
+        new("/kira-kurallari", SpaBarindirma.Onek + "/kira-kurallari"),
+        new("/broker-yasaklari", SpaBarindirma.Onek + "/broker-yasaklari"),
+        new("/fiyat-hesapla", SpaBarindirma.Onek + "/fiyat-hesapla"),
+        new("/maliyet-hesapla", SpaBarindirma.Onek + "/maliyet-hesapla"),
+        new("/maliyet-teklifleri", SpaBarindirma.Onek + "/maliyet-teklifleri"),
+        new("/ek-hizmetler", SpaBarindirma.Onek + "/ek-hizmetler"),
         // F8
         new("/kasa", SpaBarindirma.Onek + "/kasa"),
         new("/finans/nakit-islem", SpaBarindirma.Onek + "/finans/nakit-islem"),
