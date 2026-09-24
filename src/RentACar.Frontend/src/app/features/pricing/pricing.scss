@@ -1,0 +1,63 @@
+// F9.2 fiyat / tarife ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz tablo)
+// aynen kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
+@use '../vehicles/vehicles';
+
+.sonraki {
+  margin: 0;
+  font-weight: var(--rc-agirlik-kalin);
+  font-variant-numeric: tabular-nums;
+}
+
+fieldset.grup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  margin: 0;
+  padding: var(--rc-bosluk-3);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  min-width: 0;
+
+  > legend {
+    padding: 0 var(--rc-bosluk-1);
+    font-weight: var(--rc-agirlik-kalin);
+    font-size: var(--rc-yazi-sm);
+  }
+}
+
+.duzenleyici {
+  scroll-margin-top: var(--rc-bosluk-4);
+
+  > h2:focus {
+    outline: none;
+  }
+}
+
+details.bolum > summary {
+  cursor: pointer;
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.oneri {
+  padding-block: var(--rc-bosluk-2);
+  border-bottom: 1px solid var(--rc-kenar);
+}
+
+.oneri__etiket {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-0-5);
+  min-width: 12rem;
+  font-weight: var(--rc-agirlik-kalin);
+  overflow-wrap: anywhere;
+}
+
+.alt-baslik {
+  margin: 0;
+  font-size: var(--rc-yazi-md);
+}
+
+.kalem-tablosu td.num,
+.kalem-tablosu th.num {
+  text-align: end;
+}

@@ -1,0 +1,190 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'fiyatTarife.fiyatHesapla.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">{{ 'fiyatTarife.fiyatHesapla.aciklama' | transloco }}</p>
+
+  <section class="bolum" aria-labelledby="rc-fiyat-girdi">
+    <h2 id="rc-fiyat-girdi">{{ 'fiyatTarife.fiyatHesapla.girdi' | transloco }}</h2>
+    <form class="form" [formGroup]="form" (ngSubmit)="calculate()">
+      <div class="rc-form-izgara">
+        <rc-alan [etiket]="'fiyatTarife.alan.aracGrupKod' | transloco">
+          <rc-metin-girdisi formControlName="aracGrupKod" [azamiUzunluk]="32" liste="dl-fh-grup" />
+        </rc-alan>
+        <rc-alan [etiket]="'fiyatTarife.alan.kanal' | transloco">
+          <rc-metin-girdisi formControlName="kanal" [azamiUzunluk]="64" liste="dl-fh-kanal" />
+        </rc-alan>
+        <rc-alan [etiket]="'fiyatTarife.alan.sube' | transloco">
+          <rc-metin-girdisi formControlName="sube" [azamiUzunluk]="64" liste="dl-fh-sube" />
+        </rc-alan>
+        <rc-alan [etiket]="'fiyatTarife.fiyatHesapla.baslangic' | transloco">
+          <rc-tarih-saat-secici formControlName="basTar" />
+        </rc-alan>
+        <rc-alan [etiket]="'fiyatTarife.fiyatHesapla.bitis' | transloco">
+          <rc-tarih-saat-secici formControlName="bitTar" />
+        </rc-alan>
+        <rc-alan [etiket]="'fiyatTarife.fiyatHesapla.surucuYas' | transloco">
+          <rc-sayi-girdisi formControlName="surucuYas" />
+        </rc-alan>
+        <rc-alan [etiket]="'fiyatTarife.fiyatHesapla.tahminiKm' | transloco">
+          <rc-sayi-girdisi formControlName="tahminiKm" />
+        </rc-alan>
+        <rc-alan
+          [etiket]="'fiyatTarife.fiyatHesapla.sigortaKodlari' | transloco"
+          [ipucu]="
+            productCodes()
+              ? ('fiyatTarife.fiyatHesapla.tanimliUrunler' | transloco: { kodlar: productCodes() })
+              : ('fiyatTarife.fiyatHesapla.kodIpucu' | transloco)
+          "
+        >
+          <rc-metin-girdisi formControlName="sigortaUrunKodlari" yerTutucu="SCDW, IMM" />
+        </rc-alan>
+        <rc-alan [etiket]="'fiyatTarife.alan.musteriSegment' | transloco">
+          <rc-metin-girdisi formControlName="musteriSegment" [azamiUzunluk]="64" />
+        </rc-alan>
+        <rc-alan [etiket]="'fiyatTarife.alan.kampanyaKodu' | transloco">
+          <rc-metin-girdisi formControlName="kampanyaKodu" [azamiUzunluk]="64" />
+        </rc-alan>
+      </div>
+      <datalist id="dl-fh-grup">
+        @for (g of groups(); track g.id) {
+          <option [value]="g.kod ?? g.etiket">{{ g.etiket }}</option>
+        }
+      </datalist>
+      <datalist id="dl-fh-kanal">
+        @for (g of channels(); track g.id) {
+          <option [value]="g.etiket"></option>
+        }
+      </datalist>
+      <datalist id="dl-fh-sube">
+        @for (g of branches(); track g.id) {
+          <option [value]="g.etiket"></option>
+        }
+      </datalist>
+      <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+      <div class="form__eylemler">
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="submission.gonderiliyor()"
+        >
+          {{
+            submission.gonderiliyor()
+              ? ('form.gonderiliyor' | transloco)
+              : ('fiyatTarife.fiyatHesapla.hesapla' | transloco)
+          }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  @if (result(); as r) {
+    <section class="bolum" aria-labelledby="rc-fiyat-sonuc" aria-live="polite">
+      <h2 id="rc-fiyat-sonuc">
+        {{ 'fiyatTarife.fiyatHesapla.sonuc' | transloco: { tarife: r.tarifeKodu ?? '—' } }}
+      </h2>
+      <div class="tablo-kap">
+        <table class="duz-tablo">
+          <tbody>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.gun' | transloco }}</th>
+              <td class="num">{{ r.gun }}</td>
+            </tr>
+            @if (num(r.hediyeGun)) {
+              <tr>
+                <th scope="row">{{ 'fiyatTarife.fiyatHesapla.hediyeGun' | transloco }}</th>
+                <td class="num">{{ r.hediyeGun }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ 'fiyatTarife.fiyatHesapla.faturalananGun' | transloco }}</th>
+                <td class="num">{{ r.faturalananGun }}</td>
+              </tr>
+            }
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.gunlukUcret' | transloco }}</th>
+              <td class="num">{{ num(r.gunlukUcret) | para: r.paraBirimi }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.bazTutar' | transloco }}</th>
+              <td class="num">{{ num(r.bazTutar) | para: r.paraBirimi }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.haftaSonuFark' | transloco }}</th>
+              <td class="num">{{ num(r.haftaSonuFark) | para: r.paraBirimi }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.kmAsim' | transloco }}</th>
+              <td class="num">{{ num(r.kmAsimTutar) | para: r.paraBirimi }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.sigortaToplam' | transloco }}</th>
+              <td class="num">{{ num(r.sigortaToplam) | para: r.paraBirimi }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.araToplam' | transloco }}</th>
+              <td class="num">{{ num(r.araToplam) | para: r.paraBirimi }}</td>
+            </tr>
+            <tr>
+              <th scope="row">
+                {{
+                  'fiyatTarife.fiyatHesapla.iskonto'
+                    | transloco: { oran: (num(r.iskontoOran) | sayi) }
+                }}
+              </th>
+              <td class="num">−{{ num(r.iskontoTutar) | para: r.paraBirimi }}</td>
+            </tr>
+            <tr class="toplam-satiri">
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.genelToplam' | transloco }}</th>
+              <td class="num">{{ num(r.genelToplam) | para: r.paraBirimi }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.provizyon' | transloco }}</th>
+              <td class="num">{{ num(r.provizyon) | para: r.paraBirimi }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{{ 'fiyatTarife.fiyatHesapla.muafiyet' | transloco }}</th>
+              <td class="num">{{ num(r.muafiyet) | para: r.paraBirimi }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      @if (r.gencSurucu) {
+        <p class="aciklama">{{ 'fiyatTarife.fiyatHesapla.gencSurucu' | transloco }}</p>
+      }
+      @if (r.sigortaKalemleri.length > 0) {
+        <h3 class="alt-baslik">{{ 'fiyatTarife.fiyatHesapla.sigortaKalemleri' | transloco }}</h3>
+        <div class="tablo-kap">
+          <table class="duz-tablo">
+            <thead>
+              <tr>
+                <th scope="col">{{ 'fiyatTarife.alan.kod' | transloco }}</th>
+                <th scope="col">{{ 'fiyatTarife.alan.ad' | transloco }}</th>
+                <th scope="col" class="num">{{ 'fiyatTarife.fiyatHesapla.birim' | transloco }}</th>
+                <th scope="col" class="num">{{ 'fiyatTarife.fiyatHesapla.gun' | transloco }}</th>
+                <th scope="col" class="num">{{ 'fiyatTarife.fiyatHesapla.tutar' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (k of r.sigortaKalemleri; track k.kod) {
+                <tr>
+                  <td>{{ k.kod }}</td>
+                  <td>{{ k.ad }}</td>
+                  <td class="num">{{ num(k.birimUcret) | para: r.paraBirimi }}</td>
+                  <td class="num">{{ k.gun }}</td>
+                  <td class="num">{{ num(k.tutar) | para: r.paraBirimi }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      @if (r.notlar.length > 0) {
+        <ul class="aciklama">
+          @for (n of r.notlar; track $index) {
+            <li>{{ n }}</li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</div>
