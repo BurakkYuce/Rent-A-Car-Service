@@ -11,7 +11,8 @@ namespace RentACar.Application.RentalRules;
 /// Okuma (<see cref="ListActiveAsync"/>) yetkisiz (fiyat motoru/form çağırır). Tenant izolasyonu/audit
 /// alt katmanda otomatik. Saf kural-tanım — deftere kayıt postlamaz.
 /// </summary>
-public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrentUser currentUser)
+public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrentUser currentUser,
+    IRowVersionStore? rowVersions = null)
 {
     private readonly IRentalRuleRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -94,6 +95,26 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
             Apply(row, n);
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+    }
+
+    /// <summary>F9.1 — opaque row version for the full-replacement PUT of <c>/api/ui</c>.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<RentalRule>(id, ct);
+
+    /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/> under a row lock with a version check.</summary>
+    public async Task<bool> UpdateVersionedAsync(Guid id, RentalRuleInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var n = Normalize(input);
+        Validate(n);
+        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+            throw new ValidationException($"'{n.Kod}' kodlu kiralama kuralı zaten var.");
+        await KampanyaKoduBenzersizAsync(n.KampanyaKodu, excludeId: id, ct);
+        return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<RentalRule>(id, expectedVersion, row =>
+        {
+            Apply(row, n);
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, $"'{n.Kod}' kodlu kiralama kuralı zaten var.", ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

@@ -40,6 +40,17 @@ public sealed class AuditMaskTests
         Assert.Equal("{ düz metin", root.GetProperty("Not").GetString());
     }
 
+    [Fact]
+    public void Vkn_and_tckn_keys_are_masked_but_bare_tc_prefix_is_not()
+    {
+        // 4. tur: GelenEFatura.GonderenVkn şahıs firmasında TCKN taşır. "Tc" tek başına maskelenmez (çok geniş).
+        const string json = """{"GonderenVkn":"12345678901","AliciTckn":"10987654321","Tcsayac":5}""";
+        var masked = SystemAdminApi.MaskSecrets(json)!;
+        Assert.DoesNotContain("12345678901", masked, StringComparison.Ordinal);
+        Assert.DoesNotContain("10987654321", masked, StringComparison.Ordinal);
+        Assert.Equal(5, JsonDocument.Parse(masked).RootElement.GetProperty("Tcsayac").GetInt32());
+    }
+
     [Theory]
     [InlineData("[1,2]")]
     [InlineData("bozuk{")]

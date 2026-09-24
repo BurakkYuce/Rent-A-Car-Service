@@ -204,6 +204,8 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.GelenEFaturalar.IGelenEFaturaRepository, GelenEFaturaRepository>();
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
         services.AddScoped<IRegulationRepository, RegulationRepository>();
+        // F9.1: generic row-version store for /api/ui full-replacement PUTs (servis/sigorta/fiyat tanımları).
+        services.AddScoped<RentACar.Application.Common.IRowVersionStore, RowVersionStore>();
         services.AddScoped<IPenaltyRepository, PenaltyRepository>();
         services.AddScoped<IPenaltyTypeRepository, PenaltyTypeRepository>();
         services.AddScoped<ILedgerPoster, LedgerPoster>();

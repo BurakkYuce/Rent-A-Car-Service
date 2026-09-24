@@ -39,6 +39,36 @@ public sealed partial class UiSystemSecurityTests
         Assert.Equal(System.Text.Json.JsonValueKind.Null, after.GetProperty("dogrulamaDegeri").ValueKind);
     }
 
+    // 4. tur: etkinleştirme başarısızsa (arada başka kiracı doğruladı) uç 200 değil 400 döner ve kayıt beklemede kalır.
+    [Fact]
+    public async Task Verify_returns_400_when_activation_does_not_happen()
+    {
+        var e = await _kit.SetupAsync();
+        var admin = await _kit.LoginAsync(e, Who.Admin);
+        var host = "www." + Random("rc") + ".com";
+        var added = await Json(await Send(admin, HttpMethod.Post, V1 + "/ayarlar/domainler", new { host }));
+        var token = added.GetProperty("domainler").EnumerateArray().Single(d => d.GetProperty("host").GetString() == host)
+            .GetProperty("dogrulamaDegeri").GetString()!;
+        FakeDnsTxtResolver.Instance.Publish("_racar-verify." + host, token);
+
+        // Başka bir kiracının aynı host için Active satırı (arada doğrulanmış gibi).
+        var other = await _kit.SetupAsync(pilot: false);
+        await using (var owner = OwnerDb())
+        {
+            owner.TenantDomains.Add(new TenantDomain
+            {
+                TenantId = other.TenantId, Host = host, Kind = TenantDomainKind.Custom, Status = TenantDomainStatus.Active,
+            });
+            await owner.SaveChangesAsync();
+        }
+
+        await Problem(await Send(admin, HttpMethod.Post, V1 + "/ayarlar/domainler/dogrula", new { host }),
+            HttpStatusCode.BadRequest, "dogrulama", "host");
+        await using (var owner = OwnerDb())
+            Assert.Equal(TenantDomainStatus.PendingVerification, await owner.TenantDomains.AsNoTracking()
+                .Where(d => d.Host == host && d.TenantId == e.TenantId).Select(d => d.Status).SingleAsync());
+    }
+
     [Fact]
     public async Task Expired_pending_domain_cannot_be_verified()
     {

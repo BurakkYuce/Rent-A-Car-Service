@@ -98,7 +98,9 @@ public static partial class SystemAdminApi
         // F11.1b güvenlik M6 — DNS TXT sahiplik doğrulaması (ancak bundan sonra alan adı etkinleşir).
         g.MapPost("/domainler/dogrula", async Task<Ok<SettingsDto>> (DomainAddRequest i, HttpContext http, TenantSettingsService svc, CancellationToken ct) =>
         {
-            await svc.VerifyCustomDomainAsync(NormalizeCustomHost(i.Host), ct);
+            // Etkinleşmediyse (arada başka kiracı doğruladı / kayıt değişti) başarı DÖNMEZ.
+            if (!await svc.VerifyCustomDomainAsync(NormalizeCustomHost(i.Host), ct))
+                throw new ValidationException("Alan adı etkinleştirilemedi; alan adını yeniden ekleyip doğrulayın.", "host");
             return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
         }).AlanlariEsle(DomainRules).RequireRateLimiting(SendTestRatePolicy);
 

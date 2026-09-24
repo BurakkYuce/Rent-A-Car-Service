@@ -6,6 +6,10 @@ public sealed class ServiceLineInput
 {
     public string Aciklama { get; set; } = string.Empty;
 
+    /// <summary>F9.1 — optional line id derived from the <c>Idempotency-Key</c> header (second add with the same key
+    /// is a duplicate, ToplamIscilik does not grow twice). <c>null</c> → new id (Blazor path unchanged).</summary>
+    public Guid? Id { get; set; }
+
     /// <summary>
     /// KDV HARİÇ net satır tutarı. <c>null</c> + <see cref="BirimFiyat"/> dolu ise
     /// <c>ServisKalemHesap.Net</c> ile TÜRETİLİR. null (=verilmedi) ile 0 (=bedelsiz kalem)
@@ -69,6 +73,9 @@ public class ServiceRecordBilgiInput
 
 public sealed class ServiceRecordInput : ServiceRecordBilgiInput
 {
+    /// <summary>F9.1 — optional record id derived from the <c>Idempotency-Key</c> header. <c>null</c> → new id.</summary>
+    public Guid? Id { get; set; }
+
     public Guid VehicleId { get; set; }
     public ServisTipi Tip { get; set; } = ServisTipi.Periyodik;
     public DateTimeOffset? GirisTarihi { get; set; }

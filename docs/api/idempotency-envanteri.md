@@ -237,6 +237,22 @@ Kilit: `tests/RentACar.IntegrationTests/UiAracFinansTests*.cs`. Uç kodu: `Web/A
 TRY işlemde açık kur ≠ 1 uçta 400 (`errors.kur`); dövizde boş kur `KurCozucu` ile çözülür. Taksit ödemesinde hesap-döviz
 çiti artık uygulanıyor (`HesapCozucu.CozAsync(…, kredi.Currency)`).
 
+### `/api/ui/v1` servis / sigorta / fiyat uç eşlemesi (F9.1)
+
+Kilit: `tests/RentACar.IntegrationTests/UiServiceInsuranceTests*.cs`. Uç kodu: `Web/Api/ServiceInsurance/`.
+
+| Uç | Satır | Anahtar | İkinci gönderim |
+|---|---|---|---|
+| `POST regulasyon/mtv/{id}/odeme`, `POST regulasyon/muayeneler/{id}/odeme` | E27 / E28 | başlık ZORUNLU (Blazor'da yalnız kısmi ödemede) | Önce aynı anahtarla yazılmış ödeme aranır (MTV ve muayene tabloları) → 409 `mukerrer` + `mevcut{…, ayniIcerik}` (tutar — boşsa "kaydı kapattı mı" —, ceza, hesap türü, hesap, açık tarih); başka kaydın ödemesiyse `mevcut`suz 409. SONRA bayatlık: isteğe bağlı `beklenenKalan` kilit altında okunan kalanla farklıysa 409 `cakisma` (iki sekme "kalanın tamamı"nı iki kez ödemez) |
+| `POST regulasyon/sigortalar/{id}/odeme` | E29 | yok (yapısal: poliçe başına tek ödeme) | Ödenmiş poliçe → 409 `mukerrer` + `mevcut{id=poliçe, tutar=prim+zeyil, ayniIcerik}` (zeyil ek prim, hesap türü, hesap; defter izinden). Yarışı kaybeden kilit altında "zaten ödendi" görür → aynı 409. Poliçe satırı artık `FOR UPDATE` ile kilitlenir |
+| `POST servisler/{id}/yansit` | E30 | yok (yapısal: SourceId = servis) | Yansıtılmış kayıt → 409 `mukerrer` + `mevcut{tutar=yansıtılan, ayniIcerik=aynı cari}`. Kilit altında durum/işçilik/kusur yeniden denetlenir; tutar değiştiyse 409 `cakisma` |
+| `POST servisler/{id}/kalemler` | yeni (rücu tabanını büyütür) | başlık ZORUNLU → kalem **Id** | Kilit altında aynı Id aranır (durum çitinden önce) → 409 `mukerrer` (+ `mevcut` bu kaydın kalemiyse); `ToplamIscilik` iki kez artmaz |
+| `POST servisler`, `POST regulasyon/{sigortalar,mtv,muayeneler}`, `POST maliyet-teklifleri` | yeni (deftere yazmaz) | başlık isteğe bağlı → kayıt Id | başlıkla 409 `mukerrer` + `mevcut`; yarışta PK ihlali → 409; başlıksız bağımsız kayıt |
+| tanım PUT'ları (tarifeler, tarife matrisi, gruplar, ürünler, kurallar, broker, ek hizmet, servis tanımı), `PUT servisler/{id}/bilgi`, `PUT maliyet-teklifleri/{id}` | yapısal | yok | zorunlu `surum`; kilit altında karşılaştırma (`IRowVersionStore`) → 409 `cakisma` |
+
+Ödemelerde tutar en çok 2 ondalık, 0 ve negatif red; MTV/muayene yalnız TRY (hesap-döviz çiti TRY); sigortada TRY'de
+kur ≠ 1 red, döviz poliçede boş kur `KurCozucu`, `(prim + zeyil) × çözülen kur` < 10^15 ve hesap-döviz çiti poliçe dövizi.
+
 ### `/api/ui/v1` finans belge uç eşlemesi (F8.1b)
 
 Kilit: `tests/RentACar.IntegrationTests/UiFinanceDocumentTests*.cs`. Uç kodu: `Web/Api/FinansBelge/`.

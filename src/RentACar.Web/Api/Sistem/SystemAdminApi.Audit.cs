@@ -53,7 +53,9 @@ public static partial class SystemAdminApi
            || SecretKeyParts.Any(p => key.Contains(p, StringComparison.OrdinalIgnoreCase))
            || PiiKeyParts.Any(p => key.Contains(p, StringComparison.OrdinalIgnoreCase));
 
-    private static readonly string[] PiiKeyParts = ["TcKimlik", "TcNo", "KimlikNo", "VergiNo", "EhliyetNo", "PasaportNo", "Maas", "Iban"];
+    // "Vkn": GelenEFatura.GonderenVkn şahıs firmasında TCKN taşır. "Tc" tek başına BİLİNÇLİ yok (çok geniş eşleşir).
+    private static readonly string[] PiiKeyParts =
+        ["TcKimlik", "TcNo", "Tckn", "KimlikNo", "VergiNo", "Vkn", "EhliyetNo", "PasaportNo", "Maas", "Iban"];
 
     /// <summary>Denetim değer JSON'u → sır/PII anahtarları (iç içe nesne ve dizilerde de) maskeli JSON. Nesne değilse ya da
     /// ayrıştırılamıyorsa <c>null</c>.</summary>
