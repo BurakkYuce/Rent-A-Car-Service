@@ -58,6 +58,26 @@ public sealed class MenuKapsamaTests
     }
 
     /// <summary>
+    /// F7.3: cari/CRM SPA rota dosyalarındaki her parametresiz liste ekranı menüde spa öğesi olarak var (yeni cari
+    /// kartı liste düğmesinden açılır; <c>:id</c>'li rotalar drill-down). Blazor sayfaları silindiğinde (pilot sonrası)
+    /// kapsama SPA tarafında korunur.
+    /// </summary>
+    [Fact]
+    public void F7_SPA_list_routes_are_all_in_menu()
+    {
+        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features");
+        var text = File.ReadAllText(Path.Combine(app, "customers/customers.routes.ts"))
+            + File.ReadAllText(Path.Combine(app, "crm/crm.routes.ts"));
+        var paths = Regex.Matches(text, @"path: '(?<p>[a-z-/:]+)',")
+            .Select(m => m.Groups["p"].Value)
+            .Where(p => !p.Contains(':') && p != "cariler/yeni")
+            .ToList();
+        Assert.Equal(new[] { "anketler", "assistans", "cariler", "crm", "hukuk", "sikayetler" }, paths.OrderBy(p => p, StringComparer.Ordinal));
+        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        Assert.All(paths, p => Assert.Contains("/app/" + p, menu));
+    }
+
+    /// <summary>
     /// F10.3: SPA'nın rapor rota tablosundaki (<c>reports.routes.ts</c>) her kimliksiz rapor menüde spa öğesi olarak
     /// var — Blazor sayfaları silindiğinde (pilot sonrası) yukarıdaki çit boşa düşse de kapsama korunur.
     /// </summary>

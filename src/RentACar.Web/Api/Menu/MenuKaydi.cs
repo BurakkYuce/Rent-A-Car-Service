@@ -12,7 +12,8 @@ namespace RentACar.Web.Api.Menu;
 /// <item><c>Sira</c>: menünün TAMAMINDA görüntülenme sırası (gruplar ilk öğelerinin sırasıyla dizilir).</item>
 /// <item><c>Sahip</c>: sayfayı kim çiziyor — <see cref="MenuKaydi.Blazor"/> ya da faz kesişinden sonra <see cref="MenuKaydi.Spa"/>
 /// (F4.6: Panel, Kiralar, Yeni Kira; F5.4: Rezervasyon grubu, Teklifler, Filo Kiralama, iki kısa yol; F6.4: Araçlar
-/// grubu + Tanımlar'daki Araç Tipleri ve Segmentler; F10.3: Raporlar grubu). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
+/// grubu + Tanımlar'daki Araç Tipleri ve Segmentler; F7.3: Cariler &amp; CRM grubunun F7 sayfaları; F10.3: Raporlar
+/// grubu). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
 /// OLMAYAN firmada bunun Blazor karşılığını (<see cref="RentACar.Web.Spa.IlkKesis.BlazorKarsiligi"/>) açar.</item>
 /// <item><c>Izin</c>: öğeyi görmek için gereken etkin izin (null = oturum açmış herkes). Sayfanın kendi
 /// yetkisinden türetilir (<c>MenuKaydiTests</c> kilitler).</item>
@@ -95,12 +96,12 @@ public static class MenuKaydi
         E(Rez, "/app/rez-sartlari", "Rez Şartları", OW);
 
         const string Cari = "Cariler & CRM";
-        E(Cari, "/cariler", "Cariler", OW);
-        E(Cari, "/crm", "CRM Analiz", VR);
-        E(Cari, "/sikayetler", "Şikayetler", OW);
-        E(Cari, "/assistans", "Assistans Talepleri", OW);
-        E(Cari, "/hukuk", "Hukuk", OW);
-        E(Cari, "/anketler", "Anketler", OW);
+        E(Cari, "/app/cariler", "Cariler", OW); // F7.3: F7 sayfaları spa (Blog, Gelen Talepler F11/F12'nin)
+        E(Cari, "/app/crm", "CRM Analiz", VR);
+        E(Cari, "/app/sikayetler", "Şikayetler", OW);
+        E(Cari, "/app/assistans", "Assistans Talepleri", OW);
+        E(Cari, "/app/hukuk", "Hukuk", OW);
+        E(Cari, "/app/anketler", "Anketler", OW);
         E(Cari, "/blog-yonetim", "Blog", OW);
         E(Cari, "/gelen-talepler", "Gelen Talepler", OW, rozet: RozetYeniTalep);
 

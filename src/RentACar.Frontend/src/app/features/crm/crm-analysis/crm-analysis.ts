@@ -7,6 +7,7 @@ import {
   untracked,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { Sayfa } from '@core/api/sayfa';
@@ -44,6 +45,7 @@ import { CrmAnalysisStore } from '../crm.store';
     Alan,
     Ikon,
     ParaPipe,
+    RouterLink,
     SayiGirdisi,
     SayiPipe,
     Secim,
