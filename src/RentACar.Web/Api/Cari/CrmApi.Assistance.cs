@@ -152,8 +152,25 @@ public static partial class CrmApi
         if (string.IsNullOrWhiteSpace(request.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         var input = await AssistanceInputAsync(request, user, rentals, locations, ct);
+        await KeepHiddenContactAsync(dbf, current, input, ct);
         if (!await requests.UpdateAsync(id, input, request.Surum, ct)) return AssistanceNotFound();
         return await AssistanceCardAsync(id, requests, user, dbf, locations, ct) is { } c ? TypedResults.Ok(c) : AssistanceNotFound();
+    }
+
+    /// <summary>
+    /// KVKK: anonim müşteriye bağlı talepte ad/telefon yanıtta <c>null</c> döner; tam PUT bu <c>null</c>'ı geri
+    /// gönderince kayıtlı değer silinmemeli ya da servis onu anonim müşterinin kartından yeniden doldurmamalı.
+    /// Kira değişmediyse ve alan gizliyse boş gelen değer "dokunma" demektir (TC/ehliyet ile aynı yazma-yalnız kural).
+    /// </summary>
+    private static async Task KeepHiddenContactAsync(
+        IDbContextFactory<AppDbContext> dbf, AssistansTalep current, AssistansInput input, CancellationToken ct)
+    {
+        if (current.RentalId is null || input.RentalId != current.RentalId) return;
+        var shown = (await AssistanceRowsAsync(dbf, [current], ct))[0];
+        if (shown.AdSoyad is null && current.AdSoyad is not null && string.IsNullOrWhiteSpace(input.AdSoyad))
+            input.AdSoyad = current.AdSoyad;
+        if (shown.CepTel is null && current.CepTel is not null && string.IsNullOrWhiteSpace(input.CepTel))
+            input.CepTel = current.CepTel;
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAssistance(

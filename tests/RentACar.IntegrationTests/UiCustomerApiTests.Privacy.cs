@@ -163,4 +163,42 @@ public sealed partial class UiCustomerApiTests
                && v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.GetBoolean() : null;
         Assert.Contains(rows, r => Flag(r.OldValues) == true && Flag(r.NewValues) == false);
     }
+
+    [Fact]
+    public async Task M5_assistance_full_put_keeps_hidden_caller_contact()
+    {
+        var e = await SetupAsync();
+        var admin = await LoginAsync(e, Who.Admin);
+        var hidden = await CreateViaApiAsync(admin, new()
+        {
+            ["tip"] = "Bireysel", ["ad"] = "Gizli", ["soyad"] = Marker(), ["cepTel"] = "05550000001",
+            ["anonimAd"] = true, ["anonimTelefon"] = true,
+        });
+        var rental = await RentalAsync(e, hidden, "SubeA");
+        const string url = V1 + "/assistans-talepleri";
+        const string caller = "Arayan Kisi";
+        const string callerPhone = "05441112233";
+
+        var (created, _) = await Json(await Send(admin, HttpMethod.Post, url,
+            new { rentalId = rental.RentalId, adSoyad = caller, cepTel = callerPhone, mesaj = "Akü bitti" }), HttpStatusCode.Created);
+        var t = created.GetProperty("talep");
+        Assert.Equal(JsonValueKind.Null, t.GetProperty("adSoyad").ValueKind);
+        var id = t.GetProperty("id").GetGuid();
+
+        // İstemci kartı olduğu gibi geri gönderir: gizli alanlar null.
+        var put = new Dictionary<string, object?>
+        {
+            ["rentalId"] = rental.RentalId, ["adSoyad"] = null, ["cepTel"] = null, ["mesaj"] = "Çekici geldi",
+            ["kapandi"] = true, ["surum"] = created.GetProperty("surum").GetString(),
+        };
+        var (updated, raw) = await Json(await Send(admin, HttpMethod.Put, $"{url}/{id}", put));
+        Assert.True(updated.GetProperty("talep").GetProperty("kapandi").GetBoolean());
+        Assert.DoesNotContain(callerPhone, raw);
+
+        var stored = await ReadAsync(e.TenantId, db => db.AssistansTalepleri.AsNoTracking()
+            .Where(a => a.Id == id).Select(a => new { a.AdSoyad, a.CepTel, a.Mesaj }).SingleAsync());
+        Assert.Equal(caller, stored.AdSoyad);          // silinmedi, müşteri kartından da yeniden doldurulmadı
+        Assert.Equal(callerPhone, stored.CepTel);
+        Assert.Equal("Çekici geldi", stored.Mesaj);
+    }
 }
