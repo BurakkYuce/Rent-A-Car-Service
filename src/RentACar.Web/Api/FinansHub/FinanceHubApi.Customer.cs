@@ -35,7 +35,7 @@ public static partial class FinanceHubApi
     /// karşı bacak MuhasebeDuzeltmesi (P&amp;L raporlarına girmez).</summary>
     private static async Task<Ok<CashOperationResult>> PostBalanceAdjustment(
         BalanceAdjustmentRequest req, HttpContext http, BakiyeDuzeltmeService svc, IDbContextFactory<AppDbContext> f,
-        CancellationToken ct)
+        RentACar.Application.Kur.KurCozucu rates, CancellationToken ct)
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
         var direction = F5Ortak.EnumAdi<BakiyeDuzeltmeYonu>(req.Yon, "yon")
@@ -46,6 +46,7 @@ public static partial class FinanceHubApi
         var note = Text(req.Aciklama, 470, "aciklama");
         var date = MoneyDate(req.Tarih, "Bakiye düzeltme");
         var due = DueDate(req.Vade);
+        await ResolvedBaseLimitAsync(rates, req.Tutar, currency, req.Kur, date, ct);
         await CustomerMustExistAsync(f, req.CariId, "cariId", ct);
 
         var id = await svc.AdjustAsync(new BakiyeDuzeltmeInput
@@ -77,7 +78,7 @@ public static partial class FinanceHubApi
     /// <summary>E07: aynı içerik → 200 aynı id (= işlem anahtarı); başka cari/tutar → 409 <c>mukerrer</c>.</summary>
     private static async Task<Ok<CashOperationResult>> PostCustomerTransfer(
         CustomerTransferRequest req, HttpContext http, CashService cash, IDbContextFactory<AppDbContext> f,
-        CancellationToken ct)
+        RentACar.Application.Kur.KurCozucu rates, CancellationToken ct)
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
         var currency = MoneyInput(req.Tutar, req.Doviz, req.Kur);
@@ -86,6 +87,7 @@ public static partial class FinanceHubApi
         var note = Text(req.Aciklama, 512, "aciklama");
         var date = MoneyDate(req.Tarih, "Virman");
         var due = DueDate(req.Vade);
+        await ResolvedBaseLimitAsync(rates, req.Tutar, currency, req.Kur, null, ct); // servis bugünkü kuru çözer
         await CustomerMustExistAsync(f, req.KaynakCariId, "kaynakCariId", ct);
         await CustomerMustExistAsync(f, req.HedefCariId, "hedefCariId", ct);
         if (req.KaynakCariId == req.HedefCariId)

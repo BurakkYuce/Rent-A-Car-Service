@@ -155,6 +155,7 @@ public static class FinansApi
         // kontrolünden ÖNCE: TRY'de kur≠1 tekrarı "farklı içerik" 409'u değil, yazılabilir olmayan istek olarak 400.
         if (istek.Kur is not null)
             await kurCozucu.CozAsync(girdi.Doviz, girdi.Kur, girdi.Tarih, ct);
+        await FinansHub.FinanceHubApi.ResolvedBaseLimitAsync(kurCozucu, girdi.Tutar, girdi.Doviz, girdi.Kur, girdi.Tarih, ct); // F8.1a M1
         if (istek.TahsilatAnahtar is { } gelen)
         {
             // F4.4 adversarial HIGH-1: ÖNCE bu anahtarla yazılmış kayıt aranır. Kaybolan yanıttan sonraki DOĞRU
@@ -170,11 +171,13 @@ public static class FinansApi
     }
 
     private static async Task<Ok<FinansIslemYaniti>> Odeme(
-        OdemeIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, CancellationToken ct)
+        OdemeIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, KurCozucu kurCozucu,
+        CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         var (girdi, _) = await NakitGirdisiAsync(istek.CariId, istek.KiraId, istek.Tutar, istek.Hesap, istek.Doviz,
             istek.Kur, istek.HesapId, istek.Kanal, istek.Aciklama, istek.Tarih, tahsilat: false, kiralar, ct);
+        await FinansHub.FinanceHubApi.ResolvedBaseLimitAsync(kurCozucu, girdi.Tutar, girdi.Doviz, girdi.Kur, girdi.Tarih, ct); // F8.1a M1
         girdi.IslemAnahtari = anahtar;
         return TypedResults.Ok(new FinansIslemYaniti(await kasa.PayAsync(girdi, ct)));
     }
@@ -247,7 +250,7 @@ public static class FinansApi
     }
 
     private static async Task<Ok<FinansIslemYaniti>> DepozitoAl(
-        DepozitoAlIstegi istek, HttpContext http, DepozitoService depozito, CancellationToken ct)
+        DepozitoAlIstegi istek, HttpContext http, DepozitoService depozito, KurCozucu kurCozucu, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         Cari(istek.CariId);
@@ -256,13 +259,16 @@ public static class FinansApi
         var doviz = Doviz(istek.Doviz);
         Kur(istek.Kur);
         BazSiniri(istek.Tutar, istek.Kur);
+        // F8.1a adversarial M1: kur boşsa ÇÖZÜLECEK kura da baz sınırı.
+        await FinansHub.FinanceHubApi.ResolvedBaseLimitAsync(kurCozucu, istek.Tutar, doviz, istek.Kur, null, ct);
         var id = await depozito.AlAsync(istek.CariId, istek.Tutar, hesap, doviz, istek.Kur,
             tarih: null, islemAnahtari: anahtar, hesapId: istek.HesapId, ct: ct);
         return TypedResults.Ok(new FinansIslemYaniti(id));
     }
 
     private static async Task<Ok<FinansIslemYaniti>> DepozitoIrat(
-        DepozitoIratIstegi istek, HttpContext http, DepozitoService depozito, RentalService kiralar, CancellationToken ct)
+        DepozitoIratIstegi istek, HttpContext http, DepozitoService depozito, RentalService kiralar, KurCozucu kurCozucu,
+        CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         Cari(istek.CariId);
@@ -270,6 +276,7 @@ public static class FinansApi
         var doviz = Doviz(istek.Doviz);
         Kur(istek.Kur);
         BazSiniri(istek.Tutar, istek.Kur);
+        await FinansHub.FinanceHubApi.ResolvedBaseLimitAsync(kurCozucu, istek.Tutar, doviz, istek.Kur, null, ct); // M1
         Metin(istek.Aciklama, 512, "aciklama");
         // Kira atfı başka şubenin aracına gelir yazmasın: kapsam kapısı. Kira–cari eşleşmesini repo çiti zorlar.
         if (istek.KiraId is { } kiraId) await KiraKapsamdaAsync(kiralar, kiraId, ct);

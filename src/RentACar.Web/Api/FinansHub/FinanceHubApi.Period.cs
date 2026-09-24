@@ -35,7 +35,7 @@ public static partial class FinanceHubApi
         var income = -Balance(LedgerAccountType.Gelir);
         var expense = Balance(LedgerAccountType.Gider);
         return TypedResults.Ok(new PeriodCloseState(
-            closing is { } c ? DateOnly.FromDateTime(c.UtcDateTime) : null,
+            closing is { } c ? PeriodLock.LocalDay(c) : null,
             [.. trial.Select(m => new TrialBalanceRow(m.Tip.ToString(), m.Ad, m.Borc, m.Alacak, m.Bakiye))],
             trial.Sum(m => m.Borc), trial.Sum(m => m.Alacak), trial.Sum(m => m.Bakiye),
             income, expense, income - expense));
@@ -51,8 +51,8 @@ public static partial class FinanceHubApi
             throw new ValidationException("Kapanış tarihi bugünden ileri olamaz.", "kapanisTarihi");
         if (day < DateOnly.FromDateTime(TarihPolitikasi.EnErkenBelgeTarihi.UtcDateTime))
             throw new ValidationException("Kapanış tarihi 2000 yılından önce olamaz.", "kapanisTarihi");
-        // Kilit gün granülünde (PeriodLock: UTC takvim günü) — tarih UTC gece yarısı olarak gider.
-        await closing.KapatAsync(new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero), ct);
+        // Kilit İSTANBUL takvim günü granülünde (PeriodLock) — günün İstanbul gece yarısı, UTC olarak gider.
+        await closing.KapatAsync(F5Ortak.GunBasi(day), ct);
         return TypedResults.NoContent();
     }
 
@@ -69,6 +69,10 @@ public static partial class FinanceHubApi
         CancellationToken ct)
     {
         FinansApi.Metin(sozlesmeNo, 64, "sozlesmeNo");
+        // L1: uç tarihler (9999-12-31 + 1 gün) DateTimeOffset'i taşırıp 500 üretiyordu.
+        foreach (var (d, field) in new[] { (vadeMin, "vadeMin"), (vadeMax, "vadeMax") })
+            if (d is { Year: < 2000 or > 2100 })
+                throw new ValidationException("Tarih 2000 ile 2100 arasında olmalıdır.", field);
         // Blazor ile aynı: vade günleri UTC takvim günü, bitiş günü DAHİL.
         var candidates = await auto.AdaylarAsync(new OtomatikTahsilatFiltre
         {

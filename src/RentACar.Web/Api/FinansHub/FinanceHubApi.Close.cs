@@ -62,11 +62,18 @@ public static partial class FinanceHubApi
         {
             if (prior.CariId != cariId || prior.Tip != CashTransactionType.Tahsilat)
                 throw MukerrerIslemException.FarkliIcerik();
-            var explicitTotal = map.Values.All(v => v is not null)
-                ? map.Values.Sum(v => decimal.Round(v!.Value, 2, MidpointRounding.ToZero)) : (decimal?)null;
-            var same = prior.KarsiHesap == account
+            // L3: aynı içerik = aynı kalem kümesi + (tutar verilen kalemde) aynı tahsis tutarı + hesap/kanal/açıklama.
+            // Tahsis kaydı kalıcıdır; tutarsız ("kalanın tamamı") kalemde tutar ilk yazımda belirlendiği için
+            // yalnız kalemin varlığı karşılaştırılır.
+            await using var db = await f.CreateDbContextAsync(ct);
+            var allocations = await db.KapatmaTahsisleri.AsNoTracking()
+                .Where(t => t.CashTransactionId == prior.Id)
+                .Select(t => new { t.LedgerEntryId, t.KapatilanBaz }).ToListAsync(ct);
+            var sameItems = allocations.Count == map.Count && allocations.All(a =>
+                map.TryGetValue(a.LedgerEntryId, out var requested)
+                && (requested is not { } v || decimal.Round(v, 2, MidpointRounding.ToZero) == a.KapatilanBaz));
+            var same = sameItems && prior.KarsiHesap == account
                        && string.Equals(prior.Kanal ?? CashKanal.Masaustu, channel, StringComparison.Ordinal)
-                       && (explicitTotal is null || prior.Amount.Amount == explicitTotal)
                        && (note is null || string.Equals(FinansApi.AciklamaNorm(prior.Aciklama), note, StringComparison.Ordinal));
             var amount = prior.Amount.Amount.ToString("N2", Tr);
             throw new MukerrerIslemException(

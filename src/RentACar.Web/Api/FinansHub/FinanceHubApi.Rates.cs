@@ -51,6 +51,8 @@ public static partial class FinanceHubApi
         decimal result = 0m;
         try { result = await rates.CevirAsync(tutar, from, to, ct: ct); }
         catch (ValidationException ex) when (ex.Alan is null) { throw new ValidationException(ex.Message, "kaynak"); }
+        // L2: tutar × kaynak kuru / hedef kuru decimal'ı taşabilir (ör. çok küçük hedef kur) — 500 değil 400.
+        catch (OverflowException) { throw new ValidationException("Çevrilen tutar çok büyük.", "tutar"); }
         return TypedResults.Ok(new ConversionResult(tutar, from, to, result));
     }
 
@@ -98,7 +100,7 @@ public static partial class FinanceHubApi
     private static void FixedRateInput(decimal rate, DateOnly? start, DateOnly? end)
     {
         if (rate <= 0m) throw new ValidationException("Sabit kur 0'dan büyük olmalı.", "kur");
-        FinansApi.Kur(rate);
+        if (rate > SabitKurService.MaxRate) throw new ValidationException(SabitKurService.MaxRateMessage, "kur");
         RateScale(rate);
         foreach (var (d, field) in new[] { (start, "basTar"), (end, "bitTar") })
             if (d is { Year: < 2000 or > 2100 })

@@ -68,6 +68,25 @@ public static partial class FinanceHubApi
         return code;
     }
 
+    /// <summary>
+    /// F8.1a adversarial M1: kur boş bırakıldıysa servisin ÇÖZECEĞİ kuru (TRY=1; firma sabit kuru → TCMB) önceden çözüp
+    /// baz sınırını (tutar × kur &lt; 10^15) ONA da uygular. Önce sınır yalnız açık kurda denetleniyordu; dev bir sabit
+    /// kurla yazılan satır sonraki her toplamada taşma (500) üretiyordu. Açık kur <see cref="MoneyInput"/>'ta denetlendi.
+    /// Kur çözülemezse servisle aynı 400 (<c>kur</c> alanı).
+    /// </summary>
+    internal static async Task ResolvedBaseLimitAsync(
+        RentACar.Application.Kur.KurCozucu rates, decimal amount, string currency, decimal? rate, DateTimeOffset? date,
+        CancellationToken ct, string field = "tutar")
+    {
+        if (rate is not null) return;
+        decimal resolved = 0m;
+        try { resolved = await rates.CozAsync(currency, null, date, ct); }
+        catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException) && ex.Alan is null)
+        { throw new ValidationException(ex.Message, "kur"); }
+        if (!RentACar.Infrastructure.Persistence.Interceptors.LedgerAmountGuardInterceptor.IsWithinLimit(amount, resolved))
+            throw new ValidationException("Tutar × kur çok büyük.", field);
+    }
+
     /// <summary>İsteğe bağlı metin: boş → null, aksi Trim; kolon uzunluğu aşılırsa alan hatası.</summary>
     internal static string? Text(string? value, int max, string field)
     {

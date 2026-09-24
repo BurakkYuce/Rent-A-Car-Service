@@ -98,12 +98,14 @@ public static partial class FinanceHubApi
 
     /// <summary>E06: aynı içerik → 200 aynı id (= işlem anahtarı); farklı tutar/yön/hesap → 409 <c>mukerrer</c>.</summary>
     private static async Task<Ok<CashOperationResult>> PostCashTransfer(
-        CashTransferRequest req, HttpContext http, CashService cash, CancellationToken ct)
+        CashTransferRequest req, HttpContext http, CashService cash, RentACar.Application.Kur.KurCozucu rates,
+        CancellationToken ct)
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
         var source = FinansApi.Hesap(req.Kaynak, "kaynak");
         var target = FinansApi.Hesap(req.Hedef, "hedef");
         var currency = MoneyInput(req.Tutar, req.Doviz, req.Kur);
+        await ResolvedBaseLimitAsync(rates, req.Tutar, currency, req.Kur, null, ct); // servis bugünkü kuru çözer
         var receipt = Text(req.MakbuzNo, 32, "makbuzNo");
         var branch = Text(req.Sube, 128, "sube");
         var note = Text(req.Aciklama, 512, "aciklama");
@@ -115,10 +117,14 @@ public static partial class FinanceHubApi
     /// <summary>E08 (yapısal): ikinci ters kayıt 409 <c>mukerrer</c>; ters kaydın tersi 400. Kira bağlı işlemde kira
     /// şube kapsamı DURUMDAN ÖNCE (başka şube 403); olmayan/başka kiracının işlemi 404.</summary>
     private static async Task<Results<Ok<CashOperationResult>, ProblemHttpResult>> ReverseCashTransaction(
-        Guid id, CashService cash, RentalService rentals, CancellationToken ct)
+        Guid id, CashService cash, RentalService rentals, RentACar.Domain.Common.ICurrentUser user, CancellationToken ct)
     {
         if (await cash.GetAsync(id, ct) is not { } tx) return F5Ortak.Bulunamadi("Kasa işlemi bulunamadı.");
         if (tx.RentalId is { } rentalId) await FinansApi.KiraKapsamdaAsync(rentals, rentalId, ct);
+        // L4b: kirasız kasa işleminin şubesi yok (kasa/banka hesabı şubeye bağlı değil). Şubeye bağlı kullanıcı
+        // yalnız kendi şubesinin kirasına bağlı işlemi ters alabilir; kiracı geneli kasa işlemi kapsam dışıdır.
+        else if (!BranchScope.EffectiveFilter(user).Unrestricted)
+            throw new YetkiYokException("Kiraya bağlı olmayan kasa işlemini yalnız şube kısıtı olmayan kullanıcı ters alabilir.");
         return TypedResults.Ok(new CashOperationResult(await cash.ReverseAsync(id, ct)));
     }
 

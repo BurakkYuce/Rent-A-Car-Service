@@ -39,6 +39,9 @@ public sealed class OtomatikTahsilatService(
     /// yüzlerce tahsilat postlanmasın (toplu para yazan yüzeylerdeki 500 sınırıyla aynı ruh).</summary>
     public const int MaxSecim = 200;
 
+    /// <summary>Beklenmeyen (doğrulama dışı) hatada atlananlar listesine yazılan genel metin.</summary>
+    public const string UnexpectedErrorMessage = "beklenmeyen bir hata oluştu; bu dönem işlenmedi, daha sonra yeniden deneyin.";
+
     /// <summary>
     /// Aday listesinin DÖVİZ KIRILIMLI toplamı (adversarial L1). Native tutarları tek sayıda
     /// toplamak (EUR + TRY) anlamsız bir rakam üretiyordu; ekran bu saf kuralı kullanır ki
@@ -127,9 +130,16 @@ public sealed class OtomatikTahsilatService(
             }
             // Job çekirdeğiyle AYNI genişlik (adversarial M4): beklenmedik bir hata partiyi ortada
             // bırakıp 500 vermemeli — önceki dönemler zaten commit'li, kullanıcı ne yazıldığını görmeli.
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (ValidationException ex)
             {
                 atlananlar.Add($"{sozNo} — Dönem {donemSira}: {ex.Message}");
+            }
+            // F8.1a adversarial L5: beklenmeyen hatanın HAM mesajı (veritabanı/iç ayrıntı) kullanıcıya dönmez.
+            // Application katmanında ILogger yok; ayrıntı Trace'e yazılır (host dinleyicisi loglar).
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                atlananlar.Add($"{sozNo} — Dönem {donemSira}: {UnexpectedErrorMessage}");
+                System.Diagnostics.Trace.TraceError($"OtomatikTahsilat {rentalId}/{donemSira}: {ex}");
             }
         }
         return new OtomatikTahsilatSonuc(kesilen, tahsilat, atlananlar);
