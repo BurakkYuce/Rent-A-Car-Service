@@ -1,0 +1,59 @@
+<section class="bolum" [attr.aria-labelledby]="'rc-fin-' + kind() + '-baslik'">
+  <h2 [id]="'rc-fin-' + kind() + '-baslik'">{{ titleKey() | transloco }}</h2>
+  <div class="rc-form-izgara" [formGroup]="form">
+    <rc-alan [etiket]="'finans.alan.tutar' | transloco">
+      <rc-para-girdisi formControlName="tutar" [paraBirimi]="currency() || 'TRY'" />
+    </rc-alan>
+    @if (withDate()) {
+      <rc-alan
+        [etiket]="'finans.alan.tarih' | transloco"
+        [ipucu]="'finans.alan.tarihIpucu' | transloco"
+      >
+        <rc-tarih-secici formControlName="tarih" />
+      </rc-alan>
+    }
+    <rc-alan [etiket]="'finans.alan.hesap' | transloco">
+      <rc-secim formControlName="hesap" [secenekler]="kindOptions" />
+    </rc-alan>
+    @if (accountOptions().length > 0) {
+      <rc-alan [etiket]="'finans.alan.hesapId' | transloco">
+        <rc-secim
+          formControlName="hesapId"
+          [secenekler]="accountOptions()"
+          [bosEtiket]="'finans.alan.hesapBelirtilmemis' | transloco"
+        />
+      </rc-alan>
+    }
+    <rc-alan [etiket]="'finans.alan.kanal' | transloco">
+      <rc-secim formControlName="kanal" [secenekler]="channelOptions" bosEtiket="—" />
+    </rc-alan>
+    <rc-alan [etiket]="'finans.alan.doviz' | transloco">
+      <rc-secim formControlName="doviz" [secenekler]="currencyOptions" />
+    </rc-alan>
+    @if (isForeign()) {
+      <rc-alan
+        [etiket]="'finans.alan.kur' | transloco"
+        [ipucu]="'finans.alan.kurIpucu' | transloco"
+      >
+        <rc-sayi-girdisi
+          formControlName="kur"
+          [kesir]="6"
+          [yerTutucu]="'finans.alan.kurOtomatik' | transloco"
+        />
+      </rc-alan>
+    }
+    <rc-alan [etiket]="'finans.alan.aciklama' | transloco" class="rc-form-izgara__genis">
+      <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+    </rc-alan>
+  </div>
+  <rc-fin-submit
+    [action]="action"
+    [label]="
+      (kind() === 'tahsilat' ? 'finans.nakit.tahsilatYap' : 'finans.nakit.odemeYap') | transloco
+    "
+    [ikincil]="kind() === 'odeme'"
+    [disabled]="refreshing()"
+    (send)="submit()"
+    (giveUp)="abandon()"
+  />
+</section>

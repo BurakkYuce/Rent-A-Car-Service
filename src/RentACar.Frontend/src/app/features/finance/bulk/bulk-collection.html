@@ -1,0 +1,80 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.topluTahsilat.baslik' | transloco }}</h1>
+    <div class="ust__eylemler">
+      <a routerLink="/tek-cari-toplu">{{ 'finans.topluTahsilat.tekCariModu' | transloco }}</a>
+    </div>
+  </header>
+  <p class="aciklama">{{ 'finans.topluTahsilat.aciklama' | transloco }}</p>
+
+  <section class="bolum" aria-labelledby="rc-toplu-tahsilat">
+    <h2 id="rc-toplu-tahsilat">{{ 'finans.topluTahsilat.satirlar' | transloco }}</h2>
+    <div class="rc-form-izgara" [formGroup]="form">
+      <rc-alan [etiket]="'finans.alan.hesap' | transloco">
+        <rc-secim formControlName="hesap" [secenekler]="kindOptions" />
+      </rc-alan>
+      @if (accountOptions().length > 0) {
+        <rc-alan [etiket]="'finans.alan.hesapId' | transloco">
+          <rc-secim
+            formControlName="hesapId"
+            [secenekler]="accountOptions()"
+            [bosEtiket]="'finans.alan.hesapBelirtilmemis' | transloco"
+          />
+        </rc-alan>
+      }
+      <rc-alan
+        [etiket]="'finans.alan.kanal' | transloco"
+        [ipucu]="'finans.topluTahsilat.kanalIpucu' | transloco"
+      >
+        <rc-secim formControlName="kanal" [secenekler]="channelOptions" />
+      </rc-alan>
+    </div>
+    <div class="satir-editoru" [formGroup]="form">
+      <div formArrayName="satirlar" class="satir-editoru">
+        @for (r of rows; track r.controls.id.value; let i = $index) {
+          <div
+            class="satir-editoru__satir"
+            [formGroupName]="i"
+            role="group"
+            [attr.aria-label]="'finans.topluTahsilat.satir' | transloco: { no: i + 1 }"
+          >
+            <rc-alan [etiket]="'finans.alan.cari' | transloco">
+              <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+            </rc-alan>
+            <rc-alan [etiket]="'finans.alan.tutar' | transloco">
+              <rc-para-girdisi formControlName="tutar" />
+            </rc-alan>
+            <rc-alan [etiket]="'finans.alan.aciklama' | transloco">
+              <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+            </rc-alan>
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+              [disabled]="rows.length <= 1 || action.frozen() !== null"
+              (click)="removeRow(i)"
+              [attr.aria-label]="'finans.topluTahsilat.satirSil' | transloco: { no: i + 1 }"
+            >
+              <rc-ikon ad="trash" [boyut]="14" />
+            </button>
+          </div>
+        }
+      </div>
+      <div class="form__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="action.frozen() !== null"
+          (click)="addRow()"
+        >
+          <rc-ikon ad="plus" [boyut]="14" /> {{ 'finans.topluTahsilat.satirEkle' | transloco }}
+        </button>
+      </div>
+    </div>
+    <rc-fin-submit
+      [action]="action"
+      [label]="'finans.topluTahsilat.yap' | transloco"
+      (send)="submit()"
+      (giveUp)="abandon()"
+    />
+  </section>
+</div>
