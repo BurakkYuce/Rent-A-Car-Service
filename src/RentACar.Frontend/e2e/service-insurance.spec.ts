@@ -71,20 +71,20 @@ test.beforeEach(async ({ page }) => {
   await oturumAc(page, ADMIN);
 });
 
-test('tüm sayfalar: içerik + axe iki tema, konsol hatası yok', async ({ page }) => {
-  test.setTimeout(120_000);
-  const hatalar = hatalariTopla(page, AG_HATASI);
-  await serviceInsuranceEndpoints(page);
-  for (const s of PAGES) {
+// Sayfa başına ayrı test (#305 deseni): tek testte 21 sayfa × 2 tema axe taraması CI'da 30 sn sınırına dayanıyordu.
+for (const s of PAGES) {
+  test(`${s.ad}: içerik + axe iki tema, konsol hatası yok`, async ({ page }) => {
+    const hatalar = hatalariTopla(page, AG_HATASI);
+    await serviceInsuranceEndpoints(page);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
     await hazirBekle(page, s);
     expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
-  }
-  expect(hatalar).toEqual([]);
-});
+    expect(hatalar).toEqual([]);
+  });
+}
 
 async function payForm(page: Page) {
   await page.goto(`/app/regulasyon/mtv/${MTV_1}`);

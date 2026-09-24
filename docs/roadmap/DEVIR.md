@@ -19,21 +19,12 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-09-24 (MOLA — kullanıcı "yeni ajan açma, bir süre duralım" dedi; makine ısındı).
-**F4 ve F5'in KODU BİTTİ.** F6 backend + araç ekranları main'de. F10–F12'nin backend'i kısmen main'de. Faz sırası
-kilidi F6–F12 için GEVŞETİLDİ (kullanıcı kararı, `DEGISIKLIKLER.md`). **Pilot kapalı** — kullanıcılar hâlâ Blazor.
+Güncelleme: 2026-09-25. **F4–F12'nin EKRANLARI main'de**; F4, F5, F6, F7 ve F10'un kesişi de main'de. Kalan:
+F8, F9 ve F11 parite + kesiş, F12 kesiş, F13 söküm, Low paketi. Faz sırası kilidi F6–F12 için GEVŞETİLDİ
+(`DEGISIKLIKLER.md`). **Pilot kapalı** — kullanıcılar hâlâ Blazor; kesiş yönlendirmeleri yalnız pilot kiracıda çalışır.
 
-**DEVAM EDERKEN İLK İŞ (sırayla):**
-1. İnceleme bekleyen 4 açık PR'ın bağımsız incelemesi (§4 deseni; her biri ayrı ajan, EN FAZLA 4 paralel):
-   - **#284 F8.1a** kasa/banka/virman/ters kayıt/bakiye düzeltme/cari ekstre/toplu/depozito/dönem kapanış/kurlar — PARA.
-   - **#286 F8.1b** fatura/ceza/gider/gelen e-fatura/araç satışı — PARA.
-   - **#283 F7.1** cari + CRM — KVKK/PII + yetki.
-   - **#288 F11.1b** sistem ayarları/kullanıcı/yetki/denetim/web sitesi — güvenlik. **CI KIRMIZI:**
-     `UiApiYapisalTests.Muafiyet_yalniz_oturum_uclarinda` — `IzinMuaf` yalnız oturum uçlarına izinli; PR bunu
-     `/profil/sifre`, `/ara`, `/bildirimler*` (5 uç) için kullandı. Düzeltme: testteki izinli listeye GEREKÇESİYLE ekle
-     ya da uygun izne bağla (Blazor'da bu sayfalar yalnız `[Authorize]`). #282 aynı testten düşerse aynı düzeltme.
-   Her PR main ile yeniden birleştirilecek (üretilen `ui-v1.json`/`ui-v1.ts` elle birleştirilmez, yeniden üretilir).
-2. Sonra fazların bir sonraki adımları (§1 "Sırada").
+**DEVAM EDERKEN İLK İŞ:** `rtk gh pr list --state open` ile açık PR'lara bak (aşağıdaki "Açık PR" satırı bayatlamış
+olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
 
 ### ✅ Bitti
 - G0, F0 (#235 #237), F1 (#238–#240 #243–#245), F2.1 (#241), F2.2 kodu (#249), F3 (#248 #250–#255, kapanış #256).
@@ -66,25 +57,35 @@ kilidi F6–F12 için GEVŞETİLDİ (kullanıcı kararı, `DEGISIKLIKLER.md`). *
   Atlanan iş SKIPPED görünür (normal). Actions kotası (3.000 dk/ay) 2026-09-23'te %90 dolmuştu; 1 Ekim'de sıfırlanır.
 - Yan düzeltmeler: #265 (müşteri bildirimleri + WhatsApp özeti 2026-08-17'den beri çalışmıyordu — UTC),
   #266 (iş koşu günlüğü hata satırı + üretici yalıtımı + üretici başına `racar_job_fail` metriği).
+- **2026-09-24 gece serisi (hepsi bağımsız inceleme + CI yeşil ile):**
+  - Backend: F7.1 #283 (KVKK), F8.1a #284 ve F8.1b #286 (PARA), F9.1 #292 (PARA), F10.1 #287, F11.1a #282,
+    F11.1b #288 (4 güvenlik turu), F12.1 #281.
+  - F6: F6.2b araç finans ekranları #291, F6.3 parite + e2e #294, F6.4 kesiş #298 → **F6 KODU BİTTİ.**
+  - F7: F7.2 cari/CRM ekranları #295 (3 KVKK turu; tip değişiminde vergi no/TC ifşası ve assistans relink
+    sızıntısı kapandı), F7.3 parite + kesiş #307 → **F7 KODU BİTTİ.**
+  - F8: F8.2a kasa/banka #299, F8.2b fatura/ceza/gider/gelen e-fatura/satış #300 (üç para turu).
+  - F9: F9.2 servis/sigorta/vade/fiyat-tarife ekranları #301 (iki para turu).
+  - F10: F10.2 26 rapor tek ortak ekran #296, F10.3a vardiya yazma uçları #302, F10.3b parite + kesiş #303
+    → **F10 KODU BİTTİ.**
+  - F11: F11.2a tanımlar + `rc-tanim-crud` surum/409 çekirdek eki #297, F11.2b sistem/web #304 (kendi parolasını
+    eski parolasız sıfırlama kapandı), F11.2c kalan 11 tanım #306, F11.2d personel + içe aktar #308 (içe aktarım
+    bellek sınırları: CSV + xlsx akış sayımı, TC boşlukla silinmez).
+  - F12: F12.2 platform ekranları #293.
+  - Yan: #289 CI hafifletme, #290 belge, #305 e2e "tüm sayfalar" taramaları sayfa başına bölündü (CI 30 sn sınırı).
 
 ### ⏳ Açık PR
-- **İnceleme bekleyen (merge YOK):** #283 F7.1, #284 F8.1a, #286 F8.1b, #288 F11.1b — yukarıdaki "İLK İŞ".
-- **CI bekleyen (inceleme gerekmez; yeşilse merge):** #287 F10.1 rapor uçları (33 uç, ortak rapor şablonu;
-  vardiya YAZMA uçları eksik — F10 kesişinden önce ayrı PR), #282 F11.1a genel tanım CRUD + tanım uçları
-  (`Api/Tanim/DefinitionEndpoints.cs` genel taban; SPA tanım CRUD bileşeni PUT'a `surum` koymuyor → F11 ekran PR'ında).
-  Bu satır güncel değilse: `rtk gh pr list --state open` ile gerçeği kontrol et.
+- 2026-09-25 başlangıcında açılan: F8 parite + kesiş, F9 parite + kesiş (service-insurance "tüm sayfalar" bölünmesi
+  dahil), F11 parite + kesiş, backend Low düzeltmeleri (§6 "2026-09-24 gece Low'ları"). Gerçek durum için
+  `rtk gh pr list --state open`.
 
 ### ⬜ Sırada (başlamadı)
-1. **F4.6b / F5 Blazor sayfa silme:** YALNIZ pilotta 10 iş günü P1 olmadıktan SONRA (kullanıcı pilotu açmalı).
-2. **F6:** F6.2b araç finans ekranları (kredi, müşteri taksit, sipariş, BAF, hasar, filo plan) → F6.3 parite+e2e →
-   F6.4 kesiş.
-3. **F7:** F7.2 ekranlar → F7.3 parite + kesiş (#283 merge edildikten sonra).
-4. **F8:** ekranlar (2–3 PR, PARA) → parite → kesiş (#284/#286 merge edildikten sonra).
-5. **F9** servis/sigorta/vade/fiyat (5 PR, PARA) — hiç başlanmadı.
-6. **F10:** ekranlar → parite → kesiş; vardiya yazma uçları.
-7. **F11:** ekranlar (tanım CRUD bileşenine `surum` desteği = çekirdek eki) → parite → kesiş.
-8. **F12:** ekranlar + kesiş. **F13** en sonda.
-9. **İngilizce adlandırma toplu dönüşümü:** kullanıcı "şimdi düzeltme, sonra yaparsın" dedi (2026-09-23).
+1. **F12 kesiş:** canlı parite kontrolü kullanıcıda; sonra kesiş PR'ı.
+2. **SPA para gönderim çekirdeği birleştirme:** dört ayrı uygulama var — `features/finance/money-action.ts`,
+   `features/service-insurance/.../money-submission.ts`, `features/finance-documents/document-submission.ts`,
+   `core/form/gonderim-kilidi.ts` (`formGonderimi`). Tek çekirdek `core/form/` altında; PARA → §4.
+3. **SPA Low paketi** (§6 "SPA").
+4. **F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm:** YALNIZ pilotta 10 iş günü P1 olmadıktan SONRA.
+5. **İngilizce adlandırma toplu dönüşümü:** kullanıcı "şimdi düzeltme, sonra yaparsın" dedi (2026-09-23).
    Başka iş koşarken yapılamaz (her dosyaya dokunur); zamanlamayı kullanıcıya sor.
 
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
@@ -96,6 +97,10 @@ kilidi F6–F12 için GEVŞETİLDİ (kullanıcı kararı, `DEGISIKLIKLER.md`). *
 - **Karar (4) YENİ: rezervasyon güncellemesinde doluluk çarpanı (surge).** `CLAUDE.md` "rezervasyon-update'te
   surge atlanır" diyor; ama `ReservationService.UpdateAsync:181-182` `dolulukUygula:false` geçmiyor ve kod
   yorumu bunu bilinçli diyor. Hangisi doğru? Karar gelmeden bu davranışa dokunma.
+- **Karar (5) YENİ: cari ekstre ucunun kapısı.** Cari detay ucu bakiyeyi yalnız FinanceWrite ∨ ViewReports ile
+  döndürüyor; `/api/ui/v1/finans/cariler/{id}/ekstre` ise OperationsWrite ile de açık (Blazor paritesi) ve operatöre
+  başka şubenin bakiyesini + sözleşme no'larını gösteriyor. SPA'da ekstre sekmesi, rotası ve bağlantıları artık
+  FinanceWrite ∨ ViewReports ile kapılı (#295, #299, #307). Sunucu ucu da daraltılsın mı? Karar gelmeden uca dokunma.
 - **Karar (3): yakıt ölçeği (hâlâ açık).** Servis ve harici API 0–100, formlar ve referans sistem 0–12 kullanıyor. Önerilen: tek
   ölçek 0–12. Harici `RentalsApi` için iki seçenek var: (a) >12 → 400, (b) sınırda yüzde↔12 çevirisi. Karar
   gelmeden yakıt koduna dokunma.
@@ -276,6 +281,20 @@ geçişte iki kez oldu. Para dokunmayan ama giriş/yetki/PII dokunan PR'larda ay
   - İşlem sonrası detay ve `surum` tazelenir; yenileme bitene kadar Kaydet pasiftir.
   - Dokunulmamış alanlara sunucu değeri birleştirilir.
   - Çakışma yoksa 409'da tek sessiz yeniden gönderim yapılır.
+- **2026-09-24 gecesi her SPA para PR'ı (#299, #300, #301) aynı üç hatayı AYRI AYRI yaptı** — yeni para formunda
+  baştan uygula:
+  - `mevcut`'suz 409 `mukerrer` (yarış kaybı, başka uç) "bayat anahtar / yazılmadı" SANILMAZ: "daha önce kaydedildi;
+    ikinci kez yazılmadı, hareketleri kontrol edin". Anahtar yenilenmez.
+  - İstek UÇUŞTAYKEN form kilitli (yalnız donmuşken değil); donmuş gövde forma geri yazılır. Uçuşta formu yok eden
+    her düğme (Kapat, başka satır, filtre) pasif; deneme gönderimden ÖNCE sayfa düzeyinde "uçuşta" kaydedilir.
+  - Döviz değişince kur, dövizi uymayan hesap ve TRY bakiye önerisi temizlenir. "Boş tutar = kalanın tamamı"
+    formunda `mukerrer` sonrası kilit yalnız BAŞARILI ödemeyle kalkar.
+- **Çakışan PR'da CI hiç koşmaz** (`pull_request` olayı merge commit'i ister). "CI bekleniyor" demeden önce
+  `gh pr view N --json mergeable`. Paralel PR'lar `sayfalar.ts`, `BLOK_HARITASI` ve üretilen i18n'de sürekli çakışır:
+  elle yazılanda iki tarafı koru (`git merge-file --union`), üretilenleri yeniden üret.
+- **Tek testte "tüm sayfalar × iki tema axe" CI'da 30 sn'yi aşar** → sayfa başına ayrı test (#305).
+- **İnceleyiciler yerel dev DB'ye yazmaz** (WebFixture ya da sahte API). Bir tur dev DB'ye gerçek tahsilat yazdı;
+  ters kayıtla kapatıldı ama değişmez defterde kaldı.
 - **`sessiz` istek:** hiçbir hatayı yutmamalı; 403/429/5xx/ağ hataları form içinde gösterilir.
 - **Çekirdek 409 bildirimi:** `istekBaglami({ mukerrerBasligi })`.
 - **Harici bağlantılar:** yalnız `shared/dis-baglantilar.ts`'te; lint istisnası dar. Mutlak URL başka yerde yasak.
@@ -300,8 +319,8 @@ geçişte iki kez oldu. Para dokunmayan ama giriş/yetki/PII dokunan PR'larda ay
 
 ## 6. Low temizliği kuyruğu (tek PR ya da fazların içine)
 
-Durum 2026-09-23: iki paralel PR sürüyor — **Low A** (KVKK/SPA) ve **Low B** (para; §4 adversarial zorunlu).
-Maddelerin yanındaki etiket hangi PR'da olduğunu gösterir; etiketsiz madde açıktır.
+Durum 2026-09-25: **Low A (#280) ve Low B (#277) main'de** — "[sürüyor — Low A/B]" etiketli maddeler KAPANDI.
+Etiketsiz madde açıktır.
 
 **Para ve backend** (para dokunanlar → §4)
 - [sürüyor — Low B] R04 `FaturaDonemFiles`: mevcut RowKey'li kaydın tutar ve dövizi de karşılaştırılsın (Blazor
@@ -331,6 +350,21 @@ Maddelerin yanındaki etiket hangi PR'da olduğunu gösterir; etiketsiz madde a�
 - [sürüyor — Low A] Filo aracı silinince kaydın görünmez olması.
 - [sürüyor — Low A] Teklif kabulü 409'unda `mevcut` bilgisinin ele alınması.
 - Muhasebe rolü dönem planını okuyamıyor (Blazor paritesi; dokunma).
+
+**2026-09-24 gece Low'ları** (backend olanlar 2026-09-25'te ayrı PR'da ele alındı; SPA olanlar açık)
+- Backend: sır temizleme bayrağı (#304 L2); ekran override'ında Admin'e dokunma yalnız Admin'e (#304 L3); vardiya
+  çakışma mesajı başka şubenin saatini sızdırıyor (#302 L1); `ShiftApi.DtoAsync` satır + sürüm ayrı sorgu (#302 L2);
+  depozito Idempotency anahtarı işlem türleri arası (#299 L2); xlsx sayımı `xl/worksheets/*.xml` yoluna bağlı
+  (#308 L1); CSV dışa aktarımda formül kaçışı (#308 L2); `DueItemDto` OpenAPI şema adı çakışması (#301).
+- SPA: `followCustomerQuery` kirli formda cariyi uyarısız değiştiriyor + bakiye düzeltme onay metninde cari adı yok
+  (#299 L-new-1); gider listesinde uçuşta filtre formu yok edebiliyor (#300 L1); satış bağlam notu yalnız "zaten
+  satılmış" reddinde (#300 L2); toplu faturalamada görünmeyen kiralar seçimde kalıyor (#300 L5); ceza ödemesi
+  `mevcut.belgeNo` yalnız sıra (#300 L2 eski); CRM kaydı boş hedefle tüm şubelere açılabiliyor (#295 L3, backend
+  kemeri gerekir); CRM analizinde AnonimBelge'de DogumTarihi (#295 bilgi); tarife aktarım kanal silmeye beklenen
+  adet (#301, isteğe bağlı eklemeli).
+- Eksik uçlar (ekranlar geçici çözümle çalışıyor): FinanceWrite'lı `secim/kira` ve gider kategori seçimi, fatura
+  döviz özeti, satılabilir araç seçimi (#300); servis listesi durum sayaçları + KDV/genel toplam, tüm zeyiller
+  listesi (#301).
 
 **Bilgi / kapandı**
 - Blazor müsaitlik ekranı saati UTC sayıyor — bilgi; Blazor F13'te kalkar, düzeltilmez.

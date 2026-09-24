@@ -90,7 +90,7 @@ public sealed class UcIzinKapsamaTests
     }
 
     /// <summary>
-    /// Kesişi yapılmış fazlarda (F4, F5, F6, F7, F10) silinecek Blazor POST uçları (docs/roadmap/F?.md envanteri, "F? (bu faz)"
+    /// Kesişi yapılmış fazlarda (F4, F5, F6, F7, F10, F9, F8) silinecek Blazor POST uçları (docs/roadmap/F?.md envanteri, "F? (bu faz)"
     /// satırları). Silme PR'ları (F4.6b, F5 silmesi) bu uçları (ör. <c>/kiralar/cancel</c>, <c>/rezervasyonlar/cancel</c>)
     /// sildiğinde tarama çiti boşa düşmesin diye ön koşul onları SAYMAZ.
     /// </summary>
@@ -137,14 +137,40 @@ public sealed class UcIzinKapsamaTests
         Assert.Equal(3, f10.Count);
         Assert.Contains("/raporlar/personel-calisma/create", f10);
         silinecek.UnionWith(f10);
+        // F9.3 devri: F9 envanterinin 46 ucu (servis, sigorta/MTV/muayene ödeme ve kayıt, zeyil, servis yansıtma, fiyat/tarife
+        // tanımları, tarife aktar, maliyet teklifi; /servisler/create F6'dan buraya kalmıştı) da sayılmaz. Dar olanların
+        // (/servisler/kalem, /regulasyon/muayene …) SPA karşılıkları sunucunun `yetkiler` bayrakları + UiServiceInsurance /
+        // UiPricing izin testleri (#292).
+        var f9 = KesisteSilinecekUclar(kok, "F9");
+        Assert.Equal(46, f9.Count);
+        Assert.Contains("/servisler/create", f9);
+        Assert.Contains("/servisler/kalem", f9);
+        silinecek.UnionWith(f9);
+        // F8.3 devri: F8 envanterinin 36 ucu (/finans/*, /cezalar/*, /depozito/*, /gelen-efatura/*, /giderler/*,
+        // /kurlar/*, /donem-kapanis/*, /satislar/create) da sayılmaz; SPA karşılıkları /api/ui/v1 finans uçları
+        // (F8.1 izin testleri) ve ekranlardaki izin kapılı düğmeler (#299, #300).
+        var f8 = KesisteSilinecekUclar(kok, "F8");
+        Assert.Equal(36, f8.Count);
+        Assert.Contains("/finans/tahsilat/ters", f8);
+        silinecek.UnionWith(f8);
 
         var kalici = DarUclar(kok).Where(u => !silinecek.Contains(u.Rota)).ToList();
         // Taban F6.4'te 10 → 8: F6'nın dar uçları (kredi/müşteri taksit) artık silinecek kümede; bugün 9 kalıcı dar uç
         // var. Üç dar-izin türünün her biri aşağıda ayrıca aranır, bu yüzden taban yalnız kaba bir çittir.
-        Assert.True(kalici.Count >= 8, $"Beklenenden az dar uç bulundu ({kalici.Count}) — tarama bozulmuş olabilir.");
-        Assert.Contains(kalici, u => u.Etkin == Permission.OperationsDelete && u.Grup == Permission.OperationsWrite);
+        // F9.3'te 8 → 5: F9'un dört dar ucu silinecek kümeye geçti.
+        // F8.3'te 5 → 2: F8'in dar uçları (fatura iade, tahsilat ters — FinanceReverse; ceza iptal …) da silinecek
+        // kümede (SPA karşılıklarında düğmeler dar izinle gizli, #300).
+        // F9.3 + F8.3 birlikte: bugün 2 kalıcı dar uç var (/kiralar/ornek-sozlesme/pdf FinanceWrite ⊂ OperationsWrite,
+        // /listeler/export/{liste} ManageUsers ⊂ ViewReports).
+        Assert.True(kalici.Count >= 2, $"Beklenenden az dar uç bulundu ({kalici.Count}) — tarama bozulmuş olabilir.");
         Assert.Contains(kalici, u => u.Etkin == Permission.FinanceWrite && u.Grup == Permission.OperationsWrite);
-        Assert.Contains(kalici, u => u.Etkin == Permission.FinanceReverse);
+        // Kalıcı OperationsDelete ve FinanceReverse ucu kalmadı (hepsi F8/F9 envanterinde: /servisler/iptal, /cezalar/iptal,
+        // /finans/fatura-iade, /finans/tahsilat/ters …). Taramanın bu türleri hâlâ tanıdığı, uçlar yaşadıkça silinecek
+        // kümede aranır; SPA karşılıkları düğmelerin dar izin kapısı (#292, #299, #300). F8/F9 Blazor POST silme PR'ları
+        // bu iki satırı kaldırır.
+        var all = DarUclar(kok);
+        Assert.Contains(all, u => u.Etkin == Permission.OperationsDelete && u.Grup == Permission.OperationsWrite && silinecek.Contains(u.Rota));
+        Assert.Contains(all, u => u.Etkin == Permission.FinanceReverse && f8.Contains(u.Rota));
     }
 
     [Fact]
