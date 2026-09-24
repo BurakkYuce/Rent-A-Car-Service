@@ -1,0 +1,70 @@
+<div class="sayfa">
+  <h1>{{ 'tanimlar.import.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'tanimlar.import.aciklama' | transloco }}</p>
+
+  @for (kind of kinds; track kind) {
+    <section class="bolum" [attr.aria-labelledby]="'ia-' + kind + '-baslik'">
+      <h2 [id]="'ia-' + kind + '-baslik'">
+        {{ 'tanimlar.import.' + kind + '.baslik' | transloco }}
+      </h2>
+      <p class="aciklama">{{ 'tanimlar.import.' + kind + '.sutunlar' | transloco }}</p>
+      <rc-form-hatalari [hatalar]="submits[kind].genelHatalar()" />
+      <div class="rc-form-izgara">
+        <div class="rc-alan">
+          <label class="rc-alan__etiket" [for]="'ia-' + kind + '-dosya'">
+            {{ 'tanimlar.import.dosya' | transloco }}
+          </label>
+          @if (kind === 'arac') {
+            <input
+              #aracDosya
+              [id]="'ia-' + kind + '-dosya'"
+              type="file"
+              [accept]="accept"
+              [attr.aria-invalid]="fileErrors.arac() !== null"
+              (change)="picked('arac')"
+            />
+          } @else {
+            <input
+              #cariDosya
+              [id]="'ia-' + kind + '-dosya'"
+              type="file"
+              [accept]="accept"
+              [attr.aria-invalid]="fileErrors.cari() !== null"
+              (change)="picked('cari')"
+            />
+          }
+          @if (fileErrors[kind](); as err) {
+            <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ err }}</p>
+          }
+        </div>
+        <div class="eylemler">
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--birincil"
+            [disabled]="submits[kind].gonderiliyor()"
+            (click)="upload(kind)"
+          >
+            {{ 'tanimlar.import.' + kind + '.dugme' | transloco }}
+          </button>
+        </div>
+      </div>
+      @if (results[kind](); as r) {
+        <div class="onizleme" role="status">
+          <p>
+            <strong>{{
+              'tanimlar.import.sonuc'
+                | transloco: { eklenen: r.eklenen, atlanan: r.atlanan, hatali: r.hatali }
+            }}</strong>
+          </p>
+          @if (r.hataOzeti.length > 0) {
+            <ul class="aciklama">
+              @for (h of r.hataOzeti; track h.mesaj) {
+                <li>{{ h.mesaj }} ({{ h.adet }})</li>
+              }
+            </ul>
+          }
+        </div>
+      }
+    </section>
+  }
+</div>

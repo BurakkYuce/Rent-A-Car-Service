@@ -10525,6 +10525,74 @@
         }
       }
     },
+    "/api/ui/v1/ice-aktar/arac": {
+      "post": {
+        "tags": [
+          "Sistem"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dosya": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportCountsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/ice-aktar/cari": {
+      "post": {
+        "tags": [
+          "Sistem"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dosya": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportCountsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/web-sitesi/ozet": {
       "get": {
         "tags": [
@@ -44657,6 +44725,67 @@
         "type": "string",
         "format": "binary"
       },
+      "ImportCountsDto": {
+        "required": [
+          "eklenen",
+          "atlanan",
+          "hatali",
+          "hataOzeti"
+        ],
+        "type": "object",
+        "properties": {
+          "eklenen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "atlanan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hatali": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hataOzeti": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportErrorSummaryDto"
+            }
+          }
+        }
+      },
+      "ImportErrorSummaryDto": {
+        "required": [
+          "mesaj",
+          "adet"
+        ],
+        "type": "object",
+        "properties": {
+          "mesaj": {
+            "type": "string"
+          },
+          "adet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "IncomingInvoiceCreateRequest": {
         "required": [
           "ettn",
@@ -56250,6 +56379,10 @@
               "null",
               "string"
             ]
+          },
+          "maasTemizle": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

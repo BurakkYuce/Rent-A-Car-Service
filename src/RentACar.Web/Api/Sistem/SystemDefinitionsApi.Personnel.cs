@@ -95,6 +95,8 @@ public static partial class SystemDefinitionsApi
 
     private static PersonelInput PersonnelInput(PersonnelRequest i) => new()
     {
+        // F11.2d yazma-yalnız kuralı: null = koru, "" (boş metin) = sil, dolu = yeni değer.
+        ClearTcKimlik = i.TcKimlik is not null && string.IsNullOrWhiteSpace(i.TcKimlik), ClearMaas = i.MaasTemizle,
         Kod = i.Kod, Ad = i.Ad, Soyad = i.Soyad, TcKimlik = i.TcKimlik, IseGiris = Utc(i.IseGiris), IseCikis = Utc(i.IseCikis),
         SurucuBelgeNo = i.SurucuBelgeNo, Maas = i.Maas, Sube = i.Sube, GorevTanimi = i.GorevTanimi, Adres = i.Adres,
         EvTelefonu = i.EvTelefonu, IsTelefonu = i.IsTelefonu, CepTel = i.CepTel, MailAdresi = i.MailAdresi,

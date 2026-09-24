@@ -135,9 +135,12 @@ public sealed class PersonelService(
     private void ApplyUpdate(Personel row, PersonelInput n)
     {
         ApplyPlain(row, n);
-        // PII: dolu ise şifrele+güncelle; boş ise mevcut cipher KORUNUR.
+        // PII: dolu ise şifrele+güncelle; boş ise mevcut cipher KORUNUR; açık silme bayrağı → null.
+        // Dolu değer bayraktan önce gelir (yeni değer + "Temizle" çelişkisinde yazılan değer kaybolmaz).
         if (!string.IsNullOrWhiteSpace(n.TcKimlik)) row.TcKimlikEnc = _secrets.Protect(n.TcKimlik);
+        else if (n.ClearTcKimlik) row.TcKimlikEnc = null;
         if (n.Maas is not null) row.MaasEnc = _secrets.Protect(MaasToText(n.Maas));
+        else if (n.ClearMaas) row.MaasEnc = null;
         row.UpdatedAtUtc = DateTimeOffset.UtcNow;
     }
 
@@ -198,7 +201,10 @@ public sealed class PersonelService(
         RacTabletNo = TrimOrNull(input.RacTabletNo),
         SVerilisTarihi = input.SVerilisTarihi,
         DogumTarihi = input.DogumTarihi,
-        Aktif = input.Aktif
+        Aktif = input.Aktif,
+        // F11.2d: kopya kurucu — açık silme bayrakları da taşınmalı (yoksa "Temizle" sessizce düşer).
+        ClearTcKimlik = input.ClearTcKimlik,
+        ClearMaas = input.ClearMaas,
     };
 
     private static void ApplyPlain(Personel row, PersonelInput n)

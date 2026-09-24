@@ -73,14 +73,19 @@ public sealed record PersonnelDto(
     string? Mahalle, string? CiltNo, string? AileSiraNo, string? SiraNo, string? KanGrubu, string? RacTabletNo,
     bool Aktif, string? Surum);
 
-/// <summary>Personel yazma gövdesi. <c>TcKimlik</c>/<c>Maas</c> boş → mevcut değer korunur.</summary>
+/// <summary>
+/// Personel yazma gövdesi. <c>TcKimlik</c> yazma-yalnız alandır: gönderilmez/<c>null</c> → mevcut korunur,
+/// <c>""</c> (boş metin) → kayıtlı TC SİLİNİR (F11.2d "Temizle"), dolu → yeni değer. <c>Maas</c> <c>null</c> → korunur;
+/// silmek için <c>MaasTemizle = true</c> (dolu <c>Maas</c> her zaman kazanır).
+/// </summary>
 public sealed record PersonnelRequest(
     string? Kod, string? Ad, string? Soyad, string? TcKimlik, DateTimeOffset? IseGiris, DateTimeOffset? IseCikis,
     string? SurucuBelgeNo, decimal? Maas, string? Sube, string? GorevTanimi, string? Adres, string? EvTelefonu,
     string? IsTelefonu, string? CepTel, string? MailAdresi, string? Referans, string? Aciklama, string? SSinifi,
     DateTimeOffset? SVerilisTarihi, string? SVerilisYeri, DateTimeOffset? DogumTarihi, string? DogumYeri,
     string? BabaAdi, string? AnaAdi, string? Il, string? Ilce, string? Mahalle, string? CiltNo, string? AileSiraNo,
-    string? SiraNo, string? KanGrubu, string? RacTabletNo, bool Aktif = true, string? Surum = null);
+    string? SiraNo, string? KanGrubu, string? RacTabletNo, bool Aktif = true, string? Surum = null,
+    bool MaasTemizle = false);
 
 public sealed record VehicleGroupDto(
     Guid Id, string Kod, string Ad, string? Aciklama, string? Sipp, string? Segment, string? KasaTuru, string? Marka,

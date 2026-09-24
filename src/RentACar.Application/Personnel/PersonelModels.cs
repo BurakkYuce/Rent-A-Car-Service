@@ -13,6 +13,13 @@ public sealed class PersonelInput
     public decimal? Maas { get; set; }
     public string? Sube { get; set; }
 
+    /// <summary>F11.2d — güncellemede kayıtlı TC cipher'ını SİLER (açık "Temizle" isteği). Boş <see cref="TcKimlik"/>
+    /// hâlâ "koru" demektir; silme yalnız bu bayrakla olur.</summary>
+    public bool ClearTcKimlik { get; set; }
+
+    /// <summary>F11.2d — güncellemede kayıtlı maaş cipher'ını SİLER. Boş <see cref="Maas"/> hâlâ "koru" demektir.</summary>
+    public bool ClearMaas { get; set; }
+
     // ---- FAZ-40 derinlik ----
     public string? GorevTanimi { get; set; }
     public string? Adres { get; set; }
