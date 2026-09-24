@@ -95,4 +95,14 @@ public sealed class GelenEFaturaRepository(IDbContextFactory<AppDbContext> facto
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.GelenEFaturalar, id, ct);
+    }
+
+    public Task<bool> UpdateLockedAsync(Guid id, string? expectedVersion, Action<GelenEFatura> apply, CancellationToken ct = default)
+        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.GelenEFaturalar, id, expectedVersion,
+            (db, key, c) => db.GelenEFaturalar.FirstOrDefaultAsync(r => r.Id == key, c), apply, ct);
 }
