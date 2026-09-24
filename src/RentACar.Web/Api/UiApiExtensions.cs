@@ -236,6 +236,7 @@ public static class UiApiExtensions
         v1.MapSystemApi();       // F11.1b — sistem ayarları, kullanıcı/yetki, denetim, web sitesi, tanımlar (2. yarı)
         ServiceInsurance.ServiceInsuranceEndpoints.Map(v1); // F9.1 — servis, sigorta/MTV/muayene, vade, fiyat & tarife
         v1.MapReportApi();       // F10.1 — raporlar (yalnız okur)
+        Rapor.ShiftApi.MapShiftApi(v1); // F10.3 — personel çalışma (vardiya) yazma uçları
         v1.MapPlatformApi();     // F12.1 — platform konsolu (ayrı yetki alanı: PlatformAdmin policy)
         Cari.CrmApi.Map(v1);     // F7.1 — cariler + CRM (anket, şikayet, assistans, hukuk, analiz)
         v1.MapTanimApi();        // F11.1a — F11 tanımları (ilk yarı), genel tanım CRUD deseni

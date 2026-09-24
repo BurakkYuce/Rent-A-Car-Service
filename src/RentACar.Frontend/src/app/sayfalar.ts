@@ -3,6 +3,7 @@ import type { Routes } from '@angular/router';
 import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
+import { FINANCE_ROUTES } from '@features/finance/finance.routes';
 import { CRM_ROUTES } from '@features/crm/crm.routes';
 import { CUSTOMER_ROUTES } from '@features/customers/customers.routes';
 import { DEFINITION_ROUTES } from '@features/definitions/definitions.routes';
@@ -164,6 +165,9 @@ export const SAYFALAR: Routes = [
   ...VEHICLE_ROUTES,
   // F6.2b araç finans: kredi (+ taksit ödeme), müşteri taksit, sipariş, BAF, hasar, filo plan.
   ...VEHICLE_FINANCE_ROUTES,
+  // F8.2a finans (PARA): kasa hub, nakit işlem, bakiye düzeltme, cari virman, toplu işlemler, depozito, cari ekstre,
+  // otomatik tahsilat, dönem kapanışı, kurlar.
+  ...FINANCE_ROUTES,
   // F7.2 cariler: liste, kart (yeni/:id), 360° detay (+ ekstre sekmesi).
   ...CUSTOMER_ROUTES,
   // F7.2 CRM: anket, şikayet, assistans, hukuk, CRM analiz.

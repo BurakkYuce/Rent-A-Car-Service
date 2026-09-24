@@ -1,0 +1,200 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.kur.baslik' | transloco }}</h1>
+    @if (canWrite()) {
+      <div class="ust__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="busy()"
+          (click)="refresh()"
+        >
+          <rc-ikon ad="refresh" [boyut]="14" /> {{ 'finans.kur.yenile' | transloco }}
+        </button>
+      </div>
+    }
+  </header>
+  @if (rateDate(); as d) {
+    <p class="ozet">
+      {{ 'finans.kur.gecerliTarih' | transloco }} <strong>{{ d | tarih }}</strong>
+    </p>
+  }
+  @if (screen.tur() === 'hata') {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ screen.hata()?.detay }}</p>
+  }
+  <rc-form-hatalari [hatalar]="errors()" />
+
+  <section class="bolum" aria-labelledby="rc-kur-tcmb">
+    <h2 id="rc-kur-tcmb">{{ 'finans.kur.tcmb' | transloco }}</h2>
+    <div class="tablo-kap">
+      <table class="duz-tablo">
+        <thead>
+          <tr>
+            <th>{{ 'finans.kur.kod' | transloco }}</th>
+            <th>{{ 'finans.kur.ad' | transloco }}</th>
+            <th class="num">{{ 'finans.kur.birim' | transloco }}</th>
+            <th class="num">{{ 'finans.kur.alis' | transloco }}</th>
+            <th class="num">{{ 'finans.kur.satis' | transloco }}</th>
+            <th class="num">{{ 'finans.kur.sabitFirma' | transloco }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (k of screen.veri()?.tcmb ?? []; track k.kod) {
+            <tr>
+              <td>
+                <strong>{{ k.kod }}</strong>
+              </td>
+              <td>{{ k.ad }}</td>
+              <td class="num">{{ k.birim }}</td>
+              <td class="num">{{ k.forexAlis === null ? '—' : (k.forexAlis | fsayi: '1.4-4') }}</td>
+              <td class="num">
+                {{ k.forexSatis === null ? '—' : (k.forexSatis | fsayi: '1.4-4') }}
+              </td>
+              <td class="num">
+                {{ fixedActive(k.kod) ? (fixedActive(k.kod)?.kur | fsayi: '1.4-6') : '' }}
+              </td>
+            </tr>
+          } @empty {
+            @if (screen.tur() === 'hazir') {
+              <tr>
+                <td colspan="6">{{ 'finans.kur.kayitYok' | transloco }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="bolum" aria-labelledby="rc-kur-cevirici">
+    <h2 id="rc-kur-cevirici">{{ 'finans.kur.cevirici' | transloco }}</h2>
+    <form class="filtre" [formGroup]="converter" (ngSubmit)="convert()">
+      <div class="rc-form-izgara">
+        <rc-alan [etiket]="'finans.alan.tutar' | transloco">
+          <rc-para-girdisi formControlName="tutar" paraBirimi="" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.kur.kaynak' | transloco">
+          <rc-secim formControlName="kaynak" [secenekler]="codeOptions()" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.kur.hedef' | transloco">
+          <rc-secim formControlName="hedef" [secenekler]="codeOptions()" />
+        </rc-alan>
+      </div>
+      <div class="filtre__eylemler">
+        <button type="submit" class="rc-dugme rc-dugme--kucuk">
+          {{ 'finans.kur.cevir' | transloco }}
+        </button>
+        @if (conversion(); as c) {
+          <output class="sonuc"
+            ><strong>{{ c }}</strong></output
+          >
+        }
+      </div>
+    </form>
+  </section>
+
+  <section class="bolum" aria-labelledby="rc-kur-sabit">
+    <h2 id="rc-kur-sabit">{{ 'finans.kur.sabitBaslik' | transloco }}</h2>
+    <p class="not">{{ 'finans.kur.sabitNot' | transloco }}</p>
+    @if (canWrite()) {
+      <h3>
+        {{
+          (editing() ? 'finans.kur.duzenle' : 'finans.kur.yeniSabit')
+            | transloco: { kod: editing()?.kod }
+        }}
+      </h3>
+      <div class="rc-form-izgara" [formGroup]="form">
+        <rc-alan [etiket]="'finans.alan.doviz' | transloco">
+          <rc-secim formControlName="kod" [secenekler]="foreignOptions()" bosEtiket="—" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.kur.sabitKur' | transloco">
+          <rc-sayi-girdisi formControlName="kur" [kesir]="6" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.kur.baslangic' | transloco">
+          <rc-tarih-secici formControlName="basTar" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.kur.bitis' | transloco">
+          <rc-tarih-secici formControlName="bitTar" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.kur.aktif' | transloco">
+          <rc-onay-kutusu formControlName="aktif" />
+        </rc-alan>
+      </div>
+      <div class="form__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="busy()"
+          (click)="save()"
+        >
+          {{ (busy() ? 'form.gonderiliyor' : 'finans.kur.kaydet') | transloco }}
+        </button>
+        @if (editing()) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="newRate()"
+          >
+            {{ 'finans.kur.yeniSabitDugme' | transloco }}
+          </button>
+        }
+      </div>
+    }
+    <div class="tablo-kap">
+      <table class="duz-tablo">
+        <thead>
+          <tr>
+            <th>{{ 'finans.kur.kod' | transloco }}</th>
+            <th class="num">{{ 'finans.kur.sabitKur' | transloco }}</th>
+            <th>{{ 'finans.kur.baslangic' | transloco }}</th>
+            <th>{{ 'finans.kur.bitis' | transloco }}</th>
+            <th>{{ 'finans.kur.durum' | transloco }}</th>
+            <th>
+              <span class="rc-gorunmez">{{ 'finans.ekstre.islem' | transloco }}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of screen.veri()?.sabitler ?? []; track s.id) {
+            <tr>
+              <td>
+                <strong>{{ s.kod }}</strong>
+              </td>
+              <td class="num">{{ s.kur | fsayi: '1.4-6' }}</td>
+              <td>{{ s.basTar ? (s.basTar | tarih) : '—' }}</td>
+              <td>{{ s.bitTar ? (s.bitTar | tarih) : '—' }}</td>
+              <td>{{ (s.aktif ? 'finans.kur.aktif' : 'finans.kur.pasif') | transloco }}</td>
+              <td>
+                @if (canWrite()) {
+                  <div class="satir-eylem">
+                    <button
+                      type="button"
+                      class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                      (click)="edit(s)"
+                    >
+                      {{ 'finans.kur.duzenleDugme' | transloco }}
+                    </button>
+                    <button
+                      type="button"
+                      class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk rc-dugme--tehlike"
+                      [disabled]="busy()"
+                      (click)="remove(s)"
+                    >
+                      {{ 'finans.kur.sil' | transloco }}
+                    </button>
+                  </div>
+                }
+              </td>
+            </tr>
+          } @empty {
+            @if (screen.tur() === 'hazir') {
+              <tr>
+                <td colspan="6">{{ 'finans.kur.sabitYok' | transloco }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

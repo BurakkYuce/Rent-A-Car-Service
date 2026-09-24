@@ -156,10 +156,8 @@ export class InstallmentPayPanel {
         setLocked(this.form, locked);
       });
     });
-    // `mukerrer` sonrası kilit: kullanıcı açıkça yeni bir tutar yazınca kalkar (inceleme M4).
-    this.form.controls.tutar.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => {
-      if (v !== null && v !== '') this.needsAmount.set(false);
-    });
+    // `mukerrer` sonrası kilit yalnız BAŞARILI ödemeyle kalkar; yazıp silmek kilidi açmaz (yeniden inceleme L-new):
+    // `pay()` boş tutarı kilit sürdükçe reddeder, dolu tutar zaten geçer.
   }
 
   /** `mukerrer` sonrası: boş tutar "kalanın tamamını öde" demek — yeni ödeme ancak açıkça girilen tutarla. */

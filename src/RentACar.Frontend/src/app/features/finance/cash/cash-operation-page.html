@@ -1,0 +1,50 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.nakit.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">{{ 'finans.nakit.aciklama' | transloco }}</p>
+
+  <div class="rc-form-izgara">
+    <rc-alan [etiket]="'finans.alan.cari' | transloco">
+      <rc-arama-secim [formControl]="customer" [kaynak]="customers" />
+    </rc-alan>
+  </div>
+
+  @if (cariId(); as id) {
+    @if (balance.veri(); as b) {
+      <section class="bolum" aria-labelledby="rc-nakit-cari">
+        <h2 id="rc-nakit-cari">{{ b.cariAd }}</h2>
+        <p class="ozet">
+          {{ 'finans.cari.guncelBakiye' | transloco }}
+          <strong [class.negatif]="side() === 'borclu'">{{ b.bakiye | fpara }}</strong>
+          @if (side(); as s) {
+            ({{ 'finans.cari.' + s | transloco }})
+          }
+          ·
+          <a [routerLink]="['/cariler', id, 'ekstre']">{{ 'finans.cari.ekstre' | transloco }}</a>
+        </p>
+      </section>
+    } @else if (balance.tur() === 'hata') {
+      <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ balance.hata()?.detay }}</p>
+    }
+    @for (key of [id]; track key) {
+      <div class="cift-form">
+        <rc-fin-cash-form
+          [cariId]="key"
+          kind="tahsilat"
+          withDate
+          [balance]="balance.veri()?.bakiye ?? null"
+          [refreshing]="balance.yukleniyor()"
+          (settled)="reload()"
+        />
+        <rc-fin-cash-form
+          [cariId]="key"
+          kind="odeme"
+          withDate
+          [refreshing]="balance.yukleniyor()"
+          (settled)="reload()"
+        />
+      </div>
+    }
+  }
+</div>

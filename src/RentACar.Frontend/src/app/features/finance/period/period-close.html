@@ -1,0 +1,89 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.donem.baslik' | transloco }}</h1>
+  </header>
+  @if (state.tur() === 'hata') {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ state.hata()?.detay }}</p>
+  }
+  @if (state.veri(); as s) {
+    <p>
+      {{ 'finans.donem.mevcutKilit' | transloco }}
+      <strong>{{ lockText() ?? ('finans.donem.kilitYok' | transloco) }}</strong>
+    </p>
+    <p class="aciklama">{{ 'finans.donem.aciklama' | transloco }}</p>
+
+    <section class="bolum" aria-labelledby="rc-donem-mizan">
+      <h2 id="rc-donem-mizan">{{ 'finans.donem.mizan' | transloco }}</h2>
+      @if (s.mizan.length > 0) {
+        <div class="tablo-kap">
+          <table class="duz-tablo">
+            <thead>
+              <tr>
+                <th>{{ 'finans.donem.hesap' | transloco }}</th>
+                <th class="num">{{ 'finans.ekstre.borc' | transloco }}</th>
+                <th class="num">{{ 'finans.ekstre.alacak' | transloco }}</th>
+                <th class="num">{{ 'finans.ekstre.bakiyeKolon' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of s.mizan; track m.hesap) {
+                <tr>
+                  <td>{{ m.ad }}</td>
+                  <td class="num">{{ m.borc | fsayi }}</td>
+                  <td class="num">{{ m.alacak | fsayi }}</td>
+                  <td class="num">{{ m.bakiye | fsayi }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="toplam-satiri">
+                <td>{{ 'finans.donem.toplam' | transloco }}</td>
+                <td class="num">{{ s.toplamBorc | fsayi }}</td>
+                <td class="num">{{ s.toplamAlacak | fsayi }}</td>
+                <td class="num">{{ s.toplamBakiye | fsayi }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="not">{{ 'finans.donem.dengeNot' | transloco }}</p>
+      } @else {
+        <p class="ozet">{{ 'finans.donem.defterBos' | transloco }}</p>
+      }
+      <p>
+        {{ 'finans.donem.onizleme' | transloco }}
+        <strong>{{ 'finans.donem.gelir' | transloco }} {{ s.gelir | fsayi }}</strong> −
+        <strong>{{ 'finans.donem.gider' | transloco }} {{ s.gider | fsayi }}</strong> =
+        <strong>{{ 'finans.donem.sonuc' | transloco }} {{ s.donemSonucu | fsayi }}</strong>
+        ({{ (profit() ? 'finans.donem.kar' : 'finans.donem.zarar') | transloco }})
+      </p>
+    </section>
+
+    <section class="bolum" aria-labelledby="rc-donem-kapat">
+      <h2 id="rc-donem-kapat">{{ 'finans.donem.kapatBolum' | transloco }}</h2>
+      <div class="rc-form-izgara" [formGroup]="form">
+        <rc-alan [etiket]="'finans.donem.kapanisTarihi' | transloco">
+          <rc-tarih-secici formControlName="kapanisTarihi" />
+        </rc-alan>
+      </div>
+      <rc-form-hatalari [hatalar]="errors()" />
+      <div class="form__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="busy()"
+          (click)="close()"
+        >
+          {{ (busy() ? 'form.gonderiliyor' : 'finans.donem.kapat') | transloco }}
+        </button>
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="busy()"
+          (click)="unlock()"
+        >
+          {{ 'finans.donem.ac' | transloco }}
+        </button>
+      </div>
+    </section>
+  }
+</div>

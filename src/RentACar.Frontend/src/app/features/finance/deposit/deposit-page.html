@@ -1,0 +1,107 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.depozito.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">{{ 'finans.depozito.aciklama' | transloco }}</p>
+
+  <section class="bolum" aria-labelledby="rc-depozito-islem">
+    <h2 id="rc-depozito-islem">{{ 'finans.depozito.islem' | transloco }}</h2>
+    <div class="rc-form-izgara" [formGroup]="form">
+      <rc-alan [etiket]="'finans.alan.cari' | transloco">
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.alan.tutar' | transloco">
+        <rc-para-girdisi formControlName="tutar" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finans.alan.hesap' | transloco"
+        [ipucu]="'finans.depozito.hesapIpucu' | transloco"
+      >
+        <rc-secim formControlName="hesap" [secenekler]="kindOptions" />
+      </rc-alan>
+      @if (accountOptions().length > 0) {
+        <rc-alan [etiket]="'finans.alan.hesapId' | transloco">
+          <rc-secim
+            formControlName="hesapId"
+            [secenekler]="accountOptions()"
+            [bosEtiket]="'finans.alan.hesapBelirtilmemis' | transloco"
+          />
+        </rc-alan>
+      }
+    </div>
+    @if (frozenOperation(); as op) {
+      <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
+        {{ 'finans.depozito.islemAdi.' + op | transloco }}:
+        {{ 'finans.islem.sonucBilinmiyor' | transloco }}
+      </div>
+    }
+    <rc-form-hatalari [hatalar]="action.errors()" />
+    <div class="form__eylemler">
+      @if (frozenOperation()) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="action.sending()"
+          (click)="retry()"
+        >
+          {{ (action.sending() ? 'form.gonderiliyor' : 'finans.islem.tekrarGonder') | transloco }}
+        </button>
+        @if (!action.sending()) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="abandon()"
+          >
+            {{ 'finans.islem.vazgec' | transloco }}
+          </button>
+        }
+      } @else {
+        @for (op of operations; track op) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [class.rc-dugme--birincil]="op === 'al'"
+            [class.rc-dugme--tehlike]="op === 'irat'"
+            [disabled]="action.sending()"
+            (click)="run(op)"
+          >
+            {{ 'finans.depozito.dugme.' + op | transloco }}
+          </button>
+        }
+      }
+    </div>
+  </section>
+
+  <section class="bolum" aria-labelledby="rc-depozito-tutulan">
+    <h2 id="rc-depozito-tutulan">{{ 'finans.depozito.tutulan' | transloco }}</h2>
+    @if (balances.tur() === 'hata') {
+      <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ balances.hata()?.detay }}</p>
+    }
+    <div class="tablo-kap">
+      <table class="duz-tablo">
+        <thead>
+          <tr>
+            <th>{{ 'finans.alan.cari' | transloco }}</th>
+            <th class="num">{{ 'finans.depozito.bakiye' | transloco }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (b of balances.veri() ?? []; track b.cariId) {
+            <tr>
+              <td>
+                <a [routerLink]="['/cariler', b.cariId, 'ekstre']">{{ b.cariAd }}</a>
+              </td>
+              <td class="num">{{ b.bakiye | fpara }}</td>
+            </tr>
+          } @empty {
+            @if (balances.tur() === 'hazir') {
+              <tr>
+                <td colspan="2">{{ 'finans.depozito.yok' | transloco }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

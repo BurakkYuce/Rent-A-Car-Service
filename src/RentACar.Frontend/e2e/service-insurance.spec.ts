@@ -509,6 +509,13 @@ test('M4 muayene: "zaten kaydedildi" sonrası form (ceza dahil) sıfırlanır; a
   await form.getByRole('button', { name: 'Öde' }).click(); // boş tutar: gönderim kilitli
   await wait(300);
   expect(written).toHaveLength(2);
+  // Yazıp silmek kilidi AÇMAZ (yeniden inceleme L-new): boş tutar hâlâ "kalanın tamamı" demek.
+  await form.getByRole('textbox', { name: 'Ödeme tutarı' }).fill('5');
+  await form.getByRole('textbox', { name: 'Ödeme tutarı' }).fill('');
+  await form.getByRole('button', { name: 'Öde' }).click();
+  await wait(300);
+  expect(written).toHaveLength(2);
+  await expect(form.getByText('Boş tutar kalanın tamamını öder')).toBeVisible();
   await form.getByRole('textbox', { name: 'Ödeme tutarı' }).fill('200');
   await form.getByRole('button', { name: 'Öde' }).click();
   await expect(page.getByText('2. ödeme kaydedildi (200,00 ₺); kalan 300,00 ₺.')).toBeVisible();
