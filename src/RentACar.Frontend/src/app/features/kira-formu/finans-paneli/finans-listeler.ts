@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { sayiya } from '../kira-formu-modeli';
 import { KF_ORTAK } from '../sekmeler/ortak';
 import { paraGoster } from './finans-modeli';
@@ -61,7 +62,7 @@ export class FinansKurlar {
 @Component({
   selector: 'rc-kf-finans-cezalar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK],
+  imports: [...KF_ORTAK, RouterLink],
   template: `
     @let s = f.cezalar;
     @let v = s.veri();
@@ -136,7 +137,7 @@ export class FinansKurlar {
       </table>
     </div>
     <p class="kf-not">
-      <a href="/cezalar">{{ 'kiraFinans.ceza.ekran' | transloco }}</a>
+      <a routerLink="/cezalar">{{ 'kiraFinans.ceza.ekran' | transloco }}</a>
       — {{ 'kiraFinans.ceza.not' | transloco }}
     </p>
   `,

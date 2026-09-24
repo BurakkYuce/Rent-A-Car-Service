@@ -4,10 +4,10 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Spa;
 
 /// <summary>
-/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F7.3 cari/CRM, F10.3 rapor, F9.3 servis/sigorta/fiyat kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
+/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F7.3 cari/CRM, F10.3 rapor, F9.3 servis/sigorta/fiyat, F8.3 finans kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
 /// middleware test edilemez; karar burada, birim testiyle kilitli). Uygulayan: <see cref="IlkKesisMiddleware"/>.
 ///
-/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6, F7, F10, F9) envanterinde
+/// <para><b>Yönlendirme haritası</b> (<see cref="Harita"/>): kesişi yapılmış fazların (F4, F5, F6, F7, F10, F9, F8) envanterinde
 /// silinecek Blazor <c>@page</c> ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
 /// (<c>/kiralar/{id}/pdf</c>, <c>/kiralar/hesapla</c>, <c>/kiralar/donus-hesapla</c>, <c>/kiralar/musait-arac</c>,
 /// <c>/kiralar/ornek-sozlesme/pdf</c>, export, makbuz…) YÖNLENMEZ: bir şablonla segment segment birebir
@@ -61,7 +61,7 @@ public static class IlkKesis
     /// segment sayısı ya da yöntem farkıyla dışarıda; <c>/arac-gruplari</c> F11'in sayfasıdır.</item>
     /// <item><b>F7</b> (F7.3): 8 cari/CRM sayfası, hepsi aynı adla <c>/app</c> altına (<c>/cariler</c>,
     /// <c>/cariler/{id}</c> kart, <c>/cariler/{id}/detay</c>, <c>/anketler</c>, <c>/sikayetler</c>, <c>/assistans</c>,
-    /// <c>/hukuk</c>, <c>/crm</c>). <c>/cariler/{id}/ekstre</c> F8'in sayfasıdır (F8 kesişinde); SPA'nın
+    /// <c>/hukuk</c>, <c>/crm</c>). <c>/cariler/{id}/ekstre</c> F8'in sayfasıdır (F8 bloğunda); SPA'nın
     /// <c>/cariler/yeni</c> rotasının Blazor karşılığı yok (Guid kısıtı <c>yeni</c>'ye uymaz).</item>
     /// <item><b>F10</b> (F10.3): 26 rapor sayfası, hepsi AYNI adla <c>/app</c> altına (tek ortak rapor ekranı; araç
     /// karnesi <c>/raporlar/arac-karne/{id}</c>). Rapor export'ları (<c>/raporlar/export/{rapor}</c>) segment farkıyla
@@ -73,6 +73,12 @@ public static class IlkKesis
     /// girmez — Blazor <c>POST /regulasyon/mtv|muayene|sigorta|zeyil</c> yöntem farkıyla zaten dışarıda. SPA'nın kayıt
     /// rotaları (<c>/servisler/{id}</c>, <c>/maliyet-teklifleri/{id}</c>, <c>/regulasyon/sigortalar/{id}</c> …) Blazor'da
     /// yoktu. Vade export'u (<c>/listeler/export/vade</c>) ve Blazor POST'ları segment/yöntem farkıyla dışarıda.</item>
+    /// <item><b>F8</b> (F8.3): 18 finans sayfası, hepsi AYNI adla <c>/app</c> altına (kasa, nakit işlem, bakiye düzeltme,
+    /// cari virman, depozito, toplu işlemler, otomatik tahsilat, dönem kapanışı, kurlar, faturalar + detay listesi +
+    /// yazdır, cezalar, giderler, gelen e-fatura, satışlar) ve cari ekstresi <c>/cariler/{id}/ekstre</c> (SPA'da
+    /// FinanceWrite ∨ ViewReports kapılı). PDF/makbuz (<c>/faturalar/{id}/pdf</c>, <c>/kasa/makbuz/{id}/pdf</c>),
+    /// export ve Blazor POST'ları (<c>/finans/…</c>, <c>/kurlar/…</c>, <c>/cezalar/…</c> …) segment ya da yöntem
+    /// farkıyla dışarıda.</item>
     /// </list>
     /// </summary>
     public static IReadOnlyList<Eslem> Harita { get; } =
@@ -157,6 +163,26 @@ public static class IlkKesis
         new("/maliyet-hesapla", SpaBarindirma.Onek + "/maliyet-hesapla"),
         new("/maliyet-teklifleri", SpaBarindirma.Onek + "/maliyet-teklifleri"),
         new("/ek-hizmetler", SpaBarindirma.Onek + "/ek-hizmetler"),
+        // F8
+        new("/kasa", SpaBarindirma.Onek + "/kasa"),
+        new("/finans/nakit-islem", SpaBarindirma.Onek + "/finans/nakit-islem"),
+        new("/finans/bakiye-duzeltme", SpaBarindirma.Onek + "/finans/bakiye-duzeltme"),
+        new("/cari-virman", SpaBarindirma.Onek + "/cari-virman"),
+        new("/depozito", SpaBarindirma.Onek + "/depozito"),
+        new("/tek-cari-toplu", SpaBarindirma.Onek + "/tek-cari-toplu"),
+        new("/toplu-tahsilat", SpaBarindirma.Onek + "/toplu-tahsilat"),
+        new("/toplu-gider", SpaBarindirma.Onek + "/toplu-gider"),
+        new("/otomatik-tahsilat", SpaBarindirma.Onek + "/otomatik-tahsilat"),
+        new("/donem-kapanis", SpaBarindirma.Onek + "/donem-kapanis"),
+        new("/kurlar", SpaBarindirma.Onek + "/kurlar"),
+        new("/cariler/{id:guid}/ekstre", SpaBarindirma.Onek + "/cariler/{id}/ekstre"),
+        new("/faturalar", SpaBarindirma.Onek + "/faturalar"),
+        new("/faturalar/detay-listesi", SpaBarindirma.Onek + "/faturalar/detay-listesi"),
+        new("/faturalar/{id:guid}/yazdir", SpaBarindirma.Onek + "/faturalar/{id}/yazdir"),
+        new("/cezalar", SpaBarindirma.Onek + "/cezalar"),
+        new("/giderler", SpaBarindirma.Onek + "/giderler"),
+        new("/gelen-efatura", SpaBarindirma.Onek + "/gelen-efatura"),
+        new("/satislar", SpaBarindirma.Onek + "/satislar"),
     ];
 
     private const string GuidParametre = "{id:guid}";
