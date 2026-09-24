@@ -37,7 +37,8 @@ public static class ImportLimits
     public const long MaxUncompressedBytes = 16L * 1024 * 1024;
     public const int MaxZipEntries = 2_000;
     /// <summary>xlsx: tüm sayfalardaki toplam hücre (<c>&lt;c&gt;</c>) üst sınırı — ClosedXML yüklemesinden ÖNCE akışla sayılır.</summary>
-    public const int MaxCells = 2_000_000;
+    /// ClosedXML hücre başına ~1,7 KB ayırıyor (inceleme ölçümü: 500.000 hücre ≈ 870 MB, 3 sn) → 500.000.
+    public const int MaxCells = 500_000;
 }
 
 /// <summary>
@@ -161,7 +162,8 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
             {
                 if (++rowCells > ImportLimits.MaxColumns)
                     throw Refuse($"Dosya en çok {ImportLimits.MaxColumns} sütun içerebilir.");
-                if (++cells > ImportLimits.MaxCells) throw Refuse("Dosya çok fazla hücre içeriyor.");
+                if (++cells > ImportLimits.MaxCells) throw Refuse(
+                    $"Dosya en çok {ImportLimits.MaxCells.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("tr-TR"))} dolu hücre içerebilir.");
             }
         }
         return cells;

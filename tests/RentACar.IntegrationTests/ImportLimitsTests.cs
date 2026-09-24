@@ -123,9 +123,13 @@ public sealed class ImportLimitsTests
         Assert.Contains("20.000 satır", Refused(() => ImportService.Parse(RawXlsx(w => Rows(w, 25_000, 1)), "satir.xlsx")).Message);
         Assert.Contains("100 sütun", Refused(() => ImportService.Parse(RawXlsx(w => Rows(w, 1, 101)), "sutun.xlsx")).Message);
         var cellsBefore = GC.GetAllocatedBytesForCurrentThread();
-        var cells = Refused(() => ImportService.Parse(RawXlsx(w => { Rows(w, 20_000, 100); Rows(w, 1, 1); }), "hucre.xlsx"));
-        Assert.Contains("hücre", cells.Message);
+        // Hücre sınırı 500.000: 5.000 × 100 + 1 hücre = 500.001 → ClosedXML'e varmadan red, mesajda sınır yazar.
+        var cells = Refused(() => ImportService.Parse(RawXlsx(w => { Rows(w, 5_000, 100); Rows(w, 1, 1); }), "hucre.xlsx"));
+        Assert.Equal("Dosya en çok 500.000 dolu hücre içerebilir.", cells.Message);
         Assert.True(GC.GetAllocatedBytesForCurrentThread() - cellsBefore < 100L * 1024 * 1024);
+        // Tam 500.000 hücre sayımı geçer: bu ham dosya geçerli bir çalışma kitabı olmadığı için ClosedXML aşamasında
+        // "okunamadı" alır — hücre mesajı DEĞİL (sınır dahil).
+        Assert.Contains("okunamadı", Refused(() => ImportService.Parse(RawXlsx(w => Rows(w, 5_000, 100)), "tam.xlsx")).Message);
 
         // Sayım geçen ama geçerli çalışma kitabı olmayan ZIP → 400 mesajı (ClosedXML istisnası 500 değil).
         Assert.Contains("okunamadı", Refused(() => ImportService.Parse(RawXlsx(w => Rows(w, 2, 2)), "bozuk.xlsx")).Message);
