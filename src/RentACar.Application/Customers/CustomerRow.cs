@@ -44,4 +44,10 @@ public sealed class CustomerRow
     public string? Sinif { get; init; }
     /// <summary>Operasyonel uyarı: bu cariye araç verilmez.</summary>
     public bool AracVerilmez { get; init; }
+
+    /// <summary>F7.1 — KVKK anonimleştirme bayrakları (yeni yüzey görünen alanları bunlarla maskeler).</summary>
+    public bool AnonimAd { get; init; }
+    public bool AnonimTelefon { get; init; }
+    public bool AnonimMail { get; init; }
+    public bool AnonimAdres { get; init; }
 }
