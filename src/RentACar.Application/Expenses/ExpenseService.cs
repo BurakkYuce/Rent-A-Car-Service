@@ -186,6 +186,8 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
 
         var (kdv, gross) = KdvMath.FromNet(input.NetTutar, input.KdvOrani);
         var net = KdvMath.RoundGross(input.NetTutar); // kuruşa sabit
+        // #286 adversarial M2: kontrol YUVARLAMADAN SONRA — 0,004 net 0,00 tutarlı değiştirilemez gider yazıyordu.
+        if (net <= 0) throw new ValidationException("Gider tutarı kuruşa yuvarlandığında pozitif olmalıdır.");
         // #279 inceleme N1: ham etiket ("TL", "EURO") deftere olduğu gibi yazılıyordu — kur TRY=1 çözülürken
         // belge/defter "TL" dövizinde kalıyor, cari/kasa bakiyeleri döviz bazında AYRIŞIYORDU. CashService ile
         // aynı kural: saklanabilir ISO koda indirgenir; tanınmayan/uzun etiket 400 (22001 → 500 olmasın).

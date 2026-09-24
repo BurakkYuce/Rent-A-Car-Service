@@ -25,13 +25,20 @@ internal static class FinanceDocumentCommon
 
     public static readonly (string, string)[] SortRules = [("Geçersiz sıralama alanı", "sirala")];
 
-    /// <summary>Pozitif, kolona sığan ve 4 ondalığa yuvarlanınca sıfır kalmayan tutar.</summary>
+    /// <summary>Pozitif, kolona sığan, en çok 2 ondalıklı (kuruş) tutar. #286 adversarial M2: 4 ondalık kabul edilince
+    /// 0,001 net → servis kuruşa yuvarlayıp 0,00 tutarlı, seri numaralı ve DEĞİŞTİRİLEMEZ fatura kesiyordu.</summary>
     public static void Amount(decimal value, string field)
     {
         if (value <= 0m) throw new ValidationException("Tutar pozitif olmalıdır.", field);
         if (value >= AmountUpperLimit) throw new ValidationException("Tutar çok büyük.", field);
-        if (Math.Round(value, 4, MidpointRounding.AwayFromZero) == 0m)
-            throw new ValidationException("Tutar en az 0,0001 olmalıdır.", field);
+        Cents(value, field);
+    }
+
+    /// <summary>Para tutarı en çok 2 ondalık (kuruş) — belgeler kuruşla yazılır, sessiz yuvarlama yok.</summary>
+    public static void Cents(decimal? value, string field)
+    {
+        if (value is { } v && decimal.Round(v, 2) != v)
+            throw new ValidationException("Tutar en çok 2 ondalık (kuruş) olabilir.", field);
     }
 
     /// <summary>İsteğe bağlı tutar: verilirse <see cref="Amount"/> kuralları.</summary>
@@ -44,6 +51,7 @@ internal static class FinanceDocumentCommon
     public static void AmountLimit(decimal? value, string field)
     {
         if (value is { } v && Math.Abs(v) >= AmountUpperLimit) throw new ValidationException("Tutar çok büyük.", field);
+        Cents(value, field);
     }
 
     /// <summary>KDV oranı KESİR (0,20 = %20): 0–1. "20" girişi %2000 KDV yazmasın.</summary>

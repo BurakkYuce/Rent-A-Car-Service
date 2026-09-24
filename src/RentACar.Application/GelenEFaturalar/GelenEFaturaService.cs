@@ -119,7 +119,8 @@ public sealed class GelenEFaturaService(
         Guid id, GelenEFaturaDurum from, GelenEFaturaDurum to, string hata, string? redNedeni, CancellationToken ct)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        return await _repository.UpdateAsync(id, row =>
+        // #286 Low-9: satır kilidi altında — giderleştirmenin "talep" adımıyla serileşir (ikisi birden geçemez).
+        return await _repository.UpdateLockedAsync(id, null, row =>
         {
             if (row.Durum != from) throw new ValidationException(hata);
             row.Durum = to;
@@ -138,12 +139,15 @@ public sealed class GelenEFaturaService(
     /// belge (kırılım) ile defter (yazılmış gider satırları) sessizce diverge ederdi — mali kayıtta
     /// "sonradan düzeltme" yasağının bu ekrandaki karşılığı.</para>
     /// </summary>
-    public async Task<bool> BaglaAsync(GelenEFaturaBaglamaInput input, CancellationToken ct = default)
+    public async Task<bool> BaglaAsync(
+        GelenEFaturaBaglamaInput input, CancellationToken ct = default, string? expectedVersion = null)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        return await _repository.UpdateAsync(input.Id, row =>
+        // #286 M3: tam değiştirme — satır kilidi + (verilirse) sürüm karşılaştırması; bayat form 409 cakisma.
+        return await _repository.UpdateLockedAsync(input.Id, expectedVersion, row =>
         {
-            if (row.GiderlestirilmeUtc is not null)
+            // Giderleştirme talep edildiyse (defter yazımı sürüyor ya da bitti) kırılım artık kilitli.
+            if (row.GiderlestirilmeUtc is not null || row.GiderIslemAnahtari is not null)
                 throw new ValidationException(
                     "Bu fatura giderleştirilmiş; KDV kırılımı ve bağlama alanları artık değiştirilemez " +
                     "(düzeltme, gider tarafında ters kayıtla yapılır).");
@@ -208,9 +212,75 @@ public sealed class GelenEFaturaService(
             throw new MukerrerIslemException($"'{row.Ettn}' ETTN'li fatura zaten giderleştirilmiş.");
         // Triage kapısı: yalnız ONAYLANMIŞ fatura deftere girer. "İşlendi" = dışarıda ele alınmış
         // (elle muhasebeleştirilmiş) demektir → tekrar giderleştirmek çift kayıt üretirdi.
-        if (row.Durum != GelenEFaturaDurum.Onaylandi)
+        var resumable = row.GiderIslemAnahtari == row.Id; // talep edilmiş ama damgalanmamış (yarıda kalmış) deneme
+        if (row.Durum != GelenEFaturaDurum.Onaylandi && !resumable)
             throw new ValidationException("Yalnız onaylanmış gelen fatura giderleştirilebilir.");
+        _ = BuildExpenseLines(row, input); // hızlı doğrulama (kırılım, cari, araç) — talepten ÖNCE
 
+        // #286 Low-9: TALEP adımı satır kilidi altında (Onaylandi → Islendi + GiderIslemAnahtari). "İşle" geçişi de aynı
+        // kilitle Onaylandi ister → ikisi birden geçemez; bağlama da talepten sonra reddedilir (kırılım sabitlenir).
+        GelenEFatura? claimed = null;
+        var claimedNow = false;
+        await _repository.UpdateLockedAsync(row.Id, null, r =>
+        {
+            if (r.GiderlestirilmeUtc is not null)
+                throw new MukerrerIslemException($"'{r.Ettn}' ETTN'li fatura zaten giderleştirilmiş.");
+            if (r.GiderIslemAnahtari != r.Id)
+            {
+                if (r.Durum != GelenEFaturaDurum.Onaylandi)
+                    throw new ValidationException("Yalnız onaylanmış gelen fatura giderleştirilebilir.");
+                r.Durum = GelenEFaturaDurum.Islendi;
+                r.GiderIslemAnahtari = r.Id;
+                r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                claimedNow = true;
+            }
+            claimed = r;
+        }, ct);
+
+        var kalemler = BuildExpenseLines(claimed!, input);
+        try
+        {
+            // TEK transaction + deterministik idempotency anahtarı (batch = faturanın Id'si).
+            await _expenses.BatchCreateAsync(kalemler, batchAnahtari: row.Id, ct);
+        }
+        catch (MukerrerIslemException)
+        {
+            // Defter zaten yazılmış (eşzamanlı istek ya da damgası eksik kalmış önceki deneme): damga tamamlanır, 409.
+            await StampAsync(row.Id, ct);
+            throw;
+        }
+        catch (ValidationException) when (claimedNow)
+        {
+            // Hiçbir şey yazılmadı (toplu gider atomik): talep geri alınır, fatura yeniden giderleştirilebilir.
+            await _repository.UpdateLockedAsync(row.Id, null, r =>
+            {
+                if (r.GiderlestirilmeUtc is not null || r.GiderIslemAnahtari != r.Id) return;
+                r.Durum = GelenEFaturaDurum.Onaylandi;
+                r.GiderIslemAnahtari = null;
+                r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            }, ct);
+            throw;
+        }
+
+        // Defter yazıldıktan SONRA belge damgalanır. Damga eksik kalırsa talep satırda durur; yeniden deneme
+        // DB unique index'ine çarpar ("zaten kaydedilmiş") ve damgayı tamamlar → çift defter YİNE imkânsız.
+        await StampAsync(row.Id, ct);
+        return kalemler.Count;
+    }
+
+    private Task<bool> StampAsync(Guid id, CancellationToken ct)
+        => _repository.UpdateLockedAsync(id, null, r =>
+        {
+            if (r.GiderlestirilmeUtc is not null) return;
+            r.GiderlestirilmeUtc = DateTimeOffset.UtcNow;
+            r.GiderIslemAnahtari = r.Id;
+            r.Durum = GelenEFaturaDurum.Islendi;
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+
+    /// <summary>Faturanın KDV kademelerinden gider kalemleri (kırılım + cari + araç doğrulamasıyla).</summary>
+    private static List<ExpenseInput> BuildExpenseLines(GelenEFatura row, GelenEFaturaGiderInput input)
+    {
         var satirlar = GelenEFaturaKdvKirilim.Coz(row); // kuruş-birebir doğrulama + oran çözümü
 
         var cariId = input.CariId ?? row.CariId;
@@ -221,7 +291,7 @@ public sealed class GelenEFaturaService(
         if (tip == ExpenseType.Arac && (row.VehicleId is null || row.VehicleId == Guid.Empty))
             throw new ValidationException("Araç gideri için faturaya önce araç bağlanmalıdır.");
 
-        var kalemler = satirlar.Select(s => new ExpenseInput
+        return satirlar.Select(s => new ExpenseInput
         {
             Tip = tip,
             Tarih = row.Tarih,
@@ -238,23 +308,6 @@ public sealed class GelenEFaturaService(
             Aciklama = Kirp(string.Format(System.Globalization.CultureInfo.InvariantCulture,
                 "Gelen e-Fatura {0} — {1} (%{2:0.##})", row.Ettn, row.GonderenUnvan, s.Oran * 100m), 512)
         }).ToList();
-
-        // TEK transaction + deterministik idempotency anahtarı (batch = faturanın Id'si).
-        await _expenses.BatchCreateAsync(kalemler, batchAnahtari: row.Id, ct);
-
-        // Defter yazıldıktan SONRA belge damgalanır. Sıra bilinçli: damga önce atılıp post
-        // patlasaydı fatura "giderleşmiş" görünüp defterde karşılığı olmazdı. Ters sırada en kötü
-        // ihtimal damganın eksik kalmasıdır; o durumda ikinci deneme DB unique index'ine çarpar
-        // ("zaten kaydedilmiş") → çift defter YİNE imkânsız.
-        await _repository.UpdateAsync(row.Id, r =>
-        {
-            r.GiderlestirilmeUtc = DateTimeOffset.UtcNow;
-            r.GiderIslemAnahtari = row.Id;
-            r.Durum = GelenEFaturaDurum.Islendi;
-            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }, ct);
-
-        return kalemler.Count;
     }
 
     private static string Kirp(string s, int max) => s.Length <= max ? s : s[..max];

@@ -5563,7 +5563,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            'application/json': components['schemas']['IncomingInvoiceRow'];
+            'application/json': components['schemas']['IncomingInvoiceDetail'];
           };
         };
       };
@@ -5759,7 +5759,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            'application/json': components['schemas']['IncomingInvoiceStateResult'];
+            'application/json': components['schemas']['IncomingInvoiceLinkResult'];
           };
         };
       };
@@ -11716,6 +11716,10 @@ export interface components {
       doviz?: null | string;
       aciklama?: null | string;
     };
+    IncomingInvoiceDetail: {
+      fatura: components['schemas']['IncomingInvoiceRow'];
+      surum: string;
+    };
     IncomingInvoiceExpenseRequest: {
       odemeYontemi?: null | string;
       /** Format: uuid */
@@ -11729,6 +11733,7 @@ export interface components {
       giderSatiri: number | string;
     };
     IncomingInvoiceLinkRequest: {
+      surum: null | string;
       /** Format: double */
       kdv20Matrah?: null | number | string;
       /** Format: double */
@@ -11750,6 +11755,12 @@ export interface components {
       /** Format: uuid */
       cariId?: null | string;
       giderTipi?: null | string;
+    };
+    IncomingInvoiceLinkResult: {
+      /** Format: uuid */
+      id: string;
+      durum: string;
+      surum: string;
     };
     IncomingInvoiceRejectRequest: {
       neden?: null | string;

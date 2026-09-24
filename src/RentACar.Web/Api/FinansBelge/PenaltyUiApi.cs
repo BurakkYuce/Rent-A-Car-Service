@@ -103,7 +103,11 @@ public static class PenaltyUiApi
         var names = await F5Ortak.CarilerAsync(dbf, p.CariId is { } c ? [c] : [], ct);
         var lines = await penalties.ListSatirAsync(id, ct);
         var payments = await penalties.ListOdemeAsync(id, ct);
-        return TypedResults.Ok(new PenaltyDetail(Row(p, plaka, names, soz, fatura), p.CepTel,
+        // #286 Low-7: ihbarname telefonu müşterinin telefonudur — müşteri telefonu anonimleştirildiyse (KVKK,
+        // MusteriGorunumu kuralı) bu kopya da dönmez.
+        var phoneHidden = p.CariId is { } pc && await db.Customers.AsNoTracking()
+            .AnyAsync(x => x.Id == pc && x.AnonimTelefon, ct);
+        return TypedResults.Ok(new PenaltyDetail(Row(p, plaka, names, soz, fatura), phoneHidden ? null : p.CepTel,
             lines.Select(s => new PenaltyLineDto(s.Id, s.Sira, s.Tutar, s.Odenen, s.Kalan, s.Sebep)).ToList(),
             payments.Select(o => new PenaltyPaymentDto(o.Id, o.SatirId, o.Sira, o.Tutar, o.Tarih, o.Hesap.ToString(),
                 o.KalanSonrasi, o.MakbuzNo, o.KasaKodu, o.HesapNo, o.IslemYapan, o.Aciklama)).ToList()));

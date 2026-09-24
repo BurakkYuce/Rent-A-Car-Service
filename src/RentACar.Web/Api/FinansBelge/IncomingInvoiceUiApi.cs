@@ -91,12 +91,15 @@ public static class IncomingInvoiceUiApi
         return TypedResults.Ok(F5Ortak.Sayfala(await RowsAsync(dbf, rows, ct), Sort, sayfa, boyut, sirala));
     }
 
-    private static async Task<Results<Ok<IncomingInvoiceRow>, ProblemHttpResult>> Detail(
-        Guid id, GelenEFaturaService svc, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+    private static async Task<Results<Ok<IncomingInvoiceDetail>, ProblemHttpResult>> Detail(
+        Guid id, GelenEFaturaService svc, IGelenEFaturaRepository repo, ICurrentUser user,
+        IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         RequireUnrestricted(user);
         var row = await svc.GetAsync(id, ct);
-        return row is null ? F5Ortak.Bulunamadi("Gelen fatura bulunamadı.") : TypedResults.Ok((await RowsAsync(dbf, [row], ct))[0]);
+        if (row is null) return F5Ortak.Bulunamadi("Gelen fatura bulunamadı.");
+        var version = await repo.VersionAsync(id, ct) ?? "";
+        return TypedResults.Ok(new IncomingInvoiceDetail((await RowsAsync(dbf, [row], ct))[0], version));
     }
 
     private static async Task<List<IncomingInvoiceRow>> RowsAsync(
@@ -159,11 +162,14 @@ public static class IncomingInvoiceUiApi
         return TypedResults.Ok(new IncomingInvoiceStateResult(id, target.ToString()));
     }
 
-    private static async Task<Results<Ok<IncomingInvoiceStateResult>, ProblemHttpResult>> Link(
-        Guid id, IncomingInvoiceLinkRequest req, GelenEFaturaService svc, ICurrentUser user,
+    private static async Task<Results<Ok<IncomingInvoiceLinkResult>, ProblemHttpResult>> Link(
+        Guid id, IncomingInvoiceLinkRequest req, GelenEFaturaService svc, IGelenEFaturaRepository repo, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         RequireUnrestricted(user);
+        // #286 M3: tam değiştirme PUT'u iyimser eşzamanlılık ister — bayat sekme başkasının kırılımını ezmesin.
+        if (string.IsNullOrWhiteSpace(req.Surum))
+            throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         foreach (var (v, f) in new[] { (req.Kdv20Matrah, "kdv20Matrah"), (req.Kdv20, "kdv20"), (req.Kdv10Matrah, "kdv10Matrah"),
                      (req.Kdv10, "kdv10"), (req.Kdv1Matrah, "kdv1Matrah"), (req.Kdv1, "kdv1"), (req.Kdv0Matrah, "kdv0Matrah") })
         {
@@ -185,8 +191,10 @@ public static class IncomingInvoiceUiApi
             Id = id, Kdv20Matrah = req.Kdv20Matrah, Kdv20 = req.Kdv20, Kdv10Matrah = req.Kdv10Matrah, Kdv10 = req.Kdv10,
             Kdv1Matrah = req.Kdv1Matrah, Kdv1 = req.Kdv1, Kdv0Matrah = req.Kdv0Matrah, VehicleId = req.AracId,
             ExpenseCategoryId = req.GiderKategoriId, CariId = req.CariId, GiderTipi = tip,
-        }, ct);
-        return TypedResults.Ok(new IncomingInvoiceStateResult(id, row.Durum.ToString()));
+        }, ct, expectedVersion: req.Surum);
+        var after = await svc.GetAsync(id, ct);
+        return TypedResults.Ok(new IncomingInvoiceLinkResult(id, (after ?? row).Durum.ToString(),
+            await repo.VersionAsync(id, ct) ?? ""));
     }
 
     private static async Task<Results<Ok<IncomingInvoiceExpenseResult>, ProblemHttpResult>> ToExpense(

@@ -35,6 +35,7 @@ public static partial class InvoiceUiApi
         Amount(req.NetTutar, "netTutar");
         var rate = req.KdvOrani ?? 0.20m;
         VatRate(rate, "kdvOrani");
+        BaseLimit(req.NetTutar * (1m + rate), 1m, "netTutar"); // M2: brüt (net + KDV) numeric(19,4)'e sığmalı
         Text(req.Aciklama, 512, "aciklama");
         Text(req.IslemSube, 128, "islemSube");
         Text(req.EvrakNo, 64, "evrakNo");

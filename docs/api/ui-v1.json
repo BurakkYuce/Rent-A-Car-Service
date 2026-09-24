@@ -6355,7 +6355,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IncomingInvoiceRow"
+                  "$ref": "#/components/schemas/IncomingInvoiceDetail"
                 }
               }
             }
@@ -6524,7 +6524,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IncomingInvoiceStateResult"
+                  "$ref": "#/components/schemas/IncomingInvoiceLinkResult"
                 }
               }
             }
@@ -21332,6 +21332,21 @@
           }
         }
       },
+      "IncomingInvoiceDetail": {
+        "required": [
+          "fatura",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "fatura": {
+            "$ref": "#/components/schemas/IncomingInvoiceRow"
+          },
+          "surum": {
+            "type": "string"
+          }
+        }
+      },
       "IncomingInvoiceExpenseRequest": {
         "type": "object",
         "properties": {
@@ -21378,8 +21393,17 @@
         }
       },
       "IncomingInvoiceLinkRequest": {
+        "required": [
+          "surum"
+        ],
         "type": "object",
         "properties": {
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "kdv20Matrah": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
@@ -21469,6 +21493,26 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "IncomingInvoiceLinkResult": {
+        "required": [
+          "id",
+          "durum",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "surum": {
+            "type": "string"
           }
         }
       },

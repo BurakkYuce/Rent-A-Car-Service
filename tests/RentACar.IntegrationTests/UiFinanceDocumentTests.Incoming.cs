@@ -31,9 +31,10 @@ public sealed partial class UiFinanceDocumentTests
         await Problem(await PostAsync(s, $"/gelen-efatura/{id}/giderlestir", new { cariId = e.Supplier }), HttpStatusCode.BadRequest, "dogrulama");
 
         await Ok(await PostAsync(s, $"/gelen-efatura/{id}/onayla", null));
-        await Problem(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { kdv20Matrah = 1000m, kdv20 = 200m, cariId = Guid.NewGuid() }, null),
+        var surum = (await Ok(await GetAsync(s, $"/gelen-efatura/{id}"))).GetProperty("surum").GetString();
+        await Problem(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum, kdv20Matrah = 1000m, kdv20 = 200m, cariId = Guid.NewGuid() }, null),
             HttpStatusCode.BadRequest, "dogrulama", "cariId");
-        await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { kdv20Matrah = 1000m, kdv20 = 200m, cariId = e.Supplier }, null));
+        await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum, kdv20Matrah = 1000m, kdv20 = 200m, cariId = e.Supplier }, null));
 
         var results = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => PostAsync(s, $"/gelen-efatura/{id}/giderlestir", new { })));
         Assert.Single(results, r => r.StatusCode == HttpStatusCode.OK);
@@ -47,7 +48,7 @@ public sealed partial class UiFinanceDocumentTests
         Line(set, LedgerAccountType.Kdv, null, LedgerDirection.Debit, 200m);
         Line(set, LedgerAccountType.Cari, e.Supplier, LedgerDirection.Credit, 1200m);
         Assert.Equal(-1200m, await CustomerBalanceAsync(e, e.Supplier));
-        var detail = await Ok(await GetAsync(s, $"/gelen-efatura/{id}"));
+        var detail = (await Ok(await GetAsync(s, $"/gelen-efatura/{id}"))).GetProperty("fatura");
         Assert.True(detail.GetProperty("giderlestirildi").GetBoolean());
         Assert.Equal("Islendi", detail.GetProperty("durum").GetString());
         await AllLedgerBalancedAsync(e);

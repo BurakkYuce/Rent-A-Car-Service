@@ -15,11 +15,19 @@ public sealed record IncomingInvoiceCreateRequest(
     string? Ettn, string? GonderenVkn, string? GonderenUnvan, decimal NetTutar, decimal KdvTutar, decimal GenelToplam,
     DateTimeOffset? Tarih = null, string? Doviz = null, string? Aciklama = null);
 
-/// <summary>KDV oran kırılımı + araç/kategori/tedarikçi bağı (deftere YAZMAZ; giderleştirmenin girdisi).</summary>
+/// <summary>Gelen fatura detayı + satır sürümü (<c>surum</c>: bağlama PUT'unda zorunlu, iyimser eşzamanlılık).</summary>
+public sealed record IncomingInvoiceDetail(IncomingInvoiceRow Fatura, string Surum);
+
+/// <summary>KDV oran kırılımı + araç/kategori/tedarikçi bağı (deftere YAZMAZ; giderleştirmenin girdisi). TAM
+/// DEĞİŞTİRME: boş alan temizler. <c>surum</c> ZORUNLU (detaydan); farklıysa 409 <c>cakisma</c>.</summary>
 public sealed record IncomingInvoiceLinkRequest(
+    string? Surum,
     decimal? Kdv20Matrah = null, decimal? Kdv20 = null, decimal? Kdv10Matrah = null, decimal? Kdv10 = null,
     decimal? Kdv1Matrah = null, decimal? Kdv1 = null, decimal? Kdv0Matrah = null,
     Guid? AracId = null, Guid? GiderKategoriId = null, Guid? CariId = null, string? GiderTipi = null);
+
+/// <summary>Bağlama sonucu: yeni sürüm (sonraki PUT için).</summary>
+public sealed record IncomingInvoiceLinkResult(Guid Id, string Durum, string Surum);
 
 /// <summary>Giderleştirme: <c>odemeYontemi</c> Nakit | Banka | AcikHesap (varsayılan AcikHesap; cari boşsa
 /// faturaya bağlı cari).</summary>
