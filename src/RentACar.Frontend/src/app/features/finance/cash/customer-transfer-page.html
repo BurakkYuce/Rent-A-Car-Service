@@ -1,0 +1,142 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.cariVirman.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">{{ 'finans.cariVirman.aciklama' | transloco }}</p>
+
+  <section class="bolum" aria-labelledby="rc-cari-virman-form">
+    <h2 id="rc-cari-virman-form">{{ 'finans.cariVirman.yeni' | transloco }}</h2>
+    <div class="rc-form-izgara" [formGroup]="form">
+      <rc-alan [etiket]="'finans.cariVirman.kaynak' | transloco">
+        <rc-arama-secim formControlName="kaynakCari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.cariVirman.hedef' | transloco">
+        <rc-arama-secim formControlName="hedefCari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.alan.tutar' | transloco">
+        <rc-para-girdisi formControlName="tutar" [paraBirimi]="currency() || 'TRY'" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.alan.doviz' | transloco">
+        <rc-secim formControlName="doviz" [secenekler]="currencyOptions" />
+      </rc-alan>
+      @if (isForeign()) {
+        <rc-alan
+          [etiket]="'finans.alan.kur' | transloco"
+          [ipucu]="'finans.alan.kurIpucu' | transloco"
+        >
+          <rc-sayi-girdisi formControlName="kur" [kesir]="6" />
+        </rc-alan>
+      }
+      <rc-alan
+        [etiket]="'finans.alan.tarih' | transloco"
+        [ipucu]="'finans.cariVirman.tarihIpucu' | transloco"
+      >
+        <rc-tarih-secici formControlName="tarih" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.alan.vade' | transloco">
+        <rc-tarih-secici formControlName="vade" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.alan.makbuzNo' | transloco">
+        <rc-metin-girdisi formControlName="makbuzNo" [azamiUzunluk]="32" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.alan.islemSubesi' | transloco">
+        <rc-arama-secim formControlName="sube" [kaynak]="branches" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.alan.aciklama' | transloco" class="rc-form-izgara__genis">
+        <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+      </rc-alan>
+    </div>
+    <p class="not">{{ 'finans.cariVirman.islemYapanNot' | transloco }}</p>
+    <rc-fin-submit
+      [action]="action"
+      [label]="'finans.cariVirman.yap' | transloco"
+      ikon="refresh"
+      (send)="submit()"
+      (giveUp)="abandon()"
+    />
+  </section>
+
+  <section class="bolum" aria-labelledby="rc-cari-virman-gecmis">
+    <h2 id="rc-cari-virman-gecmis">{{ 'finans.cariVirman.gecmis' | transloco }}</h2>
+    <form class="filtre" [formGroup]="filter" (ngSubmit)="applyFilter()">
+      <div class="rc-form-izgara">
+        <rc-alan [etiket]="'finans.cariVirman.filtreCari' | transloco">
+          <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.cariVirman.ara' | transloco">
+          <rc-metin-girdisi formControlName="ara" tur="search" [azamiUzunluk]="100" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.alan.tarihBas' | transloco">
+          <rc-tarih-secici formControlName="bas" />
+        </rc-alan>
+        <rc-alan [etiket]="'finans.alan.tarihBit' | transloco">
+          <rc-tarih-secici formControlName="bit" />
+        </rc-alan>
+      </div>
+      <div class="filtre__eylemler">
+        <button type="submit" class="rc-dugme rc-dugme--kucuk">
+          {{ 'finans.suz' | transloco }}
+        </button>
+        @if (filtered()) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="clearFilter()"
+          >
+            {{ 'finans.temizle' | transloco }}
+          </button>
+        }
+      </div>
+    </form>
+    @if (history.tur() === 'hata') {
+      <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ history.hata()?.detay }}</p>
+    }
+    @if (history.veri(); as rows) {
+      <p class="ozet">{{ 'finans.cariVirman.adet' | transloco: { adet: rows.length } }}</p>
+      <div class="tablo-kap">
+        <table class="duz-tablo">
+          <thead>
+            <tr>
+              <th>{{ 'finans.alan.tarih' | transloco }}</th>
+              <th>{{ 'finans.alan.vade' | transloco }}</th>
+              <th>{{ 'finans.cariVirman.kaynak' | transloco }}</th>
+              <th>{{ 'finans.cariVirman.hedef' | transloco }}</th>
+              <th class="num">{{ 'finans.alan.tutar' | transloco }}</th>
+              <th>{{ 'finans.alan.doviz' | transloco }}</th>
+              <th>{{ 'finans.alan.makbuzNo' | transloco }}</th>
+              <th>{{ 'finans.alan.islemSubesi' | transloco }}</th>
+              <th>{{ 'finans.alan.islemYapan' | transloco }}</th>
+              <th>{{ 'finans.alan.aciklama' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (v of rows; track v.id) {
+              <tr>
+                <td>{{ v.tarih | tarih }}</td>
+                <td>{{ v.vade ? (v.vade | tarih) : '—' }}</td>
+                <td>{{ v.kaynakCariAd }}</td>
+                <td>{{ v.hedefCariAd }}</td>
+                <td class="num">{{ v.tutar | fsayi }}</td>
+                <td>{{ v.doviz }}</td>
+                <td>{{ v.makbuzNo ?? '—' }}</td>
+                <td>{{ v.sube ?? '—' }}</td>
+                <td>{{ v.islemYapan ?? '—' }}</td>
+                <td>{{ v.aciklama ?? '—' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="10">
+                  {{
+                    (filtered() ? 'finans.cariVirman.filtreyeUyanYok' : 'finans.cariVirman.yok')
+                      | transloco
+                  }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="not">{{ 'finans.cariVirman.kunyeNot' | transloco }}</p>
+    }
+  </section>
+</div>

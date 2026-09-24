@@ -1,0 +1,96 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finans.topluGider.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">{{ 'finans.topluGider.aciklama' | transloco }}</p>
+
+  <section class="bolum" aria-labelledby="rc-toplu-gider">
+    <h2 id="rc-toplu-gider">{{ 'finans.topluGider.ortak' | transloco }}</h2>
+    <div class="rc-form-izgara" [formGroup]="form">
+      <rc-alan [etiket]="'finans.topluGider.tip' | transloco">
+        <rc-secim formControlName="tip" [secenekler]="typeOptions" />
+      </rc-alan>
+      <rc-alan [etiket]="'finans.topluGider.odemeYontemi' | transloco">
+        <rc-secim formControlName="odemeYontemi" [secenekler]="methodOptions" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finans.topluGider.kdvOrani' | transloco"
+        [ipucu]="'finans.topluGider.kdvIpucu' | transloco"
+      >
+        <rc-sayi-girdisi formControlName="kdvOrani" [kesir]="4" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finans.topluGider.cari' | transloco"
+        [ipucu]="'finans.topluGider.cariIpucu' | transloco"
+      >
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finans.alan.vade' | transloco"
+        [ipucu]="'finans.topluGider.bilgiAlani' | transloco"
+      >
+        <rc-tarih-secici formControlName="vade" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finans.topluGider.hesapNo' | transloco"
+        [ipucu]="'finans.topluGider.hesapIpucu' | transloco"
+      >
+        <rc-secim
+          formControlName="finansalHesapId"
+          [secenekler]="accounts.options(null)"
+          [bosEtiket]="'finans.topluGider.secilmedi' | transloco"
+        />
+      </rc-alan>
+    </div>
+    <h3>{{ 'finans.topluGider.kalemler' | transloco }}</h3>
+    <p class="not">{{ 'finans.topluGider.plakaNot' | transloco }}</p>
+    <div class="satir-editoru" [formGroup]="form">
+      <div formArrayName="satirlar" class="satir-editoru">
+        @for (r of rows; track r.controls.id.value; let i = $index) {
+          <div
+            class="satir-editoru__satir"
+            [formGroupName]="i"
+            role="group"
+            [attr.aria-label]="'finans.topluGider.satir' | transloco: { no: i + 1 }"
+          >
+            <rc-alan [etiket]="'finans.topluGider.netTutar' | transloco">
+              <rc-para-girdisi formControlName="netTutar" />
+            </rc-alan>
+            <rc-alan [etiket]="'finans.alan.aciklama' | transloco">
+              <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+            </rc-alan>
+            <rc-alan [etiket]="'finans.topluGider.arac' | transloco">
+              <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+            </rc-alan>
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+              [disabled]="rows.length <= 1 || action.pending()"
+              (click)="removeRow(i)"
+              [attr.aria-label]="'finans.topluGider.satirSil' | transloco: { no: i + 1 }"
+            >
+              <rc-ikon ad="trash" [boyut]="14" />
+            </button>
+          </div>
+        }
+      </div>
+      <div class="form__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="action.pending()"
+          (click)="addRow()"
+        >
+          <rc-ikon ad="plus" [boyut]="14" /> {{ 'finans.topluGider.satirEkle' | transloco }}
+        </button>
+      </div>
+    </div>
+    <p class="not">{{ 'finans.topluGider.belgeNot' | transloco }}</p>
+    <rc-fin-submit
+      [action]="action"
+      [label]="'finans.topluGider.kaydet' | transloco"
+      (send)="submit()"
+      (giveUp)="abandon()"
+    />
+  </section>
+</div>
