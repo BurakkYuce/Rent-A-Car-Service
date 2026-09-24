@@ -3,8 +3,12 @@ import type { Routes } from '@angular/router';
 import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
-import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
+import { CRM_ROUTES } from '@features/crm/crm.routes';
+import { CUSTOMER_ROUTES } from '@features/customers/customers.routes';
+import { DEFINITION_ROUTES } from '@features/definitions/definitions.routes';
 import { FINANCE_DOCUMENT_ROUTES } from '@features/finance-documents/finance-documents.routes';
+import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
+import { REPORT_ROUTES } from '@features/reports/reports.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
 import { VEHICLE_FINANCE_ROUTES } from '@features/vehicle-finance/vehicle-finance.routes';
 import { VEHICLE_ROUTES } from '@features/vehicles/vehicles.routes';
@@ -161,4 +165,12 @@ export const SAYFALAR: Routes = [
   ...VEHICLE_FINANCE_ROUTES,
   // F8.2b finans belgeleri: faturalar (+ detay listesi, yazdır), cezalar, giderler, gelen e-fatura, araç satışları.
   ...FINANCE_DOCUMENT_ROUTES,
+  // F7.2 cariler: liste, kart (yeni/:id), 360° detay (+ ekstre sekmesi).
+  ...CUSTOMER_ROUTES,
+  // F7.2 CRM: anket, şikayet, assistans, hukuk, CRM analiz.
+  ...CRM_ROUTES,
+  // F10.2 raporlar: /raporlar/<kod> (tek ortak rapor ekranı; araç karnesi /raporlar/arac-karne/:id).
+  ...REPORT_ROUTES,
+  // F11.2a tanımlar (1. yarı): genel tanım CRUD'u + şubeler, doluluk kuralları, dokümanlar, takvim aboneliği.
+  ...DEFINITION_ROUTES,
 ];

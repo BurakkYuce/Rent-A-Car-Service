@@ -1,0 +1,138 @@
+.sayfa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+  min-width: 0;
+
+  > h1 {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.aciklama {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.bolum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  min-width: 0;
+  margin-top: var(--rc-bosluk-4);
+
+  > h2 {
+    margin: 0;
+  }
+}
+
+.eylemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: end;
+}
+
+.kaydirma {
+  overflow-x: auto;
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+}
+
+.tablo {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    height: var(--rc-tablo-satir);
+    padding: var(--rc-bosluk-1) var(--rc-tablo-hucre-bosluk);
+    border-bottom: 1px solid var(--rc-kenar);
+    text-align: start;
+    vertical-align: middle;
+  }
+
+  th {
+    background-color: var(--rc-yuzey-alt);
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+    font-weight: var(--rc-agirlik-kalin);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .sayi {
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+
+  .islemler {
+    width: 1%;
+    white-space: nowrap;
+  }
+}
+
+.alt-metin {
+  display: block;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.bos {
+  color: var(--rc-metin-ikincil);
+}
+
+.hata {
+  color: var(--rc-hata-metin);
+}
+
+.dosya {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-1);
+  min-width: 0;
+
+  > input {
+    max-width: 100%;
+  }
+}
+
+.onizleme {
+  padding: var(--rc-bosluk-3);
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+
+  > p {
+    margin: 0 0 var(--rc-bosluk-2);
+  }
+
+  > ul {
+    margin: 0 0 var(--rc-bosluk-3);
+    padding-inline-start: var(--rc-bosluk-5);
+  }
+}
+
+.baglanti {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+
+  > input {
+    flex: 1 1 16rem;
+    min-width: 0;
+  }
+}
+
+.kademeler {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+  gap: var(--rc-bosluk-3) var(--rc-bosluk-4);
+}

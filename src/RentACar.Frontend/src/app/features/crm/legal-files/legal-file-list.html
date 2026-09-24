@@ -1,0 +1,210 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'crm.hukuk.baslik' | transloco }}</h1>
+  </header>
+  <p class="aciklama">
+    <strong>{{ 'crm.hukuk.bilgiCiti' | transloco }}</strong>
+    {{ 'crm.hukuk.bilgiCitiDevam' | transloco }}
+  </p>
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'crm.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'crm.musteri' | transloco">
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.hukuk.dosyaNo' | transloco" [ipucu]="'crm.icindeGecen' | transloco">
+        <rc-metin-girdisi formControlName="dosyaNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.hukuk.faturaNo' | transloco" [ipucu]="'crm.icindeGecen' | transloco">
+        <rc-metin-girdisi formControlName="faturaNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.baslangic' | transloco">
+        <rc-tarih-secici formControlName="tarihBas" />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.bitis' | transloco">
+        <rc-tarih-secici formControlName="tarihBit" />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.hukuk.tur' | transloco">
+        <rc-secim
+          formControlName="tur"
+          [secenekler]="typeOptions"
+          [bosEtiket]="'crm.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.durum' | transloco">
+        <rc-secim
+          formControlName="durum"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'crm.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'crm.ara' | transloco" [ipucu]="'crm.hukuk.araIpucu' | transloco">
+        <rc-metin-girdisi formControlName="ara" tur="search" [azamiUzunluk]="100" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'crm.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'crm.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  @if (store.list.veri(); as page) {
+    <p class="ozet" aria-live="polite">
+      {{ 'crm.hukuk.ozet' | transloco: { toplam: page.toplam } }}
+      @if (store.counts.veri(); as c) {
+        · {{ 'crm.ozetAcik' | transloco: { sayi: c['acik'] } }}
+      }
+    </p>
+  }
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="hukuk.liste"
+    [etiket]="'crm.hukuk.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    [disaAktarma]="export()"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span
+        class="rc-rozet"
+        [class.rc-rozet--uyari]="satir.durum === 'Acik'"
+        [class.rc-rozet--basari]="satir.durum !== 'Acik'"
+        >{{ statusLabel(satir.durum) }}</span
+      >
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="satir-eylem">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          (click)="edit(satir)"
+        >
+          {{ 'crm.duzenle' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          [disabled]="editor.busy() !== null"
+          (click)="remove(satir)"
+        >
+          {{ 'crm.sil' | transloco }}
+        </button>
+      </span>
+    </ng-template>
+  </rc-tablo>
+
+  <section class="bolum duzenleyici" aria-labelledby="rc-hukuk-formu">
+    <h2 id="rc-hukuk-formu" tabindex="-1">
+      @if (editor.editing().kind === 'new') {
+        {{ 'crm.hukuk.yeni' | transloco }}
+      } @else {
+        {{ 'crm.hukuk.duzenle' | transloco: { no: editor.base()?.dosya?.dosyaNo ?? '' } }}
+      }
+    </h2>
+    <form class="form" [formGroup]="form" (ngSubmit)="save()">
+      <div class="rc-form-izgara">
+        <rc-alan [etiket]="'crm.hukuk.dosyaNo' | transloco">
+          <rc-metin-girdisi formControlName="dosyaNo" [azamiUzunluk]="64" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.faturaNo' | transloco">
+          <rc-metin-girdisi formControlName="faturaNoTemp" [azamiUzunluk]="64" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.tur' | transloco">
+          <rc-secim formControlName="tur" [secenekler]="typeOptions" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.cari' | transloco">
+          <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.avukat' | transloco">
+          <rc-metin-girdisi formControlName="avukat" [azamiUzunluk]="128" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.avukatTel' | transloco">
+          <rc-metin-girdisi formControlName="avukatTel" tur="tel" [azamiUzunluk]="32" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.avukatMail' | transloco">
+          <rc-metin-girdisi formControlName="avukatMail" tur="email" [azamiUzunluk]="256" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.avukat2' | transloco">
+          <rc-metin-girdisi formControlName="avukat2Ad" [azamiUzunluk]="128" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.avukat2Tel' | transloco">
+          <rc-metin-girdisi formControlName="avukat2Tel" tur="tel" [azamiUzunluk]="32" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.avukat2Mail' | transloco">
+          <rc-metin-girdisi formControlName="avukat2Mail" tur="email" [azamiUzunluk]="256" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.tutarBilgi' | transloco">
+          <rc-para-girdisi formControlName="tutar" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.tahsilatBilgi' | transloco">
+          <rc-para-girdisi formControlName="tahsilat" />
+        </rc-alan>
+        <dl class="rc-alan kalan-kutusu">
+          <dt class="rc-alan__etiket">{{ 'crm.hukuk.kalanHesaplanan' | transloco }}</dt>
+          <dd class="kalan">
+            {{ editor.base() ? (num(editor.base()!.dosya.kalan) | para) : '—' }}
+          </dd>
+          <dd class="rc-alan__ipucu">{{ 'crm.hukuk.kalanIpucu' | transloco }}</dd>
+        </dl>
+        <rc-alan [etiket]="'crm.durum' | transloco">
+          <rc-secim formControlName="durum" [secenekler]="statusOptions" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.tarih' | transloco">
+          <rc-tarih-secici formControlName="tarih" />
+        </rc-alan>
+        <rc-alan [etiket]="'crm.hukuk.aktif' | transloco" etiketGizli>
+          <rc-onay-kutusu formControlName="aktif">{{
+            'crm.hukuk.aktif' | transloco
+          }}</rc-onay-kutusu>
+        </rc-alan>
+        <div class="genis">
+          <rc-alan [etiket]="'crm.aciklama' | transloco">
+            <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="1024" />
+          </rc-alan>
+        </div>
+      </div>
+      <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+      <div class="form__eylemler">
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="submission.gonderiliyor() || editor.waiting"
+        >
+          {{
+            submission.gonderiliyor()
+              ? ('form.gonderiliyor' | transloco)
+              : ((editor.editing().kind === 'new' ? 'crm.ekle' : 'crm.kaydet') | transloco)
+          }}
+        </button>
+        @if (editor.editing().kind === 'record') {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="editor.cancel()"
+          >
+            {{ 'crm.vazgec' | transloco }}
+          </button>
+        }
+      </div>
+    </form>
+  </section>
+</div>
