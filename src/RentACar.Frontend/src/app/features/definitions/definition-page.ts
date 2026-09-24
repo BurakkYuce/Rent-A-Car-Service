@@ -8,11 +8,14 @@ import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
 import { restTanimKaynagi } from '@shared/form/tanim-crud/tanim-kaynagi';
 
 import { type DefinitionKind, definitionConfig, selectionSuggestions } from './definition-catalog';
+import { pagedDefinitionSource } from './paged-source';
 
 /**
  * F11.2a genel tanım ekranı (Blazor `BrandList`, `CancelReasonList`, `CountryList`, `CustomerGroupList`,
  * `DepartmentList`, `AccessoryList`, `BankList`, `CurrencyList`, `CustomCodeList`, `ExpenseCategoryList`,
- * `FinancialAccountList`, `DropTanimList` paritesi). Tür rota verisinden (`data.definition`); alanlar
+ * `FinancialAccountList`, `DropTanimList`; F11.2c: `PaymentTypeList`, `FuelKindList`, `TransmissionTypeList`,
+ * `VehicleColorList`, `HesapKoduList`, `InsuranceCompanyList`, `KdvRateList`, `PenaltyTypeList`, `BelgeSablonList`
+ * paritesi). Tür rota verisinden (`data.definition`); alanlar
  * `definitionConfig`'te, CRUD + sürüm/409 birleştirme `rc-tanim-crud`'da — ekran başına kod yok.
  */
 @Component({
@@ -44,7 +47,10 @@ export class DefinitionPage {
     branch: selectionSuggestions('/api/ui/v1/secim/sube'),
     location: selectionSuggestions('/api/ui/v1/secim/lokasyon'),
   });
-  protected readonly source = restTanimKaynagi(this.config.root);
+  protected readonly source =
+    this.config.pagedSort === undefined
+      ? restTanimKaynagi(this.config.root)
+      : pagedDefinitionSource(this.config.root, this.config.pagedSort);
 
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());

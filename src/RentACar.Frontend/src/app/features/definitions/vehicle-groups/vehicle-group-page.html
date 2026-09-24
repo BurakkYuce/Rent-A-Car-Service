@@ -1,0 +1,70 @@
+<div class="sayfa">
+  <h1>{{ 'tanimlar.vehicleGroup.baslik' | transloco }}</h1>
+  <p class="aciklama">{{ 'tanimlar.vehicleGroup.aciklama' | transloco }}</p>
+
+  @if ((unmatched() ?? []).length > 0) {
+    <section class="bolum" aria-labelledby="ag-eslesmeyen-baslik">
+      <h2 id="ag-eslesmeyen-baslik">
+        {{
+          'tanimlar.vehicleGroup.eslesmeyen.baslik'
+            | transloco: { sayi: (unmatched() ?? []).length }
+        }}
+      </h2>
+      <p class="aciklama">{{ 'tanimlar.vehicleGroup.eslesmeyen.aciklama' | transloco }}</p>
+      <div class="kaydirma">
+        <table class="tablo">
+          <thead>
+            <tr>
+              <th scope="col">{{ 'tanimlar.vehicleGroup.eslesmeyen.deger' | transloco }}</th>
+              <th scope="col" class="sayi">
+                {{ 'tanimlar.vehicleGroup.eslesmeyen.aracSayisi' | transloco }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (u of unmatched() ?? []; track u.grup + u.bos) {
+              <tr>
+                <td>
+                  {{ u.bos ? ('tanimlar.vehicleGroup.eslesmeyen.bos' | transloco) : u.grup }}
+                </td>
+                <td class="sayi">{{ u.aracSayisi }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <rc-form-hatalari [hatalar]="assignSubmit.genelHatalar()" />
+      <div class="rc-form-izgara" [formGroup]="assignForm">
+        <rc-alan [etiket]="'tanimlar.vehicleGroup.eslesmeyen.deger' | transloco">
+          <rc-secim formControlName="kaynak" [secenekler]="valueOptions()" />
+        </rc-alan>
+        <rc-alan [etiket]="'tanimlar.vehicleGroup.eslesmeyen.hedef' | transloco">
+          <rc-secim formControlName="hedefGrupId" [secenekler]="groupOptions()" />
+        </rc-alan>
+        <div class="eylemler">
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--birincil"
+            [disabled]="assignSubmit.gonderiliyor()"
+            (click)="assign()"
+          >
+            {{ 'tanimlar.vehicleGroup.eslesmeyen.ata' | transloco }}
+          </button>
+        </div>
+      </div>
+    </section>
+  }
+  @if (unmatchedError()) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+      {{ 'tanimlar.vehicleGroup.eslesmeyen.yuklenemedi' | transloco }} {{ unmatchedError() }}
+    </p>
+  }
+
+  <rc-tanim-crud
+    layout="panel"
+    [baslik]="'tanimlar.vehicleGroup.tablo' | transloco"
+    [alanlar]="fields"
+    [kaynak]="source"
+    (changed)="loadUnmatched()"
+  />
+</div>

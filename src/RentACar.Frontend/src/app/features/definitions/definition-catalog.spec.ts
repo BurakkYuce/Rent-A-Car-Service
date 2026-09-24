@@ -1,6 +1,6 @@
 import { of } from 'rxjs';
 
-import { DEFINITION_PATHS, type DefinitionKind } from './definition-paths';
+import { DEFINITION_PATHS, DEFINITION_PERMISSION, type DefinitionKind } from './definition-paths';
 import { branchFields, definitionConfig, occupancyFields } from './definition-catalog';
 import { ladderSteps } from './occupancy/occupancy-page';
 
@@ -25,7 +25,36 @@ describe('tanım yapılandırması (Blazor form alanları + uç gövdesi)', () =
       expect(names(k)).toEqual(['kod', 'ad', 'aktif']);
       expect(definitionConfig(k, t, suggest).layout).toBe('row');
     }
-    expect(Object.keys(DEFINITION_PATHS)).toHaveLength(12);
+    expect(Object.keys(DEFINITION_PATHS)).toHaveLength(21);
+  });
+
+  it('F11.2c: kalan tanımlar (uç gövdesi adları, sayfalı uçlar, izin)', () => {
+    for (const k of ['paymentType', 'fuelKind', 'transmissionType', 'vehicleColor'] as const) {
+      expect(names(k)).toEqual(['kod', 'ad', 'aktif']);
+      expect(definitionConfig(k, t, suggest).pagedSort).toBeUndefined();
+    }
+    expect(definitionConfig('vehicleColor', t, suggest).root).toBe('/api/ui/v1/renkler');
+    expect(names('accountCode')).toEqual(['kod', 'ad', 'aciklama', 'aktif']);
+    expect(names('insuranceCompany')).toEqual(['kod', 'ad', 'telefon', 'aktif']);
+    expect(names('vatRate')).toEqual(['kod', 'ad', 'oran', 'aktif']);
+    expect(names('penaltyType')).toEqual(['kod', 'ad', 'varsayilanTutar', 'aktif']);
+    expect(names('documentTemplate')).toEqual([
+      'belgeTuru',
+      'ad',
+      'varsayilanMi',
+      'aktif',
+      'belgeBasligi',
+      'hukukiMetinSol',
+      'hukukiMetinSag',
+      'ekKosullarVarsayilan',
+      'altBilgi',
+      'imzaAlaniGoster',
+    ]);
+    // F11.1b uçları sayfalı; belge şablonunun sıralama alanı `ad` (kod yok — beyaz liste 400 verirdi).
+    expect(definitionConfig('vatRate', t, suggest).pagedSort).toBe('kod');
+    expect(definitionConfig('documentTemplate', t, suggest).pagedSort).toBe('ad');
+    expect(DEFINITION_PERMISSION.documentTemplate).toBe('ManageUsers');
+    expect(DEFINITION_PERMISSION.vatRate).toBeUndefined();
   });
 
   it('türe özgü alanlar (API istek adlarıyla birebir)', () => {

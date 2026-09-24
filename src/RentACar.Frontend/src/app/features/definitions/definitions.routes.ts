@@ -4,7 +4,7 @@ import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisikli
 import { ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
 
-import { DEFINITION_PATHS, type DefinitionKind } from './definition-paths';
+import { DEFINITION_PATHS, DEFINITION_PERMISSION, type DefinitionKind } from './definition-paths';
 
 /** Sekme/belge başlıkları (Blazor `PageTitle` paritesi). */
 const TITLES: Readonly<Record<DefinitionKind, string>> = {
@@ -20,6 +20,15 @@ const TITLES: Readonly<Record<DefinitionKind, string>> = {
   expenseCategory: 'Gider Türü Tanımları',
   account: 'Kasa/Banka Hesapları',
   drop: 'Drop Matris',
+  paymentType: 'Ödeme Tipleri',
+  fuelKind: 'Yakıt Türleri',
+  transmissionType: 'Vites Türleri',
+  vehicleColor: 'Renkler',
+  accountCode: 'Hesap Kodları',
+  insuranceCompany: 'Sigorta Şirketleri',
+  vatRate: 'KDV Oranları',
+  penaltyType: 'Ceza Türleri',
+  documentTemplate: 'Belge Şablonları',
 };
 
 /**
@@ -32,10 +41,27 @@ export const DEFINITION_ROUTES: Routes = ceviriBloguyla('tanimlar', [
     path: DEFINITION_PATHS[definition],
     title: `${TITLES[definition]} — RentACar`,
     data: { definition },
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [izinGuard(DEFINITION_PERMISSION[definition] ?? 'OperationsWrite')],
     loadComponent: () => import('./definition-page').then((m) => m.DefinitionPage),
     canDeactivate: [kaydedilmemisDegisiklikGuard],
   })),
+  // F11.2c: tanım CRUD'u + ekrana özel işlem (eşleşmeyen grup ataması / oranları yansıt).
+  {
+    path: 'arac-gruplari',
+    title: 'Araç Grupları — RentACar',
+    canMatch: [izinGuard('OperationsWrite')],
+    loadComponent: () =>
+      import('./vehicle-groups/vehicle-group-page').then((m) => m.VehicleGroupPage),
+    canDeactivate: [kaydedilmemisDegisiklikGuard],
+  },
+  {
+    path: 'rezervasyon-kaynaklari',
+    title: 'Rezervasyon Kaynakları — RentACar',
+    canMatch: [izinGuard('OperationsWrite')],
+    loadComponent: () =>
+      import('./reservation-sources/reservation-source-page').then((m) => m.ReservationSourcePage),
+    canDeactivate: [kaydedilmemisDegisiklikGuard],
+  },
   {
     path: 'subeler',
     title: 'Şube Tanımları — RentACar',

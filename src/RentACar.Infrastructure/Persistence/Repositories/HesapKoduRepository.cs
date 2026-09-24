@@ -59,4 +59,12 @@ public sealed class HesapKoduRepository(IDbContextFactory<AppDbContext> factory)
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    // F11.2c — IVersionedRepository<HesapKodu> (generic RowVersion helper).
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => RowVersion.ReadAsync<HesapKodu>(_factory, id, ct);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default) => RowVersion.ReadAllAsync<HesapKodu>(_factory, ct);
+
+    public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<HesapKodu> apply, CancellationToken ct = default)
+        => RowVersion.UpdateAsync(_factory, id, expectedVersion, apply, r => $"'{r.Kod}' kodlu hesap zaten var.", ct);
 }

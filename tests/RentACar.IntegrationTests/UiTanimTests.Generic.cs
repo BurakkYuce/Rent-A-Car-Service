@@ -8,7 +8,8 @@ public sealed partial class UiTanimTests
 {
     /// <summary>One definition under the generic contract: route + a body builder (kod, ad, aktif, surum).</summary>
     public sealed record DefinitionCase(string Path, Func<string, string, bool, string?, object> Body,
-        string RawCode = " ab1 ", string Code = "AB1", string RawCode2 = "zz9", string Code2 = "ZZ9", int CodeMax = 32);
+        string RawCode = " ab1 ", string Code = "AB1", string RawCode2 = "zz9", string Code2 = "ZZ9", int CodeMax = 32,
+        int NameMax = 128);
 
     private static object KodAd(string kod, string ad, bool aktif, string? surum) => new { kod, ad, aktif, surum };
 
@@ -33,9 +34,12 @@ public sealed partial class UiTanimTests
 
     [Theory]
     [MemberData(nameof(CaseKeys))]
-    public async Task Definition_crud_uniqueness_version_permission_and_isolation(string key)
+    public Task Definition_crud_uniqueness_version_permission_and_isolation(string key)
+        => RunDefinitionCaseAsync(Cases[key]);
+
+    /// <summary>The shared generic-contract scenario (also used by F11.2c's <c>RemainingCases</c>).</summary>
+    private async Task RunDefinitionCaseAsync(DefinitionCase c)
     {
-        var c = Cases[key];
         var root = V1 + c.Path;
         var env = await SetUpAsync();
         var op = await LoginAsync(env, Who.OperatorA);
@@ -54,7 +58,7 @@ public sealed partial class UiTanimTests
         // Uniqueness (tenant, code) and column limits → 400 with the field.
         await ExpectProblem(await Send(op, HttpMethod.Post, root, c.Body(c.Code, "Kopya", true, null)), HttpStatusCode.BadRequest, "dogrulama", "kod");
         await ExpectProblem(await Send(op, HttpMethod.Post, root, c.Body("QQ1", "", true, null)), HttpStatusCode.BadRequest, "dogrulama", "ad");
-        await ExpectProblem(await Send(op, HttpMethod.Post, root, c.Body("QQ2", new string('a', 129), true, null)), HttpStatusCode.BadRequest, "dogrulama", "ad");
+        await ExpectProblem(await Send(op, HttpMethod.Post, root, c.Body("QQ2", new string('a', c.NameMax + 1), true, null)), HttpStatusCode.BadRequest, "dogrulama", "ad");
         await ExpectProblem(await Send(op, HttpMethod.Post, root, c.Body(new string('K', c.CodeMax + 1), "Uzun", true, null)), HttpStatusCode.BadRequest, "dogrulama", "kod");
 
         // List: array, every row carries its version; order/filter/search.

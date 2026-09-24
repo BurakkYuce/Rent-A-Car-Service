@@ -14,7 +14,17 @@ export type DefinitionKind =
   | 'customCode'
   | 'expenseCategory'
   | 'account'
-  | 'drop';
+  | 'drop'
+  // F11.2c
+  | 'paymentType'
+  | 'fuelKind'
+  | 'transmissionType'
+  | 'vehicleColor'
+  | 'accountCode'
+  | 'insuranceCompany'
+  | 'vatRate'
+  | 'penaltyType'
+  | 'documentTemplate';
 
 /** Tür → rota yolu (Blazor rotalarıyla ve `/api/ui/v1` kökleriyle birebir). */
 export const DEFINITION_PATHS: Readonly<Record<DefinitionKind, string>> = {
@@ -30,4 +40,20 @@ export const DEFINITION_PATHS: Readonly<Record<DefinitionKind, string>> = {
   expenseCategory: 'gider-turleri',
   account: 'hesaplar',
   drop: 'drop-tanimlari',
+  paymentType: 'odeme-tipleri',
+  fuelKind: 'yakit-turleri',
+  transmissionType: 'vites-turleri',
+  vehicleColor: 'renkler',
+  accountCode: 'hesap-kodlari',
+  insuranceCompany: 'sigorta-sirketleri',
+  vatRate: 'kdv-oranlari',
+  penaltyType: 'ceza-turleri',
+  documentTemplate: 'belge-sablonlari',
+};
+
+/** Uç izniyle birebir: belge şablonları ManageUsers (Blazor `Admin,Yonetici` + uç); diğerleri OperationsWrite. */
+export const DEFINITION_PERMISSION: Readonly<
+  Partial<Record<DefinitionKind, 'ManageUsers' | 'OperationsWrite'>>
+> = {
+  documentTemplate: 'ManageUsers',
 };
