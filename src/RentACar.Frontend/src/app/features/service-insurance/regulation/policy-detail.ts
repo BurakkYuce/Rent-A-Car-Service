@@ -129,6 +129,11 @@ export class PolicyDetail implements KaydedilmemisDegisiklikSahibi {
     return this.form.dirty || (this.panel()?.hasPendingWork() ?? false);
   }
 
+  /** Uçuştaki / sonucu bilinmeyen ödeme varken özel terk metni (inceleme L2). */
+  kaydedilmemisDegisiklikMesaji(): string | null {
+    return this.panel()?.hasPendingPayment() ? this.t('servisSigorta.para.terkMesaji') : null;
+  }
+
   protected reload(): void {
     this.store.detail.yenile();
   }

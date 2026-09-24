@@ -113,7 +113,7 @@
         <button
           type="button"
           class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
-          [disabled]="deleting() || toDelete() === 0"
+          [disabled]="deleting() || !deleteReady() || toDelete() === 0"
           (click)="deleteChannel()"
         >
           {{ 'fiyatTarife.aktar.kanalSil' | transloco: { adet: toDelete() } }}

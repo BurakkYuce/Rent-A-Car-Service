@@ -48,7 +48,16 @@ import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
 
 import { planText } from '../service-insurance-columns';
-import { type FrozenRequest, MoneySubmission, duplicateNotice } from '../money-submission';
+import {
+  type FrozenRequest,
+  MoneySubmission,
+  duplicateNotice,
+  lineNetAmount,
+  setLocked,
+} from '../money-submission';
+
+const asText = (v: number | string | null | undefined): string | null =>
+  v === null || v === undefined ? null : String(v);
 import {
   DECLARATION_TYPES,
   PAYMENT_METHODS,
@@ -186,32 +195,51 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
         this.recordArrived(d);
       });
     });
-    // Donmuş kopya varken form kilitli: yeniden deneme formdan değil kopyadan gider.
+    // İstek uçarken ve donmuş kopya varken form kilitli (inceleme M1); donmuş gövde forma geri yazılır —
+    // "tekrar gönder" ekranda görüneni gönderir.
     effect(() => {
-      const locked = this.line.frozen() !== null;
-      untracked(() =>
-        locked
-          ? this.lineForm.disable({ emitEvent: false })
-          : this.lineForm.enable({ emitEvent: false }),
-      );
+      const frozen = this.line.frozen();
+      const locked = frozen !== null || this.line.sending();
+      untracked(() => {
+        if (frozen)
+          this.lineForm.patchValue(
+            {
+              aciklama: frozen.body.aciklama ?? null,
+              birimFiyat: asText(frozen.body.birimFiyat),
+              miktar: num(frozen.body.miktar),
+              indirim: asText(frozen.body.indirim),
+              kdvOran: num(frozen.body.kdvOran),
+              tutar: asText(frozen.body.tutar),
+            },
+            { emitEvent: false },
+          );
+        setLocked(this.lineForm, locked);
+      });
     });
     effect(() => {
-      const locked = this.reflect.frozen() !== null;
-      untracked(() =>
-        locked
-          ? this.reflectForm.disable({ emitEvent: false })
-          : this.reflectForm.enable({ emitEvent: false }),
-      );
+      const locked = this.reflect.frozen() !== null || this.reflect.sending();
+      untracked(() => setLocked(this.reflectForm, locked));
     });
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
     return (
-      this.infoForm.dirty ||
-      this.lineForm.dirty ||
+      this.infoForm.dirty || this.lineForm.dirty || this.reflectForm.dirty || this.hasPendingMoney()
+    );
+  }
+
+  /** Uçuştaki / sonucu bilinmeyen para işlemi varken özel terk metni (inceleme L2). */
+  kaydedilmemisDegisiklikMesaji(): string | null {
+    return this.hasPendingMoney() ? this.t('servisSigorta.para.terkMesaji') : null;
+  }
+
+  private hasPendingMoney(): boolean {
+    return (
       this.line.frozen() !== null ||
-      this.reflect.frozen() !== null
+      this.line.sending() ||
+      this.reflect.frozen() !== null ||
+      this.reflect.sending()
     );
   }
 
@@ -299,8 +327,9 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
     this.lineForm.markAllAsTouched();
     if (this.line.frozen() === null && this.lineForm.invalid) return;
     const v = this.lineForm.getRawValue() as ServiceLineForm;
+    // Sınıflandırma içeriği NET satır tutarı: sunucunun `mevcut.tutar`'ı ile aynı büyüklük (inceleme M3).
     const copy = this.line.prepare(`kalem:${d.kayit.id}`, lineRequest(v), {
-      tutar: v.tutar ?? v.birimFiyat,
+      tutar: lineNetAmount(v),
       doviz: 'TRY',
       hesap: v.aciklama,
     });
@@ -319,7 +348,7 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
           this.reload();
         },
         error: (raw: unknown) =>
-          this.moneyFailed(this.line, copy, raw, this.lineForm, this.lineErrors, 'tutar'),
+          this.moneyFailed(this.line, copy, raw, this.lineForm, this.lineErrors, true),
       });
   }
 
@@ -364,7 +393,7 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
           this.reload();
         },
         error: (raw: unknown) =>
-          this.moneyFailed(this.reflect, copy, raw, this.reflectForm, this.reflectErrors, null, {
+          this.moneyFailed(this.reflect, copy, raw, this.reflectForm, this.reflectErrors, false, {
             cariId: 'cari',
           }),
       });
@@ -439,7 +468,8 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
     raw: unknown,
     form: FormGroup,
     errors: { set(v: readonly string[]): void },
-    amountField: string | null,
+    /** Tutarı taşıyan formdur: tutar temizlenmeliyse TÜM form sıfırlanır (birim fiyat/miktar/indirim de — M3). */
+    clearsAmount: boolean,
     mapping?: Readonly<Record<string, string>>,
   ): void {
     const error: ApiHatasi = apiHatasinaCevir(raw);
@@ -451,8 +481,7 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
         const n = duplicateNotice(outcome.type, error, submission.lastSubmission, this.t);
         if (n.tone === 'bilgi') this.toast.bilgi(n.message, { baslik: n.title });
         else this.toast.uyari(n.message, { baslik: n.title });
-        if (error.mevcut?.ayniIcerik) form.reset();
-        else if (n.clearAmount && amountField) form.get(amountField)?.setValue(null);
+        if (error.mevcut?.ayniIcerik || (n.clearAmount && clearsAmount)) form.reset();
         this.reload();
         return;
       }
@@ -460,6 +489,7 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
         this.reload();
         return;
       default: {
+        setLocked(form, false); // önce aç: sonra açmak alan hatalarını silerdi
         const unmatched = sunucuHatalariniUygula(form, error.alanlar, mapping);
         if (unmatched.length > 0) errors.set(unmatched);
         else if (error.alanlar === undefined && !genelGosterilir(error)) errors.set([error.detay]);

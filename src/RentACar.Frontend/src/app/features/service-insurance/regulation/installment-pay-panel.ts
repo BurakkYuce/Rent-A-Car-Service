@@ -26,7 +26,7 @@ import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { istekBaglami } from '@core/oturum/istek-baglami';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { anDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
 import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
@@ -36,7 +36,12 @@ import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
 
-import { type FrozenRequest, MoneySubmission, duplicateNotice } from '../money-submission';
+import {
+  type FrozenRequest,
+  MoneySubmission,
+  duplicateNotice,
+  setLocked,
+} from '../money-submission';
 import {
   type AccountKind,
   type InstallmentPaymentRequest,
@@ -47,6 +52,22 @@ import {
 } from '../service-insurance-model';
 
 export type InstallmentKind = 'mtv' | 'muayene';
+
+/** Donmuş gövde → form değerleri (ekranda gönderilenin aynısı görünsün). */
+function bodyToForm(b: InstallmentPaymentRequest) {
+  return {
+    hesap: (b.hesap as AccountKind | null) ?? 'Kasa',
+    hesapId: b.hesapId ?? null,
+    tutar: b.tutar === null || b.tutar === undefined ? null : String(b.tutar),
+    ceza: b.ceza === null || b.ceza === undefined ? null : String(b.ceza),
+    odemeTarihi: gunDegeri(b.odemeTarihi ?? null),
+    evrakNo: b.evrakNo ?? null,
+    islemYapan: b.islemYapan ?? null,
+    kasaKodu: b.kasaKodu ?? null,
+    hesapNo: b.hesapNo ?? null,
+    aciklama: b.aciklama ?? null,
+  };
+}
 
 /**
  * MTV / muayene kısmi ödemesi (Blazor `/regulasyon-odeme/mtv|muayene`) — PARA: gider + dengeli defter (Borç
@@ -125,16 +146,33 @@ export class InstallmentPayPanel {
       if (id !== null && !this.accountOptions().some((h) => h.deger === id))
         this.form.controls.hesapId.setValue(null);
     });
-    // Donmuş kopya varken form kilitli: yeniden deneme formdan değil kopyadan gider.
+    // İstek uçarken ve donmuş kopya varken form kilitli (inceleme M1): ekrandaki değer gönderilenle aynı kalır;
+    // donmuş kopyanın gövdesi forma geri yazılır — "tekrar gönder" ekranda görüneni gönderir.
     effect(() => {
-      const locked = this.payment.frozen() !== null;
-      untracked(() => (locked ? this.form.disable() : this.form.enable()));
+      const frozen = this.payment.frozen();
+      const locked = frozen !== null || this.payment.sending();
+      untracked(() => {
+        if (frozen) this.form.patchValue(bodyToForm(frozen.body), { emitEvent: false });
+        setLocked(this.form, locked);
+      });
+    });
+    // `mukerrer` sonrası kilit: kullanıcı açıkça yeni bir tutar yazınca kalkar (inceleme M4).
+    this.form.controls.tutar.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => {
+      if (v !== null && v !== '') this.needsAmount.set(false);
     });
   }
 
+  /** `mukerrer` sonrası: boş tutar "kalanın tamamını öde" demek — yeni ödeme ancak açıkça girilen tutarla. */
+  protected readonly needsAmount = signal(false);
+
   /** Sonucu bilinmeyen (donmuş) ödeme ya da doldurulmuş form — sayfa terk koruması sorar. */
   hasPendingWork(): boolean {
-    return this.payment.frozen() !== null || this.payment.sending() || this.form.dirty;
+    return this.hasPendingPayment() || this.form.dirty;
+  }
+
+  /** Sonucu bilinmeyen ya da uçuştaki ödeme (sayfa terkinde özel uyarı). */
+  hasPendingPayment(): boolean {
+    return this.payment.frozen() !== null || this.payment.sending();
   }
 
   protected pay(): void {
@@ -144,6 +182,14 @@ export class InstallmentPayPanel {
     this.form.markAllAsTouched();
     if (this.payment.frozen() === null && this.form.invalid) return;
     const v = this.form.getRawValue();
+    if (
+      this.payment.frozen() === null &&
+      this.needsAmount() &&
+      (v.tutar === null || v.tutar === '')
+    ) {
+      this.form.controls.tutar.markAsTouched();
+      return; // panelde kalıcı "tutarı açıkça girin" uyarısı var
+    }
     const body: InstallmentPaymentRequest = {
       hesap: v.hesap ?? 'Kasa',
       hesapId: v.hesapId,
@@ -184,7 +230,8 @@ export class InstallmentPayPanel {
               kalan: paraBicimle(num(r.kalan), 'TRY'),
             }),
           );
-          this.form.reset({ hesap: v.hesap ?? 'Kasa', hesapId: v.hesapId });
+          this.resetKeepingAccount();
+          this.needsAmount.set(false);
           this.settled.emit();
         },
         error: (raw: unknown) => this.failed(copy, raw),
@@ -202,6 +249,11 @@ export class InstallmentPayPanel {
     this.settled.emit();
   }
 
+  private resetKeepingAccount(): void {
+    const { hesap, hesapId } = this.form.getRawValue();
+    this.form.reset({ hesap: hesap ?? 'Kasa', hesapId });
+  }
+
   private failed(copy: FrozenRequest<InstallmentPaymentRequest>, raw: unknown): void {
     const error = apiHatasinaCevir(raw);
     const outcome = this.payment.failed(copy, error);
@@ -212,7 +264,10 @@ export class InstallmentPayPanel {
         const n = duplicateNotice(outcome.type, error, this.payment.lastSubmission, this.t);
         if (n.tone === 'bilgi') this.toast.bilgi(n.message, { baslik: n.title });
         else this.toast.uyari(n.message, { baslik: n.title });
-        if (n.clearAmount || error.mevcut?.ayniIcerik) this.form.controls.tutar.setValue(null);
+        // Başarı yolundaki gibi TAM sıfırlama (ceza dahil; hesap korunur) + açık tutar kilidi (inceleme M4): aksi
+        // halde boş tutar "kalanın tamamı" olarak planlanmamış ikinci ödemeyi ve cezayı ikinci kez yazardı.
+        this.resetKeepingAccount();
+        this.needsAmount.set(true);
         this.settled.emit();
         return;
       }
@@ -220,6 +275,7 @@ export class InstallmentPayPanel {
         this.settled.emit(); // alansız cakisma bandı interceptor'da; form SİLİNMEZ
         return;
       default: {
+        setLocked(this.form, false); // önce aç: sonra açmak alan hatalarını silerdi
         const unmatched = sunucuHatalariniUygula(this.form, error.alanlar);
         if (unmatched.length > 0) this.errors.set(unmatched);
         else if (error.alanlar === undefined && !genelGosterilir(error))

@@ -17,6 +17,7 @@ import {
 } from '@core/form/kaydedilmemis-degisiklik';
 import { sekmeBaglami } from '@core/sekme/sekme-durumu';
 import { FetchPolicy } from '@core/veri/fetch-policy';
+import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { ParaPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
 
 import { num } from '../service-insurance-model';
@@ -40,6 +41,7 @@ export class InstallmentRecord implements KaydedilmemisDegisiklikSahibi {
   protected readonly store = inject(InstallmentRecordStore);
   private readonly route = inject(ActivatedRoute);
   private readonly tab = sekmeBaglami();
+  private readonly t = ceviriFonksiyonu();
   protected readonly kind: InstallmentKind =
     (this.route.snapshot.data['kind'] as InstallmentKind | undefined) ?? 'mtv';
   protected readonly id = this.route.snapshot.paramMap.get('id') ?? '';
@@ -108,6 +110,11 @@ export class InstallmentRecord implements KaydedilmemisDegisiklikSahibi {
 
   kaydedilmemisDegisiklikVar(): boolean {
     return this.panel()?.hasPendingWork() ?? false;
+  }
+
+  /** Uçuştaki / sonucu bilinmeyen ödeme varken özel terk metni (inceleme L2). */
+  kaydedilmemisDegisiklikMesaji(): string | null {
+    return this.panel()?.hasPendingPayment() ? this.t('servisSigorta.para.terkMesaji') : null;
   }
 
   protected reload(): void {

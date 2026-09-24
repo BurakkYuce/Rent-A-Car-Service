@@ -12,6 +12,11 @@
       {{ 'servisSigorta.para.sonucBilinmiyor' | transloco }}
     </div>
   }
+  @if (needsAmount()) {
+    <div class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+      {{ 'servisSigorta.odeme.tutarYenidenGir' | transloco }}
+    </div>
+  }
   <form class="form" [formGroup]="form" (ngSubmit)="pay()">
     <div class="rc-form-izgara">
       <rc-alan [etiket]="'servisSigorta.para.hesap' | transloco">

@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import type { AbstractControl } from '@angular/forms';
 
 import type { ApiHatasi } from '@core/api/api-hatasi';
 import { paraBicimle } from '@core/bicim/bicim';
@@ -125,6 +126,39 @@ export class MoneySubmission<B> {
     this.key = null;
     this.keyTarget = null;
   }
+}
+
+/**
+ * Formu kilitler/açar — YALNIZ durum değişirse. `enable()` doğrulamayı yeniden koşar ve sunucu alan hatalarını
+ * siler; kesin redde bileşen formu ÖNCE açar sonra hataları yazar, kilit efekti sonra boşa çalışmalı.
+ */
+export function setLocked(form: AbstractControl, locked: boolean): void {
+  if (locked && !form.disabled) form.disable({ emitEvent: false });
+  else if (!locked && form.disabled) form.enable({ emitEvent: false });
+}
+
+/** Kuruşa yuvarlama, yarım kuruş sıfırdan uzağa (sunucu `MidpointRounding.AwayFromZero` ile aynı yön). */
+export function round2(x: number): number {
+  const scaled = Number((Math.abs(x) * 100).toPrecision(15));
+  return (Math.sign(x) * Math.round(scaled)) / 100;
+}
+
+/**
+ * Servis kaleminin NET satır tutarı — YALNIZ `mukerrer` sınıflandırması için (inceleme M3): sunucunun
+ * `mevcut.tutar`'ı net satır tutarıdır. Kayıt değeri sunucuda hesaplanır; bu değer hiçbir gövdeye girmez.
+ * `tutar ?? round2(birimFiyat × (miktar ?? 1)) − round2(indirim ?? 0)`.
+ */
+export function lineNetAmount(v: {
+  readonly tutar: number | string | null;
+  readonly birimFiyat: number | string | null;
+  readonly miktar: number | string | null;
+  readonly indirim: number | string | null;
+}): number | null {
+  const explicit = num(v.tutar);
+  if (explicit !== null) return explicit;
+  const unit = num(v.birimFiyat);
+  if (unit === null) return null;
+  return round2(round2(unit * (num(v.miktar) ?? 1)) - round2(num(v.indirim) ?? 0));
 }
 
 export interface DuplicateNotice {

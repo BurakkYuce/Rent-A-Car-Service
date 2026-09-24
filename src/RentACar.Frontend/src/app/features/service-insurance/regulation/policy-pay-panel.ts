@@ -32,7 +32,16 @@ import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { Ikon } from '@shared/ikon/ikon';
 
-import { type FrozenRequest, MoneySubmission, duplicateNotice } from '../money-submission';
+import {
+  type FrozenRequest,
+  MoneySubmission,
+  duplicateNotice,
+  round2,
+  setLocked,
+} from '../money-submission';
+
+const asText = (v: number | string | null | undefined): string | null =>
+  v === null || v === undefined ? null : String(v);
 import {
   type AccountKind,
   type PolicyDetail,
@@ -164,14 +173,38 @@ export class PolicyPayPanel {
   );
 
   constructor() {
+    // Kasa ↔ Banka değişince başka türün hesabı seçili kalmasın (inceleme L3).
+    this.form.controls.hesap.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      const id = this.form.controls.hesapId.value;
+      if (id !== null && !this.accountOptions().some((h) => h.deger === id))
+        this.form.controls.hesapId.setValue(null);
+    });
+    // Uçuşta ve donmuş kopyada form kilitli; donmuş gövde forma geri yazılır (inceleme M1).
     effect(() => {
-      const locked = this.payment.frozen() !== null;
-      untracked(() => (locked ? this.form.disable() : this.form.enable()));
+      const frozen = this.payment.frozen();
+      const locked = frozen !== null || this.payment.sending();
+      untracked(() => {
+        if (frozen)
+          this.form.patchValue(
+            {
+              hesap: (frozen.body.hesap as AccountKind | null) ?? 'Kasa',
+              hesapId: frozen.body.hesapId ?? null,
+              zeyilEkPrim: asText(frozen.body.zeyilEkPrim),
+              kur: asText(frozen.body.kur),
+            },
+            { emitEvent: false },
+          );
+        setLocked(this.form, locked);
+      });
     });
   }
 
   hasPendingWork(): boolean {
-    return this.payment.frozen() !== null || this.payment.sending() || this.form.dirty;
+    return this.hasPendingPayment() || this.form.dirty;
+  }
+
+  hasPendingPayment(): boolean {
+    return this.payment.frozen() !== null || this.payment.sending();
   }
 
   protected pay(): void {
@@ -188,8 +221,9 @@ export class PolicyPayPanel {
       zeyilEkPrim: v.zeyilEkPrim,
       kur: this.foreign() ? v.kur : null,
     };
+    // Sunucunun `mevcut.tutar`'ı prim + zeyil ek primidir (inceleme L4): karşılaştırma aynı toplamla.
     const copy = this.payment.prepare(`sigorta:${p.id}`, body, {
-      tutar: num(p.prim),
+      tutar: round2((num(p.prim) ?? 0) + (num(v.zeyilEkPrim) ?? 0)),
       doviz: p.doviz,
       hesap: v.hesap,
     });
@@ -242,6 +276,7 @@ export class PolicyPayPanel {
         this.settled.emit();
         return;
       default: {
+        setLocked(this.form, false); // önce aç: sonra açmak alan hatalarını silerdi
         const unmatched = sunucuHatalariniUygula(this.form, error.alanlar);
         if (unmatched.length > 0) this.errors.set(unmatched);
         else if (error.alanlar === undefined && !genelGosterilir(error))

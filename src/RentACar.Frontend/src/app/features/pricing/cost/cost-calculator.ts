@@ -66,6 +66,9 @@ interface HeaderForm {
   readonly aciklama: string | null;
 }
 
+/** Formun karşılaştırılabilir anlık kopyası (seçim öğeleri dahil). */
+const snapshot = (f: FormGroup): string => JSON.stringify(f.getRawValue());
+
 const toNum = (v: number | string | null | undefined): number | null => {
   if (v === null || v === undefined || v === '') return null;
   const n = typeof v === 'number' ? v : Number(v);
@@ -151,9 +154,8 @@ export class CostCalculator implements KaydedilmemisDegisiklikSahibi {
   protected readonly save = formGonderimi();
 
   constructor() {
-    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
-      if (this.result() !== null) this.resultStale.set(true);
-    });
+    // Her girdi değişikliği sonucu bayatlatır — ilk hesap uçarken (sonuç henüz yokken) de (inceleme M2).
+    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.resultStale.set(true));
     if (this.offerId) this.readOffer(this.offerId);
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
   }
@@ -164,6 +166,8 @@ export class CostCalculator implements KaydedilmemisDegisiklikSahibi {
 
   protected calculate(): void {
     if (!this.canWrite()) return;
+    // Gönderilen girdinin anlık kopyası: yanıt geldiğinde girdi değişmişse sonuç BAYAT kalır (inceleme M2).
+    const sent = snapshot(this.form);
     const input = costFormToInput(this.form.getRawValue() as unknown as CostFormValue);
     this.calc.gonder(
       this.form,
@@ -172,7 +176,7 @@ export class CostCalculator implements KaydedilmemisDegisiklikSahibi {
       {
         basarili: (r) => {
           this.result.set(r);
-          this.resultStale.set(false);
+          this.resultStale.set(snapshot(this.form) !== sent);
         },
       },
     );
@@ -183,6 +187,7 @@ export class CostCalculator implements KaydedilmemisDegisiklikSahibi {
     const offer = this.offer();
     if (this.offerId && offer === null) return; // sürüm okunmadan tam değiştirme gönderilmez
     const h = this.header.getRawValue() as HeaderForm;
+    const sent = { input: snapshot(this.form), header: snapshot(this.header) };
     const body: CostOfferRequest = {
       baslik: metinDegeri(h.baslik),
       plaka: metinDegeri(h.plaka),
@@ -217,9 +222,10 @@ export class CostCalculator implements KaydedilmemisDegisiklikSahibi {
         basarili: (d) => {
           this.toast.basari(this.t('fiyatTarife.maliyet.kaydedildi', { no: d.teklif.kayitNo }));
           if (offer) {
-            this.offerArrived(d, true);
+            this.offerArrived(d, sent);
           } else {
-            this.header.markAsPristine();
+            // Gönderim sürerken yazılan künye korunur (kirli kalır; bu sekme açık kalır).
+            if (snapshot(this.header) === sent.header) this.header.markAsPristine();
             void this.router.navigate(['/maliyet-teklifleri', d.teklif.id]);
           }
         },
@@ -240,7 +246,7 @@ export class CostCalculator implements KaydedilmemisDegisiklikSahibi {
       .get<CostOfferDetail>(`${COST_OFFERS}/${encodeURIComponent(id)}`)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (d) => this.offerArrived(d, false),
+        next: (d) => this.offerArrived(d, null),
         error: (raw: unknown) => {
           this.loadError.set(true);
           const e = apiHatasinaCevir(raw);
@@ -252,13 +258,26 @@ export class CostCalculator implements KaydedilmemisDegisiklikSahibi {
   /**
    * Kayıtlı teklif geldi: temiz formlar sıfırlanır; kirli formda dokunulan alan korunur, sunucuda da değişen
    * işaretlenir (409 `cakisma` sonrası form SİLİNMEZ). Sonuç = kaydın snapshot'ı.
+   * `sent`: bu kayıt BİZİM PUT'umuzun yanıtıysa gönderilen formların kopyası — PUT uçarken yapılan düzenleme
+   * sessizce silinmez (form gönderilenden farklıysa dokunulmaz, sonuç bayat kalır; inceleme M2).
    */
-  private offerArrived(d: CostOfferDetail, saved: boolean): void {
+  private offerArrived(d: CostOfferDetail, sent: { input: string; header: string } | null): void {
     const previous = this.offer();
     const freshInput = costInputToForm(d.girdi);
     const freshHeader = this.headerOf(d);
     let conflicts = 0;
-    if (saved || !this.form.dirty) this.form.reset({ ...freshInput });
+    const inputEdited = sent !== null && snapshot(this.form) !== sent.input;
+    const headerEdited = sent !== null && snapshot(this.header) !== sent.header;
+    if (sent !== null) {
+      if (!inputEdited) this.form.reset({ ...freshInput });
+      if (!headerEdited) this.header.reset({ ...freshHeader });
+      this.offer.set(d);
+      this.result.set(d.sonuc);
+      this.resultStale.set(inputEdited);
+      this.tab.etiketAyarla(this.t('fiyatTarife.maliyet.sekmeEtiketi', { no: d.teklif.kayitNo }));
+      return;
+    }
+    if (!this.form.dirty) this.form.reset({ ...freshInput });
     else
       conflicts += sunucuDegerleriniBirlestir(
         this.form,
@@ -266,7 +285,7 @@ export class CostCalculator implements KaydedilmemisDegisiklikSahibi {
         previous ? { ...costInputToForm(previous.girdi) } : { ...freshInput },
         this.t('fiyatTarife.cakismaAlan'),
       ).length;
-    if (saved || !this.header.dirty) this.header.reset({ ...freshHeader });
+    if (!this.header.dirty) this.header.reset({ ...freshHeader });
     else
       conflicts += sunucuDegerleriniBirlestir(
         this.header,

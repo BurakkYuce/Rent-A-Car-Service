@@ -40,9 +40,10 @@
       "yenilendi": "Kayıt yeniden yüklendi; geçmişi kontrol edin.",
       "zatenKaydedildi": "İşlem zaten kaydedildi",
       "oncekiDenemeBaslik": "Önceki denemeniz kaydedilmiş — yeni tutar yazılmadı",
-      "oncekiDenemeKaydedildi": "Önceki denemeniz kaydedilmiş ({{no}}, {{kayitli}}); girdiğiniz {{girilen}} YAZILMADI. Tutar alanı temizlendi: kalanı kontrol edip gerekiyorsa yeniden girin.",
+      "oncekiDenemeKaydedildi": "Önceki denemeniz kaydedilmiş ({{no}}, {{kayitli}}); girdiğiniz {{girilen}} YAZILMADI. Form temizlendi: kaydı kontrol edip gerekiyorsa yeniden girin.",
       "baskaIslem": "Başka bir işlem yazıldı — girdiğiniz kaydedilmedi",
-      "kayitDegismis": "Kayıt değişmiş — işlem yazılmadı"
+      "kayitDegismis": "Kayıt değişmiş — işlem yazılmadı",
+      "terkMesaji": "Gönderilen ya da sonucu bilinmeyen bir para işlemi var. Sayfadan ayrılırsanız aynı işlemi aynı anahtarla tekrar gönderme şansı kaybolur; önce kaydın ödeme / kalem geçmişini kontrol edin. Yine de ayrılmak istiyor musunuz?"
     },
     "odeme": {
       "baslik": "Öde",
@@ -64,7 +65,8 @@
       "gecmis": "Ödeme geçmişi",
       "gecmisYok": "Henüz ödeme yok.",
       "defterNotu": "Ödemeler değişmez defter kaydıdır; düzeltme ters kayıtla yapılır.",
-      "odendi": "{{sira}}. ödeme kaydedildi ({{tutar}}); kalan {{kalan}}."
+      "odendi": "{{sira}}. ödeme kaydedildi ({{tutar}}); kalan {{kalan}}.",
+      "tutarYenidenGir": "Önceki ödeme zaten kaydedildi; form temizlendi. Boş tutar kalanın tamamını öder — yeni bir ödeme yapacaksanız ödeme geçmişini kontrol edip tutarı açıkça girin."
     },
     "regulasyon": {
       "bolumler": "Sigorta, MTV, muayene ve vade bölümleri"

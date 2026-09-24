@@ -5,7 +5,7 @@ import type { ApiHatasi } from '@core/api/api-hatasi';
 import { TAHSILAT_DENEME_KANALI, TahsilatDenemeKaydi } from '@core/form/tahsilat-denemesi';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 
-import { MoneySubmission, duplicateNotice } from './money-submission';
+import { MoneySubmission, duplicateNotice, lineNetAmount, round2 } from './money-submission';
 
 interface Body {
   readonly tutar: string | null;
@@ -138,6 +138,76 @@ describe('mükerrer bildirimi', () => {
     expect(duplicateNotice('bayatAnahtar', error('mukerrer'), null, t)).toMatchObject({
       tone: 'uyari',
       clearAmount: true,
+    });
+  });
+});
+
+describe('servis kalemi net tutarı (mükerrer sınıflandırması — inceleme M3)', () => {
+  it('elle kurulmuş: 100 × 2 − 0 = 200; 12,345 × 3 → 37,04 − 1,005 → 1,01 = 36,03; açık tutar önceliklidir', () => {
+    expect(lineNetAmount({ tutar: null, birimFiyat: '100.00', miktar: 2, indirim: null })).toBe(
+      200,
+    );
+    expect(lineNetAmount({ tutar: null, birimFiyat: 12.345, miktar: 3, indirim: '1.005' })).toBe(
+      36.03,
+    );
+    expect(lineNetAmount({ tutar: '150.00', birimFiyat: '100.00', miktar: 2, indirim: null })).toBe(
+      150,
+    );
+    expect(lineNetAmount({ tutar: null, birimFiyat: '99.99', miktar: null, indirim: null })).toBe(
+      99.99,
+    );
+    expect(lineNetAmount({ tutar: null, birimFiyat: null, miktar: 2, indirim: null })).toBeNull();
+  });
+
+  it('yarım kuruş sıfırdan uzağa (kayan nokta tuzağı: 1,005 → 1,01; −2,675 → −2,68)', () => {
+    expect(round2(1.005)).toBe(1.01);
+    expect(round2(-2.675)).toBe(-2.68);
+    expect(round2(0)).toBe(0);
+  });
+
+  it('kendi yazılmış denemesi: birim fiyat 100 × 2 (net 200) sonucu bilinmeden, sonra miktar 3 → mevcut 200 = "önceki deneme kaydedilmiş"', () => {
+    const m = setup();
+    const first = { tutar: null, birimFiyat: '100.00', miktar: 2, indirim: null };
+    const a = m.prepare(
+      'kalem:1',
+      { tutar: null },
+      { tutar: lineNetAmount(first), doviz: 'TRY', hesap: 'Yağ' },
+    );
+    m.started(a);
+    m.failed(a, error('ag'));
+    m.abandon(); // (429 kesin reddi gibi) kopya çözüldü; belirsiz deneme kayıtta kalır, aynı anahtar sürer
+    const b = {
+      ...a,
+      content: { tutar: lineNetAmount({ ...first, miktar: 3 }), doviz: 'TRY', hesap: 'Yağ' },
+    };
+    m.started(b);
+    const outcome = m.failed(b, error('mukerrer', { tutar: 200, ayniIcerik: false }));
+    expect(outcome).toEqual({ kind: 'duplicate', type: 'oncekiDenemeKaydedilmis' });
+    const n = duplicateNotice(
+      'oncekiDenemeKaydedilmis',
+      error('mukerrer', { tutar: 200, ayniIcerik: false }),
+      m.lastSubmission,
+      (k, p) => `${k}${JSON.stringify(p ?? {})}`,
+    );
+    expect(n.clearAmount).toBe(true);
+    expect(n.message).toContain('300,00'); // "girilen" = satır toplamı, birim fiyat değil
+  });
+
+  it('eski davranışın tuzağı: birim fiyatla (100) karşılaştırmak kendi denemesini "başka işlem" sayardı', () => {
+    const m = setup();
+    const a = m.prepare(
+      'kalem:1',
+      { tutar: null },
+      { tutar: '100.00', doviz: 'TRY', hesap: 'Yağ' },
+    );
+    m.started(a);
+    m.failed(a, error('ag'));
+    m.abandon();
+    const b = { ...a, content: { tutar: '100.00', doviz: 'TRY', hesap: 'Yağ' } };
+    m.started(b);
+    expect(m.failed(b, error('mukerrer', { tutar: 200, ayniIcerik: false }))).toEqual({
+      kind: 'duplicate',
+      type: 'baskaIslemDenemeYazilmadi',
     });
   });
 });

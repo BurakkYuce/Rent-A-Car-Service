@@ -124,6 +124,11 @@ export class RateImport {
   protected readonly view = computed(() => this.store.veri());
   /** Toplu silmenin SİLECEĞİ satır sayısı (sunucu; ekran süzgecinden bağımsız). */
   protected readonly toDelete = computed(() => toNum(this.view()?.silinecek) ?? 0);
+  /**
+   * Silme yalnız GÜNCEL yanıtla: süzgeç değişip liste yüklenirken ekrandaki sayı ESKİ kanalındır — düğme kapalı
+   * (inceleme L1: onay yeni kanal için eski sayıyı gösteriyordu).
+   */
+  protected readonly deleteReady = computed(() => this.store.tur() === 'hazir');
   protected readonly deleteVisible = computed(() =>
     channelDeleteVisible(this.query.sorgu().filtreler),
   );
@@ -231,14 +236,14 @@ export class RateImport {
   protected async deleteChannel(): Promise<void> {
     const kanal = this.channel();
     const count = this.toDelete();
-    if (!kanal || this.deleting() || count === 0) return;
+    if (!kanal || this.deleting() || !this.deleteReady() || count === 0) return;
     const yes = await this.confirm.sor({
       baslik: this.t('fiyatTarife.aktar.silBaslik'),
       mesaj: this.t('fiyatTarife.aktar.silMesaj', { kanal, adet: count }),
       onayEtiketi: this.t('fiyatTarife.sil'),
       tehlikeli: true,
     });
-    if (!yes || this.deleting()) return;
+    if (!yes || this.deleting() || !this.deleteReady() || this.channel() !== kanal) return;
     this.deleting.set(true);
     this.api
       .post<{ silinen: number }>(`${ROOT}/kanal-sil`, { kanal })
