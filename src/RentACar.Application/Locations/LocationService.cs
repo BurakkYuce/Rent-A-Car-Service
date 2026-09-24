@@ -32,6 +32,9 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
+        // F11.1b güvenlik (H1 devamı): şube kapsamı SERVİSTE — Blazor ve /api/ui tek kural; operatör yalnız kendi
+        // şubesine ofis açar.
+        BranchScope.RequireInScope(_currentUser, kayitSubeId: null, n.Sube);
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ofis zaten var.");
@@ -54,6 +57,11 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
+        // F11.1b güvenlik (H1 devamı): önce MEVCUT ofisin şubesi (doğrulamadan önce), sonra hedef şube — operatör başka
+        // şubenin ofisini düzenleyemez ya da bir ofisi başka şubeye taşıyamaz (Blazor + API tek kural).
+        if (await _repository.FindAsync(id, ct) is not { } current) return false;
+        BranchScope.RequireInScope(_currentUser, current.SubeId, current.Sube);
+        BranchScope.RequireInScope(_currentUser, kayitSubeId: null, n.Sube);
         Validate(n);
         if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ofis zaten var.");
@@ -73,6 +81,9 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        // F11.1b güvenlik (H1 devamı): başka şubenin ofisi silinemez.
+        if (await _repository.FindAsync(id, ct) is not { } current) return false;
+        BranchScope.RequireInScope(_currentUser, current.SubeId, current.Sube);
         var ok = await _repository.DeleteAsync(id, ct);
         _cache.Invalidate(CK);
         return ok;
