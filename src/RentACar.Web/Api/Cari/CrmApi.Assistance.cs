@@ -155,7 +155,7 @@ public static partial class CrmApi
         if (string.IsNullOrWhiteSpace(request.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         var input = await AssistanceInputAsync(request, user, rentals, locations, ct);
-        await KeepHiddenContactAsync(dbf, current, input, ct);
+        KeepStoredContact(current, input);
         if (!await requests.UpdateAsync(id, input, request.Surum, ct)) return AssistanceNotFound();
         return await AssistanceCardAsync(id, requests, user, dbf, locations, ct) is { } c ? TypedResults.Ok(c) : AssistanceNotFound();
     }
@@ -163,18 +163,18 @@ public static partial class CrmApi
     /// <summary>
     /// KVKK: anonim müşteriye bağlı talepte ad/telefon yanıtta <c>null</c> döner; tam PUT bu <c>null</c>'ı geri
     /// gönderince kayıtlı değer silinmemeli ya da servis onu anonim müşterinin kartından yeniden doldurmamalı.
-    /// Alan gizliyse <c>null</c> "dokunma" demektir, kira DEĞİŞSE de saklı değer korunur (#295 L2); <c>""</c> "temizle"
-    /// (TC/ehliyet ile aynı yazma-yalnız sözleşme — <see cref="AssistansInput.ClearContactName"/>).
+    /// Sözleşme (#295b, TC/ehliyet ile aynı): <c>""</c> = temizle (<see cref="AssistansInput.ClearContactName"/>);
+    /// <c>null</c> = dokunma — YALNIZ kira değişmediyse saklı değer korunur (temizlenmişse temiz kalır).
+    /// Kira değiştiyse ya da kaldırıldıysa saklı değer TAŞINMAZ: gizli değer yalnız bağlı kiranın müşterisi anonim olduğu
+    /// için gizliydi; yeni bağla (ya da bağsız) düz görünür ve ManageUsers kapısı atlanırdı. O durumda <c>null</c> alanı
+    /// boşaltır; servis yalnız YENİ kiranın görünür müşterisinden doldurabilir (anonim müşteriden asla).
     /// </summary>
-    private static async Task KeepHiddenContactAsync(
-        IDbContextFactory<AppDbContext> dbf, AssistansTalep current, AssistansInput input, CancellationToken ct)
+    private static void KeepStoredContact(AssistansTalep current, AssistansInput input)
     {
-        if (current.RentalId is null) return;
-        var shown = (await AssistanceRowsAsync(dbf, [current], ct))[0];
-        if (shown.AdSoyad is null && current.AdSoyad is not null && input.AdSoyad is null && !input.ClearContactName)
-            input.AdSoyad = current.AdSoyad;
-        if (shown.CepTel is null && current.CepTel is not null && input.CepTel is null && !input.ClearContactPhone)
-            input.CepTel = current.CepTel;
+        var requested = input.RentalId == Guid.Empty ? null : input.RentalId;
+        if (requested != current.RentalId) return;
+        if (input.AdSoyad is null && !input.ClearContactName) input.AdSoyad = current.AdSoyad;
+        if (input.CepTel is null && !input.ClearContactPhone) input.CepTel = current.CepTel;
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAssistance(

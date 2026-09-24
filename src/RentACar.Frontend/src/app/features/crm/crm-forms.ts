@@ -262,16 +262,31 @@ export function assistanceHiddenContact(a: Assistance | null): {
   return { name: linked && a.adSoyad === null, phone: linked && a.cepTel === null };
 }
 
+/**
+ * Ad/telefon gövdesi — sunucu sözleşmesi (#295b): `""` = temizle; `null` = dokunma (aynı kirada saklı değer korunur;
+ * oluşturmada ya da kira değişince sözleşmenin GÖRÜNÜR müşterisinden doldurulur). Kayıtta GÖRÜNÜR bir değeri kullanıcı
+ * boşalttıysa bu bilinçli temizlemedir → `""`; gizli (null gösterilen) alan boşsa `null` gider, "Temizle" kutusu `""`.
+ */
+export function contactValue(
+  typed: string | null,
+  clear: boolean,
+  stored: string | null | undefined,
+): string | null {
+  if (clear) return '';
+  const v = text(typed);
+  if (v !== null) return v;
+  return stored !== null && stored !== undefined ? '' : null;
+}
+
 export function assistanceRequest(
   v: AssistanceFormValue,
-  base: { readonly surum?: string | null } | null,
+  base: { readonly surum?: string | null; readonly row?: Assistance | null } | null,
 ): AssistanceRequest {
   return {
     rentalId: v.kira?.id ?? null,
     plaka: text(v.plaka),
-    // Sunucu sözleşmesi (#295 L1): null = dokunma (gizliyse korunur, boşsa sözleşmeden doldurulur), "" = temizle.
-    adSoyad: v.clearName ? '' : text(v.adSoyad),
-    cepTel: v.clearPhone ? '' : text(v.cepTel),
+    adSoyad: contactValue(v.adSoyad, v.clearName, base?.row?.adSoyad),
+    cepTel: contactValue(v.cepTel, v.clearPhone, base?.row?.cepTel),
     zaman: v.zaman,
     mesaj: text(v.mesaj),
     sebep: text(v.sebep),

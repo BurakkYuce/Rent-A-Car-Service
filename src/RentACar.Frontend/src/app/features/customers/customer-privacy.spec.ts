@@ -88,4 +88,15 @@ describe('M2: TC benzeri arama URL’ye yazılmaz', () => {
     expect(splitSearch('  ')).toEqual({ url: undefined, memory: null });
     expect(splitSearch(null)).toEqual({ url: undefined, memory: null });
   });
+
+  it('#295b L-B: boşluklu, tireli ve karışık biçimli TC de URL’ye yazılmaz (yalnız rakamlar sayılır)', () => {
+    expect(looksLikeTc('100 000 001 46')).toBe(true);
+    expect(looksLikeTc('100-00000146')).toBe(true);
+    expect(looksLikeTc('100.000.001.46 ')).toBe(true);
+    expect(looksLikeTc('100 000 001 4')).toBe(false);
+    expect(looksLikeTc('100 000 001 467')).toBe(false);
+    expect(splitSearch(' 100 000 001 46 ')).toEqual({ url: undefined, memory: '100 000 001 46' });
+    expect(splitSearch('100-00000146')).toEqual({ url: undefined, memory: '100-00000146' });
+    expect(splitSearch('Ayşe 2024')).toEqual({ url: 'Ayşe 2024', memory: null });
+  });
 });

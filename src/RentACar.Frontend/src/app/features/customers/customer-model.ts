@@ -12,7 +12,8 @@ export function canSeeStatement(has: (p: Izin) => boolean): boolean {
 
 /** 11 haneli, tamamı rakam arama metni (TC olabilir) — KVKK: adres çubuğuna/geçmişe YAZILMAZ (#295 M2). */
 export function looksLikeTc(value: string | null | undefined): boolean {
-  return /^\d{11}$/.test(value?.trim() ?? '');
+  // #295b L-B: yalnız rakamlar sayılır — "100 000 001 46" ve "100-00000146" de TC'dir (sunucu da öyle arar).
+  return (value ?? '').replace(/\D/g, '').length === 11;
 }
 
 /**

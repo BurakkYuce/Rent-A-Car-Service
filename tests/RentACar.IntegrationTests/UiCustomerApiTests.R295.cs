@@ -77,8 +77,9 @@ public sealed partial class UiCustomerApiTests
     }
 
     [Fact]
-    public async Task R295_P2b_assistance_rental_change_keeps_hidden_caller_when_request_sends_null()
+    public async Task R295_P2b_assistance_rental_change_drops_hidden_caller_and_fills_from_new_visible_customer()
     {
+        // #295b: gizli değer yalnız eski kiranın müşterisi anonim olduğu için gizliydi → yeni bağa TAŞINMAZ (düz görünürdü).
         var e = await SetupAsync();
         var admin = await LoginAsync(e, Who.Admin);
         var hidden = await CreateViaApiAsync(admin, new()
@@ -86,7 +87,8 @@ public sealed partial class UiCustomerApiTests
             ["tip"] = "Bireysel", ["ad"] = "Gizli", ["soyad"] = Marker(), ["cepTel"] = "05550000009",
             ["anonimAd"] = true, ["anonimTelefon"] = true,
         });
-        var visible = await CreateViaApiAsync(admin, new() { ["tip"] = "Bireysel", ["ad"] = Marker(), ["cepTel"] = "05550000008" });
+        var visibleName = Marker();
+        var visible = await CreateViaApiAsync(admin, new() { ["tip"] = "Bireysel", ["ad"] = visibleName, ["cepTel"] = "05550000008" });
         var rA = await RentalAsync(e, hidden, "SubeA");
         var rB = await RentalAsync(e, visible, "SubeA");
         var (id, version) = await PostAssistanceAsync(admin,
@@ -96,7 +98,10 @@ public sealed partial class UiCustomerApiTests
         { ["rentalId"] = rB.RentalId, ["adSoyad"] = null, ["cepTel"] = null, ["mesaj"] = "Lastik", ["surum"] = version }));
 
         Assert.DoesNotContain("05550000009", raw);
-        Assert.Equal<(string?, string?)>(("Arayan Yakini", "05441112299"), await StoredContactAsync(e.TenantId, id));
+        Assert.DoesNotContain("05441112299", raw);
+        Assert.DoesNotContain("Arayan Yakini", raw);
+        // Eski gizli arayan silindi; alanlar YENİ kiranın GÖRÜNÜR müşterisinden doldu.
+        Assert.Equal<(string?, string?)>((visibleName, "05550000008"), await StoredContactAsync(e.TenantId, id));
     }
 
     [Fact]

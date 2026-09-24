@@ -40,4 +40,16 @@ describe('assistans gizli iletişim', () => {
       adSoyad: 'Ali',
     });
   });
+
+  it('#295b: kayıtta GÖRÜNÜR değeri boşaltmak "" (temizle); gizli (null) alan boşsa null (dokunma)', () => {
+    const base = { ...emptyAssistance(), mesaj: 'Lastik' };
+    // row: ad gizli (null), telefon görünür → kullanıcı ikisini de boş bıraktı.
+    expect(assistanceRequest(base, { surum: 'v1', row })).toMatchObject({
+      adSoyad: null,
+      cepTel: '',
+    });
+    expect(assistanceRequest({ ...base, cepTel: '0555 111' }, { surum: 'v1', row })).toMatchObject({
+      cepTel: '0555 111',
+    });
+  });
 });

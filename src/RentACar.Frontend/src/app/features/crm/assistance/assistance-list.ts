@@ -241,7 +241,7 @@ export class AssistanceList implements KaydedilmemisDegisiklikSahibi {
     const card = this.editor.base();
     const body = assistanceRequest(
       this.form.getRawValue(),
-      id === null || card === null ? null : { surum: card.surum },
+      id === null || card === null ? null : { surum: card.surum, row: card.talep },
     );
     this.submission.gonder(
       this.form,

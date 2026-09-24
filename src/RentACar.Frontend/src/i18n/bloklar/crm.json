@@ -148,7 +148,7 @@
       "duzenle": "Talebi Düzenle",
       "sozlesmeIpucu": "Boş = sözleşmesiz çağrı",
       "sozlesmedenIpucu": "Boş bırakılırsa sözleşmeden kopyalanır",
-      "gizliIpucu": "KVKK ile gizli — boş bırakılırsa kayıtlı değer korunur.",
+      "gizliIpucu": "KVKK ile gizli — boş bırakılırsa korunur; sözleşme değişir ya da kaldırılırsa silinir.",
       "adTemizle": "Kayıtlı adı temizle",
       "telTemizle": "Kayıtlı telefonu temizle",
       "adSoyad": "Ad Soyad",

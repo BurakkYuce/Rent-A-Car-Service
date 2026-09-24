@@ -78,24 +78,19 @@ internal static class CustomerInputMapper
     }
 
     /// <summary>
-    /// İstek → servis girdisi. <paramref name="stored"/> (güncellemede, çözülmüş kayıt) verilirse gizli alanlar
-    /// korunur: TC/ehliyet/pasaport <c>null</c> → mevcut değer; <c>Anonim*</c> bayrağı KAYITLI grubun alanı <c>null</c>
-    /// → mevcut değer (kart o alanı göstermediği için PUT'un onu sessizce silmesi engellenir).
-    /// </summary>
-    /// <summary>
     /// #295 H1: vergi no yanıtta DÜZ gösterilmez — bireysel caride (şahıs vergi no = TC olabilir) ya da tipten bağımsız
-    /// 11 haneli tamamı rakam değerde (eski kayıtta VergiNo alanına yazılmış TC). Böyle bir değer yalnız maskeli döner.
+    /// 11 rakam taşıyan değerde (eski kayıtta VergiNo alanına yazılmış TC). Böyle bir değer yalnız maskeli döner.
     /// </summary>
     public static bool TaxNumberHidden(CariType type, string? taxNumber)
         => type == CariType.Bireysel || LooksLikeTc(taxNumber);
 
     public static bool TaxNumberHidden(Customer c) => TaxNumberHidden(c.Tip, c.VergiNo);
 
-    public static bool LooksLikeTc(string? value)
-    {
-        var v = value?.Trim();
-        return v is { Length: 11 } && v.All(char.IsAsciiDigit);
-    }
+    /// <summary>
+    /// #295b L-A: karar YALNIZ rakamlara bakar — biçimli yazılmış eski TC ("123 456 789 01", "123-45678901", sonda
+    /// boşluk) da 11 rakam taşır ve gizli sayılır. SQL karşılığı <c>CustomerRepository.ElevenDigitsPattern</c>.
+    /// </summary>
+    public static bool LooksLikeTc(string? value) => value is not null && value.Count(char.IsAsciiDigit) == 11;
 
     /// <summary>
     /// #295 H1: Bireysel → Kurumsal/Servis geçişinde saklı vergi no gizliydi (kart göstermedi). İstek yeni değer ya da
@@ -109,6 +104,11 @@ internal static class CustomerInputMapper
             throw new ValidationException("Tür değişikliğinde vergi no yeniden girilmeli.", "vergiNo");
     }
 
+    /// <summary>
+    /// İstek → servis girdisi. <paramref name="stored"/> (güncellemede, çözülmüş kayıt) verilirse gizli alanlar
+    /// korunur: TC/ehliyet/pasaport <c>null</c> → mevcut değer; <c>Anonim*</c> bayrağı KAYITLI grubun alanı <c>null</c>
+    /// → mevcut değer (kart o alanı göstermediği için PUT'un onu sessizce silmesi engellenir).
+    /// </summary>
     public static CustomerInput ToInput(CustomerRequest r, Customer? stored)
     {
         string? Keep(string? value, bool hidden, string? old) => value is null && hidden ? old : value;
