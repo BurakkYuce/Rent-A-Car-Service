@@ -1,0 +1,97 @@
+<section class="bolum" aria-labelledby="rc-manuel-fatura">
+  <h2 id="rc-manuel-fatura">{{ 'finansBelge.fatura.manuelBaslik' | transloco }}</h2>
+  <p class="not">{{ 'finansBelge.fatura.manuelAciklama' | transloco }}</p>
+  <form class="form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'finansBelge.cari' | transloco">
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.netTutar' | transloco">
+        <rc-para-girdisi formControlName="netTutar" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.kdvOrani' | transloco"
+        [ipucu]="'finansBelge.kdvSunucuda' | transloco"
+      >
+        <rc-secim formControlName="kdvOrani" [secenekler]="vatOptions" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.fatura.tarih' | transloco"
+        [ipucu]="'finansBelge.bosSimdi' | transloco"
+      >
+        <rc-tarih-secici formControlName="tarih" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.fatura.vade' | transloco">
+        <rc-tarih-secici formControlName="vadeTarihi" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.aciklama' | transloco">
+        <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.fatura.islemSube' | transloco">
+        <rc-metin-girdisi formControlName="islemSube" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.evrakNo' | transloco">
+        <rc-metin-girdisi formControlName="evrakNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.fatura.ozelKod' | transloco">
+        <rc-metin-girdisi formControlName="faturaOzelKod" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.fatura.odemeTuru' | transloco">
+        <rc-metin-girdisi formControlName="odemeTuru" liste="dl-fatura-odeme" [azamiUzunluk]="32" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.fatura.gonderimSekli' | transloco">
+        <rc-metin-girdisi
+          formControlName="gonderimSekli"
+          liste="dl-fatura-gonderim"
+          [azamiUzunluk]="32"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.fatura.kdvSifirSebep' | transloco">
+        <rc-secim
+          formControlName="kdvSifirSebep"
+          [secenekler]="zeroReasonOptions"
+          [bosEtiket]="'finansBelge.yok' | transloco"
+        />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.fatura.otv' | transloco"
+        [ipucu]="'finansBelge.bilgiAmacli' | transloco"
+      >
+        <rc-para-girdisi formControlName="otv" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.fatura.tevkifatOran' | transloco"
+        [ipucu]="'finansBelge.bilgiAmacli' | transloco"
+      >
+        <rc-sayi-girdisi formControlName="tevkifatOran" [kesir]="2" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.fatura.tevkifatTutar' | transloco"
+        [ipucu]="'finansBelge.bilgiAmacli' | transloco"
+      >
+        <rc-para-girdisi formControlName="tevkifatTutar" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.fatura.damgaVergisi' | transloco"
+        [ipucu]="'finansBelge.bilgiAmacli' | transloco"
+      >
+        <rc-para-girdisi formControlName="damgaVergisi" />
+      </rc-alan>
+    </div>
+    <datalist id="dl-fatura-odeme">
+      @for (p of paymentTypes; track p) {
+        <option [value]="p"></option>
+      }
+    </datalist>
+    <datalist id="dl-fatura-gonderim">
+      @for (p of deliveryTypes; track p) {
+        <option [value]="p"></option>
+      }
+    </datalist>
+    <rc-document-submit-bar
+      [submission]="submission"
+      [label]="'finansBelge.fatura.manuelKes' | transloco"
+      (abandon)="abandon()"
+    />
+  </form>
+</section>

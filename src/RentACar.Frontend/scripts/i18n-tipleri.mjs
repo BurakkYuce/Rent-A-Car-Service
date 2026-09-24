@@ -40,6 +40,8 @@ const BLOK_HARITASI = {
   arac: 'arac',
   // F6.2b araç finans ekranları (kredi, müşteri taksit, sipariş, BAF, hasar, filo plan).
   aracFinans: 'arac-finans',
+  // F8.2b finans belge ekranları (fatura, fatura detay listesi, ceza, gider, gelen e-fatura, araç satışı).
+  finansBelge: 'finans-belge',
   // F8.2a finans ekranları (kasa hub, nakit işlem, bakiye düzeltme, cari virman, toplu işlemler, depozito, ekstre,
   // otomatik tahsilat, dönem kapanışı, kurlar).
   finans: 'finans',

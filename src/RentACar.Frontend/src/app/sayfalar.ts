@@ -7,6 +7,7 @@ import { FINANCE_ROUTES } from '@features/finance/finance.routes';
 import { CRM_ROUTES } from '@features/crm/crm.routes';
 import { CUSTOMER_ROUTES } from '@features/customers/customers.routes';
 import { DEFINITION_ROUTES } from '@features/definitions/definitions.routes';
+import { FINANCE_DOCUMENT_ROUTES } from '@features/finance-documents/finance-documents.routes';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
 import { REPORT_ROUTES } from '@features/reports/reports.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
@@ -164,6 +165,8 @@ export const SAYFALAR: Routes = [
   ...VEHICLE_ROUTES,
   // F6.2b araç finans: kredi (+ taksit ödeme), müşteri taksit, sipariş, BAF, hasar, filo plan.
   ...VEHICLE_FINANCE_ROUTES,
+  // F8.2b finans belgeleri: faturalar (+ detay listesi, yazdır), cezalar, giderler, gelen e-fatura, araç satışları.
+  ...FINANCE_DOCUMENT_ROUTES,
   // F8.2a finans (PARA): kasa hub, nakit işlem, bakiye düzeltme, cari virman, toplu işlemler, depozito, cari ekstre,
   // otomatik tahsilat, dönem kapanışı, kurlar.
   ...FINANCE_ROUTES,
