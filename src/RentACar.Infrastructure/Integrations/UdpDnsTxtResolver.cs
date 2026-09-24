@@ -22,14 +22,20 @@ public sealed class UdpDnsTxtResolver(ILogger<UdpDnsTxtResolver> log, IConfigura
         try
         {
             var server = Server();
-            var id = (ushort)Random.Shared.Next(ushort.MaxValue);
+            // Kriptografik sorgu kimliği + kaynak adres + soru eşleşmesi: sahte (spoof) yanıtla doğrulama geçilmesin.
+            var id = (ushort)System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 65536);
             using var udp = new UdpClient(server.AddressFamily);
             var query = BuildQuery(id, name);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(5));
-            await udp.SendAsync(query, new IPEndPoint(server, 53), timeout.Token);
-            var response = await udp.ReceiveAsync(timeout.Token);
-            return ParseTxt(response.Buffer, id);
+            var endpoint = new IPEndPoint(server, 53);
+            await udp.SendAsync(query, endpoint, timeout.Token);
+            while (true)
+            {
+                var response = await udp.ReceiveAsync(timeout.Token);
+                if (!response.RemoteEndPoint.Equals(endpoint)) continue; // başka kaynaktan gelen paket yok sayılır
+                return ParseTxt(response.Buffer, query);
+            }
         }
         catch (Exception ex) when (ex is SocketException or OperationCanceledException or IndexOutOfRangeException or ArgumentException)
         {
@@ -64,14 +70,20 @@ public sealed class UdpDnsTxtResolver(ILogger<UdpDnsTxtResolver> log, IConfigura
         return buf.ToArray();
     }
 
-    /// <summary>Yanıttaki TXT kayıtları (her kaydın karakter dizeleri birleştirilir). Kimlik uyuşmazsa boş.</summary>
-    public static IReadOnlyList<string> ParseTxt(byte[] msg, ushort id)
+    /// <summary>
+    /// Yanıttaki TXT kayıtları (her kaydın karakter dizeleri birleştirilir). Kimlik uyuşmazsa, yanıt bayrağı (QR)
+    /// yoksa, RCODE hata ise ya da soru bölümü gönderilen soruyla aynı değilse boş.
+    /// </summary>
+    public static IReadOnlyList<string> ParseTxt(byte[] msg, byte[] query)
     {
-        if (msg.Length < 12 || ((msg[0] << 8) | msg[1]) != id) return [];
+        if (msg.Length < 12 || msg[0] != query[0] || msg[1] != query[1]) return [];
+        if ((msg[2] & 0x80) == 0 || (msg[3] & 0x0F) != 0) return [];
         var qd = (msg[4] << 8) | msg[5];
         var an = (msg[6] << 8) | msg[7];
-        var pos = 12;
-        for (var i = 0; i < qd; i++) { pos = SkipName(msg, pos) + 4; }
+        var questionLength = query.Length - 12;
+        if (qd != 1 || msg.Length < 12 + questionLength
+            || !msg.AsSpan(12, questionLength).SequenceEqual(query.AsSpan(12, questionLength))) return [];
+        var pos = 12 + questionLength;
         var result = new List<string>();
         for (var i = 0; i < an; i++)
         {

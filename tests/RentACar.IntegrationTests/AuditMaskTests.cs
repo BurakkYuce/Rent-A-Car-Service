@@ -24,6 +24,22 @@ public sealed class AuditMaskTests
         Assert.Equal(JsonValueKind.Null, root.GetProperty("PasaportNo").ValueKind); // boş değer "***" değil, null kalır
     }
 
+    [Fact]
+    public void Tax_and_id_number_keys_and_json_embedded_in_strings_are_masked()
+    {
+        // 3. tur LOW-2: TcNo/KimlikNo/VergiNo + dize içine serileştirilmiş JSON (ör. jsonb kolon metni).
+        const string json = """
+            {"TcNo":"11111111111","KimlikNo":"22222222222","VergiNo":"3333333333",
+             "Ekler":"{\"SmtpSifreEnc\":\"cipher-x\",\"Ad\":\"Ece\"}","Liste":["[{\"Iban\":\"TR99\"}]"],"Not":"{ düz metin"}
+            """;
+        var masked = SystemAdminApi.MaskSecrets(json)!;
+        foreach (var leaked in new[] { "11111111111", "22222222222", "3333333333", "cipher-x", "TR99" })
+            Assert.DoesNotContain(leaked, masked, StringComparison.Ordinal);
+        var root = JsonDocument.Parse(masked).RootElement;
+        Assert.Contains("Ece", root.GetProperty("Ekler").GetString(), StringComparison.Ordinal);
+        Assert.Equal("{ düz metin", root.GetProperty("Not").GetString());
+    }
+
     [Theory]
     [InlineData("[1,2]")]
     [InlineData("bozuk{")]

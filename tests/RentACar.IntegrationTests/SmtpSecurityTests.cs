@@ -33,6 +33,12 @@ public sealed class SmtpSecurityTests
     [InlineData("fd12:3456::1")]
     [InlineData("fe80::1")]
     [InlineData("::ffff:10.0.0.1")]
+    [InlineData("64:ff9b::a9fe:a9fe")]   // NAT64 içinde 169.254.169.254
+    [InlineData("::7f00:1")]             // IPv4-uyumlu 127.0.0.1
+    [InlineData("2002:0a00:0001::1")]    // 6to4 içinde 10.0.0.1
+    [InlineData("fec0::1")]
+    [InlineData("198.18.0.1")]
+    [InlineData("192.0.0.8")]
     public void Private_and_link_local_addresses_are_blocked(string ip)
         => Assert.True(SmtpEndpointGuard.IsBlocked(IPAddress.Parse(ip)));
 
@@ -40,6 +46,7 @@ public sealed class SmtpSecurityTests
     [InlineData("8.8.8.8")]
     [InlineData("172.32.0.1")]
     [InlineData("2001:4860:4860::8888")]
+    [InlineData("64:ff9b::808:808")]     // NAT64 içinde 8.8.8.8 — genel adres
     public void Public_addresses_are_allowed(string ip)
         => Assert.False(SmtpEndpointGuard.IsBlocked(IPAddress.Parse(ip)));
 

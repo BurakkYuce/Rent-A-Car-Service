@@ -72,8 +72,14 @@ public sealed partial class UiSystemSecurityTests
         response.AddRange([0xC0, 0x0C, 0, 16, 0, 1, 0, 0, 0, 60, 0, (byte)rdata.Count]);
         response.AddRange(rdata);
 
-        Assert.Equal(["racar-abcd"], UdpDnsTxtResolver.ParseTxt(response.ToArray(), 0x1234));
-        Assert.Empty(UdpDnsTxtResolver.ParseTxt(response.ToArray(), 0x9999)); // başka sorgunun yanıtı
+        Assert.Equal(["racar-abcd"], UdpDnsTxtResolver.ParseTxt(response.ToArray(), query));
+        // Başka sorgunun yanıtı (kimlik farklı), başka ad için soru, QR bayraksız ve hata RCODE'lu yanıt → boş.
+        Assert.Empty(UdpDnsTxtResolver.ParseTxt(response.ToArray(), UdpDnsTxtResolver.BuildQuery(0x9999, "_racar-verify.ornek.com")));
+        Assert.Empty(UdpDnsTxtResolver.ParseTxt(response.ToArray(), UdpDnsTxtResolver.BuildQuery(0x1234, "_racar-verify.baska.com")));
+        var noQr = response.ToArray(); noQr[2] = 0x01;
+        Assert.Empty(UdpDnsTxtResolver.ParseTxt(noQr, query));
+        var nxDomain = response.ToArray(); nxDomain[3] = 0x83;
+        Assert.Empty(UdpDnsTxtResolver.ParseTxt(nxDomain, query));
     }
 
     private AppDbContext OwnerDb() => new(
