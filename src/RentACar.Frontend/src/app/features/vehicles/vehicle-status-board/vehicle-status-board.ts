@@ -27,6 +27,7 @@ import { Ikon } from '@shared/ikon/ikon';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { ALLOCATION_PREFILL_KEY, type AllocationPrefill } from '../allocation-prefill';
 import { suggestionList } from '../suggestions';
 import {
   FLEET_STATUSES,
@@ -57,8 +58,8 @@ type TriState = (typeof TRI_STATE)[number];
  * Araç güncel durum panosu (`/app/arac-durum`, OperationsWrite) — Blazor `FleetStatus.razor` paritesi: 15
  * süzgeç, "N araç • kirada • serviste • BAF'ta" sayaçları (filtreye uyan TÜM satırlar, sunucudan), 24 sütun,
  * satırdan "Kirala" (kira formuna araç ön-seçili). Sayfa görünürken 60 sn'de bir kendini tazeler.
- * Servis açma ve BAF tahsisi ekranları henüz Blazor'da: bağlantı tam sayfa geçer (F6.2b / F9 uçları gelince
- * satır içi olur).
+ * "Tahsis" SPA BAF ekranının yeni tahsis formunu araç + çıkış KM + şube dolu açar (F6.3; personel orada seçilir).
+ * Servis ekranı henüz Blazor'da (F9): bağlantı tam sayfa geçer.
  */
 @Component({
   selector: 'rc-vehicle-status-board',
@@ -242,6 +243,18 @@ export class VehicleStatusBoard {
 
   protected canRent(row: StatusRow): boolean {
     return !row.kirada && row.durum !== 'Satildi';
+  }
+
+  /** "Tahsis" → SPA BAF formu araç + çıkış KM + şube dolu açılır (Blazor satır içi `/baf/create` paritesi). */
+  protected allocationState(row: StatusRow): Record<string, AllocationPrefill> {
+    return {
+      [ALLOCATION_PREFILL_KEY]: {
+        vehicleId: row.vehicleId,
+        plaka: row.plaka,
+        km: toNumber(row.km),
+        sube: row.sube,
+      },
+    };
   }
 
   protected badge(status: string): string {
