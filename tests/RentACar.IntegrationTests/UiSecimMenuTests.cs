@@ -231,7 +231,14 @@ public sealed class UiSecimMenuTests(WebFixture fx)
             .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
             .Where(e => ("/" + (e.RoutePattern.RawText ?? "").TrimStart('/')).StartsWith(V1 + "/secim/", StringComparison.Ordinal))
             .ToDictionary(e => "/" + e.RoutePattern.RawText!.TrimStart('/'));
-        Assert.Equal(14, uclar.Count); // 12 arama + F4.3b kimlikle etiket (musteri/{id}, arac/{id}) — ikisi OW
+        // 12 arama + F4.3b kimlikle etiket (musteri/{id}, arac/{id}) — ikisi OW
+        // + F9.1 üç uç, hepsi TEK izin OperationsWrite (aşağıdaki else dalı birebir doğrular):
+        //   sigorta-sirketi → Blazor poliçe formu (/regulasyon/sigorta, OW grubu) firma listesi;
+        //   tarife-grubu → Blazor tarife formu (/tarifeler, izin:OperationsWrite) grup listesi;
+        //   sigorta-policesi → Blazor zeyil formu (/regulasyon/zeyil, OW grubu) poliçe listesi (araç şubesi kapsamlı).
+        Assert.Equal(17, uclar.Count);
+        foreach (var f91 in new[] { "sigorta-sirketi", "tarife-grubu", "sigorta-policesi" })
+            Assert.Contains(V1 + "/secim/" + f91, uclar.Keys);
         foreach (var (rota, e) in uclar)
         {
             var biri = e.Metadata.GetMetadata<RentACar.Web.Identity.IzinlerdenBiriMetadata>();
