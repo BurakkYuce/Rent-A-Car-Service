@@ -1,0 +1,117 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finansBelge.gider.baslik' | transloco }}</h1>
+    @if (canWrite()) {
+      <div class="ust__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [attr.aria-expanded]="createOpen()"
+          aria-controls="rc-yeni-gider"
+          [disabled]="pending.inFlight()"
+          (click)="toggleCreate()"
+        >
+          <rc-ikon ad="plus" [boyut]="14" />
+          {{ 'finansBelge.gider.yeni' | transloco }}
+        </button>
+      </div>
+    }
+  </header>
+
+  @if (canWrite() && createOpen()) {
+    <rc-expense-create-form
+      [accounts]="store.accounts.veri()"
+      [branches]="branches.list.veri()"
+      (saved)="created()"
+      (dirtyChange)="dirtyChanged('yeni', $event)"
+    />
+  }
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'finansBelge.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'finansBelge.gider.ara' | transloco">
+        <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.plaka' | transloco">
+        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="16" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gider.tedarikci' | transloco">
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gider.tur' | transloco">
+        <rc-secim
+          formControlName="tip"
+          [secenekler]="typeOptions"
+          [bosEtiket]="'finansBelge.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.sube' | transloco">
+        <rc-metin-girdisi formControlName="sube" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.tarihBas' | transloco">
+        <rc-tarih-secici formControlName="bas" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.tarihBit' | transloco">
+        <rc-tarih-secici formControlName="bit" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'finansBelge.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'finansBelge.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="giderler.liste"
+    [etiket]="'finansBelge.gider.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    [disaAktarma]="export()"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="tip" [rcTabloHucreSutunlar]="columns" let-satir>
+      {{ typeLabel(satir.tip) }}
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (canPay(satir)) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk"
+          [disabled]="pending.inFlight()"
+          (click)="pay(satir)"
+        >
+          {{ 'finansBelge.gider.ode' | transloco }}
+        </button>
+      }
+    </ng-template>
+  </rc-tablo>
+
+  @if (paying(); as e) {
+    @for (x of [e]; track x.id) {
+      <rc-expense-payment-form
+        [expense]="x"
+        (paid)="paymentDone()"
+        (closed)="closePayment()"
+        (dirtyChange)="dirtyChanged('odeme', $event)"
+      />
+    }
+  }
+</div>
