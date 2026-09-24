@@ -22,4 +22,8 @@ public sealed class CustomerFilter
     public bool? AracVerilmez { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
+
+    /// <summary>F7.1 — sunucu tarafı sıralama (uç katmanının BEYAZ LİSTE <c>SiralamaHaritasi</c>'ından; eşitlik bozucu
+    /// dahil). null → varsayılan (Tip, Ünvan, Ad).</summary>
+    public Func<IQueryable<Domain.Entities.Customer>, IOrderedQueryable<Domain.Entities.Customer>>? Siralama { get; set; }
 }

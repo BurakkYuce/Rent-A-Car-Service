@@ -107,12 +107,17 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         {
             var term = $"%{filter.Query.Trim()}%";
             var tcHash = filter.TcHash;
+            // #283 KVKK M1: an anonymised name is searchable only by its displayed label (never by the real
+            // Ad/Soyad/Unvan — prefix probing would rebuild it); M3: an individual's tax number may be the TC, so
+            // it is never matched with ILIKE (TC search stays exact-match via the blind index).
+            var label = CariAnonimlik.AdEtiketi;
             q = q.Where(c =>
-                (c.Ad != null && EF.Functions.ILike(c.Ad, term))
-                || (c.Soyad != null && EF.Functions.ILike(c.Soyad, term))
-                || (c.Unvan != null && EF.Functions.ILike(c.Unvan, term))
+                (!c.AnonimAd && c.Ad != null && EF.Functions.ILike(c.Ad, term))
+                || (!c.AnonimAd && c.Soyad != null && EF.Functions.ILike(c.Soyad, term))
+                || (!c.AnonimAd && c.Unvan != null && EF.Functions.ILike(c.Unvan, term))
+                || (c.AnonimAd && EF.Functions.ILike(label, term))
                 || (tcHash != null && c.TcKimlikHash == tcHash)
-                || (c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)));
+                || (c.Tip != CariType.Bireysel && c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)));
         }
         if (filter.Tip is { } tip) q = q.Where(c => c.Tip == tip);
         if (filter.IysIzinli is { } iys) q = q.Where(c => c.IysIzinli == iys);
@@ -131,7 +136,10 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
 
         var total = await q.CountAsync(ct);
         var items = await q
-            .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad)
+            .OrderBy(c => c.Tip)
+            .ThenBy(c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan) // #283 M1: displayed-name order
+            .ThenBy(c => c.AnonimAd ? null : c.Ad)
+            .ThenBy(c => c.Id)
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToListAsync(ct);
         foreach (var c in items) Decrypt(c);
@@ -144,8 +152,12 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         var q = ApplyFilter(db.Customers.AsNoTracking(), filter);
 
         var total = await q.CountAsync(ct);
-        var page = await q
-            .OrderBy(c => c.Tip).ThenBy(c => c.Unvan).ThenBy(c => c.Ad)
+        // F7.1 + #283 M1: the default order follows the DISPLAYED name (an anonymised row sorts by the label, ties by Id).
+        var sorted = filter.Siralama is { } s ? s(q) : q.OrderBy(c => c.Tip)
+            .ThenBy(c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan)
+            .ThenBy(c => c.AnonimAd ? null : c.Ad)
+            .ThenBy(c => c.Id);
+        var page = await sorted
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToListAsync(ct);
 
@@ -183,7 +195,9 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
                 OzelKod = c.OzelKod,
                 Ulke = c.Ulke,
                 Sinif = c.Sinif,
-                AracVerilmez = c.AracVerilmez
+                AracVerilmez = c.AracVerilmez,
+                // F7.1: KVKK anonimleştirme bayrakları (yeni yüzey MusteriGorunumu kuralını uygular).
+                AnonimAd = c.AnonimAd, AnonimTelefon = c.AnonimTelefon, AnonimMail = c.AnonimMail, AnonimAdres = c.AnonimAdres
             };
         }).ToList();
 
@@ -247,6 +261,28 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
             throw dup;
         }
         return true;
+    }
+
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="SatirSurumu"/>); yetkili kişiler aynı işlemde yüklenir.</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Customer> apply, CancellationToken ct = default)
+    {
+        Customer? current = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Customers, id, expectedVersion,
+                (db, key, c) => db.Customers.Include(x => x.Kisiler.OrderBy(k => k.Sira)).FirstOrDefaultAsync(x => x.Id == key, c),
+                x => { apply(x); current = x; }, ct);
+        }
+        catch (DbUpdateException ex) when (current is not null && AsDuplicate(ex, current) is { } dup)
+        {
+            throw dup;
+        }
+    }
+
+    public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Customers, id, ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

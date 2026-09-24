@@ -59,6 +59,24 @@ public sealed class HukukDosyaService(IHukukDosyaRepository repository, ICurrent
         }, ct);
     }
 
+    /// <summary>F7.1 — tam değiştirme, iyimser eşzamanlılıkla (satır kilidi altında sürüm; farklı → 409).</summary>
+    public async Task<bool> UpdateAsync(Guid id, HukukDosyaInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var n = Normalize(input);
+        Validate(n);
+        if (await _repository.DosyaNoExistsAsync(n.DosyaNo!, excludeId: id, ct))
+            throw new ValidationException($"'{n.DosyaNo}' dosya no zaten var.");
+        return await _repository.UpdateAsync(id, expectedVersion, row =>
+        {
+            Apply(row, n);
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, ct);
+    }
+
+    /// <summary>F7.1 — satır sürümü (PUT'un <c>surum</c>'u); yok/başka kiracı → null.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
+
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);

@@ -231,6 +231,7 @@ public static class UiApiExtensions
         AracFinans.AracFinansUclari.Esle(v1); // F6.1b — kredi, müşteri taksit, sipariş, BAF, hasar, filo plan
         v1.MapReportApi();       // F10.1 — raporlar (yalnız okur)
         v1.MapPlatformApi();     // F12.1 — platform konsolu (ayrı yetki alanı: PlatformAdmin policy)
+        Cari.CrmApi.Map(v1);     // F7.1 — cariler + CRM (anket, şikayet, assistans, hukuk, analiz)
         foreach (var kayit in app.Services.GetServices<IUiApiUcKaydi>())
             kayit.Esle(v1);
 

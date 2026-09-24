@@ -11418,6 +11418,1387 @@
           }
         }
       }
+    },
+    "/api/ui/v1/cariler": {
+      "get": {
+        "tags": [
+          "Cari"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tip",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "iysIzinli",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "uyari",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "karaListe",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "pasif",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "aracVerilmez",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfCustomerListRow"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Cari"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerCardDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/cariler/{id}": {
+      "get": {
+        "tags": [
+          "Cari"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Cari"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cari"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/cariler/{id}/detay": {
+      "get": {
+        "tags": [
+          "Cari"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDetailView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/cariler/secim/il": {
+      "get": {
+        "tags": [
+          "Cari"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AracSecimDegeri"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/cariler/secim/ilce": {
+      "get": {
+        "tags": [
+          "Cari"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AracSecimDegeri"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/anketler": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "anketTuru",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tarihBas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "tarihBit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "cikisOfisi",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfSurveyRow"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CRM"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurveyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurveyCardDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/anketler/varsayilan-sorular": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/anketler/{id}": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurveyCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurveyUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurveyCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/sikayetler": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "ofis",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "yer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kanal",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ara",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfComplaintRow"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CRM"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplaintRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintCardDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/sikayetler/{id}": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplaintUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/assistans-talepleri": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "plaka",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tarihBas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "tarihBit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "ara",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kapandi",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "yedekLastik",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "hareketEdemiyor",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfAssistanceRow"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CRM"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistanceCardDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/assistans-talepleri/{id}": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistanceCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistanceUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistanceCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hukuk-dosyalari": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "cariId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tarihBas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "tarihBit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "faturaNo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dosyaNo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ara",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tur",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "durum",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SayfaOfLegalFileRow"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CRM"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegalFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalFileCardDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/hukuk-dosyalari/{id}": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalFileCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegalFileUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalFileCardDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/ui/v1/crm/secim/kira": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RentalPickItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/crm/analiz": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "parameters": [
+          {
+            "name": "tarihBas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "tarihBit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "minKira",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "kaynak",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ofis",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sayfa",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "boyut",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sirala",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmAnalysisDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/crm/analiz/secenekler": {
+      "get": {
+        "tags": [
+          "CRM"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmFilterOptions"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -16894,6 +18275,241 @@
           }
         }
       },
+      "AssistanceCardDto": {
+        "required": [
+          "talep",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "talep": {
+            "$ref": "#/components/schemas/AssistanceRow"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AssistanceRequest": {
+        "type": "object",
+        "properties": {
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adSoyad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cepTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "zaman": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "mesaj": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sebep": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yedekLastikMi": {
+            "type": "boolean"
+          },
+          "aracHareketMi": {
+            "type": "boolean"
+          },
+          "kapandi": {
+            "type": "boolean"
+          },
+          "cozum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AssistanceRow": {
+        "required": [
+          "id",
+          "zaman",
+          "rentalId",
+          "sozlesmeNo",
+          "plaka",
+          "adSoyad",
+          "cepTel",
+          "mesaj",
+          "sebep",
+          "yedekLastikMi",
+          "aracHareketMi",
+          "kapandi",
+          "cozum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "zaman": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adSoyad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cepTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mesaj": {
+            "type": "string"
+          },
+          "sebep": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yedekLastikMi": {
+            "type": "boolean"
+          },
+          "aracHareketMi": {
+            "type": "boolean"
+          },
+          "kapandi": {
+            "type": "boolean"
+          },
+          "cozum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AssistanceUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adSoyad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cepTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "zaman": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "mesaj": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sebep": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yedekLastikMi": {
+            "type": "boolean"
+          },
+          "aracHareketMi": {
+            "type": "boolean"
+          },
+          "kapandi": {
+            "type": "boolean"
+          },
+          "cozum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "AylikGelir": {
         "required": [
           "ayBas",
@@ -17728,6 +19344,2603 @@
               "string"
             ],
             "format": "double"
+          }
+        }
+      },
+      "ComplaintCardDto": {
+        "required": [
+          "sikayet",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "sikayet": {
+            "$ref": "#/components/schemas/ComplaintRow"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ComplaintRequest": {
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "konu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "detay": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "cozum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "teslimAlanPersonelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "teslimEdenPersonelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "puan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sikayetKanali": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sikayetYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cikisOfisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ComplaintRow": {
+        "required": [
+          "id",
+          "tarih",
+          "konu",
+          "detay",
+          "durum",
+          "cozum",
+          "cariId",
+          "musteriAd",
+          "musteriTel",
+          "rentalId",
+          "sozlesmeNo",
+          "plaka",
+          "teslimAlanPersonelId",
+          "teslimAlanAd",
+          "teslimEdenPersonelId",
+          "teslimEdenAd",
+          "puan",
+          "sikayetKanali",
+          "sikayetYeri",
+          "cikisOfisi"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "konu": {
+            "type": "string"
+          },
+          "detay": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durum": {
+            "type": "string"
+          },
+          "cozum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "musteriAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "teslimAlanPersonelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "teslimAlanAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "teslimEdenPersonelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "teslimEdenAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "puan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sikayetKanali": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sikayetYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cikisOfisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ComplaintUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "konu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "detay": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "cozum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "teslimAlanPersonelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "teslimEdenPersonelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "puan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sikayetKanali": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sikayetYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cikisOfisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CrmAnalysisDto": {
+        "required": [
+          "musteriSayisi",
+          "toplamCiro",
+          "toplamHizmetBedeli",
+          "segment",
+          "personel"
+        ],
+        "type": "object",
+        "properties": {
+          "musteriSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamCiro": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "toplamHizmetBedeli": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "segment": {
+            "$ref": "#/components/schemas/SayfaOfCrmSegmentRow"
+          },
+          "personel": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmStaffRow"
+            }
+          }
+        }
+      },
+      "CrmFilterOptions": {
+        "required": [
+          "kaynaklar",
+          "ofisler"
+        ],
+        "type": "object",
+        "properties": {
+          "kaynaklar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ofisler": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CrmSegmentRow": {
+        "required": [
+          "cariId",
+          "ad",
+          "mail",
+          "tel",
+          "kiraSayisi",
+          "toplamCiro",
+          "ortalamaKiraBedeli",
+          "ortalamaKm",
+          "hizmetBedeli",
+          "dogumTarihi",
+          "ilkKiraZamani",
+          "sonIslem",
+          "segment"
+        ],
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "mail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kiraSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamCiro": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "ortalamaKiraBedeli": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "ortalamaKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hizmetBedeli": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "dogumTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "ilkKiraZamani": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "sonIslem": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "segment": {
+            "type": "string"
+          }
+        }
+      },
+      "CrmStaffRow": {
+        "required": [
+          "personelId",
+          "ad",
+          "tahsisSayisi"
+        ],
+        "type": "object",
+        "properties": {
+          "personelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "tahsisSayisi": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CustomerCardDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tcKimlikVar": {
+            "type": "boolean"
+          },
+          "ehliyetNoMaske": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pasaportNoMaske": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vergiNoMaske": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sifreVar": {
+            "type": "boolean"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "soyad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unvan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vergiDairesi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vergiNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cepTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gsm2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "il": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ilce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adres": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kaynak": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriTemsilcisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "iysIzinli": {
+            "type": "boolean"
+          },
+          "uyari": {
+            "type": "boolean"
+          },
+          "uyariNedeni": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetSinifi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "ehliyetYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarife": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vadeGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "riskLimiti": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "riskMesaji": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "riskTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "hgsYansitmaTuru": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "karaListe": {
+            "type": "boolean"
+          },
+          "pasif": {
+            "type": "boolean"
+          },
+          "ozelCariTip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriTipi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetUlke": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tevkifatDurum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sinif": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mailIzin": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "smsIzin": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "telefonIzin": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "dogumTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "babaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "anaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaDonemi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tevkifatOrani": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kisiler": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CustomerContactDto"
+            }
+          },
+          "kvkkOnay": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "kvkkOnayTarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "ekAdres": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankaIban": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaAdresi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaUnvan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ulke": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tel2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ozelKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entegrasyonKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "riskIzin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dogumYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pasaportYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pasaportTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "kurumsalNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "uyariSerbest": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tevkifatKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaKiralayanIsim": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isAdresi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isTelefonu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kayitliIl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kayitliIlce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mahalleKoy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "seriNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ciltNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aileSira": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siraNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tcDogrulama": {
+            "type": "boolean"
+          },
+          "faturaAdresFarkli": {
+            "type": "boolean"
+          },
+          "faturaTekSatir": {
+            "type": "boolean"
+          },
+          "dogumGunuTakip": {
+            "type": "boolean"
+          },
+          "anonimAd": {
+            "type": "boolean"
+          },
+          "anonimTc": {
+            "type": "boolean"
+          },
+          "anonimTelefon": {
+            "type": "boolean"
+          },
+          "anonimMail": {
+            "type": "boolean"
+          },
+          "anonimAdres": {
+            "type": "boolean"
+          },
+          "anonimBelge": {
+            "type": "boolean"
+          },
+          "bakiyeGor": {
+            "type": "boolean"
+          },
+          "aracVerilmez": {
+            "type": "boolean"
+          },
+          "yasEhliyetSerbest": {
+            "type": "boolean"
+          },
+          "merkezKurumsal": {
+            "type": "boolean"
+          },
+          "broker": {
+            "type": "boolean"
+          },
+          "findexZorunlu": {
+            "type": "boolean"
+          },
+          "bayiKomisyon": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "webIndirim": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "karaZamani": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "islemSubeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "firmaId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "CustomerContactDto": {
+        "required": [
+          "adSoyad",
+          "telefon",
+          "mail",
+          "gorev"
+        ],
+        "type": "object",
+        "properties": {
+          "adSoyad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "telefon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gorev": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CustomerDetailView": {
+        "required": [
+          "musteri",
+          "karaListe",
+          "pasif",
+          "aracVerilmez",
+          "kiralar",
+          "bakiye",
+          "hareketler"
+        ],
+        "type": "object",
+        "properties": {
+          "musteri": {
+            "$ref": "#/components/schemas/KiraMusteriOzeti"
+          },
+          "karaListe": {
+            "type": "boolean"
+          },
+          "pasif": {
+            "type": "boolean"
+          },
+          "aracVerilmez": {
+            "type": "boolean"
+          },
+          "kiralar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerRentalSummary"
+            }
+          },
+          "bakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "hareketler": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CustomerLedgerLine"
+            }
+          }
+        }
+      },
+      "CustomerLedgerLine": {
+        "required": [
+          "tarih",
+          "kaynak",
+          "aciklama",
+          "borc",
+          "alacak"
+        ],
+        "type": "object",
+        "properties": {
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kaynak": {
+            "type": "string"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "borc": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "alacak": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CustomerListRow": {
+        "required": [
+          "id",
+          "tip",
+          "ad",
+          "anonim",
+          "vergiNo",
+          "cepTel",
+          "gsm2",
+          "email",
+          "il",
+          "ilce",
+          "kaynak",
+          "musteriTemsilcisi",
+          "entegrasyonKodu",
+          "ozelKod",
+          "sinif",
+          "ulke",
+          "vadeGun",
+          "kiraAdet",
+          "ciro",
+          "sonKira",
+          "karaListe",
+          "pasif",
+          "uyari",
+          "uyariNedeni",
+          "iysIzinli",
+          "aracVerilmez"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tip": {
+            "type": "string"
+          },
+          "ad": {
+            "type": "string"
+          },
+          "anonim": {
+            "type": "boolean"
+          },
+          "vergiNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cepTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gsm2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "il": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ilce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kaynak": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriTemsilcisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entegrasyonKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ozelKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sinif": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ulke": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vadeGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kiraAdet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ciro": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "sonKira": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "karaListe": {
+            "type": "boolean"
+          },
+          "pasif": {
+            "type": "boolean"
+          },
+          "uyari": {
+            "type": "boolean"
+          },
+          "uyariNedeni": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "iysIzinli": {
+            "type": "boolean"
+          },
+          "aracVerilmez": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CustomerRentalSummary": {
+        "required": [
+          "id",
+          "sozlesmeNo",
+          "basTar",
+          "bitTar",
+          "durum",
+          "genelToplam",
+          "bakiye",
+          "doviz"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": "string"
+          },
+          "basTar": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bitTar": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "genelToplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "bakiye": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CustomerRequest": {
+        "type": "object",
+        "properties": {
+          "tcKimlik": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pasaportNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sifre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "soyad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unvan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vergiDairesi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vergiNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cepTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gsm2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "il": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ilce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adres": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kaynak": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriTemsilcisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "iysIzinli": {
+            "type": "boolean"
+          },
+          "uyari": {
+            "type": "boolean"
+          },
+          "uyariNedeni": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetSinifi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "ehliyetYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarife": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vadeGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "riskLimiti": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "riskMesaji": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "riskTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "hgsYansitmaTuru": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "karaListe": {
+            "type": "boolean"
+          },
+          "pasif": {
+            "type": "boolean"
+          },
+          "ozelCariTip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriTipi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetUlke": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tevkifatDurum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sinif": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mailIzin": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "smsIzin": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "telefonIzin": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "dogumTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "babaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "anaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaDonemi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tevkifatOrani": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kisiler": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CustomerContactDto"
+            }
+          },
+          "kvkkOnay": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "kvkkOnayTarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "ekAdres": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankaIban": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaAdresi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaUnvan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ulke": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tel2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ozelKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entegrasyonKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "riskIzin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dogumYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pasaportYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pasaportTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "kurumsalNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "uyariSerbest": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tevkifatKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaKiralayanIsim": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isAdresi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isTelefonu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kayitliIl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kayitliIlce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mahalleKoy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "seriNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ciltNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aileSira": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siraNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tcDogrulama": {
+            "type": "boolean"
+          },
+          "faturaAdresFarkli": {
+            "type": "boolean"
+          },
+          "faturaTekSatir": {
+            "type": "boolean"
+          },
+          "dogumGunuTakip": {
+            "type": "boolean"
+          },
+          "anonimAd": {
+            "type": "boolean"
+          },
+          "anonimTc": {
+            "type": "boolean"
+          },
+          "anonimTelefon": {
+            "type": "boolean"
+          },
+          "anonimMail": {
+            "type": "boolean"
+          },
+          "anonimAdres": {
+            "type": "boolean"
+          },
+          "anonimBelge": {
+            "type": "boolean"
+          },
+          "bakiyeGor": {
+            "type": "boolean"
+          },
+          "aracVerilmez": {
+            "type": "boolean"
+          },
+          "yasEhliyetSerbest": {
+            "type": "boolean"
+          },
+          "merkezKurumsal": {
+            "type": "boolean"
+          },
+          "broker": {
+            "type": "boolean"
+          },
+          "findexZorunlu": {
+            "type": "boolean"
+          },
+          "bayiKomisyon": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "webIndirim": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "karaZamani": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "islemSubeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "firmaId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "CustomerUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tcKimlik": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pasaportNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sifre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "soyad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unvan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vergiDairesi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vergiNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cepTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gsm2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "il": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ilce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adres": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kaynak": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriTemsilcisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "iysIzinli": {
+            "type": "boolean"
+          },
+          "uyari": {
+            "type": "boolean"
+          },
+          "uyariNedeni": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetSinifi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "ehliyetYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarife": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vadeGun": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "riskLimiti": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "riskMesaji": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "riskTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "hgsYansitmaTuru": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "karaListe": {
+            "type": "boolean"
+          },
+          "pasif": {
+            "type": "boolean"
+          },
+          "ozelCariTip": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriTipi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ehliyetUlke": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "doviz": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tevkifatDurum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sinif": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mailIzin": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "smsIzin": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "telefonIzin": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "dogumTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "babaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "anaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaDonemi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tevkifatOrani": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kisiler": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CustomerContactDto"
+            }
+          },
+          "kvkkOnay": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "kvkkOnayTarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "ekAdres": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankaIban": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankaAdi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaAdresi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaUnvan": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ulke": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tel2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ozelKod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entegrasyonKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "riskIzin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dogumYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pasaportYeri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pasaportTarihi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "kurumsalNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "uyariSerbest": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tevkifatKodu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faturaKiralayanIsim": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isAdresi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isTelefonu": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kayitliIl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kayitliIlce": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mahalleKoy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "seriNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ciltNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aileSira": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siraNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tcDogrulama": {
+            "type": "boolean"
+          },
+          "faturaAdresFarkli": {
+            "type": "boolean"
+          },
+          "faturaTekSatir": {
+            "type": "boolean"
+          },
+          "dogumGunuTakip": {
+            "type": "boolean"
+          },
+          "anonimAd": {
+            "type": "boolean"
+          },
+          "anonimTc": {
+            "type": "boolean"
+          },
+          "anonimTelefon": {
+            "type": "boolean"
+          },
+          "anonimMail": {
+            "type": "boolean"
+          },
+          "anonimAdres": {
+            "type": "boolean"
+          },
+          "anonimBelge": {
+            "type": "boolean"
+          },
+          "bakiyeGor": {
+            "type": "boolean"
+          },
+          "aracVerilmez": {
+            "type": "boolean"
+          },
+          "yasEhliyetSerbest": {
+            "type": "boolean"
+          },
+          "merkezKurumsal": {
+            "type": "boolean"
+          },
+          "broker": {
+            "type": "boolean"
+          },
+          "findexZorunlu": {
+            "type": "boolean"
+          },
+          "bayiKomisyon": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "webIndirim": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "karaZamani": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "islemSubeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "firmaId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -26773,6 +30986,379 @@
           }
         }
       },
+      "LegalFileCardDto": {
+        "required": [
+          "dosya",
+          "surum"
+        ],
+        "type": "object",
+        "properties": {
+          "dosya": {
+            "$ref": "#/components/schemas/LegalFileRow"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "LegalFileRequest": {
+        "type": "object",
+        "properties": {
+          "dosyaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "tur": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aktif": {
+            "type": "boolean"
+          },
+          "faturaNoTemp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukatTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukatMail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat2Ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat2Tel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat2Mail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tahsilat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "LegalFileRow": {
+        "required": [
+          "id",
+          "dosyaNo",
+          "tarih",
+          "tur",
+          "durum",
+          "aktif",
+          "cariId",
+          "musteriAd",
+          "musteriTel",
+          "avukat",
+          "avukatTel",
+          "avukatMail",
+          "avukat2Ad",
+          "avukat2Tel",
+          "avukat2Mail",
+          "tutar",
+          "tahsilat",
+          "kalan",
+          "faturaNoTemp",
+          "aciklama"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dosyaNo": {
+            "type": "string"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tur": {
+            "type": "string"
+          },
+          "durum": {
+            "type": "string"
+          },
+          "aktif": {
+            "type": "boolean"
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "musteriAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukatTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukatMail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat2Ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat2Tel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat2Mail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tahsilat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "kalan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "faturaNoTemp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "LegalFileUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dosyaNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "tur": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tutar": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aktif": {
+            "type": "boolean"
+          },
+          "faturaNoTemp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukatTel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukatMail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat2Ad": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat2Tel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avukat2Mail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tahsilat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "LokasyonSecimOgesi": {
         "required": [
           "id",
@@ -30114,6 +34700,50 @@
           }
         }
       },
+      "RentalPickItem": {
+        "required": [
+          "id",
+          "sozlesmeNo",
+          "plaka",
+          "musteriAd",
+          "musteriId",
+          "cikisOfisi",
+          "basTar"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": "string"
+          },
+          "plaka": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "musteriAd": {
+            "type": "string"
+          },
+          "musteriId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cikisOfisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "basTar": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ReportAccountSummaryRow": {
         "required": [
           "tur",
@@ -33375,6 +38005,55 @@
           }
         }
       },
+      "SayfaOfAssistanceRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistanceRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfBafDto": {
         "required": [
           "kayitlar",
@@ -33437,6 +38116,153 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CariBalanceDto"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfComplaintRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComplaintRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfCrmSegmentRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmSegmentRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfCustomerListRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerListRow"
             }
           },
           "toplam": {
@@ -34355,6 +39181,55 @@
           }
         }
       },
+      "SayfaOfLegalFileRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LegalFileRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SayfaOfMusteriTaksitSatiri": {
         "required": [
           "kayitlar",
@@ -34858,6 +39733,55 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SigortaMuayeneRow"
+            }
+          },
+          "toplam": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sayfaNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "boyut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toplamSayfa": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SayfaOfSurveyRow": {
+        "required": [
+          "kayitlar",
+          "toplam",
+          "sayfaNo",
+          "boyut"
+        ],
+        "type": "object",
+        "properties": {
+          "kayitlar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SurveyRow"
             }
           },
           "toplam": {
@@ -35943,6 +40867,308 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "SurveyAnswerDto": {
+        "required": [
+          "soruNo",
+          "soru",
+          "cevap",
+          "aciklama"
+        ],
+        "type": "object",
+        "properties": {
+          "soruNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "soru": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cevap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aciklama": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SurveyCardDto": {
+        "required": [
+          "anket",
+          "surum",
+          "cevaplar"
+        ],
+        "type": "object",
+        "properties": {
+          "anket": {
+            "$ref": "#/components/schemas/SurveyRow"
+          },
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cevaplar": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SurveyAnswerDto"
+            }
+          }
+        }
+      },
+      "SurveyRequest": {
+        "type": "object",
+        "properties": {
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "puan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "yorum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "kaynak": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "anketTuru": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cikisOfisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cevaplar": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SurveyAnswerDto"
+            }
+          }
+        }
+      },
+      "SurveyRow": {
+        "required": [
+          "id",
+          "tarih",
+          "cariId",
+          "musteriAd",
+          "rentalId",
+          "sozlesmeNo",
+          "anketTuru",
+          "durum",
+          "puan",
+          "kaynak",
+          "cikisOfisi",
+          "yorum"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tarih": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "musteriAd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "sozlesmeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "anketTuru": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durum": {
+            "type": "string"
+          },
+          "puan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kaynak": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cikisOfisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yorum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SurveyUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "surum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cariId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "rentalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "puan": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "yorum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tarih": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "kaynak": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "anketTuru": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durum": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cikisOfisi": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cevaplar": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SurveyAnswerDto"
+            }
           }
         }
       },
@@ -37986,6 +43212,12 @@
     },
     {
       "name": "Platform"
+    },
+    {
+      "name": "Cari"
+    },
+    {
+      "name": "CRM"
     }
   ]
 }
