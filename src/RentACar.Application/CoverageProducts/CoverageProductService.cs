@@ -11,7 +11,8 @@ namespace RentACar.Application.CoverageProducts;
 /// motoru okuması (<see cref="ListActiveAsync"/>) yetkisizdir. Tenant izolasyonu/audit alt katmanda
 /// otomatik. Saf fiyat-tanım — deftere kayıt postlamaz.
 /// </summary>
-public sealed class CoverageProductService(ICoverageProductRepository repository, ICurrentUser currentUser)
+public sealed class CoverageProductService(ICoverageProductRepository repository, ICurrentUser currentUser,
+    IRowVersionStore? rowVersions = null)
 {
     private readonly ICoverageProductRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -53,6 +54,25 @@ public sealed class CoverageProductService(ICoverageProductRepository repository
             Apply(row, n);
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
+    }
+
+    /// <summary>F9.1 — opaque row version for the full-replacement PUT of <c>/api/ui</c>.</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<CoverageProduct>(id, ct);
+
+    /// <summary>F9.1 — same rules as <see cref="UpdateAsync"/> under a row lock with a version check.</summary>
+    public async Task<bool> UpdateVersionedAsync(Guid id, CoverageProductInput input, string expectedVersion, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        var n = Normalize(input);
+        Validate(n);
+        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+            throw new ValidationException($"'{n.Kod}' kodlu sigorta ürünü zaten var.");
+        return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<CoverageProduct>(id, expectedVersion, row =>
+        {
+            Apply(row, n);
+            row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, $"'{n.Kod}' kodlu sigorta ürünü zaten var.", ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

@@ -234,7 +234,11 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            var rec = await db.InsurancePolicies.FirstOrDefaultAsync(x => x.Id == policyId, ct)
+            // F9.1: SATIR KİLİDİ — "zaten ödendi" çiti kilidin arkasında okunur; eşzamanlı ikinci ödeme ilkinin
+            // commit'ini bekler ve Odendi=true görür (unique index yalnız son savunma).
+            var rec = await db.InsurancePolicies
+                .FromSqlRaw("SELECT * FROM \"InsurancePolicies\" WHERE \"Id\" = {0} FOR UPDATE", policyId)
+                .FirstOrDefaultAsync(ct)
                 ?? throw new ValidationException("Sigorta poliçesi bulunamadı.");
             if (rec.Odendi) throw new ValidationException("Sigorta zaten ödendi.");
             rec.Odendi = true;

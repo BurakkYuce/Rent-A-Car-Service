@@ -232,6 +232,7 @@ public static class UiApiExtensions
         v1.MapIncomingInvoiceUiApi(); // F8.1b — gelen e-fatura
         v1.MapVehicleSaleUiApi();     // F8.1b — araç satışları
         AracFinans.AracFinansUclari.Esle(v1); // F6.1b — kredi, müşteri taksit, sipariş, BAF, hasar, filo plan
+        ServiceInsurance.ServiceInsuranceEndpoints.Map(v1); // F9.1 — servis, sigorta/MTV/muayene, vade, fiyat & tarife
         v1.MapReportApi();       // F10.1 — raporlar (yalnız okur)
         v1.MapPlatformApi();     // F12.1 — platform konsolu (ayrı yetki alanı: PlatformAdmin policy)
         Cari.CrmApi.Map(v1);     // F7.1 — cariler + CRM (anket, şikayet, assistans, hukuk, analiz)

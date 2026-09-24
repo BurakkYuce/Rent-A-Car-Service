@@ -23,7 +23,7 @@ namespace RentACar.Application.ServiceRecords;
 /// </summary>
 public sealed class ServiceRecordService(
     IServiceRecordRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.KurCozucu kurCozucu)
+    RentACar.Application.Kur.KurCozucu kurCozucu, IRowVersionStore? rowVersions = null)
 {
     private readonly IServiceRecordRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -60,6 +60,7 @@ public sealed class ServiceRecordService(
             KusurOrani = input.KusurOrani,
             Lines = kalemler
         };
+        if (input.Id is { } id && id != Guid.Empty) record.Id = id; // F9.1: Idempotency-Key → PK
         BilgiUygula(record, input);
         await _repository.CreateAsync(record, ct);
         return record.Id;
@@ -76,6 +77,24 @@ public sealed class ServiceRecordService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         BilgiDogrula(input);
         return _repository.UpdateBilgiAsync(id, r => BilgiUygula(r, input), ct);
+    }
+
+    /// <summary>F9.1 — opaque row version for the full-replacement PUT of <c>/api/ui</c> (bilgi blokları).</summary>
+    public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
+        => RowVersionStoreGuard.Require(rowVersions).GetVersionAsync<ServiceRecord>(id, ct);
+
+    /// <summary>F9.1 — <see cref="BilgiGuncelleAsync"/> under a row lock with a version check (409 <c>cakisma</c>).
+    /// Same whitelist: only the FAZ-16 information blocks; no ledger effect.</summary>
+    public Task<bool> BilgiGuncelleVersionedAsync(Guid id, ServiceRecordBilgiInput input, string expectedVersion,
+        CancellationToken ct = default)
+    {
+        PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        BilgiDogrula(input);
+        return RowVersionStoreGuard.Require(rowVersions).UpdateAsync<ServiceRecord>(id, expectedVersion, r =>
+        {
+            BilgiUygula(r, input);
+            r.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        }, "Kayıt zaten var.", ct);
     }
 
     /// <summary>
@@ -217,11 +236,13 @@ public sealed class ServiceRecordService(
         if (tutar < 0m)
             throw new ValidationException("Kalem tutarı negatif olamaz (indirim satır brütünü aşıyor).");
 
-        return new ServiceLine
+        var line = new ServiceLine
         {
             Aciklama = l.Aciklama.Trim(), Tutar = tutar,
             BirimFiyat = l.BirimFiyat, Miktar = miktar, Indirim = l.Indirim, KdvOran = l.KdvOran
         };
+        if (l.Id is { } id && id != Guid.Empty) line.Id = id; // F9.1: Idempotency-Key → PK
+        return line;
     }
 
     /// <summary>BİLGİ bloklarının doğrulaması. Para hareketi YOK — yalnız "saçma değer" reddi.</summary>
