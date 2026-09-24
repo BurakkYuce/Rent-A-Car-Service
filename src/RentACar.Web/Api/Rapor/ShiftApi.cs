@@ -113,9 +113,9 @@ public static class ShiftApi
 
     private static async Task<ShiftDto?> DtoAsync(Guid id, PersonelVardiyaService s, CancellationToken ct)
     {
-        if (await s.GetWithStaffAsync(id, ct) is not { } row) return null;
-        var version = await s.GetVersionAsync(id, ct);
-        if (version is null) return null;
+        // #302 L2: row and version as one consistent pair (see GetWithStaffAndVersionAsync).
+        if (await s.GetWithStaffAndVersionAsync(id, ct) is not { } pair) return null;
+        var (row, version) = pair;
         var v = row.Vardiya;
         return new ShiftDto(v.Id, v.PersonelId, row.PersonelAd, v.Tarih,
             v.BaslangicSaat.ToString("HH:mm", CultureInfo.InvariantCulture),

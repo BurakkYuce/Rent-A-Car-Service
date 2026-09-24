@@ -51,6 +51,21 @@ public sealed class ReportExportTests
         Assert.DoesNotContain("=\"34ABC123\"", csv);
     }
 
+    // #308 L2 — formül enjeksiyonu: formül karakteriyle başlayan METİN başına ' alır; sayılar ve 11+ hane kuralı aynen.
+    [Fact]
+    public void Csv_neutralizes_formula_text_but_not_numbers()
+    {
+        var svc = new ReportExportService();
+        var csv = Encoding.UTF8.GetString(svc.Csv(
+            ["A", "B", "C", "D", "E", "F", "G", "H", "I"],
+            [new object?[] { "=HYPERLINK(\"http://x\")", "+90 532", "-kampanya", "@SUM(A1)", "\tsekme", -50.25m, -3, "05321112233", "Normal" }]));
+        var line = csv.Split("\r\n")[1];
+
+        // ELLE beklenen satır: formül metinleri '-önekli (tırnaklı olan, içindeki " kaçışıyla), negatif sayılar ham,
+        // 11 haneli rakam ="…", sıradan metin dokunulmaz.
+        Assert.Equal("\"'=HYPERLINK(\"\"http://x\"\")\",'+90 532,'-kampanya,'@SUM(A1),'\tsekme,-50.25,-3,=\"05321112233\",Normal", line);
+    }
+
     [Fact]
     public void Xlsx_is_nonempty_valid_zip()
     {

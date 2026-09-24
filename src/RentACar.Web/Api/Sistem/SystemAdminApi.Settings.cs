@@ -155,6 +155,8 @@ public static partial class SystemAdminApi
         FirmaMarka = i.FirmaMarka,
         EFaturaKullanici = i.EFaturaKullanici, EFaturaSifre = i.EFaturaSifre,
         SmsBaslik = i.SmsBaslik, SmsApiKey = i.SmsApiKey, PosMerchantId = i.PosMerchantId, PosApiKey = i.PosApiKey,
+        EFaturaSifreTemizle = i.EFaturaSifreTemizle, SmsApiKeyTemizle = i.SmsApiKeyTemizle,
+        PosApiKeyTemizle = i.PosApiKeyTemizle, SmtpSifreTemizle = i.SmtpSifreTemizle,
         LogoUrl = i.LogoUrl, VarsayilanDoviz = i.VarsayilanDoviz, VarsayilanKdvOrani = i.VarsayilanKdvOrani,
         VarsayilanGrupId = i.VarsayilanGrupId, VarsayilanFiyatTuru = i.VarsayilanFiyatTuru,
         VarsayilanYakitSeviyesi = i.VarsayilanYakitSeviyesi, DropMesafeYokIseSifir = i.DropMesafeYokIseSifir,
