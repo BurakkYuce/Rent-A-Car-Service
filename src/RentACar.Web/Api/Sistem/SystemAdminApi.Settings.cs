@@ -95,6 +95,13 @@ public static partial class SystemAdminApi
             return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
         }).AlanlariEsle(DomainRules);
 
+        // F11.1b güvenlik M6 — DNS TXT sahiplik doğrulaması (ancak bundan sonra alan adı etkinleşir).
+        g.MapPost("/domainler/dogrula", async Task<Ok<SettingsDto>> (DomainAddRequest i, HttpContext http, TenantSettingsService svc, CancellationToken ct) =>
+        {
+            await svc.VerifyCustomDomainAsync(NormalizeCustomHost(i.Host), ct);
+            return TypedResults.Ok(await BuildSettingsAsync(http.RequestServices, ct));
+        }).AlanlariEsle(DomainRules).RequireRateLimiting(SendTestRatePolicy);
+
         MapSendTests(g);
     }
 
@@ -130,7 +137,7 @@ public static partial class SystemAdminApi
             SmtpGonderenAdres = m.SmtpGonderenAdres, SmtpGonderenAd = m.SmtpGonderenAd,
             FaturaSeriKodu = m.FaturaSeriKodu, WhatsAppNumarasi = m.WhatsAppNumarasi, WhatsAppGunlukOzet = m.WhatsAppGunlukOzet,
             WebSitesiAcik = m.PublicSiteEnabled, WebSitesiAdresi = m.PublicSiteHost,
-            Domainler = m.CustomDomains.Select(d => new DomainDto(d.Host, d.Kind, d.Durum)).ToList(),
+            Domainler = m.CustomDomains.Select(d => new DomainDto(d.Host, d.Kind, d.Durum, d.DogrulamaKaydi, d.DogrulamaDegeri)).ToList(),
             YeniArayuzPilot = raw?.YeniArayuzPilot == true,
             TwilioTanimli = !string.IsNullOrWhiteSpace(cfg["Twilio:AccountSid"]),
             WhatsAppGonderimleri = wa.Select(x => new WhatsAppDeliveryDto(x.Gun, x.Tur, x.Alici, x.Basarili, x.HataMesaji,

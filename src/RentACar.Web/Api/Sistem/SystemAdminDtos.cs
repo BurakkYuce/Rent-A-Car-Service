@@ -65,7 +65,8 @@ public sealed class SettingsDto
     public string? Surum { get; init; }
 }
 
-public sealed record DomainDto(string Host, string Tur, string Durum);
+/// <summary>Alan adı. Bekleyen özel alan adında DNS'e eklenecek TXT kaydının adı (<c>DogrulamaKaydi</c>) ve değeri.</summary>
+public sealed record DomainDto(string Host, string Tur, string Durum, string? DogrulamaKaydi, string? DogrulamaDegeri);
 
 public sealed record WhatsAppDeliveryDto(DateOnly Gun, string Tur, string Alici, bool Basarili, string? HataMesaji, DateTimeOffset OlusturmaUtc);
 

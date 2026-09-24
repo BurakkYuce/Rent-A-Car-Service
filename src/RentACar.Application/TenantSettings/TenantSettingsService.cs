@@ -12,8 +12,31 @@ namespace RentACar.Application.TenantSettings;
 /// </summary>
 public sealed class TenantSettingsService(
     ITenantSettingsRepository repository, ICurrentUser currentUser, ISecretProtector secrets, ScreenPermissionService screens,
-    ITenantDomainRepository domains, ITenantContext tenant, ITenantSettingsVersionStore? versionStore = null)
+    ITenantDomainRepository domains, ITenantContext tenant, ITenantSettingsVersionStore? versionStore = null,
+    IDnsTxtResolver? dnsTxt = null)
 {
+    /// <summary>
+    /// F11.1b güvenlik M6 — özel alan adının sahiplik doğrulaması: <c>_racar-verify.&lt;alan adı&gt;</c> TXT kaydında
+    /// kiracının belirteci varsa kayıt <c>Active</c>'e geçer. Kayıt yoksa, süresi dolduysa ya da TXT eşleşmezse 400.
+    /// </summary>
+    public async Task<bool> VerifyCustomDomainAsync(string host, CancellationToken ct = default)
+    {
+        PermissionGuard.Require(currentUser, Permission.ManageUsers);
+        await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
+        var row = await domains.FindCustomAsync(TenantId, host, ct)
+            ?? throw new ValidationException("Alan adı bulunamadı.");
+        if (row.Status == RentACar.Domain.Entities.TenantDomainStatus.Active) return true;
+        if (row.Status != RentACar.Domain.Entities.TenantDomainStatus.PendingVerification || row.VerificationToken is null
+            || DomainVerification.IsExpired(row.CreatedAtUtc, DateTimeOffset.UtcNow))
+            throw new ValidationException("Alan adı doğrulama süresi doldu; alan adını yeniden ekleyin.");
+        var resolver = dnsTxt ?? throw new InvalidOperationException("IDnsTxtResolver kayıtlı değil.");
+        var record = DomainVerification.RecordName(row.Host);
+        if (!DomainVerification.Matches(await resolver.ResolveTxtAsync(record, ct), row.VerificationToken))
+            throw new ValidationException(
+                $"Alan adı doğrulama kaydı bulunamadı: {record} adına TXT kaydı olarak belirteci ekleyin (DNS yayılımı birkaç dakika sürebilir).");
+        return await domains.ActivateVerifiedAsync(TenantId, row.Id, row.VerificationToken, ct);
+    }
+
     /// <summary>F11.1b — ayar satırının sürümü (satır yoksa null). ManageUsers + ekran kapısı.</summary>
     public async Task<string?> VersionAsync(CancellationToken ct = default)
     {
@@ -102,7 +125,10 @@ public sealed class TenantSettingsService(
             PublicSiteHost = await domains.GetActiveHostAsync(TenantId, ct),
             // PR-5: tüm domain kayıtları (durum rozeti için)
             CustomDomains = (await domains.ListAsync(TenantId, ct))
-                .Select(d => new TenantDomainRow(d.Host, d.Kind.ToString(), DurumMetni(d.Status)))
+                .Select(d => new TenantDomainRow(d.Host, d.Kind.ToString(), DurumMetni(d.Status),
+                    // F11.1b M6: bekleyen özel alan adında kiracının KENDİ TXT talimatı (başka kiracınınki asla listelenmez).
+                    d.Status == RentACar.Domain.Entities.TenantDomainStatus.PendingVerification ? DomainVerification.RecordName(d.Host) : null,
+                    d.Status == RentACar.Domain.Entities.TenantDomainStatus.PendingVerification ? d.VerificationToken : null))
                 .ToList()
         };
     }

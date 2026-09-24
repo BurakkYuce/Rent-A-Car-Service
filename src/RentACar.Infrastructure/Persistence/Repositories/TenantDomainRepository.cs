@@ -47,32 +47,88 @@ public sealed class TenantDomainRepository(IDbContextFactory<AppDbContext> facto
     {
         host = host.Trim().ToLowerInvariant();
         await using var db = await _factory.CreateDbContextAsync(ct);
-
-        var existing = await db.TenantDomains.FirstOrDefaultAsync(d => d.TenantId == tenantId && d.Host == host, ct);
-        if (existing is not null) return existing; // idempotent — aynı host tekrar eklenirse no-op
-
-        var openPending = await db.TenantDomains.AsNoTracking().CountAsync(d =>
-            d.TenantId == tenantId && d.Kind == TenantDomainKind.Custom && d.Status == TenantDomainStatus.PendingVerification, ct);
-        if (openPending >= 2)
-            throw new ValidationException("Aynı anda en fazla 2 doğrulama bekleyen özel domain ekleyebilirsiniz.");
-
-        var domain = new TenantDomain
-        {
-            TenantId = tenantId,
-            Host = host,
-            Kind = TenantDomainKind.Custom,
-            Status = TenantDomainStatus.PendingVerification,
-        };
-        db.TenantDomains.Add(domain);
         try
         {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Aynı host üzerindeki eşzamanlı eklemeler sıraya girer (platform geneli, host başına kilit).
+            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(hashtextextended({0}, 0))", ["tenant-domain:" + host], ct);
+
+            var row = await db.TenantDomains.FirstOrDefaultAsync(d => d.Host == host, ct);
+            if (row is not null && row.TenantId == tenantId)
+            {
+                // Idempotent: kendi satırı. Süresi dolmuş/başarısız bekleyen kayıt yeni belirteçle yeniden başlar.
+                if (row.Kind == TenantDomainKind.Custom && (row.Status == TenantDomainStatus.Failed
+                        || (row.Status == TenantDomainStatus.PendingVerification && DomainVerification.IsExpired(row.CreatedAtUtc, DateTimeOffset.UtcNow))))
+                {
+                    await RequirePendingQuotaAsync(db, tenantId, row.Id, ct);
+                    row.Status = TenantDomainStatus.PendingVerification;
+                    row.VerificationToken = DomainVerification.NewToken();
+                    row.CreatedAtUtc = DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync(ct);
+                }
+                await tx.CommitAsync(ct);
+                return row;
+            }
+            if (row is not null)
+            {
+                // F11.1b güvenlik M6: başka kiracının DOĞRULANMIŞ alan adı alınamaz; doğrulanmamış (bekleyen/başarısız)
+                // kayıt ise sahiplik kanıtı değildir ve gerçek sahibin eklemesini ENGELLEMEZ. Mesaj, başka kiracının
+                // varlığını ya da durumunu sızdırmaz.
+                if (row.Status == TenantDomainStatus.Active || row.Kind != TenantDomainKind.Custom)
+                    throw new ValidationException(DomainVerification.CannotAddMessage);
+                db.TenantDomains.Remove(row);
+                await db.SaveChangesAsync(ct);
+            }
+
+            await RequirePendingQuotaAsync(db, tenantId, null, ct);
+            var domain = new TenantDomain
+            {
+                TenantId = tenantId,
+                Host = host,
+                Kind = TenantDomainKind.Custom,
+                Status = TenantDomainStatus.PendingVerification,
+                VerificationToken = DomainVerification.NewToken(),
+            };
+            db.TenantDomains.Add(domain);
             await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return domain;
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            throw new ValidationException($"'{host}' alan adı zaten başka bir hesapta kayıtlı.");
+            throw new ValidationException(DomainVerification.CannotAddMessage);
         }
-        return domain;
+    }
+
+    private static async Task RequirePendingQuotaAsync(AppDbContext db, Guid tenantId, Guid? excludeId, CancellationToken ct)
+    {
+        var openPending = await db.TenantDomains.AsNoTracking().CountAsync(d =>
+            d.TenantId == tenantId && d.Kind == TenantDomainKind.Custom && d.Status == TenantDomainStatus.PendingVerification
+            && (excludeId == null || d.Id != excludeId), ct);
+        if (openPending >= 2)
+            throw new ValidationException("Aynı anda en fazla 2 doğrulama bekleyen özel domain ekleyebilirsiniz.");
+    }
+
+    /// <summary>F11.1b güvenlik M6 — kiracının kendi bekleyen alan adı kaydı (yoksa null).</summary>
+    public async Task<TenantDomain?> FindCustomAsync(Guid tenantId, string host, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var h = host.Trim().ToLowerInvariant();
+        return await db.TenantDomains.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.TenantId == tenantId && d.Host == h && d.Kind == TenantDomainKind.Custom, ct);
+    }
+
+    /// <summary>F11.1b güvenlik M6 — belirteç doğrulandıktan SONRA etkinleştirme; yalnız aynı kiracı, aynı belirteç ve
+    /// hâlâ bekleyen satır (arada yeniden eklenip belirteç değiştiyse etkinleşmez).</summary>
+    public async Task<bool> ActivateVerifiedAsync(Guid tenantId, Guid id, string token, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.TenantDomains
+            .Where(d => d.Id == id && d.TenantId == tenantId && d.Status == TenantDomainStatus.PendingVerification
+                        && d.VerificationToken == token)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.Status, TenantDomainStatus.Active)
+                .SetProperty(d => d.VerifiedAtUtc, DateTimeOffset.UtcNow), ct) > 0;
     }
 
     public async Task<bool> ExistsAsync(string host, CancellationToken ct = default)

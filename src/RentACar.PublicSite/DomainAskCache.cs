@@ -25,7 +25,10 @@ public sealed class DomainAskCache(IConfiguration config) : IDisposable
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(config.GetConnectionString("Default")!).Options;
         await using var db = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance);
-        var exists = await db.TenantDomains.AsNoTracking().AnyAsync(d => d.Host == key, ct);
+        // F11.1b güvenlik M6: yalnız DOĞRULANMIŞ (Active) host'a sertifika — bekleyen kayıt artık yayın yapmadığı için
+        // sertifikaya da ihtiyacı yok (doğrulanınca ilk istekte çıkarılır).
+        var exists = await db.TenantDomains.AsNoTracking()
+            .AnyAsync(d => d.Host == key && d.Status == RentACar.Domain.Entities.TenantDomainStatus.Active, ct);
 
         _cache.Set(key, exists, new MemoryCacheEntryOptions { Size = 1, AbsoluteExpirationRelativeToNow = Ttl });
         return exists;

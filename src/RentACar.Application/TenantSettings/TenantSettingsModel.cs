@@ -74,4 +74,6 @@ public sealed class TenantSettingsModel
     public IReadOnlyList<TenantDomainRow> CustomDomains { get; set; } = [];
 }
 
-public sealed record TenantDomainRow(string Host, string Kind, string Durum);
+/// <summary>F11.1b M6: bekleyen özel alan adında DNS TXT doğrulama kaydının adı ve değeri (yalnız kiracının kendi satırı).</summary>
+public sealed record TenantDomainRow(string Host, string Kind, string Durum,
+    string? DogrulamaKaydi = null, string? DogrulamaDegeri = null);

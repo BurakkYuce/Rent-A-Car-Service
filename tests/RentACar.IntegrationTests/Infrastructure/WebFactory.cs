@@ -52,6 +52,8 @@ public sealed class WebFactory(PostgresFixture pg, string logYolu, TestKimlik pl
                          .ToList();
             foreach (var d in isler) s.Remove(d);
             if (testUclari) s.AddSingleton<IUiApiUcKaydi, TestUiUclari>();
+            // F11.1b güvenlik M6: alan adı TXT doğrulaması gerçek DNS'e çıkmaz.
+            s.AddSingleton<RentACar.Application.TenantSettings.IDnsTxtResolver>(FakeDnsTxtResolver.Instance);
         });
     }
 

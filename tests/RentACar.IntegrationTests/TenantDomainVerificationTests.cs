@@ -135,30 +135,26 @@ public sealed class TenantDomainVerificationTests(PostgresFixture fx)
     }
 
     [Fact]
-    public async Task Resolver_pending_custom_host_basariyla_cozulur_ve_active_yazilir()
+    public async Task Resolver_pending_custom_host_COZULMEZ_ve_kendiliginden_active_olmaz()
     {
+        // F11.1b güvenlik M6: bekleyen alan adı yalnız DNS TXT doğrulamasıyla etkinleşir; ilk istek sahiplik kanıtı DEĞİL.
         var tenantId = await SeedTenantAsync();
-        var domainHost = "pendingok-" + Guid.NewGuid().ToString("N") + ".com";
-
+        var domainHost = "pendingno-" + Guid.NewGuid().ToString("N") + ".com";
         using (var host = new TestHost(fx.AppConnectionString))
         {
             using var scope = host.ScopeFor(tenantId);
             var domains = scope.ServiceProvider.GetRequiredService<ITenantDomainRepository>();
-            await domains.AddCustomAsync(tenantId, domainHost); // Kind=Custom, Status=PendingVerification
+            var d = await domains.AddCustomAsync(tenantId, domainHost);
+            Assert.StartsWith("racar-", d.VerificationToken);
             await SetPublicSiteEnabledAsync(host, tenantId);
         }
 
-        var resolver = new PublicTenantResolver(Cfg());
-        var result = await resolver.ResolveAsync(domainHost);
-
-        Assert.Equal(PublicTenantResolution.Found, result.Kind); // ilk gerçek istekte BİLE Pending Found sayılır
-        Assert.Equal(tenantId, result.TenantId);
-
-        // Kendi-kendini-doğrulama: bu çözümleme satırı Active'e çevirmiş olmalı.
+        var result = await new PublicTenantResolver(Cfg()).ResolveAsync(domainHost);
+        Assert.Equal(PublicTenantResolution.NotFound, result.Kind);
         await using var owner = Owner();
         var row = await owner.TenantDomains.AsNoTracking().SingleAsync(d => d.Host == domainHost);
-        Assert.Equal(TenantDomainStatus.Active, row.Status);
-        Assert.NotNull(row.VerifiedAtUtc);
+        Assert.Equal(TenantDomainStatus.PendingVerification, row.Status);
+        Assert.Null(row.VerifiedAtUtc);
     }
 
     [Fact]
@@ -196,12 +192,53 @@ public sealed class TenantDomainVerificationTests(PostgresFixture fx)
             await domainsA.AddCustomAsync(tenantA, sharedHost);
         }
 
+        // F11.1b güvenlik M6: A'nın satırı DOĞRULANMIŞ (Active) iken B alamaz; mesaj A'nın varlığını sızdırmaz.
+        Guid aRow;
+        using (var scopeA = host.ScopeFor(tenantA))
+        {
+            var domainsA = scopeA.ServiceProvider.GetRequiredService<ITenantDomainRepository>();
+            aRow = (await domainsA.ListAsync(tenantA)).Single(d => d.Host == sharedHost).Id;
+            await domainsA.MarkVerifiedAsync(aRow);
+        }
+
         using var scopeB = host.ScopeFor(tenantB);
         var domainsB = scopeB.ServiceProvider.GetRequiredService<ITenantDomainRepository>();
-        await Assert.ThrowsAsync<ValidationException>(() => domainsB.AddCustomAsync(tenantB, sharedHost));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => domainsB.AddCustomAsync(tenantB, sharedHost));
+        Assert.Equal(DomainVerification.CannotAddMessage, ex.Message);
+        Assert.DoesNotContain("başka", ex.Message, StringComparison.OrdinalIgnoreCase);
 
         // B'nin hiçbir satırı oluşmamalı — A'nın satırı DEĞİŞMEDEN kalmalı.
         var listB = await domainsB.ListAsync(tenantB);
         Assert.DoesNotContain(listB, d => d.Host == sharedHost);
+        await using var owner = Owner();
+        Assert.Equal(tenantA, (await owner.TenantDomains.AsNoTracking().SingleAsync(d => d.Id == aRow)).TenantId);
+    }
+
+    [Fact]
+    public async Task Dogrulanmamis_kayit_gercek_sahibin_eklemesini_ENGELLEMEZ()
+    {
+        // F11.1b güvenlik M6: A başkasının alan adını ekleyip bekletirse, gerçek sahip B yine ekler (kendi belirteciyle);
+        // A'nın doğrulanmamış kaydı sahiplik değildir.
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenantA = await SeedTenantAsync();
+        var tenantB = await SeedTenantAsync();
+        var sharedHost = "squat-" + Guid.NewGuid().ToString("N") + ".com";
+
+        string tokenA;
+        using (var scopeA = host.ScopeFor(tenantA))
+            tokenA = (await scopeA.ServiceProvider.GetRequiredService<ITenantDomainRepository>().AddCustomAsync(tenantA, sharedHost)).VerificationToken!;
+
+        using var scopeB = host.ScopeFor(tenantB);
+        var domainsB = scopeB.ServiceProvider.GetRequiredService<ITenantDomainRepository>();
+        var rowB = await domainsB.AddCustomAsync(tenantB, sharedHost);
+        Assert.Equal(tenantB, rowB.TenantId);
+        Assert.Equal(TenantDomainStatus.PendingVerification, rowB.Status);
+        Assert.NotEqual(tokenA, rowB.VerificationToken);
+
+        await using var owner = Owner();
+        var rows = await owner.TenantDomains.AsNoTracking().Where(d => d.Host == sharedHost).ToListAsync();
+        Assert.Equal(tenantB, Assert.Single(rows).TenantId);
+        // A'nın eski belirteci B'nin kaydını etkinleştiremez.
+        Assert.False(await domainsB.ActivateVerifiedAsync(tenantA, rowB.Id, tokenA));
     }
 }
