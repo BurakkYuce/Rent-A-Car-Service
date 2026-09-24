@@ -35,6 +35,7 @@ public static partial class InvoiceUiApi
         var g = v1.MapGroup("/faturalar").WithTags("Fatura");
         var read = g.MapGroup("").RequireAnyPermission(Permission.FinanceWrite, Permission.ViewReports);
         read.MapGet("", List).AlanlariEsle(SortRules);
+        read.MapGet("/ozet", Summary);
         read.MapGet("/{id:guid}", Detail);
         g.MapGet("/satirlar", Lines).RequirePermission(Permission.ViewReports).AlanlariEsle(SortRules);
 
@@ -69,8 +70,32 @@ public static partial class InvoiceUiApi
     private static async Task<Ok<Sayfa<InvoiceListRow>>> List(
         [AsParameters] InvoiceListFilter f, InvoiceService invoices, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
+        => TypedResults.Ok(F5Ortak.Sayfala(await ListRowsAsync(f, invoices, user, dbf, ct), ListSort, sayfa, boyut, sirala));
+
+    /// <summary>
+    /// Döviz bazında özet (#300; Blazor listesinin "Σ … TL · … USD" satırı). Liste ile AYNI süzgeçler ve AYNI küme
+    /// (şube kapsamı, 500 belge ölçek sınırı) — sayfalamadan bağımsız, tüm eşleşen satırlar. Farklı dövizler TOPLANMAZ.
+    /// <c>genelToplam</c> Blazor paritesi (iade faturası pozitif saklanır ve toplama girer); iadeler ayrıca
+    /// <c>iadeAdet</c>/<c>iadeToplam</c> ile verilir — istemci çıkarma yapmaz.
+    /// </summary>
+    private static async Task<Ok<InvoiceSummary>> Summary(
+        [AsParameters] InvoiceListFilter f, InvoiceService invoices, ICurrentUser user,
+        IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+    {
+        var rows = await ListRowsAsync(f, invoices, user, dbf, ct);
+        var totals = rows.GroupBy(r => r.Doviz)
+            .OrderBy(g => g.Key == "TRY" ? 0 : 1).ThenBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => new InvoiceCurrencyTotal(g.Key, g.Count(), g.Sum(r => r.NetTutar), g.Sum(r => r.KdvTutar),
+                g.Sum(r => r.GenelToplam), g.Count(r => r.IadeMi), g.Where(r => r.IadeMi).Sum(r => r.GenelToplam)))
+            .ToList();
+        return TypedResults.Ok(new InvoiceSummary(rows.Count, totals));
+    }
+
+    private static async Task<List<InvoiceListRow>> ListRowsAsync(
+        InvoiceListFilter f, InvoiceService invoices, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         Text(f.Q, 128, "q");
+        Text(f.Ofis, 128, "ofis");
         var (bas, bit) = F5Ortak.GunAraligi(f.Bas, f.Bit);
         var rows = await invoices.SearchAsync(new InvoiceFilter
         {
@@ -83,13 +108,12 @@ public static partial class InvoiceUiApi
         var branches = await InvoiceBranchesAsync(db, rows.Select(r => r.Fatura).ToList(), ct);
         var visible = rows.Where(r => InScope(user, branches[r.Fatura.Id])).ToList();
         var names = await F5Ortak.CarilerAsync(dbf, visible.Select(r => r.Fatura.CariId), ct);
-        var list = visible.Select(r => new InvoiceListRow(
+        return visible.Select(r => new InvoiceListRow(
             r.Fatura.Id, r.Fatura.No, r.Fatura.Tarih, r.Fatura.VadeTarihi, r.Fatura.Durum.ToString(), r.Fatura.IadeMi,
             r.Fatura.ManuelMi, r.Fatura.CariId, F5Ortak.CariAdi(names, r.Fatura.CariId),
             r.Fatura.RentalId ?? r.Fatura.KaynakKiraId, r.SozlesmeNo, r.Plaka, r.Ofis,
             r.Fatura.NetTutar, r.Fatura.KdvTutar, r.Fatura.GenelToplam, r.Fatura.Currency, r.Fatura.Kur,
             r.Fatura.EFaturaGonderildi, r.Fatura.EFaturaEttn, r.Fatura.KaynakFaturaId)).ToList();
-        return TypedResults.Ok(F5Ortak.Sayfala(list, ListSort, sayfa, boyut, sirala));
     }
 
     private static async Task<Results<Ok<InvoiceDetail>, ProblemHttpResult>> Detail(

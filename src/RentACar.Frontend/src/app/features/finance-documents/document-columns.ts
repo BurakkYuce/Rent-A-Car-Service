@@ -228,6 +228,7 @@ export function expenseColumns(t: Translate): readonly TabloSutunu<ExpenseRow>[]
       sirala: true,
       genislik: 160,
     },
+    { kod: 'sozlesmeNo', baslik: h('sozlesme'), deger: (r) => r.sozlesmeNo ?? '—', genislik: 130 },
     { kod: 'sube', baslik: h('sube'), deger: (r) => r.sube ?? '—', sirala: true, genislik: 110 },
     { kod: 'evrakNo', baslik: h('evrakNo'), deger: (r) => r.evrakNo ?? '—', genislik: 100 },
     { kod: 'aciklama', baslik: h('aciklama'), deger: (r) => r.aciklama ?? '—', genislik: 180 },

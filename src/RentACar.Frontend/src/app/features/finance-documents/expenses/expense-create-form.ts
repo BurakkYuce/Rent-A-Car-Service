@@ -20,6 +20,7 @@ import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { istekBaglami } from '@core/oturum/istek-baglami';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { rentalPickSource } from '@features/crm/crm.store';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { Alan } from '@shared/form/alan/alan';
 import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
@@ -88,6 +89,8 @@ export class ExpenseCreateForm {
 
   protected readonly vehicles = sunucuSecimKaynagi('arac');
   protected readonly customers = sunucuSecimKaynagi('musteri');
+  /** Kira sözleşmesi (`/crm/secim/kira`: OperationsWrite VEYA FinanceWrite, şube kapsamlı; #300). */
+  protected readonly rentals = rentalPickSource();
   protected readonly presets = EXPENSE_PRESETS;
   protected readonly typeOptions: readonly SecenekOgesi<ExpenseType>[] = EXPENSE_TYPES.map((x) => ({
     deger: x,
@@ -117,6 +120,7 @@ export class ExpenseCreateForm {
     tip: new FormControl<ExpenseType | null>('Genel', Validators.required),
     arac: new FormControl<SecimSecenegi | null>(null),
     cari: new FormControl<SecimSecenegi | null>(null),
+    kira: new FormControl<SecimSecenegi | null>(null),
     netTutar: new FormControl<string | null>(null, Validators.required),
     kdvOrani: new FormControl<VatRate | null>('0.20', Validators.required),
     odemeYontemi: new FormControl<PaymentMethod | null>('Nakit', Validators.required),
@@ -139,6 +143,7 @@ export class ExpenseCreateForm {
   protected readonly submission = new DocumentSubmission(this.form, () => 'yeni-gider', {
     aracId: 'arac',
     cariId: 'cari',
+    kiraId: 'kira',
   });
 
   constructor() {

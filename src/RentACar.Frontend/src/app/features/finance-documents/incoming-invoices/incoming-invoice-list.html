@@ -238,7 +238,6 @@
           @for (x of [row]; track x.id) {
             <rc-incoming-link-form
               [invoiceId]="x.id"
-              [categories]="store.categories.veri()"
               (saved)="panelDone()"
               (closed)="closePanel()"
               (dirtyChange)="dirtyChanged('panel', $event)"

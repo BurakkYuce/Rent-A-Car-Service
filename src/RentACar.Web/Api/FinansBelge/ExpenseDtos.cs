@@ -1,12 +1,14 @@
 namespace RentACar.Web.Api.FinansBelge;
 
 /// <summary>Gider listesi satırı. Tutarlar giderin KENDİ dövizinde (<c>doviz</c>, <c>kur</c>). <c>odenen/kalan</c>:
-/// açık hesap giderinde ödeme takibi (<c>takipEdilir=true</c>); nakit/banka gider kayıt anında ödenmiştir.</summary>
+/// açık hesap giderinde ödeme takibi (<c>takipEdilir=true</c>); nakit/banka gider kayıt anında ödenmiştir.
+/// <c>sozlesmeNo</c>: bağlı kira sözleşmesinin numarası (kira silinmiş ya da bağ yoksa boş).</summary>
 public sealed record ExpenseListRow(
     Guid Id, string No, string Tip, DateTimeOffset Tarih, Guid? AracId, string? Plaka, Guid? CariId, string? CariAd,
     string? Sube, string? EvrakNo, decimal NetTutar, decimal KdvOrani, decimal KdvTutar, decimal GenelToplam,
     string Doviz, decimal Kur, string OdemeYontemi, string KasaBankaHesap, string? Aciklama, Guid? KiraId,
-    DateTimeOffset? Vade, DateTimeOffset? OdemeTarihi, decimal Odenen, decimal Kalan, bool TakipEdilir);
+    DateTimeOffset? Vade, DateTimeOffset? OdemeTarihi, decimal Odenen, decimal Kalan, bool TakipEdilir,
+    string? SozlesmeNo);
 
 /// <summary>Gider ödeme takibi kaydı (deftere YAZMAZ).</summary>
 public sealed record ExpensePaymentDto(

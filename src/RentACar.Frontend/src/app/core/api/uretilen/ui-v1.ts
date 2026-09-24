@@ -438,6 +438,44 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ui/v1/crm/secim/kira': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          limit?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RentalPickItem'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ui/v1/firma-belgeleri': {
     parameters: {
       query?: never;
@@ -537,6 +575,82 @@ export interface paths {
           };
           content: {
             'application/json': components['schemas']['KurSecimOgesi'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/secim/gider-kategorisi': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          limit?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SecimOgesi'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/secim/satilabilir-arac': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          limit?: number | string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AracSecimOgesi'][];
           };
         };
       };
@@ -6150,6 +6264,49 @@ export interface paths {
           };
           content: {
             'application/json': components['schemas']['SayfaOfInvoiceListRow'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ui/v1/faturalar/ozet': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+          cariId?: string;
+          iptal?: boolean;
+          bas?: string;
+          bit?: string;
+          ofis?: string;
+          doviz?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['InvoiceSummary'];
           };
         };
       };
@@ -18221,44 +18378,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ui/v1/crm/secim/kira': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: {
-          q?: string;
-          limit?: number | string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['RentalPickItem'][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/ui/v1/crm/analiz': {
     parameters: {
       query?: never;
@@ -25884,6 +26003,7 @@ export interface components {
       /** Format: double */
       kalan: number | string;
       takipEdilir: boolean;
+      sozlesmeNo: null | string;
     };
     ExpensePaymentDto: {
       /** Format: uuid */
@@ -26665,6 +26785,7 @@ export interface components {
       giderlestirildi: boolean;
       /** Format: date-time */
       giderlestirilmeTarihi: null | string;
+      giderKategoriAd: null | string;
     };
     IncomingInvoiceStateResult: {
       /** Format: uuid */
@@ -26858,6 +26979,21 @@ export interface components {
       kalan: number | string;
       odendi: boolean;
     };
+    InvoiceCurrencyTotal: {
+      doviz: string;
+      /** Format: int32 */
+      adet: number | string;
+      /** Format: double */
+      netTutar: number | string;
+      /** Format: double */
+      kdvTutar: number | string;
+      /** Format: double */
+      genelToplam: number | string;
+      /** Format: int32 */
+      iadeAdet: number | string;
+      /** Format: double */
+      iadeToplam: number | string;
+    };
     InvoiceDetail: {
       /** Format: uuid */
       id: string;
@@ -26997,6 +27133,11 @@ export interface components {
       adet: number | string;
       /** Format: double */
       toplamTl: number | string;
+    };
+    InvoiceSummary: {
+      /** Format: int32 */
+      adet: number | string;
+      dovizler: components['schemas']['InvoiceCurrencyTotal'][];
     };
     IstemciHataIstegi: {
       mesaj: null | string;

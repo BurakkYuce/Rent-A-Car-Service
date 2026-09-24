@@ -71,7 +71,7 @@
     (sayfaDegisti)="query.degistir({ sayfa: $event })"
     (boyutDegisti)="query.degistir({ boyut: $event })"
     (satirAc)="open($event)"
-    (yenidenDene)="store.list.yenile()"
+    (yenidenDene)="reloadList()"
   >
     <ng-template rcTabloHucre="tur" [rcTabloHucreSutunlar]="columns" let-satir>
       {{ (satir.iadeMi ? 'finansBelge.fatura.iadeTuru' : 'finansBelge.fatura.normal') | transloco }}
@@ -97,6 +97,35 @@
       </span>
     </ng-template>
   </rc-tablo>
+
+  @if (store.summary.veri(); as s) {
+    <section class="doviz-toplamlari" data-testid="fatura-toplamlari" aria-live="polite">
+      @if (s.dovizler.length === 0) {
+        <p class="not">{{ 'finansBelge.fatura.toplamYok' | transloco }}</p>
+      } @else {
+        <p class="not">{{ 'finansBelge.fatura.toplamlar' | transloco: { adet: s.adet } }}</p>
+        <ul>
+          @for (c of s.dovizler; track c.doviz) {
+            <li>
+              <strong>{{
+                'finansBelge.fatura.toplamSatiri'
+                  | transloco: { tutar: (num(c.genelToplam) | para: c.doviz), adet: c.adet }
+              }}</strong>
+              @if ((num(c.iadeAdet) ?? 0) > 0) {
+                <span class="not">
+                  ·
+                  {{
+                    'finansBelge.fatura.iadeDahil'
+                      | transloco: { tutar: (num(c.iadeToplam) | para: c.doviz) }
+                  }}</span
+                >
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
 
   @if (selectedId()) {
     <section class="bolum" aria-labelledby="rc-fatura-detay">

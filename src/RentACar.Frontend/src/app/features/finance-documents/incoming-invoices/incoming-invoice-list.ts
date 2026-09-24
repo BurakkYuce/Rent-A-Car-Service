@@ -195,7 +195,6 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
         }),
       );
     });
-    this.store.categories.yukle();
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
   }
 

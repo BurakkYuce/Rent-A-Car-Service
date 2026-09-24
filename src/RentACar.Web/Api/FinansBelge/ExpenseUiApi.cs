@@ -107,6 +107,7 @@ public static class ExpenseUiApi
         var status = await expenses.OdemeDurumlariAsync(rows.ToList(), ct);
         var plates = await F5Ortak.PlakalarAsync(dbf, rows.Where(e => e.VehicleId is not null).Select(e => e.VehicleId!.Value), ct);
         var names = await F5Ortak.CarilerAsync(dbf, rows.Where(e => e.CariId is not null).Select(e => e.CariId!.Value), ct);
+        var contracts = await ContractNumbersAsync(dbf, rows.Where(e => e.RentalId is not null).Select(e => e.RentalId!.Value), ct);
         return rows.Select(e =>
         {
             var s = status.GetValueOrDefault(e.Id);
@@ -114,8 +115,21 @@ public static class ExpenseUiApi
                 e.Id, e.No, e.Tip.ToString(), e.Tarih, e.VehicleId, e.VehicleId is { } v ? F5Ortak.Plaka(plates, v) : null,
                 e.CariId, e.CariId is { } c ? F5Ortak.CariAdi(names, c) : null, e.Sube, e.EvrakNo, e.NetTutar, e.KdvOrani,
                 e.KdvTutar, e.GenelToplam, e.Currency, e.Kur, e.OdemeYontemi.ToString(), e.KasaBankaHesap.ToString(),
-                e.Aciklama, e.RentalId, e.Vade, e.OdemeTarihi, s?.Odenen ?? e.GenelToplam, s?.Kalan ?? 0m, s?.TakipEdilir ?? false);
+                e.Aciklama, e.RentalId, e.Vade, e.OdemeTarihi, s?.Odenen ?? e.GenelToplam, s?.Kalan ?? 0m, s?.TakipEdilir ?? false,
+                e.RentalId is { } r ? contracts.GetValueOrDefault(r) : null);
         }).ToList();
+    }
+
+    /// <summary>Kira → sözleşme no (gider listesinin "Sözleşme" sütunu; #300 parite farkı). Yalnız numara döner; gider
+    /// satırı zaten giderin şube kapsamından geçmiştir.</summary>
+    private static async Task<Dictionary<Guid, string>> ContractNumbersAsync(
+        IDbContextFactory<AppDbContext> dbf, IEnumerable<Guid> ids, CancellationToken ct)
+    {
+        var list = ids.Distinct().ToList();
+        if (list.Count == 0) return [];
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Rentals.AsNoTracking().Where(r => list.Contains(r.Id))
+            .Select(r => new { r.Id, r.SozlesmeNo }).ToDictionaryAsync(r => r.Id, r => r.SozlesmeNo, ct);
     }
 
     // ================================================================== yazma

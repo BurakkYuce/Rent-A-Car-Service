@@ -138,6 +138,36 @@ export function expenseRow(): Record<string, unknown> {
     odenen: 0,
     kalan: 600,
     takipEdilir: true,
+    sozlesmeNo: null,
+  };
+}
+
+export const CATEGORY_1 = 'c8c8c8c8-0000-4000-8000-000000000001';
+
+/** Fatura döviz özeti (`/faturalar/ozet`): elle kurulmuş iki döviz (1.200 ₺ + 60 ₺ iade; 1.200 USD). */
+export function invoiceSummary(): Record<string, unknown> {
+  return {
+    adet: 3,
+    dovizler: [
+      {
+        doviz: 'TRY',
+        adet: 2,
+        netTutar: 1050,
+        kdvTutar: 210,
+        genelToplam: 1260,
+        iadeAdet: 1,
+        iadeToplam: 60,
+      },
+      {
+        doviz: 'USD',
+        adet: 1,
+        netTutar: 1000,
+        kdvTutar: 200,
+        genelToplam: 1200,
+        iadeAdet: 0,
+        iadeToplam: 0,
+      },
+    ],
   };
 }
 
@@ -170,6 +200,7 @@ export function incomingRow(extra: Record<string, unknown> = {}): Record<string,
     giderTipi: null,
     giderlestirildi: false,
     giderlestirilmeTarihi: null,
+    giderKategoriAd: null,
     ...extra,
   };
 }
@@ -230,17 +261,31 @@ export async function documentEndpoints(
   await page.route('**/api/ui/v1/finans/hesaplar', (r) =>
     json(r, [{ id: 'a4a4a4a4-0000-4000-8000-000000000001', etiket: 'Merkez Kasa', tur: 'Kasa' }]),
   );
-  await page.route('**/api/ui/v1/gider-turleri*', (r) => json(r, []));
   await page.route('**/api/ui/v1/ceza-turleri*', (r) => json(r, page1([])));
   await page.route('**/api/ui/v1/kiralar*', (r) => json(r, page1([])));
+  await page.route('**/api/ui/v1/crm/secim/kira*', (r) =>
+    json(r, [
+      {
+        id: RENTAL_1,
+        sozlesmeNo: '2026010901001',
+        plaka: '34ABC123',
+        musteriAd: 'Ayşe Yılmaz',
+        musteriId: CARI_1,
+        cikisOfisi: 'Merkez',
+        basTar: '2026-09-01T09:00:00Z',
+      },
+    ]),
+  );
   await page.route(
     (u) => u.pathname.startsWith('/api/ui/v1/secim/'),
     (r) => {
       const p = new URL(r.request().url()).pathname;
       if (p.startsWith('/api/ui/v1/secim/musteri'))
         return json(r, [{ id: CARI_1, etiket: 'Ayşe Yılmaz' }]);
-      if (p.startsWith('/api/ui/v1/secim/arac'))
+      if (p.startsWith('/api/ui/v1/secim/arac') || p === '/api/ui/v1/secim/satilabilir-arac')
         return json(r, [{ id: VEHICLE_1, etiket: '34ABC123', plaka: '34ABC123' }]);
+      if (p === '/api/ui/v1/secim/gider-kategorisi')
+        return json(r, [{ id: CATEGORY_1, etiket: 'Yakıt', kod: 'YKT' }]);
       if (p.startsWith('/api/ui/v1/secim/sube'))
         return json(r, [{ id: 's1', etiket: 'Merkez', kod: null }]);
       return json(r, []);
@@ -267,6 +312,8 @@ export async function documentEndpoints(
       switch (path) {
         case '/api/ui/v1/faturalar':
           return json(r, page1([invoiceRow()]));
+        case '/api/ui/v1/faturalar/ozet':
+          return json(r, invoiceSummary());
         case `/api/ui/v1/faturalar/${INVOICE_1}`:
           return json(r, invoiceDetail());
         case '/api/ui/v1/faturalar/satirlar':
