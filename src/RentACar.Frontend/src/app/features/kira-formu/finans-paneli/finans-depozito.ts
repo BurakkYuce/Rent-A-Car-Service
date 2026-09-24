@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 
@@ -8,12 +9,13 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
 
 /**
  * Depozito al (`POST finans/depozito/al`) + irat (`POST finans/depozito/irat`, GERİ ALINAMAZ → onay).
- * İkisi de işlem başına kendi `Idempotency-Key`'i. İade/mahsup Blazor depozito ekranında (cari bazında).
+ * İkisi de işlem başına kendi `Idempotency-Key`'i. İade/mahsup depozito ekranında (cari bazında; F8.3'ten beri SPA
+ * `/depozito`, router bağlantısı).
  */
 @Component({
   selector: 'rc-kf-finans-depozito',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK, MoneySubmitBar],
+  imports: [...KF_ORTAK, MoneySubmitBar, RouterLink],
   template: `
     <section class="kf-finans__islem" aria-labelledby="kf-finans-depozito">
       <h3 class="kf-finans__baslik" id="kf-finans-depozito">
@@ -65,7 +67,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
         />
         <p class="kf-not">
           {{ 'kiraFinans.depozito.not' | transloco }}
-          <a href="/depozito">{{ 'kiraFinans.depozito.ekran' | transloco }}</a>
+          <a routerLink="/depozito">{{ 'kiraFinans.depozito.ekran' | transloco }}</a>
         </p>
       }
     </section>
