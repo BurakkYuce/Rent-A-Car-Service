@@ -15,6 +15,11 @@ export const routes: Routes = [
     title: 'Giriş — RentACar',
     loadComponent: () => import('@features/giris/giris-sayfasi').then((m) => m.GirisSayfasi),
   },
+  // F12.2 platform console: its own session and layout, OUTSIDE the tenant shell (no tenant menu/tabs).
+  {
+    path: 'platform',
+    loadChildren: () => import('@features/platform/platform.routes').then((m) => m.PLATFORM_ROUTES),
+  },
   {
     path: '',
     canMatch: [oturumGuard],

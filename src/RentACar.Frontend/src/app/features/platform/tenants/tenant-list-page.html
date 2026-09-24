@@ -1,0 +1,185 @@
+<div class="head">
+  <h1>{{ 'platform.firmalar.baslik' | transloco }}</h1>
+  <button
+    type="button"
+    class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+    [attr.aria-expanded]="createOpen()"
+    aria-controls="platform-yeni-firma"
+    (click)="createOpen.set(!createOpen())"
+  >
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'platform.firmalar.yeni' | transloco }}
+  </button>
+</div>
+
+@if (createOpen()) {
+  <section class="panel" id="platform-yeni-firma" aria-labelledby="platform-yeni-firma-baslik">
+    <h2 id="platform-yeni-firma-baslik">{{ 'platform.firmalar.yeniBaslik' | transloco }}</h2>
+    <form novalidate [formGroup]="createForm" (ngSubmit)="submitCreate()">
+      <rc-form-hatalari [hatalar]="create.genelHatalar()" />
+      <div class="rc-form-izgara">
+        <rc-alan
+          [etiket]="'platform.firmalar.alan.kod' | transloco"
+          [ipucu]="'platform.firmalar.alan.kodIpucu' | transloco"
+        >
+          <rc-metin-girdisi formControlName="kod" [azamiUzunluk]="64" yerTutucu="firmakodu" />
+        </rc-alan>
+        <rc-alan [etiket]="'platform.firmalar.alan.ad' | transloco">
+          <rc-metin-girdisi formControlName="ad" [azamiUzunluk]="256" />
+        </rc-alan>
+        <rc-alan [etiket]="'platform.firmalar.alan.adminKullanici' | transloco">
+          <rc-metin-girdisi
+            formControlName="adminKullanici"
+            [azamiUzunluk]="64"
+            yerTutucu="admin"
+          />
+        </rc-alan>
+        <rc-alan
+          [etiket]="'platform.firmalar.alan.adminSifre' | transloco"
+          [ipucu]="'platform.firmalar.alan.adminSifreIpucu' | transloco"
+        >
+          <rc-metin-girdisi
+            formControlName="adminSifre"
+            tur="password"
+            otomatikTamamlama="new-password"
+            [azamiUzunluk]="256"
+          />
+        </rc-alan>
+      </div>
+      <div class="actions">
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="create.gonderiliyor()"
+        >
+          {{
+            (create.gonderiliyor() ? 'platform.kaydediliyor' : 'platform.firmalar.olustur')
+              | transloco
+          }}
+        </button>
+      </div>
+    </form>
+  </section>
+}
+
+<form
+  class="panel"
+  [formGroup]="filter"
+  [attr.aria-label]="'platform.firmalar.filtre' | transloco"
+  (ngSubmit)="load()"
+>
+  <div class="rc-form-izgara">
+    <rc-alan [etiket]="'platform.firmalar.ara' | transloco">
+      <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="100" />
+    </rc-alan>
+    <rc-alan [etiket]="'platform.firmalar.durumFiltre' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'platform.firmalar.tumu' | transloco"
+      />
+    </rc-alan>
+  </div>
+  <div class="actions">
+    <button type="submit" class="rc-dugme rc-dugme--kucuk">
+      <rc-ikon ad="filter" [boyut]="14" />
+      {{ 'platform.firmalar.filtrele' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+      (click)="clearFilter()"
+    >
+      {{ 'platform.firmalar.temizle' | transloco }}
+    </button>
+  </div>
+</form>
+
+@if (list.durum().tur === 'hata') {
+  <div class="panel error-panel" role="alert">
+    <span>{{ 'platform.yuklenemedi' | transloco }}</span>
+    <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="list.yenile()">
+      {{ 'platform.yenidenDene' | transloco }}
+    </button>
+  </div>
+} @else {
+  <div class="table-wrap" [attr.aria-busy]="list.yukleniyor()">
+    <table data-testid="platform-firma-tablosu">
+      <caption class="rc-gorunmez">
+        {{
+          'platform.firmalar.baslik' | transloco
+        }}
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">{{ 'platform.firmalar.sutun.kod' | transloco }}</th>
+          <th scope="col">{{ 'platform.firmalar.sutun.ad' | transloco }}</th>
+          <th scope="col">{{ 'platform.firmalar.sutun.durum' | transloco }}</th>
+          <th scope="col" class="num">{{ 'platform.firmalar.sutun.kullanici' | transloco }}</th>
+          <th scope="col" class="num">{{ 'platform.firmalar.sutun.arac' | transloco }}</th>
+          <th scope="col" class="num">{{ 'platform.firmalar.sutun.aktifKira' | transloco }}</th>
+          <th scope="col">{{ 'platform.firmalar.sutun.sonGiris' | transloco }}</th>
+          <th scope="col">{{ 'platform.firmalar.sutun.olusturma' | transloco }}</th>
+          <th scope="col">{{ 'platform.firmalar.sutun.islem' | transloco }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr>
+            <td class="mono">
+              <a class="link" [routerLink]="['/platform/kiracilar', row.id]">{{ row.kod }}</a>
+            </td>
+            <td>{{ row.ad }}</td>
+            <td>
+              <span class="rc-rozet" [class]="badge(status(row.durum))">{{
+                'platform.durum.' + status(row.durum) | transloco
+              }}</span>
+            </td>
+            <td class="num">{{ num(row.kullaniciSayisi) | sayi }}</td>
+            <td class="num">{{ num(row.aracSayisi) | sayi }}</td>
+            <td class="num">{{ num(row.aktifKira) | sayi }}</td>
+            <td>{{ row.sonGiris ? (row.sonGiris | tarihSaat) : '—' }}</td>
+            <td>{{ row.olusturma | tarih }}</td>
+            <td>
+              <div class="actions">
+                <a class="link" [routerLink]="['/platform/kiracilar', row.id]">{{
+                  'platform.firmalar.detay' | transloco
+                }}</a>
+                @if (toggle(status(row.durum)); as target) {
+                  <button
+                    type="button"
+                    class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                    [class.rc-dugme--tehlike]="target === 'Pasif'"
+                    [disabled]="busyId() !== null"
+                    (click)="toggleStatus(row)"
+                  >
+                    {{
+                      (target === 'Pasif'
+                        ? 'platform.eylem.pasiflestir'
+                        : 'platform.eylem.aktiflestir'
+                      ) | transloco
+                    }}
+                    <span class="rc-gorunmez">{{ row.kod }}</span>
+                  </button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          @if (list.durum().tur === 'hazir') {
+            <tr>
+              <td colspan="9" class="muted">{{ 'platform.firmalar.bos' | transloco }}</td>
+            </tr>
+          } @else {
+            <tr>
+              <td colspan="9" class="muted">{{ 'platform.yukleniyor' | transloco }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (truncated()) {
+    <p class="muted small">{{ 'platform.firmalar.kesik' | transloco }}</p>
+  }
+}

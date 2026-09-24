@@ -1,7 +1,6 @@
 import { inject } from '@angular/core';
-import { type Observable, EMPTY, expand, map, reduce, switchMap, throwError } from 'rxjs';
+import { type Observable, EMPTY, expand, map, reduce } from 'rxjs';
 
-import { ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
 import type { TanimDegeri, TanimKaynagi, TanimSatiri } from '@shared/form/tanim-crud/tanim-kaynagi';
@@ -24,22 +23,16 @@ interface DefinitionDto {
  * `/arac-sahipleri`, `/segmentler`, `/arac-tipleri` için `rc-tanim-crud` kaynağı.
  *
  * - Liste sayfalı uçtan TÜM sayfalar okunur; `aktif` → `durum` (Aktif/Pasif) seçimine çevrilir.
- * - PUT tam değiştirmedir ve `surum` ister; liste satırı sürüm taşımaz. Kaydederken kayıt tekil uçtan okunur:
- *   düzenleme açıldığındaki (liste anındaki) değerlerden biri sunucuda DEĞİŞMİŞSE istek gitmez, 409 `cakisma`
- *   döner (form silinmez; tanım satırı yeniden okunana kadar ikinci kayıt bilinçli üzerine yazar). Değişmemişse
- *   okunan `surum` ile PUT: arada yazım olursa sunucu 409 verir.
+ * - PUT tam değiştirmedir ve `surum` ister; liste satırı sürüm taşımayabilir. Bu durumda genel bileşen
+ *   düzenlemeyi açarken kaydı `read` ile tekil okur (güncel değer + sürüm) ve PUT o sürümle gider; arada yazım
+ *   olursa sunucu 409 `cakisma` verir, bileşen formu silmeden güncel kaydı birleştirir (F11.2a çekirdek eki).
  */
-export function definitionSource(
-  root: ApiYolu,
-  fields: readonly string[],
-  conflictMessage: string,
-): TanimKaynagi {
+export function definitionSource(root: ApiYolu, fields: readonly string[]): TanimKaynagi {
   const api = inject(ApiIstemcisi);
-  const snapshot = new Map<string, TanimSatiri>();
   const record = (id: string): ApiYolu => `${root}/${encodeURIComponent(id)}`;
 
   const toRow = (dto: DefinitionDto): TanimSatiri => {
-    const row: Record<string, unknown> = { id: dto.id };
+    const row: Record<string, unknown> = { id: dto.id, surum: dto.surum ?? null };
     for (const f of fields)
       row[f] = f === 'durum' ? (dto.aktif ? ACTIVE : PASSIVE) : (dto[f] ?? null);
     return row as TanimSatiri;
@@ -64,38 +57,12 @@ export function definitionSource(
       page(1).pipe(
         expand((p) => (p.sayfaNo * p.boyut < p.toplam ? page(p.sayfaNo + 1) : EMPTY)),
         reduce((all, p) => [...all, ...p.kayitlar], [] as DefinitionDto[]),
-        map((all) => {
-          snapshot.clear();
-          const rows = all.map(toRow);
-          for (const r of rows) snapshot.set(r.id, r);
-          return rows;
-        }),
+        map((all) => all.map(toRow)),
       ),
+    read: (id) => api.get<DefinitionDto>(record(id)).pipe(map(toRow)),
     olustur: (value, key) => api.post(root, toBody(value), { islemAnahtari: key }),
-    guncelle: (id, value, key) =>
-      api.get<DefinitionDto>(record(id)).pipe(
-        switchMap((current) => {
-          const before = snapshot.get(id);
-          const now = toRow(current);
-          const changed = before && fields.some((f) => (before[f] ?? null) !== (now[f] ?? null));
-          snapshot.set(id, now);
-          if (changed) {
-            return throwError(
-              () =>
-                new ApiHatasi({
-                  status: 409,
-                  kod: 'cakisma',
-                  detay: conflictMessage,
-                }),
-            );
-          }
-          return api.put(
-            record(id),
-            { ...toBody(value), surum: current.surum ?? null },
-            { islemAnahtari: key },
-          );
-        }),
-      ),
+    guncelle: (id, value, key, version) =>
+      api.put(record(id), { ...toBody(value), surum: version ?? null }, { islemAnahtari: key }),
     sil: (id, key) => api.delete(record(id), { islemAnahtari: key }),
   };
 }

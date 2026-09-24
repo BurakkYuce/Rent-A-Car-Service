@@ -3,8 +3,10 @@ import type { Routes } from '@angular/router';
 import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
+import { DEFINITION_ROUTES } from '@features/definitions/definitions.routes';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
 import { PRICING_ROUTES } from '@features/pricing/pricing.routes';
+import { REPORT_ROUTES } from '@features/reports/reports.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
 import { SERVICE_INSURANCE_ROUTES } from '@features/service-insurance/service-insurance.routes';
 import { VEHICLE_FINANCE_ROUTES } from '@features/vehicle-finance/vehicle-finance.routes';
@@ -164,4 +166,8 @@ export const SAYFALAR: Routes = [
   ...SERVICE_INSURANCE_ROUTES,
   // F9.2 fiyat / tarife: 8 tanım ekranı, fiyat hesapla, maliyet hesapla + teklifler, tarife aktar.
   ...PRICING_ROUTES,
+  // F10.2 raporlar: /raporlar/<kod> (tek ortak rapor ekranı; araç karnesi /raporlar/arac-karne/:id).
+  ...REPORT_ROUTES,
+  // F11.2a tanımlar (1. yarı): genel tanım CRUD'u + şubeler, doluluk kuralları, dokümanlar, takvim aboneliği.
+  ...DEFINITION_ROUTES,
 ];

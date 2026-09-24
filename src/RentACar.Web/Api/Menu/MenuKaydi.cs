@@ -11,7 +11,8 @@ namespace RentACar.Web.Api.Menu;
 /// <see cref="MenuKaydi.KisaYollar"/> = hızlı bağlantılar).</item>
 /// <item><c>Sira</c>: menünün TAMAMINDA görüntülenme sırası (gruplar ilk öğelerinin sırasıyla dizilir).</item>
 /// <item><c>Sahip</c>: sayfayı kim çiziyor — <see cref="MenuKaydi.Blazor"/> ya da faz kesişinden sonra <see cref="MenuKaydi.Spa"/>
-/// (F4.6: Panel, Kiralar, Yeni Kira; F5.4: Rezervasyon grubu, Teklifler, Filo Kiralama, iki kısa yol). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
+/// (F4.6: Panel, Kiralar, Yeni Kira; F5.4: Rezervasyon grubu, Teklifler, Filo Kiralama, iki kısa yol; F6.4: Araçlar
+/// grubu + Tanımlar'daki Araç Tipleri ve Segmentler). <c>spa</c> öğesinin <c>Rota</c>'sı SPA adresidir (<c>/app/…</c>); Blazor menüsü pilot
 /// OLMAYAN firmada bunun Blazor karşılığını (<see cref="RentACar.Web.Spa.IlkKesis.BlazorKarsiligi"/>) açar.</item>
 /// <item><c>Izin</c>: öğeyi görmek için gereken etkin izin (null = oturum açmış herkes). Sayfanın kendi
 /// yetkisinden türetilir (<c>MenuKaydiTests</c> kilitler).</item>
@@ -69,18 +70,18 @@ public static class MenuKaydi
 
         // ---- Operasyon grupları (MainLayout: Roles="Admin,Yonetici,Operator" → OperationsWrite)
         const string Arac = "Araçlar";
-        E(Arac, "/vehicles", "Araç Listesi", OW);
-        E(Arac, "/vehicles/detayli", "Detaylı Araç Listesi", VR);
-        E(Arac, "/arac-durum", "Araç Durum", OW);
-        E(Arac, "/arac-siparis", "Araç Sipariş", OW);
-        E(Arac, "/filo-plan", "Filo Plan Hedefi", OW);
-        E(Arac, "/arac-kredi", "Araç Kredisi", OW);
-        E(Arac, "/musteri-taksit", "Müşteri Taksitleri", FW);
-        E(Arac, "/baf", "BAF (Tahsis)", OW);
-        E(Arac, "/hasar", "Hasar", OW);
-        E(Arac, "/arac-tipleri", "Araç Tipleri", OW);
-        E(Arac, "/arac-sahipleri", "Araç Sahipleri", OW);
-        E(Arac, "/segmentler", "Segmentler", OW);
+        E(Arac, "/app/araclar", "Araç Listesi", OW); // F6.4: grubun tamamı spa
+        E(Arac, "/app/araclar/detayli", "Detaylı Araç Listesi", VR);
+        E(Arac, "/app/arac-durum", "Araç Durum", OW);
+        E(Arac, "/app/arac-siparis", "Araç Sipariş", OW);
+        E(Arac, "/app/filo-plan", "Filo Plan Hedefi", OW);
+        E(Arac, "/app/arac-kredi", "Araç Kredisi", OW);
+        E(Arac, "/app/musteri-taksit", "Müşteri Taksitleri", FW);
+        E(Arac, "/app/baf", "BAF (Tahsis)", OW);
+        E(Arac, "/app/hasar", "Hasar", OW);
+        E(Arac, "/app/arac-tipleri", "Araç Tipleri", OW);
+        E(Arac, "/app/arac-sahipleri", "Araç Sahipleri", OW);
+        E(Arac, "/app/segmentler", "Segmentler", OW);
 
         const string Kira = "Kira";
         E(Kira, "/app/kiralar", "Kiralar", OW); // F4.6: spa
@@ -130,12 +131,12 @@ public static class MenuKaydi
         const string Tanim = "Tanımlar";
         E(Tanim, "/markalar", "Markalar", OW);
         E(Tanim, "/arac-gruplari", "Araç Grupları", OW);
-        E(Tanim, "/arac-tipleri", "Araç Tipleri", OW);
+        E(Tanim, "/app/arac-tipleri", "Araç Tipleri", OW); // F6.4: spa (F6 sayfası)
         E(Tanim, "/lokasyonlar", "Lokasyonlar", OW);
         E(Tanim, "/yakit-turleri", "Yakıt Türleri", OW);
         E(Tanim, "/vites-turleri", "Vites Türleri", OW);
         E(Tanim, "/renkler", "Renkler", OW);
-        E(Tanim, "/segmentler", "Segmentler", OW);
+        E(Tanim, "/app/segmentler", "Segmentler", OW); // F6.4: spa (F6 sayfası)
         E(Tanim, "/musteri-gruplari", "Müşteri Grupları", OW);
         E(Tanim, "/sigorta-sirketleri", "Sigorta Şirketleri", OW);
         E(Tanim, "/bankalar", "Bankalar", OW);
