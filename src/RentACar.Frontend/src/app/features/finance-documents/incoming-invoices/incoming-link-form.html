@@ -1,0 +1,86 @@
+<section class="bolum duzenleyici" aria-labelledby="rc-gelen-bagla">
+  <h2 id="rc-gelen-bagla">
+    {{ 'finansBelge.gelen.baglaBaslik' | transloco: { ettn: base()?.fatura?.ettn ?? '' } }}
+  </h2>
+  <p class="not">{{ 'finansBelge.gelen.baglaAciklama' | transloco }}</p>
+  <form class="form" [formGroup]="form" (ngSubmit)="save()">
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'finansBelge.gelen.sutun.kdv20Matrah' | transloco">
+        <rc-para-girdisi
+          formControlName="kdv20Matrah"
+          [paraBirimi]="base()?.fatura?.doviz || 'TRY'"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.sutun.kdv20' | transloco">
+        <rc-para-girdisi formControlName="kdv20" [paraBirimi]="base()?.fatura?.doviz || 'TRY'" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.sutun.kdv10Matrah' | transloco">
+        <rc-para-girdisi
+          formControlName="kdv10Matrah"
+          [paraBirimi]="base()?.fatura?.doviz || 'TRY'"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.sutun.kdv10' | transloco">
+        <rc-para-girdisi formControlName="kdv10" [paraBirimi]="base()?.fatura?.doviz || 'TRY'" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.sutun.kdv1Matrah' | transloco">
+        <rc-para-girdisi
+          formControlName="kdv1Matrah"
+          [paraBirimi]="base()?.fatura?.doviz || 'TRY'"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.sutun.kdv1' | transloco">
+        <rc-para-girdisi formControlName="kdv1" [paraBirimi]="base()?.fatura?.doviz || 'TRY'" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.sutun.kdv0Matrah' | transloco">
+        <rc-para-girdisi
+          formControlName="kdv0Matrah"
+          [paraBirimi]="base()?.fatura?.doviz || 'TRY'"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.arac' | transloco">
+        <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+      </rc-alan>
+      @if (categoryOptions().length > 0) {
+        <rc-alan [etiket]="'finansBelge.gelen.kategori' | transloco">
+          <rc-secim
+            formControlName="giderKategoriId"
+            [secenekler]="categoryOptions()"
+            [bosEtiket]="'finansBelge.yok' | transloco"
+          />
+        </rc-alan>
+      }
+      <rc-alan [etiket]="'finansBelge.gider.tedarikci' | transloco">
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gider.tur' | transloco">
+        <rc-secim
+          formControlName="giderTipi"
+          [secenekler]="typeOptions"
+          [bosEtiket]="'finansBelge.gelen.turOtomatik' | transloco"
+        />
+      </rc-alan>
+    </div>
+    <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+    <div class="form__eylemler">
+      <button
+        type="submit"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [disabled]="submission.gonderiliyor() || base() === null"
+      >
+        {{
+          submission.gonderiliyor()
+            ? ('form.gonderiliyor' | transloco)
+            : ('finansBelge.kaydet' | transloco)
+        }}
+      </button>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+        (click)="closed.emit()"
+      >
+        {{ 'finansBelge.kapat' | transloco }}
+      </button>
+    </div>
+  </form>
+</section>

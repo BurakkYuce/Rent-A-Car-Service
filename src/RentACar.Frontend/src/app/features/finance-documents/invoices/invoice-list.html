@@ -1,0 +1,305 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finansBelge.fatura.baslik' | transloco }}</h1>
+    <div class="ust__eylemler">
+      <a class="rc-dugme rc-dugme--kucuk" routerLink="/faturalar/detay-listesi">
+        {{ 'finansBelge.faturaSatir.baslik' | transloco }}
+      </a>
+    </div>
+  </header>
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'finansBelge.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'finansBelge.fatura.ara' | transloco">
+        <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.cari' | transloco">
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.durum' | transloco">
+        <rc-secim
+          formControlName="iptal"
+          [secenekler]="cancelOptions"
+          [bosEtiket]="'finansBelge.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.doviz' | transloco">
+        <rc-secim
+          formControlName="doviz"
+          [secenekler]="currencyOptions"
+          [bosEtiket]="'finansBelge.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ofis' | transloco">
+        <rc-metin-girdisi formControlName="ofis" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.tarihBas' | transloco">
+        <rc-tarih-secici formControlName="bas" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.tarihBit' | transloco">
+        <rc-tarih-secici formControlName="bit" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'finansBelge.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'finansBelge.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="faturalar.liste"
+    [etiket]="'finansBelge.fatura.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    [disaAktarma]="export()"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (satirAc)="open($event)"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="tur" [rcTabloHucreSutunlar]="columns" let-satir>
+      {{ (satir.iadeMi ? 'finansBelge.fatura.iadeTuru' : 'finansBelge.fatura.normal') | transloco }}
+    </ng-template>
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="rc-rozet" [class.rc-rozet--hata]="satir.durum === 'Iptal'">{{
+        satir.durum
+      }}</span>
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="satir-eylem">
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="open(satir)">
+          {{ 'finansBelge.detay' | transloco }}
+        </button>
+        <a
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          [href]="pdfPath(satir.id)"
+          target="_blank"
+          rel="noopener"
+        >
+          {{ 'finansBelge.fatura.pdf' | transloco }}
+        </a>
+      </span>
+    </ng-template>
+  </rc-tablo>
+
+  @if (selectedId()) {
+    <section class="bolum" aria-labelledby="rc-fatura-detay">
+      @if (store.detail.veri(); as d) {
+        <h2 id="rc-fatura-detay">
+          {{ 'finansBelge.fatura.detayBaslik' | transloco: { no: d.no } }}
+        </h2>
+        <dl class="kunye">
+          <div>
+            <dt>{{ 'finansBelge.cari' | transloco }}</dt>
+            <dd>{{ d.cariAd }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.fatura.tarih' | transloco }}</dt>
+            <dd>{{ d.tarih | tarih }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.durum' | transloco }}</dt>
+            <dd>{{ d.durum }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.netTutar' | transloco }}</dt>
+            <dd>{{ num(d.netTutar) | para: d.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.kdv' | transloco }}</dt>
+            <dd>{{ num(d.kdvTutar) | para: d.doviz }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'finansBelge.genelToplam' | transloco }}</dt>
+            <dd>{{ num(d.genelToplam) | para: d.doviz }}</dd>
+          </div>
+          @if (d.doviz !== 'TRY') {
+            <div>
+              <dt>{{ 'finansBelge.kur' | transloco }}</dt>
+              <dd>{{ num(d.kur) | sayi: '1.4-4' }}</dd>
+            </div>
+          }
+          <div>
+            <dt>{{ 'finansBelge.fatura.eFatura' | transloco }}</dt>
+            <dd>{{ d.eFaturaEttn ?? ('finansBelge.fatura.gonderilmedi' | transloco) }}</dd>
+          </div>
+        </dl>
+        <div class="tablo-kap">
+          <table class="duz-tablo">
+            <caption class="rc-gorunmez">
+              {{
+                'finansBelge.fatura.kalemler' | transloco
+              }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'finansBelge.aciklama' | transloco }}</th>
+                <th scope="col" class="num">{{ 'finansBelge.fatura.miktar' | transloco }}</th>
+                <th scope="col" class="num">{{ 'finansBelge.netTutar' | transloco }}</th>
+                <th scope="col" class="num">{{ 'finansBelge.kdv' | transloco }}</th>
+                <th scope="col" class="num">{{ 'finansBelge.genelToplam' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (l of d.satirlar; track l.id) {
+                <tr>
+                  <td>{{ l.aciklama }}</td>
+                  <td class="num">{{ num(l.miktar) | sayi }}</td>
+                  <td class="num">{{ num(l.satirNet) | para: d.doviz }}</td>
+                  <td class="num">{{ num(l.satirKdv) | para: d.doviz }}</td>
+                  <td class="num">{{ num(l.satirToplam) | para: d.doviz }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="form__eylemler">
+          <a class="rc-dugme rc-dugme--kucuk" [href]="d.pdfAdresi" target="_blank" rel="noopener">
+            {{ 'finansBelge.fatura.pdf' | transloco }}
+          </a>
+          @if (canRefund() && !d.iadeMi && d.durum !== 'Iptal' && !d.iadeFaturaId) {
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
+              [disabled]="busy()"
+              (click)="refund()"
+            >
+              {{ 'finansBelge.fatura.iade' | transloco }}
+            </button>
+          }
+          @if (d.iadeFaturaId) {
+            <span class="rc-rozet rc-rozet--uyari">{{
+              'finansBelge.fatura.iadeEdilmis' | transloco
+            }}</span>
+          }
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="closeDetail()"
+          >
+            {{ 'finansBelge.kapat' | transloco }}
+          </button>
+        </div>
+      } @else if (store.detail.yukleniyor()) {
+        <p class="not" id="rc-fatura-detay" aria-busy="true">
+          {{ 'finansBelge.yukleniyor' | transloco }}
+        </p>
+      }
+    </section>
+  }
+
+  @if (canManual()) {
+    <rc-manual-invoice-form (saved)="manualSaved()" (dirtyChange)="manualDirtyChanged($event)" />
+  }
+  @if (canWrite()) {
+    <section class="bolum" aria-labelledby="rc-toplu-fatura">
+      <h2 id="rc-toplu-fatura">{{ 'finansBelge.fatura.topluBaslik' | transloco }}</h2>
+      <p class="not">{{ 'finansBelge.fatura.topluAciklama' | transloco }}</p>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk"
+        [attr.aria-expanded]="batchOpen()"
+        (click)="toggleBatch()"
+      >
+        {{ (batchOpen() ? 'finansBelge.gizle' : 'finansBelge.fatura.topluGoster') | transloco }}
+      </button>
+      @if (batchOpen()) {
+        @if (candidates().length === 0 && !store.unbilled.yukleniyor()) {
+          <p class="not">{{ 'finansBelge.fatura.faturalanacakYok' | transloco }}</p>
+        } @else {
+          <div class="tablo-kap">
+            <table class="duz-tablo">
+              <caption class="rc-gorunmez">
+                {{
+                  'finansBelge.fatura.adaylar' | transloco
+                }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'finansBelge.sec' | transloco }}</th>
+                  <th scope="col">{{ 'finansBelge.fatura.sutun.sozlesme' | transloco }}</th>
+                  <th scope="col">{{ 'finansBelge.fatura.sutun.cari' | transloco }}</th>
+                  <th scope="col">{{ 'finansBelge.fatura.sutun.plaka' | transloco }}</th>
+                  <th scope="col">{{ 'finansBelge.durum' | transloco }}</th>
+                  <th scope="col" class="num">{{ 'finansBelge.tutar' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of candidates(); track r.id) {
+                  <tr>
+                    <td>
+                      <input
+                        type="checkbox"
+                        [checked]="batchSelection().has(r.id)"
+                        [attr.aria-label]="
+                          'finansBelge.fatura.kiraSec' | transloco: { no: r.sozlesmeNo }
+                        "
+                        (change)="toggleRental(r.id, $any($event.target).checked)"
+                      />
+                    </td>
+                    <td>{{ r.sozlesmeNo }}</td>
+                    <td>{{ r.musteriAd }}</td>
+                    <td>{{ r.plaka }}</td>
+                    <td>{{ r.durum }}</td>
+                    <td class="num">{{ num(r.tutar) | para: r.doviz || 'TRY' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="rc-form-izgara">
+            <rc-alan
+              [etiket]="'finansBelge.kdvOrani' | transloco"
+              [ipucu]="'finansBelge.fatura.topluKdvIpucu' | transloco"
+            >
+              <rc-secim
+                [formControl]="batchVat"
+                [secenekler]="vatOptions"
+                [bosEtiket]="'finansBelge.fatura.kiraninOrani' | transloco"
+              />
+            </rc-alan>
+          </div>
+          <div class="form__eylemler">
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+              [disabled]="busy() || batchSelection().size === 0"
+              (click)="batch()"
+            >
+              {{ 'finansBelge.fatura.topluKes' | transloco }}
+            </button>
+          </div>
+        }
+        @if (batchResult(); as r) {
+          <div class="rc-form-mesaji" role="status">
+            {{ 'finansBelge.fatura.topluSonuc' | transloco: { adet: r.kesilen.length } }}
+            @if (r.atlananlar.length > 0) {
+              <strong>{{ 'finansBelge.fatura.atlananlar' | transloco }}</strong>
+              <ul class="atlananlar">
+                @for (a of r.atlananlar; track $index) {
+                  <li>{{ a }}</li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      }
+    </section>
+  }
+</div>
