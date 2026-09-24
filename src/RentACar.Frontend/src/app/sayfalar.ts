@@ -4,7 +4,9 @@ import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisikli
 import { ceviriBlogu, ceviriBloguyla } from '@core/i18n/ceviri-blogu';
 import { izinGuard } from '@core/oturum/oturum-guard';
 import { KIRA_FORMU_ROTALARI } from '@features/kira-formu/kira-formu.routes';
+import { PRICING_ROUTES } from '@features/pricing/pricing.routes';
 import { REZERVASYON_ROTALARI } from '@features/rezervasyonlar/rezervasyonlar.routes';
+import { SERVICE_INSURANCE_ROUTES } from '@features/service-insurance/service-insurance.routes';
 import { VEHICLE_FINANCE_ROUTES } from '@features/vehicle-finance/vehicle-finance.routes';
 import { VEHICLE_ROUTES } from '@features/vehicles/vehicles.routes';
 
@@ -158,4 +160,8 @@ export const SAYFALAR: Routes = [
   ...VEHICLE_ROUTES,
   // F6.2b araç finans: kredi (+ taksit ödeme), müşteri taksit, sipariş, BAF, hasar, filo plan.
   ...VEHICLE_FINANCE_ROUTES,
+  // F9.2 servis / sigorta / vade: servisler (+ kayıt), sigorta, MTV, muayene (+ kayıtlar, ödeme), vade panosu.
+  ...SERVICE_INSURANCE_ROUTES,
+  // F9.2 fiyat / tarife: 8 tanım ekranı, fiyat hesapla, maliyet hesapla + teklifler, tarife aktar.
+  ...PRICING_ROUTES,
 ];

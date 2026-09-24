@@ -1,0 +1,169 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'servisSigorta.servis.baslik' | transloco }}</h1>
+    @if (canWrite()) {
+      <div class="ust__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [attr.aria-expanded]="createOpen()"
+          aria-controls="rc-yeni-servis"
+          (click)="toggleCreate()"
+        >
+          <rc-ikon ad="plus" [boyut]="14" />
+          {{ 'servisSigorta.servis.yeni' | transloco }}
+        </button>
+      </div>
+    }
+  </header>
+  <p class="aciklama">{{ 'servisSigorta.servis.bilgiNotu' | transloco }}</p>
+
+  <div
+    class="satir-eylem"
+    role="group"
+    [attr.aria-label]="'servisSigorta.servis.durumSekmeleri' | transloco"
+  >
+    <button
+      type="button"
+      class="rc-dugme rc-dugme--kucuk"
+      [class.rc-dugme--birincil]="activeStatus() === null"
+      [attr.aria-pressed]="activeStatus() === null"
+      (click)="selectStatus(null)"
+    >
+      {{ 'servisSigorta.tumu' | transloco }}
+    </button>
+    @for (s of statuses; track s) {
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk"
+        [class.rc-dugme--birincil]="activeStatus() === s"
+        [attr.aria-pressed]="activeStatus() === s"
+        (click)="selectStatus(s)"
+      >
+        {{ statusLabel(s) }}
+      </button>
+    }
+  </div>
+
+  @if (createOpen()) {
+    <section id="rc-yeni-servis" class="bolum" aria-labelledby="rc-yeni-servis-baslik">
+      <h2 id="rc-yeni-servis-baslik">{{ 'servisSigorta.servis.yeni' | transloco }}</h2>
+      <form class="form" [formGroup]="form" (ngSubmit)="create()">
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'servisSigorta.arac' | transloco">
+            <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+          </rc-alan>
+          <rc-alan [etiket]="'servisSigorta.servis.tur' | transloco">
+            <rc-secim formControlName="tip" [secenekler]="typeOptions" />
+          </rc-alan>
+          <rc-alan [etiket]="'servisSigorta.servis.atolye' | transloco">
+            <rc-metin-girdisi formControlName="atolyeAdi" [azamiUzunluk]="128" />
+          </rc-alan>
+          <rc-alan [etiket]="'servisSigorta.servis.girisKm' | transloco">
+            <rc-sayi-girdisi formControlName="girisKm" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'servisSigorta.servis.girisTarihi' | transloco"
+            [ipucu]="'servisSigorta.servis.girisTarihiIpucu' | transloco"
+          >
+            <rc-tarih-secici formControlName="girisTarihi" />
+          </rc-alan>
+          <rc-alan [etiket]="'servisSigorta.servis.hasarSorumlu' | transloco">
+            <rc-secim formControlName="hasarSorumlu" [secenekler]="partyOptions" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'servisSigorta.servis.kusurOrani' | transloco"
+            [ipucu]="'servisSigorta.servis.kusurIpucu' | transloco"
+          >
+            <rc-sayi-girdisi formControlName="kusurOrani" [kesir]="4" />
+          </rc-alan>
+          <rc-alan [etiket]="'servisSigorta.aciklama' | transloco">
+            <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="1024" />
+          </rc-alan>
+        </div>
+        <fieldset class="grup">
+          <legend>{{ 'servisSigorta.servis.randevu' | transloco }}</legend>
+          <rc-alan [etiket]="'servisSigorta.servis.rezervasyon' | transloco">
+            <rc-onay-kutusu formControlName="rezervasyon" />
+          </rc-alan>
+          <div class="rc-form-izgara">
+            <rc-alan [etiket]="'servisSigorta.servis.planBas' | transloco">
+              <rc-tarih-secici formControlName="planBasTarihi" />
+            </rc-alan>
+            <rc-alan [etiket]="'servisSigorta.servis.planBit' | transloco">
+              <rc-tarih-secici formControlName="planBitTarihi" />
+            </rc-alan>
+          </div>
+        </fieldset>
+        <p class="aciklama">{{ 'servisSigorta.servis.sonrakiAdim' | transloco }}</p>
+        <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="submission.gonderiliyor()"
+          >
+            {{
+              submission.gonderiliyor()
+                ? ('form.gonderiliyor' | transloco)
+                : ('servisSigorta.kaydet' | transloco)
+            }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'servisSigorta.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'servisSigorta.plaka' | transloco">
+        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="32" />
+      </rc-alan>
+      <rc-alan [etiket]="'servisSigorta.servis.tur' | transloco">
+        <rc-secim
+          formControlName="tip"
+          [secenekler]="typeOptions"
+          [bosEtiket]="'servisSigorta.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'servisSigorta.servis.girisBas' | transloco">
+        <rc-tarih-secici formControlName="bas" />
+      </rc-alan>
+      <rc-alan [etiket]="'servisSigorta.servis.girisBit' | transloco">
+        <rc-tarih-secici formControlName="bit" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'servisSigorta.filtrele' | transloco }}
+      </button>
+      <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+        {{ 'servisSigorta.temizle' | transloco }}
+      </button>
+    </div>
+  </form>
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="servis.liste"
+    [etiket]="'servisSigorta.servis.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="no" [rcTabloHucreSutunlar]="columns" let-satir>
+      <a [routerLink]="['/servisler', satir.id]">{{ satir.no }}</a>
+    </ng-template>
+  </rc-tablo>
+</div>

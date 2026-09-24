@@ -1,0 +1,156 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>
+      {{
+        (kind === 'mtv' ? 'servisSigorta.mtv.baslik' : 'servisSigorta.muayene.baslik') | transloco
+      }}
+    </h1>
+    @if (canWrite()) {
+      <div class="ust__eylemler">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [attr.aria-expanded]="createOpen()"
+          aria-controls="rc-yeni-kayit"
+          (click)="toggleCreate()"
+        >
+          <rc-ikon ad="plus" [boyut]="14" />
+          {{
+            (kind === 'mtv' ? 'servisSigorta.mtv.yeni' : 'servisSigorta.muayene.yeni') | transloco
+          }}
+        </button>
+      </div>
+    }
+  </header>
+  <rc-regulation-tabs />
+  <p class="aciklama">
+    {{
+      (kind === 'mtv' ? 'servisSigorta.mtv.aciklama' : 'servisSigorta.muayene.aciklama') | transloco
+    }}
+  </p>
+
+  @if (createOpen()) {
+    <section id="rc-yeni-kayit" class="bolum" aria-labelledby="rc-yeni-kayit-baslik">
+      <h2 id="rc-yeni-kayit-baslik">
+        {{ (kind === 'mtv' ? 'servisSigorta.mtv.yeni' : 'servisSigorta.muayene.yeni') | transloco }}
+      </h2>
+      <form class="form" [formGroup]="form" (ngSubmit)="create()">
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'servisSigorta.arac' | transloco">
+            <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+          </rc-alan>
+          @if (kind === 'mtv') {
+            <rc-alan
+              [etiket]="'servisSigorta.mtv.donem' | transloco"
+              [ipucu]="'servisSigorta.mtv.donemIpucu' | transloco"
+            >
+              <rc-metin-girdisi formControlName="donem" [azamiUzunluk]="16" />
+            </rc-alan>
+            <rc-alan [etiket]="'servisSigorta.mtv.tutar' | transloco">
+              <rc-para-girdisi formControlName="tutar" />
+            </rc-alan>
+            <rc-alan [etiket]="'servisSigorta.mtv.vade' | transloco">
+              <rc-tarih-secici formControlName="tarih" />
+            </rc-alan>
+          } @else {
+            <rc-alan [etiket]="'servisSigorta.muayene.tarih' | transloco">
+              <rc-tarih-secici formControlName="tarih" />
+            </rc-alan>
+            <rc-alan [etiket]="'servisSigorta.muayene.bitis' | transloco">
+              <rc-tarih-secici formControlName="bitis" />
+            </rc-alan>
+            <rc-alan [etiket]="'servisSigorta.muayene.ucret' | transloco">
+              <rc-para-girdisi formControlName="tutar" />
+            </rc-alan>
+            <rc-alan [etiket]="'servisSigorta.muayene.islemKm' | transloco">
+              <rc-sayi-girdisi formControlName="islemKm" />
+            </rc-alan>
+          }
+          <rc-alan [etiket]="'servisSigorta.aciklama' | transloco">
+            <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+          </rc-alan>
+        </div>
+        <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="submission.gonderiliyor()"
+          >
+            {{
+              submission.gonderiliyor()
+                ? ('form.gonderiliyor' | transloco)
+                : ('servisSigorta.ekle' | transloco)
+            }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'servisSigorta.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'servisSigorta.plaka' | transloco">
+        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="32" />
+      </rc-alan>
+      <rc-alan [etiket]="'servisSigorta.odendi' | transloco">
+        <rc-secim
+          formControlName="odendi"
+          [secenekler]="paidOptions"
+          [bosEtiket]="'servisSigorta.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan
+        [etiket]="
+          (kind === 'mtv' ? 'servisSigorta.mtv.vadeBas' : 'servisSigorta.muayene.bitisBas')
+            | transloco
+        "
+      >
+        <rc-tarih-secici formControlName="bas" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="
+          (kind === 'mtv' ? 'servisSigorta.mtv.vadeBit' : 'servisSigorta.muayene.bitisBit')
+            | transloco
+        "
+      >
+        <rc-tarih-secici formControlName="bit" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'servisSigorta.filtrele' | transloco }}
+      </button>
+      <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+        {{ 'servisSigorta.temizle' | transloco }}
+      </button>
+    </div>
+  </form>
+
+  <rc-tablo
+    class="tablo"
+    [tabloKodu]="kind === 'mtv' ? 'regulasyon.mtv' : 'regulasyon.muayene'"
+    [etiket]="
+      (kind === 'mtv' ? 'servisSigorta.mtv.tabloEtiketi' : 'servisSigorta.muayene.tabloEtiketi')
+        | transloco
+    "
+    [sutunlar]="columns"
+    [kaynak]="list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="list.yenile()"
+  >
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      <a [routerLink]="[detailRoot, satir.id]">{{ satir.plaka }}</a>
+    </ng-template>
+  </rc-tablo>
+</div>

@@ -40,6 +40,10 @@ const BLOK_HARITASI = {
   arac: 'arac',
   // F6.2b araç finans ekranları (kredi, müşteri taksit, sipariş, BAF, hasar, filo plan).
   aracFinans: 'arac-finans',
+  // F9.2 servis / sigorta / vade ekranları.
+  servisSigorta: 'servis-sigorta',
+  // F9.2 fiyat / tarife ekranları (tanımlar, fiyat hesapla, maliyet, tarife aktar).
+  fiyatTarife: 'fiyat-tarife',
 };
 
 const KOK = resolve(import.meta.dirname, '..');

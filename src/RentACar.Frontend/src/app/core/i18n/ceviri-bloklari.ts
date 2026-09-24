@@ -7,6 +7,8 @@ export const CEVIRI_BLOKLARI = {
     import('../../../i18n/bloklar/arac.json').then((m) => m.default),
   'arac-finans': (): Promise<Translation> =>
     import('../../../i18n/bloklar/arac-finans.json').then((m) => m.default),
+  'fiyat-tarife': (): Promise<Translation> =>
+    import('../../../i18n/bloklar/fiyat-tarife.json').then((m) => m.default),
   'kira-formu': (): Promise<Translation> =>
     import('../../../i18n/bloklar/kira-formu.json').then((m) => m.default),
   kiralar: (): Promise<Translation> =>
@@ -17,6 +19,8 @@ export const CEVIRI_BLOKLARI = {
     import('../../../i18n/bloklar/planlama.json').then((m) => m.default),
   rezervasyon: (): Promise<Translation> =>
     import('../../../i18n/bloklar/rezervasyon.json').then((m) => m.default),
+  'servis-sigorta': (): Promise<Translation> =>
+    import('../../../i18n/bloklar/servis-sigorta.json').then((m) => m.default),
   vitrin: (): Promise<Translation> =>
     import('../../../i18n/bloklar/vitrin.json').then((m) => m.default),
 } as const;
