@@ -1,0 +1,134 @@
+<section id="rc-yeni-satis" class="bolum" aria-labelledby="rc-yeni-satis-baslik">
+  <h2 id="rc-yeni-satis-baslik">{{ 'finansBelge.satis.yeni' | transloco }}</h2>
+  <form class="form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="rc-form-izgara">
+      <rc-alan
+        [etiket]="'finansBelge.arac' | transloco"
+        [ipucu]="'finansBelge.satis.aracIpucu' | transloco"
+      >
+        <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.alici' | transloco">
+        <rc-arama-secim formControlName="alici" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.satisNet' | transloco">
+        <rc-para-girdisi formControlName="satisNet" [paraBirimi]="currency() || 'TRY'" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.kdvOrani' | transloco"
+        [ipucu]="'finansBelge.kdvSunucuda' | transloco"
+      >
+        <rc-secim formControlName="kdvOrani" [secenekler]="vatOptions" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.satis.tarih' | transloco"
+        [ipucu]="'finansBelge.bosBugun' | transloco"
+      >
+        <rc-tarih-secici formControlName="tarih" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.doviz' | transloco">
+        <rc-secim formControlName="doviz" [secenekler]="currencyOptions" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.kur' | transloco"
+        [ipucu]="'finansBelge.kurIpucu' | transloco"
+      >
+        <rc-para-girdisi formControlName="kur" [kesir]="4" paraBirimi="TRY" yerTutucu="" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.noterNo' | transloco">
+        <rc-metin-girdisi formControlName="noterNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.hedefFiyat' | transloco">
+        <rc-para-girdisi formControlName="hedefFiyat" [paraBirimi]="currency() || 'TRY'" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.satisKm' | transloco">
+        <rc-sayi-girdisi formControlName="satisKm" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.kanal' | transloco">
+        <rc-metin-girdisi
+          formControlName="satisKanali"
+          liste="dl-satis-kanali"
+          [azamiUzunluk]="128"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.devir' | transloco">
+        <rc-metin-girdisi formControlName="devir" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.aciklama' | transloco">
+        <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+      </rc-alan>
+    </div>
+    <p class="not">{{ 'finansBelge.satis.bilgiNotu' | transloco }}</p>
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'finansBelge.satis.ilanKm' | transloco">
+        <rc-sayi-girdisi formControlName="ilanKm" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.listeDoviz' | transloco">
+        <rc-secim
+          formControlName="listeDoviz"
+          [secenekler]="currencyOptions"
+          [bosEtiket]="'finansBelge.yok' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.satisNoktasi' | transloco">
+        <rc-metin-girdisi
+          formControlName="satisNoktasi"
+          liste="dl-satis-noktasi"
+          [azamiUzunluk]="128"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.kampanya' | transloco">
+        <rc-metin-girdisi formControlName="uygulananKampanya" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.ihaleFirmasi' | transloco">
+        <rc-metin-girdisi formControlName="ihaleFirmasi" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.ihaleTarihi' | transloco">
+        <rc-tarih-secici formControlName="ihaleTarihi" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.ihaleSayisi' | transloco">
+        <rc-metin-girdisi formControlName="ihaleSayisi" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.noterSatisTarihi' | transloco">
+        <rc-tarih-secici formControlName="noterSatisTarihi" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.yevmiye' | transloco">
+        <rc-metin-girdisi formControlName="yevmiyeNumarasi" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.aciklama2' | transloco">
+        <rc-metin-girdisi formControlName="aciklama2" [azamiUzunluk]="512" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.kirayaVerme' | transloco">
+        <rc-onay-kutusu formControlName="kirayaVerme" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.satis.satisiVerildi' | transloco">
+        <rc-onay-kutusu formControlName="satisiVerildi" />
+      </rc-alan>
+    </div>
+    <datalist id="dl-satis-kanali">
+      @for (c of channels; track c) {
+        <option [value]="c"></option>
+      }
+    </datalist>
+    <datalist id="dl-satis-noktasi">
+      @for (b of branches() ?? []; track b.id) {
+        <option [value]="b.etiket"></option>
+      }
+    </datalist>
+    <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+    <rc-document-notice [notice]="notice()" />
+    <div class="form__eylemler">
+      <button
+        type="submit"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [disabled]="submission.gonderiliyor()"
+      >
+        {{
+          submission.gonderiliyor()
+            ? ('form.gonderiliyor' | transloco)
+            : ('finansBelge.satis.sat' | transloco)
+        }}
+      </button>
+    </div>
+  </form>
+</section>

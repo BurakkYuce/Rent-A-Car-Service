@@ -3,6 +3,7 @@ import type { Provider } from '@angular/core';
 import { ONYUKLU_CEVIRI_BLOKLARI } from './app/core/i18n/onyuklu-ceviri';
 import arac from './i18n/bloklar/arac.json';
 import aracFinans from './i18n/bloklar/arac-finans.json';
+import finansBelge from './i18n/bloklar/finans-belge.json';
 import kiraFormu from './i18n/bloklar/kira-formu.json';
 import kiralar from './i18n/bloklar/kiralar.json';
 import panel from './i18n/bloklar/panel.json';
@@ -22,6 +23,7 @@ const saglayicilar: Provider[] = [
     useValue: [
       arac,
       aracFinans,
+      finansBelge,
       kiraFormu,
       kiralar,
       panel,

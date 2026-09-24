@@ -1,0 +1,108 @@
+<section id="rc-yeni-gider" class="bolum" aria-labelledby="rc-yeni-gider-baslik">
+  <h2 id="rc-yeni-gider-baslik">{{ 'finansBelge.gider.yeni' | transloco }}</h2>
+  <form class="form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'finansBelge.gider.tur' | transloco">
+        <rc-secim formControlName="tip" [secenekler]="typeOptions" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.arac' | transloco">
+        <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.gider.tedarikci' | transloco"
+        [ipucu]="'finansBelge.gider.tedarikciIpucu' | transloco"
+      >
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.netTutar' | transloco">
+        <rc-para-girdisi formControlName="netTutar" [paraBirimi]="currency() || 'TRY'" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.kdvOrani' | transloco"
+        [ipucu]="'finansBelge.kdvSunucuda' | transloco"
+      >
+        <rc-secim formControlName="kdvOrani" [secenekler]="vatOptions" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.odemeYontemi' | transloco">
+        <rc-secim formControlName="odemeYontemi" [secenekler]="methodOptions" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.doviz' | transloco">
+        <rc-secim formControlName="doviz" [secenekler]="currencyOptions" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.kur' | transloco"
+        [ipucu]="'finansBelge.kurIpucu' | transloco"
+      >
+        <rc-para-girdisi formControlName="kur" [kesir]="4" paraBirimi="TRY" yerTutucu="" />
+      </rc-alan>
+      @if (accountOptions().length > 0) {
+        <rc-alan
+          [etiket]="'finansBelge.gider.hesap' | transloco"
+          [ipucu]="'finansBelge.gider.hesapIpucu' | transloco"
+        >
+          <rc-secim
+            formControlName="hesapId"
+            [secenekler]="accountOptions()"
+            [bosEtiket]="'finansBelge.yok' | transloco"
+          />
+        </rc-alan>
+      }
+      <rc-alan
+        [etiket]="'finansBelge.gider.tarih' | transloco"
+        [ipucu]="'finansBelge.bosBugun' | transloco"
+      >
+        <rc-tarih-secici formControlName="tarih" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.gider.odemeTarihi' | transloco"
+        [ipucu]="'finansBelge.bilgiAmacli' | transloco"
+      >
+        <rc-tarih-secici formControlName="odemeTarihi" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gider.vade' | transloco">
+        <rc-tarih-secici formControlName="vade" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gider.hazirAciklama' | transloco">
+        <rc-metin-girdisi
+          formControlName="hazirAciklama"
+          liste="dl-gider-sablon"
+          [azamiUzunluk]="512"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.sube' | transloco">
+        <rc-metin-girdisi formControlName="sube" liste="dl-gider-sube" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.evrakNo' | transloco">
+        <rc-metin-girdisi formControlName="evrakNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.aciklama' | transloco">
+        <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+      </rc-alan>
+    </div>
+    <datalist id="dl-gider-sablon">
+      @for (p of presets; track p) {
+        <option [value]="p"></option>
+      }
+    </datalist>
+    <datalist id="dl-gider-sube">
+      @for (b of branches() ?? []; track b.id) {
+        <option [value]="b.etiket"></option>
+      }
+    </datalist>
+    <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+    <rc-document-notice [notice]="notice()" />
+    <div class="form__eylemler">
+      <button
+        type="submit"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [disabled]="submission.gonderiliyor()"
+      >
+        {{
+          submission.gonderiliyor()
+            ? ('form.gonderiliyor' | transloco)
+            : ('finansBelge.kaydet' | transloco)
+        }}
+      </button>
+    </div>
+  </form>
+</section>

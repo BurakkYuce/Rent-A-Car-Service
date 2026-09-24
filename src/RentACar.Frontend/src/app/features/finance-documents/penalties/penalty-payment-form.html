@@ -1,0 +1,54 @@
+<section class="bolum" aria-labelledby="rc-ceza-odeme">
+  <h3 id="rc-ceza-odeme">{{ 'finansBelge.ceza.odemeBaslik' | transloco }}</h3>
+  @if (lineOptions().length === 0) {
+    <p class="not">{{ 'finansBelge.ceza.odenecekYok' | transloco }}</p>
+  } @else {
+    <form class="form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="rc-form-izgara">
+        <rc-alan [etiket]="'finansBelge.ceza.kalem' | transloco">
+          <rc-secim formControlName="satirId" [secenekler]="lineOptions()" />
+        </rc-alan>
+        <rc-alan
+          [etiket]="'finansBelge.tutar' | transloco"
+          [ipucu]="'finansBelge.ceza.tutarIpucu' | transloco"
+        >
+          <rc-para-girdisi formControlName="tutar" />
+        </rc-alan>
+        <rc-alan [etiket]="'finansBelge.hesap' | transloco">
+          <rc-secim formControlName="hesap" [secenekler]="accountOptions" />
+        </rc-alan>
+        <rc-alan
+          [etiket]="'finansBelge.ceza.odemeTarihi' | transloco"
+          [ipucu]="'finansBelge.bosBugun' | transloco"
+        >
+          <rc-tarih-secici formControlName="tarih" />
+        </rc-alan>
+        <rc-alan [etiket]="'finansBelge.ceza.makbuzNo' | transloco">
+          <rc-metin-girdisi formControlName="makbuzNo" [azamiUzunluk]="64" />
+        </rc-alan>
+        <rc-alan [etiket]="'finansBelge.ceza.islemYapan' | transloco">
+          <rc-metin-girdisi formControlName="islemYapan" [azamiUzunluk]="128" />
+        </rc-alan>
+        <rc-alan [etiket]="'finansBelge.aciklama' | transloco">
+          <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+        </rc-alan>
+      </div>
+      <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+      <div class="form__eylemler">
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="submission.gonderiliyor()"
+        >
+          {{
+            submission.gonderiliyor()
+              ? ('form.gonderiliyor' | transloco)
+              : ('finansBelge.ceza.ode' | transloco)
+          }}
+        </button>
+      </div>
+    </form>
+  }
+  <!-- Form dışında: mükerrer sonrası kalem kapanıp form gizlense de mevcut kayıt notu kalır. -->
+  <rc-document-notice [notice]="notice()" />
+</section>

@@ -1,0 +1,77 @@
+<section id="rc-yeni-ceza" class="bolum" aria-labelledby="rc-yeni-ceza-baslik">
+  <h2 id="rc-yeni-ceza-baslik">{{ 'finansBelge.ceza.yeni' | transloco }}</h2>
+  <form class="form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'finansBelge.ceza.tur' | transloco">
+        <rc-metin-girdisi formControlName="cezaTuru" liste="dl-ceza-turu" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.teblig' | transloco">
+        <rc-tarih-secici formControlName="tebligTarihi" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.ceza.saat' | transloco"
+        [ipucu]="'finansBelge.ceza.saatIpucu' | transloco"
+      >
+        <rc-metin-girdisi formControlName="saat" [azamiUzunluk]="8" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.vadeGun' | transloco">
+        <rc-sayi-girdisi formControlName="vadeGun" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.yer' | transloco">
+        <rc-metin-girdisi formControlName="yer" [azamiUzunluk]="256" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.cepTel' | transloco">
+        <rc-metin-girdisi formControlName="cepTel" tur="tel" [azamiUzunluk]="32" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.makbuzNo' | transloco">
+        <rc-metin-girdisi formControlName="makbuzNo" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.fatura.islemSube' | transloco">
+        <rc-metin-girdisi formControlName="islemSube" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'finansBelge.arac' | transloco"
+        [ipucu]="'finansBelge.ceza.aracIpucu' | transloco"
+      >
+        <rc-arama-secim formControlName="arac" [kaynak]="vehicles" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.musteri' | transloco">
+        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.ceza.sebep' | transloco">
+        <rc-metin-girdisi formControlName="sebep" [azamiUzunluk]="512" />
+      </rc-alan>
+    </div>
+    <div class="rc-form-izgara" formArrayName="kalemler">
+      @for (g of lines.controls; track $index; let i = $index) {
+        <div class="kalem-satiri" [formGroupName]="i">
+          <rc-alan [etiket]="'finansBelge.ceza.kalemTutar' | transloco: { sira: i + 1 }">
+            <rc-para-girdisi formControlName="tutar" />
+          </rc-alan>
+          <rc-alan [etiket]="'finansBelge.ceza.kalemSebep' | transloco: { sira: i + 1 }">
+            <rc-metin-girdisi formControlName="sebep" [azamiUzunluk]="512" />
+          </rc-alan>
+        </div>
+      }
+    </div>
+    <datalist id="dl-ceza-turu">
+      @for (n of typeNames(); track n) {
+        <option [value]="n"></option>
+      }
+    </datalist>
+    <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+    <div class="form__eylemler">
+      <button
+        type="submit"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [disabled]="submission.gonderiliyor()"
+      >
+        {{
+          submission.gonderiliyor()
+            ? ('form.gonderiliyor' | transloco)
+            : ('finansBelge.kaydet' | transloco)
+        }}
+      </button>
+    </div>
+  </form>
+</section>

@@ -1,0 +1,286 @@
+<div class="sayfa">
+  <header class="ust">
+    <h1>{{ 'finansBelge.gelen.baslik' | transloco }}</h1>
+    <div class="ust__eylemler">
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+        [attr.aria-expanded]="createOpen()"
+        (click)="createOpen.set(!createOpen())"
+      >
+        <rc-ikon ad="plus" [boyut]="14" />
+        {{ 'finansBelge.gelen.elleGir' | transloco }}
+      </button>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk"
+        [attr.aria-expanded]="syncOpen()"
+        (click)="syncOpen.set(!syncOpen())"
+      >
+        {{ 'finansBelge.gelen.gibdenCek' | transloco }}
+      </button>
+    </div>
+  </header>
+  <p class="aciklama">
+    {{ 'finansBelge.gelen.aciklama' | transloco }}
+    <a routerLink="/giderler">{{ 'finansBelge.gider.baslik' | transloco }}</a>
+  </p>
+
+  @if (createOpen()) {
+    <section class="bolum" aria-labelledby="rc-gelen-yeni">
+      <h2 id="rc-gelen-yeni">{{ 'finansBelge.gelen.elleGir' | transloco }}</h2>
+      <form class="form" [formGroup]="createForm" (ngSubmit)="create()">
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'finansBelge.gelen.sutun.ettn' | transloco">
+            <rc-metin-girdisi formControlName="ettn" [azamiUzunluk]="64" />
+          </rc-alan>
+          <rc-alan [etiket]="'finansBelge.gelen.sutun.vkn' | transloco">
+            <rc-metin-girdisi formControlName="gonderenVkn" [azamiUzunluk]="16" />
+          </rc-alan>
+          <rc-alan [etiket]="'finansBelge.gelen.sutun.gonderen' | transloco">
+            <rc-metin-girdisi formControlName="gonderenUnvan" [azamiUzunluk]="256" />
+          </rc-alan>
+          <rc-alan [etiket]="'finansBelge.gelen.sutun.tarih' | transloco">
+            <rc-tarih-secici formControlName="tarih" />
+          </rc-alan>
+          <rc-alan [etiket]="'finansBelge.netTutar' | transloco">
+            <rc-para-girdisi formControlName="netTutar" />
+          </rc-alan>
+          <rc-alan [etiket]="'finansBelge.kdv' | transloco">
+            <rc-para-girdisi formControlName="kdvTutar" />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'finansBelge.genelToplam' | transloco"
+            [ipucu]="'finansBelge.gelen.tutarlilik' | transloco"
+          >
+            <rc-para-girdisi formControlName="genelToplam" />
+          </rc-alan>
+          <rc-alan [etiket]="'finansBelge.doviz' | transloco">
+            <rc-secim formControlName="doviz" [secenekler]="currencyOptions" />
+          </rc-alan>
+          <rc-alan [etiket]="'finansBelge.aciklama' | transloco">
+            <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
+          </rc-alan>
+        </div>
+        <rc-form-hatalari [hatalar]="createSubmission.genelHatalar()" />
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="createSubmission.gonderiliyor()"
+          >
+            {{
+              createSubmission.gonderiliyor()
+                ? ('form.gonderiliyor' | transloco)
+                : ('finansBelge.ekle' | transloco)
+            }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (syncOpen()) {
+    <section class="bolum" aria-labelledby="rc-gelen-cek">
+      <h2 id="rc-gelen-cek">{{ 'finansBelge.gelen.gibdenCek' | transloco }}</h2>
+      <p class="not">{{ 'finansBelge.gelen.cekAciklama' | transloco }}</p>
+      <form class="form" [formGroup]="syncForm" (ngSubmit)="sync()">
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'finansBelge.tarihBas' | transloco">
+            <rc-tarih-secici formControlName="bas" />
+          </rc-alan>
+          <rc-alan [etiket]="'finansBelge.tarihBit' | transloco">
+            <rc-tarih-secici formControlName="bit" />
+          </rc-alan>
+        </div>
+        <rc-form-hatalari [hatalar]="syncSubmission.genelHatalar()" />
+        <div class="form__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="syncSubmission.gonderiliyor()"
+          >
+            {{ 'finansBelge.gelen.cek' | transloco }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <form
+    class="filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'finansBelge.filtre' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'finansBelge.gelen.firma' | transloco">
+        <rc-metin-girdisi formControlName="firma" [azamiUzunluk]="256" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.ettnBas' | transloco">
+        <rc-metin-girdisi formControlName="ettnBas" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.ettnBit' | transloco">
+        <rc-metin-girdisi formControlName="ettnBit" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.plaka' | transloco">
+        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="16" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.islemTuru' | transloco">
+        <rc-secim
+          formControlName="durum"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'finansBelge.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.tarihBas' | transloco">
+        <rc-tarih-secici formControlName="bas" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.tarihBit' | transloco">
+        <rc-tarih-secici formControlName="bit" />
+      </rc-alan>
+      <rc-alan [etiket]="'finansBelge.gelen.defter' | transloco">
+        <rc-secim
+          formControlName="giderlestirildi"
+          [secenekler]="ledgerOptions"
+          [bosEtiket]="'finansBelge.tumu' | transloco"
+        />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'finansBelge.filtrele' | transloco }}
+      </button>
+      @if (query.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'finansBelge.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  <rc-tablo
+    class="tablo"
+    tabloKodu="gelen-efatura.liste"
+    [etiket]="'finansBelge.gelen.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.list.durum()"
+    [satirKimligi]="rowId"
+    [sirala]="query.sorgu().sirala"
+    (siralaDegisti)="query.degistir({ sirala: $event })"
+    (sayfaDegisti)="query.degistir({ sayfa: $event })"
+    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (yenidenDene)="store.list.yenile()"
+  >
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="rc-rozet" [class.rc-rozet--hata]="satir.durum === 'Reddedildi'">{{
+        statusLabel(satir.durum)
+      }}</span>
+      @if (satir.durum === 'Reddedildi' && satir.redNedeni) {
+        <span class="not"> ({{ satir.redNedeni }})</span>
+      }
+    </ng-template>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="satir-eylem">
+        @if (satir.durum === 'Beklemede') {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            (click)="approve(satir)"
+          >
+            {{ 'finansBelge.gelen.onayla' | transloco }}
+          </button>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="openPanel('reject', satir)"
+          >
+            {{ 'finansBelge.gelen.reddet' | transloco }}
+          </button>
+        }
+        @if (!satir.giderlestirildi && satir.durum !== 'Reddedildi') {
+          <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="openPanel('link', satir)">
+            {{ 'finansBelge.gelen.bagla' | transloco }}
+          </button>
+        }
+        @if (satir.durum === 'Onaylandi' && !satir.giderlestirildi) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            (click)="openPanel('expense', satir)"
+          >
+            {{ 'finansBelge.gelen.giderlestir' | transloco }}
+          </button>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            (click)="process(satir)"
+          >
+            {{ 'finansBelge.gelen.isle' | transloco }}
+          </button>
+        }
+      </span>
+    </ng-template>
+  </rc-tablo>
+
+  @if (panel(); as p) {
+    @if (panelRow(); as row) {
+      @switch (p.kind) {
+        @case ('link') {
+          @for (x of [row]; track x.id) {
+            <rc-incoming-link-form
+              [invoiceId]="x.id"
+              [categories]="store.categories.veri()"
+              (saved)="panelDone()"
+              (closed)="closePanel()"
+              (dirtyChange)="dirtyChanged('panel', $event)"
+            />
+          }
+        }
+        @case ('expense') {
+          @for (x of [row]; track x.id) {
+            <rc-incoming-expense-form
+              [invoice]="x"
+              [branches]="branches.list.veri()"
+              (done)="expenseDone()"
+              (closed)="closePanel()"
+            />
+          }
+        }
+        @case ('reject') {
+          <section class="bolum" aria-labelledby="rc-gelen-red">
+            <h2 id="rc-gelen-red">
+              {{ 'finansBelge.gelen.reddetBaslik' | transloco: { ettn: row.ettn } }}
+            </h2>
+            <form class="form" [formGroup]="rejectForm" (ngSubmit)="reject()">
+              <div class="rc-form-izgara">
+                <rc-alan [etiket]="'finansBelge.gelen.redNedeni' | transloco">
+                  <rc-metin-girdisi formControlName="neden" [azamiUzunluk]="512" />
+                </rc-alan>
+              </div>
+              <div class="form__eylemler">
+                <button
+                  type="submit"
+                  class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
+                  [disabled]="busy() !== null"
+                >
+                  {{ 'finansBelge.gelen.reddet' | transloco }}
+                </button>
+                <button
+                  type="button"
+                  class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                  (click)="closePanel()"
+                >
+                  {{ 'finansBelge.kapat' | transloco }}
+                </button>
+              </div>
+            </form>
+          </section>
+        }
+      }
+    }
+  }
+</div>
