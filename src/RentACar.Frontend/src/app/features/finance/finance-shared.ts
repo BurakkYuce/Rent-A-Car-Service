@@ -3,7 +3,9 @@ import {
   Pipe,
   type PipeTransform,
   computed,
+  effect,
   inject,
+  untracked,
   type WritableSignal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -146,35 +148,60 @@ export function followCustomerQuery(
 ): void {
   const confirm = inject(OnayServisi);
   const t = ceviriFonksiyonu();
+  /** URL'deki son `cariId` (meşgulken ya da onay açıkken gelen değişiklik kaybolmaz — r316 L2). */
+  let latest: string | null = null;
+  /** Kullanıcının bu sorgu için "Vazgeç" dediği cari: aynı değer için yeniden sorulmaz. */
+  let declined: string | null = null;
   let asking = false;
+  /** Sorgu değişikliği meşgulken/onay açıkken geldi ve henüz değerlendirilmedi. */
+  let deferred = false;
   const change = (id: string) => {
     customer.setValue(null, { emitEvent: false });
     cariId.set(id);
   };
+  const evaluate = (): void => {
+    if (busy() || asking) {
+      deferred = true;
+      return;
+    }
+    deferred = false;
+    const id = latest;
+    if (!id || id === cariId() || id === declined) return;
+    if (!unsaved.dirty()) {
+      change(id);
+      return;
+    }
+    asking = true;
+    void confirm
+      .sor({
+        baslik: t('finans.cariDegisimi.baslik'),
+        mesaj: t('finans.cariDegisimi.mesaj', { ad: customer.value?.etiket ?? '' }),
+        onayEtiketi: t('finans.cariDegisimi.gec'),
+        tehlikeli: true,
+      })
+      .then((yes) => {
+        asking = false;
+        if (!yes) declined = id;
+        else if (busy()) deferred = true;
+        else if (id === latest && id !== cariId()) {
+          unsaved.discard();
+          change(id);
+        }
+        // Onay açıkken URL yeniden değiştiyse son değer değerlendirilir.
+        if (deferred) evaluate();
+      });
+  };
   inject(ActivatedRoute)
     .queryParamMap.pipe(takeUntilDestroyed())
     .subscribe((p) => {
-      const id = p.get('cariId');
-      if (!id || id === cariId() || busy() || asking) return;
-      if (!unsaved.dirty()) {
-        change(id);
-        return;
-      }
-      asking = true;
-      void confirm
-        .sor({
-          baslik: t('finans.cariDegisimi.baslik'),
-          mesaj: t('finans.cariDegisimi.mesaj', { ad: customer.value?.etiket ?? '' }),
-          onayEtiketi: t('finans.cariDegisimi.gec'),
-          tehlikeli: true,
-        })
-        .then((yes) => {
-          asking = false;
-          if (!yes || busy() || id === cariId()) return;
-          unsaved.discard();
-          change(id);
-        });
+      latest = p.get('cariId');
+      if (latest !== declined) declined = null;
+      evaluate();
     });
+  // Gönderim bitince (uçuş/donma kalkınca) ertelenen sorgu değişikliği yeniden değerlendirilir.
+  effect(() => {
+    if (!busy() && deferred) untracked(evaluate);
+  });
 }
 
 /** Seçici etiketi, yalnız GÜNCEL carinin verisi geldiğinde (önceki veri korunurken eski ad yazılmasın). */

@@ -1,4 +1,4 @@
-import { DestroyRef, type Signal, inject, signal } from '@angular/core';
+import { DestroyRef, type Signal, effect, inject, signal, untracked } from '@angular/core';
 import type { AbstractControl, FormGroup } from '@angular/forms';
 
 import { type ApiHatasi, apiHatasinaCevir } from '@core/api/api-hatasi';
@@ -6,11 +6,13 @@ import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { istekBaglami } from '@core/oturum/istek-baglami';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { OturumServisi } from '@core/oturum/oturum-servisi';
 
 import { yeniIslemAnahtari } from './gonderim-kilidi';
-import { type MoneyAttempt, PendingMoneyAttempts } from './money-attempts';
+import { type MoneyAttempt, PendingMoneyAttempts, sessionContext } from './money-attempts';
 import {
   type DuplicateKind,
   type MoneyContent,
@@ -73,6 +75,11 @@ export interface MoneySubmissionConfig {
    * gizlenebiliyorsa (ödenen poliçe/taksit paneli) not onunla kaybolurdu. Metin iki yerde de AYNI.
    */
   readonly duplicateDisplay?: 'notice' | 'toast';
+  /**
+   * Yapısal uçlar (anahtar sunucuda kayıt durumudur: poliçe başına tek ödeme, servis başına tek yansıtma): `mevcut`
+   * başkasının işlemi olabilir — "önceki denemeniz" yerine bu nötr metin (No + tutar parametreli). r316 L1.
+   */
+  readonly recordedMessage?: CeviriAnahtari;
   /** Kapsam dışı `Idempotency-Key` üretimi (test). */
   readonly newKey?: () => string;
 }
@@ -106,6 +113,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   private readonly attempts = inject(PendingMoneyAttempts);
   private readonly confirmService = inject(OnayServisi);
   private readonly toast = inject(ToastServisi);
+  private readonly session = inject(OturumServisi, { optional: true });
   private readonly t = ceviriFonksiyonu();
   private readonly scope: () => string;
   private readonly restorable: boolean;
@@ -113,7 +121,10 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   private key: string | null = null;
   private keyTarget: string | null = null;
   private lockedForm: AbstractControl | null = null;
-  private confirming = false;
+  /** Bu çekirdeğin son kullandığı form (bağlam değişince temizlenir). */
+  private lastForm: AbstractControl | null = null;
+  /** Gönderim onayı açık (gövde kuruldu, istek henüz gitmedi) — cari değişimi gibi geçişler beklemeli. */
+  private readonly confirming = signal(false);
   private destroyed = false;
 
   private readonly sendingState = signal(false);
@@ -143,11 +154,21 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
       // Geri getirilemeyen kapsam: kesinleşmemiş deneme kayıtta asılı kalmasın (uçuştaysa yanıt temizler).
       if (!this.restorable && !this.sendingState()) this.attempts.delete(this.scope());
     });
+    // r316 M1: oturum bağlamı değişince (çıkış, yeniden girişte başka kullanıcı/şube) önceki kullanıcının donmuş
+    // denemesi, notu ve form içeriği bu bileşende de kalmaz; anahtar bırakılır.
+    let last = sessionContext(this.session);
+    effect(() => {
+      const current = sessionContext(this.session);
+      untracked(() => {
+        if (current !== last) this.contextChanged();
+        last = current;
+      });
+    });
   }
 
   /** Sonucu bilinmeyen (donmuş) ya da uçan işlem — sayfa terk koruması ve form-yok-eden düğmeler bunu sorar. */
   pending(): boolean {
-    return this.frozenState() !== null || this.sendingState();
+    return this.frozenState() !== null || this.sendingState() || this.confirming();
   }
 
   /** Bir sonraki gönderimin anahtarı (henüz yoksa `null`). */
@@ -158,8 +179,9 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   async run<TResult>(o: MoneyRunOptions<TBody, TResult>): Promise<void> {
     // Onay penceresi açıkken ikinci tık yok sayılır: yoksa ilk işlem bitip anahtar yenilendikten sonra ikinci onay
     // YENİ anahtarla ikinci kaydı yazardı.
-    if (this.sendingState() || this.confirming) return;
+    if (this.sendingState() || this.confirming()) return;
     this.errorsState.set([]);
+    this.lastForm = o.form;
     const frozen = this.frozenState();
     if (frozen) {
       this.send(frozen, o, true);
@@ -175,11 +197,11 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     const next = o.build();
     if (next === null) return;
     if (o.confirm) {
-      this.confirming = true;
+      this.confirming.set(true);
       try {
         if (!(await o.confirm())) return;
       } finally {
-        this.confirming = false;
+        this.confirming.set(false);
       }
       if (this.sendingState() || this.frozenState()) return;
     }
@@ -200,6 +222,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
         formValue: o.form.getRawValue(),
         inFlight: true,
         notice: UNCERTAIN_NOTICE,
+        context: sessionContext(this.session),
       },
       o,
       false,
@@ -279,8 +302,8 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     result: TResult,
     o: MoneyRunOptions<TBody, TResult>,
   ): void {
-    this.attempts.delete(scope);
-    if (this.destroyed) return;
+    this.attempts.delete(scope, attempt.context);
+    if (this.destroyed || this.staleContext(attempt)) return;
     this.sendingState.set(false);
     this.frozenState.set(null);
     this.amountRequiredState.set(false);
@@ -300,13 +323,16 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   ): void {
     const uncertain = sonucuBilinmeyenHata(error);
     const duplicate = error.kod === 'mukerrer' ? classifyDuplicate(error) : null;
-    const notice = duplicate ? duplicateNotice(error, attempt.content) : UNCERTAIN_NOTICE;
+    const notice = duplicate
+      ? duplicateNotice(error, attempt.content, this.config.recordedMessage)
+      : UNCERTAIN_NOTICE;
     // Kayıt, bileşen yok edilmiş olsa da güncellenir: sonucu hâlâ kesin olmayan deneme (belirsiz ya da `mevcut`suz
     // 409) kalır, gerisi (kesin sonuç) düşer.
+    // Bağlam değiştiyse `set` yazmaz (yanıt çıkıştan sonra geldi).
     if ((uncertain || duplicate === 'recordedEarlier') && (this.restorable || !this.destroyed))
       this.attempts.set(scope, { ...attempt, inFlight: false, notice });
-    else this.attempts.delete(scope);
-    if (this.destroyed) return;
+    else this.attempts.delete(scope, attempt.context);
+    if (this.destroyed || this.staleContext(attempt)) return;
     this.sendingState.set(false);
     if (uncertain) {
       this.freeze(attempt, UNCERTAIN_NOTICE);
@@ -363,6 +389,24 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
       form.patchValue(attempt.formValue, { emitEvent: false });
   }
 
+  /** Yanıt, gönderildiği oturum bağlamı artık geçerli değilken geldi: bileşene dokunulmaz (yalnız uçuş biter). */
+  private staleContext(attempt: MoneyAttempt<TBody>): boolean {
+    if (attempt.context === sessionContext(this.session)) return false;
+    this.sendingState.set(false);
+    return true;
+  }
+
+  private contextChanged(): void {
+    const form = this.lockedForm ?? this.lastForm;
+    this.frozenState.set(null);
+    this.noticeState.set(null);
+    this.errorsState.set([]);
+    this.amountRequiredState.set(false);
+    this.resetKey();
+    this.unlock();
+    form?.reset(undefined, { emitEvent: false });
+  }
+
   private amountMissing(): boolean {
     const control = this.config.amountControl?.();
     if (!control || !this.amountRequiredState()) return false;
@@ -379,6 +423,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   }
 
   private lock(form: AbstractControl): void {
+    this.lastForm = form;
     if (this.lockedForm !== form) this.unlock();
     this.lockedForm = form;
     if (!form.disabled) form.disable({ emitEvent: false });

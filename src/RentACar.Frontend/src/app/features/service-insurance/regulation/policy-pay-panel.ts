@@ -109,6 +109,8 @@ export class PolicyPayPanel implements OnInit {
   protected readonly payment = moneySubmission<PolicyPaymentRequest>({
     scope: () => `sigorta:${this.policy().id}`,
     duplicateDisplay: 'toast',
+    // E29 yapısal (poliçe başına tek ödeme): ödemeyi başkası yapmış olabilir — nötr metin (r316 L1).
+    recordedMessage: 'servisSigorta.para.policeZatenOdendi',
   });
 
   protected readonly kindOptions: readonly SecenekOgesi<AccountKind>[] = [

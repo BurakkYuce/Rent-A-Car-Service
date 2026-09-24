@@ -260,6 +260,7 @@
     "oncekiKaydedildiFarkliTutar": "Önceki denemeniz kaydedildi ({{ no }}, {{ tutar }}); değiştirdiğiniz içerik yazılmadı. Düzeltme için iade/iptal edin. Bu denemede girdiğiniz {{ girilen }} YAZILMADI.",
     "dahaOnceBaslik": "İşlem daha önce kaydedildi",
     "dahaOnceKaydedildi": "Bu işlem daha önce kaydedildi; ikinci kez yazılmadı. Hareketleri kontrol edin.",
-    "tutarAcikcaGir": "Önceki işlem kaydedildi. Yeni bir ödeme ancak tutar AÇIKÇA girilerek yapılabilir (boş tutar kalanın tamamını öder)."
+    "tutarAcikcaGir": "Önceki işlem kaydedildi. Yeni bir ödeme ancak tutar AÇIKÇA girilerek yapılabilir (boş tutar kalanın tamamını öder).",
+    "kayitZatenIslenmis": "Kayıt zaten işlenmiş"
   }
 }

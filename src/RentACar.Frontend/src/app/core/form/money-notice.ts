@@ -54,6 +54,7 @@ const detailOf = (e: Pick<ApiHatasi, 'detay'>): string | null => e.detay?.trim()
 export function duplicateNotice(
   error: Pick<ApiHatasi, 'mevcut' | 'detay'>,
   submitted?: MoneyContent | null,
+  recordedMessage?: CeviriAnahtari,
 ): MoneyNotice {
   const m = error.mevcut;
   const detail = detailOf(error);
@@ -69,6 +70,15 @@ export function duplicateNotice(
     no: m.belgeNo ?? '',
     tutar: paraBicimle(moneyAmount(m.tutar), m.doviz || 'TRY'),
   };
+  // Yapısal uç: kaydı başkası da yazmış olabilir — nötr metin, "önceki denemeniz" denmez.
+  if (recordedMessage)
+    return {
+      tone: 'bilgi',
+      title: 'paraIslemi.kayitZatenIslenmis',
+      message: recordedMessage,
+      params,
+      detail,
+    };
   if (m.ayniIcerik)
     return {
       tone: 'bilgi',

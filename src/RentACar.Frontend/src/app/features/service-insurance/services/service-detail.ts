@@ -162,6 +162,8 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
   protected readonly reflect = moneySubmission<ServiceReflectRequest>({
     scope: () => `yansit:${this.id}`,
     duplicateDisplay: 'toast',
+    // E30 yapısal (servis başına tek yansıtma): başkası yansıtmış olabilir — nötr metin (r316 L1).
+    recordedMessage: 'servisSigorta.para.zatenYansitildi',
   });
 
   // ---- bilgi blokları (tam değiştirme)

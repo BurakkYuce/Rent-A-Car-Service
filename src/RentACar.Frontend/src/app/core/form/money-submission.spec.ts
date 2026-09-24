@@ -1,6 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   EnvironmentInjector,
+  type WritableSignal,
+  signal,
   createEnvironmentInjector,
   runInInjectionContext,
 } from '@angular/core';
@@ -46,6 +48,7 @@ const networkError = () => apiHatasinaCevir(new HttpErrorResponse({ status: 0 })
 
 let calls: Call[];
 let confirmAnswer: boolean;
+let session: WritableSignal<{ anahtar: string } | null>;
 let toasts: { tone: string; text: string; title: string | undefined }[];
 
 function record(method: 'post' | 'put') {
@@ -59,6 +62,7 @@ function record(method: 'post' | 'put') {
 beforeEach(() => {
   calls = [];
   confirmAnswer = true;
+  session = signal<{ anahtar: string } | null>({ anahtar: 'firma|kullanici-a|*' });
   toasts = [];
   TestBed.configureTestingModule({
     providers: [
@@ -74,7 +78,10 @@ beforeEach(() => {
             toasts.push({ tone: 'uyari', text, title: o?.baslik }),
         },
       },
-      { provide: OturumServisi, useValue: { temizlikKaydet: () => () => undefined } },
+      {
+        provide: OturumServisi,
+        useValue: { temizlikKaydet: () => () => undefined, baglam: () => session() },
+      },
     ],
   });
 });
@@ -369,5 +376,65 @@ describe('MoneySubmission — bildirim yeri', () => {
     calls[1]?.reply.error(problem(409, 'mukerrer'));
     expect(m.submission.notice()?.message).toBe('paraIslemi.dahaOnceKaydedildi');
     expect(toasts).toHaveLength(1);
+  });
+});
+
+describe('MoneySubmission — oturum bağlamı (r316 M1)', () => {
+  it('çıkış sırasında uçan isteğin belirsiz yanıtı kayda YAZILMAZ; yeni kullanıcı eski kilitli formu görmez', async () => {
+    const a = mount({ scope: () => 'cari-virman' });
+    a.form.controls.tutar.setValue('300.00');
+    await a.run();
+    session.set(null); // çıkış
+    TestBed.tick();
+    calls[0]?.reply.error(networkError()); // yanıt çıkıştan SONRA
+    session.set({ anahtar: 'firma|kullanici-b|*' });
+    TestBed.tick();
+    expect(TestBed.inject(PendingMoneyAttempts).count()).toBe(0);
+    expect(a.submission.frozen()).toBeNull();
+    expect(a.submission.sending()).toBe(false);
+    const b = mount({ scope: () => 'cari-virman' });
+    expect(b.submission.restore(b.form)).toBe(false);
+    expect(b.form.disabled).toBe(false);
+  });
+
+  it('bağlam değişince donmuş deneme, not ve form temizlenir; yeni gönderim YENİ anahtarla', async () => {
+    const m = mount({ scope: () => 'depozito' });
+    await m.run();
+    calls[0]?.reply.error(networkError());
+    expect(m.submission.frozen()).not.toBeNull();
+    session.set({ anahtar: 'firma|kullanici-b|*' });
+    TestBed.tick();
+    expect(m.submission.frozen()).toBeNull();
+    expect(m.submission.notice()).toBeNull();
+    expect(m.form.disabled).toBe(false);
+    expect(m.form.controls.tutar.value).toBeNull();
+    expect(TestBed.inject(PendingMoneyAttempts).get('depozito')).toBeUndefined();
+    m.form.controls.tutar.setValue('10.00');
+    await m.run();
+    expect(calls[1]?.options?.islemAnahtari).toBe('k-2');
+  });
+
+  it('aynı kullanıcı yeniden girişte (bağlam aynı) donmuş deneme KORUNUR', async () => {
+    const m = mount({ scope: () => 's' });
+    await m.run();
+    calls[0]?.reply.error(networkError());
+    session.set({ anahtar: 'firma|kullanici-a|*' });
+    TestBed.tick();
+    expect(m.submission.frozen()?.key).toBe('k-1');
+  });
+
+  it('yapısal uç: mevcut bildirimi nötr metinle ("önceki denemeniz" denmez)', async () => {
+    const m = mount({ recordedMessage: 'servisSigorta.para.policeZatenOdendi' });
+    await m.run();
+    calls[0]?.reply.error(
+      problem(409, 'mukerrer', {
+        mevcut: { id: 'p', belgeNo: 'P-1', tutar: 900, doviz: 'TRY', ayniIcerik: false },
+      }),
+    );
+    expect(m.submission.notice()).toMatchObject({
+      title: 'paraIslemi.kayitZatenIslenmis',
+      message: 'servisSigorta.para.policeZatenOdendi',
+      params: { no: 'P-1', tutar: '900,00 ₺' },
+    });
   });
 });

@@ -623,6 +623,98 @@ test('#299 L-new-1: bakiye düzeltme onayı HANGİ carinin düzeltileceğini sö
   expect(written).toHaveLength(0);
 });
 
+test('r316 L2: gönderim uçarken gelen ?cariId= değişimi KAYBOLMAZ — yanıt gelince yeni cariye geçilir', async ({
+  page,
+}) => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((res) => (release = res));
+  await financeHubEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== '/api/ui/v1/finans/odeme') return false;
+      await gate;
+      await r.fulfill({ json: { id: 'o-1' } });
+      return true;
+    },
+  });
+  await page.goto(NAKIT.yol);
+  await hazirBekle(page, NAKIT);
+  const pay = page.getByRole('region', { name: 'Ödeme (tediye)' });
+  await pay.getByRole('textbox', { name: 'Tutar' }).fill('50');
+  await pay.getByRole('button', { name: 'Ödeme Yap' }).click();
+  await expect(pay.getByRole('button', { name: /Gönderiliyor/ })).toBeVisible();
+  await goToCustomer(page, `/app/finans/nakit-islem?cariId=${CARI_2}`);
+  await expect(page.getByRole('heading', { name: 'Ayşe Yılmaz' })).toBeVisible();
+  release();
+  await expect(page.getByText('Ödeme kaydedildi.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bora Kaya' })).toBeVisible();
+});
+
+// ---------------------------------------------------------------- r316 M1: oturum bağlamı
+
+test('r316 M1: çıkış sırasında uçan virman yanıtı çıkıştan SONRA gelir → aynı sekmede başka kullanıcı eski kilitli formu GÖRMEZ', async ({
+  page,
+}) => {
+  const keys: string[] = [];
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((res) => (release = res));
+  await financeHubEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== '/api/ui/v1/finans/cari-virman') return false;
+      keys.push(r.request().headers()['idempotency-key'] ?? '');
+      if (keys.length === 1) {
+        await gate;
+        await problem(r, 503, 'sunucu', 'Geçici hata.').catch(() => undefined);
+      } else await r.fulfill({ json: { id: 'cv-2' } });
+      return true;
+    },
+  });
+  await page.route('**/api/ui/v1/oturum/cikis', (route) => route.fulfill({ status: 204 }));
+  await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
+    await xsrfYaz(page, 'anonim');
+    return route.fulfill({ status: 204 });
+  });
+  await page.route('**/api/ui/v1/oturum/giris', async (route) => {
+    await xsrfYaz(page, 'yeni');
+    return route.fulfill({
+      json: {
+        ...BEN,
+        kullanici: { ...BEN.kullanici, id: 'baska-kullanici', kullaniciAdi: 'baska' },
+      },
+    });
+  });
+  await page.goto(CARI_VIRMAN.yol);
+  await hazirBekle(page, CARI_VIRMAN);
+  const form = page.getByRole('region', { name: 'Virman', exact: true });
+  await form.getByRole('combobox', { name: 'Kaynak Cari (alacak)' }).fill('Ay');
+  await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
+  await form.getByRole('combobox', { name: 'Hedef Cari (borç)' }).fill('Bo');
+  await page.getByRole('option', { name: 'Bora Kaya' }).click();
+  await form.getByRole('textbox', { name: 'Tutar' }).fill('300');
+  await form.getByRole('button', { name: 'Virman Yap' }).click();
+  await expect.poll(() => keys.length).toBe(1);
+  await page.getByRole('button', { name: 'Çıkış yap' }).click();
+  // Uçan para işlemi varken çıkış sorulur; kullanıcı yine de ayrılır.
+  await page
+    .getByRole('alertdialog', { name: 'Sayfadan ayrılınsın mı?' })
+    .getByRole('button', { name: 'Sayfadan ayrıl' })
+    .click();
+  await expect(page.getByLabel('Parola')).toBeVisible();
+  release(); // 503 çıkıştan SONRA gelir
+  await page.waitForTimeout(300);
+  await page.getByLabel('Firma kodu').fill('pilot');
+  await page.getByLabel('Kullanıcı adı').fill('baska');
+  await page.getByLabel('Parola').fill('rastgele-e2e-parolasi');
+  await page.getByRole('button', { name: 'Giriş yap' }).click();
+  await page.goto(CARI_VIRMAN.yol);
+  await hazirBekle(page, CARI_VIRMAN);
+  const f2 = page.getByRole('region', { name: 'Virman', exact: true });
+  await expect(f2.getByRole('textbox', { name: 'Tutar' })).toHaveValue('');
+  await expect(f2.getByRole('textbox', { name: 'Tutar' })).toBeEnabled();
+  await expect(f2.getByRole('button', { name: 'Aynı işlemi tekrar gönder' })).toHaveCount(0);
+  await expect(f2.getByRole('combobox', { name: 'Kaynak Cari (alacak)' })).toHaveValue('');
+  expect(keys).toHaveLength(1);
+});
+
 for (const s of PAGES) {
   test.describe(`${s.ad}: mobil taşma (dokunmatik öykünme)`, () => {
     test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

@@ -1,4 +1,12 @@
-import { Injectable, type Signal, computed, inject, signal } from '@angular/core';
+import {
+  Injectable,
+  type Signal,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 
 import type { ApiYolu } from '@core/api/api-istemcisi';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
@@ -21,6 +29,16 @@ export interface MoneyAttempt<TBody = unknown> {
   readonly inFlight: boolean;
   /** Bileşen geri gelince gösterilecek not. */
   readonly notice: MoneyNotice;
+  /**
+   * Gönderim anındaki oturum bağlamı (kiracı|kullanıcı|şube). Kayıt yalnız AYNI bağlamda okunur: çıkış ya da başka
+   * kullanıcıyla giriş sonrası önceki kullanıcının kilitli formu, cari adı ve tutarı geri gelmez (r316 M1).
+   */
+  readonly context: string | null;
+}
+
+/** Oturum bağlamının anahtarı; oturum yoksa `null` (test sahtelerinde `baglam` olmayabilir). */
+export function sessionContext(session: OturumServisi | null): string | null {
+  return session?.baglam?.()?.anahtar ?? null;
 }
 
 /**
@@ -35,30 +53,49 @@ export interface MoneyAttempt<TBody = unknown> {
  */
 @Injectable({ providedIn: 'root' })
 export class PendingMoneyAttempts {
+  private readonly session = inject(OturumServisi, { optional: true });
   private readonly attempts = signal<ReadonlyMap<string, MoneyAttempt>>(new Map());
+  /** Güncel bağlamın denemeleri. */
+  private readonly current = computed(() => {
+    const context = sessionContext(this.session);
+    return [...this.attempts().values()].filter((a) => a.context === context);
+  });
   /** Kesinleşmemiş deneme sayısı (sayfa terk koruması). */
-  readonly count: Signal<number> = computed(() => this.attempts().size);
+  readonly count: Signal<number> = computed(() => this.current().length);
   /** Yanıtı beklenen gönderim var mı: formu yok eden düğmeler (Kapat, başka satır, süzgeç) pasif olmalı. */
-  readonly inFlight: Signal<boolean> = computed(() =>
-    [...this.attempts().values()].some((a) => a.inFlight),
-  );
+  readonly inFlight: Signal<boolean> = computed(() => this.current().some((a) => a.inFlight));
 
   constructor() {
-    inject(OturumServisi, { optional: true })?.temizlikKaydet(() => this.attempts.set(new Map()));
+    this.session?.temizlikKaydet(() => this.attempts.set(new Map()));
+    // Bağlam değişince (çıkış, başka kullanıcı/şube) önceki bağlamın denemeleri düşer.
+    let last = sessionContext(this.session);
+    effect(() => {
+      const current = sessionContext(this.session);
+      untracked(() => {
+        if (current !== last) this.attempts.set(new Map());
+        last = current;
+      });
+    });
   }
 
+  /** Bu kapsamın denemesi — yalnız GÜNCEL oturum bağlamında yazılmışsa. */
   get(scope: string): MoneyAttempt | undefined {
-    return this.attempts().get(scope);
+    const a = this.attempts().get(scope);
+    return a && a.context === sessionContext(this.session) ? a : undefined;
   }
 
+  /** Deneme yazılır — yalnız gönderildiği bağlam hâlâ güncelse (bağlam değiştikten sonra gelen yanıt yazmaz). */
   set(scope: string, attempt: MoneyAttempt): void {
+    if (attempt.context !== sessionContext(this.session)) return;
     const next = new Map(this.attempts());
     next.set(scope, attempt);
     this.attempts.set(next);
   }
 
-  delete(scope: string): void {
-    if (!this.attempts().has(scope)) return;
+  /** Kapsamın kaydı düşer; `context` verilirse yalnız o bağlamın kaydıysa (eski oturumun yanıtı yenisini silmez). */
+  delete(scope: string, context?: string | null): void {
+    const a = this.attempts().get(scope);
+    if (!a || (context !== undefined && a.context !== context)) return;
     const next = new Map(this.attempts());
     next.delete(scope);
     this.attempts.set(next);

@@ -43,7 +43,9 @@
       "oncekiDenemeKaydedildi": "Önceki denemeniz kaydedilmiş ({{no}}, {{kayitli}}); girdiğiniz {{girilen}} YAZILMADI. Form temizlendi: kaydı kontrol edip gerekiyorsa yeniden girin.",
       "baskaIslem": "Başka bir işlem yazıldı — girdiğiniz kaydedilmedi",
       "kayitDegismis": "Kayıt değişmiş — işlem yazılmadı",
-      "terkMesaji": "Gönderilen ya da sonucu bilinmeyen bir para işlemi var. Sayfadan ayrılırsanız aynı işlemi aynı anahtarla tekrar gönderme şansı kaybolur; önce kaydın ödeme / kalem geçmişini kontrol edin. Yine de ayrılmak istiyor musunuz?"
+      "terkMesaji": "Gönderilen ya da sonucu bilinmeyen bir para işlemi var. Sayfadan ayrılırsanız aynı işlemi aynı anahtarla tekrar gönderme şansı kaybolur; önce kaydın ödeme / kalem geçmişini kontrol edin. Yine de ayrılmak istiyor musunuz?",
+      "policeZatenOdendi": "Bu poliçe zaten ödendi ({{ no }}, {{ tutar }}). Kaydı kontrol edin.",
+      "zatenYansitildi": "Bu servis maliyeti zaten yansıtıldı ({{ no }}, {{ tutar }}). Kaydı kontrol edin."
     },
     "odeme": {
       "baslik": "Öde",
