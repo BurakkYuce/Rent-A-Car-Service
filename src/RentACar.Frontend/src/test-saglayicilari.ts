@@ -7,6 +7,7 @@ import kiraFormu from './i18n/bloklar/kira-formu.json';
 import kiralar from './i18n/bloklar/kiralar.json';
 import panel from './i18n/bloklar/panel.json';
 import planlama from './i18n/bloklar/planlama.json';
+import platform from './i18n/bloklar/platform.json';
 import rezervasyon from './i18n/bloklar/rezervasyon.json';
 import tanimlar from './i18n/bloklar/tanimlar.json';
 import vitrin from './i18n/bloklar/vitrin.json';
@@ -26,6 +27,7 @@ const saglayicilar: Provider[] = [
       kiralar,
       panel,
       planlama,
+      platform,
       rezervasyon,
       tanimlar,
       vitrin,

@@ -12,7 +12,8 @@ namespace RentACar.Web.Jobs;
 public sealed class PendingDomainExpireJob(IServiceScopeFactory scopeFactory, ILogger<PendingDomainExpireJob> log) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(1);
-    private static readonly TimeSpan ExpireAfter = TimeSpan.FromHours(48);
+    // F11.1b güvenlik M6: DNS TXT doğrulaması için müşteriye zaman tanınır — süre tek kaynaktan.
+    private static readonly TimeSpan ExpireAfter = RentACar.Application.TenantSettings.DomainVerification.PendingLifetime;
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {

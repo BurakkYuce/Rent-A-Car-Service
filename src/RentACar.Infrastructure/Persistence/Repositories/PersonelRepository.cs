@@ -67,6 +67,28 @@ public sealed class PersonelRepository(IDbContextFactory<AppDbContext> factory) 
         return true;
     }
 
+    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Personel> apply, CancellationToken ct = default)
+    {
+        string? code = null;
+        try
+        {
+            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Personnel, id, expectedVersion,
+                (db, k, c) => db.Personeller.FirstOrDefaultAsync(x => x.Id == k, c),
+                x => { apply(x); code = x.Kod; }, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new ValidationException($"'{code}' sicilli personel zaten var.");
+        }
+    }
+
+    public async Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await SatirSurumu.OkuAsync(db, SatirSurumu.Personnel, id, ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

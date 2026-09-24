@@ -189,7 +189,7 @@ public static class TenantSettingsEndpoints
                     + "Birkaç saniye sonra telefonu ve Twilio konsolunu kontrol edin."));
             }
             return Results.Redirect("/ayarlar?ok=1");
-        });
+        }).RequireRateLimiting(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy); // F11.1b: dış çağrı kovası
 
         // E-POSTA TEST gönderimi — WhatsApp testiyle aynı gerekçe: "yapılandırma doğru mu?" sorusunun
         // tek dürüst cevabı gerçek bir gönderimdir. SMTP'de yapılandırma TENANT satırındadır, bu yüzden
@@ -214,7 +214,7 @@ public static class TenantSettingsEndpoints
             return sonuc.Ok
                 ? Results.Redirect("/ayarlar?ok=1")
                 : Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(sonuc.Hata ?? "E-posta gönderilemedi."));
-        });
+        }).RequireRateLimiting(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy); // F11.1b: dış çağrı kovası
 
         // SMS TEST gönderimi — gerçek gönderici yalnız Twilio kimliği + gönderen kaynağı varsa DI'ya
         // girer; yoksa StubSmsService kalır ve o artık DÜRÜSTÇE false döner (sahte başarı yok).
@@ -265,7 +265,7 @@ public static class TenantSettingsEndpoints
                     + "Birkaç saniye sonra telefonu ve Twilio konsolunu kontrol edin."));
             }
             return Results.Redirect("/ayarlar?ok=1");
-        });
+        }).RequireRateLimiting(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy); // F11.1b: dış çağrı kovası
 
         // PR-2: "Sitemi Aç" — subdomain host'u (idempotent) oluşturur + public-site'ı aktifleştirir.
         grp.MapPost("/site-ac", async (TenantSettingsService svc) =>
@@ -287,7 +287,7 @@ public static class TenantSettingsEndpoints
             {
                 return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(ex.Message));
             }
-        });
+        }).RequireRateLimiting(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy); // F11.1b: alan adı ekleme kovası
 
         return app;
     }

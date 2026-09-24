@@ -53,11 +53,18 @@ public sealed class SearchRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(v => new { v.Id, v.Plaka, v.Marka }).ToListAsync(ct);
         hits.AddRange(araclar.Select(v => new SearchHit("Araç", v.Plaka, v.Marka, $"/araclar/{v.Id}")));
 
+        // F11.1b güvenlik M5 (KVKK, #280 kuralı): adı anonimleştirilmiş cari GERÇEK adıyla eşleşmez — yalnız görünen
+        // etiketiyle; başlık etiket, alt satır boş, sıra da etiketten (sıra gerçek adı sızdırmasın).
+        var label = Application.Customers.CariAnonimlik.AdEtiketi;
         var cariler = await db.Customers.AsNoTracking()
-            .Where(c => (c.Ad != null && EF.Functions.ILike(c.Ad, like)) || (c.Unvan != null && EF.Functions.ILike(c.Unvan, like)))
-            .OrderBy(c => c.Ad).Take(perTypeLimit)
-            .Select(c => new { c.Id, c.Ad, c.Unvan }).ToListAsync(ct);
-        hits.AddRange(cariler.Select(c => new SearchHit("Cari", c.Ad ?? c.Unvan ?? "(isimsiz)", c.Unvan, $"/cariler/{c.Id}")));
+            .Where(c => c.AnonimAd
+                ? EF.Functions.ILike(label, like)
+                : (c.Ad != null && EF.Functions.ILike(c.Ad, like)) || (c.Unvan != null && EF.Functions.ILike(c.Unvan, like)))
+            .OrderBy(c => c.AnonimAd ? label : c.Ad).ThenBy(c => c.Id).Take(perTypeLimit)
+            .Select(c => new { c.Id, c.Ad, c.Unvan, c.AnonimAd }).ToListAsync(ct);
+        hits.AddRange(cariler.Select(c => c.AnonimAd
+            ? new SearchHit("Cari", label, null, $"/cariler/{c.Id}")
+            : new SearchHit("Cari", c.Ad ?? c.Unvan ?? "(isimsiz)", c.Unvan, $"/cariler/{c.Id}")));
 
             // "En yeni" NUMARAYA göre sıralanamaz: yeni belge no'su yyyyddMM taşır (kullanıcı
             // kararı) ve alfabetik sıra kronolojik DEĞİLDİR — 20262608 (26 Ağu) ile 20260109

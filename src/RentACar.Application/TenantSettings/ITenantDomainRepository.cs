@@ -34,4 +34,11 @@ public interface ITenantDomainRepository
     /// `PendingVerification` olan TÜM tenant'lardaki özel domain satırlarını TEK SQL UPDATE ile `Failed`'e
     /// çeker (platform tablosu — tenant-loop GEREKMEZ, RLS yok). Etkilenen satır sayısını döner.</summary>
     Task<int> ExpireOldPendingCustomDomainsAsync(DateTimeOffset olderThan, CancellationToken ct = default);
+
+    /// <summary>F11.1b güvenlik M6 — kiracının kendi özel alan adı kaydı (yoksa null).</summary>
+    Task<TenantDomain?> FindCustomAsync(Guid tenantId, string host, CancellationToken ct = default);
+
+    /// <summary>F11.1b güvenlik M6 — TXT belirteci doğrulandıktan sonra bekleyen kaydı etkinleştirir (aynı kiracı +
+    /// aynı belirteç şartıyla); etkinleştiyse true.</summary>
+    Task<bool> ActivateVerifiedAsync(Guid tenantId, Guid id, string token, CancellationToken ct = default);
 }

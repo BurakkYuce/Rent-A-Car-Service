@@ -33,6 +33,13 @@ public interface IVehicleGroupRepository
     /// filo sessizce eşleşmez hale gelir — bu PR'ın kapattığı bug'ın ta kendisi.</summary>
     Task<GrupGuncellemeSonuc> UpdateAsync(Guid id, Action<VehicleGroup> apply, CancellationToken ct = default);
 
+    /// <summary>F11.1b — yukarıdakinin sürümlü hâli: satır kilidi + xmin karşılaştırması + cascade TEK işlemde;
+    /// uyuşmazlık <c>EszamanliDegisiklikException</c>.</summary>
+    Task<GrupGuncellemeSonuc> UpdateAsync(Guid id, string? expectedVersion, Action<VehicleGroup> apply, CancellationToken ct = default);
+
+    /// <summary>F11.1b — satır sürümü (Postgres <c>xmin</c>, opak). Yoksa <c>null</c>.</summary>
+    Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>PR-10 eşleme aracı: kaynak <c>Grup</c> değerine (Türkçe-duyarsız) sahip araçları
     /// <paramref name="hedefAd"/>'a taşır; taşınan sayıyı döner. <paramref name="bosOlanlar"/> true ise
     /// kaynak, değeri BOŞ (null/whitespace) olan araçlardır — bu, string sentinel ("(boş)") yerine ayrı

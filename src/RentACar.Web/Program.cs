@@ -242,6 +242,17 @@ builder.Services.AddRateLimiter(o =>
             Window = TimeSpan.FromSeconds(60),
             QueueLimit = 0,
         }));
+    // F11.1b güvenlik: dış çağrı yapan ayar eylemleri (SMTP/SMS/WhatsApp test gönderimi, alan adı ekle/doğrula) —
+    // girişten AYRI kova (bu eylemler girişi kilitlemesin, giriş denemeleri de bunları tüketmesin). IP başına.
+    var disEylemPermit = builder.Configuration.GetValue("RateLimit:ExternalActionPermit", 20);
+    o.AddPolicy(RentACar.Web.Api.Sistem.SystemAdminApi.ExternalActionRatePolicy, http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = disEylemPermit,
+            Window = TimeSpan.FromSeconds(60),
+            QueueLimit = 0,
+        }));
     // SSR form akışı: 429 gövdesi yerine login sayfasına anlamlı mesajla dön (PRG deseniyle tutarlı).
     // /platform login'i AYRI sayfaya (adversarial L2: PlatformLogin'deki hata=limit dalı ölü olmasın).
     // Tenant girişinde formdaki dönüş adresi (ReturnUrl) korunur: sınıra takılan kullanıcı bir dakika

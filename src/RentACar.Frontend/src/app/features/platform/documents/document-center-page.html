@@ -1,0 +1,243 @@
+<div class="head">
+  <h1>{{ 'platform.belgeler.baslik' | transloco }}</h1>
+  <button
+    type="button"
+    class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+    [attr.aria-expanded]="uploadOpen()"
+    aria-controls="platform-yeni-belge"
+    (click)="uploadOpen.set(!uploadOpen())"
+  >
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'platform.belgeler.yeni' | transloco }}
+  </button>
+</div>
+<p class="muted small">{{ 'platform.belgeler.aciklama' | transloco }}</p>
+
+@if (uploadOpen()) {
+  <section class="panel" id="platform-yeni-belge" aria-labelledby="platform-yeni-belge-baslik">
+    <h2 id="platform-yeni-belge-baslik">{{ 'platform.belgeler.yeniBaslik' | transloco }}</h2>
+    <form novalidate [formGroup]="form" (ngSubmit)="submit(fileInput)">
+      <rc-form-hatalari [hatalar]="upload.genelHatalar()" />
+      <div class="rc-form-izgara">
+        <rc-alan [etiket]="'platform.belgeler.alan.baslik' | transloco">
+          <rc-metin-girdisi
+            formControlName="baslik"
+            [azamiUzunluk]="200"
+            [yerTutucu]="'platform.belgeler.alan.baslikYerTutucu' | transloco"
+          />
+        </rc-alan>
+        <rc-alan [etiket]="'platform.belgeler.alan.aciklama' | transloco">
+          <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="1000" />
+        </rc-alan>
+        <div class="file-field">
+          <label for="pb-dosya"
+            >{{ 'platform.belgeler.alan.dosya' | transloco }}
+            <span class="rc-alan__zorunlu" aria-hidden="true">*</span></label
+          >
+          <input
+            #fileInput
+            id="pb-dosya"
+            type="file"
+            accept="application/pdf"
+            aria-required="true"
+            [attr.aria-invalid]="fileError() ? true : null"
+            [attr.aria-describedby]="fileError() ? 'pb-dosya-hata' : 'pb-dosya-ipucu'"
+            (change)="pickFile($event)"
+          />
+          <p class="muted small" id="pb-dosya-ipucu">
+            {{ 'platform.belgeler.alan.dosyaIpucu' | transloco: { mb: maxMb } }}
+          </p>
+          @if (fileError(); as message) {
+            <p class="rc-alan__hata" id="pb-dosya-hata" role="alert">{{ message }}</p>
+          }
+        </div>
+      </div>
+      <rc-onay-kutusu formControlName="yalnizYoneticiler">
+        {{ 'platform.belgeler.alan.yalnizYoneticiler' | transloco }}
+      </rc-onay-kutusu>
+      <p class="muted small">{{ 'platform.belgeler.alan.yalnizYoneticilerIpucu' | transloco }}</p>
+      <fieldset class="targets">
+        <legend class="small">
+          {{ 'platform.belgeler.alan.hedef' | transloco }}
+          <strong>{{ 'platform.belgeler.alan.hedefIpucu' | transloco }}</strong>
+        </legend>
+        <div class="chips">
+          @for (tenant of tenants.veri() ?? []; track tenant.id) {
+            <label class="chip">
+              <input
+                type="checkbox"
+                [checked]="targets().has(tenant.id)"
+                (change)="toggleTarget(tenant.id, $event)"
+              />
+              <span class="mono">{{ tenant.kod }}</span>
+            </label>
+          }
+        </div>
+      </fieldset>
+      <div class="actions">
+        <button
+          type="submit"
+          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+          [disabled]="upload.gonderiliyor()"
+        >
+          {{
+            (upload.gonderiliyor() ? 'platform.kaydediliyor' : 'platform.belgeler.yukle')
+              | transloco
+          }}
+        </button>
+      </div>
+    </form>
+  </section>
+}
+
+@switch (docs.durum().tur) {
+  @case ('hata') {
+    <div class="panel error-panel" role="alert">
+      <span>{{ 'platform.yuklenemedi' | transloco }}</span>
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="docs.yenile()">
+        {{ 'platform.yenidenDene' | transloco }}
+      </button>
+    </div>
+  }
+  @case ('bos') {}
+  @default {
+    @if (rows().length === 0 && docs.durum().tur === 'hazir') {
+      <p class="muted">{{ 'platform.belgeler.bos' | transloco }}</p>
+    } @else if (rows().length === 0) {
+      <p class="muted" aria-busy="true">{{ 'platform.yukleniyor' | transloco }}</p>
+    } @else {
+      <div class="table-wrap" [attr.aria-busy]="docs.yukleniyor()">
+        <table data-testid="platform-belge-tablosu">
+          <caption class="rc-gorunmez">
+            {{
+              'platform.belgeler.baslik' | transloco
+            }}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">{{ 'platform.belgeler.sutun.baslik' | transloco }}</th>
+              <th scope="col">{{ 'platform.belgeler.sutun.hedef' | transloco }}</th>
+              <th scope="col" class="num">{{ 'platform.belgeler.sutun.surum' | transloco }}</th>
+              <th scope="col" class="num">{{ 'platform.belgeler.sutun.boyut' | transloco }}</th>
+              <th scope="col">{{ 'platform.belgeler.sutun.guncelleme' | transloco }}</th>
+              <th scope="col">{{ 'platform.belgeler.sutun.durum' | transloco }}</th>
+              <th scope="col">{{ 'platform.belgeler.sutun.islem' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (doc of rows(); track doc.id) {
+              <tr>
+                <td>
+                  {{ doc.baslik }}
+                  @if (doc.yalnizYoneticiler) {
+                    <span class="rc-rozet">{{
+                      'platform.belgeler.yalnizYonetici' | transloco
+                    }}</span>
+                  }
+                  @if (doc.aciklama) {
+                    <br /><span class="muted small">{{ doc.aciklama }}</span>
+                  }
+                </td>
+                <td>
+                  @if (doc.hedefKodlar.length === 0) {
+                    <span class="rc-rozet rc-rozet--basari">{{
+                      'platform.belgeler.tumFirmalar' | transloco
+                    }}</span>
+                  } @else {
+                    <span class="mono small">{{ doc.hedefKodlar.join(', ') }}</span>
+                  }
+                </td>
+                <td class="num">v{{ num(doc.surum) }}</td>
+                <td class="num">{{ kb(doc.boyut) }} KB</td>
+                <td>{{ doc.guncelleme | tarihSaat }}</td>
+                <td>
+                  @switch (status(doc.durum)) {
+                    @case ('Yayinda') {
+                      <span class="rc-rozet rc-rozet--basari">{{
+                        'platform.belgeler.durum.Yayinda' | transloco
+                      }}</span>
+                    }
+                    @case ('Taslak') {
+                      <span class="rc-rozet rc-rozet--uyari">{{
+                        'platform.belgeler.durum.Taslak' | transloco
+                      }}</span>
+                    }
+                    @default {
+                      <span class="rc-rozet">{{
+                        'platform.belgeler.durum.Arsiv' | transloco
+                      }}</span>
+                    }
+                  }
+                </td>
+                <td>
+                  <div class="actions">
+                    <a class="link" [href]="contentUrl(doc)" target="_blank" rel="noopener">{{
+                      'platform.belgeler.goruntule' | transloco
+                    }}</a>
+                    @if (status(doc.durum) !== 'Yayinda') {
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="busyId() !== null"
+                        (click)="setStatus(doc, 'Yayinda')"
+                      >
+                        {{ 'platform.belgeler.yayinla' | transloco }}
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="busyId() !== null"
+                        (click)="setStatus(doc, 'Arsiv')"
+                      >
+                        {{ 'platform.belgeler.arsivle' | transloco }}
+                      </button>
+                    }
+                    <details class="version">
+                      <summary class="link">
+                        {{ 'platform.belgeler.yeniSurum' | transloco }}
+                      </summary>
+                      <div class="version__body">
+                        <label class="rc-gorunmez" [for]="'pb-surum-' + doc.id">{{
+                          'platform.belgeler.yeniSurumDosyasi' | transloco: { baslik: doc.baslik }
+                        }}</label>
+                        <input
+                          #versionInput
+                          type="file"
+                          accept="application/pdf"
+                          [id]="'pb-surum-' + doc.id"
+                          (change)="pickVersion(doc, $event)"
+                        />
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--kucuk"
+                          [disabled]="busyId() !== null"
+                          (click)="uploadVersion(doc, versionInput)"
+                        >
+                          {{
+                            'platform.belgeler.surumYukle'
+                              | transloco: { surum: (num(doc.surum) ?? 0) + 1 }
+                          }}
+                        </button>
+                      </div>
+                    </details>
+                    <button
+                      type="button"
+                      class="rc-dugme rc-dugme--hayalet rc-dugme--tehlike rc-dugme--kucuk"
+                      [disabled]="busyId() !== null"
+                      (click)="remove(doc)"
+                    >
+                      {{ 'platform.belgeler.sil' | transloco }}
+                      <span class="rc-gorunmez">{{ doc.baslik }}</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small">{{ 'platform.belgeler.surumNotu' | transloco }}</p>
+    }
+  }
+}

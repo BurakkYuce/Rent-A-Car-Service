@@ -42,6 +42,8 @@ const BLOK_HARITASI = {
   aracFinans: 'arac-finans',
   // F11.2a tanım ekranları (genel tanımlar, şubeler, doluluk kuralları, dokümanlar, takvim aboneliği).
   tanimlar: 'tanimlar',
+  // F12.2 platform konsolu (giriş, özet, firmalar, firma detayı, belge merkezi) — firma kabuğundan ayrı.
+  platform: 'platform',
 };
 
 const KOK = resolve(import.meta.dirname, '..');

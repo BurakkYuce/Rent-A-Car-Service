@@ -76,7 +76,11 @@ internal sealed class TenantDomainConfig : IEntityTypeConfiguration<TenantDomain
         e.HasKey(x => x.Id);
         e.Property(x => x.Id).ValueGeneratedNever();
         e.Property(x => x.Host).IsRequired().HasMaxLength(256);
-        e.HasIndex(x => x.Host).IsUnique();
+        // F11.1b güvenlik M6: host platform genelinde YALNIZ doğrulanmış (Active=0) satırlarda benzersiz. Doğrulama
+        // bekleyen satırlar birden çok kiracıda bir arada yaşar — biri diğerinin kaydını silemez/geçersiz kılamaz
+        // (ekle-sil "ping-pong" DoS'u). Kiracı başına host tek satır.
+        e.HasIndex(x => x.Host).IsUnique().HasFilter("\"Status\" = 0").HasDatabaseName("IX_TenantDomains_Host_Active");
+        e.HasIndex(x => new { x.TenantId, x.Host }).IsUnique();
         e.Property(x => x.Kind).HasConversion<int>();
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.VerificationToken).HasMaxLength(128);
