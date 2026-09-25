@@ -1,10 +1,16 @@
-<div class="sayfa">
-  <nav class="geri" [attr.aria-label]="'servisSigorta.gezinme' | transloco">
-    <a routerLink="/servisler">{{ 'servisSigorta.servis.liste' | transloco }}</a>
-  </nav>
+@let bant = detail();
+<rc-sayfa-bandi
+  [baslik]="('servisSigorta.servis.kayit' | transloco) + (bant ? ' ' + bant.kayit.no : '')"
+  ikon="tool"
+  [pill]="bant ? statusLabel(bant.kayit.durum) : null"
+>
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/servisler">{{ 'servisSigorta.servis.liste' | transloco }}</a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @switch (store.detail.tur()) {
     @case ('hata') {
-      <h1>{{ 'servisSigorta.servis.kayit' | transloco }}</h1>
       <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
         {{ 'servisSigorta.yuklenemedi' | transloco }}
         <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="reload()">
@@ -14,16 +20,10 @@
     }
     @default {
       @if (detail(); as d) {
-        <header class="ust">
-          <h1>
-            {{ 'servisSigorta.servis.kayit' | transloco }} {{ d.kayit.no }}
-            <span class="rc-rozet">{{ statusLabel(d.kayit.durum) }}</span>
-          </h1>
-        </header>
         <dl class="kunye">
           <div>
             <dt>{{ 'servisSigorta.arac' | transloco }}</dt>
-            <dd>{{ d.kayit.plaka }}</dd>
+            <dd><rc-plaka [plaka]="d.kayit.plaka" boyut="sm" /></dd>
           </div>
           <div>
             <dt>{{ 'servisSigorta.servis.tur' | transloco }}</dt>
@@ -68,7 +68,7 @@
             <dd>{{ num(d.genelToplam) | para }}</dd>
           </div>
         </dl>
-        <p class="aciklama">{{ 'servisSigorta.servis.bilgiNotu' | transloco }}</p>
+        <p class="not">{{ 'servisSigorta.servis.bilgiNotu' | transloco }}</p>
 
         @if (
           d.yetkiler.serviseAlabilir ||
@@ -76,7 +76,7 @@
           d.yetkiler.tamamlayabilir ||
           d.yetkiler.iptalEdebilir
         ) {
-          <section class="bolum" aria-labelledby="rc-servis-akis">
+          <section class="rc-bolum" aria-labelledby="rc-servis-akis">
             <h2 id="rc-servis-akis">{{ 'servisSigorta.servis.akis' | transloco }}</h2>
             <div class="satir-form" [formGroup]="flowForm">
               @if (d.yetkiler.serviseAlabilir) {
@@ -132,27 +132,31 @@
           </section>
         }
 
-        <section class="bolum" aria-labelledby="rc-servis-kalemler">
+        <section class="rc-bolum" aria-labelledby="rc-servis-kalemler">
           <h2 id="rc-servis-kalemler">{{ 'servisSigorta.servis.kalemler' | transloco }}</h2>
           @if (d.kalemler.length === 0) {
-            <p class="aciklama">{{ 'servisSigorta.servis.kalemYok' | transloco }}</p>
+            <p class="not">{{ 'servisSigorta.servis.kalemYok' | transloco }}</p>
           } @else {
-            <div class="tablo-kap">
-              <table class="duz-tablo">
+            <div class="rc-tablo-kap">
+              <table class="rc-duz-tablo">
                 <thead>
                   <tr>
                     <th scope="col">{{ 'servisSigorta.aciklama' | transloco }}</th>
-                    <th scope="col" class="num">
+                    <th scope="col" class="rc-num">
                       {{ 'servisSigorta.servis.birimFiyat' | transloco }}
                     </th>
-                    <th scope="col" class="num">{{ 'servisSigorta.servis.miktar' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'servisSigorta.servis.brut' | transloco }}</th>
-                    <th scope="col" class="num">
+                    <th scope="col" class="rc-num">
+                      {{ 'servisSigorta.servis.miktar' | transloco }}
+                    </th>
+                    <th scope="col" class="rc-num">
+                      {{ 'servisSigorta.servis.brut' | transloco }}
+                    </th>
+                    <th scope="col" class="rc-num">
                       {{ 'servisSigorta.servis.indirim' | transloco }}
                     </th>
-                    <th scope="col" class="num">{{ 'servisSigorta.servis.net' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'servisSigorta.servis.kdv' | transloco }}</th>
-                    <th scope="col" class="num">
+                    <th scope="col" class="rc-num">{{ 'servisSigorta.servis.net' | transloco }}</th>
+                    <th scope="col" class="rc-num">{{ 'servisSigorta.servis.kdv' | transloco }}</th>
+                    <th scope="col" class="rc-num">
                       {{ 'servisSigorta.servis.genelToplam' | transloco }}
                     </th>
                   </tr>
@@ -161,22 +165,22 @@
                   @for (l of d.kalemler; track l.id) {
                     <tr>
                       <td>{{ l.aciklama }}</td>
-                      <td class="num">{{ num(l.birimFiyat) | para }}</td>
-                      <td class="num">{{ num(l.miktar) | sayi }}</td>
-                      <td class="num">{{ num(l.brut) | para }}</td>
-                      <td class="num">{{ num(l.indirim) | para }}</td>
-                      <td class="num">{{ num(l.tutar) | para }}</td>
-                      <td class="num">{{ num(l.kdvTutar) | para }}</td>
-                      <td class="num">{{ num(l.genelToplam) | para }}</td>
+                      <td class="rc-num">{{ num(l.birimFiyat) | para }}</td>
+                      <td class="rc-num">{{ num(l.miktar) | sayi }}</td>
+                      <td class="rc-num">{{ num(l.brut) | para }}</td>
+                      <td class="rc-num">{{ num(l.indirim) | para }}</td>
+                      <td class="rc-num">{{ num(l.tutar) | para }}</td>
+                      <td class="rc-num">{{ num(l.kdvTutar) | para }}</td>
+                      <td class="rc-num">{{ num(l.genelToplam) | para }}</td>
                     </tr>
                   }
                 </tbody>
                 <tfoot>
                   <tr class="toplam-satiri">
                     <td colspan="5">{{ 'servisSigorta.servis.toplamYuvarlanmis' | transloco }}</td>
-                    <td class="num">{{ num(d.kayit.toplamIscilik) | para }}</td>
-                    <td class="num">{{ num(d.kdvToplam) | para }}</td>
-                    <td class="num">{{ num(d.genelToplam) | para }}</td>
+                    <td class="rc-num">{{ num(d.kayit.toplamIscilik) | para }}</td>
+                    <td class="rc-num">{{ num(d.kdvToplam) | para }}</td>
+                    <td class="rc-num">{{ num(d.genelToplam) | para }}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -224,7 +228,7 @@
         </section>
 
         @if (d.yansitma; as y) {
-          <section class="bolum" aria-labelledby="rc-servis-yansitma-izi">
+          <section class="rc-bolum" aria-labelledby="rc-servis-yansitma-izi">
             <h2 id="rc-servis-yansitma-izi">{{ 'servisSigorta.servis.yansitma' | transloco }}</h2>
             <p class="sonraki">
               {{
@@ -239,9 +243,9 @@
             </p>
           </section>
         } @else if (d.yetkiler.yansitabilir) {
-          <section class="bolum" aria-labelledby="rc-servis-yansit">
+          <section class="rc-bolum" aria-labelledby="rc-servis-yansit">
             <h2 id="rc-servis-yansit">{{ 'servisSigorta.servis.yansit' | transloco }}</h2>
-            <p class="aciklama">{{ 'servisSigorta.servis.yansitAciklama' | transloco }}</p>
+            <p class="not">{{ 'servisSigorta.servis.yansitAciklama' | transloco }}</p>
             <p class="sonraki">
               {{
                 'servisSigorta.servis.yansitilacak'
@@ -265,7 +269,7 @@
           </section>
         }
 
-        <section class="bolum duzenleyici" aria-labelledby="rc-servis-bilgi">
+        <section class="rc-bolum duzenleyici" aria-labelledby="rc-servis-bilgi">
           <h2 id="rc-servis-bilgi">{{ 'servisSigorta.servis.bilgiBaslik' | transloco }}</h2>
           <form class="form" [formGroup]="infoForm" (ngSubmit)="saveInfo()">
             <div class="rc-form-izgara">
@@ -327,7 +331,7 @@
                   <rc-para-girdisi formControlName="faturaKdv" />
                 </rc-alan>
               </div>
-              <p class="aciklama">
+              <p class="not">
                 {{
                   'servisSigorta.servis.faturaGenelToplam'
                     | transloco: { tutar: (num(d.bilgi.faturaGenelToplam) | para) }
@@ -386,7 +390,7 @@
               </div>
             </fieldset>
             <rc-form-hatalari [hatalar]="infoSubmission.genelHatalar()" />
-            <div class="form__eylemler">
+            <div class="rc-form-eylemler">
               <button
                 type="submit"
                 class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -402,8 +406,7 @@
           </form>
         </section>
       } @else {
-        <h1>{{ 'servisSigorta.servis.kayit' | transloco }}</h1>
-        <p class="aciklama" role="status">{{ 'servisSigorta.yukleniyor' | transloco }}</p>
+        <p class="not" role="status">{{ 'servisSigorta.yukleniyor' | transloco }}</p>
       }
     }
   }

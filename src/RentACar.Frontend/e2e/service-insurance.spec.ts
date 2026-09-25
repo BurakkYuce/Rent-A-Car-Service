@@ -43,13 +43,13 @@ const grid = (text: string) => async (page: Page) => {
 
 const PAGES: readonly VitrinSayfasi[] = [
   P('servisler', '/app/servisler', 'Servis / Bakım', grid('SR-000001')),
-  P('servis-kayit', `/app/servisler/${SERVICE_1}`, 'Servis SR-000001 Serviste'),
-  P('regulasyon', '/app/regulasyon', 'Sigorta', grid('34ABC123')),
-  P('police', `/app/regulasyon/sigortalar/${POLICY_1}`, 'Poliçe 34ABC123 Kasko Ödenmedi'),
+  P('servis-kayit', `/app/servisler/${SERVICE_1}`, 'Servis SR-000001'),
+  P('regulasyon', '/app/regulasyon', 'Sigorta', grid('34 ABC 123')),
+  P('police', `/app/regulasyon/sigortalar/${POLICY_1}`, 'Poliçe 34ABC123 Kasko'),
   P('mtv', '/app/regulasyon/mtv', 'MTV', grid('2026-1')),
-  P('mtv-kayit', `/app/regulasyon/mtv/${MTV_1}`, 'MTV 34ABC123 2026-1 Ödenmedi'),
-  P('muayene', '/app/regulasyon/muayene', 'Muayene', grid('34ABC123')),
-  P('muayene-kayit', `/app/regulasyon/muayeneler/${INSPECTION_1}`, 'Muayene 34ABC123 Ödenmedi'),
+  P('mtv-kayit', `/app/regulasyon/mtv/${MTV_1}`, 'MTV 34ABC123 2026-1'),
+  P('muayene', '/app/regulasyon/muayene', 'Muayene', grid('34 ABC 123')),
+  P('muayene-kayit', `/app/regulasyon/muayeneler/${INSPECTION_1}`, 'Muayene 34ABC123'),
   P('vade', '/app/vade', 'Vade Uyarıları', grid('Kasko')),
   P('tarifeler', '/app/tarifeler', 'Tarife Yönetimi', grid('B-STD')),
   P('tarife-gruplari', '/app/tarife-gruplari', 'Tarife (Fiyat) Grupları'),
@@ -545,7 +545,7 @@ test('L1 tarife aktar: süzgeç değişip liste yüklenirken kanal sil KAPALI; o
   const button = page.getByRole('button', { name: /bekleyen satır/ });
   await expect(button).toContainText('(2 bekleyen');
   await page.getByRole('textbox', { name: 'Kanal' }).fill('B');
-  await page.getByRole('button', { name: 'Filtrele' }).click();
+  await page.getByRole('button', { name: 'Filtrele', exact: true }).click();
   await expect(button).toBeDisabled();
   await expect(button).toContainText('(7 bekleyen');
   await expect(button).toBeEnabled();

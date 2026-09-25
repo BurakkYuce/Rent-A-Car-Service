@@ -56,6 +56,9 @@ import {
 import { InspectionListStore, MtvListStore } from '../service-insurance.store';
 import type { InstallmentKind } from './installment-pay-panel';
 import { RegulationTabs } from './regulation-tabs';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 interface Row {
   readonly id: string;
@@ -71,6 +74,9 @@ interface Row {
   selector: 'rc-installment-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

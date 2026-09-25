@@ -43,9 +43,9 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, TranslocoPipe, Alan, MoneySubmitBar, ParaGirdisi, Secim],
   template: `
-    <section class="bolum" aria-labelledby="rc-police-ode-baslik">
+    <section class="rc-bolum" aria-labelledby="rc-police-ode-baslik">
       <h2 id="rc-police-ode-baslik">{{ 'servisSigorta.sigorta.ode' | transloco }}</h2>
-      <p class="aciklama">{{ 'servisSigorta.sigorta.odeAciklama' | transloco }}</p>
+      <p class="not">{{ 'servisSigorta.sigorta.odeAciklama' | transloco }}</p>
       <p class="sonraki">
         {{ 'servisSigorta.sigorta.odenecekPrim' | transloco: { prim: premiumText() } }}
       </p>
