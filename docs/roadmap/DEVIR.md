@@ -19,7 +19,7 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-09-25 sabah. **F4–F11'in KODU ve KESİŞİ main'de**; F12'nin ekranları main'de. Tenant sayfalarından
+Güncelleme: 2026-09-25 akşam. **F4–F11'in KODU ve KESİŞİ main'de**; F12'nin ekranları main'de. Tenant sayfalarından
 Blazor'da yalnız `/yetkisiz` ve `/hata` kaldı (hepsinin SPA karşılığı var). Kalan: F12 kesiş (canlı parite
 kullanıcıda), F13 söküm (pilot sonrası), birkaç Low. Faz sırası kilidi F6–F12 için GEVŞETİLDİ (`DEGISIKLIKLER.md`).
 **Pilot kapalı** — kullanıcılar hâlâ Blazor; kesiş yönlendirmeleri yalnız pilot kiracıda çalışır.
@@ -91,13 +91,27 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
   - #318 kira paneli: "H1" test konumlayıcı yarışıydı (ürün hatası değil); tahsilat sürerken/tazeleme beklerken iki
     Tahsil Et pasif, 5xx'te "Yeniden yükle", tazelemede son iyi detay korunur (donmuş deneme kaybolmaz), 429 geçici.
   - Belge: #309 DEVIR güncellemesi.
+- **2026-09-25 öğleden sonra serisi (Low'lar + kullanıcı kararları; para/KVKK olanlar bağımsız adversarial ile):**
+  - #324 (#320 L1) belirsiz denemenin tekrarı kesin redle dönünce "önceki denemenin sonucu bilinmiyor" notu kalır.
+  - #326 denetimde firma IBAN/VKN son 4 hane (kullanıcı kararı; `KARARLAR.md`).
+  - #327 Karar (4) rezervasyon güncellemesinde surge yok + Karar (5) ekstre ucu FinanceWrite ∨ ViewReports.
+  - #328 kira oluşturmada müşteri/araç varlık kontrolü servis girişinde (Blazor formu dahil).
+  - #329 Karar (3) tek yakıt ölçeği 0–12; harici API yüzde sözleşmesi sınırda (birim ücret dahil) çevrilir;
+    `YakitOlcegiOnIki` veri migration'ı. Adversarial HIGH (birim ücret ~8,33 kat eksik) düzeltilerek kapandı.
+  - #330 toplu tahsilat/ödemede cari varlık kontrolü (hiçbir satır yazılmadan red) + sekmeler arası şube değişiminde
+    `ben` yenilenir. #331 `ben` yenilemesinde ağ/5xx oturumu kapatmaz (donmuş para denemesi düşmez).
+  - #332 rezervasyon ve teklif de varlık kontrolünü servis girişinde yapar (`BookingPartyCheck` tek kural).
+  - Belge: #323, #325 (§6 bayat maddeler — zaten kapalıydı).
 
 ### ⏳ Açık PR
-- Yok (2026-09-25 sabah). Gerçek durum için `rtk gh pr list --state open`.
+- Yok (2026-09-25 akşam). Gerçek durum için `rtk gh pr list --state open`.
 
 ### ⬜ Sırada (başlamadı)
 1. **F12 kesiş:** canlı parite kontrolü kullanıcıda; sonra kesiş PR'ı.
-2. **Low kalıntıları** (§6 "2026-09-25 Low'ları").
+2. **Low kalıntıları** (§6 "2026-09-25 Low'ları" — kalanlar: #320 L2 tekrar-öncesi doğrulama ile POST arası TOCTOU
+   [kalıcı çözüm sunucuda beklenen kullanıcı başlığı], #331 L1 başarısız sekmeler arası yenilemede yeniden deneme yok,
+   #318 L2 isteğe bağlı "diğer formun tahsilatı yazıldı" notu, ofis adı normalize tekilliği [migration + mevcut çift
+   kayıt kararı], `AccountRef` bileşik FK'leri).
 3. **F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm:** YALNIZ pilotta 10 iş günü P1 olmadıktan SONRA. Blazor'da
    kapatılmamış bilinen okuma sızıntıları F13'e kadar canlı: CRM liste sayfaları tüm şubeleri gösteriyor,
    `CustomerEdit.razor` anonimleştirme maskesi uygulamıyor.
@@ -128,7 +142,9 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
   %0–12 aralığında teslim edilmiş açık kira (seviye ve birim ücret on ikide bir sayılır); (b) harici API ile
   oluşturulmuş ama henüz teslim edilmemiş kira / rezervasyon (birim ücret yüzde başına kalır, dönüşte ~8,33 kat
   eksik faturalanır). Harici API istemcisi olan kiracılarda migration'dan ÖNCE şu adayları listeleyip kaynağını
-  (API istemcisi mi, form mu) doğrulayın; harici olanların `YakitBirimUcret`'ini elle × 100/12 (4 hane) çevirin.
+  (API istemcisi mi, form mu) doğrulayın; harici olanların `YakitBirimUcret`'ini elle × 100/12 (4 hane) çevirin — **migration ve dağıtımdan SONRA**, önceden
+  alınmış listeye göre (önce çevirip ardından eski API ile %12 üstü teslim alırsa migration ikinci kez çevirirdi;
+  #329 review L3).
   Superuser ile çalıştırın (RLS'i atlar; `racar_owner` ile tenant başına `set_config('app.tenant_id', …)` gerekir):
   ```sql
   -- (a) açık, yüzde aralığı belirsiz (0–12) teslim edilmiş, ücretli yakıtlı kiralar
@@ -147,6 +163,11 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
    WHERE "Durum" IN (0, 1) AND "YakitBirimUcret" > 0
    ORDER BY "TenantId", "CreatedAtUtc";
   ```
+- **GitGuardian 37612217 YANLIŞ ALARM** — #326 testindeki sahte "sır" dizeleri; dal tek commit'e ezilip çalışma anında
+  üretilen değerlerle yeniden yazıldı, geçmişte yok. Panelde "false positive" işaretlenmeli.
+- **Karar (7): Blazor `/cariler/{id}/ekstre` + cari detay bakiyesi operatöre hâlâ açık** (F13'e kadar; #327 review
+  LOW-3). Karar (5) yalnız API'yi kapattı. "Kritik düzeltme" olarak şimdi kapatılsın mı (iki sayfaya izin kapısı ya da
+  `CashService.GetStatementAsync` içinde guard)? Karar gelmeden dokunma.
 - Pilotu platform konsolundan açma (Platform → kiracı detay → "Yeni Arayüz") + canlı duman testi (README "Doğrulama").
 - Üretimde #265 etkisini PR'daki iki SQL ile doğrulama.
 
