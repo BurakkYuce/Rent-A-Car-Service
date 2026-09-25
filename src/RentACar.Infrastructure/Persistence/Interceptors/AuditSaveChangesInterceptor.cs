@@ -27,7 +27,9 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
     // *Enc (SmtpSifreEnc, SmsApiKeyEnc…), *Hash (PasswordHash, TcKimlikHash), *Token (PaylasimLink.Token,
     // CalendarToken) ve PII parçaları. Önceden yalnız sabit bir PII listesi vardı; sır cipher'ları düz yazılıyordu.
     // null ve boş metin maskelenmez: "temizlendi" bilgisi iz için değerlidir ve sır taşımaz.
-    private static object? Mask(string propertyName, object? value)
+    // Firmanın kendi IBAN'ı (Hesaplar.Iban) ve VKN'si (Ayarlar.FirmaVergiNo) kısmi maskelidir (son 4; AuditSecretMask
+    // izin listesi) — tablo adı bu yüzden taşınır.
+    private static object? Mask(string? table, string propertyName, object? value)
     {
         // bytea DEĞERLERİ denetim izine ASLA yazılmaz. Aksi halde 10 MB'lık bir PDF (FirmaDokuman)
         // ya da logo/kapak her yazma işleminde base64 olarak AuditLog'a düşerdi — denetim izi
@@ -35,7 +37,7 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
         if (value is byte[] b) return $"<{b.Length} bayt>";
 
         if (value is null or string { Length: 0 }) return value;
-        return AuditSecretMask.IsSecretKey(propertyName) ? AuditSecretMask.Masked : value;
+        return AuditSecretMask.MaskValue(table, propertyName, value);
     }
 
     public override InterceptionResult<int> SavingChanges(
@@ -104,13 +106,14 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 oldValues = Snapshot(entry, original: true);
                 break;
             default: // Update — yalnız değişen alanlar
+                var table = entry.Metadata.GetTableName();
                 oldValues = new Dictionary<string, object?>();
                 newValues = new Dictionary<string, object?>();
                 foreach (var p in entry.Properties)
                 {
                     if (!p.IsModified) continue;
-                    oldValues[p.Metadata.Name] = Mask(p.Metadata.Name, p.OriginalValue);
-                    newValues[p.Metadata.Name] = Mask(p.Metadata.Name, p.CurrentValue);
+                    oldValues[p.Metadata.Name] = Mask(table, p.Metadata.Name, p.OriginalValue);
+                    newValues[p.Metadata.Name] = Mask(table, p.Metadata.Name, p.CurrentValue);
                 }
                 break;
         }
@@ -132,8 +135,9 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
     private static Dictionary<string, object?> Snapshot(EntityEntry entry, bool original)
     {
         var dict = new Dictionary<string, object?>();
+        var table = entry.Metadata.GetTableName();
         foreach (var p in entry.Properties)
-            dict[p.Metadata.Name] = Mask(p.Metadata.Name, original ? p.OriginalValue : p.CurrentValue);
+            dict[p.Metadata.Name] = Mask(table, p.Metadata.Name, original ? p.OriginalValue : p.CurrentValue);
         return dict;
     }
 
