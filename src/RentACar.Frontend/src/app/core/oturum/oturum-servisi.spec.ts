@@ -111,7 +111,7 @@ describe('OturumServisi', () => {
 
     const ag = oturum.yukle();
     http.expectOne('/api/ui/v1/oturum/ben').error(new ProgressEvent('error'));
-    await expect(ag).resolves.toEqual(BEN);
+    await expect(ag).resolves.toBeNull(); // dönen değer taze değil → null; sinyal korunur
     expect(oturum.baglam()).toBe(baglam);
     expect(oturum.girisYapildi()).toBe(true);
 
@@ -119,7 +119,7 @@ describe('OturumServisi', () => {
     http
       .expectOne('/api/ui/v1/oturum/ben')
       .flush({ status: 500 }, { status: 500, statusText: 'Internal Server Error' });
-    await expect(sunucu).resolves.toEqual(BEN);
+    await expect(sunucu).resolves.toBeNull();
     expect(oturum.baglam()).toBe(baglam);
     expect(TestBed.inject(ToastServisi).toastlar().length).toBeGreaterThan(0);
 
