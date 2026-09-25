@@ -1,22 +1,20 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finansBelge.ceza.baslik' | transloco }}</h1>
+<rc-sayfa-bandi [baslik]="'finansBelge.ceza.baslik' | transloco" ikon="alert-triangle">
+  <ng-container birincil>
     @if (canCreate()) {
-      <div class="ust__eylemler">
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-          [attr.aria-expanded]="createOpen()"
-          aria-controls="rc-yeni-ceza"
-          (click)="toggleCreate()"
-        >
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'finansBelge.ceza.yeni' | transloco }}
-        </button>
-      </div>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--birincil"
+        [attr.aria-expanded]="createOpen()"
+        aria-controls="rc-yeni-ceza"
+        (click)="toggleCreate()"
+      >
+        <rc-ikon ad="plus" [boyut]="14" />
+        {{ 'finansBelge.ceza.yeni' | transloco }}
+      </button>
     }
-  </header>
-
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @if (canCreate() && createOpen()) {
     <rc-penalty-create-form
       [types]="store.types.veri()?.kayitlar"
@@ -26,12 +24,12 @@
   }
 
   <form
-    class="filtre"
+    class="rc-bolum filtre"
     [formGroup]="filterForm"
     [attr.aria-label]="'finansBelge.filtre' | transloco"
     (ngSubmit)="filter()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan
         [etiket]="'finansBelge.ceza.musteri' | transloco"
         [ipucu]="'finansBelge.ceza.musteriIpucu' | transloco"
@@ -82,7 +80,7 @@
   </form>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablo"
     tabloKodu="cezalar.liste"
     [etiket]="'finansBelge.ceza.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -100,7 +98,7 @@
       <span class="rc-rozet">{{ statusLabel(satir.durum) }}</span>
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         <button
           type="button"
           class="rc-dugme rc-dugme--kucuk"
@@ -131,10 +129,17 @@
         }
       </span>
     </ng-template>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka boyut="sm" [plaka]="satir.plaka" />
+      } @else {
+        —
+      }
+    </ng-template>
   </rc-tablo>
 
   @if (selectedId()) {
-    <section class="bolum" aria-labelledby="rc-ceza-detay">
+    <section class="rc-bolum" aria-labelledby="rc-ceza-detay">
       @if (store.detail.veri(); as d) {
         <h2 id="rc-ceza-detay">
           {{
@@ -153,7 +158,13 @@
           </div>
           <div>
             <dt>{{ 'finansBelge.arac' | transloco }}</dt>
-            <dd>{{ d.ceza.plaka ?? '—' }}</dd>
+            <dd>
+              @if (d.ceza.plaka) {
+                <rc-plaka boyut="sm" [plaka]="d.ceza.plaka" />
+              } @else {
+                —
+              }
+            </dd>
           </div>
           <div>
             <dt>{{ 'finansBelge.ceza.teblig' | transloco }}</dt>
@@ -172,8 +183,8 @@
             <dd>{{ num(d.ceza.kalan) | para }}</dd>
           </div>
         </dl>
-        <div class="tablo-kap">
-          <table class="duz-tablo">
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <caption class="rc-gorunmez">
               {{
                 'finansBelge.ceza.kalemler' | transloco
@@ -183,9 +194,9 @@
               <tr>
                 <th scope="col">#</th>
                 <th scope="col">{{ 'finansBelge.ceza.sebep' | transloco }}</th>
-                <th scope="col" class="num">{{ 'finansBelge.tutar' | transloco }}</th>
-                <th scope="col" class="num">{{ 'finansBelge.odenen' | transloco }}</th>
-                <th scope="col" class="num">{{ 'finansBelge.kalan' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'finansBelge.tutar' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'finansBelge.odenen' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'finansBelge.kalan' | transloco }}</th>
               </tr>
             </thead>
             <tbody>
@@ -193,17 +204,17 @@
                 <tr>
                   <td>{{ k.sira }}</td>
                   <td>{{ k.sebep ?? '—' }}</td>
-                  <td class="num">{{ num(k.tutar) | para }}</td>
-                  <td class="num">{{ num(k.odenen) | para }}</td>
-                  <td class="num">{{ num(k.kalan) | para }}</td>
+                  <td class="rc-num">{{ num(k.tutar) | para }}</td>
+                  <td class="rc-num">{{ num(k.odenen) | para }}</td>
+                  <td class="rc-num">{{ num(k.kalan) | para }}</td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
         @if (d.odemeler.length > 0) {
-          <div class="tablo-kap">
-            <table class="duz-tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <caption class="rc-gorunmez">
                 {{
                   'finansBelge.ceza.odemeler' | transloco
@@ -213,7 +224,7 @@
                 <tr>
                   <th scope="col">{{ 'finansBelge.ceza.odemeTarihi' | transloco }}</th>
                   <th scope="col">{{ 'finansBelge.ceza.kalem' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'finansBelge.tutar' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'finansBelge.tutar' | transloco }}</th>
                   <th scope="col">{{ 'finansBelge.hesap' | transloco }}</th>
                   <th scope="col">{{ 'finansBelge.ceza.makbuzNo' | transloco }}</th>
                 </tr>
@@ -223,7 +234,7 @@
                   <tr>
                     <td>{{ o.tarih | tarih }}</td>
                     <td>{{ o.sira }}</td>
-                    <td class="num">{{ num(o.tutar) | para }}</td>
+                    <td class="rc-num">{{ num(o.tutar) | para }}</td>
                     <td>{{ o.hesap }}</td>
                     <td>{{ o.makbuzNo ?? '—' }}</td>
                   </tr>
@@ -241,7 +252,7 @@
             />
           }
         }
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="button"
             class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"

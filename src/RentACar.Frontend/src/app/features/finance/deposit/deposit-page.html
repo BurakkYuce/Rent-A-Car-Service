@@ -1,10 +1,8 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finans.depozito.baslik' | transloco }}</h1>
-  </header>
-  <p class="aciklama">{{ 'finans.depozito.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'finans.depozito.baslik' | transloco" ikon="shield" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'finans.depozito.aciklama' | transloco }}</p>
 
-  <section class="bolum" aria-labelledby="rc-depozito-islem">
+  <section class="rc-bolum" aria-labelledby="rc-depozito-islem">
     <h2 id="rc-depozito-islem">{{ 'finans.depozito.islem' | transloco }}</h2>
     <div class="rc-form-izgara" [formGroup]="form">
       <rc-alan [etiket]="'finans.alan.cari' | transloco">
@@ -34,7 +32,7 @@
     }
     <rc-money-notice [notice]="action.notice()" />
     <rc-form-hatalari [hatalar]="action.errors()" />
-    <div class="form__eylemler">
+    <div class="rc-form-eylemler">
       @if (frozenOperation()) {
         <button
           type="button"
@@ -70,17 +68,17 @@
     </div>
   </section>
 
-  <section class="bolum" aria-labelledby="rc-depozito-tutulan">
+  <section class="rc-bolum" aria-labelledby="rc-depozito-tutulan">
     <h2 id="rc-depozito-tutulan">{{ 'finans.depozito.tutulan' | transloco }}</h2>
     @if (balances.tur() === 'hata') {
       <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ balances.hata()?.detay }}</p>
     }
-    <div class="tablo-kap">
-      <table class="duz-tablo">
+    <div class="rc-tablo-kap">
+      <table class="rc-duz-tablo">
         <thead>
           <tr>
             <th>{{ 'finans.alan.cari' | transloco }}</th>
-            <th class="num">{{ 'finans.depozito.bakiye' | transloco }}</th>
+            <th class="rc-num">{{ 'finans.depozito.bakiye' | transloco }}</th>
           </tr>
         </thead>
         <tbody>
@@ -89,12 +87,12 @@
               <td>
                 <a [routerLink]="['/cariler', b.cariId, 'ekstre']">{{ b.cariAd }}</a>
               </td>
-              <td class="num">{{ b.bakiye | fpara }}</td>
+              <td class="rc-num">{{ b.bakiye | fpara }}</td>
             </tr>
           } @empty {
             @if (balances.tur() === 'hazir') {
               <tr>
-                <td colspan="2">{{ 'finans.depozito.yok' | transloco }}</td>
+                <td colspan="2" class="rc-bos">{{ 'finans.depozito.yok' | transloco }}</td>
               </tr>
             }
           }

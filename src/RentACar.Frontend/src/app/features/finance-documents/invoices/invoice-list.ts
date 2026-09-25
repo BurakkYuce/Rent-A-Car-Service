@@ -57,6 +57,8 @@ import {
 import { INVOICES, InvoiceStore, recordPath, summaryParameters } from '../document.store';
 import { pruneSelection } from './batch-selection';
 import { ManualInvoiceForm } from './manual-invoice-form';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
  * Faturalar (`/app/faturalar`) — Blazor `InvoiceList.razor` paritesi: süzgeç, liste (+ dışa aktarma), satırda Detay /
@@ -67,6 +69,8 @@ import { ManualInvoiceForm } from './manual-invoice-form';
   selector: 'rc-invoice-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

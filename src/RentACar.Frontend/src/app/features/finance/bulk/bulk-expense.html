@@ -1,10 +1,8 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finans.topluGider.baslik' | transloco }}</h1>
-  </header>
-  <p class="aciklama">{{ 'finans.topluGider.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'finans.topluGider.baslik' | transloco" ikon="coin" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'finans.topluGider.aciklama' | transloco }}</p>
 
-  <section class="bolum" aria-labelledby="rc-toplu-gider">
+  <section class="rc-bolum" aria-labelledby="rc-toplu-gider">
     <h2 id="rc-toplu-gider">{{ 'finans.topluGider.ortak' | transloco }}</h2>
     <div class="rc-form-izgara" [formGroup]="form">
       <rc-alan [etiket]="'finans.topluGider.tip' | transloco">
@@ -74,7 +72,7 @@
           </div>
         }
       </div>
-      <div class="form__eylemler">
+      <div class="rc-form-eylemler">
         <button
           type="button"
           class="rc-dugme rc-dugme--kucuk"

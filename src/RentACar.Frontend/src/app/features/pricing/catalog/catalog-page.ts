@@ -78,6 +78,7 @@ import {
   rowToForm,
 } from './catalog-model';
 import { WeekdayPicker } from './weekday-picker';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id: string };
 
@@ -97,6 +98,7 @@ interface FieldGroup {
   selector: 'rc-catalog-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     NgTemplateOutlet,
     ReactiveFormsModule,
     TranslocoPipe,

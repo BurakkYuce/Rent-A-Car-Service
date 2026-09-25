@@ -1,23 +1,21 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finansBelge.gider.baslik' | transloco }}</h1>
+<rc-sayfa-bandi [baslik]="'finansBelge.gider.baslik' | transloco" ikon="coin">
+  <ng-container birincil>
     @if (canWrite()) {
-      <div class="ust__eylemler">
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-          [attr.aria-expanded]="createOpen()"
-          aria-controls="rc-yeni-gider"
-          [disabled]="pending.inFlight()"
-          (click)="toggleCreate()"
-        >
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'finansBelge.gider.yeni' | transloco }}
-        </button>
-      </div>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--birincil"
+        [attr.aria-expanded]="createOpen()"
+        aria-controls="rc-yeni-gider"
+        [disabled]="pending.inFlight()"
+        (click)="toggleCreate()"
+      >
+        <rc-ikon ad="plus" [boyut]="14" />
+        {{ 'finansBelge.gider.yeni' | transloco }}
+      </button>
     }
-  </header>
-
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @if (canWrite() && createOpen()) {
     <rc-expense-create-form
       [accounts]="store.accounts.veri()"
@@ -28,12 +26,12 @@
   }
 
   <form
-    class="filtre"
+    class="rc-bolum filtre"
     [formGroup]="filterForm"
     [attr.aria-label]="'finansBelge.filtre' | transloco"
     (ngSubmit)="filter()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan [etiket]="'finansBelge.gider.ara' | transloco">
         <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="128" />
       </rc-alan>
@@ -79,7 +77,7 @@
   </form>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablo"
     tabloKodu="giderler.liste"
     [etiket]="'finansBelge.gider.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -105,6 +103,13 @@
         >
           {{ 'finansBelge.gider.ode' | transloco }}
         </button>
+      }
+    </ng-template>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka boyut="sm" [plaka]="satir.plaka" />
+      } @else {
+        —
       }
     </ng-template>
   </rc-tablo>

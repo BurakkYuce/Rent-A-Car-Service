@@ -1,6 +1,6 @@
-// F8.2a finans ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz tablo) aynen
-// kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
-@use '../vehicles/vehicles';
+// F8.2a finans ekranları (Yol v2 PR-D3): sayfa iskeleti, bölüm, kart, düz tablo ve hücre yardımcıları GLOBAL düzen
+// katmanından (`src/styles/_duzen.scss`: `.rc-sayfa`, `.rc-bolum`, `.rc-kart`, `.rc-duz-tablo`, `.rc-num`, `.rc-bos`…).
+// Burada yalnız bu ekranlara özgü kurallar kalır; global sınıf yeniden tanımlanmaz.
 
 :host {
   display: block;
@@ -13,14 +13,46 @@
   font-size: var(--rc-yazi-xs);
 }
 
-.uyari-kutusu {
+// Süzgeç formu: alanlar `.rc-filtre-izgara`da; eylemler sağda (filtre paneli kalıbı, §8).
+.filtre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  min-width: 0;
+}
+
+.filtre__eylemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+// Özet kutuları: her kutu `.rc-kart`; burada yalnız ızgara ve künye tipografisi.
+.ozet-serit {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  gap: var(--rc-bosluk-3);
   margin: 0;
-  padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
-  border: 1px solid var(--rc-uyari-kenar);
-  border-radius: var(--rc-yaricap-lg);
-  background: var(--rc-uyari-zemin);
-  color: var(--rc-uyari-metin);
-  font-size: var(--rc-yazi-sm);
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--rc-yazi-xl);
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.rozet-sayac {
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .negatif {

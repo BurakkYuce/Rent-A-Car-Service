@@ -1,24 +1,23 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'fiyatTarife.maliyet.listeBaslik' | transloco }}</h1>
+<rc-sayfa-bandi [baslik]="'fiyatTarife.maliyet.listeBaslik' | transloco" ikon="file-text">
+  <ng-container birincil>
     @if (canWrite()) {
-      <div class="ust__eylemler">
-        <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/maliyet-hesapla">
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'fiyatTarife.maliyet.yeniHesap' | transloco }}
-        </a>
-      </div>
+      <a class="rc-dugme rc-dugme--birincil" routerLink="/maliyet-hesapla">
+        <rc-ikon ad="plus" [boyut]="14" />
+        {{ 'fiyatTarife.maliyet.yeniHesap' | transloco }}
+      </a>
     }
-  </header>
-  <p class="aciklama">{{ 'fiyatTarife.maliyet.listeAciklama' | transloco }}</p>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'fiyatTarife.maliyet.listeAciklama' | transloco }}</p>
 
   <form
-    class="filtre"
+    class="rc-bolum filtre"
     [formGroup]="filterForm"
     [attr.aria-label]="'fiyatTarife.filtre' | transloco"
     (ngSubmit)="filter()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan [etiket]="'fiyatTarife.maliyet.araMetin' | transloco">
         <rc-metin-girdisi formControlName="metin" tur="search" [azamiUzunluk]="100" />
       </rc-alan>
@@ -54,19 +53,19 @@
 
   @if (summary(); as s) {
     <dl class="ozet-serit">
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'fiyatTarife.maliyet.ozetAdet' | transloco }}</dt>
         <dd>{{ s.adet }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'fiyatTarife.maliyet.ozetArac' | transloco }}</dt>
         <dd>{{ s.aracAdet }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'fiyatTarife.maliyet.ozetFiloAylikNet' | transloco }}</dt>
         <dd>{{ num(s.filoAylikNet) | para }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'fiyatTarife.maliyet.ozetFiloKdvli' | transloco }}</dt>
         <dd>{{ num(s.filoKdvli) | para }}</dd>
       </div>
@@ -74,7 +73,7 @@
   }
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablo"
     tabloKodu="fiyat.maliyet-teklifleri"
     [etiket]="'fiyatTarife.maliyet.listeBaslik' | transloco"
     [sutunlar]="columns"

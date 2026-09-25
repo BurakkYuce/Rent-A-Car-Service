@@ -40,9 +40,9 @@ const DEFAULT_KM = 15000;
   imports: [ReactiveFormsModule, TranslocoPipe, Alan, FormHatalari, MetinGirdisi, SayiGirdisi],
   styleUrl: '../pricing.scss',
   template: `
-    <section class="bolum" aria-labelledby="rc-servis-oneri-baslik">
+    <section class="rc-bolum" aria-labelledby="rc-servis-oneri-baslik">
       <h2 id="rc-servis-oneri-baslik">{{ 'fiyatTarife.servisTanimlari.oneriler' | transloco }}</h2>
-      <p class="aciklama">{{ 'fiyatTarife.servisTanimlari.oneriAciklama' | transloco }}</p>
+      <p class="not">{{ 'fiyatTarife.servisTanimlari.oneriAciklama' | transloco }}</p>
       @switch (store.tur()) {
         @case ('hata') {
           <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
@@ -51,7 +51,7 @@ const DEFAULT_KM = 15000;
         }
         @case ('hazir') {
           @if ((store.veri() ?? []).length === 0) {
-            <p class="aciklama">{{ 'fiyatTarife.servisTanimlari.oneriYok' | transloco }}</p>
+            <p class="not">{{ 'fiyatTarife.servisTanimlari.oneriYok' | transloco }}</p>
           }
           @for (r of store.veri() ?? []; track r.key) {
             <form class="satir-form oneri" [formGroup]="r.form" (ngSubmit)="accept(r)">
@@ -80,7 +80,7 @@ const DEFAULT_KM = 15000;
           <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
         }
         @default {
-          <p class="aciklama" role="status">{{ 'fiyatTarife.yukleniyor' | transloco }}</p>
+          <p class="not" role="status">{{ 'fiyatTarife.yukleniyor' | transloco }}</p>
         }
       }
     </section>

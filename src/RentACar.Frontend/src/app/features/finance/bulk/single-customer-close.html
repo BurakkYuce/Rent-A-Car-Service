@@ -1,12 +1,13 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finans.tekCari.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a routerLink="/toplu-tahsilat">{{ 'finans.tekCari.cokCariModu' | transloco }}</a>
-    </div>
-  </header>
-  <p class="aciklama">{{ 'finans.tekCari.aciklama' | transloco }}</p>
-  <p class="aciklama">{{ 'finans.tekCari.kaliciNot' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'finans.tekCari.baslik' | transloco" ikon="cash">
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/toplu-tahsilat">{{
+      'finans.tekCari.cokCariModu' | transloco
+    }}</a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'finans.tekCari.aciklama' | transloco }}</p>
+  <p class="not">{{ 'finans.tekCari.kaliciNot' | transloco }}</p>
 
   <div class="rc-form-izgara">
     <rc-alan [etiket]="'finans.alan.cari' | transloco">
@@ -19,30 +20,30 @@
   }
   @if (cariId() && items.veri(); as d) {
     <dl class="ozet-serit">
-      <div>
+      <div class="rc-kart">
         <dt>
           {{ 'finans.tekCari.guncelBakiye' | transloco
           }}{{ side() === 'borclu' ? ' (' + ('finans.cari.borclu' | transloco) + ')' : '' }}
         </dt>
         <dd [class.negatif]="side() === 'borclu'">{{ d.bakiye | fpara }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'finans.tekCari.acikKalem' | transloco }}</dt>
         <dd>{{ openCount() }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'finans.tekCari.borcKalemleri' | transloco }}</dt>
         <dd>{{ d.acikToplam | fpara }}</dd>
       </div>
     </dl>
 
-    <section class="bolum" aria-labelledby="rc-tek-cari-kalemler">
+    <section class="rc-bolum" aria-labelledby="rc-tek-cari-kalemler">
       <h2 id="rc-tek-cari-kalemler">{{ d.cariAd }}</h2>
       @if (d.kalemler.length === 0) {
-        <p class="ozet">{{ 'finans.tekCari.kalemYok' | transloco }}</p>
+        <p class="not">{{ 'finans.tekCari.kalemYok' | transloco }}</p>
       } @else {
-        <div class="tablo-kap">
-          <table class="duz-tablo">
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <thead>
               <tr>
                 <th>
@@ -51,12 +52,12 @@
                 <th>{{ 'finans.alan.tarih' | transloco }}</th>
                 <th>{{ 'finans.ekstre.kaynak' | transloco }}</th>
                 <th>{{ 'finans.alan.aciklama' | transloco }}</th>
-                <th class="num">{{ 'finans.alan.tutar' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.alan.tutar' | transloco }}</th>
                 <th>{{ 'finans.alan.doviz' | transloco }}</th>
-                <th class="num">{{ 'finans.tekCari.baz' | transloco }}</th>
-                <th class="num">{{ 'finans.tekCari.kapanan' | transloco }}</th>
-                <th class="num">{{ 'finans.tekCari.kalan' | transloco }}</th>
-                <th class="num">{{ 'finans.tekCari.kapatilacak' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.tekCari.baz' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.tekCari.kapanan' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.tekCari.kalan' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.tekCari.kapatilacak' | transloco }}</th>
               </tr>
             </thead>
             <tbody>
@@ -84,12 +85,12 @@
                   <td>{{ k.tarih | tarih }}</td>
                   <td>{{ k.kaynak }}</td>
                   <td>{{ k.aciklama ?? '—' }}</td>
-                  <td class="num">{{ k.tutar | fsayi }}</td>
+                  <td class="rc-num">{{ k.tutar | fsayi }}</td>
                   <td>{{ k.doviz }}</td>
-                  <td class="num">{{ k.baz | fsayi }}</td>
-                  <td class="num">{{ isZero(k.kapanan) ? '—' : (k.kapanan | fsayi) }}</td>
-                  <td class="num">{{ k.kapali ? '—' : (k.kalan | fsayi) }}</td>
-                  <td class="num">
+                  <td class="rc-num">{{ k.baz | fsayi }}</td>
+                  <td class="rc-num">{{ isZero(k.kapanan) ? '—' : (k.kapanan | fsayi) }}</td>
+                  <td class="rc-num">{{ k.kapali ? '—' : (k.kalan | fsayi) }}</td>
+                  <td class="rc-num">
                     @if (row(k.id); as r) {
                       <div class="hucre-girdi" [formGroup]="r">
                         <rc-alan [etiket]="'finans.tekCari.kapatilacak' | transloco" etiketGizli>

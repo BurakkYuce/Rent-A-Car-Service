@@ -40,6 +40,7 @@ import { Tablo } from '@shared/tablo/tablo';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
 import { APPROVAL_STATES } from '../catalog/catalog-configs';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type ImportResult = Sema<'RateImportResult'>;
 type MatrixRow = Sema<'RateMatrixDto'>;
@@ -92,7 +93,17 @@ export function channelDeleteVisible(f: {
 @Component({
   selector: 'rc-rate-import',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, TranslocoPipe, Alan, Ikon, MetinGirdisi, Secim, Tablo],
+  imports: [
+    SayfaBandi,
+    ReactiveFormsModule,
+    RouterLink,
+    TranslocoPipe,
+    Alan,
+    Ikon,
+    MetinGirdisi,
+    Secim,
+    Tablo,
+  ],
   providers: [FetchPolicy],
   templateUrl: './rate-import.html',
   styleUrl: '../pricing.scss',
