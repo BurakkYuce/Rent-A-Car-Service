@@ -66,6 +66,22 @@ public sealed class ReportExportTests
         Assert.Equal("\"'=HYPERLINK(\"\"http://x\"\")\",'+90 532,'-kampanya,'@SUM(A1),'\tsekme,-50.25,-3,=\"05321112233\",Normal", line);
     }
 
+    // 2026-09-25 — Excel baştaki boşluk ve satır sonunu atlayıp formülü yine çalıştırabilir: kaçış ilk ANLAMLI karaktere
+    // bakar. Değer olduğu gibi korunur, yalnız başına ' eklenir; LF içeren alan CSV kuralıyla tırnaklanır.
+    [Fact]
+    public void Csv_neutralizes_formula_after_leading_space_and_line_feed()
+    {
+        var svc = new ReportExportService();
+        var csv = Encoding.UTF8.GetString(svc.Csv(
+            ["A", "B", "C", "D", "E"],
+            [new object?[] { "  =1+1", "\n@SUM(A1)", " \n -kampanya", "  Normal", "   " }]));
+        var body = csv[(csv.IndexOf("\r\n", StringComparison.Ordinal) + 2)..];
+
+        // ELLE: "  =1+1" → "'  =1+1"; "\n@SUM(A1)" LF içerdiği için tırnaklı → "\"'\n@SUM(A1)\""; üçüncüsü aynı;
+        // formül karakteri olmayan ve tamamen boşluk olan değerler dokunulmaz.
+        Assert.Equal("'  =1+1,\"'\n@SUM(A1)\",\"' \n -kampanya\",  Normal,   \r\n", body);
+    }
+
     [Fact]
     public void Xlsx_is_nonempty_valid_zip()
     {

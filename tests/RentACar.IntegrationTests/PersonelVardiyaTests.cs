@@ -224,8 +224,51 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
 
         // Operatör başka şubeye vardiya YAZAMAZ.
         await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube B")));
-        // Kendi şubesine yazabilir.
-        await opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube A"));
+        // 2026-09-25: kadrosu kapsam DIŞI personele kendi şubesinde de yazamaz (vardiya saatleri kehaneti).
+        await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube A")));
+        // Kadrosu kendi şubesinde olan personele yazabilir.
+        Guid ayse;
+        using (var admin = host.ScopeFor(tenant)) ayse = await PersonelAsync(admin.ServiceProvider, "P3", "Ayşe", "Sube A");
+        await opSvc.CreateAsync(V(ayse, Gun.AddDays(5), "08:00", "16:00", "Sube A"));
+    }
+
+    // 2026-09-25 — kapsam dışı personele yazma 403: çakışma kontrolü başka şubenin vardiya saatleri için kehanet olmaz.
+    // Senaryo elle: Veli'nin kadrosu B, B'de 09:00–12:00 vardiyası var. A operatörü Veli için A'da 10:00–11:00 dener.
+    // Kapsam kontrolü çakışmadan ÖNCE geldiği için çakışan ve çakışmayan deneme AYNI 403'ü alır (ayırt edilemez).
+    [Fact]
+    public async Task Kapsam_disi_personele_yazma_403_ve_cakisma_kehaneti_yok()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var tenant = Guid.NewGuid();
+        var day = DateOnly.FromDateTime(TestZaman.GunSonra(15).UtcDateTime);
+        Guid veli, nobody, shiftB;
+        using (var admin = host.ScopeFor(tenant))
+        {
+            var sp = admin.ServiceProvider;
+            await SubeAsync(sp, "Sube A");
+            await SubeAsync(sp, "Sube B");
+            veli = await PersonelAsync(sp, "P1", "Veli", "Sube B");
+            nobody = await PersonelAsync(sp, "P2", "Serbest");              // şubesiz
+            shiftB = await sp.GetRequiredService<PersonelVardiyaService>().CreateAsync(V(veli, day, "09:00", "12:00", "Sube B"));
+        }
+
+        using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Sube A");
+        var opSvc = op.ServiceProvider.GetRequiredService<PersonelVardiyaService>();
+
+        var overlapping = await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(veli, day, "10:00", "11:00", "Sube A")));
+        var free = await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(veli, day, "14:00", "15:00", "Sube A")));
+        Assert.Equal(free.Message, overlapping.Message);
+        Assert.Equal("Bu kayıt şube kapsamınız dışında.", overlapping.Message);
+        // Şubesiz personel de kapsamlı operatör için kapsam dışı.
+        await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(nobody, day, "14:00", "15:00", "Sube A")));
+
+        // Admin (kapsamsız) aynı personele yazabilir; yalnız bir kayıt eklenir.
+        using var admin2 = host.ScopeFor(tenant);
+        await admin2.ServiceProvider.GetRequiredService<PersonelVardiyaService>().CreateAsync(V(veli, day, "14:00", "15:00", "Sube B"));
+        var all = await admin2.ServiceProvider.GetRequiredService<PersonelVardiyaService>()
+            .ListAsync(new VardiyaFilter { Bas = day, Bit = day });
+        Assert.Equal(2, all.Count);
+        Assert.Contains(all, r => r.Vardiya.Id == shiftB);
     }
 
     // #302 L2 — satır ve sürüm TEK tutarlı çift: satır okunurken araya giren yazım yeni sürümü eski alanlarla eşleştiremez.
@@ -288,7 +331,8 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
             var sp = admin.ServiceProvider;
             await SubeAsync(sp, "Sube A");
             await SubeAsync(sp, "Sube B");
-            ali = await PersonelAsync(sp, "P1", "Ali");
+            // Kadrosu A (operatörün kapsamında); B'de de vardiyası var — kapsam dışı ŞUBEDEKİ çakışma.
+            ali = await PersonelAsync(sp, "P1", "Ali", "Sube A");
             var svc = sp.GetRequiredService<PersonelVardiyaService>();
             await svc.CreateAsync(V(ali, day, "09:30", "13:15", "Sube B"));   // kapsam dışı (operatör A'da)
             await svc.CreateAsync(V(ali, day, "15:00", "17:45", "Sube A"));   // kapsam içi

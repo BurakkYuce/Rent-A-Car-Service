@@ -60,6 +60,42 @@ public sealed class ScreenPermissionAdminGuardTests(PostgresFixture fx)
         Assert.Equal("Yonetici,Operator", await CsvAsync(host, t, "rapor-b"));
     }
 
+    // 2026-09-25 — Admin'i dışlayan PASİF kayıt da Admin'e dokunmaktır: bugün etkisizdir ama şablon anlık görüntüsüne
+    // girer; sonradan Admin şablonu uygulayınca kendini kilitlerdi. Senaryo elle kuruldu.
+    [Fact]
+    public async Task Manager_with_exception_cannot_create_passive_override_that_excludes_admin()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var t = Guid.NewGuid();
+        using (var admin = host.ScopeFor(t, role: UserRole.Admin))
+            await admin.ServiceProvider.GetRequiredService<ScreenPermissionService>()
+                .SetAsync("rapor-a", [UserRole.Admin, UserRole.Yonetici]);
+        using var m = Manager(host, t);
+        var svc = m.ServiceProvider.GetRequiredService<ScreenPermissionService>();
+
+        // Yeni ekran için Admin'siz pasif kayıt: reddedilir, hiçbir şey yazılmaz.
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SetAsync("gizli-ekran", [UserRole.Yonetici], aktif: false));
+        Assert.Null(await CsvAsync(host, t, "gizli-ekran"));
+        // Admin'li kaydı pasifleştirirken Admin'i düşürmek de reddedilir.
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SetAsync("rapor-a", [UserRole.Yonetici], aktif: false));
+        Assert.Equal("Admin,Yonetici", await CsvAsync(host, t, "rapor-a"));
+
+        // Admin'e dokunmayan pasif kayıt serbest (Admin listede).
+        await svc.SetAsync("rapor-a", [UserRole.Admin, UserRole.Yonetici], aktif: false);
+        await svc.SetAsync("pasif-ekran", [UserRole.Admin, UserRole.Muhasebe], aktif: false);
+        Assert.Equal("Admin,Muhasebe", await CsvAsync(host, t, "pasif-ekran"));
+
+        // Admin aynı Admin'siz pasif kaydı oluşturabilir; Yönetici onu rol listesine dokunmadan yeniden kaydedebilir,
+        // Admin'i geri ekleyemez ya da kaldıramaz (saklı listedeki Admin değişir).
+        using (var admin2 = host.ScopeFor(t, role: UserRole.Admin))
+            await admin2.ServiceProvider.GetRequiredService<ScreenPermissionService>()
+                .SetAsync("gizli-ekran", [UserRole.Yonetici], aktif: false);
+        await svc.SetAsync("gizli-ekran", [UserRole.Yonetici], aktif: false);
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SetAsync("gizli-ekran", [UserRole.Yonetici, UserRole.Admin], aktif: false));
+        await Assert.ThrowsAsync<YetkiYokException>(() => svc.RemoveAsync("gizli-ekran"));
+        Assert.Equal("Yonetici", await CsvAsync(host, t, "gizli-ekran"));
+    }
+
     [Fact]
     public async Task Manager_with_exception_cannot_copy_role_into_admin()
     {

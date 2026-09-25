@@ -87,8 +87,16 @@ public sealed class ReportExportService
             : Alan(NeutralizeFormula(s));
     }
 
+    /// <summary>2026-09-25: baştaki boşluk ve satır sonu (LF) atlanıp İLK ANLAMLI karaktere bakılır — Excel
+    /// <c>"  =1+1"</c> ya da <c>"\n@SUM(A1)"</c> gibi değerleri de formül olarak çalıştırabiliyor. Sekme ve CR kendileri
+    /// tetikleyicidir (değer onlarla başlıyorsa her durumda kaçışlanır). Değer korunur, yalnız başına <c>'</c> eklenir.</summary>
     private static string NeutralizeFormula(string s)
-        => s.Length > 0 && s[0] is '=' or '+' or '-' or '@' or '\t' or '\r' ? "'" + s : s;
+    {
+        if (s.Length == 0) return s;
+        if (s[0] is '\t' or '\r') return "'" + s;
+        var first = s.AsSpan().TrimStart();
+        return first.Length > 0 && first[0] is '=' or '+' or '-' or '@' ? "'" + s : s;
+    }
 
     private static string Quote(string s)
         => s.Contains(',') || s.Contains('"') || s.Contains('\n') || s.Contains('\r')

@@ -63,6 +63,35 @@ public sealed class SabitKurService(ISabitKurRepository repository, ICurrentUser
     /// <summary>F8.1a — satır sürümü (iyimser eşzamanlılık; <see cref="UpdateAsync"/> ile karşılaştırılır).</summary>
     public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repo.GetVersionAsync(id, ct);
 
+    /// <summary>
+    /// 2026-09-25 (#313 ShiftApi deseni) — satır ve sürümü TEK tutarlı çift olarak okur: sürüm, satır, sürüm. Araya
+    /// yazım düşerse okuma yenilenir; sürekli değişiyorsa ESKİ sürüm satırla döner: sonraki PUT 409 <c>cakisma</c> alır
+    /// (güvenli yön). Önceden liste okunup her satırın sürümü AYRI okunuyordu: aradaki yazım yeni sürümü eski alanlarla
+    /// eşleştiriyor, bayat form başka oturumun kur değişikliğini sessizce eziyordu. Satır silinmişse <c>null</c>.
+    /// </summary>
+    public async Task<(SabitKur Row, string Version)?> GetWithVersionAsync(Guid id, CancellationToken ct = default)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            var before = await _repo.GetVersionAsync(id, ct);
+            if (before is null) return null;
+            if (await _repo.FindAsync(id, ct) is not { } row) return null;
+            var after = await _repo.GetVersionAsync(id, ct);
+            if (after == before || attempt == maxAttempts) return (row, before);
+        }
+    }
+
+    /// <summary>Liste + her satır için <see cref="GetWithVersionAsync"/> (liste sırası korunur; arada silinen atlanır).</summary>
+    public async Task<IReadOnlyList<(SabitKur Row, string Version)>> ListWithVersionsAsync(CancellationToken ct = default)
+    {
+        var list = await _repo.ListAsync(ct);
+        var result = new List<(SabitKur, string)>(list.Count);
+        foreach (var s in list)
+            if (await GetWithVersionAsync(s.Id, ct) is { } pair) result.Add(pair);
+        return result;
+    }
+
     /// <summary>F8.1a — YENİ sabit kur (<c>/api/ui</c>). Kod zaten tanımlıysa 400 (<c>kod</c>): mevcut satır
     /// sürümle (<see cref="UpdateAsync"/>) güncellenir — upsert burada bayat formun başka oturumun kurunu
     /// sessizce ezmesine yol açardı.</summary>

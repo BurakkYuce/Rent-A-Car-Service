@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using RentACar.Application.Auditing;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -21,17 +22,11 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
 
-    // KVKK/F2 (adversarial HIGH-1): PII alan DEĞERLERİ denetim izine yazılmaz — değişiklik
-    // "***" ile işaretlenir. Düz-metin legacy alanlar + cipher/hash türevleri (korelasyonu da kes).
-    // PR-C: "Token" da burada — PaylasimLink.Token bir SIRDIR (linki bilen sözleşmeyi görür); denetim
-    // izi "paylaşım oluşturuldu" bilgisini taşımalı, sırrın ikinci bir kopyasını DEĞİL.
-    private static readonly HashSet<string> PiiMaskedProps = new(StringComparer.Ordinal)
-    {
-        "TcKimlik", "EhliyetNo", "PasaportNo",
-        "TcKimlikEnc", "EhliyetNoEnc", "PasaportNoEnc", "TcKimlikHash", "MaasEnc",
-        "Token"
-    };
-
+    // KVKK/F2 (adversarial HIGH-1): PII ve sır DEĞERLERİ denetim izine yazılmaz — değişiklik "***" ile
+    // işaretlenir. Kural AuditSecretMask'ta TEK kaynak (API ve Blazor denetim ekranı da onu kullanır):
+    // *Enc (SmtpSifreEnc, SmsApiKeyEnc…), *Hash (PasswordHash, TcKimlikHash), *Token (PaylasimLink.Token,
+    // CalendarToken) ve PII parçaları. Önceden yalnız sabit bir PII listesi vardı; sır cipher'ları düz yazılıyordu.
+    // null ve boş metin maskelenmez: "temizlendi" bilgisi iz için değerlidir ve sır taşımaz.
     private static object? Mask(string propertyName, object? value)
     {
         // bytea DEĞERLERİ denetim izine ASLA yazılmaz. Aksi halde 10 MB'lık bir PDF (FirmaDokuman)
@@ -39,7 +34,8 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
         // dosya deposuna dönüşür. "Ne zaman, kim, ne büyüklükte" bilgisi iz için yeterli.
         if (value is byte[] b) return $"<{b.Length} bayt>";
 
-        return value is string { Length: > 0 } && PiiMaskedProps.Contains(propertyName) ? "***" : value;
+        if (value is null or string { Length: 0 }) return value;
+        return AuditSecretMask.IsSecretKey(propertyName) ? AuditSecretMask.Masked : value;
     }
 
     public override InterceptionResult<int> SavingChanges(

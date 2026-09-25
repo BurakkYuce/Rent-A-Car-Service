@@ -16,7 +16,8 @@ namespace RentACar.Application.Personnel;
 /// master'ın ManageUsers kapısı burada gerekmez.</para>
 ///
 /// <para><b>Şube kapsamı VARDİYANIN şubesine göre</b> — personelin kadro şubesine göre değil
-/// (bkz. <see cref="PersonelVardiya"/>).</para>
+/// (bkz. <see cref="PersonelVardiya"/>). YAZMADA ek olarak personelin kadro şubesi de kapsam içinde olmalı
+/// (2026-09-25: kapsam dışı personel, çakışma kontrolü üzerinden başka şubenin saatlerini sızdırıyordu).</para>
 ///
 /// <para><b>Çakışma reddi:</b> aynı personel aynı anda iki yerde olamaz. Bölünmüş mesai
 /// (08-12 + 13-18) serbesttir; kesişen aralık reddedilir. Kontrol MUTLAK aralık üzerinden yapılır
@@ -217,6 +218,12 @@ public sealed class PersonelVardiyaService(
         if (input.PersonelId == Guid.Empty) throw new ValidationException("Personel seçilmeli.");
         var personel = await _personeller.FindAsync(input.PersonelId, ct)
             ?? throw new ValidationException("Personel bulunamadı.");
+        // 2026-09-25 incelemesi: kapsamlı operatör kapsam DIŞI personele vardiya yazamaz (403). Aksi halde çakışma
+        // kontrolü, başka şubedeki personelin vardiya saatleri için bir kehanet olur: mesaj saati gizlese de (#302 L1)
+        // deneme-yanılma ile aralık daraltılabilir. Kontrol diğer doğrulamalardan ve çakışma aramasından ÖNCE.
+        // Kural personelin KADRO şubesidir (BranchScope.InScope tek kural); şubesiz personel kapsamlı operatör için
+        // kapsam dışıdır. Görünürlük (liste/matris) hâlâ VARDİYANIN şubesine göredir.
+        BranchScope.RequireInScope(_currentUser, personel.SubeId, personel.Sube);
         if (input.Tarih == default) throw new ValidationException("Tarih zorunlu.");
         if (input.BaslangicSaat == input.BitisSaat)
             throw new ValidationException("Vardiya süresi sıfır olamaz (başlangıç ve bitiş saati aynı).");

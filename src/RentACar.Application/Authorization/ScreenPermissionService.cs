@@ -31,7 +31,7 @@ public sealed class ScreenPermissionService(
         var kod = Normalize(ekranKodu);
         if (kod.Length == 0) throw new ValidationException("Ekran kodu zorunludur.");
         var roles = roller.Distinct().ToArray();
-        await RequireAdminIfAdminAccessChangesAsync(kod, aktif ? roles : null, ct);
+        await RequireAdminIfAdminAccessChangesAsync(kod, roles, ct, active: aktif);
         var csv = string.Join(",", roles.Select(r => r.ToString()));
         await _repository.UpsertAsync(kod, s =>
         {
@@ -153,15 +153,22 @@ public sealed class ScreenPermissionService(
     /// <summary>
     /// #304 L3 — Admin'in bir ekrana erişimini değiştiren (override'dan Admin'i çıkaran ya da ekleyen, Admin'i dışlayan
     /// override'ı silen/pasifleştiren) yazım yalnız Admin rolüne açıktır. ManageUsers istisnası almış Yönetici kendi
-    /// üstündeki rolü kilitleyemez. <paramref name="newRoles"/> null = override etkisiz (silinmiş/pasif; Admin erişimli).
+    /// üstündeki rolü kilitleyemez. <paramref name="newRoles"/> null = kayıt siliniyor.
+    /// <para>2026-09-25 (#304 L3 devamı): PASİF kayıt da sayılır. Admin'i dışlayan pasif kayıt bugün etkisizdir ama
+    /// Admin'in erişimini bekleyen bir kilittir: şablon anlık görüntüsüne girer ve sonradan bir Admin uygulayınca
+    /// (ya da aktifleştirince) Admin kendini kilitler. Bu yüzden iki şey karşılaştırılır: ETKİN erişim (aktif
+    /// override'a göre) ve SAKLI rol listesindeki Admin (kaydın aktifliğinden bağımsız). Biri değişiyorsa yalnız Admin.</para>
     /// </summary>
-    private async Task RequireAdminIfAdminAccessChangesAsync(string code, IReadOnlyCollection<UserRole>? newRoles, CancellationToken ct)
+    private async Task RequireAdminIfAdminAccessChangesAsync(string code, IReadOnlyCollection<UserRole>? newRoles,
+        CancellationToken ct, bool active = true)
     {
         if (_currentUser.Role == UserRole.Admin) return;
         var current = await _repository.FindByKodAsync(code, ct);
-        var adminBefore = current is not { Aktif: true } || ParseRoles(current.AllowedRolesCsv).Contains(UserRole.Admin);
-        var adminAfter = newRoles is null || newRoles.Contains(UserRole.Admin);
-        if (adminBefore != adminAfter) RequireAdminRole();
+        var storedBefore = current is null || ParseRoles(current.AllowedRolesCsv).Contains(UserRole.Admin);
+        var storedAfter = newRoles is null || newRoles.Contains(UserRole.Admin);
+        var effectiveBefore = current is not { Aktif: true } || storedBefore;
+        var effectiveAfter = newRoles is null || !active || storedAfter;
+        if (effectiveBefore != effectiveAfter || storedBefore != storedAfter) RequireAdminRole();
     }
 
     private void RequireAdminRole()
