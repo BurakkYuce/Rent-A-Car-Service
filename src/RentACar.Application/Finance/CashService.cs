@@ -103,11 +103,8 @@ public sealed class CashService(
         if (input.Tutar <= 0) throw new ValidationException("Tutar pozitif olmalıdır.");
         TarihPolitikasi.ParaTarihi(input.Tarih, "İşlem"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
         EnsureKasaBanka(input.Hesap);
-        // F4.4a adversarial MEDIUM-2: cari kiracı içinde GERÇEKTEN var olmalı (FindAsync RLS + sorgu filtresi →
-        // yoksa/başka kiracınınsa null). Önce rastgele ya da başka kiracının cari kimliğiyle tahsilat/ödeme
-        // yazılabiliyor, defterde hiçbir ekstrede görünmeyen yetim AccountRef'li küme kalıyordu. Virmandaki L2 deseni.
-        if (await _customers.FindAsync(input.CariId, ct) is null)
-            throw new ValidationException("Cari bulunamadı.", "cariId");
+        // F4.4a adversarial MEDIUM-2: cari kiracı içinde GERÇEKTEN var olmalı. Toplu yolla ORTAK kural.
+        await EnsureCustomersExistAsync([input.CariId], _ => "cariId", ct);
 
         // Kur çözümü (1.1b): açık kur aynen; boş → TRY=1 / döviz KurService (yoksa net red — sessiz 1 YOK).
         var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);
@@ -220,7 +217,26 @@ public sealed class CashService(
             postings.Add(new CashPosting(tx, Natural(tx)));
         }
 
+        // Cari varlığı (DEVIR §6 Low): tekil yoldaki kuralın AYNISI, TÜM satırlar için defter yazımından ÖNCE.
+        // Olmayan ya da başka kiracının carisi → tüm parti reddedilir (hep-ya-hiç; yetim AccountRef'li küme yok).
+        // Diğer satır doğrulamalarından SONRA: onların mesajları/önceliği değişmez.
+        await EnsureCustomersExistAsync(satirlar.Select(s => s.CariId).ToList(), i => $"satirlar[{i}].cariId", ct,
+            i => $"Satır {i + 1}: ");
+
         await _repository.PostBatchAsync(postings, ct);
+    }
+
+    /// <summary>F4.4a adversarial MEDIUM-2 (tekil) + DEVIR §6 Low (toplu): cari kiracı içinde GERÇEKTEN var olmalı
+    /// (tenant sorgu filtresi + RLS → başka kiracının ya da hiç olmayan kimlik "yok" sayılır). Önce rastgele ya da
+    /// başka kiracının cari kimliğiyle tahsilat/ödeme yazılabiliyor, defterde hiçbir ekstrede görünmeyen yetim
+    /// AccountRef'li küme kalıyordu. İlk eksik satır <paramref name="alan"/>(index) ile reddedilir.</summary>
+    private async Task EnsureCustomersExistAsync(
+        IReadOnlyList<Guid> cariIds, Func<int, string> alan, CancellationToken ct, Func<int, string>? onek = null)
+    {
+        var known = await _customers.ExistingIdsAsync(cariIds, ct);
+        for (var i = 0; i < cariIds.Count; i++)
+            if (!known.Contains(cariIds[i]))
+                throw new ValidationException($"{onek?.Invoke(i)}Cari bulunamadı.", alan(i));
     }
 
     /// <summary>FAZ-82: toplu satırda AÇIK kur çözümü — kural tek kaynaktan (KurCozucu: pozitiflik +

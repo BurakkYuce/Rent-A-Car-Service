@@ -53,6 +53,7 @@ export { contextOfSession, identityOfContext, identityOfSession };
 /**
  * Sekmeler arası oturum bağlamı kanalı (aynı köken). Bir sekmede çıkış ya da başka kullanıcı girişi olunca öteki
  * sekmeler bağlamı düşürür ve `ben`'i sunucudan yeniden okur (ortak çerez artık yeni kullanıcınındır — r316 M-new).
+ * Aynı kullanıcının şube kapsamı değişince de öteki sekmeler `ben`'i yeniden okur (görünüm); denemeler düşmez.
  * Testlerde `null` kanalı kapatır.
  */
 export const MONEY_SESSION_CHANNEL = new InjectionToken<string | null>('MONEY_SESSION_CHANNEL', {
@@ -70,6 +71,14 @@ export const MONEY_SESSION_CHANNEL = new InjectionToken<string | null>('MONEY_SE
 export function sessionContext(session: OturumServisi | null): string | null {
   const key = session?.baglam?.()?.anahtar;
   return key == null ? null : identityOfContext(key);
+}
+
+/**
+ * TAM oturum bağlamı (kiracı|kullanıcı|şube; `OturumServisi.baglam`); oturum yoksa `null`. YALNIZ sekmeler arası
+ * duyuru/karşılaştırma içindir — para denemelerinin kaydı ve düşürülmesi {@link sessionContext} (şube HARİÇ) kullanır.
+ */
+function fullContext(session: OturumServisi | null): string | null {
+  return session?.baglam?.()?.anahtar ?? null;
 }
 
 /**
@@ -106,6 +115,17 @@ export class PendingMoneyAttempts {
         if (current === last) return;
         this.attempts.set(new Map());
         last = current;
+      });
+    });
+    // Sekmeler arası duyuru TAM bağlamla (kimlik + şube): aynı kullanıcının şube kapsamı değişince öteki sekmeler de
+    // `ben`'i yeniden okur (görünüm). Deneme düşürme kuralı yukarıdaki KİMLİK effect'inde kalır — şube değişimi burada
+    // yalnız yeniden okuma tetikler, denemelere dokunmaz (#320 M1).
+    let lastBroadcast = fullContext(this.session);
+    effect(() => {
+      const current = fullContext(this.session);
+      untracked(() => {
+        if (current === lastBroadcast) return;
+        lastBroadcast = current;
         this.broadcast(current);
       });
     });
@@ -129,16 +149,18 @@ export class PendingMoneyAttempts {
   }
 
   /**
-   * Öteki sekmenin bağlamı bizimkinden farklı: `ben` sunucudan yeniden okunur. Kimlik gerçekten değiştiyse (çıkış →
-   * 401, başka kullanıcı) bağlam değişir ve denemeler + bileşen formları yukarıdaki kuralla düşer; aynı kullanıcı
-   * yeniden girdiyse hiçbir şey kaybolmaz.
+   * Öteki sekmenin TAM bağlamı (kimlik + şube) bizimkinden farklı: `ben` sunucudan yeniden okunur. Kimlik gerçekten
+   * değiştiyse (çıkış → 401, başka kullanıcı) bağlam değişir ve denemeler + bileşen formları yukarıdaki kuralla düşer;
+   * yalnız şube kapsamı değiştiyse görünüm güncellenir, denemeler KORUNUR; aynı kullanıcı yeniden girdiyse hiçbir şey
+   * kaybolmaz. Sekmeler sunucudaki tek gerçeğe yakınsar: yeniden okuma bağlamı değiştirirse o da duyurulur, eşitlenen
+   * sekme susar.
    */
   private received(data: unknown): void {
     if (typeof data !== 'object' || data === null) return;
     const m = data as Record<string, unknown>;
     if (m['tur'] !== 'baglam') return;
     const other = typeof m['anahtar'] === 'string' ? m['anahtar'] : null;
-    if (other === sessionContext(this.session)) return;
+    if (other === fullContext(this.session)) return;
     void this.session?.yukle?.();
   }
 

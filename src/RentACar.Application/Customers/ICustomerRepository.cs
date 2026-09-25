@@ -59,6 +59,10 @@ public interface ICustomerRepository
 
     Task<Customer?> FindAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Verilen kimliklerden kiracıda GERÇEKTEN var olanlar (tenant filtresi + RLS; başka kiracının
+    /// ya da hiç olmayan kimlik sonuçta yer almaz). PII çözmez — yalnız varlık denetimi (toplu tahsilat/ödeme).</summary>
+    Task<IReadOnlySet<Guid>> ExistingIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
+
     /// <summary>TC blind-index özeti tenant içinde başka kayıtta var mı? (KVKK/F2 — düz metin yok.)</summary>
     Task<bool> TcKimlikHashExistsAsync(string tcHash, Guid? excludeId = null, CancellationToken ct = default);
 

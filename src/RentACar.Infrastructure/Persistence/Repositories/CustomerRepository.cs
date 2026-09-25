@@ -224,6 +224,15 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         return c is null ? null : Decrypt(c);
     }
 
+    public async Task<IReadOnlySet<Guid>> ExistingIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+    {
+        if (ids.Count == 0) return new HashSet<Guid>();
+        var distinct = ids.Distinct().ToList();
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var found = await db.Customers.AsNoTracking().Where(c => distinct.Contains(c.Id)).Select(c => c.Id).ToListAsync(ct);
+        return found.ToHashSet();
+    }
+
     public async Task<bool> TcKimlikHashExistsAsync(string tcHash, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
