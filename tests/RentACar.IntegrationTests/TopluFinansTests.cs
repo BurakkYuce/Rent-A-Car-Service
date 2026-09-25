@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Common;
+using RentACar.Application.Customers;
 using RentACar.Application.Expenses;
 using RentACar.Application.Finance;
 using RentACar.Domain.Entities;
@@ -20,6 +21,10 @@ public sealed class TopluFinansTests(PostgresFixture fx)
     private static CashInput Row(Guid cari, decimal tutar) => new()
     { CariId = cari, Tutar = tutar, Doviz = "TRY", Kur = 1m, Hesap = LedgerAccountType.Kasa, Aciklama = "Toplu" };
 
+    // Toplu yol artık cari varlığını denetler (tekil yolla aynı kural) → satırlar GERÇEK cari ister.
+    private static Task<Guid> CariAsync(IServiceProvider sp, string ad) =>
+        sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad });
+
     // ---- Toplu tahsilat ----
 
     [Fact]
@@ -28,7 +33,9 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = Guid.NewGuid(); var b = Guid.NewGuid(); var c = Guid.NewGuid();
+        var a = await CariAsync(scope.ServiceProvider, "A");
+        var b = await CariAsync(scope.ServiceProvider, "B");
+        var c = await CariAsync(scope.ServiceProvider, "C");
 
         await cash.BatchCollectAsync([Row(a, 1500m), Row(b, 2000m), Row(c, 500m)]);
 
@@ -56,7 +63,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = Guid.NewGuid();
+        var a = await CariAsync(scope.ServiceProvider, "A");
 
         // 2. satır geçersiz (boş cari) → TÜM batch reddedilir, hiçbir şey yazılmaz.
         await Assert.ThrowsAsync<ValidationException>(
@@ -79,7 +86,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = Guid.NewGuid();
+        var a = await CariAsync(scope.ServiceProvider, "A");
         var key = Guid.NewGuid();
 
         await cash.BatchCollectAsync([Row(a, 1000m)], key);
@@ -108,6 +115,87 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         await Assert.ThrowsAsync<YetkiYokException>(() => cash.BatchCollectAsync([Row(Guid.NewGuid(), 100m)]));
+    }
+
+    // ---- Cari varlığı (DEVIR §6 Low: Blazor BatchCollect/BatchPay cari kontrolü yoktu) ----
+
+    private static async Task<(int Tx, int Ledger)> RowCountsAsync(IServiceProvider sp)
+    {
+        await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
+        return (await db.CashTransactions.AsNoTracking().CountAsync(), await db.AccountLedgerEntries.AsNoTracking().CountAsync());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Batch_with_nonexistent_cari_rejected_nothing_written(bool pay)
+    {
+        using var host = new TestHost(fx.AppConnectionString); // racar_app (RLS)
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var cash = sp.GetRequiredService<CashService>();
+        var a = await CariAsync(sp, "A");
+        var ghost = Guid.NewGuid(); // hiç var olmayan cari
+
+        IReadOnlyList<CashInput> rows = [Row(a, 1500m), Row(ghost, 100m)];
+        var ex = await Assert.ThrowsAsync<ValidationException>(
+            () => pay ? cash.BatchPayAsync(rows, Guid.NewGuid()) : cash.BatchCollectAsync(rows, Guid.NewGuid()));
+        Assert.Equal("satirlar[1].cariId", ex.Alan);
+        Assert.Contains("Cari bulunamadı", ex.Message);
+        Assert.StartsWith("Satır 2:", ex.Message);
+
+        // Hep-ya-hiç: geçerli 1. satır da yazılmadı — ne belge ne defter satırı.
+        Assert.Equal((0, 0), await RowCountsAsync(sp));
+        Assert.Equal(0m, await cash.GetCariBalanceAsync(a));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Batch_with_other_tenants_cari_rejected(bool pay)
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        var t1 = Guid.NewGuid(); var t2 = Guid.NewGuid();
+        Guid foreign;
+        using (var s2 = host.ScopeFor(t2)) foreign = await CariAsync(s2.ServiceProvider, "Yabancı");
+
+        using var s1 = host.ScopeFor(t1);
+        var sp = s1.ServiceProvider;
+        var cash = sp.GetRequiredService<CashService>();
+        var own = await CariAsync(sp, "Kendi");
+
+        IReadOnlyList<CashInput> rows = [Row(foreign, 250m), Row(own, 100m)];
+        var ex = await Assert.ThrowsAsync<ValidationException>(
+            () => pay ? cash.BatchPayAsync(rows) : cash.BatchCollectAsync(rows));
+        Assert.Equal("satirlar[0].cariId", ex.Alan);
+        Assert.Equal((0, 0), await RowCountsAsync(sp));
+
+        // t2 tarafında da hiçbir şey yazılmadı.
+        using var check = host.ScopeFor(t2);
+        Assert.Equal((0, 0), await RowCountsAsync(check.ServiceProvider));
+    }
+
+    [Fact]
+    public async Task Batch_pay_valid_caris_posts_balanced()
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var cash = sp.GetRequiredService<CashService>();
+        var a = await CariAsync(sp, "A");
+        var b = await CariAsync(sp, "B");
+
+        // Aynı cari iki satırda (tekrarlı kimlik) da geçerli.
+        await cash.BatchPayAsync([Row(a, 300m), Row(b, 200m), Row(a, 50m)]);
+
+        // Ödeme → Borç Cari → bakiye artar. ELLE: a = 300 + 50, b = 200; defter 3 × 2 satır, taraf toplamı 550.
+        Assert.Equal(350m, await cash.GetCariBalanceAsync(a));
+        Assert.Equal(200m, await cash.GetCariBalanceAsync(b));
+        await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
+        var entries = await db.AccountLedgerEntries.AsNoTracking().ToListAsync();
+        Assert.Equal(6, entries.Count);
+        Assert.Equal(550m, entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.Amount * e.Amount.Rate));
+        Assert.Equal(550m, entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.Amount * e.Amount.Rate));
     }
 
     // ---- Toplu gider ----
@@ -166,9 +254,12 @@ public sealed class TopluFinansTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid(); var t2 = Guid.NewGuid();
-        var a = Guid.NewGuid();
+        Guid a;
         using (var s1 = host.ScopeFor(t1))
+        {
+            a = await CariAsync(s1.ServiceProvider, "A");
             await s1.ServiceProvider.GetRequiredService<CashService>().BatchCollectAsync([Row(a, 700m)]);
+        }
 
         using var s2 = host.ScopeFor(t2);
         Assert.Equal(0m, await s2.ServiceProvider.GetRequiredService<CashService>().GetCariBalanceAsync(a));

@@ -33,7 +33,7 @@ public static partial class FinanceHubApi
     /// <summary>E03: parti anahtarı = işlem anahtarı; satır anahtarı <c>RowKey(parti, i)</c>. ÖNCE bu partinin kaydı
     /// aranır (kaybolan yanıttan sonraki tekrar → 409 + <c>mevcut</c>; <c>ayniIcerik</c> tüm satırlar birebir aynıysa).</summary>
     private static async Task<Ok<BulkPostingResult>> PostBulkCollection(
-        BulkCollectionRequest req, HttpContext http, CashService cash, IDbContextFactory<AppDbContext> f, CancellationToken ct)
+        BulkCollectionRequest req, HttpContext http, CashService cash, CancellationToken ct)
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
         var account = FinansApi.Hesap(req.Hesap, "hesap");
@@ -57,12 +57,7 @@ public static partial class FinanceHubApi
         }
         var sum = inputs.Sum(x => x.Tutar);
         if (sum >= FinansApi.TutarUstSiniri) throw new ValidationException("Toplam tutar çok büyük.", "satirlar");
-        // Var olmayan / başka kiracının carisi: servis toplu yolda cari varlığını denetlemez → uçta, satır alanıyla.
-        var known = await F5Ortak.CarilerAsync(f, inputs.Select(x => x.CariId), ct);
-        for (var i = 0; i < inputs.Count; i++)
-            if (!known.ContainsKey(inputs[i].CariId))
-                throw new ValidationException("Cari bulunamadı.", $"satirlar[{i}].cariId");
-
+        // Var olmayan / başka kiracının carisi: servis (BatchCollectAsync) satır alanıyla reddeder — tekil kural.
         await ThrowIfBatchRecordedAsync(key, inputs, cash, ct);
         await cash.BatchCollectAsync(inputs, key, ct);
         return TypedResults.Ok(new BulkPostingResult(inputs.Count, sum));
