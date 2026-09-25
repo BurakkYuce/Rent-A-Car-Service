@@ -115,9 +115,9 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
 - ~~Karar (1)~~ ve ~~Karar (2)~~ **KAPANDI** — kullanıcı 2026-09-22'de oturumda doğrudan verdi
   (`DEGISIKLIKLER.md`): F5, F4'ün "pilotta 10 iş günü P1 yok" Exit'ini beklemeden başlar; #264 menü izin eşlemesi
   (Operatör 79 → 74, Muhasebe 48 → 53) onaylandı.
-- ~~**Karar (4): rezervasyon güncellemesinde doluluk çarpanı (surge).**~~ **KAPANDI (2026-09-25, PR #TBD):** güncellemede
+- ~~**Karar (4): rezervasyon güncellemesinde doluluk çarpanı (surge).**~~ **KAPANDI (2026-09-25, PR #327):** güncellemede
   surge uygulanmaz (`dolulukUygula:false`); no-op düzenleme kilitli fiyatı korur. Kayıt: `DEGISIKLIKLER.md`.
-- ~~**Karar (5): cari ekstre ucunun kapısı.**~~ **KAPANDI (2026-09-25, PR #TBD):** `/api/ui/v1/finans/cariler/{id}/ekstre`
+- ~~**Karar (5): cari ekstre ucunun kapısı.**~~ **KAPANDI (2026-09-25, PR #327):** `/api/ui/v1/finans/cariler/{id}/ekstre`
   FinanceWrite ∨ ViewReports; operatöre 403. Kayıt: `DEGISIKLIKLER.md`.
 - **Karar (3): yakıt ölçeği (hâlâ açık).** Servis ve harici API 0–100, formlar ve referans sistem 0–12 kullanıyor. Önerilen: tek
   ölçek 0–12. Harici `RentalsApi` için iki seçenek var: (a) >12 → 400, (b) sınırda yüzde↔12 çevirisi. Karar
