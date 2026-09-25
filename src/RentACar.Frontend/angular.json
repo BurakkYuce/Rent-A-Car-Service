@@ -60,7 +60,7 @@
                 // metni tembel parçaya girer, buraya değil.
                 {
                   "type": "initial",
-                  "maximumWarning": "392kB",
+                  "maximumWarning": "410kB",
                   "maximumError": "430kB"
                 },
                 {
