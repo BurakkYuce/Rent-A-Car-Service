@@ -8,7 +8,8 @@ let nextId = 0;
 /**
  * Plaka ile hızlı arama kutusu (Yol v2 §5.2): TR şeritli, Condensed 600. Yazarken kök büyük harfe çevrilir
  * ("i" → "I"; Türkçe "İ" değil — plakada yok). Enter → `ara` normalize edilmiş sonucu yayar (boş ya da geçersiz
- * dahil: bilgi toast'u ve yönlendirme çağıranın işi — bu bileşen rota/servis bilmez).
+ * dahil: bilgi toast'u ve yönlendirme çağıranın işi — bu bileşen rota/servis bilmez). `type="text"` (rol textbox):
+ * `searchbox` olsaydı sayfadaki `getByRole('searchbox', { name: 'Ara' })` "Hızlı araç arama"yı da yakalardı.
  */
 @Component({
   selector: 'rc-plaka-arama',
@@ -22,7 +23,7 @@ let nextId = 0;
     <input
       #girdi
       class="girdi"
-      type="search"
+      type="text"
       inputmode="text"
       autocomplete="off"
       autocapitalize="characters"

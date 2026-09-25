@@ -700,6 +700,8 @@ for (const [ad, nerede] of [
     await page.goto(SAYFA);
     const tutar = panel(page).getByRole('textbox', { name: 'Tutar', exact: true });
     await expect(tutar).toHaveValue('2.600,00');
+    // Koordinatla tıklanır: alan görünür alanda olmalı (sayfa bandıyla yan panel 720 px'in altına iner).
+    await tutar.scrollIntoViewIfNeeded();
     const b = await tutar.boundingBox();
     const x =
       nerede === 'sol'

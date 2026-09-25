@@ -21,7 +21,7 @@ import { KF_ORTAK } from './ortak';
     }
 
     @if (d.kirada() && d.teslimEdildi()) {
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.donusIslemi' | transloco }}</h3>
         <div class="rc-form-izgara" [formGroup]="d.donusFormu" data-testid="donus-formu">
           <rc-alan [etiket]="'kiraFormu.alan.donusKm' | transloco">
@@ -110,7 +110,7 @@ import { KF_ORTAK } from './ortak';
     }
 
     @if (d.kirada()) {
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.uzatma' | transloco }}</h3>
         <p class="kf-not">{{ 'kiraFormu.not.uzatma' | transloco }}</p>
         <div class="rc-form-izgara" [formGroup]="d.uzatFormu">
@@ -133,7 +133,7 @@ import { KF_ORTAK } from './ortak';
     }
 
     @if (d.kira(); as k) {
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.donusBilgileri' | transloco }}</h3>
         <dl class="kf-bilgiler">
           <div>
@@ -174,7 +174,7 @@ import { KF_ORTAK } from './ortak';
           </div>
         </dl>
       </section>
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.donusBedelleri' | transloco }}</h3>
         <dl class="kf-satirlar">
           <div>

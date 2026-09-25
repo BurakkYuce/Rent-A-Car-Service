@@ -82,8 +82,8 @@ export const tahsilatAciklamasi = (sozlesmeNo: string) => `Hızlı tahsilat (lis
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, TranslocoPipe, Alan, FormHatalari, Ikon, ParaGirdisi, Secim],
   template: `
-    <section class="panel" [attr.aria-labelledby]="baslikKimligi">
-      <header class="panel__ust">
+    <section class="rc-bolum" [attr.aria-labelledby]="baslikKimligi">
+      <header>
         <h2 [id]="baslikKimligi">
           {{ 'kiraListesi.tahsil.baslik' | transloco: { no: satir().sozlesmeNo } }}
         </h2>
@@ -116,7 +116,7 @@ export const tahsilatAciklamasi = (sozlesmeNo: string) => `Hızlı tahsilat (lis
           }
         </div>
         <rc-form-hatalari [hatalar]="gonderim.genelHatalar()" />
-        <div class="panel__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -142,18 +142,10 @@ export const tahsilatAciklamasi = (sozlesmeNo: string) => `Hızlı tahsilat (lis
     </section>
   `,
   styles: `
-    .panel {
-      display: flex;
-      flex-direction: column;
-      gap: var(--rc-bosluk-3);
-      padding: var(--rc-bosluk-3) var(--rc-bosluk-4);
-      border: 1px solid var(--rc-kenar);
-      border-radius: var(--rc-yaricap-md);
-      background-color: var(--rc-yuzey);
-    }
-    .panel__ust > h2 {
+    h2 {
       margin: 0;
-      font-size: var(--rc-yazi-md);
+      font-size: var(--rc-yazi-lg);
+      font-weight: var(--rc-agirlik-kalin);
     }
     .panel__aciklama {
       margin: var(--rc-bosluk-1) 0 0;
@@ -163,11 +155,6 @@ export const tahsilatAciklamasi = (sozlesmeNo: string) => `Hızlı tahsilat (lis
       display: flex;
       flex-direction: column;
       gap: var(--rc-bosluk-3);
-    }
-    .panel__eylemler {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--rc-bosluk-2);
     }
   `,
 })

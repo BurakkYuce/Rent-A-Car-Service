@@ -76,7 +76,7 @@ test('eski kira listesi adresi: 302 sonrası sorgu AYNEN, #sekme= tarayıcıda k
   await expect(page).toHaveURL(
     (url) => url.pathname === '/app/kiralar' && url.search === SORGU && url.hash === '#sekme=odeme',
   );
-  await expect(page.getByRole('heading', { level: 1, name: 'Kira Sözleşmeleri' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Kira listesi' })).toBeVisible();
 });
 
 test('pilot girişi: dönüş yoksa SPA Panel’e iner', async ({ page }) => {

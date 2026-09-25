@@ -1,36 +1,7 @@
-.sayfa {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  padding: var(--rc-bosluk-4);
-}
-
-.ust {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rc-bosluk-3);
-  align-items: center;
-  justify-content: space-between;
-
-  > h1 {
-    margin: 0;
-  }
-}
-
-.ust__eylemler,
-.filtre__eylemler,
-.islemler {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rc-bosluk-2);
-  align-items: center;
-}
-
-.filtre__form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  padding-block: var(--rc-bosluk-3);
+// Kira listesi — yalnız ekrana özgü ayrıntı. Sayfa iskeleti (`.rc-sayfa`), bant, çipler, filtre paneli ve tablo
+// global/paylaşılan bileşenlerden gelir (Yol v2 §7/§18).
+:host {
+  display: block;
 }
 
 .ozet {
@@ -39,18 +10,20 @@
   font-size: var(--rc-yazi-xs);
 }
 
-.islemler {
-  // Görünmez etiketler (`rc-gorunmez`, position: absolute) hücrenin içinde konumlansın: aksi halde
-  // kaydırıcının dışındaki bir ataya göre konumlanıp tablonun sağ ucunda sayfayı yatay taşırırlar.
+// Görünmez etiketler (`rc-gorunmez`, position: absolute) hücrenin içinde konumlansın: aksi halde kaydırıcının
+// dışındaki bir ataya göre konumlanıp tablonun sağ ucunda sayfayı yatay taşırırlar.
+.satir-eylemleri {
   position: relative;
-  flex-wrap: nowrap;
+  display: flex;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
 }
 
 .bag {
   font-variant-numeric: tabular-nums;
 }
 
-.tablo {
-  // Kabuk (üst çubuk + sekmeler ≈ 5 rem), başlık, filtre düğmesi ve özet satırı düşülür.
+.kira-izgarasi {
+  // Kabuk (üst çubuk + sekmeler ≈ 5 rem), bant, çipler ve filtre başlığı düşülür.
   --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
 }

@@ -23,7 +23,7 @@ import type { SunucuSayisi } from '../kira-tipleri';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe],
   template: `
-    <section class="kf-kart kf-hesap" [attr.aria-busy]="d.hesap.yukleniyor()">
+    <section class="rc-bolum kf-kart kf-hesap" [attr.aria-busy]="d.hesap.yukleniyor()">
       <h3 class="kf-kart__baslik">
         {{ (d.yeni ? 'kiraFormu.hesap.canli' : 'kiraFormu.hesap.kayitli') | transloco }}
       </h3>

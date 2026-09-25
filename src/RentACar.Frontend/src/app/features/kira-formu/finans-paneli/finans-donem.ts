@@ -23,20 +23,20 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
       <p class="kf-not">{{ 'kiraFinans.donem.yok' | transloco }}</p>
     } @else {
       <div
-        class="kf-tablo-kutusu"
+        class="rc-tablo-kap"
         role="region"
         tabindex="0"
         [attr.aria-label]="'kiraFinans.donem.liste' | transloco"
         [attr.aria-busy]="s.yukleniyor()"
       >
-        <table class="kf-tablo" [attr.aria-label]="'kiraFinans.donem.liste' | transloco">
+        <table class="rc-duz-tablo" [attr.aria-label]="'kiraFinans.donem.liste' | transloco">
           <thead>
             <tr>
               <th scope="col">#</th>
               <th scope="col">{{ 'kiraFinans.donem.aralik' | transloco }}</th>
-              <th scope="col" class="num">{{ 'kiraFinans.donem.tahakkuk' | transloco }}</th>
+              <th scope="col" class="rc-num">{{ 'kiraFinans.donem.tahakkuk' | transloco }}</th>
               <th scope="col">{{ 'kiraFinans.alan.durum' | transloco }}</th>
-              <th scope="col" class="num">{{ 'kiraFinans.donem.kesilen' | transloco }}</th>
+              <th scope="col" class="rc-num">{{ 'kiraFinans.donem.kesilen' | transloco }}</th>
               <th scope="col">{{ 'kiraFinans.donem.islem' | transloco }}</th>
             </tr>
           </thead>
@@ -45,9 +45,9 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
               <tr>
                 <td>{{ d.donemSira }}</td>
                 <td>{{ d.donemBas | tarih }} – {{ d.donemBit | tarih }}</td>
-                <td class="num">{{ para(d.tahakkuk, k?.doviz) }}</td>
+                <td class="rc-num">{{ para(d.tahakkuk, k?.doviz) }}</td>
                 <td>{{ d.durum }}</td>
-                <td class="num">
+                <td class="rc-num">
                   {{ d.kesilenTutar === null ? '—' : para(d.kesilenTutar, k?.doviz) }}
                 </td>
                 <td>

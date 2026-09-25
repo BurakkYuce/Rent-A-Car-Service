@@ -21,7 +21,7 @@ import { KF_ORTAK } from './ortak';
   imports: [...KF_ORTAK],
   template: `
     @if (d.yeni) {
-      <section class="kf-kart" [formGroup]="d.form">
+      <section class="rc-bolum kf-kart" [formGroup]="d.form">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.ekHizmetSecimi' | transloco }}</h3>
         @if (sunucuHatalari().length > 0) {
           <div class="rc-form-hatalari" role="alert" aria-invalid="true" tabindex="-1">
@@ -35,14 +35,14 @@ import { KF_ORTAK } from './ortak';
             <p class="kf-not">{{ 'kiraFormuParite.ekHizmet.tanimYok' | transloco }}</p>
           } @else {
             <div
-              class="kf-tablo-kutusu"
+              class="rc-tablo-kap"
               formArrayName="ekHizmetler"
               role="region"
               tabindex="0"
               [attr.aria-label]="'kiraFormu.bolum.ekHizmetSecimi' | transloco"
             >
               <table
-                class="kf-tablo"
+                class="rc-duz-tablo"
                 data-testid="ek-hizmet-matrisi"
                 [attr.aria-label]="'kiraFormu.bolum.ekHizmetSecimi' | transloco"
               >
@@ -55,13 +55,13 @@ import { KF_ORTAK } from './ortak';
                     </th>
                     <th scope="col">{{ 'kiraFormu.ekHizmet.hizmet' | transloco }}</th>
                     <th scope="col">{{ 'kiraFormu.ekHizmet.miktar' | transloco }}</th>
-                    <th scope="col" class="num">
+                    <th scope="col" class="rc-num">
                       {{ 'kiraFormuParite.ekHizmet.birimNet' | transloco }}
                     </th>
-                    <th scope="col" class="num">
+                    <th scope="col" class="rc-num">
                       {{ 'kiraFormuParite.ekHizmet.kdv' | transloco }}
                     </th>
-                    <th scope="col" class="num">
+                    <th scope="col" class="rc-num">
                       {{ 'kiraFormuParite.ekHizmet.satirToplami' | transloco }}
                     </th>
                   </tr>
@@ -105,9 +105,9 @@ import { KF_ORTAK } from './ortak';
                           }}</span>
                         }
                       </td>
-                      <td class="num">{{ para(oge.birimUcret) }}</td>
-                      <td class="num">{{ sayi(oge.kdvOrani) | percent: '1.0-2' }}</td>
-                      <td class="num">
+                      <td class="rc-num">{{ para(oge.birimUcret) }}</td>
+                      <td class="rc-num">{{ sayi(oge.kdvOrani) | percent: '1.0-2' }}</td>
+                      <td class="rc-num">
                         {{ sira >= 0 ? para(hesapKalemi(oge.id)?.toplam) : '—' }}
                       </td>
                     </tr>
@@ -139,9 +139,9 @@ import { KF_ORTAK } from './ortak';
                           />
                         </ng-container>
                       </td>
-                      <td class="num">—</td>
-                      <td class="num">—</td>
-                      <td class="num">{{ para(hesapKalemi(r.id)?.toplam) }}</td>
+                      <td class="rc-num">—</td>
+                      <td class="rc-num">—</td>
+                      <td class="rc-num">{{ para(hesapKalemi(r.id)?.toplam) }}</td>
                     </tr>
                   }
                 </tbody>
@@ -183,24 +183,24 @@ import { KF_ORTAK } from './ortak';
         </p>
       </section>
     } @else {
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.ekHizmetler' | transloco }}</h3>
         <div
-          class="kf-tablo-kutusu"
+          class="rc-tablo-kap"
           role="region"
           tabindex="0"
           [attr.aria-label]="'kiraFormu.bolum.ekHizmetler' | transloco"
         >
-          <table class="kf-tablo" [attr.aria-label]="'kiraFormu.bolum.ekHizmetler' | transloco">
+          <table class="rc-duz-tablo" [attr.aria-label]="'kiraFormu.bolum.ekHizmetler' | transloco">
             <thead>
               <tr>
                 <th scope="col">{{ 'kiraFormu.ekHizmet.hizmet' | transloco }}</th>
-                <th scope="col" class="num">{{ 'kiraFormu.ekHizmet.miktar' | transloco }}</th>
-                <th scope="col" class="num">{{ 'kiraFormu.ekHizmet.birimNet' | transloco }}</th>
-                <th scope="col" class="num">{{ 'kiraFormu.ekHizmet.kdvOrani' | transloco }}</th>
-                <th scope="col" class="num">{{ 'kiraFormu.ekHizmet.net' | transloco }}</th>
-                <th scope="col" class="num">{{ 'kiraFormu.ekHizmet.kdv' | transloco }}</th>
-                <th scope="col" class="num">{{ 'kiraFormu.ekHizmet.toplam' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'kiraFormu.ekHizmet.miktar' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'kiraFormu.ekHizmet.birimNet' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'kiraFormu.ekHizmet.kdvOrani' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'kiraFormu.ekHizmet.net' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'kiraFormu.ekHizmet.kdv' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'kiraFormu.ekHizmet.toplam' | transloco }}</th>
                 <th scope="col">
                   <span class="rc-gorunmez">{{ 'kiraFormu.eylem.sil' | transloco }}</span>
                 </th>
@@ -210,12 +210,12 @@ import { KF_ORTAK } from './ortak';
               @for (k of d.gorunenDetay()?.ekHizmetler ?? []; track k.id) {
                 <tr>
                   <td>{{ k.ad }}</td>
-                  <td class="num">{{ sayi(k.miktar) | sayi }}</td>
-                  <td class="num">{{ para(k.birimNetFiyat) }}</td>
-                  <td class="num">{{ sayi(k.kdvOrani) | percent: '1.0-2' }}</td>
-                  <td class="num">{{ para(k.netTutar) }}</td>
-                  <td class="num">{{ para(k.kdvTutar) }}</td>
-                  <td class="num">{{ para(k.toplam) }}</td>
+                  <td class="rc-num">{{ sayi(k.miktar) | sayi }}</td>
+                  <td class="rc-num">{{ para(k.birimNetFiyat) }}</td>
+                  <td class="rc-num">{{ sayi(k.kdvOrani) | percent: '1.0-2' }}</td>
+                  <td class="rc-num">{{ para(k.netTutar) }}</td>
+                  <td class="rc-num">{{ para(k.kdvTutar) }}</td>
+                  <td class="rc-num">{{ para(k.toplam) }}</td>
                   <td>
                     @if (!d.iptal()) {
                       <button
@@ -232,7 +232,7 @@ import { KF_ORTAK } from './ortak';
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="8" class="kf-bos">{{ 'kiraFormu.ekHizmet.yok' | transloco }}</td>
+                  <td colspan="8" class="rc-bos">{{ 'kiraFormu.ekHizmet.yok' | transloco }}</td>
                 </tr>
               }
             </tbody>

@@ -25,18 +25,18 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
   template: `
     @let s = f.faturalar;
     <div
-      class="kf-tablo-kutusu"
+      class="rc-tablo-kap"
       role="region"
       tabindex="0"
       [attr.aria-label]="'kiraFinans.fatura.liste' | transloco"
       [attr.aria-busy]="s.yukleniyor()"
     >
-      <table class="kf-tablo" [attr.aria-label]="'kiraFinans.fatura.liste' | transloco">
+      <table class="rc-duz-tablo" [attr.aria-label]="'kiraFinans.fatura.liste' | transloco">
         <thead>
           <tr>
             <th scope="col">{{ 'kiraFinans.fatura.no' | transloco }}</th>
             <th scope="col">{{ 'kiraFinans.alan.tarih' | transloco }}</th>
-            <th scope="col" class="num">{{ 'kiraFinans.fatura.genelToplam' | transloco }}</th>
+            <th scope="col" class="rc-num">{{ 'kiraFinans.fatura.genelToplam' | transloco }}</th>
             <th scope="col">{{ 'kiraFinans.alan.tur' | transloco }}</th>
             <th scope="col">{{ 'kiraFinans.alan.durum' | transloco }}</th>
           </tr>
@@ -44,7 +44,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
         <tbody>
           @if (s.tur() === 'hata') {
             <tr>
-              <td colspan="5" class="kf-bos">{{ s.hata()?.detay }}</td>
+              <td colspan="5" class="rc-bos">{{ s.hata()?.detay }}</td>
             </tr>
           }
           @for (x of s.veri() ?? []; track x.id) {
@@ -53,14 +53,14 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
                 <a routerLink="/faturalar">{{ x.no }}</a>
               </td>
               <td>{{ x.tarih | tarih }}</td>
-              <td class="num">{{ para(x.genelToplam, x.currency) }}</td>
+              <td class="rc-num">{{ para(x.genelToplam, x.currency) }}</td>
               <td>{{ x.tur }}</td>
               <td>{{ x.durum }}</td>
             </tr>
           } @empty {
             @if (s.tur() === 'hazir') {
               <tr>
-                <td colspan="5" class="kf-bos">{{ 'kiraFinans.fatura.yok' | transloco }}</td>
+                <td colspan="5" class="rc-bos">{{ 'kiraFinans.fatura.yok' | transloco }}</td>
               </tr>
             }
           }

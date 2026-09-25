@@ -1,131 +1,118 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'kiraListesi.baslik' | transloco }}</h1>
-    @if (yeniKiraIzni() || ornekSozlesmeIzni()) {
-      <div class="ust__eylemler">
-        @if (yeniKiraIzni()) {
-          <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/kiralar/yeni">
-            <rc-ikon ad="plus" [boyut]="14" />
-            {{ 'kiraListesi.yeniKira' | transloco }}
-          </a>
-        }
-        @if (ornekSozlesmeIzni()) {
-          <a
-            class="rc-dugme rc-dugme--kucuk"
-            href="/kiralar/ornek-sozlesme/pdf"
-            target="_blank"
-            rel="noopener"
-          >
-            <rc-ikon ad="external-link" [boyut]="14" />
-            {{ 'kiraListesi.ornekSozlesme' | transloco }}
-          </a>
-        }
-      </div>
+<rc-sayfa-bandi
+  ikon="key"
+  [baslik]="'kiraListesi.baslik' | transloco"
+  [pill]="bantPill()"
+  [altMetin]="bantAltMetni()"
+>
+  <ng-container eylemler>
+    @if (disaAktarma(); as d) {
+      @for (bicim of d.bicimler ?? []; track bicim) {
+        <a class="rc-dugme" [href]="disaAktarmaAdresi(d, bicim)">
+          @if ($first) {
+            <rc-ikon ad="download" [boyut]="14" />
+          }
+          {{ 'tablo.disaAktar.' + bicim | transloco }}
+        </a>
+      }
     }
-  </header>
+    @if (ornekSozlesmeIzni()) {
+      <a class="rc-dugme" href="/kiralar/ornek-sozlesme/pdf" target="_blank" rel="noopener">
+        <rc-ikon ad="external-link" [boyut]="14" />
+        {{ 'kiraListesi.ornekSozlesme' | transloco }}
+      </a>
+    }
+  </ng-container>
+  @if (yeniKiraIzni()) {
+    <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/kiralar/yeni">
+      <rc-ikon ad="plus" [boyut]="14" />
+      {{ 'kiraListesi.yeniKira' | transloco }}
+    </a>
+  }
+</rc-sayfa-bandi>
 
-  <rc-katlanir-filtre
-    class="filtre"
+<div class="rc-sayfa">
+  <rc-gorunum-cipleri [gorunumler]="gorunumler()" />
+
+  <rc-filtre-paneli
+    depoAnahtari="rc.filtre.kiralar"
+    [formGroup]="filtreFormu"
     [baslik]="'kiraListesi.filtre.baslik' | transloco"
     [etkinSayisi]="liste.etkinFiltreSayisi()"
-    [(acik)]="filtreAcik"
+    (filtrele)="filtrele()"
+    (temizle)="temizle()"
   >
-    <form
-      class="filtre__form"
-      [formGroup]="filtreFormu"
-      [attr.aria-label]="'kiraListesi.filtre.baslik' | transloco"
-      (ngSubmit)="filtrele()"
-    >
-      <div class="rc-form-izgara">
-        <rc-alan
-          [etiket]="'kiraListesi.filtre.ara' | transloco"
-          [ipucu]="'kiraListesi.filtre.araIpucu' | transloco"
-        >
-          <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="200" />
-        </rc-alan>
-        <rc-alan [etiket]="'kiraListesi.filtre.durum' | transloco">
-          <rc-secim
-            formControlName="durum"
-            [secenekler]="durumSecenekleri"
-            [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
-          />
-        </rc-alan>
-        <rc-alan [etiket]="'kiraListesi.filtre.fatura' | transloco">
-          <rc-secim
-            formControlName="fatura"
-            [secenekler]="faturaSecenekleri"
-            [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
-          />
-        </rc-alan>
-        <rc-alan [etiket]="'kiraListesi.filtre.tarihTuru' | transloco">
-          <rc-secim
-            formControlName="tarihTuru"
-            [secenekler]="tarihTuruSecenekleri"
-            [bosEtiket]="'kiraListesi.tarihTurleri.Baslangic' | transloco"
-          />
-        </rc-alan>
-        <rc-alan [etiket]="'kiraListesi.filtre.basMin' | transloco">
-          <rc-tarih-secici formControlName="basMin" />
-        </rc-alan>
-        <rc-alan [etiket]="'kiraListesi.filtre.basMax' | transloco">
-          <rc-tarih-secici formControlName="basMax" />
-        </rc-alan>
-        @if (lokasyonSecimIzni()) {
-          <rc-alan [etiket]="'kiraListesi.filtre.ofis' | transloco">
-            <rc-arama-secim formControlName="ofis" [kaynak]="lokasyonlar" />
-          </rc-alan>
-        }
-        <rc-alan [etiket]="'kiraListesi.filtre.ofisDurum' | transloco">
-          <rc-secim
-            formControlName="ofisDurum"
-            [secenekler]="ofisDurumSecenekleri"
-            [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
-          />
-        </rc-alan>
-        <rc-alan [etiket]="'kiraListesi.filtre.sahip' | transloco">
-          <rc-secim
-            formControlName="sahip"
-            [secenekler]="sahipSecenekleri()"
-            [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
-          />
-        </rc-alan>
-        <rc-alan [etiket]="'kiraListesi.filtre.grup' | transloco">
-          <rc-secim
-            formControlName="grup"
-            [secenekler]="grupSecenekleri()"
-            [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
-          />
-        </rc-alan>
-        @if (kaynakSecimIzni()) {
-          <rc-alan [etiket]="'kiraListesi.filtre.kaynak' | transloco">
-            <rc-arama-secim formControlName="kaynak" [kaynak]="kaynaklar" />
-          </rc-alan>
-        }
-        @if (personelSecimIzni()) {
-          <rc-alan [etiket]="'kiraListesi.filtre.personel' | transloco">
-            <rc-arama-secim formControlName="personel" [kaynak]="personeller" />
-          </rc-alan>
-        }
-      </div>
-      <div class="filtre__eylemler">
-        <button type="submit" class="rc-dugme rc-dugme--birincil rc-dugme--kucuk">
-          <rc-ikon ad="filter" [boyut]="14" />
-          {{ 'kiraListesi.filtre.filtrele' | transloco }}
-        </button>
-        @if (liste.etkinFiltreSayisi() > 0) {
-          <button
-            type="button"
-            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-            (click)="temizle()"
-          >
-            {{ 'kiraListesi.filtre.temizle' | transloco }}
-          </button>
-        }
-      </div>
-    </form>
-  </rc-katlanir-filtre>
-
-  <p class="ozet" aria-live="polite">{{ ozet() }}</p>
+    <rc-alan [etiket]="'kiraListesi.filtre.ara' | transloco">
+      <rc-metin-girdisi
+        formControlName="q"
+        tur="search"
+        [azamiUzunluk]="200"
+        [yerTutucu]="'kiraListesi.filtre.araIpucu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'kiraListesi.filtre.durum' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="durumSecenekleri"
+        [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'kiraListesi.filtre.fatura' | transloco">
+      <rc-secim
+        formControlName="fatura"
+        [secenekler]="faturaSecenekleri"
+        [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'kiraListesi.filtre.tarihTuru' | transloco">
+      <rc-secim
+        formControlName="tarihTuru"
+        [secenekler]="tarihTuruSecenekleri"
+        [bosEtiket]="'kiraListesi.tarihTurleri.Baslangic' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'kiraListesi.filtre.basMin' | transloco">
+      <rc-tarih-secici formControlName="basMin" />
+    </rc-alan>
+    <rc-alan [etiket]="'kiraListesi.filtre.basMax' | transloco">
+      <rc-tarih-secici formControlName="basMax" />
+    </rc-alan>
+    @if (lokasyonSecimIzni()) {
+      <rc-alan [etiket]="'kiraListesi.filtre.ofis' | transloco">
+        <rc-arama-secim formControlName="ofis" [kaynak]="lokasyonlar" />
+      </rc-alan>
+    }
+    <rc-alan [etiket]="'kiraListesi.filtre.ofisDurum' | transloco">
+      <rc-secim
+        formControlName="ofisDurum"
+        [secenekler]="ofisDurumSecenekleri"
+        [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'kiraListesi.filtre.sahip' | transloco">
+      <rc-secim
+        formControlName="sahip"
+        [secenekler]="sahipSecenekleri()"
+        [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'kiraListesi.filtre.grup' | transloco">
+      <rc-secim
+        formControlName="grup"
+        [secenekler]="grupSecenekleri()"
+        [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
+      />
+    </rc-alan>
+    @if (kaynakSecimIzni()) {
+      <rc-alan [etiket]="'kiraListesi.filtre.kaynak' | transloco">
+        <rc-arama-secim formControlName="kaynak" [kaynak]="kaynaklar" />
+      </rc-alan>
+    }
+    @if (personelSecimIzni()) {
+      <rc-alan [etiket]="'kiraListesi.filtre.personel' | transloco">
+        <rc-arama-secim formControlName="personel" [kaynak]="personeller" />
+      </rc-alan>
+    }
+  </rc-filtre-paneli>
 
   @if (tahsilSatiri(); as satir) {
     <rc-kira-tahsil-paneli
@@ -137,31 +124,38 @@
   }
 
   <rc-tablo
-    class="tablo"
+    class="kira-izgarasi"
     tabloKodu="kiralar.liste"
     [etiket]="'kiraListesi.tabloEtiketi' | transloco"
     [sutunlar]="sutunlar"
     [kaynak]="store.liste.durum()"
     [satirKimligi]="kimlik"
+    [satirSinifi]="satirSinifi()"
     [sirala]="liste.sorgu().sirala"
     [varsayilanSirala]="varsayilanSirala"
-    [disaAktarma]="disaAktarma()"
     (siralaDegisti)="liste.degistir({ sirala: $event })"
     (sayfaDegisti)="liste.degistir({ sayfa: $event })"
     (boyutDegisti)="liste.degistir({ boyut: $event })"
     (yenidenDene)="store.liste.yenile()"
     (satirAc)="satiriAc($event)"
   >
+    <p rcTabloAraclari class="ozet" aria-live="polite">{{ ozet() }}</p>
+
     <ng-template rcTabloHucre="sozlesmeNo" [rcTabloHucreSutunlar]="sutunlar" let-satir>
       <a class="bag" [routerLink]="['/kiralar', satir.id]">{{ satir.sozlesmeNo }}</a>
     </ng-template>
 
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="sutunlar" let-satir>
+      <rc-plaka boyut="sm" [plaka]="satir.plaka" />
+    </ng-template>
+
     <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="sutunlar" let-satir>
-      <span [class]="rozet(satir.durum)">{{ durumEtiketi(satir.durum) }}</span>
+      @let g = durumGorunumu(satir);
+      <span [class]="rozet(g)">{{ durumEtiketi(g) }}</span>
     </ng-template>
 
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="sutunlar" let-satir>
-      <span class="islemler">
+      <span class="satir-eylemleri">
         @if (pdfIzni()) {
           <a
             class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"

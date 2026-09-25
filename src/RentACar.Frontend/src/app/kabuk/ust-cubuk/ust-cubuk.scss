@@ -1,4 +1,6 @@
 // Yol v2 §5.2 — üst çubuk 56 px, yüzey zemin.
+@use 'kirilim' as k;
+
 :host {
   position: sticky;
   top: 0;
@@ -81,7 +83,16 @@
   flex: 1;
 }
 
-// Plaka arama yer tutucusunun kendi stili: plaka-yer-tutucu.scss (PR-B `rc-plaka-arama` ile birlikte silinir).
+// ---- plaka arama (`rc-plaka-arama`); ≤ 900 px ikon düğmesi → çubuğun üstünde tam genişlik (§5.6)
+.plaka {
+  display: flex;
+  align-items: center;
+  gap: var(--rc-bosluk-1);
+}
+
+.plaka__kapat {
+  display: none;
+}
 
 // ---- bildirim zili
 .zil__rozet {
@@ -128,7 +139,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: k.$rc-kirilim-mobil) {
   .ust {
     padding-inline: var(--rc-bosluk-3);
   }
@@ -151,9 +162,32 @@
   .palet__tus {
     display: none;
   }
+
+  .plaka {
+    display: none;
+  }
+
+  .plaka--acik {
+    position: absolute;
+    z-index: 1;
+    inset-inline: var(--rc-bosluk-3);
+    inset-block: 0;
+    display: flex;
+    padding-inline: var(--rc-bosluk-1);
+    background-color: var(--rc-yuzey);
+
+    rc-plaka-arama {
+      flex: 1;
+      width: auto;
+    }
+
+    .plaka__kapat {
+      display: inline-grid;
+    }
+  }
 }
 
-@media (max-width: 600px) {
+@media (max-width: k.$rc-kirilim-dar) {
   .ust {
     gap: var(--rc-bosluk-1-5);
     padding-inline: var(--rc-bosluk-2);
