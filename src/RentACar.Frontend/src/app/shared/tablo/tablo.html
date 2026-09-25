@@ -141,6 +141,7 @@
         @for (c of cizim().satirlar; track c.kimlik) {
           <tr
             class="satir"
+            [class]="satirSinifi()?.(c.satir) ?? ''"
             [class.satir--secili]="seciliKume().has(c.kimlik)"
             [attr.aria-rowindex]="satirOfseti() + c.index + 2"
             [attr.aria-selected]="secilebilir() ? seciliKume().has(c.kimlik) : null"

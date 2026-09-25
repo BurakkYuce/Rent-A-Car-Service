@@ -49,7 +49,7 @@ function hatalariTopla(page: Page): string[] {
 const hucre = (page: Page, satir: number, sutun: number) =>
   page.locator(`[data-hucre="${satir}:${sutun}"]`);
 
-test('49 sütun: sabit başlık + sabit plaka, yatay kaydırma, sağa yaslı tr para, 32 px satır, axe temiz', async ({
+test('49 sütun: sabit başlık + sabit plaka, yatay kaydırma, sağa yaslı tr para, 36 px satır (Yol v2 §4), axe temiz', async ({
   page,
 }) => {
   const hatalar = hatalariTopla(page);
@@ -70,7 +70,7 @@ test('49 sütun: sabit başlık + sabit plaka, yatay kaydırma, sağa yaslı tr 
     .locator('tbody tr.satir')
     .first()
     .evaluate((tr) => tr.getBoundingClientRect().height);
-  expect(satirYuksekligi).toBe(32);
+  expect(satirYuksekligi).toBe(36);
 
   // Sağa yaslı, tr biçimli para.
   const gunluk = page.locator('th[data-kod="gunlukFiyat"]');

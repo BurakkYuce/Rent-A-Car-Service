@@ -22,7 +22,7 @@ import { MoneyNoticeView } from './money-notice';
   template: `
     <rc-money-notice [notice]="submission().notice()" />
     <rc-form-hatalari [hatalar]="submission().errors()" />
-    <div class="form__eylemler">
+    <div class="rc-form-eylemler">
       <button
         [attr.type]="type()"
         class="rc-dugme rc-dugme--kucuk"

@@ -57,6 +57,7 @@ const sayfa = (kayitlar: readonly Arac[], toplam = kayitlar.length): Sayfa<Arac>
       varsayilanSirala="plaka"
       [secilebilir]="true"
       [(secim)]="secim"
+      [satirSinifi]="satirSinifi()"
       (siralaDegisti)="siralamalar.push($event)"
       (satirAc)="acilanlar.push($event.id)"
       (yenidenDene)="yenidenDeneme = yenidenDeneme + 1"
@@ -75,6 +76,7 @@ class Deneme {
   readonly sirala = signal<string | null>('plaka');
   readonly secim = signal<readonly string[]>([]);
   readonly kimlik = (a: Arac) => a.id;
+  readonly satirSinifi = signal<((a: Arac) => string | null) | null>(null);
   readonly siralamalar: (string | null)[] = [];
   readonly acilanlar: string[] = [];
   yenidenDeneme = 0;
@@ -144,6 +146,20 @@ describe('Tablo motoru', () => {
     expect(hucre(1, 0).classList).toContain('hucre--sabit');
     expect(hucre(1, 1).classList).toContain('hucre--son-sabit');
     expect(hucre(1, 1).style.left).toBe('36px');
+  });
+
+  it('satirSinifi: satıra ek sınıf verir (bugün vurgusu), motor sınıfları ve seçim korunur', async () => {
+    const { satirlar, d, yenile } = await kur((d) =>
+      d.satirSinifi.set((a) => (a.id === 'a2' ? 'rc-satir-bugun' : null)),
+    );
+    expect(satirlar()[1].classList).toContain('rc-satir-bugun');
+    expect(satirlar()[1].classList).toContain('satir');
+    expect(satirlar()[0].classList).not.toContain('rc-satir-bugun');
+
+    d.secim.set(['a2']);
+    await yenile();
+    expect(satirlar()[1].classList).toContain('satir--secili');
+    expect(satirlar()[1].classList).toContain('rc-satir-bugun');
   });
 
   it('hata ≠ boş: hata bandı + yeniden dene; "Kayıt bulunamadı" görünmez, satır yok', async () => {

@@ -12,7 +12,7 @@ import type { IkonAdi } from '../ikon/ikon-kaydi';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Ikon, TranslocoPipe],
   template: `
-    <rc-ikon class="ikon" [ad]="ikon()" [boyut]="32" />
+    <span class="ikon"><rc-ikon [ad]="ikon()" [boyut]="24" /></span>
     <p class="baslik">{{ baslik() || ('ortak.bosDurum.baslik' | transloco) }}</p>
     <p class="aciklama">{{ aciklama() || ('ortak.bosDurum.aciklama' | transloco) }}</p>
     <div class="eylemler"><ng-content /></div>
@@ -27,7 +27,14 @@ import type { IkonAdi } from '../ikon/ikon-kaydi';
       text-align: center;
     }
     .ikon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--rc-bosluk-12);
+      height: var(--rc-bosluk-12);
       margin-bottom: var(--rc-bosluk-2);
+      border-radius: var(--rc-yaricap-tam);
+      background-color: var(--rc-yuzey-alt);
       color: var(--rc-metin-soluk);
     }
     .baslik {
@@ -35,10 +42,13 @@ import type { IkonAdi } from '../ikon/ikon-kaydi';
       font-weight: var(--rc-agirlik-kalin);
     }
     .aciklama {
-      color: var(--rc-metin-ikincil);
+      max-width: 32rem;
+      color: var(--rc-metin-soluk);
     }
     .eylemler:not(:empty) {
       display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: var(--rc-bosluk-2);
       margin-top: var(--rc-bosluk-3);
     }

@@ -42,8 +42,8 @@
       </div>
     }
     @default {
-      <div class="kaydirma">
-        <table class="tablo" [attr.aria-busy]="liste.yukleniyor()">
+      <div class="rc-tablo-kap">
+        <table class="rc-duz-tablo" [attr.aria-busy]="liste.yukleniyor()">
           <thead>
             <tr>
               @for (alan of columns(); track alan.ad) {
@@ -62,9 +62,9 @@
               @if (layout() === 'row' && duzenleniyor(satir)) {
                 <ng-container *ngTemplateOutlet="duzenlemeSatiri" />
               } @else {
-                <tr [class.secili]="duzenleniyor(satir)">
+                <tr [class.rc-satir-secili]="duzenleniyor(satir)">
                   @for (alan of columns(); track alan.ad) {
-                    <td [class.sayi]="alan.tur === 'sayi' || alan.tur === 'para'">
+                    <td [class.rc-num]="alan.tur === 'sayi' || alan.tur === 'para'">
                       {{ goster(alan, satir[alan.ad]) }}
                     </td>
                   }
@@ -121,7 +121,7 @@
             } @empty {
               @if (liste.tur() === 'hazir' && (layout() === 'panel' || duzenleme() === null)) {
                 <tr>
-                  <td class="bos" [attr.colspan]="columns().length + 1">
+                  <td class="rc-bos" [attr.colspan]="columns().length + 1">
                     {{ 'form.tanim.bos' | transloco }}
                   </td>
                 </tr>

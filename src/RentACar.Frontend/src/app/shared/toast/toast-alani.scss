@@ -20,38 +20,63 @@
   }
 }
 
+// Yol v2: toast bir KATMAN — iki temada da asfalt yüzey, açık yazı, durum ikonu durum renginin açık tonunda
+// (asfalt üstünde ≥ 3:1). Gölge yalnız katmanlarda.
 .toast {
-  --_metin: var(--rc-notr-metin);
-  --_zemin: var(--rc-yuzey);
-  --_kenar: var(--rc-kenar);
+  --_ikon: var(--rc-ham-kagit-100);
+  // Odak halkası asfalt üstünde de görünsün (açık temadaki lacivert odak koyu zeminde kaybolur).
+  --rc-odak: var(--rc-ham-lacivert-200);
 
   display: flex;
   align-items: flex-start;
   gap: var(--rc-bosluk-2);
   padding: var(--rc-bosluk-2) var(--rc-bosluk-2) var(--rc-bosluk-2) var(--rc-bosluk-3);
-  border: 1px solid var(--_kenar);
-  border-inline-start-width: var(--rc-bosluk-1);
+  border: 1px solid var(--rc-ham-asfalt-600);
   border-radius: var(--rc-yaricap-lg);
-  background-color: var(--rc-yuzey);
-  box-shadow: var(--rc-golge-3);
+  background-color: var(--rc-ham-asfalt-800);
+  color: var(--rc-ham-kagit-100);
+  box-shadow: var(--rc-golge-katman);
   pointer-events: auto;
-}
 
-@each $durum in basari, bilgi, uyari, hata {
-  .toast--#{$durum} {
-    --_metin: var(--rc-#{$durum}-metin);
-    --_kenar: var(--rc-#{$durum}-kenar);
+  // İçteki düğmeler asfalt üstünde: yazı toast'tan, üzerine gelince yarı saydam açık katman.
+  .rc-dugme {
+    border-color: var(--rc-ham-murekkep-400);
+    background-color: transparent;
+    color: inherit;
+
+    &:hover {
+      background-color: color-mix(in srgb, currentColor 14%, transparent);
+    }
+  }
+
+  .rc-dugme--hayalet {
+    border-color: transparent;
   }
 }
 
+.toast--basari {
+  --_ikon: var(--rc-ham-otoyol-300);
+}
+
+.toast--bilgi {
+  --_ikon: var(--rc-ham-petrol-300);
+}
+
+.toast--uyari {
+  --_ikon: var(--rc-ham-isaret-500);
+}
+
+.toast--hata {
+  --_ikon: var(--rc-ham-dur-300);
+}
+
 .toast--bekleme {
-  --_metin: var(--rc-vurgu-metin);
-  --_kenar: var(--rc-vurgu);
+  --_ikon: var(--rc-ham-lacivert-200);
 }
 
 .ikon {
   margin-top: var(--rc-bosluk-0-5);
-  color: var(--_metin);
+  color: var(--_ikon);
 }
 
 .icerik {
