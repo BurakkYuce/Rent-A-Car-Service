@@ -3258,6 +3258,7 @@ export type CeviriAnahtari =
   | 'paraIslemi.oturumDogrulanamadi'
   | 'paraIslemi.sonucBilinmiyor'
   | 'paraIslemi.tekrarGonder'
+  | 'paraIslemi.tekrarReddedildi'
   | 'paraIslemi.terkMesaji'
   | 'paraIslemi.tutarAcikcaGir'
   | 'paraIslemi.vazgec'

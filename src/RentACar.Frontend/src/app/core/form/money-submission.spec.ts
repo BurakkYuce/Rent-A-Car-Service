@@ -227,6 +227,36 @@ describe('MoneySubmission — sonucu bilinmeyen deneme ve 409 mukerrer', () => {
     expect(calls[1]?.body).toEqual({ tutar: '500.00' });
   });
 
+  it('#320 L1: tekrarın kesin reddi (403) önceki denemenin belirsizliğini SİLMEZ — not kalır; ilk gönderimin reddinde not yok', async () => {
+    const { submission, form, run, hooks } = mount({ scope: () => 's-l1' });
+    await run();
+    calls[0]?.reply.error(networkError());
+    await run(); // donmuş kopyanın tekrarı
+    calls[1]?.reply.error(problem(403, 'yetki_yok'));
+    expect(form.disabled).toBe(false);
+    expect(submission.frozen()).toBeNull();
+    expect(submission.notice()?.message).toBe('paraIslemi.tekrarReddedildi');
+    expect(hooks.rejected).toHaveBeenCalledWith(expect.objectContaining({ kod: 'yetki_yok' }), true);
+    // Anahtar korunur: düzeltilmiş gövde aynı işlem (ilk deneme yazıldıysa sunucu mukerrer döner).
+    await run('50.00');
+    expect(calls[2]?.options?.islemAnahtari).toBe('k-1');
+    expect(submission.notice()).toBeNull(); // yeni gönderimde not temizlenir
+    calls[2]?.reply.error(problem(400, 'dogrulama', { errors: { tutar: ['Tutar çok büyük.'] } }));
+    expect(submission.notice()).toBeNull(); // ilk gönderimin (tekrar değil) reddi: belirsizlik notu yok
+  });
+
+  it('#320 L1: tekrar reddinde çağıranın özgül notu (rejected kancası) genel notu ezer', async () => {
+    const { submission, run, hooks } = mount({ scope: () => 's-l1b' });
+    hooks.rejected.mockImplementation(() =>
+      submission.showNotice({ tone: 'uyari', title: null, message: 'paraIslemi.dahaOnceKaydedildi', params: {}, detail: null }),
+    );
+    await run();
+    calls[0]?.reply.error(networkError());
+    await run();
+    calls[1]?.reply.error(problem(400, 'dogrulama'));
+    expect(submission.notice()?.message).toBe('paraIslemi.dahaOnceKaydedildi');
+  });
+
   it('tekrar → 409 mevcut + aynı içerik: "zaten kaydedildi" notu, form sıfırlama kancası, YENİ anahtar', async () => {
     const { submission, form, run, hooks } = mount();
     await run();
