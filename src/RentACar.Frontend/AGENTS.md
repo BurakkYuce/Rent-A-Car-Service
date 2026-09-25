@@ -232,6 +232,16 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   içe aktarılan modülün tüm dışa aktarımları canlı sayılır, `core.mjs` ve rxjs'in paylaşılan kısmı ilk pakete
   şişer (+12 kB ölçüldü). CDK tembel modülün içinde STATİK içe aktarılır, kabuk o modülü dinamik yükler.
 - **Mobil (≤ 900 px):** yan menü çekmece; açıkken içerik sütunu `inert`, Esc/perde kapatır, odak menü düğmesine döner.
+- **Yol v2 görünümü (`docs/tasarim/YOL-PLANI-v2.md` §5):** lacivert kenar çubuğu (`--rc-kenar-cubugu-*`; 240 px ↔
+  56 px şerit, `rc.kabuk.dar`), akordeon tek grup (`rc.menu.acik`), grup ikonu `menu-ikonlari.ts` (grup ADI →
+  ikon; yeni sunucu grubu buraya). Kısayol çifti `+ Kira`/`+ Rezervasyon` sunucunun HIZLI bağlantılarından
+  (`kisayollar.ts`; izin süzmesi sunucuda). SPA kira listesi Kira grubunda kayıtlı görünümlerle
+  (`kiralar?gorunum=…`) açılır; sayaçlar `@core/sayac/kabuk-sayaclari` (kabuk istek ATMAZ — Panel yanıtı yayımlar).
+  Kullanıcı kartı/çıkış kenar çubuğunun altında; üst çubukta tekrar yok. Üst çubuk erişilebilir adlarında
+  "Plaka" GEÇMEZ ("Hızlı araç arama") — e2e'deki `getByLabel('Plaka')` form alanlarıyla çakışır.
+- **Sayfa bandı** `kabuk/sayfa-bandi` (`rc-sayfa-bandi`): sayfanın TEK `<h1>`'i; `[eylemler]` çerçeveli ikinciller
+  (≤ 900 px "…" menüsüne iner), `[birincil]` tek dolu birincil. Stil kapsüllenmez (projeksiyondaki `.rc-dugme`
+  bantta yeniden boyanır).
 - **Sekmeler** (`@core/sekme` ilk pakette küçük çekirdek + `kabuk/sekmeler` tembel): her kabuk sayfası (desen +
   yol parametreleri; sorgu/fragment HARİÇ) bir sekme. Başka sekmeye geçince bileşen YOK EDİLMEZ
   (`SekmeRotaStratejisi`, `RouteReuseStrategy`): form, kaydırma, sayfa store'u yaşar. Bu yüzden

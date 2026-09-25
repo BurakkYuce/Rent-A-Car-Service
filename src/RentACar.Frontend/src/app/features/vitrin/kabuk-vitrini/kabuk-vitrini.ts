@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { YanMenu } from '../../../kabuk/menu/yan-menu';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 interface KabukParcasi {
   readonly ad: string;
@@ -16,7 +17,7 @@ interface KabukParcasi {
 @Component({
   selector: 'rc-kabuk-vitrini',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, YanMenu],
+  imports: [RouterLink, SayfaBandi, YanMenu],
   styleUrl: '../vitrin-ortak.scss',
   styles: `
     dl {
@@ -34,8 +35,11 @@ interface KabukParcasi {
     }
     .menu-ornegi {
       max-width: 15rem;
-      border: 1px solid var(--rc-kenar);
       border-radius: var(--rc-yaricap-lg);
+      background-color: var(--rc-kenar-cubugu-zemin);
+    }
+    .bant-ornegi {
+      margin: calc(var(--rc-bosluk-4) * -1) calc(var(--rc-bosluk-4) * -1) var(--rc-bosluk-4);
     }
     @media (max-width: 30rem) {
       dl {
@@ -44,13 +48,25 @@ interface KabukParcasi {
     }
   `,
   template: `
-    <div class="sayfa-ust">
-      <h1>Kabuk</h1>
-      <a routerLink="/vitrin">Vitrin</a>
-    </div>
+    <rc-sayfa-bandi
+      class="bant-ornegi"
+      baslik="Kabuk"
+      ikon="layout-sidebar-left-collapse"
+      pill="Vitrin · 5 parça"
+      altMetin="Lacivert kenar çubuğu, üst çubuk, sekmeler, sayfa bandı"
+    >
+      <ng-container eylemler>
+        <a class="rc-dugme" routerLink="/vitrin">Vitrin</a>
+        <button type="button" class="rc-dugme">Görünümü kaydet</button>
+        <button type="button" class="rc-dugme">Yazdır</button>
+      </ng-container>
+      <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/vitrin/tablo">Tablo vitrini</a>
+    </rc-sayfa-bandi>
     <p class="giris">
       Bu sayfayı saran menü, üst çubuk ve sekme çubuğu kabuğun canlı parçalarıdır. Sayfa kendi
-      <code>&lt;main&gt;</code>’ini açmaz; başlığı <code>h1</code>.
+      <code>&lt;main&gt;</code>’ini açmaz; başlığı sayfa bandının <code>h1</code>’idir (gövdede
+      ikinci <code>h1</code> yok). Bandda çerçeveli ikincil eylemler <code>[eylemler]</code>, tek
+      dolu birincil <code>[birincil]</code> yuvasına; ≤ 900 px’te ikinciller “…” menüsüne iner.
     </p>
 
     <section class="bolum" aria-labelledby="parcalar">
@@ -92,9 +108,19 @@ export class KabukVitrini {
         'GET /api/ui/v1/menu’den; istemci süzmez. SPA öğesi router’la, Blazor öğesi tam sayfa açılır (önce tüm sekmelerdeki kaydedilmemiş değişiklik sorulur). Etkin sayfa aria-current.',
     },
     {
+      ad: 'Kenar çubuğu',
+      aciklama:
+        '240 px lacivert (koyu temada asfalt); daralt düğmesiyle 56 px ikon şeridi (rc.kabuk.dar). Kısayol çifti + Kira / + Rezervasyon sunucunun hızlı bağlantılarından (izin süzmesi sunucuda). Akordeon: tek grup açık (rc.menu.acik). Kira grubunda kayıtlı görünümler; sayaçlar Panel verisinden. Altta şube (salt okunur, kapsam kullanıcı tanımından) + kullanıcı kartı + çıkış.',
+    },
+    {
       ad: 'Üst çubuk',
       aciklama:
-        'Menü düğmesi (≤ 900 px), komut paleti, tema seçimi (sistem/açık/koyu), kimlik, çıkış.',
+        '56 px: menü daralt (≤ 900 px çekmece aç), komut paleti (Ctrl+K), plaka arama (Enter → araç listesi), bildirim zili (menüde bildirim öğesi varsa), tema üçlüsü.',
+    },
+    {
+      ad: 'Sayfa bandı',
+      aciklama:
+        'rc-sayfa-bandi: ikon + başlık (h1) + bağlam pill’i + ikincil metin; çerçeveli beyaz ikinciller, tek dolu beyaz birincil. Mobilde 44 px, ikinciller “…” menüsünde.',
     },
     {
       ad: 'Sekme çubuğu',
