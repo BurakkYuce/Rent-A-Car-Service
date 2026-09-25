@@ -3260,6 +3260,7 @@ export type CeviriAnahtari =
   | 'paraIslemi.vazgec'
   | 'paraIslemi.vazgecBaslik'
   | 'paraIslemi.vazgecMesaj'
+  | 'paraIslemi.yenidenGirisGerekli'
   | 'paraIslemi.zatenKaydedildi'
   | 'platform.belgeler.aciklama'
   | 'platform.belgeler.alan.aciklama'

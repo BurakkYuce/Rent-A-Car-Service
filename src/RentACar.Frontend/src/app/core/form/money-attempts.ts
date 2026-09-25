@@ -12,7 +12,6 @@ import {
 
 import type { ApiYolu } from '@core/api/api-istemcisi';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
-import type { Ben } from '@core/oturum/oturum-tipleri';
 
 import type { MoneyContent, MoneyNotice } from './money-notice';
 
@@ -40,13 +39,14 @@ export interface MoneyAttempt<TBody = unknown> {
 }
 
 /**
- * `GET oturum/ben` yanıtının bağlam anahtarı — `OturumServisi.baglam` ile AYNI biçim (kiracı|kullanıcı|şube kapsamı).
- * Tekrar göndermeden önceki sunucu doğrulamasında kullanılır; biçim orada değişirse burada da değişmeli.
+ * Bağlam anahtarı ve kimlik — TEK kaynak `@core/oturum/oturum-baglami` (`OturumServisi.baglam` de onu kullanır).
+ * Burada yalnız yeniden dışa aktarılır; kendi biçimini tanımlamaz.
  */
-export function contextOfSession(ben: Pick<Ben, 'kiraci' | 'kullanici' | 'subeKapsami'>): string {
-  const sube = ben.subeKapsami.tumSubeler ? '*' : (ben.subeKapsami.subeId ?? '-');
-  return `${ben.kiraci.id}|${ben.kullanici.id}|${sube}`;
-}
+export {
+  contextOfSession,
+  identityOfContext,
+  identityOfSession,
+} from '@core/oturum/oturum-baglami';
 
 /**
  * Sekmeler arası oturum bağlamı kanalı (aynı köken). Bir sekmede çıkış ya da başka kullanıcı girişi olunca öteki

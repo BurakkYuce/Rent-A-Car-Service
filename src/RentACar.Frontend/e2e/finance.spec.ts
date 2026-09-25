@@ -789,6 +789,95 @@ test('r316 M-new: iki sekme — sekme 2 donmuş virman; sekme 1 çıkış + BAŞ
   expect(sent).toEqual(['2']);
 });
 
+// ------------------------------------------- 2026-09-25: tekrar öncesi 401 → yeniden giriş, aynı kimlikte aynı anahtar
+
+/** Donmuş virman kurar (ilk yazım kayıp yanıt), sonra oturumu "düşürür": `GET oturum/ben` 401 döner. */
+async function frozenVirmanWithExpiredSession(page: Page, loginAs: object) {
+  let expired = false;
+  const written = await financeHubEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== '/api/ui/v1/finans/cari-virman') return false;
+      if (written.length === 1) await r.abort('failed');
+      else await r.fulfill({ json: { id: 'cv-9' } });
+      return true;
+    },
+  });
+  await page.route('**/api/ui/v1/oturum/ben', (route) =>
+    expired
+      ? problem(route, 401, 'oturum_yok', 'Oturum açık değil.')
+      : route.fulfill({ json: BEN_TERS }),
+  );
+  await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
+    await xsrfYaz(page, 'anonim');
+    return route.fulfill({ status: 204 });
+  });
+  await page.route('**/api/ui/v1/oturum/giris', async (route) => {
+    await xsrfYaz(page, 'yeni');
+    expired = false;
+    return route.fulfill({ json: loginAs });
+  });
+  await page.goto(CARI_VIRMAN.yol);
+  await hazirBekle(page, CARI_VIRMAN);
+  const form = page.getByRole('region', { name: 'Virman', exact: true });
+  await form.getByRole('combobox', { name: 'Kaynak Cari (alacak)' }).fill('Ay');
+  await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
+  await form.getByRole('combobox', { name: 'Hedef Cari (borç)' }).fill('Bo');
+  await page.getByRole('option', { name: 'Bora Kaya' }).click();
+  await form.getByRole('textbox', { name: 'Tutar' }).fill('300');
+  await form.getByRole('button', { name: 'Virman Yap' }).click();
+  const retry = form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' });
+  await expect(retry).toBeVisible();
+  expired = true;
+  return { form, retry, written };
+}
+
+test('tekrar öncesi oturum düşmüş (401): deneme bırakılmaz — yeniden giriş, AYNI kullanıcı → AYNI anahtar + gövdeyle tek işlem', async ({
+  page,
+}) => {
+  const { retry, written } = await frozenVirmanWithExpiredSession(page, BEN_TERS);
+  await retry.click();
+  const dialog = page.getByRole('dialog', { name: 'Oturumunuz sona erdi' });
+  await expect(dialog).toBeVisible();
+  expect(written).toHaveLength(1); // doğrulanmadan gönderilmez
+  await dialog.getByLabel('Parola').fill('rastgele-e2e-parolasi');
+  await dialog.getByRole('button', { name: 'Giriş yap ve devam et' }).click();
+  await expect(page.getByText('Virman kaydedildi.')).toBeVisible();
+  expect(written).toHaveLength(2);
+  expect(written[1]?.anahtar).toBe(written[0]?.anahtar);
+  expect(written[1]?.govde).toBe(written[0]?.govde);
+});
+
+test('tekrar öncesi 401 + yeniden girişten vazgeçildi: gönderilmez, işlem ve anahtarı korunur', async ({
+  page,
+}) => {
+  const { form, retry, written } = await frozenVirmanWithExpiredSession(page, BEN_TERS);
+  await retry.click();
+  const dialog = page.getByRole('dialog', { name: 'Oturumunuz sona erdi' });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(form.getByText(/Oturumunuz kapanmış; işlem tekrar gönderilmedi/)).toBeVisible();
+  await expect(retry).toBeVisible();
+  await expect(form.getByRole('textbox', { name: 'Tutar' })).toBeDisabled();
+  expect(written).toHaveLength(1);
+});
+
+test('tekrar öncesi 401 + BAŞKA kullanıcıyla giriş: eski deneme GÖNDERİLMEZ', async ({ page }) => {
+  const other = {
+    ...BEN_TERS,
+    kullanici: { ...BEN_TERS.kullanici, id: 'baska-kullanici', kullaniciAdi: 'baska' },
+  };
+  const { retry, written } = await frozenVirmanWithExpiredSession(page, other);
+  await retry.click();
+  const dialog = page.getByRole('dialog', { name: 'Oturumunuz sona erdi' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Parola').fill('rastgele-e2e-parolasi');
+  await dialog.getByRole('button', { name: 'Giriş yap ve devam et' }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(written).toHaveLength(1);
+});
+
 for (const s of PAGES) {
   test.describe(`${s.ad}: mobil taşma (dokunmatik öykünme)`, () => {
     test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

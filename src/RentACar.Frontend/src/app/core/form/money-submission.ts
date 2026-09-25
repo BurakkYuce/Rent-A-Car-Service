@@ -12,12 +12,14 @@ import { istekBaglami } from '@core/oturum/istek-baglami';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import type { Ben } from '@core/oturum/oturum-tipleri';
+import { YenidenGirisServisi } from '@core/oturum/yeniden-giris-servisi';
 
 import { yeniIslemAnahtari } from './gonderim-kilidi';
 import {
   type MoneyAttempt,
   PendingMoneyAttempts,
-  contextOfSession,
+  identityOfContext,
+  identityOfSession,
   sessionContext,
 } from './money-attempts';
 import {
@@ -107,6 +109,8 @@ let instanceCounter = 0;
 const SESSION_CHANGED_NOTICE = customNotice('paraIslemi.oturumDegisti');
 /** Tekrar öncesi oturum doğrulanamadı (ağ/sunucu): gönderilmedi, donmuş deneme duruyor. */
 const SESSION_UNVERIFIED_NOTICE = customNotice('paraIslemi.oturumDogrulanamadi');
+/** Tekrar öncesi oturum kapanmıştı ve yeniden girişten vazgeçildi: gönderilmedi, donmuş deneme (anahtarıyla) duruyor. */
+const RELOGIN_REQUIRED_NOTICE = customNotice('paraIslemi.yenidenGirisGerekli');
 
 /**
  * Para yazan formların TEK gönderim çekirdeği (DEVIR §5 "Para formu yaşam döngüsü"; işlem başına rastgele anahtar):
@@ -127,6 +131,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   private readonly confirmService = inject(OnayServisi);
   private readonly toast = inject(ToastServisi);
   private readonly session = inject(OturumServisi, { optional: true });
+  private readonly relogin = inject(YenidenGirisServisi, { optional: true });
   private readonly t = ceviriFonksiyonu();
   private readonly scope: () => string;
   private readonly restorable: boolean;
@@ -440,27 +445,64 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
 
   /**
    * Donmuş denemenin tekrarından önce sunucudaki oturum kimliği (`GET oturum/ben`) gönderim anındakiyle karşılaştırılır.
-   * Farklıysa (ya da oturum kapanmışsa) GÖNDERİLMEZ: deneme bırakılır ve açıklanır, uygulamanın `ben`'i tazelenir.
-   * Doğrulanamazsa (ağ/5xx) yine gönderilmez; donmuş deneme korunur. Bağlamsız deneme (oturum bilgisi yok) atlanır.
+   * Karşılaştırma yalnız KİMLİK (kiracı + kullanıcı) üzerindendir: sunucunun idempotency anahtarı şube içermez, şube
+   * kapsamı değişmiş aynı kullanıcının tekrarı aynı işlemdir.
+   * - Başka kimlik: GÖNDERİLMEZ; deneme bırakılır ve açıklanır, uygulamanın `ben`'i tazelenir.
+   * - 401 (`oturum_yok`): deneme BIRAKILMAZ. Yeniden giriş diyaloğu açılır; aynı kiracı + kullanıcı dönerse AYNI anahtar
+   *   ve gövdeyle tekrar edilir. Başka kullanıcıyla girilirse bırakılır; vazgeçilirse donmuş deneme kalır.
+   * - Doğrulanamazsa (ağ/5xx) gönderilmez; donmuş deneme korunur. Bağlamsız deneme (oturum bilgisi yok) atlanır.
    */
   private async sameSession(attempt: MoneyAttempt<TBody>): Promise<boolean> {
     this.confirming.set(true);
     try {
-      const ben = await firstValueFrom(
-        this.api.get<Ben>('/api/ui/v1/oturum/ben', {
-          context: istekBaglami({ sessiz: true, yenidenGirisYok: true }),
-        }),
-      );
-      if (contextOfSession(ben) === attempt.context) return true;
+      let ben: Ben;
+      try {
+        ben = await firstValueFrom(
+          this.api.get<Ben>('/api/ui/v1/oturum/ben', {
+            context: istekBaglami({ sessiz: true, yenidenGirisYok: true }),
+          }),
+        );
+      } catch (raw: unknown) {
+        if (apiHatasinaCevir(raw).kod === 'oturum_yok') return await this.reloginFor(attempt);
+        this.noticeState.set(SESSION_UNVERIFIED_NOTICE);
+        return false;
+      }
+      if (this.sameIdentity(ben, attempt)) return true;
       this.sessionMismatch(attempt);
-      return false;
-    } catch (raw: unknown) {
-      if (apiHatasinaCevir(raw).kod === 'oturum_yok') this.sessionMismatch(attempt);
-      else this.noticeState.set(SESSION_UNVERIFIED_NOTICE);
       return false;
     } finally {
       this.confirming.set(false);
     }
+  }
+
+  /** Sunucunun `ben`'i denemenin kimliğiyle (kiracı + kullanıcı; şube hariç) aynı mı. */
+  private sameIdentity(ben: Ben, attempt: MoneyAttempt<TBody>): boolean {
+    return (
+      attempt.context !== null && identityOfSession(ben) === identityOfContext(attempt.context)
+    );
+  }
+
+  /**
+   * 401 sonrası: yeniden giriş istenir. Diyalog başka kullanıcıyla girişte `false` döner ve oturum o kullanıcıya geçer;
+   * bu yüzden sonuç diyalogun cevabına değil girişten sonraki `ben`'e göre verilir.
+   */
+  private async reloginFor(attempt: MoneyAttempt<TBody>): Promise<boolean> {
+    if (!this.relogin || !this.session?.girisYapildi()) {
+      this.sessionMismatch(attempt);
+      return false;
+    }
+    const entered = await this.relogin.iste();
+    // Diyalog açıkken bağlam değişip deneme zaten bırakıldıysa (başka kullanıcı/şube) gönderim yok.
+    if (this.destroyed || this.frozenState()?.key !== attempt.key) return false;
+    const ben = this.session.ben();
+    if (ben !== null && !this.sameIdentity(ben, attempt)) {
+      this.sessionMismatch(attempt);
+      return false;
+    }
+    if (entered && ben !== null) return true;
+    // Vazgeçildi: işlem ve anahtarı korunur, form kilitli kalır; yeniden girişten sonra tekrar aynı anahtarla.
+    this.noticeState.set(RELOGIN_REQUIRED_NOTICE);
+    return false;
   }
 
   private sessionMismatch(attempt: MoneyAttempt<TBody>): void {
