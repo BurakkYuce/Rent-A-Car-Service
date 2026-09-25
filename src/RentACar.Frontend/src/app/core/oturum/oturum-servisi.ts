@@ -11,7 +11,7 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { TEMA_ANAHTARI, TemaServisi } from '@core/tema/tema-servisi';
 
 import { istekBaglami } from './istek-baglami';
-import type { OturumBaglami } from './oturum-baglami';
+import { contextOfSession, type OturumBaglami } from './oturum-baglami';
 import type { Ben, GirisBilgileri, Izin } from './oturum-tipleri';
 
 /** Oturum uçları kendi hatalarını çağırana verir: diyalog ya da genel toast/bant yok. Her istekte taze bağlam. */
@@ -58,9 +58,8 @@ export class OturumServisi {
   readonly baglam = computed<OturumBaglami | null>(
     () => {
       const ben = this.deger();
-      if (!ben) return null;
-      const sube = ben.subeKapsami.tumSubeler ? '*' : (ben.subeKapsami.subeId ?? '-');
-      return { anahtar: `${ben.kiraci.id}|${ben.kullanici.id}|${sube}` };
+      // Anahtar biçiminin TEK kaynağı: para denemeleri de aynı fonksiyonla yazar (`MoneyAttempt.context`).
+      return ben ? { anahtar: contextOfSession(ben) } : null;
     },
     { equal: (a, b) => a?.anahtar === b?.anahtar },
   );

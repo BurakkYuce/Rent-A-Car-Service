@@ -5,6 +5,7 @@ import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
 import { provideApiIstemcisi } from '@core/api/api-istemcisi';
+import { contextOfSession } from '@core/form/money-attempts';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
 import { provideCeviri } from '@core/i18n/ceviri';
@@ -154,5 +155,31 @@ describe('OturumServisi', () => {
     http.expectOne('/api/ui/v1/oturum/cikis').error(new ProgressEvent('error'));
     await cikis;
     expect(oturum.girisYapildi()).toBe(false);
+  });
+
+  // Güvenlik kilidi: para denemeleri `contextOfSession` ile yazılır, bağlam `baglam` ile okunur. İkisi farklı biçim
+  // üretirse deneme ya hiç okunmaz ya da başka kullanıcıya geçişte düşmez. Beklenen anahtarlar ELLE yazıldı.
+  describe('bağlam anahtarı paritesi (contextOfSession)', () => {
+    const fixtures: readonly [string, Ben, string][] = [
+      [
+        'tüm şubeler',
+        { ...BEN, subeKapsami: { tumSubeler: true, subeId: null, subeAd: null } },
+        't-1|u-1|*',
+      ],
+      ['şubeli', BEN, 't-1|u-1|s-9'],
+      [
+        'şubesiz',
+        { ...BEN, subeKapsami: { tumSubeler: false, subeId: null, subeAd: null } },
+        't-1|u-1|-',
+      ],
+    ];
+    for (const [ad, ben, beklenen] of fixtures) {
+      it(`${ad}: baglam ile para denemesi bağlamı aynı`, async () => {
+        await girisYap(ben);
+        expect(oturum.baglam()?.anahtar).toBe(beklenen);
+        expect(contextOfSession(ben)).toBe(beklenen);
+        expect(oturum.baglam()?.anahtar).toBe(contextOfSession(ben));
+      });
+    }
   });
 });
