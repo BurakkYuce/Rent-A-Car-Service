@@ -11,6 +11,7 @@ export type ServiceRecordRequest = Sema<'ServiceRecordRequest'>;
 export type ServiceInfoRequest = Sema<'ServiceInfoRequest'>;
 export type ServiceLineRequest = Sema<'ServiceLineRequest'>;
 export type ServiceReflectRequest = Sema<'ServiceReflectRequest'>;
+export type ServiceCounts = Sema<'ServiceCounts'>;
 
 // ---- Sigorta / MTV / muayene (`/api/ui/v1/regulasyon`) + vade panosu
 export type PolicyRow = Sema<'InsurancePolicyRow'>;
@@ -19,6 +20,7 @@ export type PolicyRequest = Sema<'InsurancePolicyRequest'>;
 export type PolicyPaymentRequest = Sema<'InsurancePaymentRequest'>;
 export type Endorsement = Sema<'EndorsementDto'>;
 export type EndorsementRequest = Sema<'EndorsementRequest'>;
+export type EndorsementRow = Sema<'EndorsementListRow'>;
 export type MtvRow = Sema<'MtvRow'>;
 export type MtvDetail = Sema<'MtvDetail'>;
 export type MtvRequest = Sema<'MtvRequest'>;
@@ -100,6 +102,18 @@ export const POLICY_LIST = listeTanimi({
   },
   siralanabilir: ['plaka', 'tip', 'bitis', 'prim', 'kalan', 'odendi'],
   varsayilanSirala: 'bitis',
+});
+
+/** Tüm poliçelerin zeyilleri (`GET /regulasyon/zeyiller`, #301). */
+export const ENDORSEMENT_LIST = listeTanimi({
+  filtreler: {
+    plaka: { tur: 'metin', enFazla: 32 },
+    tipi: { tur: 'metin', enFazla: 64 },
+    bas: { tur: 'tarih' },
+    bit: { tur: 'tarih' },
+  },
+  siralanabilir: ['plaka', 'zeyilNo', 'tarih', 'deger', 'brut', 'net', 'tipi'],
+  varsayilanSirala: '-tarih',
 });
 
 export const MTV_LIST = listeTanimi({

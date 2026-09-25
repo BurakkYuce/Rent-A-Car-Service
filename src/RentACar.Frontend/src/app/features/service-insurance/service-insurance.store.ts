@@ -9,6 +9,7 @@ import { TemelStore } from '@core/veri/temel-store';
 import {
   DUE_BOARD,
   type DueBoard,
+  type EndorsementRow,
   type InspectionDetail,
   type InspectionRow,
   type MtvDetail,
@@ -18,6 +19,7 @@ import {
   REGULATION,
   type RegulationOptions,
   SERVICES,
+  type ServiceCounts,
   type ServiceRecordDetail,
   type ServiceRecordRow,
   recordPath,
@@ -29,6 +31,35 @@ export class ServiceListStore {
 
   readonly list = new TemelStore(
     (p: SorguParametreleri) => this.api.get<Sayfa<ServiceRecordRow>>(SERVICES, { parametreler: p }),
+    { oncekiVeriyiKoru: true },
+  );
+  /**
+   * Durum sekmesi sayaçları (`/servisler/sayaclar`, #301): listenin süzgeçleri, durum ve sayfalama HARİÇ. Hata sessiz —
+   * sekmeler sayaçsız kalır, liste kendi hatasını gösterir.
+   */
+  readonly counts = new TemelStore(
+    (p: SorguParametreleri) =>
+      this.api.get<ServiceCounts>(`${SERVICES}/sayaclar`, {
+        parametreler: countParameters(p),
+        context: istekBaglami({ sessiz: true }),
+      }),
+    { oncekiVeriyiKoru: true },
+  );
+}
+
+/** Sayaç ucu durum ve sayfalama almaz: her sekme kendi sayısını gösterir. */
+export function countParameters(p: SorguParametreleri): SorguParametreleri {
+  const skip = new Set(['durum', 'sayfa', 'boyut', 'sirala']);
+  return Object.fromEntries(Object.entries(p).filter(([k]) => !skip.has(k)));
+}
+
+@Injectable()
+export class EndorsementListStore {
+  private readonly api = inject(ApiIstemcisi);
+
+  readonly list = new TemelStore(
+    (p: SorguParametreleri) =>
+      this.api.get<Sayfa<EndorsementRow>>(`${REGULATION}/zeyiller`, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 }

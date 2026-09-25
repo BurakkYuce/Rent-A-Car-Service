@@ -1260,7 +1260,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         var hizmetMap = hizmet.ToDictionary(x => x.MusteriId, x => x.Toplam);
 
         var cust = await db.Customers.AsNoTracking()
-            .Select(c => new { c.Id, c.Tip, c.Ad, c.Soyad, c.Unvan, c.Email, c.CepTel, c.DogumTarihi })
+            .Select(c => new { c.Id, c.Tip, c.Ad, c.Soyad, c.Unvan, c.Email, c.CepTel, c.DogumTarihi, c.AnonimBelge })
             .ToListAsync(ct);
         var custMap = cust.ToDictionary(c => c.Id);
 
@@ -1280,7 +1280,9 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                     Mail: c?.Email, Tel: c?.CepTel,
                     OrtalamaKiraBedeli: g.KiraSayisi > 0 ? decimal.Round(g.ToplamCiro / g.KiraSayisi, 2, MidpointRounding.AwayFromZero) : 0m,
                     OrtalamaKm: g.KmAdet > 0 ? decimal.Round((decimal)(g.KmToplam ?? 0) / g.KmAdet, 2, MidpointRounding.AwayFromZero) : null,
-                    DogumTarihi: c?.DogumTarihi,
+                    // r317 L2: doğum tarihi kimlik belgesi bilgisi — AnonimBelge'de hiçbir yüzeye (Blazor CRM analizi,
+                    // /api/ui analiz, dışa aktarma) çıkmaz; maske kaynakta.
+                    DogumTarihi: c is { AnonimBelge: false } ? c.DogumTarihi : null,
                     IlkKiraZamani: g.IlkKira,
                     HizmetBedeli: hizmetMap.TryGetValue(g.MusteriId, out var h) ? h : 0m);
             });

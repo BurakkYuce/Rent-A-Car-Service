@@ -30,7 +30,7 @@
       [attr.aria-pressed]="activeStatus() === null"
       (click)="selectStatus(null)"
     >
-      {{ 'servisSigorta.tumu' | transloco }}
+      {{ tabLabel(null) }}
     </button>
     @for (s of statuses; track s) {
       <button
@@ -40,7 +40,7 @@
         [attr.aria-pressed]="activeStatus() === s"
         (click)="selectStatus(s)"
       >
-        {{ statusLabel(s) }}
+        {{ tabLabel(s) }}
       </button>
     }
   </div>

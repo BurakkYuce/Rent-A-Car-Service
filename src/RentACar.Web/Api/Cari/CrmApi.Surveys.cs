@@ -141,8 +141,7 @@ public static partial class CrmApi
     {
         var input = SurveyInput(request);
         await CrmScope.RequireCustomerAsync(dbf, input.CariId, "cariId", ct);
-        await CrmScope.RequireTargetAsync(user, rentals, locations, input.RentalId, input.CikisOfisi, ct);
-        var id = await surveys.CreateAsync(input, ct);
+        var id = await surveys.CreateAsync(input, ct); // hedef kapsamı serviste (CrmScopeGuard)
         return await SurveyCardAsync(id, surveys, user, dbf, locations, ct) is { } c
             ? TypedResults.Created($"{UiApiExtensions.V1}/anketler/{id}", c) : SurveyNotFound();
     }
@@ -159,7 +158,7 @@ public static partial class CrmApi
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         var input = SurveyInput(request);
         await CrmScope.RequireCustomerAsync(dbf, input.CariId, "cariId", ct);
-        await CrmScope.RequireTargetAsync(user, rentals, locations, input.RentalId, input.CikisOfisi, ct);
+        // Bağ korunması + hedef kapsamı serviste (CrmScopeGuard; Blazor yoluyla aynı kural).
         if (!await surveys.UpdateAsync(id, input, request.Surum, ct)) return SurveyNotFound();
         return await SurveyCardAsync(id, surveys, user, dbf, locations, ct) is { } c ? TypedResults.Ok(c) : SurveyNotFound();
     }

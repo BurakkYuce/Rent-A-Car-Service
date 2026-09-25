@@ -10,8 +10,17 @@ namespace RentACar.Application.Crm;
 /// Tenant izolasyonu/audit alt katmanda.
 /// </summary>
 public sealed class AnketService(
-    IAnketRepository repository, RentACar.Application.Bookings.IBookingRepository bookings, ICurrentUser currentUser)
+    IAnketRepository repository, RentACar.Application.Bookings.IBookingRepository bookings, ICurrentUser currentUser,
+    CrmScopeGuard scope)
 {
+    /// <summary>r317 M1: güncellemede mevcut kaydın ve hedefin şube kapsamı (her iki arayüz için tek yer).</summary>
+    private async Task<bool> ScopedUpdateAsync(Guid id, AnketInput input, CancellationToken ct)
+    {
+        if (await _repository.FindAsync(id, ct) is not { } current) return false;
+        await scope.RequireUpdateAsync(current.RentalId, current.CikisOfisi, input.RentalId, input.CikisOfisi, ct);
+        return true;
+    }
+
     private readonly IAnketRepository _repository = repository;
     private readonly RentACar.Application.Bookings.IBookingRepository _bookings = bookings;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -51,6 +60,7 @@ public sealed class AnketService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         Validate(input);
+        await scope.RequireTargetAsync(input.RentalId, input.CikisOfisi, creating: true, ct);
         var row = new Anket();
         await ApplyAsync(row, input, ct);
         await _repository.CreateWithCevapAsync(row, Cevaplar(input), ct);
@@ -60,6 +70,7 @@ public sealed class AnketService(
     public async Task<bool> UpdateAsync(Guid id, AnketInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (!await ScopedUpdateAsync(id, input, ct)) return false;
         Validate(input);
         // Snapshot çözümü (sözleşme okuması) transaction DIŞINDA yapılır; sonuç kopyaya yazılıp
         // transaction içinde uygulanır.
@@ -79,6 +90,7 @@ public sealed class AnketService(
     public async Task<bool> UpdateAsync(Guid id, AnketInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (!await ScopedUpdateAsync(id, input, ct)) return false;
         Validate(input);
         var copy = new Anket();
         await ApplyAsync(copy, input, ct);
@@ -95,10 +107,12 @@ public sealed class AnketService(
     /// <summary>F7.1 — satır sürümü (PUT'un <c>surum</c>'u); yok/başka kiracı → null.</summary>
     public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.DeleteAsync(id, ct);
+        if (await _repository.FindAsync(id, ct) is not { } current) return false;
+        await scope.RequireRecordAsync(current.RentalId, current.CikisOfisi, ct); // r317 M1
+        return await _repository.DeleteAsync(id, ct);
     }
 
     private static void Validate(AnketInput n)
