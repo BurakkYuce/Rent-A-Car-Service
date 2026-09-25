@@ -1,5 +1,5 @@
 <a class="atla" href="#icerik" (click)="icerigeGec($event)">{{ 'kabuk.icerigeGec' | transloco }}</a>
-<div class="kabuk" [class.kabuk--cekmece-acik]="cekmeceAcik()">
+<div class="kabuk" [class.kabuk--cekmece-acik]="cekmeceAcik()" [class.kabuk--dar]="darEtkin()">
   <nav
     #yanMenu
     id="rc-yan-menu"
@@ -8,11 +8,17 @@
     [attr.inert]="mobil() && !cekmeceAcik() ? '' : null"
   >
     <div class="yan__ust">
-      <span class="yan__marka">{{ 'uygulama.ad' | transloco }}</span>
+      <span class="logo" aria-hidden="true">RA</span>
+      <span class="yan__marka">
+        <span class="yan__ad">{{ 'uygulama.ad' | transloco }}</span>
+        @if (kimlik(); as k) {
+          <span class="yan__firma">{{ k.firma }}</span>
+        }
+      </span>
       @if (mobil()) {
         <button
           type="button"
-          class="rc-dugme rc-dugme--hayalet rc-dugme--ikon rc-dugme--kucuk"
+          class="yan__ikon-dugme"
           [attr.aria-label]="'kabuk.menuyuKapat' | transloco"
           (click)="cekmeceyiKapat(true)"
         >
@@ -21,13 +27,46 @@
       }
     </div>
     <rc-yan-menu
+      class="yan__menu"
       [model]="model()"
       [durum]="menuDurumu()"
       [guncellenemedi]="guncellenemedi()"
       [etkin]="etkin()"
+      [gorunum]="gorunum()"
+      [dar]="darEtkin()"
       (sec)="ogeAc($event)"
       (yenile)="menuyuYenile()"
+      (genislet)="menuyuGenislet()"
     />
+    @if (kimlik(); as k) {
+      <div class="yan__alt">
+        <div class="sube" [title]="'kabuk.sube.ipucu' | transloco">
+          <rc-ikon ad="building" [boyut]="16" />
+          <span class="sube__ad"
+            ><span class="rc-gorunmez">{{ 'kabuk.sube.etiket' | transloco }}: </span
+            >{{ k.sube }}</span
+          >
+        </div>
+        <div class="kullanici">
+          <span class="avatar" aria-hidden="true">{{ k.basHarf }}</span>
+          <span class="kullanici__metin">
+            <span class="kullanici__ad">{{ k.ad }}</span>
+            <span class="kullanici__rol"
+              >{{ k.rol ? (k.rol | transloco) : k.rolHam }} · {{ k.sube }}</span
+            >
+          </span>
+          <button
+            type="button"
+            class="yan__ikon-dugme"
+            [attr.aria-label]="'oturum.cikis' | transloco"
+            [title]="'oturum.cikis' | transloco"
+            (click)="cikisYap()"
+          >
+            <rc-ikon ad="logout" [boyut]="16" />
+          </button>
+        </div>
+      </div>
+    }
   </nav>
   @if (cekmeceAcik()) {
     <div class="perde" aria-hidden="true" (click)="cekmeceyiKapat(true)"></div>
@@ -35,9 +74,13 @@
   <div class="ana" [attr.inert]="cekmeceAcik() ? '' : null">
     <rc-ust-cubuk
       [cekmeceAcik]="cekmeceAcik()"
+      [dar]="darEtkin()"
+      [bildirimSayisi]="bildirim()?.sayi ?? null"
+      [bildirimVar]="bildirim() !== null"
       (menuAc)="cekmeceyiAc()"
+      (daralt)="menuyuDaralt()"
       (paletAc)="paletiAc()"
-      (cikis)="cikisYap()"
+      (bildirimAc)="bildirimleriAc()"
     />
     <rc-sekme-cubugu />
     <main #icerik id="icerik" class="icerik" tabindex="-1">

@@ -1,3 +1,4 @@
+// Yol v2 §5.2 — üst çubuk 56 px, yüzey zemin.
 :host {
   position: sticky;
   top: 0;
@@ -6,29 +7,64 @@
 }
 
 .ust {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--rc-bosluk-2);
-  min-height: 2.75rem;
-  padding: var(--rc-bosluk-1) var(--rc-bosluk-3);
+  height: 3.5rem;
+  padding-inline: var(--rc-bosluk-4);
   border-block-end: 1px solid var(--rc-kenar);
   background-color: var(--rc-yuzey);
 }
 
-.menu-dugmesi {
+.ikon-dugme {
+  position: relative;
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: var(--rc-kontrol-yukseklik);
+  height: var(--rc-kontrol-yukseklik);
+  padding: 0;
+  border: 1px solid var(--rc-kenar-kontrol);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+  color: var(--rc-metin-ikincil);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--rc-yuzey-alt);
+    color: var(--rc-metin);
+  }
+}
+
+.menu-dugmesi,
+.plaka-dugmesi {
   display: none;
 }
 
+// ---- komut paleti tetikleyicisi (global arama görünümü)
 .palet {
+  display: inline-flex;
+  align-items: center;
   gap: var(--rc-bosluk-2);
-  min-width: 14rem;
-  justify-content: flex-start;
-  color: var(--rc-metin-ikincil);
+  width: min(22.5rem, 40vw); // 360 px
+  height: var(--rc-kontrol-yukseklik);
+  padding-inline: var(--rc-bosluk-2);
+  border: 1px solid var(--rc-kenar-kontrol);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+  color: var(--rc-metin-soluk);
+  font: inherit;
+  cursor: text;
 }
 
 .palet__metin {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
   text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .palet__tus {
@@ -45,40 +81,73 @@
   flex: 1;
 }
 
-.kimlik {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  max-width: 16rem;
-  line-height: var(--rc-satir-sik);
-  text-align: end;
-}
+// Plaka arama yer tutucusunun kendi stili: plaka-yer-tutucu.scss (PR-B `rc-plaka-arama` ile birlikte silinir).
 
-.kimlik__ad {
-  overflow: hidden;
+// ---- bildirim zili
+.zil__rozet {
+  position: absolute;
+  inset-block-start: calc(var(--rc-bosluk-1-5) * -1);
+  inset-inline-end: calc(var(--rc-bosluk-1-5) * -1);
+  min-width: 1.125rem;
+  padding: 0 var(--rc-bosluk-1);
+  border-radius: var(--rc-yaricap-tam);
+  background-color: var(--rc-kenar-cubugu-rozet-uyari-zemin);
+  color: var(--rc-kenar-cubugu-rozet-uyari-metin);
+  font-size: var(--rc-yazi-2xs);
   font-weight: var(--rc-agirlik-kalin);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.125rem;
+  text-align: center;
 }
 
-.kimlik__firma {
-  overflow: hidden;
+// ---- tema üçlüsü (tek çerçeve, seçili dolu)
+.tema {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 2px;
+  border: 1px solid var(--rc-kenar-kontrol);
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-yuzey);
+}
+
+.tema__dugme {
+  display: inline-grid;
+  place-items: center;
+  width: calc(var(--rc-kontrol-yukseklik) - 6px);
+  height: calc(var(--rc-kontrol-yukseklik) - 6px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--rc-yaricap-sm);
+  background: none;
   color: var(--rc-metin-ikincil);
-  font-size: var(--rc-yazi-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    background-color: var(--rc-vurgu-zemin);
+    color: var(--rc-vurgu-metin);
+    box-shadow: inset 0 0 0 1px var(--rc-vurgu);
+  }
 }
 
 @media (max-width: 900px) {
-  .menu-dugmesi {
-    display: inline-flex;
+  .ust {
+    padding-inline: var(--rc-bosluk-3);
+  }
+
+  .menu-dugmesi,
+  .plaka-dugmesi {
+    display: inline-grid;
+  }
+
+  .daralt-dugmesi {
+    display: none;
   }
 
   .palet {
+    width: auto;
     min-width: 0;
+    flex: 1;
   }
 
-  .palet__metin,
   .palet__tus {
     display: none;
   }
@@ -86,11 +155,23 @@
 
 @media (max-width: 600px) {
   .ust {
-    gap: var(--rc-bosluk-1);
+    gap: var(--rc-bosluk-1-5);
     padding-inline: var(--rc-bosluk-2);
   }
 
-  .kimlik {
+  .palet__metin {
     display: none;
+  }
+
+  .palet {
+    flex: 0 0 auto;
+    justify-content: center;
+    width: var(--rc-kontrol-yukseklik);
+    padding: 0;
+    color: var(--rc-metin-ikincil);
+  }
+
+  .tema__dugme {
+    width: calc(var(--rc-kontrol-yukseklik-kucuk) - 6px);
   }
 }
