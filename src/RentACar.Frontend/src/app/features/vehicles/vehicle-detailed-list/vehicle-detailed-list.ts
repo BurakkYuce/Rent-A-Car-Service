@@ -34,6 +34,9 @@ import {
 } from '../vehicle-model';
 import { DetailedListStore, secimSuggestionFetch } from '../vehicle.store';
 import { detailedColumns } from './detailed-columns';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
  * Detaylı araç listesi (`/app/araclar/detayli`, ViewReports) — Blazor `VehicleDetayList.razor` paritesi:
@@ -44,6 +47,9 @@ import { detailedColumns } from './detailed-columns';
   selector: 'rc-vehicle-detailed-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
@@ -56,7 +62,7 @@ import { detailedColumns } from './detailed-columns';
   ],
   providers: [FetchPolicy, DetailedListStore],
   templateUrl: './vehicle-detailed-list.html',
-  styleUrl: '../vehicles.scss',
+  styleUrl: '../vehicle-screens.scss',
 })
 export class VehicleDetailedList {
   protected readonly store = inject(DetailedListStore);

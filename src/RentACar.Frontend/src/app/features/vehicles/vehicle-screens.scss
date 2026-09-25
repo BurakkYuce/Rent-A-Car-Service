@@ -1,0 +1,72 @@
+// Araç ekranlarına özgü kurallar (Yol v2 PR-D2). Sayfa iskeleti, bölüm, kart, düz tablo ve hücre yardımcıları
+// GLOBAL düzen katmanından (`src/styles/_duzen.scss`) gelir; burada yalnız bu ekranların kendi parçaları var.
+
+// Sayfa içi açıklama / yardım metni.
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+// Özet kartları (`<dl class="rc-izgara-4 ozet">` + `.rc-kart`): etiket soluk, değer büyük.
+.ozet {
+  margin: 0;
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin: 0;
+    font-size: var(--rc-yazi-xl);
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.liste-tablosu {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
+}
+
+// İki satırlı hücreli liste gridi (Yol v2 §4: 46 px satır; sanal ölçüm de buradan okur).
+.liste-tablosu--iki-satir {
+  --rc-tablo-satir: var(--rc-tablo-satir-liste);
+}
+
+.model-gruplari {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  min-width: 0;
+}
+
+.model-grup {
+  min-width: 0;
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-lg);
+  background: var(--rc-yuzey);
+
+  > summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--rc-bosluk-2);
+    align-items: center;
+    padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
+    cursor: pointer;
+  }
+}
+
+.model-grup__ad {
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.satir-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: flex-end;
+}

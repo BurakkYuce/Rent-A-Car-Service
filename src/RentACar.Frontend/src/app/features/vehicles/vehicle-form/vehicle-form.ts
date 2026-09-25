@@ -63,6 +63,7 @@ import {
   type SuggestionKind,
 } from './vehicle-form-model';
 import { VehiclePhotos } from './vehicle-photos';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 /**
  * Araç kartı (`/app/araclar/yeni`, `/app/araclar/:id`) — Blazor `VehicleEdit.razor` + liste içi "Yeni Araç"
@@ -76,6 +77,7 @@ import { VehiclePhotos } from './vehicle-photos';
   selector: 'rc-vehicle-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
@@ -97,7 +99,7 @@ import { VehiclePhotos } from './vehicle-photos';
   ],
   providers: [FetchPolicy, VehicleCardStore],
   templateUrl: './vehicle-form.html',
-  styleUrls: ['../vehicles.scss', './vehicle-form.scss'],
+  styleUrls: ['../vehicle-screens.scss', './vehicle-form.scss'],
 })
 export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
   protected readonly store = inject(VehicleCardStore);

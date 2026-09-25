@@ -39,13 +39,16 @@ export const OWNERSHIP_KINDS = ['Girilmemis'] as const;
 export const VIEW_KINDS = ['grup'] as const;
 export const TRI_STATE = ['true', 'false'] as const;
 
-/** Blazor StatusBadge renkleri. */
+/**
+ * Durum rozeti renkleri — Yol v2 §1.2 filo durum sözlüğü: kirada yeşil, boşta (müsait) nötr, serviste sarı. Pasif ve
+ * satılmış araç filo dışıdır: nötr (kırmızı yalnız gecikme/hata anlamında kullanılır).
+ */
 export const STATUS_BADGE: Readonly<Record<VehicleStatus, string>> = {
-  Musait: 'rc-rozet--basari',
-  Kirada: 'rc-rozet--bilgi',
+  Musait: 'rc-rozet--notr',
+  Kirada: 'rc-rozet--basari',
   Serviste: 'rc-rozet--uyari',
-  Pasif: '',
-  Satildi: 'rc-rozet--hata',
+  Pasif: 'rc-rozet--notr',
+  Satildi: 'rc-rozet--notr',
 };
 
 export function vehicleStatus(value: string | null | undefined): VehicleStatus | null {

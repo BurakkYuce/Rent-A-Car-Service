@@ -1,20 +1,20 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>
-      @if (isNew) {
-        {{ 'arac.kart.yeniBaslik' | transloco }}
-      } @else {
-        {{ 'arac.kart.baslik' | transloco: { plaka: base()?.plaka ?? '' } }}
-      }
-    </h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/araclar">
-        <rc-ikon ad="chevron-left" [boyut]="14" />
-        {{ 'arac.kart.listeyeDon' | transloco }}
-      </a>
-    </div>
-  </header>
+<rc-sayfa-bandi
+  [baslik]="
+    isNew
+      ? ('arac.kart.yeniBaslik' | transloco)
+      : ('arac.kart.baslik' | transloco: { plaka: base()?.plaka ?? '' })
+  "
+  ikon="car"
+>
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/araclar">
+      <rc-ikon ad="chevron-left" [boyut]="14" />
+      {{ 'arac.kart.listeyeDon' | transloco }}
+    </a>
+  </ng-container>
+</rc-sayfa-bandi>
 
+<div class="rc-sayfa">
   @if (!isNew && store.card.tur() === 'hata') {
     <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
       {{ store.card.hata()?.detay }}
@@ -24,15 +24,15 @@
     </div>
   } @else {
     <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-    <div class="kart" [formGroup]="form">
+    <div class="form-kap" [formGroup]="form">
       <rc-sekmeli-form [sekmeler]="tabDefs()" [etiket]="'arac.kart.bolumler' | transloco">
         @for (section of sections; track section.id) {
           <section [rcSekmePaneli]="section.id" [baslik]="'arac.bolum.' + section.id | transloco">
             @if (section.id === 'derinlik') {
-              <p class="aciklama">{{ 'arac.kart.kurNotu' | transloco }}</p>
+              <p class="not">{{ 'arac.kart.kurNotu' | transloco }}</p>
             }
             @if (section.id === 'detay') {
-              <p class="aciklama">{{ 'arac.kart.detayNotu' | transloco }}</p>
+              <p class="not">{{ 'arac.kart.detayNotu' | transloco }}</p>
             }
             <div class="rc-form-izgara" [class.bayraklar]="section.id === 'bayraklar'">
               @if (section.id === 'genel') {
@@ -134,7 +134,7 @@
               {{ (isNew ? 'arac.kart.olustur' : 'arac.kart.kaydet') | transloco }}
             </button>
           } @else {
-            <p class="aciklama">{{ 'arac.kart.saltOkunur' | transloco }}</p>
+            <p class="not">{{ 'arac.kart.saltOkunur' | transloco }}</p>
           }
           @if (!isNew && id) {
             <a
@@ -152,12 +152,12 @@
               </a>
             }
             <h2 class="yan__baslik">{{ 'arac.kart.sonKm' | transloco }}</h2>
-            <div class="tablo-kap">
-              <table class="duz-tablo">
+            <div class="rc-tablo-kap">
+              <table class="rc-duz-tablo">
                 <thead>
                   <tr>
                     <th scope="col">{{ 'arac.km.tarih' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'arac.alan.km' | transloco }}</th>
+                    <th scope="col" class="rc-num">{{ 'arac.alan.km' | transloco }}</th>
                     <th scope="col">{{ 'arac.km.kaynakBaslik' | transloco }}</th>
                   </tr>
                 </thead>
@@ -165,12 +165,12 @@
                   @for (k of lastKm(); track $index) {
                     <tr>
                       <td>{{ k.tarih | tarihSaat }}</td>
-                      <td class="num">{{ num(k.km) | sayi: '1.0-0' }}</td>
+                      <td class="rc-num">{{ num(k.km) | sayi: '1.0-0' }}</td>
                       <td>{{ kmSourceKey(k.kaynak) | transloco }}</td>
                     </tr>
                   } @empty {
                     <tr>
-                      <td colspan="3" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                      <td colspan="3" class="rc-bos">{{ 'arac.kayitYok' | transloco }}</td>
                     </tr>
                   }
                 </tbody>
