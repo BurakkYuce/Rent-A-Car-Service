@@ -12,13 +12,13 @@ namespace RentACar.Web.Api.FinansHub;
 /// <summary>Cari bakiye, bakiye düzeltme (Blazor <c>/finans/bakiye-duzeltme</c>), cari virman (<c>/cari-virman</c>).</summary>
 public static partial class FinanceHubApi
 {
-    private static void MapCustomer(RouteGroupBuilder write, RouteGroupBuilder anyRead)
+    private static void MapCustomer(RouteGroupBuilder write, RouteGroupBuilder financeRead)
     {
         write.MapGet("/cariler/{cariId:guid}/bakiye", GetCustomerBalance);
         write.MapPost("/bakiye-duzeltme", PostBalanceAdjustment);
         write.MapGet("/cari-virmanlar", ListCustomerTransfers);
         write.MapPost("/cari-virman", PostCustomerTransfer);
-        MapStatement(write, anyRead);
+        MapStatement(write, financeRead);
         MapBulk(write);
     }
 

@@ -24,13 +24,16 @@ public static partial class FinanceHubApi
     {
         var g = v1.MapGroup("/finans").WithTags("Finans Hub");
 
-        // Okuma: kurlar ve cari ekstre Blazor'da yalnız [Authorize] (her rol) — parite: üç izinden biri.
+        // Okuma: kurlar Blazor'da yalnız [Authorize] (her rol) — parite: üç izinden biri.
         var anyRead = g.MapGroup("").RequireAnyPermission(
             Permission.OperationsWrite, Permission.FinanceWrite, Permission.ViewReports);
+        // Cari ekstre bakiye + tüm hareketleri (başka şubenin sözleşme no'ları dahil) gösterir → cari detaydaki
+        // bakiye ile AYNI kapı: FinanceWrite ∨ ViewReports (Karar (5), 2026-09-25; Blazor paritesinden bilinçli sapma).
+        var financeRead = g.MapGroup("").RequireAnyPermission(Permission.FinanceWrite, Permission.ViewReports);
         var write = g.MapGroup("").RequirePermission(Permission.FinanceWrite);
 
         MapCash(write);
-        MapCustomer(write, anyRead);
+        MapCustomer(write, financeRead);
         MapDeposit(write);
         MapPeriod(write);
         MapRates(write, anyRead);
