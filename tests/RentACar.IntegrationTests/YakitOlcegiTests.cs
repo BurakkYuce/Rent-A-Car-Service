@@ -24,8 +24,8 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class YakitOlcegiTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset Bit = new(2026, 9, 5, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Bas = TestZaman.GunSonra(1);
+    private static readonly DateTimeOffset Bit = TestZaman.GunSonra(5);
 
     // ---- saf çeviri tablosu (elle) ----
     [Theory]
