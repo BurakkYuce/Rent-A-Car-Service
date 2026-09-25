@@ -356,14 +356,15 @@ Etiketsiz madde açıktır.
   45 test sentetik kimlik kullanıyor.
 - Ofis adları normalize anahtarda tekil değil (kiracı başına tekillik kısıtı).
 - Yakıt ölçeği: kullanıcı kararı bekliyor (§1).
-- Üretimde bağlama hatası `kod`suz 400 dönüyor: `ThrowOnBadRequest` yalnız Development'ta açık.
-- 22001/22003 güvenlik ağı Warning seviyesinde loglanmalı.
+- ~~Üretimde bağlama hatası `kod`suz 400~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.GenelProblem` 400'ü `dogrulama` koduyla döner.
+- ~~22001/22003 güvenlik ağı Warning~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.LogSeviyesi`.
 
 **KVKK ve yetki**
 - [sürüyor — Low A] `AnonimAd`: kira listesi, Panel ve `secim/musteri*` müşteri adı bayrağı okumuyor.
 - Kullanıcı bazlı izin yasağı Blazor sayfalarını kapatmıyor (yalnız `[Authorize]`, 41 rota). SPA'da veri `/api/ui`
   izinleriyle korunur; Blazor F13'te kalkar.
-- `DUGME_IZINLERI`'nde `rezervasyonIptal` girdisi yok (açık).
+- ~~`DUGME_IZINLERI`'nde `rezervasyonIptal` yok~~ GEREKSİZ (doğrulandı 2026-09-25): iptal düğmesi sunucunun hesapladığı
+  `yetkiler.iptal`'e bağlı (`RezervasyonApi` → OperationsDelete); statik haritadan daha sıkı.
 
 **SPA**
 - [sürüyor — Low A] L5: kira detay yenilemesi 5xx dönerse finans paneli kayboluyor.
@@ -378,8 +379,8 @@ Etiketsiz madde açıktır.
   milisaniyelik TOCTOU (#320 L2; kalıcı çözüm sunucuda beklenen kullanıcı başlığı). Sekmeler arası aynı kullanıcının
   şube değişimi `ben`'i yenilemiyor (görünüm, para riski yok).
 - Backend: firmanın kendi IBAN/VKN'si denetimde tamamen `***` — IBAN değişikliği dolandırıcılık izi için kısmi maske
-  (son 4 hane) ya da KARARLAR kaydı (#319 L2). Personel seçim listesi (`ListForSelectAsync`) şubeye göre süzülmüyor;
-  kapsam dışı personel seçilince 403 (#319 bilgi). Kira paneli: Nakit sonuçlanınca kirli Kart formu yeni anahtarla
+  (son 4 hane) ya da KARARLAR kaydı (#319 L2). ~~Personel seçim listesi şubeye göre süzülmüyor~~ KAPALI
+  (doğrulandı 2026-09-25): `/secim/personel` `SecimService.PersonelAsync`'te `BranchScope.InScope` ile süzülür. Kira paneli: Nakit sonuçlanınca kirli Kart formu yeni anahtarla
   İKİNCİ tahsilat olarak yazılıyor (#318 L2 tasarımı; isteğe bağlı "diğer formun tahsilatı yazıldı" notu).
 - Kullanıcı kararı bekleyen: şube kapsamlı operatör kirasız assistans talebi açamıyor (#317 L1 yan etkisi).
 
