@@ -28,6 +28,19 @@
     "bosDurum": {
       "baslik": "Kayıt yok",
       "aciklama": "Gösterilecek kayıt bulunamadı."
+    },
+    "plaka": {
+      "aramaEtiketi": "Plaka ile ara",
+      "aramaIpucu": "Plaka yaz, Enter"
+    },
+    "gorunumler": {
+      "etiket": "Kayıtlı görünümler"
+    },
+    "filtre": {
+      "baslik": "Filtreler",
+      "etkin": "{{adet}} etkin",
+      "temizle": "Temizle",
+      "filtrele": "Filtrele"
     }
   },
   "oturum": {
