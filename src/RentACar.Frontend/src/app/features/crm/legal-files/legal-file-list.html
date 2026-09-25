@@ -1,67 +1,53 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'crm.hukuk.baslik' | transloco }}</h1>
-  </header>
-  <p class="aciklama">
+<rc-sayfa-bandi [baslik]="'crm.hukuk.baslik' | transloco" ikon="shield" />
+<div class="rc-sayfa">
+  <p class="not">
     <strong>{{ 'crm.hukuk.bilgiCiti' | transloco }}</strong>
     {{ 'crm.hukuk.bilgiCitiDevam' | transloco }}
   </p>
 
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'crm.filtre' | transloco"
-    (ngSubmit)="filter()"
+    [etkinSayisi]="query.etkinFiltreSayisi()"
+    depoAnahtari="rc.filtre.hukuk"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan [etiket]="'crm.musteri' | transloco">
-        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.hukuk.dosyaNo' | transloco" [ipucu]="'crm.icindeGecen' | transloco">
-        <rc-metin-girdisi formControlName="dosyaNo" [azamiUzunluk]="64" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.hukuk.faturaNo' | transloco" [ipucu]="'crm.icindeGecen' | transloco">
-        <rc-metin-girdisi formControlName="faturaNo" [azamiUzunluk]="64" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.baslangic' | transloco">
-        <rc-tarih-secici formControlName="tarihBas" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.bitis' | transloco">
-        <rc-tarih-secici formControlName="tarihBit" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.hukuk.tur' | transloco">
-        <rc-secim
-          formControlName="tur"
-          [secenekler]="typeOptions"
-          [bosEtiket]="'crm.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.durum' | transloco">
-        <rc-secim
-          formControlName="durum"
-          [secenekler]="statusOptions"
-          [bosEtiket]="'crm.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.ara' | transloco" [ipucu]="'crm.hukuk.araIpucu' | transloco">
-        <rc-metin-girdisi formControlName="ara" tur="search" [azamiUzunluk]="100" />
-      </rc-alan>
-    </div>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'crm.filtrele' | transloco }}
-      </button>
-      @if (query.etkinFiltreSayisi() > 0) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-          {{ 'crm.temizle' | transloco }}
-        </button>
-      }
-    </div>
-  </form>
+    <rc-alan [etiket]="'crm.musteri' | transloco">
+      <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.hukuk.dosyaNo' | transloco" [ipucu]="'crm.icindeGecen' | transloco">
+      <rc-metin-girdisi formControlName="dosyaNo" [azamiUzunluk]="64" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.hukuk.faturaNo' | transloco" [ipucu]="'crm.icindeGecen' | transloco">
+      <rc-metin-girdisi formControlName="faturaNo" [azamiUzunluk]="64" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.baslangic' | transloco">
+      <rc-tarih-secici formControlName="tarihBas" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.bitis' | transloco">
+      <rc-tarih-secici formControlName="tarihBit" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.hukuk.tur' | transloco">
+      <rc-secim
+        formControlName="tur"
+        [secenekler]="typeOptions"
+        [bosEtiket]="'crm.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.durum' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'crm.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.ara' | transloco" [ipucu]="'crm.hukuk.araIpucu' | transloco">
+      <rc-metin-girdisi formControlName="ara" tur="search" [azamiUzunluk]="100" />
+    </rc-alan>
+  </rc-filtre-paneli>
 
   @if (store.list.veri(); as page) {
-    <p class="ozet" aria-live="polite">
+    <p class="not" aria-live="polite">
       {{ 'crm.hukuk.ozet' | transloco: { toplam: page.toplam } }}
       @if (store.counts.veri(); as c) {
         · {{ 'crm.ozetAcik' | transloco: { sayi: c['acik'] } }}
@@ -70,7 +56,7 @@
   }
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="hukuk.liste"
     [etiket]="'crm.hukuk.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -92,7 +78,7 @@
       >
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         <button
           type="button"
           class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
@@ -112,7 +98,7 @@
     </ng-template>
   </rc-tablo>
 
-  <section class="bolum duzenleyici" aria-labelledby="rc-hukuk-formu">
+  <section class="rc-bolum duzenleyici" aria-labelledby="rc-hukuk-formu">
     <h2 id="rc-hukuk-formu" tabindex="-1">
       @if (editor.editing().kind === 'new') {
         {{ 'crm.hukuk.yeni' | transloco }}
@@ -183,7 +169,7 @@
         </div>
       </div>
       <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-      <div class="form__eylemler">
+      <div class="rc-form-eylemler">
         <button
           type="submit"
           class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"

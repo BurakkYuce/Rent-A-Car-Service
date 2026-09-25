@@ -22,6 +22,7 @@ import { SekmeliForm, SekmePaneli, type SekmeTanimi } from '@shared/form/sekmeli
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { balanceSide, canSeeStatement, type CustomerProfile } from '../customer-model';
 import { CustomerDetailStore } from '../customer.store';
 
@@ -49,6 +50,7 @@ export function currencyCode(value: string | null | undefined): string {
     Alan,
     Ikon,
     ParaPipe,
+    SayfaBandi,
     SekmeliForm,
     SekmePaneli,
     TarihPipe,

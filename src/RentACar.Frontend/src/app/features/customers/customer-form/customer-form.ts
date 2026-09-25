@@ -41,6 +41,7 @@ import { SekmeliForm, SekmePaneli, type SekmeTanimi } from '@shared/form/sekmeli
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { CUSTOMERS, CUSTOMER_TYPES, customerPath, type CustomerCard } from '../customer-model';
 import {
   CustomerCardStore,
@@ -94,6 +95,7 @@ import {
     MetinGirdisi,
     OnayKutusu,
     ParaGirdisi,
+    SayfaBandi,
     SayiGirdisi,
     Secim,
     SekmeliForm,

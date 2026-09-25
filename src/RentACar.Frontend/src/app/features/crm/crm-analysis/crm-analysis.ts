@@ -18,14 +18,15 @@ import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
 import type { StoreDurumu } from '@core/veri/temel-store';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { ParaPipe, SayiPipe } from '@shared/bicim/bicim-pipe';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { Alan } from '@shared/form/alan/alan';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
 import { Tablo } from '@shared/tablo/tablo';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { segmentColumns } from '../crm-columns';
 import { CRM_LIST, type CrmAnalysis as Analysis, type CrmSegmentRow } from '../crm-model';
 import { CrmAnalysisStore } from '../crm.store';
@@ -40,10 +41,11 @@ import { CrmAnalysisStore } from '../crm.store';
   selector: 'rc-crm-analysis',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    Ikon,
     ParaPipe,
     RouterLink,
     SayiGirdisi,

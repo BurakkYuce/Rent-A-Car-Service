@@ -1,17 +1,16 @@
-// F7.2 cari ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz tablo) aynen
-// kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
-@use '../vehicles/vehicles';
-
-.rozetler {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--rc-bosluk-1);
-}
+// F7.2 cari ekranları (Yol v2): sayfa iskeleti, bölüm, düz tablo ve ızgaralar global düzen katmanından
+// (`src/styles/_duzen.scss`); burada yalnız cari ekranlarına özgü küçük kurallar.
 
 .not {
   margin: 0;
   color: var(--rc-metin-ikincil);
   font-size: var(--rc-yazi-xs);
+}
+
+.rozetler {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-1);
 }
 
 .borclu {
@@ -22,9 +21,64 @@
   color: var(--rc-basari-metin);
 }
 
-.yan {
+.yan,
+.form {
   display: flex;
   flex-direction: column;
   gap: var(--rc-bosluk-2);
   min-width: 0;
+}
+
+.form {
+  gap: var(--rc-bosluk-3);
+}
+
+.liste-tablosu {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
+}
+
+// Cari kartı özet kartları: başlık + anahtar/değer satırları.
+.kart-baslik {
+  margin: 0;
+  font-size: var(--rc-yazi-md);
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.bilgi,
+.kunye {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: var(--rc-bosluk-1) var(--rc-bosluk-3);
+  margin: 0;
+
+  > div {
+    display: contents;
+  }
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+}
+
+.ozet {
+  margin: 0;
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--rc-yazi-xl);
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
 }

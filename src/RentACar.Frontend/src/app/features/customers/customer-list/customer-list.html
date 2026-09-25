@@ -1,88 +1,70 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'cari.liste.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      @if (canCreate()) {
-        <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/cariler/yeni">
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'cari.liste.yeni' | transloco }}
-        </a>
-      }
-    </div>
-  </header>
-  <p class="aciklama">{{ 'cari.liste.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'cari.liste.baslik' | transloco" ikon="users">
+  @if (canCreate()) {
+    <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/cariler/yeni">
+      <rc-ikon ad="plus" [boyut]="14" />
+      {{ 'cari.liste.yeni' | transloco }}
+    </a>
+  }
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'cari.liste.aciklama' | transloco }}</p>
 
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'cari.filtre.etiket' | transloco"
-    (ngSubmit)="filter()"
+    [etkinSayisi]="query.etkinFiltreSayisi()"
+    depoAnahtari="rc.filtre.cariler"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan
-        [etiket]="'cari.filtre.ara' | transloco"
-        [ipucu]="'cari.filtre.araIpucu' | transloco"
-      >
-        <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="100" />
-      </rc-alan>
-      <rc-alan [etiket]="'cari.filtre.tur' | transloco">
-        <rc-secim
-          formControlName="tip"
-          [secenekler]="typeOptions"
-          [bosEtiket]="'cari.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'cari.filtre.iys' | transloco">
-        <rc-secim
-          formControlName="iysIzinli"
-          [secenekler]="iysOptions"
-          [bosEtiket]="'cari.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'cari.filtre.uyari' | transloco">
-        <rc-secim
-          formControlName="uyari"
-          [secenekler]="warningOptions"
-          [bosEtiket]="'cari.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'cari.filtre.karaListe' | transloco">
-        <rc-secim
-          formControlName="karaListe"
-          [secenekler]="blacklistOptions"
-          [bosEtiket]="'cari.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'cari.filtre.durum' | transloco">
-        <rc-secim
-          formControlName="pasif"
-          [secenekler]="statusOptions"
-          [bosEtiket]="'cari.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'cari.filtre.aracVerilmez' | transloco">
-        <rc-secim
-          formControlName="aracVerilmez"
-          [secenekler]="noVehicleOptions"
-          [bosEtiket]="'cari.tumu' | transloco"
-        />
-      </rc-alan>
-    </div>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'cari.filtrele' | transloco }}
-      </button>
-      @if (query.etkinFiltreSayisi() > 0 || hasMemorySearch()) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-          {{ 'cari.temizle' | transloco }}
-        </button>
-      }
-    </div>
-  </form>
+    <rc-alan [etiket]="'cari.filtre.ara' | transloco" [ipucu]="'cari.filtre.araIpucu' | transloco">
+      <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="100" />
+    </rc-alan>
+    <rc-alan [etiket]="'cari.filtre.tur' | transloco">
+      <rc-secim
+        formControlName="tip"
+        [secenekler]="typeOptions"
+        [bosEtiket]="'cari.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'cari.filtre.iys' | transloco">
+      <rc-secim
+        formControlName="iysIzinli"
+        [secenekler]="iysOptions"
+        [bosEtiket]="'cari.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'cari.filtre.uyari' | transloco">
+      <rc-secim
+        formControlName="uyari"
+        [secenekler]="warningOptions"
+        [bosEtiket]="'cari.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'cari.filtre.karaListe' | transloco">
+      <rc-secim
+        formControlName="karaListe"
+        [secenekler]="blacklistOptions"
+        [bosEtiket]="'cari.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'cari.filtre.durum' | transloco">
+      <rc-secim
+        formControlName="pasif"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'cari.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'cari.filtre.aracVerilmez' | transloco">
+      <rc-secim
+        formControlName="aracVerilmez"
+        [secenekler]="noVehicleOptions"
+        [bosEtiket]="'cari.tumu' | transloco"
+      />
+    </rc-alan>
+  </rc-filtre-paneli>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="cari.liste"
     [etiket]="'cari.liste.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -98,7 +80,7 @@
   >
     <ng-template rcTabloHucre="ad" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="rozetler">
-        <a class="bag" [routerLink]="['/cariler', satir.id]">{{ satir.ad }}</a>
+        <a [routerLink]="['/cariler', satir.id]">{{ satir.ad }}</a>
         @if (satir.anonim) {
           <span class="rc-rozet rc-rozet--bilgi">{{ 'cari.kvkkRozet' | transloco }}</span>
         }
@@ -118,7 +100,7 @@
       </span>
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         <a [routerLink]="['/cariler', satir.id, 'detay']">{{ 'cari.detay' | transloco }}</a>
         @if (canSeeStatement()) {
           <a [routerLink]="['/cariler', satir.id, 'detay']" fragment="sekme=ekstre">{{

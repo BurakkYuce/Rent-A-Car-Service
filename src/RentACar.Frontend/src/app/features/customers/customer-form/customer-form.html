@@ -1,20 +1,19 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>
-      @if (isNew) {
-        {{ 'cari.kart.yeniBaslik' | transloco }}
-      } @else {
-        {{ 'cari.kart.baslik' | transloco: { ad: displayName(base()) } }}
-      }
-    </h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/cariler">
-        <rc-ikon ad="chevron-left" [boyut]="14" />
-        {{ 'cari.listeyeDon' | transloco }}
-      </a>
-    </div>
-  </header>
-
+<rc-sayfa-bandi
+  [baslik]="
+    isNew
+      ? ('cari.kart.yeniBaslik' | transloco)
+      : ('cari.kart.baslik' | transloco: { ad: displayName(base()) })
+  "
+  ikon="address-book"
+>
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/cariler">
+      <rc-ikon ad="chevron-left" [boyut]="14" />
+      {{ 'cari.listeyeDon' | transloco }}
+    </a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @if (!isNew && store.card.tur() === 'hata') {
     <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
       {{ store.card.hata()?.detay }}
@@ -24,12 +23,12 @@
     </div>
   } @else {
     <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-    <div class="kart" [formGroup]="form">
+    <div class="form-kap" [formGroup]="form">
       <rc-sekmeli-form [sekmeler]="tabDefs" [etiket]="'cari.kart.bolumler' | transloco">
         @for (section of sections; track section.id) {
           <section [rcSekmePaneli]="section.id" [baslik]="'cari.bolum.' + section.id | transloco">
             @if (section.id === 'kimlik') {
-              <p class="aciklama">{{ 'cari.gizli.aciklama' | transloco }}</p>
+              <p class="not">{{ 'cari.gizli.aciklama' | transloco }}</p>
               <div class="rc-form-izgara gizli-alanlar">
                 <div class="yigin">
                   <rc-alan
@@ -210,7 +209,7 @@
         }
 
         <section rcSekmePaneli="kisiler" [baslik]="'cari.bolum.kisiler' | transloco">
-          <p class="aciklama">
+          <p class="not">
             {{ 'cari.kisiler.aciklama' | transloco: { sayi: maxContacts } }}
           </p>
           @for (row of contacts.controls; track row; let i = $index) {
@@ -241,7 +240,7 @@
               }
             </fieldset>
           } @empty {
-            <p class="aciklama">{{ 'cari.kisiler.yok' | transloco }}</p>
+            <p class="not">{{ 'cari.kisiler.yok' | transloco }}</p>
           }
           @if (canWrite()) {
             <button
@@ -257,9 +256,9 @@
         </section>
 
         <section rcSekmePaneli="kvkk" [baslik]="'cari.bolum.kvkk' | transloco">
-          <p class="aciklama">{{ 'cari.kvkk.aciklama' | transloco }}</p>
+          <p class="not">{{ 'cari.kvkk.aciklama' | transloco }}</p>
           @if (!canLiftPrivacy()) {
-            <p class="aciklama">{{ 'cari.kvkk.kaldirmaNotu' | transloco }}</p>
+            <p class="not">{{ 'cari.kvkk.kaldirmaNotu' | transloco }}</p>
           }
           @if (privacyDenied(); as denied) {
             <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ denied }}</div>
@@ -284,7 +283,7 @@
               {{ (isNew ? 'cari.kart.olustur' : 'cari.kart.kaydet') | transloco }}
             </button>
           } @else {
-            <p class="aciklama">{{ 'cari.kart.saltOkunur' | transloco }}</p>
+            <p class="not">{{ 'cari.kart.saltOkunur' | transloco }}</p>
           }
           @if (!isNew && id) {
             <a
