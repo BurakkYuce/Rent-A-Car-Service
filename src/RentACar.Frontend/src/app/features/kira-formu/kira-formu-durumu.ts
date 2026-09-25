@@ -97,6 +97,11 @@ import type {
 const KOK = '/api/ui/v1/kiralar' as const;
 const SESSIZ = istekBaglami({ sessiz: true });
 const ONERI_LIMITI = 20;
+/**
+ * Detay okumasının GEÇİCİ hataları (5xx, ağ, 429 hız sınırı): kayıt hâlâ var ve görülebilir → son iyi veri kalır.
+ * Geri kalanı (403, kodsuz 404 = `bilinmeyen`, 400, 401) kesindir → eski veri gösterilmez (#280 KVKK L-3).
+ */
+const GECICI_DETAY_HATALARI: ReadonlySet<string> = new Set(['sunucu', 'ag', 'cok_istek']);
 /** Öneri kutusuna yazarken sunucu araması gecikmesi (datalist `q` ile sunucuda süzülür). */
 const ONERI_GECIKMESI = 250;
 
@@ -332,8 +337,9 @@ export class KiraFormuDurumu {
     // (sonucu bilinmeyen) tahsilat anahtarı kaybolurdu. Kesin hatada `sonIyiDetay` zaten temizlenmiştir.
     if (this.detay.tur() === 'yukleniyor') return this.sonIyiDetay();
     const h = this.detay.hata();
-    // Yalnız 5xx ve ağ: kodsuz 404 istemcide `bilinmeyen` olur (silinmiş kayıt) — o eski veriyle GÖSTERİLMEZ.
-    return h && (h.kod === 'sunucu' || h.kod === 'ag') ? this.sonIyiDetay() : null;
+    // Yalnız geçici hatalar (5xx, ağ, 429 — #318): kodsuz 404 istemcide `bilinmeyen` olur (silinmiş kayıt) — o
+    // eski veriyle GÖSTERİLMEZ.
+    return h && GECICI_DETAY_HATALARI.has(h.kod) ? this.sonIyiDetay() : null;
   });
   /** L5 bandı: tazeleme belirsiz hatayla bitti ama ekran son iyi veriyle duruyor. */
   readonly tazelemeHatasi = computed(() =>
@@ -729,7 +735,7 @@ export class KiraFormuDurumu {
     // for good — otherwise a later 5xx/network failure would bring stale customer/vehicle/finance data back.
     effect(() => {
       const error = this.detay.hata();
-      if (error && error.kod !== 'sunucu' && error.kod !== 'ag') {
+      if (error && !GECICI_DETAY_HATALARI.has(error.kod)) {
         untracked(() => this.sonIyiDetay.set(null));
       }
     });

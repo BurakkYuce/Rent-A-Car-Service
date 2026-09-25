@@ -272,6 +272,20 @@ describe('Kira formu sürüm akışı (#261 N1/N2)', () => {
     expect(d.kaydedilebilir()).toBe(false);
   });
 
+  it('#318: tazeleme 429 (cok_istek) GEÇİCİDİR → son iyi veri kalır; ardından 503 de onu geri getirir', async () => {
+    const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
+    const iyi = detay({ surum: 'v1' });
+    await detayVer(iyi);
+    d.yenile();
+    detayHatasi(429, 'cok_istek');
+    expect(d.gorunenDetay()).toBe(iyi);
+    expect(d.tazelemeHatasi()?.kod).toBe('cok_istek');
+    d.yenile();
+    expect(d.gorunenDetay()).toBe(iyi); // yeniden okuma sürerken de
+    detayHatasi(503);
+    expect(d.gorunenDetay()).toBe(iyi);
+  });
+
   it('#318 L1: 5xx sonrası yeniden okuma SÜRERKEN de son iyi veri kalır (panel yeniden kurulmaz, donmuş anahtar kaybolmaz)', async () => {
     const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
     const iyi = detay({ surum: 'v1' });
