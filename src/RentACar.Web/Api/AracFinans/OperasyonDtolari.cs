@@ -3,7 +3,7 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Web.Api.AracFinans;
 
-/// <summary><c>POST /baflar</c>. <c>kullanimAmaci</c> enum ADI. Yakıt 0–100 (ölçek kararı bekliyor; burada yalnız sınır).</summary>
+/// <summary><c>POST /baflar</c>. <c>kullanimAmaci</c> enum ADI. Yakıt 0–12 (tek iç ölçek, Karar (3)).</summary>
 public sealed record BafIstegi
 {
     public Guid PersonelId { get; init; }

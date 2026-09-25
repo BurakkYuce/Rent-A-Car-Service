@@ -122,9 +122,9 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
   döndürüyor; `/api/ui/v1/finans/cariler/{id}/ekstre` ise OperationsWrite ile de açık (Blazor paritesi) ve operatöre
   başka şubenin bakiyesini + sözleşme no'larını gösteriyor. SPA'da ekstre sekmesi, rotası ve bağlantıları artık
   FinanceWrite ∨ ViewReports ile kapılı (#295, #299, #307). Sunucu ucu da daraltılsın mı? Karar gelmeden uca dokunma.
-- **Karar (3): yakıt ölçeği (hâlâ açık).** Servis ve harici API 0–100, formlar ve referans sistem 0–12 kullanıyor. Önerilen: tek
-  ölçek 0–12. Harici `RentalsApi` için iki seçenek var: (a) >12 → 400, (b) sınırda yüzde↔12 çevirisi. Karar
-  gelmeden yakıt koduna dokunma.
+- ~~Karar (3): yakıt ölçeği~~ **KAPANDI** (kullanıcı 2026-09-25, `DEGISIKLIKLER.md`): TEK iç ölçek 0–12
+  (`Domain.Common.YakitOlcegi`). Harici `RentalsApi` yüzde (0–100) sözleşmesini korur, sınırda çevirir (en yakına;
+  aralık dışı 400). BAF da 0–12'ye geçti; eski yüzde veriler `YakitOlcegiOnIki` migration'ıyla çevrildi.
 - Pilotu platform konsolundan açma (Platform → kiracı detay → "Yeni Arayüz") + canlı duman testi (README "Doğrulama").
 - Üretimde #265 etkisini PR'daki iki SQL ile doğrulama.
 
@@ -358,7 +358,7 @@ Etiketsiz madde açıktır.
 - `RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok; kalıcı çözüm bileşik FK.
   45 test sentetik kimlik kullanıyor.
 - Ofis adları normalize anahtarda tekil değil (kiracı başına tekillik kısıtı).
-- Yakıt ölçeği: kullanıcı kararı bekliyor (§1).
+- ~~Yakıt ölçeği: kullanıcı kararı bekliyor~~ KAPANDI (2026-09-25): tek iç ölçek 0–12, harici API sınırda yüzde↔12 (§1).
 - ~~Üretimde bağlama hatası `kod`suz 400~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.GenelProblem` 400'ü `dogrulama` koduyla döner.
 - ~~22001/22003 güvenlik ağı Warning~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.LogSeviyesi`.
 

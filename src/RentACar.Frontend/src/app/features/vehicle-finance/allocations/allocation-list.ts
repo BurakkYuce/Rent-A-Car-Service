@@ -149,7 +149,7 @@ export class AllocationList implements KaydedilmemisDegisiklikSahibi {
     cikisTarihi: new FormControl<string | null>(null),
     cikisSaat: new FormControl<string | null>(null, Validators.pattern(TIME_PATTERN)),
     cikisKm: new FormControl<number | null>(0, [Validators.min(0), Validators.max(10_000_000)]),
-    cikisYakit: new FormControl<number | null>(null, [Validators.min(0), Validators.max(100)]),
+    cikisYakit: new FormControl<number | null>(null, [Validators.min(0), Validators.max(12)]),
     sube: new FormControl<string | null>(null, Validators.maxLength(100)),
     kullanimAmaci: new FormControl<AllocationPurpose | null>(null),
     onaylayan: new FormControl<SecimSecenegi | null>(null),

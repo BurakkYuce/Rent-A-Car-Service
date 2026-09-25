@@ -39,12 +39,11 @@ public sealed class RentalService(
     private readonly ITenantCache _cache = cache;
 
     /// <summary>
-    /// F4.1 adversarial L6: servis düzeyi yakıt çiti 0–100. İki ölçek yaşıyor: kira formu 0–12 gösterge
-    /// (<c>/api/ui</c> ucu ayrıca 0–12 zorlar), harici JWT API istemcileri yüzde (ör. 80) gönderiyor — onların
-    /// sözleşmesi değişmez. Çit negatif değeri ve int taşmasını (int.MinValue → sahte milyarlık eksik-yakıt
-    /// bedeli) keser; 0–100 aralığında (çıkış − dönüş) × birim ücret taşamaz.
+    /// Servis düzeyi yakıt çiti — TEK iç ölçek 0–12 (<see cref="YakitOlcegi"/>, Karar (3) 2026-09-25). Harici JWT
+    /// API yüzde gönderir ama sınırda 0–12'ye çevirir; buraya yüzde ulaşamaz. Çit negatif değeri ve int taşmasını
+    /// (int.MinValue → sahte milyarlık eksik-yakıt bedeli) keser; eksik yakıt en fazla 12 birim olur.
     /// </summary>
-    public const int YakitEnFazla = 100;
+    public const int YakitEnFazla = YakitOlcegi.EnFazla;
 
     private static void YakitAraligi(int yakit, string etiket)
     {

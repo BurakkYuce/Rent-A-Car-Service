@@ -89,7 +89,7 @@
         <label>Çıkış Tarihi<input name="cikisTarihi" type="date" /></label>
         <label>Çıkış Saati<input name="cikisSaat" type="time" title="Tarihten ayrı saat granülü (opsiyonel)" /></label>
         <label>Çıkış KM<input name="cikisKm" type="number" min="0" value="0" /></label>
-        <label>Çıkış Yakıt<input name="cikisYakit" type="number" min="0" /></label>
+        <label>Çıkış Yakıt (0-12)<input name="cikisYakit" type="number" min="0" max="12" /></label>
         <ComboBox Name="sube" Label="Şube (çıkış)" Options="_subeOpts" />
         @* FAZ-18 bilgi alanları — hiçbiri iş kuralı işletmez, defter postlamaz. *@
         <label>Kullanım Amacı
@@ -142,7 +142,7 @@
                             <input name="donusKm" type="number" min="@b.CikisKm" placeholder="Dönüş KM" required style="width:7rem" />
                             @* Yakıt ve tarih entity'de ve servis imzasında ZATEN vardı; form hiç
                                sormuyordu. Tarih boşsa servis "şimdi" kullanır (geriye uyum). *@
-                            <input name="donusYakit" type="number" min="0" max="100" placeholder="Yakıt %" title="Dönüş yakıt yüzdesi (opsiyonel)" style="width:5.5rem" />
+                            <input name="donusYakit" type="number" min="0" max="12" placeholder="Yakıt 0-12" title="Dönüş yakıt seviyesi, on ikide bir (opsiyonel)" style="width:5.5rem" />
                             <input name="donusTarihi" type="datetime-local" title="Gerçek teslim anı — boş bırakılırsa şimdi" style="width:12rem" />
                             @* FAZ-18: dönüş ofisi/saati BİLGİdir — şube kapsamı hâlâ ÇIKIŞ şubesinden işler. *@
                             <input name="donusSube" list="dl-donus-sube" placeholder="Dönüş ofisi" title="Farklı ofise teslim edildiyse" style="width:9rem" />

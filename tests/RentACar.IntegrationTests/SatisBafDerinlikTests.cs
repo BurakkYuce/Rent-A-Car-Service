@@ -259,7 +259,7 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         Assert.Equal(new TimeOnly(8, 30), b.CikisSaat);
         Assert.Null(b.DonusSube);
 
-        Assert.True(await svc.TeslimAlAsync(id, donusKm: 10_500, donusYakit: 60, donusTarihi: donus,
+        Assert.True(await svc.TeslimAlAsync(id, donusKm: 10_500, donusYakit: 7, donusTarihi: donus,
             donusSube: " Ankara ", donusSaat: new TimeOnly(17, 45)));
 
         var b2 = await svc.GetAsync(id);

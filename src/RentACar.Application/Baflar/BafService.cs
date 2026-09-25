@@ -34,12 +34,20 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
         return baf;
     }
 
+    /// <summary>Yakıt TEK iç ölçekte 0–12 (<see cref="YakitOlcegi"/>, Karar (3)); boş = girilmedi.</summary>
+    private static void YakitAraligi(int? yakit, string etiket)
+    {
+        if (yakit is { } y && !YakitOlcegi.Gecerli(y))
+            throw new ValidationException($"{etiket} yakıt 0-{YakitOlcegi.EnFazla} aralığında olmalıdır.");
+    }
+
     public async Task<Guid> CreateAsync(BafInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (input.PersonelId == Guid.Empty) throw new ValidationException("Personel seçilmelidir.");
         if (input.VehicleId == Guid.Empty) throw new ValidationException("Araç seçilmelidir.");
         if (input.CikisKm < 0) throw new ValidationException("Çıkış KM negatif olamaz.");
+        YakitAraligi(input.CikisYakit, "Çıkış");
 
         var row = new Baf
         {
@@ -75,6 +83,7 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
         if (baf is null) return false;
         BranchScope.RequireInScope(_currentUser, baf.Sube); // adversarial: tekil şube-kapsam
         if (baf.Durum != Domain.Enums.BafDurum.Acik) throw new ValidationException("Yalnız açık tahsis teslim alınabilir.");
+        YakitAraligi(donusYakit, "Dönüş");
         if (donusKm < baf.CikisKm) throw new ValidationException("Dönüş KM çıkış KM'den küçük olamaz.");
         return await _repository.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi ?? DateTimeOffset.UtcNow,
             string.IsNullOrWhiteSpace(donusSube) ? null : donusSube.Trim(), donusSaat, ct);
@@ -98,6 +107,7 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
         string? donusSube, TimeOnly? donusSaat, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        YakitAraligi(donusYakit, "Dönüş");
         var sube = string.IsNullOrWhiteSpace(donusSube) ? null : donusSube.Trim();
         return await _repository.KilitliGuncelleAsync(id, row =>
         {

@@ -133,7 +133,7 @@ export class AllocationReturnPanel {
       Validators.required,
       (c: AbstractControl) => this.minKm(c),
     ]),
-    donusYakit: new FormControl<number | null>(null, [Validators.min(0), Validators.max(100)]),
+    donusYakit: new FormControl<number | null>(null, [Validators.min(0), Validators.max(12)]),
     donusTarihi: new FormControl<string | null>(null),
     donusSube: new FormControl<string | null>(null, Validators.maxLength(100)),
     donusSaat: new FormControl<string | null>(null, Validators.pattern(TIME_PATTERN)),

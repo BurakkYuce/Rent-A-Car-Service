@@ -1,4 +1,5 @@
 using RentACar.Application.Bookings;
+using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 
@@ -50,6 +51,12 @@ public sealed record ReservationResponse(
         r.CreatedAtUtc, r.UpdatedAtUtc);
 }
 
+/// <summary>
+/// Kira yanıtı. <b>Yakıt:</b> <c>CikisYakit</c>/<c>DonusYakit</c> harici sözleşmede YÜZDE (0–100) döner — iç ölçek
+/// 0–12'dir (Karar (3)), yanıtta en yakın yüzdeye çevrilir (6 → 50, 10 → 83). <c>EksikYakit</c> ise BEDELİN
+/// miktarıdır ve iç birimde (on ikide bir depo) kalır: <c>YakitBedeli = EksikYakit × YakitBirimUcret</c>;
+/// <c>YakitBirimUcret</c> "on ikide bir depo başına" ücrettir.
+/// </summary>
 public sealed record RentalResponse(
     Guid Id, string SozlesmeNo, RentalStatus Durum, Guid? ReservationId, Guid MusteriId, Guid VehicleId,
     DateTimeOffset BasTar, DateTimeOffset BitTar, string? CikisOfisi, string? DonusOfisi,
@@ -62,19 +69,21 @@ public sealed record RentalResponse(
     public static RentalResponse From(RentalContract c) => new(
         c.Id, c.SozlesmeNo, c.Durum, c.ReservationId, c.MusteriId, c.VehicleId, c.BasTar, c.BitTar,
         c.CikisOfisi, c.DonusOfisi, c.Gun, c.GunlukUcret, c.Tutar, c.GenelToplam, c.Tahsilat, c.Bakiye,
-        c.KmLimit, c.FazlaKmUcret, c.YakitBirimUcret, c.CikisKm, c.DonusKm, c.CikisYakit, c.DonusYakit,
+        c.KmLimit, c.FazlaKmUcret, c.YakitBirimUcret, c.CikisKm, c.DonusKm,
+        YakitOlcegi.OnIkidenYuzdeye(c.CikisYakit), YakitOlcegi.OnIkidenYuzdeye(c.DonusYakit),
         c.GercekDonusTar, c.FazlaKm, c.FazlaKmBedeli, c.EksikYakit, c.YakitBedeli, c.UzatmaGun, c.UzatmaBedeli,
         c.Aciklama, c.CreatedAtUtc, c.UpdatedAtUtc);
 }
 
-/// <summary>Araç teslim (çıkış) isteği.</summary>
+/// <summary>Araç teslim (çıkış) isteği. <c>CikisYakit</c> YÜZDE (0–100); sınırda 0–12'ye en yakına çevrilir
+/// (80 → 10). Aralık dışı → 400.</summary>
 public sealed class DeliverRequest
 {
     public int CikisKm { get; set; }
     public int CikisYakit { get; set; }
 }
 
-/// <summary>Araç dönüş isteği.</summary>
+/// <summary>Araç dönüş isteği. <c>DonusYakit</c> YÜZDE (0–100); sınırda 0–12'ye en yakına çevrilir. Aralık dışı → 400.</summary>
 public sealed class ReturnRequest
 {
     public int DonusKm { get; set; }
