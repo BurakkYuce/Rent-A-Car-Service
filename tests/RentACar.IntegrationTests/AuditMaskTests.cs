@@ -51,6 +51,25 @@ public sealed class AuditMaskTests
         Assert.Equal(5, JsonDocument.Parse(masked).RootElement.GetProperty("Tcsayac").GetInt32());
     }
 
+    [Fact]
+    public void Identity_document_numbers_are_masked_but_similar_non_pii_keys_are_not()
+    {
+        // #319 incelemesi L1: sürücü belgesi ve nüfus cüzdanı alanları (Personel, Customer) denetime düz yazılıyordu.
+        const string json = """
+            {"SurucuBelgeNo":"SB998877","SeriNo":"S1234","CiltNo":"C55","AileSira":"A7","AileSiraNo":"A8","SiraNo":"N9",
+             "TaksitSiraNo":3,"BelgeNo":"RUHSAT-1","Seri":"RNT"}
+            """;
+        var masked = SystemAdminApi.MaskSecrets(json)!;
+        foreach (var secret in new[] { "SB998877", "S1234", "C55", "A7", "A8", "N9" })
+            Assert.DoesNotContain(secret, masked, StringComparison.Ordinal);
+
+        // Tam anahtar eşleşmesi: benzer adlı kişisel olmayan alanlar görünür kalır.
+        var root = JsonDocument.Parse(masked).RootElement;
+        Assert.Equal(3, root.GetProperty("TaksitSiraNo").GetInt32());
+        Assert.Equal("RUHSAT-1", root.GetProperty("BelgeNo").GetString());
+        Assert.Equal("RNT", root.GetProperty("Seri").GetString());
+    }
+
     [Theory]
     [InlineData("[1,2]")]
     [InlineData("bozuk{")]
