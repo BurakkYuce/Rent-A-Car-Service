@@ -161,7 +161,7 @@ test('liste: axe iki temada ciddi/kritik 0, konsol hatası yok; bağlantılar Bl
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
-    .toBe('rgb(13, 19, 28)');
+    .toBe('rgb(20, 19, 16)');
   expect(await ciddiIhlaller(page), 'koyu tema').toEqual([]);
 
   // Süzgeç: URL'e yazılır, API aynı adla çağrılır, dışa aktarma süzgeci taşır.

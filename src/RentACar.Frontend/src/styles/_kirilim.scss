@@ -1,0 +1,9 @@
+// Kırılım noktaları (plan §4, §17.8). Bileşen stilinde ham px/rem medya sorgusu yazılmaz:
+//   @use 'kirilim';
+//   @media (max-width: kirilim.$rc-kirilim-mobil) { … }
+// `angular.json` `stylePreprocessorOptions.includePaths: ["src/styles"]` sayesinde yol yazılmadan
+// okunur. Yalnız değişken taşır; CSS üretmez.
+$rc-kirilim-mobil: 900px; // kenar çubuğu çekmeceye döner, yan sütun alta iner
+$rc-kirilim-dar: 600px; // tek sütun
+$rc-kirilim-form: 64rem; // form ızgarası daralır
+$rc-kirilim-cok-dar: 30rem; // en dar telefon

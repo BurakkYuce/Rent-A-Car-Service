@@ -33,7 +33,11 @@
                 "input": "public"
               }
             ],
-            "styles": ["node_modules/@angular/cdk/overlay-prebuilt.css", "src/styles.scss"]
+            "styles": ["node_modules/@angular/cdk/overlay-prebuilt.css", "src/styles.scss"],
+            // Bileşen SCSS'i paylaşılan kısmileri yolsuz okur: `@use 'kirilim';` (src/styles/_kirilim.scss).
+            "stylePreprocessorOptions": {
+              "includePaths": ["src/styles"]
+            }
           },
           "configurations": {
             "production": {

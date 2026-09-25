@@ -6,7 +6,7 @@
 }
 
 html {
-  font-size: 16px; // rem tabanı; yoğunluk token'larla (gövde 13 px)
+  font-size: 16px; // rem tabanı; yoğunluk token'larla (gövde 14 px)
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -14,8 +14,10 @@ html {
 body {
   margin: 0;
   font-family: var(--rc-font);
-  font-size: var(--rc-yazi-sm);
+  font-size: var(--rc-yazi-md);
   line-height: var(--rc-satir);
+  // Sayılar her yerde eşit genişlikte (para, km, tarih sütunları hizalı; plan §3).
+  font-variant-numeric: tabular-nums;
   color: var(--rc-metin);
   background-color: var(--rc-zemin);
   -webkit-font-smoothing: antialiased;
@@ -31,6 +33,8 @@ h4 {
   line-height: var(--rc-satir-sik);
 }
 
+// Sayfa başlığı ileride sayfa bandında (`rc-sayfa-bandi`, 18/600); bandsız ekranlar
+// `.rc-sayfa-basligi` (3xl) kullanır. Çıplak h1 bandla aynı boyda kalır ki göç sırasında sıçramasın.
 h1 {
   font-size: var(--rc-yazi-xl);
 }
@@ -44,7 +48,8 @@ h3 {
 }
 
 h4 {
-  font-size: var(--rc-yazi-sm);
+  font-size: var(--rc-yazi-md);
+  font-weight: var(--rc-agirlik-orta);
 }
 
 p {

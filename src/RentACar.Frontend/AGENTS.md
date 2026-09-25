@@ -27,17 +27,31 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
 
 ## Tasarım sistemi (F3.1)
 
-- **Token'lar** `src/styles/_tokenlar.scss`, önek `--rc-*`. Yoğun varsayılan: gövde 13 px, kontrol
-  32 px (28/36), tablo satırı 32 px. Yazı boyutu yalnız ölçekten (`--rc-yazi-2xs…2xl`), boşluk 4 px
-  ızgarasından (`--rc-bosluk-N` = N × 4 px). Bileşen stilinde ham hex/px renk-boyut yazılmaz.
+- **Tasarım dili "Yol"** — tek kaynak `docs/tasarim/YOL-PLANI-v2.md` (token, tipografi, kabuk, bileşen,
+  ekran kalıpları; hedef görünüm `docs/tasarim/referans/`). Renk = durum (plan §1.2 filo durum sözlüğü).
+- **Token'lar** `src/styles/_tokenlar.scss`, önek `--rc-*`, üç katman: **ham** `--rc-ham-*` (tema
+  bağımsız palet; bileşen stilinde OKUNMAZ) → **anlamsal** (`--rc-zemin`, `--rc-metin`, `--rc-vurgu`,
+  `--rc-{basari,uyari,hata,bilgi,notr}-{metin,zemin,kenar}`, `--rc-satir-vurgu`, `--rc-uyari-dolgu`,
+  `--rc-golge-katman`…; adlar kalıcı) → **bileşen** (`--rc-kenar-cubugu-*`, `--rc-bant-*`,
+  `--rc-tabela-*`, `--rc-plaka-*`, `--rc-tablo-baslik-*`, `--rc-cip-*`; yalnız kendi bileşeninde).
+  Ölçü: gövde 14 px, kontrol 34 px (30/40), tablo satırı 36 / liste 46 / panel 42, yarıçap plaka 4 ·
+  kontrol 6 · kart 10 · diyalog 12 · tam. Yazı boyutu yalnız ölçekten (`--rc-yazi-2xs…3xl`), boşluk
+  4 px ızgarasından (`--rc-bosluk-N` = N × 4 px). Gölge yalnız katmanlarda (`--rc-golge-katman`).
+  Bileşen stilinde ham hex/px renk-boyut yazılmaz.
+- **Kırılımlar** `src/styles/_kirilim.scss` (`$rc-kirilim-mobil` 900px, `-dar` 600px, `-form` 64rem,
+  `-cok-dar` 30rem): bileşen SCSS'inde `@use 'kirilim';` (`includePaths: src/styles`); ham kırılım
+  değeri yazılmaz.
 - **Tema:** `:root` açık; `prefers-color-scheme: dark` + `:root:not([data-theme=light])` koyu;
   `[data-theme=dark]` her durumda koyu. `TemaServisi` (`@core/tema`) modu yazar/saklar
   (`localStorage` `rc.tema`, yalnız mod — kişisel veri değil) ve kiracı rengini `--rc-kiraci-*`
   değişkenlerine uygular; üstündeki metin ve okunur ton otomatik seçilir.
 - **Kontrast kapısı:** `npm run kontrast` iki temada metin ≥ 4.5, kontrol kenarı ve odak ≥ 3 denetler
-  ve `TEMA_ZEMINLERI` kopyasının SCSS'le aynı olduğunu doğrular. Renk değiştiren PR tabloyu yeşil
+  (`var(--rc-ham-*)` zincirini çözer; kenar çubuğu, bant, tabela, plaka, tablo başlığı, çip çiftleri
+  dahil; `rgba()` token'lar hariç) ve `TEMA_ZEMINLERI` kopyasının SCSS'le aynı olduğunu doğrular. Renk değiştiren PR tabloyu yeşil
   tutmak zorunda (`npm run lint` bunu da koşar).
-- **Font:** Inter değişken, self-host (`src/styles/fonts/`, latin + latin-ext; ğ/ş/İ/₺ latin-ext'te).
+- **Font:** IBM Plex Sans 400/500/600 (`--rc-font`) + IBM Plex Sans Condensed 600 yalnız plaka
+  (`--rc-font-plaka`); self-host woff2 (`src/styles/fonts/`, kaynak `@fontsource/*` devDependency,
+  latin + latin-ext; ğ/Ğ/ş/Ş/İ/₺ latin-ext'te, ı/ç/ö/ü latin'de). Sayılar global `tabular-nums`.
 - **Biçim:** `@core/bicim/bicim` (`paraBicimle` → `1.234,56 ₺`, yarım kuruş sıfırdan uzağa;
   `tarihBicimle` → `dd.MM.yyyy`; `tarihSaatBicimle` İstanbul saatiyle) ve pipe'ları `para`, `sayi`,
   `tarih`, `tarihSaat` (`@shared/bicim/bicim-pipe`). `LOCALE_ID = 'tr'`. Kendi `toFixed`/`Intl`
