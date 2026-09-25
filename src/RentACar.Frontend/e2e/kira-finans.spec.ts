@@ -923,7 +923,9 @@ test('5. tur MEDIUM-1: Nakit 500 yazıldı ama yanıt düştü → Kart/Havale\'
   await expect(toastlar(page)).toContainText('Sunucuya ulaşılamadı');
 
   await sekme(page, 'Kart/Havale');
-  const kart = panel(page).locator('rc-kf-finans-tahsilat');
+  // Sekme geçişi bir sonraki çizimde görünür; `rc-kf-finans-tahsilat` o ana dek hâlâ NAKİT formudur ve `fill`
+  // 600'ü Nakit'e yazıyordu (Kart ön-dolu 2.600 gidiyordu). Hesaba özgü test kimliği Kart formunu bekler.
+  const kart = panel(page).getByTestId('tahsilat-formu-Banka');
   const kartTutar = kart.getByRole('textbox', { name: 'Tutar', exact: true });
   await kartTutar.fill('600');
   const kartDugme = panel(page).getByTestId('tahsilat-Banka');
@@ -943,6 +945,120 @@ test('5. tur MEDIUM-1: Nakit 500 yazıldı ama yanıt düştü → Kart/Havale\'
     [K1, 'Banka', '600.00'],
   ]);
   expect(hatalar).toEqual([]);
+});
+
+test("H1 (#316): Nakit yanıtı koptu → hemen Kart/Havale'de 600 → gönderilen tutar EKRANDAKİ 600; Nakit formu dokunulmaz", async ({
+  page,
+}) => {
+  const hatalar = hatalariTopla(page, [...AG_HATASI, /ERR_CONNECTION_RESET|net::/]);
+  await oturumAc(page);
+  let istek = 0;
+  let yazilan = false;
+  const { finansIstekleri } = await sahteApi(page, {
+    // Sunucu (elle): Nakit'in 500'ü YAZILMADI (bağlantı koptu); Kart'ın 600'ü K1 ile yazılır → kalan 2.000.
+    detay: () => (yazilan ? detay(K2, 2000, 1600, 'v2') : detay(K1, 2600, 1000)),
+    finans: (route) => {
+      if (++istek === 1) return route.abort('connectionreset');
+      yazilan = true;
+      return route.fulfill({ json: { id: 'c1' } });
+    },
+  });
+  await page.goto(SAYFA);
+  const nakit = panel(page).getByTestId('tahsilat-formu-Kasa');
+  const nakitTutar = nakit.getByRole('textbox', { name: 'Tutar', exact: true });
+  await expect(nakitTutar).toHaveValue('2.600,00');
+  await nakitTutar.fill('500');
+  await nakit.getByTestId('tahsilat-Kasa').click();
+  await expect(toastlar(page)).toContainText('Sunucuya ulaşılamadı');
+
+  await sekme(page, 'Kart/Havale');
+  const kart = panel(page).getByTestId('tahsilat-formu-Banka');
+  const kartTutar = kart.getByRole('textbox', { name: 'Tutar', exact: true });
+  await kartTutar.fill('600');
+  await page.waitForTimeout(1000); // arada hiçbir tazeleme/yeniden kurulum yazılanı ezmemeli
+  await expect(kartTutar).toHaveValue('600');
+  await kart.getByTestId('tahsilat-Banka').click();
+  await expect(toastlar(page)).toContainText('Tahsilat kaydedildi.');
+  await expect(panel(page).getByTestId('finans-kalan')).toContainText('2.000,00');
+
+  // Nakit formu Kart'a yazılandan etkilenmedi: sonucu bilinmeyen 500 donmuş hâliyle duruyor.
+  await sekme(page, 'Nakit');
+  await expect(
+    panel(page)
+      .getByTestId('tahsilat-formu-Kasa')
+      .getByRole('textbox', { name: 'Tutar', exact: true }),
+  ).toHaveValue(/^500(,00)?$/);
+  expect(
+    tahsilatlar(finansIstekleri).map((k) => [
+      k.govde['tahsilatAnahtar'],
+      k.govde['hesap'],
+      k.govde['tutar'],
+    ]),
+  ).toEqual([
+    [K1, 'Kasa', '500.00'],
+    [K1, 'Banka', '600.00'],
+  ]);
+  expect(hatalar).toEqual([]);
+});
+
+test('H1 (#316): tahsilat sonrası kira tazelenirken İKİ formda da Tahsil Et pasif; yeni detayla Kart yeni anahtarı kullanır', async ({
+  page,
+}) => {
+  await oturumAc(page);
+  let yazilan = false;
+  const { finansIstekleri } = await sahteApi(page, {
+    // Sunucu (elle): Nakit 700 yazılır → kalan 2.600 − 700 = 1.900, yeni anahtar K2.
+    detay: () => (yazilan ? detay(K2, 1900, 1700, 'v2') : detay(K1, 2600, 1000)),
+    finans: (route) => {
+      yazilan = true;
+      return route.fulfill({ json: { id: 'c1' } });
+    },
+  });
+  // Tahsilattan sonraki detay okuması test bırakana dek bekletilir (sahteApi'den SONRA kaydedilen önce eşleşir).
+  let birak: () => void = () => undefined;
+  const kapi = new Promise<void>((coz) => (birak = coz));
+  await page.route(
+    (url) => url.pathname === `/api/ui/v1/kiralar/${KIRA_ID}`,
+    async (route) => {
+      if (yazilan) await kapi;
+      return route.fallback();
+    },
+  );
+  await page.goto(SAYFA);
+  const nakit = panel(page).getByTestId('tahsilat-formu-Kasa');
+  await expect(nakit.getByRole('textbox', { name: 'Tutar', exact: true })).toHaveValue('2.600,00');
+  await nakit.getByRole('textbox', { name: 'Tutar', exact: true }).fill('700');
+  await nakit.getByTestId('tahsilat-Kasa').click();
+  await expect(toastlar(page)).toContainText('Tahsilat kaydedildi.');
+  await expect(nakit.getByTestId('tahsilat-Kasa')).toBeDisabled();
+
+  await sekme(page, 'Kart/Havale');
+  const kart = panel(page).getByTestId('tahsilat-formu-Banka');
+  const kartDugme = kart.getByTestId('tahsilat-Banka');
+  await expect(kart).toContainText('kira yeniden yükleniyor');
+  await expect(kartDugme).toBeDisabled();
+  await kartDugme.click({ force: true }); // pasif düğme: istek YOK
+  await page.waitForTimeout(300);
+  expect(tahsilatlar(finansIstekleri)).toHaveLength(1);
+
+  birak();
+  await expect(panel(page).getByTestId('finans-kalan')).toContainText('1.900,00');
+  await expect(kartDugme).toBeEnabled();
+  await expect(kart.getByRole('textbox', { name: 'Tutar', exact: true })).toHaveValue('1.900,00');
+  await kartDugme.click();
+  await expect(toastlar(page)).toContainText('Tahsilat kaydedildi.');
+  await expect
+    .poll(() =>
+      tahsilatlar(finansIstekleri).map((k) => [
+        k.govde['tahsilatAnahtar'],
+        k.govde['hesap'],
+        k.govde['tutar'],
+      ]),
+    )
+    .toEqual([
+      [K1, 'Kasa', '700.00'],
+      [K2, 'Banka', '1900.00'],
+    ]);
 });
 
 test('L3 metni: sonucu bilinmeyen tahsilat varken sekmeyi kapatmak özel uyarıyla sorulur', async ({
@@ -990,7 +1106,7 @@ test('L2/L6: Kalan rozeti + fazla tahsilat uyarısı; döviz değişince ön-dol
 
   // Döviz değişince DOKUNULMAMIŞ ön-dolu tutar temizlenir (Kart formu: tutar hâlâ öneri).
   await p.getByRole('tab', { name: 'Kart/Havale', exact: true }).click();
-  const kart = p.locator('rc-kf-finans-tahsilat');
+  const kart = p.getByTestId('tahsilat-formu-Banka');
   await expect(kart.getByRole('textbox', { name: 'Tutar', exact: true })).toHaveValue('2.600,00');
   await kart.getByRole('combobox', { name: 'Döviz' }).selectOption('USD');
   await expect(kart.getByRole('textbox', { name: 'Tutar', exact: true })).toHaveValue('');

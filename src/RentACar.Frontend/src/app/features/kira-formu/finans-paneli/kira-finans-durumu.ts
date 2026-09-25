@@ -164,6 +164,20 @@ export class KiraFinansDurumu {
   // ─── formlar ────────────────────────────────────────────────────────────────────────────────
   readonly nakit: TahsilatFormu = this.tahsilatFormu('Kasa');
   readonly kart: TahsilatFormu = this.tahsilatFormu('Banka');
+  /**
+   * Nakit ve Kart/Havale AYNI deterministik anahtarı taşır (kira başına tek satır kopyası). Biri uçarken ya da
+   * sonuçlanıp tazeleme beklerken öteki formun anahtarı da bayattır: iki tahsilat düğmesi birlikte pasif, yeni
+   * detay gelene dek (DEVIR §5 "yenileme bitene kadar Kaydet pasif").
+   */
+  readonly tahsilatMesgul = computed(() =>
+    [this.nakit, this.kart].some(
+      (tf) => tf.gonderim.gonderiliyor() || tf.kopya.tazelemeBekleniyor(),
+    ),
+  );
+  /** Tahsilat sonrası kira detayı tazeleniyor (iki formda da "tazeleniyor" notu). */
+  readonly tahsilatTazeleniyor = computed(() =>
+    [this.nakit, this.kart].some((tf) => tf.kopya.tazelemeBekleniyor()),
+  );
   readonly odemeFormu = new FormGroup({
     tutar: tutarKontrolu(),
     hesapId: secenekKontrolu(),
@@ -338,7 +352,7 @@ export class KiraFinansDurumu {
    * - `bayatAnahtar` (ekran açıldıktan sonra kirada işlem oldu): tutar temizlenir, kullanıcı güncel bakiyeyle girer.
    */
   tahsilatYap(tf: TahsilatFormu): void {
-    if (!tf.kopya.gonderilebilir()) return;
+    if (!tf.kopya.gonderilebilir() || this.tahsilatMesgul()) return;
     let g: TahsilatGonderimi | null = null;
     tf.gonderim.gonder(
       tf.form,

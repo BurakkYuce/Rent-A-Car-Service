@@ -180,6 +180,39 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     expect(govdesi(tahsilatlar(cagrilar)[0])['tahsilatAnahtar']).toBe(K1);
   });
 
+  it("H1 (#316): Nakit uçarken ve sonuçlanıp tazeleme beklerken Kart gönderilemez; Kart'a yazılan tutar tazelemede EZİLMEZ ve aynen gider", async () => {
+    const yanit = new Subject<unknown>();
+    let n = 0;
+    const { f, cagrilar, detayVer } = await kur(() => (++n === 1 ? yanit : of({ id: 'c2' })));
+    detayVer(detay(tahsilat(K1)));
+    expect(f.tahsilatMesgul()).toBe(false);
+    f.kart.form.controls.tutar.setValue('600.00'); // kullanıcı Kart/Havale'ye 600 yazdı
+    f.kart.form.markAsDirty();
+
+    f.nakit.form.controls.tutar.setValue('700.00');
+    f.tahsilatYap(f.nakit); // istek uçuyor (aynı anahtar K1)
+    expect(f.tahsilatMesgul()).toBe(true);
+    f.tahsilatYap(f.kart);
+    expect(tahsilatlar(cagrilar)).toHaveLength(1);
+
+    yanit.next({ id: 'c1' }); // 2xx → kira tazeleniyor
+    yanit.complete();
+    expect(f.tahsilatMesgul()).toBe(true);
+    expect(f.tahsilatTazeleniyor()).toBe(true);
+    f.tahsilatYap(f.kart);
+    expect(tahsilatlar(cagrilar)).toHaveLength(1);
+
+    detayVer(detay(tahsilat(K2, 1900))); // 2.600 − 700 = 1.900
+    expect(f.tahsilatMesgul()).toBe(false);
+    expect(f.kart.form.getRawValue().tutar).toBe('600.00'); // öneri (1.900) yazılanı ezmedi
+    f.tahsilatYap(f.kart);
+    const t = tahsilatlar(cagrilar);
+    expect(t.map((c) => [govdesi(c)['hesap'], govdesi(c)['tutar']])).toEqual([
+      ['Kasa', '700.00'],
+      ['Banka', '600.00'],
+    ]);
+  });
+
   it('409 mukerrer: otomatik tekrar YOK; "Kira kaydı değişmiş" başlığı (Mükerrer işlem değil); sonra yeni anahtar', async () => {
     const { f, cagrilar, detayVer, degisti, toast } = await kur(() =>
       throwError(() =>
