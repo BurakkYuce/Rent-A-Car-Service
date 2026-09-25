@@ -19,13 +19,19 @@ public static class AuditSecretMask
 
     // "Vkn": GelenEFatura.GonderenVkn şahıs firmasında TCKN taşır. "Tc" tek başına BİLİNÇLİ yok (çok geniş eşleşir).
     private static readonly string[] PiiKeyParts =
-        ["TcKimlik", "TcNo", "Tckn", "KimlikNo", "VergiNo", "Vkn", "EhliyetNo", "PasaportNo", "Maas", "Iban"];
+        ["TcKimlik", "TcNo", "Tckn", "KimlikNo", "VergiNo", "Vkn", "EhliyetNo", "PasaportNo", "Maas", "Iban",
+         "SurucuBelgeNo"];
+
+    // Nüfus cüzdanı alanları (Customer, Personel). Kısa ve genel adlar olduğu için parça değil TAM anahtar eşleşir;
+    // "SiraNo" parça olsaydı taksit/sıra alanlarını da maskelerdi (2026-09-25 #319 incelemesi L1).
+    private static readonly string[] PiiExactKeys = ["SeriNo", "CiltNo", "AileSira", "AileSiraNo", "SiraNo"];
 
     /// <summary>Sır ya da KVKK kapsamındaki kişisel veri anahtarı mı (büyük/küçük harf duyarsız).</summary>
     public static bool IsSecretKey(string key)
         => SecretKeySuffixes.Any(s => key.EndsWith(s, StringComparison.OrdinalIgnoreCase))
            || SecretKeyParts.Any(p => key.Contains(p, StringComparison.OrdinalIgnoreCase))
-           || PiiKeyParts.Any(p => key.Contains(p, StringComparison.OrdinalIgnoreCase));
+           || PiiKeyParts.Any(p => key.Contains(p, StringComparison.OrdinalIgnoreCase))
+           || PiiExactKeys.Any(k => key.Equals(k, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Denetim değer JSON'u → sır/PII anahtarları (iç içe nesne ve dizilerde de) maskeli JSON. Nesne değilse ya da
     /// ayrıştırılamıyorsa <c>null</c>.</summary>
