@@ -685,7 +685,7 @@ public static class KiraApi
     /// </summary>
     private static async Task<Created<KiraOlusturYaniti>> Olustur(
         KiraOlusturIstegi istek, RentalService kiralar, RentalAddOnService ekler, EkHizmetTanimService ekTanimlar,
-        ICustomerRepository musteriDeposu, IVehicleRepository aracDeposu, CancellationToken ct)
+        CancellationToken ct)
     {
         var secim = (istek.EkHizmetler ?? []).Select(e => (e.TanimId, Miktar: e.Miktar is > 0m ? e.Miktar.Value : 1m)).ToList();
         if (secim.Count > EnFazlaEkKalem)
@@ -704,13 +704,8 @@ public static class KiraApi
         }
 
         Sinirlar.Olustur(istek); // F4.1 adversarial L3: numeric(19,4)/metin taşması 500 yerine 400 + alan
-        // F4.1 adversarial L5: müşteri ve araç bu kiracıda VAR olmalı (RLS kapsamlı okuma). Rentals.MusteriId /
-        // VehicleId'de FK yok — başka kiracının ya da hiç olmayan kimlikle kira yazılabiliyordu. Kontrol UÇTA:
-        // servis düzeyine almak, sentetik kimlikle kira kuran ~50 mevcut testi değiştirmeyi gerektiriyor (açık iş).
-        if (await musteriDeposu.FindAsync(istek.MusteriId, ct) is null)
-            throw new ValidationException("Müşteri bulunamadı.", "musteriId");
-        if (await aracDeposu.FindAsync(istek.VehicleId, ct) is null)
-            throw new ValidationException("Araç bulunamadı.", "vehicleId");
+        // F4.1 adversarial L5 (müşteri/araç bu kiracıda VAR olmalı) artık RentalService.CreateDirectAsync
+        // girişinde — tüm yollar (harici API, Blazor, bu uç) aynı kuraldan geçer.
         var id = await kiralar.CreateDirectAsync(istek.ToInput(), ct);
 
         string? uyari = null;

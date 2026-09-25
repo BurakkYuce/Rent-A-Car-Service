@@ -69,8 +69,8 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var sabit = scope.ServiceProvider.GetRequiredService<SabitKurService>();
 
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "EURO")); // 3 gün × 100 = 300 EUR
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "EURO")); // 3 gün × 100 = 300 EUR
         var invId = await invoices.CreateFromRentalAsync(rentalId);
 
         // ORACLE (elle): 300 EUR × 40 = 12000 TL. EUR-sayısı 300 DEĞİL.
@@ -91,8 +91,8 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
 
         // 1 gün × 100 = 100 EUR brüt; %20 → net 83.33, kdv 16.67 (16.67 = 100-83.33). Kur 33.3333.
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 33.3333m, Aktif = true });
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "EUR", gunluk: 100m, gun: 1));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "EUR", gunluk: 100m, gun: 1));
         var invId = await invoices.CreateFromRentalAsync(rentalId); // denge guard patlarsa burada atar
 
         var e = await FaturaEntries(scope.ServiceProvider, invId);
@@ -115,7 +115,7 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
 
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var cari = await TestCari.YeniAsync(scope.ServiceProvider);
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "EUR"));
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "EUR"));
         await invoices.CreateFromRentalAsync(rentalId);
         Assert.Equal(12000m, await cash.GetCariBalanceAsync(cari));
 
@@ -138,9 +138,10 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
 
         // İZOLE kod "CHF": paylaşımlı KurKayitlari tablosunda hiçbir test bunu seed etmez; sabit de yok.
         // O5 (KurSnapshot): kur çözülemeyen FX kira artık OLUŞTURMADA reddedilir (faturayı beklemez).
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var arac = await TestArac.YeniAsync(scope.ServiceProvider); // gerçek araç: red kurdan gelmeli, varlık kontrolünden değil
         await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "CHF"))); // sabit YOK, TCMB YOK
+            () => rentals.CreateDirectAsync(Rental(cari, arac, "CHF"))); // sabit YOK, TCMB YOK
         // Sessiz 1:1 (300) veya 0 borçlanma OLMAMALI — hiçbir şey yazılmadı.
         Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
     }
@@ -160,8 +161,8 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         // İZOLE kod "NOK" (paylaşımlı KurKayitlari çakışmasını önler).
         await SeedTcmb(factory, "NOK", 35m);                                   // TCMB 35
         await sabit.UpsertAsync(new SabitKurInput { Kod = "NOK", Kur = 40m, Aktif = true }); // firma 40
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "NOK"));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "NOK"));
         var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(rentalId));
         Assert.Equal(40m, inv!.Kur);                    // sabit kazanır
         Assert.Equal(12000m, await cash.GetCariBalanceAsync(cari)); // 300×40, 300×35=10500 DEĞİL
@@ -182,8 +183,8 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         // İZOLE kod "SEK".
         await SeedTcmb(factory, "SEK", 35m);
         await sabit.UpsertAsync(new SabitKurInput { Kod = "SEK", Kur = 40m, Aktif = false }); // PASİF
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "SEK"));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "SEK"));
         var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(rentalId));
         Assert.Equal(35m, inv!.Kur);                    // TCMB kullanılır
         Assert.Equal(10500m, await cash.GetCariBalanceAsync(cari)); // 300×35
@@ -201,8 +202,8 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var sabit = scope.ServiceProvider.GetRequiredService<SabitKurService>();
 
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "EUR"));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "EUR"));
         var invId = await invoices.CreateFromRentalAsync(rentalId);
         Assert.Equal(12000m, await cash.GetCariBalanceAsync(cari));
 
@@ -228,8 +229,8 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var sabit = scope.ServiceProvider.GetRequiredService<SabitKurService>();
 
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EURO", Kur = 40m, Aktif = true }); // "EURO" → normalize EUR
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "euro")); // küçük harf
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "euro")); // küçük harf
         var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(rentalId));
         Assert.Equal("EUR", inv!.Currency);
         Assert.Equal(40m, inv.Kur);                     // sabit ATLANMADI
@@ -256,10 +257,11 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var cari = Guid.NewGuid();
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
         // O5: kur çözülemeyen bilinmeyen döviz artık kira OLUŞTURMADA reddedilir.
+        var arac = await TestArac.YeniAsync(scope.ServiceProvider); // gerçek araç: red kurdan gelmeli, varlık kontrolünden değil
         await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "XAU")));
+            () => rentals.CreateDirectAsync(Rental(cari, arac, "XAU")));
     }
 
     // ---- 8. TL REGRESYON: Doviz null / "TL" → TRY, Kur 1, 1:1 ----
@@ -275,8 +277,8 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), doviz));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), doviz));
         var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(rentalId));
         Assert.Equal("TRY", inv!.Currency);
         Assert.Equal(1m, inv.Kur);
@@ -295,8 +297,8 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
         var sabit = scope.ServiceProvider.GetRequiredService<SabitKurService>();
 
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "EUR"));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "EUR"));
         await invoices.CreateFromRentalAsync(rentalId);
         await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateFromRentalAsync(rentalId));
         Assert.Equal(12000m, await cash.GetCariBalanceAsync(cari)); // 24000 DEĞİL
@@ -315,8 +317,8 @@ public sealed class KiraFaturaDovizProbe(PostgresFixture fx)
 
         // 1 gün × 1,000,000 = 1,000,000 EUR brüt; kur 6-dp garip 41.123456.
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 41.123456m, Aktif = true });
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "EUR", gunluk: 1_000_000m, gun: 1));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "EUR", gunluk: 1_000_000m, gun: 1));
         var invId = await invoices.CreateFromRentalAsync(rentalId); // denge guard patlarsa atar
 
         var e = await FaturaEntries(scope.ServiceProvider, invId);

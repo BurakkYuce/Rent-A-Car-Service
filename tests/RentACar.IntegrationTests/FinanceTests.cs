@@ -89,7 +89,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         var cari = await TestCari.YeniAsync(scope.ServiceProvider);
         var rentalId = await rent.CreateDirectAsync(new BookingInput
         {
-            MusteriId = cari, VehicleId = Guid.NewGuid(),
+            MusteriId = cari, VehicleId = await TestArac.YeniAsync(scope.ServiceProvider),
             BasTar = new DateTimeOffset(2026, 10, 1, 9, 0, 0, TimeSpan.Zero),
             BitTar = new DateTimeOffset(2026, 10, 5, 9, 0, 0, TimeSpan.Zero),
             GunlukUcret = 100m // 4 gün → 400

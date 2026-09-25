@@ -14,9 +14,12 @@ public sealed class DeliveryReturnTests(PostgresFixture fx)
     private static readonly DateTimeOffset Bas = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Bit = new(2026, 9, 5, 9, 0, 0, TimeSpan.Zero);
 
-    private static BookingInput Input(Guid vehicle) => new()
+    private static async Task<BookingInput> InputAsync(IServiceScope scope)
+        => Input(await TestArac.YeniAsync(scope.ServiceProvider), await TestCari.YeniAsync(scope.ServiceProvider));
+
+    private static BookingInput Input(Guid vehicle, Guid cari) => new()
     {
-        MusteriId = Guid.NewGuid(), VehicleId = vehicle, BasTar = Bas, BitTar = Bit,
+        MusteriId = cari, VehicleId = vehicle, BasTar = Bas, BitTar = Bit,
         GunlukUcret = 100m, KmLimit = 400, FazlaKmUcret = 2m, YakitBirimUcret = 50m
     };
 
@@ -27,7 +30,7 @@ public sealed class DeliveryReturnTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await svc.CreateDirectAsync(Input(Guid.NewGuid()));
+        var id = await svc.CreateDirectAsync(await InputAsync(scope));
         Assert.True(await svc.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8));
 
         // 1 gün geç + 100 fazla km + 2 eksik yakıt
@@ -52,7 +55,7 @@ public sealed class DeliveryReturnTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await svc.CreateDirectAsync(Input(Guid.NewGuid()));
+        var id = await svc.CreateDirectAsync(await InputAsync(scope));
         await Assert.ThrowsAsync<ValidationException>(
             () => svc.ReturnAsync(id, 1100, 8, Bit));
     }
@@ -64,7 +67,7 @@ public sealed class DeliveryReturnTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await svc.CreateDirectAsync(Input(Guid.NewGuid()));
+        var id = await svc.CreateDirectAsync(await InputAsync(scope));
         await svc.DeliverAsync(id, 1000, 8);
         await Assert.ThrowsAsync<ValidationException>(
             () => svc.ReturnAsync(id, 900, 8, Bit)); // 900 < 1000
@@ -76,18 +79,19 @@ public sealed class DeliveryReturnTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var vehicle = Guid.NewGuid();
+        var vehicle = await TestArac.YeniAsync(scope.ServiceProvider);
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
 
-        var id1 = await svc.CreateDirectAsync(Input(vehicle));
+        var id1 = await svc.CreateDirectAsync(Input(vehicle, cari));
         // Aynı araç/aralık ikinci kira → çakışma
-        await Assert.ThrowsAsync<AvailabilityConflictException>(() => svc.CreateDirectAsync(Input(vehicle)));
+        await Assert.ThrowsAsync<AvailabilityConflictException>(() => svc.CreateDirectAsync(Input(vehicle, cari)));
 
         // İlkini teslim + dönüş (Tamamlandı → exclusion WHERE Durum=0 kapsamı dışına çıkar)
         await svc.DeliverAsync(id1, 1000, 8);
         await svc.ReturnAsync(id1, 1200, 8, Bit);
 
         // Artık aynı araç/aralık tekrar kiralanabilir
-        var id2 = await svc.CreateDirectAsync(Input(vehicle));
+        var id2 = await svc.CreateDirectAsync(Input(vehicle, cari));
         Assert.NotEqual(Guid.Empty, id2);
     }
 
@@ -98,7 +102,7 @@ public sealed class DeliveryReturnTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "auditor");
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await svc.CreateDirectAsync(Input(Guid.NewGuid()));
+        var id = await svc.CreateDirectAsync(await InputAsync(scope));
         await svc.DeliverAsync(id, 1000, 8);
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();

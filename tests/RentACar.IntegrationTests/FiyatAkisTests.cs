@@ -34,9 +34,9 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         return vehicleId;
     }
 
-    private static BookingInput Booking(Guid vehicleId, decimal manuelUcret) => new()
+    private static BookingInput Booking(Guid vehicleId, decimal manuelUcret, Guid? cari = null) => new()
     {
-        MusteriId = Guid.NewGuid(), VehicleId = vehicleId,
+        MusteriId = cari ?? Guid.NewGuid(), VehicleId = vehicleId, // kira yolu gerçek cari ister (varlık kontrolü)
         BasTar = Bas, BitTar = Bas.AddDays(5), GunlukUcret = manuelUcret // 5 gün → kademe Gün5
     };
 
@@ -48,7 +48,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         var vehicleId = await SeedVehicleWithMatrixAsync(scope.ServiceProvider);
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await rentals.CreateDirectAsync(Booking(vehicleId, manuelUcret: 0m));
+        var id = await rentals.CreateDirectAsync(Booking(vehicleId, cari: await TestCari.YeniAsync(scope.ServiceProvider), manuelUcret: 0m));
 
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
         Assert.NotNull(c);
@@ -65,7 +65,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         var vehicleId = await SeedVehicleWithMatrixAsync(scope.ServiceProvider);
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await rentals.CreateDirectAsync(Booking(vehicleId, manuelUcret: 500m));
+        var id = await rentals.CreateDirectAsync(Booking(vehicleId, cari: await TestCari.YeniAsync(scope.ServiceProvider), manuelUcret: 500m));
 
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
         Assert.Equal(500.00m, c!.GunlukUcret);    // manuel kazanır (motor 850 vermesine rağmen)
@@ -80,7 +80,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         var vehicleId = await SeedVehicleWithMatrixAsync(scope.ServiceProvider, matrisOnayli: false);
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await rentals.CreateDirectAsync(Booking(vehicleId, manuelUcret: 0m));
+        var id = await rentals.CreateDirectAsync(Booking(vehicleId, cari: await TestCari.YeniAsync(scope.ServiceProvider), manuelUcret: 0m));
 
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
         // Onaysız matris kullanılmaz, RateCard da yok → 0 (manuel girilmeli).
@@ -98,7 +98,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         { Kod = "EUR-M", Ad = "Euro", AracGrupKod = "EKO", Gun5 = 100m, ParaBirimi = "EUR", OnayDurumu = TarifeOnayDurumu.Onayli });
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await rentals.CreateDirectAsync(Booking(vehicleId, manuelUcret: 0m));
+        var id = await rentals.CreateDirectAsync(Booking(vehicleId, cari: await TestCari.YeniAsync(scope.ServiceProvider), manuelUcret: 0m));
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
         // EUR matris booking'e ham TRY olarak YAZILMAZ → 0 (manuel girilmeli).
         Assert.Equal(0m, c!.GunlukUcret);
@@ -118,7 +118,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         });
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await rentals.CreateDirectAsync(Booking(vehicleId, manuelUcret: 0m));
+        var id = await rentals.CreateDirectAsync(Booking(vehicleId, cari: await TestCari.YeniAsync(scope.ServiceProvider), manuelUcret: 0m));
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
         // Kanal-özel (WEB) matris artık kanalsız booking'de de kullanılıyor (eskiden sessizce 0'dı).
         Assert.Equal(850.00m, c!.GunlukUcret);
@@ -138,7 +138,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         { Kod = "RC-EKO", Ad = "Eski", Grup = "EKO", MinGun = 1, MaxGun = 999, GunlukUcret = 333m, Doviz = "TRY", Aktif = true });
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await rentals.CreateDirectAsync(Booking(vehicleId, manuelUcret: 0m));
+        var id = await rentals.CreateDirectAsync(Booking(vehicleId, cari: await TestCari.YeniAsync(scope.ServiceProvider), manuelUcret: 0m));
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
         // Matris eşleşti (boş kademe) → 0; eski RateCard 333'e maskelenMEZ.
         Assert.Equal(0m, c!.GunlukUcret);
