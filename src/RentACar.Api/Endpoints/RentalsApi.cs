@@ -3,8 +3,6 @@ using RentACar.Api.Dtos;
 using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
-using RentACar.Application.Customers;
-using RentACar.Application.Vehicles;
 using RentACar.Domain.Common;
 
 namespace RentACar.Api.Endpoints;
@@ -45,22 +43,6 @@ public static class RentalsApi
             .RequirePermission(Permission.OperationsWrite);
 
         return app;
-    }
-
-    /// <summary>
-    /// Rezervasyon uçları için (kira yolu artık <see cref="RentalService.CreateDirectAsync"/> içinde denetler).
-    /// Low-B (DEVIR §5 "Varlık kontrolü"): Rentals/Reservations'ın Customers/Vehicles'a bileşik FK'si yok → var
-    /// olmayan ya da BAŞKA KİRACININ müşteri/araç kimliğiyle kira/rezervasyon (ve sonradan fatura/defter)
-    /// yazılabiliyordu. RLS + tenant query filter kapsamlı FindAsync: yabancı kiracının kaydı "yok" görünür (varlık
-    /// sızmaz) → 400 <c>validation</c>. Kalıcı çözüm (bileşik FK) ayrı iş.
-    /// </summary>
-    internal static async Task VarlikKontroluAsync(
-        BookingRequest req, ICustomerRepository cariler, IVehicleRepository araclar, CancellationToken ct)
-    {
-        if (req.MusteriId == Guid.Empty || await cariler.FindAsync(req.MusteriId, ct) is null)
-            throw new ValidationException("Müşteri bulunamadı.", "musteriId");
-        if (req.VehicleId == Guid.Empty || await araclar.FindAsync(req.VehicleId, ct) is null)
-            throw new ValidationException("Araç bulunamadı.", "vehicleId");
     }
 
     /// <summary>

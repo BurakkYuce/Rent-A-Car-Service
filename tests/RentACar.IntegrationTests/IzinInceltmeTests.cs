@@ -39,10 +39,12 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
 
         // Operatör kendi açtığı rezervasyonu bile iptal edemez (OperationsWrite yetmez).
         Guid rezId;
+        var arac = await TestArac.YeniAsync(host, tenant); // servis müşteri/araç varlığını doğruluyor
+        var cari = await TestCari.YeniAsync(host, tenant);
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator))
         {
             var svc = op.ServiceProvider.GetRequiredService<ReservationService>();
-            rezId = await svc.CreateAsync(Rez(Guid.NewGuid(), Guid.NewGuid()));
+            rezId = await svc.CreateAsync(Rez(arac, cari));
 
             var ex = await Assert.ThrowsAsync<YetkiYokException>(() => svc.CancelAsync(rezId));
             Assert.Contains("OperationsDelete", ex.Message);

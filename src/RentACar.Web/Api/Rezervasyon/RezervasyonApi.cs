@@ -219,26 +219,13 @@ public static class RezervasyonApi
         TarihPolitikasi.KiraBitis(i.BasTar, i.BitTar);
     }
 
-    /// <summary>
-    /// Müşteri ve araç bu kiracıda VAR olmalı (F4.1 adversarial L5): <c>Reservations.MusteriId/VehicleId</c>'de FK yok —
-    /// başka kiracının ya da hiç olmayan kimlikle kayıt yazılabiliyordu (RLS kapsamlı okuma).
-    /// </summary>
-    internal static async Task VarlikAsync(
-        ICustomerRepository musteriler, IVehicleRepository araclar, Guid musteriId, Guid vehicleId, CancellationToken ct)
-    {
-        if (await musteriler.FindAsync(musteriId, ct) is null)
-            throw new ValidationException("Müşteri bulunamadı.", "musteriId");
-        if (await araclar.FindAsync(vehicleId, ct) is null)
-            throw new ValidationException("Araç bulunamadı.", "vehicleId");
-    }
-
     private static async Task<Created<RezervasyonOlusturYaniti>> Olustur(
-        RezervasyonIstegi istek, ReservationService rezervasyonlar, ICustomerRepository musteriler,
-        IVehicleRepository araclar, ILocationRepository lokasyonlar, ICurrentUser kullanici, CancellationToken ct)
+        RezervasyonIstegi istek, ReservationService rezervasyonlar, ILocationRepository lokasyonlar,
+        ICurrentUser kullanici, CancellationToken ct)
     {
         Sinirla(istek);
         await F5Ortak.CikisOfisiKapsamiAsync(lokasyonlar, kullanici, istek.CikisOfisi, ct);
-        await VarlikAsync(musteriler, araclar, istek.MusteriId, istek.VehicleId, ct);
+        // Müşteri/araç varlık kontrolü ReservationService.CreateAsync girişinde (BookingPartyCheck; tek kural).
         var id = await rezervasyonlar.CreateAsync(istek.ToInput(), ct);
         var no = (await rezervasyonlar.GetAsync(id, ct))?.ReservationNo ?? "";
         return TypedResults.Created($"{Kok}/{id}", new RezervasyonOlusturYaniti(id, no));
@@ -246,8 +233,7 @@ public static class RezervasyonApi
 
     private static async Task<Results<Ok<RezervasyonDetayYaniti>, ProblemHttpResult>> Guncelle(
         Guid id, RezervasyonGuncelleIstegi istek, HttpContext http, ReservationService rezervasyonlar, IBookingRepository depo,
-        ICustomerRepository musteriler, IVehicleRepository araclar, ILocationRepository lokasyonlar, ICurrentUser kullanici,
-        IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        ILocationRepository lokasyonlar, ICurrentUser kullanici, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var mevcut = await rezervasyonlar.GetAsync(id, ct); // kapsam (403) → sonra her şey
         if (mevcut is null) return Bulunamadi();
@@ -257,7 +243,7 @@ public static class RezervasyonApi
         // Çıkış ofisi DEĞİŞİYORSA hedef ofis de kapsamda olmalı (kira UpdateOpenAsync kuralı).
         if (!string.Equals(F5Ortak.Nz(istek.CikisOfisi) ?? "", mevcut.CikisOfisi ?? "", StringComparison.Ordinal))
             await F5Ortak.CikisOfisiKapsamiAsync(lokasyonlar, kullanici, istek.CikisOfisi, ct);
-        await VarlikAsync(musteriler, araclar, istek.MusteriId, istek.VehicleId, ct);
+        // Varlık kontrolü ReservationService.UpdateAsync içinde (her yazımda).
         if (!await rezervasyonlar.UpdateAsync(id, istek.ToInput(), istek.Surum, ct)) return Bulunamadi();
         return await DetayYanitiAsync(id, http, rezervasyonlar, depo, dbf, ct) is { } y ? TypedResults.Ok(y) : Bulunamadi();
     }

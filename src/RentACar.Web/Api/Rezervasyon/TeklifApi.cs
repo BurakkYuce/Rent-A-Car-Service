@@ -103,8 +103,8 @@ public static class TeklifApi
     ];
 
     private static async Task<Created<TeklifOlusturYaniti>> Olustur(
-        TeklifIstegi istek, QuotationService teklifler, ICustomerRepository musteriler, IVehicleRepository araclar,
-        ILocationRepository lokasyonlar, ICurrentUser kullanici, CancellationToken ct)
+        TeklifIstegi istek, QuotationService teklifler, ILocationRepository lokasyonlar, ICurrentUser kullanici,
+        CancellationToken ct)
     {
         Sinirlar.Tutar(istek.GunlukUcret, "gunlukUcret", "Günlük ücret");
         Sinirlar.Tutar(istek.FazlaKmUcret, "fazlaKmUcret", "Fazla km ücreti");
@@ -117,7 +117,7 @@ public static class TeklifApi
         Sinirlar.Metin(istek.FiyatTuru, 64, "fiyatTuru", "Fiyat türü");
         TarihPolitikasi.KiraBitis(istek.BasTar, istek.BitTar); // teklif → rezervasyon → kira zinciri
         await F5Ortak.CikisOfisiKapsamiAsync(lokasyonlar, kullanici, istek.CikisOfisi, ct);
-        await RezervasyonApi.VarlikAsync(musteriler, araclar, istek.MusteriId, istek.VehicleId, ct);
+        // Müşteri/araç varlık kontrolü QuotationService.CreateAsync girişinde (BookingPartyCheck; tek kural).
         var id = await teklifler.CreateAsync(new QuotationInput
         {
             MusteriId = istek.MusteriId, VehicleId = istek.VehicleId,

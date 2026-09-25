@@ -1,5 +1,8 @@
 using RentACar.Application.Authorization;
+using RentACar.Application.Bookings;
 using RentACar.Application.Common;
+using RentACar.Application.Customers;
+using RentACar.Application.Vehicles;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -10,7 +13,8 @@ namespace RentACar.Application.FiloKiralamalar;
 /// Filo (uzun-dönem) kiralama iş mantığı (roadmap L1): sözleşme oluştur/listele + taksit planı hesapla.
 /// DEFTER POSTLAMAZ (gelir aylık faturalama ile tanınır) → salt sözleşme/hesap; yazma OperationsWrite.
 /// </summary>
-public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICurrentUser currentUser)
+public sealed class FiloKiralamaService(
+    IFiloKiralamaRepository repository, ICurrentUser currentUser, ICustomerRepository customers, IVehicleRepository vehicles)
 {
     private readonly IFiloKiralamaRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -67,6 +71,8 @@ public sealed class FiloKiralamaService(IFiloKiralamaRepository repository, ICur
         if (input.KdvOrani is < 0m or > 1m) throw new ValidationException("KDV oranı 0-1 arası kesir olmalıdır.");
         if (input.Kur <= 0m) throw new ValidationException("Kur pozitif olmalıdır.");
         if (input.DamgaVergisi is < 0m) throw new ValidationException("Damga vergisi negatif olamaz.");
+        // #332 review L2: Blazor /filo-kiralama formu da müşteri/araç varlık kontrolünden geçer (/api/ui ucu zaten geçiyordu).
+        await BookingPartyCheck.RequireAsync(customers, vehicles, input.MusteriId, input.VehicleId, ct);
         // F5.1 adversarial M2: tarih sınırları (taksit planı AddMonths taşması → tüm liste 500).
         var basTar = input.BasTar ?? DateTimeOffset.UtcNow;
         TarihPolitikasi.FiloBaslangic(basTar);

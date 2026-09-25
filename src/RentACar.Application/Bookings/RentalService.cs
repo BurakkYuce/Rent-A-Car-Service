@@ -114,11 +114,9 @@ public sealed class RentalService(
         // hiç olmayan ya da BAŞKA KİRACININ kimliğiyle kira yazılabiliyordu. Kontrol artık servis GİRİŞİNDE —
         // harici API, /api/ui ve Blazor formu aynı kuraldan geçer (uçlardaki kopyalar kaldırıldı). RLS + tenant
         // query filter kapsamlı FindAsync: yabancı kiracının kaydı "yok" görünür (varlık sızmaz) → 400.
-        // Kalıcı çözüm (bileşik FK) ayrı iş.
-        var musteri = await customerRepository.FindAsync(input.MusteriId, ct)
-            ?? throw new ValidationException("Müşteri bulunamadı.", "musteriId");
-        if (await vehicleRepository.FindAsync(input.VehicleId, ct) is null)
-            throw new ValidationException("Araç bulunamadı.", "vehicleId");
+        // Kalıcı çözüm (bileşik FK) ayrı iş. Kural tek yerde: BookingPartyCheck (rezervasyon/teklif de kullanır).
+        var musteri = await BookingPartyCheck.RequireAsync(
+            customerRepository, vehicleRepository, input.MusteriId, input.VehicleId, ct);
         if (musteri is { RiskLimiti: > 0m })
         {
             var bakiye = await cashRepository.GetCariBalanceAsync(input.MusteriId, ct);

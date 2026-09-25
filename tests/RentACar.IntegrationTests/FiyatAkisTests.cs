@@ -152,7 +152,8 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         var vehicleId = await SeedVehicleWithMatrixAsync(scope.ServiceProvider);
         var res = scope.ServiceProvider.GetRequiredService<ReservationService>();
 
-        var id = await res.CreateAsync(Booking(vehicleId, manuelUcret: 0m));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider); // servis müşteri varlığını doğruluyor
+        var id = await res.CreateAsync(Booking(vehicleId, manuelUcret: 0m, cari));
         var r = await res.GetAsync(id);
         Assert.Equal(850.00m, r!.GunlukUcret);
     }

@@ -379,8 +379,14 @@ Etiketsiz madde açıktır.
 - **Kira oluşturma atomik değil:** ücret satırları ve dönem planı ayrı adımda (açık, ayrı iş — Low PR'larına girmez).
 - ~~`RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok~~ KAPALI: kira için kontrol
   `RentalService.CreateDirectAsync` girişinde (harici API, `/api/ui`, Blazor aynı kural; uç kopyaları kaldırıldı).
-  Açık kalan: kalıcı çözüm bileşik FK (migration); Blazor `/rezervasyonlar` oluşturma yolunda varlık kontrolü yok
-  (harici + SPA rezervasyon uçları uçta denetliyor; `ReservationService.CreateAsync`'e taşımak ayrı iş).
+  ~~Rezervasyon/teklif yolunda servis düzeyinde varlık kontrolü yok (#328 Low-1)~~ KAPALI: tek kural
+  `BookingPartyCheck.RequireAsync` — `RentalService.CreateDirectAsync`, `ReservationService.CreateAsync`/`UpdateAsync`
+  (düzenlemede KOŞULSUZ: eski yabancı kimlik düzenlemeyle aklanmasın) ve `QuotationService.CreateAsync` girişinde;
+  harici API, `/api/ui` (rezervasyon + teklif) ve Blazor aynı mesaj/alanla (`musteriId`/`vehicleId`) reddeder. Uç
+  kopyaları (`RentalsApi.VarlikKontroluAsync`, `RezervasyonApi.VarlikAsync`) kaldırıldı; `/api/ui` filo kiralama ucu
+  aynı yardımcıyı çağırır. Test `RezTeklifVarlikKontroluTests`.
+  Açık kalan: kalıcı çözüm bileşik FK (migration); `FiloKiralamaService` (Blazor filo formu) servis düzeyinde
+  denetlemiyor.
 - Ofis adları normalize anahtarda tekil değil (kiracı başına tekillik kısıtı).
 - ~~Yakıt ölçeği: kullanıcı kararı bekliyor~~ KAPANDI (2026-09-25): tek iç ölçek 0–12, harici API sınırda yüzde↔12 (§1).
 - ~~Üretimde bağlama hatası `kod`suz 400~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.GenelProblem` 400'ü `dogrulama` koduyla döner.

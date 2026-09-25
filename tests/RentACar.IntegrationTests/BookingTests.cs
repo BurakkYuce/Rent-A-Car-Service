@@ -25,8 +25,10 @@ public sealed class BookingTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<ReservationService>();
 
-        var id1 = await svc.CreateAsync(Input(Guid.NewGuid(), Guid.NewGuid()));
-        var id2 = await svc.CreateAsync(Input(Guid.NewGuid(), Guid.NewGuid()));
+        // Servis müşteri/araç varlığını doğruluyor → gerçek kayıtlar.
+        var sp = scope.ServiceProvider;
+        var id1 = await svc.CreateAsync(Input(await TestArac.YeniAsync(sp), await TestCari.YeniAsync(sp)));
+        var id2 = await svc.CreateAsync(Input(await TestArac.YeniAsync(sp), await TestCari.YeniAsync(sp)));
 
         var r1 = await svc.GetAsync(id1);
         var r2 = await svc.GetAsync(id2);
@@ -44,7 +46,8 @@ public sealed class BookingTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<ReservationService>();
 
-        var id = await svc.CreateAsync(Input(Guid.NewGuid(), Guid.NewGuid()));
+        var sp = scope.ServiceProvider;
+        var id = await svc.CreateAsync(Input(await TestArac.YeniAsync(sp), await TestCari.YeniAsync(sp)));
         Assert.True(await svc.ConfirmAsync(id));
         Assert.Equal(ReservationStatus.Onayli, (await svc.GetAsync(id))!.Durum);
 
@@ -61,7 +64,8 @@ public sealed class BookingTests(PostgresFixture fx)
         var resSvc = scope.ServiceProvider.GetRequiredService<ReservationService>();
         var rentSvc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var resId = await resSvc.CreateAsync(Input(Guid.NewGuid(), Guid.NewGuid()));
+        var resId = await resSvc.CreateAsync(Input(
+            await TestArac.YeniAsync(scope.ServiceProvider), await TestCari.YeniAsync(scope.ServiceProvider)));
         var rentalId = await resSvc.ConvertToRentalAsync(resId);
 
         var res = await resSvc.GetAsync(resId);

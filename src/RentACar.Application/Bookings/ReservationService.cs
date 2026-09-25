@@ -1,6 +1,8 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Customers;
 using RentACar.Application.Pricing;
+using RentACar.Application.Vehicles;
 using RentACar.Application.ReservationSources;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
@@ -14,7 +16,7 @@ namespace RentACar.Application.Bookings;
 /// </summary>
 public sealed class ReservationService(
     IBookingRepository repository, ICurrentUser currentUser, PricingService pricing, FeeLineService feeLines,
-    RezKaynakKuralService kaynakKural)
+    RezKaynakKuralService kaynakKural, ICustomerRepository customers, IVehicleRepository vehicles)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -51,6 +53,9 @@ public sealed class ReservationService(
         RezKaynakKural.MaxGunGuard(kaynak, BookingMath.ComputeGun(input.BasTar, input.BitTar));
         RezKaynakKural.DropGuard(kaynak, input.CikisOfisi, input.DonusOfisi);
         var kmLimit = RezKaynakKural.KmLimitUygula(kaynak, input.KmLimit);
+        // Varlık kontrolü (DEVIR §6 Low): müşteri/araç bu kiracıda var olmalı — kiraya çevrilince aynı kimlikler
+        // kiraya taşınır. Harici API, /api/ui ve Blazor aynı kuraldan geçer (uç kopyaları kaldırıldı).
+        await BookingPartyCheck.RequireAsync(customers, vehicles, input.MusteriId, input.VehicleId, ct);
         var pr = await _pricing.PriceAsync(input, ct: ct); // fiyat motoru: manuel >0 kazanır, yoksa tarife
 
         // Aktif kira çakışması varsa rezervasyon alınamaz (yumuşak ön-kontrol).
@@ -157,6 +162,10 @@ public sealed class ReservationService(
             RezKaynakKural.DropGuard(yeniKaynak, input.CikisOfisi, input.DonusOfisi);
         // Km sabitlemesi bir RED değil, sonucu yazma biçimidir → koşulsuz (kilitleme riski yok).
         var kmLimit = RezKaynakKural.KmLimitUygula(yeniKaynak, input.KmLimit);
+        // Varlık kontrolü KOŞULSUZ (yalnız değişende değil): tam değiştirme yazımı kimlikleri yeniden yazar ve
+        // kiraya çevrilince taşınır — önceden (kontrol yokken) yazılmış yabancı kimlik düzenlemeyle "aklanmasın".
+        // Maliyet iki birincil anahtar okuması. Önceki /api/ui davranışıyla aynı (orada da her PUT'ta denetleniyordu).
+        await BookingPartyCheck.RequireAsync(customers, vehicles, input.MusteriId, input.VehicleId, ct);
 
         // FAZ 3.A7 adversarial B4: FİYAT-ETKİLEYEN girdiler değişmedikçe REPRICE ATLANIR — no-op/not
         // düzenlemesi kabul edilmiş fiyatı (create'te kilitlenen surge dahil) SESSİZCE düşüremez/yükseltemez.
