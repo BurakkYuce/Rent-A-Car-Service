@@ -3251,6 +3251,8 @@ export type CeviriAnahtari =
   | 'paraIslemi.oncekiKaydedildi'
   | 'paraIslemi.oncekiKaydedildiFarkli'
   | 'paraIslemi.oncekiKaydedildiFarkliTutar'
+  | 'paraIslemi.oturumDegisti'
+  | 'paraIslemi.oturumDogrulanamadi'
   | 'paraIslemi.sonucBilinmiyor'
   | 'paraIslemi.tekrarGonder'
   | 'paraIslemi.terkMesaji'

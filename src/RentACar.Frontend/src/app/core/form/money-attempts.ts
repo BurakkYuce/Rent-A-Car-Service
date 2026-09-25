@@ -1,5 +1,7 @@
 import {
+  DestroyRef,
   Injectable,
+  InjectionToken,
   type Signal,
   computed,
   effect,
@@ -10,6 +12,7 @@ import {
 
 import type { ApiYolu } from '@core/api/api-istemcisi';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
+import type { Ben } from '@core/oturum/oturum-tipleri';
 
 import type { MoneyContent, MoneyNotice } from './money-notice';
 
@@ -35,6 +38,25 @@ export interface MoneyAttempt<TBody = unknown> {
    */
   readonly context: string | null;
 }
+
+/**
+ * `GET oturum/ben` yanıtının bağlam anahtarı — `OturumServisi.baglam` ile AYNI biçim (kiracı|kullanıcı|şube kapsamı).
+ * Tekrar göndermeden önceki sunucu doğrulamasında kullanılır; biçim orada değişirse burada da değişmeli.
+ */
+export function contextOfSession(ben: Pick<Ben, 'kiraci' | 'kullanici' | 'subeKapsami'>): string {
+  const sube = ben.subeKapsami.tumSubeler ? '*' : (ben.subeKapsami.subeId ?? '-');
+  return `${ben.kiraci.id}|${ben.kullanici.id}|${sube}`;
+}
+
+/**
+ * Sekmeler arası oturum bağlamı kanalı (aynı köken). Bir sekmede çıkış ya da başka kullanıcı girişi olunca öteki
+ * sekmeler bağlamı düşürür ve `ben`'i sunucudan yeniden okur (ortak çerez artık yeni kullanıcınındır — r316 M-new).
+ * Testlerde `null` kanalı kapatır.
+ */
+export const MONEY_SESSION_CHANNEL = new InjectionToken<string | null>('MONEY_SESSION_CHANNEL', {
+  providedIn: 'root',
+  factory: () => 'rc-oturum-baglami',
+});
 
 /** Oturum bağlamının anahtarı; oturum yoksa `null` (test sahtelerinde `baglam` olmayabilir). */
 export function sessionContext(session: OturumServisi | null): string | null {
@@ -72,10 +94,43 @@ export class PendingMoneyAttempts {
     effect(() => {
       const current = sessionContext(this.session);
       untracked(() => {
-        if (current !== last) this.attempts.set(new Map());
+        if (current === last) return;
+        this.attempts.set(new Map());
         last = current;
+        this.broadcast(current);
       });
     });
+    const name = inject(MONEY_SESSION_CHANNEL);
+    if (name !== null && typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel(name);
+      channel.onmessage = (e: MessageEvent<unknown>) => this.received(e.data);
+      this.channel = channel;
+      inject(DestroyRef, { optional: true })?.onDestroy(() => channel.close());
+    }
+  }
+
+  private channel: BroadcastChannel | null = null;
+
+  private broadcast(context: string | null): void {
+    try {
+      this.channel?.postMessage({ tur: 'baglam', anahtar: context });
+    } catch {
+      // Kapalı kanal: sekme içi davranış yine doğru; tekrar öncesi sunucu doğrulaması ikinci savunmadır.
+    }
+  }
+
+  /**
+   * Öteki sekmenin bağlamı bizimkinden farklı: `ben` sunucudan yeniden okunur. Kimlik gerçekten değiştiyse (çıkış →
+   * 401, başka kullanıcı) bağlam değişir ve denemeler + bileşen formları yukarıdaki kuralla düşer; aynı kullanıcı
+   * yeniden girdiyse hiçbir şey kaybolmaz.
+   */
+  private received(data: unknown): void {
+    if (typeof data !== 'object' || data === null) return;
+    const m = data as Record<string, unknown>;
+    if (m['tur'] !== 'baglam') return;
+    const other = typeof m['anahtar'] === 'string' ? m['anahtar'] : null;
+    if (other === sessionContext(this.session)) return;
+    void this.session?.yukle?.();
   }
 
   /** Bu kapsamın denemesi — yalnız GÜNCEL oturum bağlamında yazılmışsa. */

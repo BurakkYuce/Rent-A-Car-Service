@@ -9,7 +9,7 @@ import {
 import { TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { TranslocoService } from '@jsverse/transloco';
-import { Subject } from 'rxjs';
+import { type Observable, Subject, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
@@ -19,7 +19,7 @@ import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { MUKERRER_CAGIRAN_GOSTERIR } from '@core/oturum/istek-baglami';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 
-import { PendingMoneyAttempts } from './money-attempts';
+import { MONEY_SESSION_CHANNEL, PendingMoneyAttempts } from './money-attempts';
 import {
   ConfirmGate,
   MoneySubmission,
@@ -49,6 +49,17 @@ const networkError = () => apiHatasinaCevir(new HttpErrorResponse({ status: 0 })
 let calls: Call[];
 let confirmAnswer: boolean;
 let session: WritableSignal<{ anahtar: string } | null>;
+/** Sunucunun `GET oturum/ben` yanıtı (tekrar öncesi doğrulama); varsayılan: güncel bağlamın kullanıcısı. */
+let serverSession: () => Observable<unknown>;
+const benOf = (anahtar: string) => {
+  const [kiraci, kullanici] = anahtar.split('|');
+  return {
+    kiraci: { id: kiraci },
+    kullanici: { id: kullanici },
+    subeKapsami: { tumSubeler: true, subeId: null },
+  };
+};
+let sessionChecks = 0;
 let toasts: { tone: string; text: string; title: string | undefined }[];
 
 function record(method: 'post' | 'put') {
@@ -64,9 +75,22 @@ beforeEach(() => {
   confirmAnswer = true;
   session = signal<{ anahtar: string } | null>({ anahtar: 'firma|kullanici-a|*' });
   toasts = [];
+  sessionChecks = 0;
+  serverSession = () => of(benOf(session()?.anahtar ?? 'x|y|*'));
   TestBed.configureTestingModule({
     providers: [
-      { provide: ApiIstemcisi, useValue: { post: record('post'), put: record('put') } },
+      {
+        provide: ApiIstemcisi,
+        useValue: {
+          post: record('post'),
+          put: record('put'),
+          get: () => {
+            sessionChecks++;
+            return serverSession();
+          },
+        },
+      },
+      { provide: MONEY_SESSION_CHANNEL, useValue: null },
       { provide: OnayServisi, useValue: { sor: vi.fn(async () => confirmAnswer) } },
       { provide: TranslocoService, useValue: { translate: (k: string) => k } },
       {
@@ -397,7 +421,7 @@ describe('MoneySubmission — oturum bağlamı (r316 M1)', () => {
     expect(b.form.disabled).toBe(false);
   });
 
-  it('bağlam değişince donmuş deneme, not ve form temizlenir; yeni gönderim YENİ anahtarla', async () => {
+  it('bağlam değişince donmuş deneme ve form temizlenir, neden açıklanır; yeni gönderim YENİ anahtarla', async () => {
     const m = mount({ scope: () => 'depozito' });
     await m.run();
     calls[0]?.reply.error(networkError());
@@ -405,7 +429,8 @@ describe('MoneySubmission — oturum bağlamı (r316 M1)', () => {
     session.set({ anahtar: 'firma|kullanici-b|*' });
     TestBed.tick();
     expect(m.submission.frozen()).toBeNull();
-    expect(m.submission.notice()).toBeNull();
+    // Bırakılan sonucu bilinmeyen deneme açıklanır (gönderilmedi; hareketleri kontrol).
+    expect(m.submission.notice()?.message).toBe('paraIslemi.oturumDegisti');
     expect(m.form.disabled).toBe(false);
     expect(m.form.controls.tutar.value).toBeNull();
     expect(TestBed.inject(PendingMoneyAttempts).get('depozito')).toBeUndefined();
@@ -436,5 +461,58 @@ describe('MoneySubmission — oturum bağlamı (r316 M1)', () => {
       message: 'servisSigorta.para.policeZatenOdendi',
       params: { no: 'P-1', tutar: '900,00 ₺' },
     });
+  });
+});
+
+describe('MoneySubmission — tekrar öncesi oturum doğrulaması (r316 M-new, L-new)', () => {
+  const freeze = async () => {
+    const m = mount({ scope: () => 'cari-virman' });
+    m.form.controls.aciklama.setValue('ilk');
+    m.submission.restore(m.form); // bileşen açılışı: başlangıç değeri (tutar 500.00, açıklama "ilk")
+    m.form.controls.tutar.setValue('300.00');
+    await m.run();
+    calls[0]?.reply.error(networkError());
+    return m;
+  };
+
+  it('sunucudaki oturum başka kullanıcıysa tekrar GÖNDERİLMEZ; deneme bırakılır, form BAŞLANGIÇ değerine döner', async () => {
+    const m = await freeze();
+    serverSession = () => of(benOf('firma|kullanici-b|*'));
+    await m.run();
+    expect(sessionChecks).toBe(1);
+    expect(calls).toHaveLength(1);
+    expect(m.submission.frozen()).toBeNull();
+    expect(m.submission.notice()?.message).toBe('paraIslemi.oturumDegisti');
+    expect(m.form.getRawValue()).toEqual({ tutar: '500.00', aciklama: 'ilk' });
+    expect(m.form.disabled).toBe(false);
+    expect(TestBed.inject(PendingMoneyAttempts).get('cari-virman')).toBeUndefined();
+  });
+
+  it('oturum kapanmışsa (oturum_yok) tekrar GÖNDERİLMEZ ve deneme bırakılır', async () => {
+    const m = await freeze();
+    serverSession = () => throwError(() => problem(401, 'oturum_yok'));
+    await m.run();
+    expect(calls).toHaveLength(1);
+    expect(m.submission.notice()?.message).toBe('paraIslemi.oturumDegisti');
+  });
+
+  it('oturum doğrulanamazsa (ağ) gönderilmez ama donmuş deneme ve anahtar KORUNUR', async () => {
+    const m = await freeze();
+    serverSession = () => throwError(() => networkError());
+    await m.run();
+    expect(calls).toHaveLength(1);
+    expect(m.submission.frozen()?.key).toBe('k-1');
+    expect(m.submission.notice()?.message).toBe('paraIslemi.oturumDogrulanamadi');
+    serverSession = () => of(benOf('firma|kullanici-a|*'));
+    await m.run();
+    expect(calls[1]?.options?.islemAnahtari).toBe('k-1');
+  });
+
+  it('aynı kullanıcı: doğrulama geçer, tekrar AYNI anahtar + gövdeyle gider', async () => {
+    const m = await freeze();
+    await m.run();
+    expect(sessionChecks).toBe(1);
+    expect(calls[1]?.options?.islemAnahtari).toBe('k-1');
+    expect(calls[1]?.body).toEqual({ tutar: '300.00' });
   });
 });

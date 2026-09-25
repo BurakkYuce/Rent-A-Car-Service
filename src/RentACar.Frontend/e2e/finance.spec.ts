@@ -715,6 +715,80 @@ test('r316 M1: çıkış sırasında uçan virman yanıtı çıkıştan SONRA ge
   expect(keys).toHaveLength(1);
 });
 
+test('r316 M-new: iki sekme — sekme 2 donmuş virman; sekme 1 çıkış + BAŞKA kullanıcı girişi → sekme 2 eski denemeyi TEKRAR GÖNDEREMEZ', async ({
+  context,
+}) => {
+  const other = {
+    ...BEN,
+    kullanici: { ...BEN.kullanici, id: 'baska-kullanici', kullaniciAdi: 'baska' },
+  };
+  /** Ortak çerezin sahibi: sunucunun `GET oturum/ben` yanıtı her iki sekmede de bu. */
+  let cookieOwner: object | null = BEN;
+  const p1 = await context.newPage();
+  const p2 = await context.newPage();
+  const sent: string[] = [];
+  let n = 0;
+  for (const [tab, p] of [
+    ['1', p1],
+    ['2', p2],
+  ] as const) {
+    await financeHubEndpoints(p, {
+      write: async (r, path) => {
+        if (path !== '/api/ui/v1/finans/cari-virman') return false;
+        sent.push(tab);
+        if (++n === 1) await r.abort('failed');
+        else await r.fulfill({ json: { id: 'cv-x' } });
+        return true;
+      },
+    });
+    await p.route('**/api/ui/v1/oturum/ben', (route) =>
+      cookieOwner
+        ? route.fulfill({ json: cookieOwner })
+        : problem(route, 401, 'oturum_yok', 'Oturum açık değil.'),
+    );
+    await p.route('**/api/ui/v1/oturum/cikis', (route) => {
+      cookieOwner = null;
+      return route.fulfill({ status: 204 });
+    });
+    await p.route('**/api/ui/v1/oturum/xsrf', async (route) => {
+      await xsrfYaz(p, 'anonim');
+      return route.fulfill({ status: 204 });
+    });
+    await p.route('**/api/ui/v1/oturum/giris', async (route) => {
+      await xsrfYaz(p, 'yeni');
+      cookieOwner = other;
+      return route.fulfill({ json: other });
+    });
+  }
+  await p1.goto(NAKIT.yol);
+  await hazirBekle(p1, NAKIT);
+  await p2.goto(CARI_VIRMAN.yol);
+  await hazirBekle(p2, CARI_VIRMAN);
+  const form = p2.getByRole('region', { name: 'Virman', exact: true });
+  await form.getByRole('combobox', { name: 'Kaynak Cari (alacak)' }).fill('Ay');
+  await p2.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
+  await form.getByRole('combobox', { name: 'Hedef Cari (borç)' }).fill('Bo');
+  await p2.getByRole('option', { name: 'Bora Kaya' }).click();
+  await form.getByRole('textbox', { name: 'Tutar' }).fill('300');
+  await form.getByRole('button', { name: 'Virman Yap' }).click();
+  await expect(form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' })).toBeVisible();
+
+  await p1.bringToFront();
+  await p1.getByRole('button', { name: 'Çıkış yap' }).click();
+  await expect(p1.getByLabel('Parola')).toBeVisible();
+  await p1.getByLabel('Firma kodu').fill('pilot');
+  await p1.getByLabel('Kullanıcı adı').fill('baska');
+  await p1.getByLabel('Parola').fill('rastgele-e2e-parolasi');
+  await p1.getByRole('button', { name: 'Giriş yap' }).click();
+  await expect(p1.getByLabel('Parola')).toHaveCount(0);
+
+  // Sekme 2: bağlam sekmeler arası düşer; eski kullanıcının denemesi tekrar gönderilemez, neden açıklanır.
+  await p2.bringToFront();
+  await expect(form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' })).toHaveCount(0);
+  await expect(p2.getByText(/Oturum başka bir kullanıcıya geçti ya da kapandı/)).toBeVisible();
+  expect(sent).toEqual(['2']);
+});
+
 for (const s of PAGES) {
   test.describe(`${s.ad}: mobil taşma (dokunmatik öykünme)`, () => {
     test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

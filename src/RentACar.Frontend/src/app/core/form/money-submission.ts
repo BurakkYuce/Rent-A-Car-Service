@@ -1,5 +1,6 @@
 import { DestroyRef, type Signal, effect, inject, signal, untracked } from '@angular/core';
 import type { AbstractControl, FormGroup } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 
 import { type ApiHatasi, apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
@@ -10,15 +11,22 @@ import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { istekBaglami } from '@core/oturum/istek-baglami';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
+import type { Ben } from '@core/oturum/oturum-tipleri';
 
 import { yeniIslemAnahtari } from './gonderim-kilidi';
-import { type MoneyAttempt, PendingMoneyAttempts, sessionContext } from './money-attempts';
+import {
+  type MoneyAttempt,
+  PendingMoneyAttempts,
+  contextOfSession,
+  sessionContext,
+} from './money-attempts';
 import {
   type DuplicateKind,
   type MoneyContent,
   type MoneyNotice,
   UNCERTAIN_NOTICE,
   classifyDuplicate,
+  customNotice,
   duplicateNotice,
 } from './money-notice';
 import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from './sunucu-hatalari';
@@ -95,6 +103,11 @@ export interface MoneySubmissionState {
 
 let instanceCounter = 0;
 
+/** Oturum başka kullanıcıya geçti (ya da kapandı): önceki kullanıcının denemesi bırakıldı, GÖNDERİLMEDİ. */
+const SESSION_CHANGED_NOTICE = customNotice('paraIslemi.oturumDegisti');
+/** Tekrar öncesi oturum doğrulanamadı (ağ/sunucu): gönderilmedi, donmuş deneme duruyor. */
+const SESSION_UNVERIFIED_NOTICE = customNotice('paraIslemi.oturumDogrulanamadi');
+
 /**
  * Para yazan formların TEK gönderim çekirdeği (DEVIR §5 "Para formu yaşam döngüsü"; işlem başına rastgele anahtar):
  *
@@ -123,6 +136,8 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   private lockedForm: AbstractControl | null = null;
   /** Bu çekirdeğin son kullandığı form (bağlam değişince temizlenir). */
   private lastForm: AbstractControl | null = null;
+  /** `restore()` anındaki form başlangıç değeri (bağlam değişiminde dönülen). */
+  private defaults: { readonly form: AbstractControl; readonly value: unknown } | null = null;
   /** Gönderim onayı açık (gövde kuruldu, istek henüz gitmedi) — cari değişimi gibi geçişler beklemeli. */
   private readonly confirming = signal(false);
   private destroyed = false;
@@ -184,6 +199,11 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     this.lastForm = o.form;
     const frozen = this.frozenState();
     if (frozen) {
+      // r316 M-new: tekrar, gönderim anındaki kimlikle mi? (başka sekmede çıkış/başka kullanıcı → ortak çerez
+      // değişmiş olabilir; sunucu anahtarı yeni kullanıcıdan türetir ve tekrar YENİ işlem olurdu).
+      // Bağlamsız deneme (oturum bilgisi yok) doğrulanamaz; eşzamanlı yol korunur.
+      if (frozen.context !== null && !(await this.sameSession(frozen))) return;
+      if (this.sendingState() || this.frozenState() !== frozen) return;
       this.send(frozen, o, true);
       return;
     }
@@ -234,6 +254,9 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
    * istek başka örnekteyse sonucu burada bilinmez: "sonucu bilinmiyor" sayılır; tekrar aynı anahtarla.
    */
   restore(form: AbstractControl, write?: (value: unknown) => void): boolean {
+    // Formun başlangıç değeri (bağlam değişince bu değere dönülür — r316 L-new). Restore bileşen açılışında çağrılır.
+    if (this.defaults === null || this.defaults.form !== form)
+      this.defaults = { form, value: form.getRawValue() };
     const a = this.attempts.get(this.scope()) as MoneyAttempt<TBody> | undefined;
     if (!a) return false;
     if (write) write(a.formValue);
@@ -396,15 +419,55 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     return true;
   }
 
+  /**
+   * Oturum bağlamı değişti: önceki kullanıcının donmuş denemesi, notu, anahtarı ve formu bırakılır. Form BAŞLANGIÇ
+   * değerine döner (ör. hesap "Kasa"; null'a değil). Sonucu bilinmeyen bir deneme bırakıldıysa neden açıklanır.
+   */
   private contextChanged(): void {
     const form = this.lockedForm ?? this.lastForm;
+    const hadAttempt = this.frozenState() !== null || this.sendingState();
     this.frozenState.set(null);
-    this.noticeState.set(null);
+    if (this.noticeState() !== SESSION_CHANGED_NOTICE)
+      this.noticeState.set(hadAttempt ? SESSION_CHANGED_NOTICE : null);
     this.errorsState.set([]);
     this.amountRequiredState.set(false);
     this.resetKey();
     this.unlock();
-    form?.reset(undefined, { emitEvent: false });
+    if (!form) return;
+    const initial = this.defaults?.form === form ? this.defaults.value : undefined;
+    form.reset(initial, { emitEvent: false });
+  }
+
+  /**
+   * Donmuş denemenin tekrarından önce sunucudaki oturum kimliği (`GET oturum/ben`) gönderim anındakiyle karşılaştırılır.
+   * Farklıysa (ya da oturum kapanmışsa) GÖNDERİLMEZ: deneme bırakılır ve açıklanır, uygulamanın `ben`'i tazelenir.
+   * Doğrulanamazsa (ağ/5xx) yine gönderilmez; donmuş deneme korunur. Bağlamsız deneme (oturum bilgisi yok) atlanır.
+   */
+  private async sameSession(attempt: MoneyAttempt<TBody>): Promise<boolean> {
+    this.confirming.set(true);
+    try {
+      const ben = await firstValueFrom(
+        this.api.get<Ben>('/api/ui/v1/oturum/ben', {
+          context: istekBaglami({ sessiz: true, yenidenGirisYok: true }),
+        }),
+      );
+      if (contextOfSession(ben) === attempt.context) return true;
+      this.sessionMismatch(attempt);
+      return false;
+    } catch (raw: unknown) {
+      if (apiHatasinaCevir(raw).kod === 'oturum_yok') this.sessionMismatch(attempt);
+      else this.noticeState.set(SESSION_UNVERIFIED_NOTICE);
+      return false;
+    } finally {
+      this.confirming.set(false);
+    }
+  }
+
+  private sessionMismatch(attempt: MoneyAttempt<TBody>): void {
+    this.attempts.delete(this.scope(), attempt.context);
+    this.contextChanged();
+    this.noticeState.set(SESSION_CHANGED_NOTICE);
+    void this.session?.yukle?.();
   }
 
   private amountMissing(): boolean {

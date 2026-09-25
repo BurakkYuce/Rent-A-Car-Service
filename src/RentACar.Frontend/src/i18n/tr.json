@@ -261,6 +261,8 @@
     "dahaOnceBaslik": "İşlem daha önce kaydedildi",
     "dahaOnceKaydedildi": "Bu işlem daha önce kaydedildi; ikinci kez yazılmadı. Hareketleri kontrol edin.",
     "tutarAcikcaGir": "Önceki işlem kaydedildi. Yeni bir ödeme ancak tutar AÇIKÇA girilerek yapılabilir (boş tutar kalanın tamamını öder).",
-    "kayitZatenIslenmis": "Kayıt zaten işlenmiş"
+    "kayitZatenIslenmis": "Kayıt zaten işlenmiş",
+    "oturumDegisti": "Oturum başka bir kullanıcıya geçti ya da kapandı. Önceki kullanıcının sonucu bilinmeyen işlemi bu ekrandan GÖNDERİLMEDİ ve form temizlendi; o işlemin durumunu hareketlerden kontrol edin.",
+    "oturumDogrulanamadi": "Oturum doğrulanamadığı için işlem tekrar gönderilmedi (bağlantı ya da sunucu hatası). Bağlantıyı kontrol edip yeniden deneyin; işlem ve anahtarı korunuyor."
   }
 }
