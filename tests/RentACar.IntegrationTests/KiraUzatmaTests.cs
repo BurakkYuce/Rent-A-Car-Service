@@ -101,7 +101,7 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
         // Aynı araca, uzatma penceresine denk gelen ikinci aktif kira.
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = Guid.NewGuid(), VehicleId = c!.VehicleId, BasTar = Bas.AddDays(4), BitTar = Bas.AddDays(6), GunlukUcret = 100m });
+        { MusteriId = await TestCari.YeniAsync(sp), VehicleId = c!.VehicleId, BasTar = Bas.AddDays(4), BitTar = Bas.AddDays(6), GunlukUcret = 100m });
 
         await Assert.ThrowsAsync<AvailabilityConflictException>(
             () => sp.GetRequiredService<RentalService>().ExtendAsync(id, Bas.AddDays(5))); // [bas,bas+5] ∩ [bas+4,bas+6]

@@ -29,8 +29,8 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid()));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider)));
 
         var invId = await invoices.CreateFromRentalAsync(rentalId);
         var inv = await invoices.GetAsync(invId);
@@ -62,8 +62,8 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid()));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider)));
 
         // Vergi metadata ile fatura kes (bilgi amaçlı — postlamayı değiştirmemeli).
         var invId = await invoices.CreateFromRentalAsync(rentalId, vergi: new InvoiceTaxInfo(
@@ -105,11 +105,11 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
-        var rentalId = await rentals.CreateDirectAsync(Rental(Guid.NewGuid(), Guid.NewGuid()));
+        var rentalId = await rentals.CreateDirectAsync(Rental(await TestCari.YeniAsync(scope.ServiceProvider), await TestArac.YeniAsync(scope.ServiceProvider)));
         await Assert.ThrowsAsync<ValidationException>(
             () => invoices.CreateFromRentalAsync(rentalId, vergi: new InvoiceTaxInfo(Otv: -1m)));
         // Negatif vergi reddedildi → fatura POSTLANMADI; kira faturasız kalmalı (retry mümkün).
-        var rentalId2 = await rentals.CreateDirectAsync(Rental(Guid.NewGuid(), Guid.NewGuid()));
+        var rentalId2 = await rentals.CreateDirectAsync(Rental(await TestCari.YeniAsync(scope.ServiceProvider), await TestArac.YeniAsync(scope.ServiceProvider)));
         await Assert.ThrowsAsync<ValidationException>(
             () => invoices.CreateFromRentalAsync(rentalId2, vergi: new InvoiceTaxInfo(TevkifatOran: 150m)));
     }
@@ -124,7 +124,7 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
         var cari = await TestCari.YeniAsync(scope.ServiceProvider);
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid()));
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider)));
         await invoices.CreateFromRentalAsync(rentalId);          // Borç 400
         await cash.CollectAsync(new CashInput { CariId = cari, RentalId = rentalId, Tutar = 400m }); // Alacak 400
 
@@ -139,7 +139,7 @@ public sealed class InvoiceTests(PostgresFixture fx)
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
-        var rentalId = await rentals.CreateDirectAsync(Rental(Guid.NewGuid(), Guid.NewGuid()));
+        var rentalId = await rentals.CreateDirectAsync(Rental(await TestCari.YeniAsync(scope.ServiceProvider), await TestArac.YeniAsync(scope.ServiceProvider)));
         await invoices.CreateFromRentalAsync(rentalId);
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();

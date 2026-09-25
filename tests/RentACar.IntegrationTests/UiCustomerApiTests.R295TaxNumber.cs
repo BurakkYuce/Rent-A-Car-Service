@@ -106,9 +106,9 @@ public sealed partial class UiCustomerApiTests
         Assert.Equal(750m, full.GetProperty("bakiye").GetDecimal());
         Assert.Single(full.GetProperty("kiralar").EnumerateArray());
 
-        // Ekstre ucu bugün operatöre AÇIK (karar kuyruğunda; SPA sekmeyi/bağlantıyı FinanceWrite ∨ ViewReports ile
-        // kapılar — f7 e2e). Uç kapatılınca bu satır 403 beklentisine çevrilir.
+        // Karar (5), 2026-09-25: ekstre ucu da FinanceWrite ∨ ViewReports ister — operatör 403 alır, bakiye sızmaz.
         var statement = await Send(opA, HttpMethod.Get, $"{V1}/finans/cariler/{cari}/ekstre");
-        Assert.Equal(HttpStatusCode.OK, statement.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, statement.StatusCode);
+        Assert.DoesNotContain(marker, await statement.Content.ReadAsStringAsync());
     }
 }

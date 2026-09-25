@@ -70,6 +70,65 @@ public sealed class AuditMaskTests
         Assert.Equal("RNT", root.GetProperty("Seri").GetString());
     }
 
+    [Fact]
+    public void Company_iban_and_vkn_show_last_four_only_for_allowlisted_table()
+    {
+        // #319 L2 kullanıcı kararı: firmanın kendi IBAN'ı (Hesaplar.Iban) ve VKN'si (Ayarlar.FirmaVergiNo) son 4 görünür.
+        // Sentetik değerler çalışma anında kurulur (gerçek IBAN yok). Boşluklu yazım da aynı sonucu verir.
+        var iban = "TR00 " + string.Join(" ", Enumerable.Repeat("0000", 5)) + " 1234"; // TR00 + 20 sıfır + 1234 = 26 hane
+        var json = "{\"Iban\":\"" + iban + "\",\"Ad\":\"Ana Banka\"}";
+        var root = JsonDocument.Parse(SystemAdminApi.MaskSecrets(json, "Hesaplar")!).RootElement;
+        Assert.Equal("********1234", root.GetProperty("Iban").GetString());
+        Assert.Equal("Ana Banka", root.GetProperty("Ad").GetString());
+
+        var vkn = JsonDocument.Parse(SystemAdminApi.MaskSecrets("""{"FirmaVergiNo":"0000009876"}""", "ayarlar")!).RootElement;
+        Assert.Equal("********9876", vkn.GetProperty("FirmaVergiNo").GetString());
+
+        // Tablo verilmezse ya da başka tabloysa TAM maske (anahtar adı tek başına yetmez).
+        Assert.Equal("***", JsonDocument.Parse(SystemAdminApi.MaskSecrets(json)!).RootElement.GetProperty("Iban").GetString());
+        Assert.Equal("***", JsonDocument.Parse(SystemAdminApi.MaskSecrets(json, "Customers")!).RootElement.GetProperty("Iban").GetString());
+    }
+
+    [Fact]
+    public void Partial_mask_is_idempotent_and_short_values_stay_fully_masked()
+    {
+        // Yazma yolunun ürettiği kısmi maske okuma yüzeyinde yeniden maskelenince AYNI kalır.
+        var again = JsonDocument.Parse(SystemAdminApi.MaskSecrets("""{"Iban":"********1234"}""", "Hesaplar")!).RootElement;
+        Assert.Equal("********1234", again.GetProperty("Iban").GetString());
+        // Boşluksuz 8 karakterden kısa değer TAM maske; eski "***" kayıtları da "***" kalır.
+        var shortRoot = JsonDocument.Parse(SystemAdminApi.MaskSecrets("""{"Iban":"TR 12 345"}""", "Hesaplar")!).RootElement;
+        Assert.Equal("***", shortRoot.GetProperty("Iban").GetString());
+        Assert.Equal("***", JsonDocument.Parse(SystemAdminApi.MaskSecrets("""{"Iban":"***"}""", "Hesaplar")!).RootElement.GetProperty("Iban").GetString());
+    }
+
+    [Fact]
+    public void Customer_personnel_pii_and_secrets_stay_fully_masked_even_on_allowlisted_tables()
+    {
+        // Kısmi maske yalnız iki (tablo, anahtar) çiftine; müşteri/personel PII ve sırlar hiçbir tabloda gevşemez.
+        const string customer = """
+            {"TcKimlik":"10000000146","VergiNo":"0000001234","BankaIban":"TR000000000000000000005555","EhliyetNo":"EH12345678",
+             "PasaportNo":"PP12345678","SeriNo":"A12B345678","MaasEnc":"CfDJ8-maas-cipher"}
+            """;
+        var c = JsonDocument.Parse(SystemAdminApi.MaskSecrets(customer, "Customers")!).RootElement;
+        foreach (var k in new[] { "TcKimlik", "VergiNo", "BankaIban", "EhliyetNo", "PasaportNo", "SeriNo", "MaasEnc" })
+            Assert.Equal("***", c.GetProperty(k).GetString());
+
+        // Sır değerleri çalışma anında üretilir (GitGuardian: sabit "sır benzeri" dize yok).
+        var smtp = new string('s', 24);
+        var sms = new string('m', 24);
+        var settings = $$$"""
+            {"SmtpSifreEnc":"{{{smtp}}}","SmsApiKeyEnc":"{{{sms}}}","VergiNo":"0000001234",
+             "Alt":{"Iban":"TR000000000000000000007777","FirmaVergiNo":"0000004321"}}
+            """;
+        var s = JsonDocument.Parse(SystemAdminApi.MaskSecrets(settings, "Ayarlar")!).RootElement;
+        Assert.Equal("***", s.GetProperty("SmtpSifreEnc").GetString());
+        Assert.Equal("***", s.GetProperty("SmsApiKeyEnc").GetString());
+        Assert.Equal("***", s.GetProperty("VergiNo").GetString());
+        // İç içe nesnede izin listesi uygulanmaz.
+        Assert.Equal("***", s.GetProperty("Alt").GetProperty("Iban").GetString());
+        Assert.Equal("***", s.GetProperty("Alt").GetProperty("FirmaVergiNo").GetString());
+    }
+
     [Theory]
     [InlineData("[1,2]")]
     [InlineData("bozuk{")]

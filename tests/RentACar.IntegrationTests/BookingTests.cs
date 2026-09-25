@@ -82,14 +82,15 @@ public sealed class BookingTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var vehicle = Guid.NewGuid();
+        var vehicle = await TestArac.YeniAsync(scope.ServiceProvider);
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
 
-        await svc.CreateDirectAsync(Input(vehicle, Guid.NewGuid()));
+        await svc.CreateDirectAsync(Input(vehicle, cari));
         // Çakışan aralık → reddedilir
         await Assert.ThrowsAsync<AvailabilityConflictException>(
-            () => svc.CreateDirectAsync(Input(vehicle, Guid.NewGuid(), Bas.AddDays(1), Bit.AddDays(1))));
+            () => svc.CreateDirectAsync(Input(vehicle, cari, Bas.AddDays(1), Bit.AddDays(1))));
         // Çakışmayan aralık (bitişik, [bit, bit+2)) → kabul
-        var id = await svc.CreateDirectAsync(Input(vehicle, Guid.NewGuid(), Bit, Bit.AddDays(2)));
+        var id = await svc.CreateDirectAsync(Input(vehicle, cari, Bit, Bit.AddDays(2)));
         Assert.NotEqual(Guid.Empty, id);
     }
 
@@ -98,7 +99,8 @@ public sealed class BookingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        var vehicle = Guid.NewGuid();
+        var vehicle = await TestArac.YeniAsync(host, tenant);
+        var cari = await TestCari.YeniAsync(host, tenant);
 
         async Task<bool> Book()
         {
@@ -106,7 +108,7 @@ public sealed class BookingTests(PostgresFixture fx)
             var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
             try
             {
-                await svc.CreateDirectAsync(Input(vehicle, Guid.NewGuid()));
+                await svc.CreateDirectAsync(Input(vehicle, cari));
                 return true;
             }
             catch (AvailabilityConflictException)
@@ -135,7 +137,7 @@ public sealed class BookingTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<RentalService>()
-                .CreateDirectAsync(Input(Guid.NewGuid(), Guid.NewGuid()));
+                .CreateDirectAsync(Input(await TestArac.YeniAsync(s1.ServiceProvider), await TestCari.YeniAsync(s1.ServiceProvider)));
 
         using var s2 = host.ScopeFor(t2);
         var factory = s2.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -152,7 +154,7 @@ public sealed class BookingTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "auditor");
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
-        await svc.CreateDirectAsync(Input(Guid.NewGuid(), Guid.NewGuid()));
+        await svc.CreateDirectAsync(Input(await TestArac.YeniAsync(scope.ServiceProvider), await TestCari.YeniAsync(scope.ServiceProvider)));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();

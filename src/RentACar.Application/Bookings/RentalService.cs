@@ -27,7 +27,8 @@ public sealed class RentalService(
     RentACar.Application.FaturaDonemleri.FaturaDonemPlanService donemPlan,
     RentACar.Application.Finance.ICashRepository cashRepository,
     RentACar.Application.Locations.ILocationRepository locationRepository,
-    RezKaynakKuralService kaynakKural)
+    RezKaynakKuralService kaynakKural,
+    RentACar.Application.Vehicles.IVehicleRepository vehicleRepository)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -109,7 +110,15 @@ public sealed class RentalService(
         // FAZ 4.4 RİSK GUARD'ı (giriş noktasında — tarih-politikası dersi): cari RiskLimiti tanımlıysa
         // (>0) ve mevcut borç bakiyesi limiti AŞIYORSA kira ancak Yönetici/Admin RiskOnay'ıyla açılır.
         // Onay kutusunu Operatör işaretleyemez (rol doğrulaması burada — UI'daki gizleme yeterli değil).
-        var musteri = await customerRepository.FindAsync(input.MusteriId, ct);
+        // Varlık kontrolü (DEVIR §6 Low, harici RentalsApi): Rentals.MusteriId/VehicleId'de bileşik FK yok →
+        // hiç olmayan ya da BAŞKA KİRACININ kimliğiyle kira yazılabiliyordu. Kontrol artık servis GİRİŞİNDE —
+        // harici API, /api/ui ve Blazor formu aynı kuraldan geçer (uçlardaki kopyalar kaldırıldı). RLS + tenant
+        // query filter kapsamlı FindAsync: yabancı kiracının kaydı "yok" görünür (varlık sızmaz) → 400.
+        // Kalıcı çözüm (bileşik FK) ayrı iş.
+        var musteri = await customerRepository.FindAsync(input.MusteriId, ct)
+            ?? throw new ValidationException("Müşteri bulunamadı.", "musteriId");
+        if (await vehicleRepository.FindAsync(input.VehicleId, ct) is null)
+            throw new ValidationException("Araç bulunamadı.", "vehicleId");
         if (musteri is { RiskLimiti: > 0m })
         {
             var bakiye = await cashRepository.GetCariBalanceAsync(input.MusteriId, ct);

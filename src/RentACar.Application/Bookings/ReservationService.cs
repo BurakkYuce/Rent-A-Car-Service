@@ -159,10 +159,11 @@ public sealed class ReservationService(
         var kmLimit = RezKaynakKural.KmLimitUygula(yeniKaynak, input.KmLimit);
 
         // FAZ 3.A7 adversarial B4: FİYAT-ETKİLEYEN girdiler değişmedikçe REPRICE ATLANIR — no-op/not
-        // düzenlemesi kabul edilmiş fiyatı (surge dahil) SESSİZCE düşüremez/yükseltemez. Girdiler
-        // değiştiyse (tarih/araç/müşteri/ücret/mod/kod/kaynak/ofis) yeni koşullarla TAM reprice —
-        // surge dahil (yeni fiyatlama zaten meşru; eski "surge'süz reprice" yaklaşımı her düzenlemede
-        // fiyatı tabana indiriyordu).
+        // düzenlemesi kabul edilmiş fiyatı (create'te kilitlenen surge dahil) SESSİZCE düşüremez/yükseltemez.
+        // Girdiler değiştiyse (tarih/araç/müşteri/ücret/mod/kod/kaynak/ofis) yeni koşullarla reprice —
+        // ama DOLULUK ÇARPANI (surge) UYGULANMAZ (kullanıcı kararı 2026-09-25, DEVIR Karar (4)):
+        // rezervasyon müşteriye verilmiş bir taahhüttür; düzenleme anındaki doluluk ona zam bindiremez.
+        // Surge yalnız YENİ rezervasyon/kira/teklif fiyatlamasında (CreateAsync) uygulanır.
         var fiyatDegisti =
             existing.BasTar != input.BasTar || existing.BitTar != input.BitTar
             || existing.VehicleId != input.VehicleId || existing.MusteriId != input.MusteriId
@@ -179,7 +180,7 @@ public sealed class ReservationService(
             existing.GunlukUcret != input.GunlukUcret
             || !string.Equals(existing.FiyatTuru ?? "", input.FiyatTuru?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
         var pr = fiyatDegisti
-            ? await _pricing.PriceAsync(input, kdvModuUygula: ucretVeyaModDegisti, ct: ct)
+            ? await _pricing.PriceAsync(input, dolulukUygula: false, kdvModuUygula: ucretVeyaModDegisti, ct: ct)
             : null;
 
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))

@@ -115,13 +115,10 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
 - ~~Karar (1)~~ ve ~~Karar (2)~~ **KAPANDI** — kullanıcı 2026-09-22'de oturumda doğrudan verdi
   (`DEGISIKLIKLER.md`): F5, F4'ün "pilotta 10 iş günü P1 yok" Exit'ini beklemeden başlar; #264 menü izin eşlemesi
   (Operatör 79 → 74, Muhasebe 48 → 53) onaylandı.
-- **Karar (4) YENİ: rezervasyon güncellemesinde doluluk çarpanı (surge).** `CLAUDE.md` "rezervasyon-update'te
-  surge atlanır" diyor; ama `ReservationService.UpdateAsync:181-182` `dolulukUygula:false` geçmiyor ve kod
-  yorumu bunu bilinçli diyor. Hangisi doğru? Karar gelmeden bu davranışa dokunma.
-- **Karar (5) YENİ: cari ekstre ucunun kapısı.** Cari detay ucu bakiyeyi yalnız FinanceWrite ∨ ViewReports ile
-  döndürüyor; `/api/ui/v1/finans/cariler/{id}/ekstre` ise OperationsWrite ile de açık (Blazor paritesi) ve operatöre
-  başka şubenin bakiyesini + sözleşme no'larını gösteriyor. SPA'da ekstre sekmesi, rotası ve bağlantıları artık
-  FinanceWrite ∨ ViewReports ile kapılı (#295, #299, #307). Sunucu ucu da daraltılsın mı? Karar gelmeden uca dokunma.
+- ~~**Karar (4): rezervasyon güncellemesinde doluluk çarpanı (surge).**~~ **KAPANDI (2026-09-25, PR #327):** güncellemede
+  surge uygulanmaz (`dolulukUygula:false`); no-op düzenleme kilitli fiyatı korur. Kayıt: `DEGISIKLIKLER.md`.
+- ~~**Karar (5): cari ekstre ucunun kapısı.**~~ **KAPANDI (2026-09-25, PR #327):** `/api/ui/v1/finans/cariler/{id}/ekstre`
+  FinanceWrite ∨ ViewReports; operatöre 403. Kayıt: `DEGISIKLIKLER.md`.
 - ~~Karar (3): yakıt ölçeği~~ **KAPANDI** (kullanıcı 2026-09-25, `DEGISIKLIKLER.md`): TEK iç ölçek 0–12
   (`Domain.Common.YakitOlcegi`). Harici `RentalsApi` yüzde (0–100) sözleşmesini korur, sınırda çevirir (en yakına;
   aralık dışı 400). BAF da 0–12'ye geçti; eski yüzde veriler `YakitOlcegiOnIki` migration'ıyla çevrildi.
@@ -355,8 +352,10 @@ Etiketsiz madde açıktır.
   SPA `formGonderimi` ile işlem başına anahtar (envanter E37; test `LowTemizligiBUiTests.Ek_hizmet_*`). Blazor ve
   SYS-* yolu bilinçli anahtarsız (F13'te Blazor kalkınca kapanır).
 - **Kira oluşturma atomik değil:** ücret satırları ve dönem planı ayrı adımda (açık, ayrı iş — Low PR'larına girmez).
-- `RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok; kalıcı çözüm bileşik FK.
-  45 test sentetik kimlik kullanıyor.
+- ~~`RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok~~ KAPALI: kira için kontrol
+  `RentalService.CreateDirectAsync` girişinde (harici API, `/api/ui`, Blazor aynı kural; uç kopyaları kaldırıldı).
+  Açık kalan: kalıcı çözüm bileşik FK (migration); Blazor `/rezervasyonlar` oluşturma yolunda varlık kontrolü yok
+  (harici + SPA rezervasyon uçları uçta denetliyor; `ReservationService.CreateAsync`'e taşımak ayrı iş).
 - Ofis adları normalize anahtarda tekil değil (kiracı başına tekillik kısıtı).
 - ~~Yakıt ölçeği: kullanıcı kararı bekliyor~~ KAPANDI (2026-09-25): tek iç ölçek 0–12, harici API sınırda yüzde↔12 (§1).
 - ~~Üretimde bağlama hatası `kod`suz 400~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.GenelProblem` 400'ü `dogrulama` koduyla döner.
@@ -381,8 +380,8 @@ Etiketsiz madde açıktır.
   (#320 L1; satış formundaki `rejected` kancasının genel hali). Tekrar öncesi doğrulama ile POST arasında
   milisaniyelik TOCTOU (#320 L2; kalıcı çözüm sunucuda beklenen kullanıcı başlığı). Sekmeler arası aynı kullanıcının
   şube değişimi `ben`'i yenilemiyor (görünüm, para riski yok).
-- Backend: firmanın kendi IBAN/VKN'si denetimde tamamen `***` — IBAN değişikliği dolandırıcılık izi için kısmi maske
-  (son 4 hane) ya da KARARLAR kaydı (#319 L2). ~~Personel seçim listesi şubeye göre süzülmüyor~~ KAPALI
+- ~~Backend: firmanın kendi IBAN/VKN'si denetimde tamamen `***`~~ KAPALI (2026-09-25, kullanıcı kararı): firma
+  IBAN'ı/VKN'si denetimde `********1234` (son 4), kural `AuditSecretMask` izin listesinde; bkz. KARARLAR (#319 L2). ~~Personel seçim listesi şubeye göre süzülmüyor~~ KAPALI
   (doğrulandı 2026-09-25): `/secim/personel` `SecimService.PersonelAsync`'te `BranchScope.InScope` ile süzülür. Kira paneli: Nakit sonuçlanınca kirli Kart formu yeni anahtarla
   İKİNCİ tahsilat olarak yazılıyor (#318 L2 tasarımı; isteğe bağlı "diğer formun tahsilatı yazıldı" notu).
 - Kullanıcı kararı bekleyen: şube kapsamlı operatör kirasız assistans talebi açamıyor (#317 L1 yan etkisi).

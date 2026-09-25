@@ -23,10 +23,9 @@ public static class RentalsApi
         grp.MapGet("/{id:guid}", async (Guid id, RentalService svc, CancellationToken ct) =>
             await svc.GetAsync(id, ct) is { } r ? Results.Ok(RentalResponse.From(r)) : NotFound());
 
-        grp.MapPost("/", async (BookingRequest req, RentalService svc, ICustomerRepository cariler,
-            IVehicleRepository araclar, CancellationToken ct) =>
+        grp.MapPost("/", async (BookingRequest req, RentalService svc, CancellationToken ct) =>
         {
-            await VarlikKontroluAsync(req, cariler, araclar, ct);
+            // Müşteri/araç varlık kontrolü RentalService.CreateDirectAsync girişinde (tüm yollar için tek kural).
             var id = await svc.CreateDirectAsync(req.ToInput(), ct);
             return Results.Created($"/api/v1/rentals/{id}", RentalResponse.From((await svc.GetAsync(id, ct))!));
         }).RequirePermission(Permission.OperationsWrite);
@@ -49,6 +48,7 @@ public static class RentalsApi
     }
 
     /// <summary>
+    /// Rezervasyon uçları için (kira yolu artık <see cref="RentalService.CreateDirectAsync"/> içinde denetler).
     /// Low-B (DEVIR §5 "Varlık kontrolü"): Rentals/Reservations'ın Customers/Vehicles'a bileşik FK'si yok → var
     /// olmayan ya da BAŞKA KİRACININ müşteri/araç kimliğiyle kira/rezervasyon (ve sonradan fatura/defter)
     /// yazılabiliyordu. RLS + tenant query filter kapsamlı FindAsync: yabancı kiracının kaydı "yok" görünür (varlık

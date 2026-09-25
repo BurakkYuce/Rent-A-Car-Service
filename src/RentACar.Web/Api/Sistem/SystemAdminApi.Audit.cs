@@ -32,7 +32,7 @@ public static partial class SystemAdminApi
                 Action = F5Ortak.EnumAdi<AuditAction>(islem, "islem"), Page = page, PageSize = size,
             }, ct);
             var items = r.Items.Select(a => new AuditDto(a.Id, a.TimestampUtc.ToUniversalTime(), a.UserName, a.EntityName, a.EntityId,
-                a.Action.ToString(), MaskSecrets(a.OldValues), MaskSecrets(a.NewValues))).ToList();
+                a.Action.ToString(), MaskSecrets(a.OldValues, a.EntityName), MaskSecrets(a.NewValues, a.EntityName))).ToList();
             return TypedResults.Ok(new Sayfa<AuditDto>(items, r.Total, r.Page, r.PageSize));
         }).WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
     }
@@ -41,7 +41,7 @@ public static partial class SystemAdminApi
     public static bool IsSecretKey(string key) => AuditSecretMask.IsSecretKey(key);
 
     /// <inheritdoc cref="AuditSecretMask.MaskJson"/>
-    public static string? MaskSecrets(string? json) => AuditSecretMask.MaskJson(json);
+    public static string? MaskSecrets(string? json, string? table = null) => AuditSecretMask.MaskJson(json, table);
 }
 
 public sealed record AuditDto(Guid Id, DateTimeOffset TarihUtc, string? Kullanici, string Tablo, string KayitId, string Islem,

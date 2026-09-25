@@ -108,6 +108,68 @@ public sealed class AuditSecretColumnTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Company_iban_change_leaves_last_four_trail_while_customer_pii_stays_fully_masked()
+    {
+        // #319 L2 kullanıcı kararı (2026-09-25): firma IBAN değişikliği izde görünür (son 4), dolandırıcılık izi.
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+
+        // Sentetik IBAN'lar çalışma anında: TR00 + 18 sıfır + son 4 (26 hane).
+        var zeros = new string('0', 18);
+        var ibanOld = "TR00" + zeros + "1111";
+        var ibanNew = "TR00" + zeros + "2222";
+        var accId = Guid.NewGuid();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Add(new FinancialAccount { Id = accId, Kod = "BNK1", Ad = "Deneme Banka", Iban = ibanOld });
+            await db.SaveChangesAsync();
+        }
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            (await db.Set<FinancialAccount>().SingleAsync(x => x.Id == accId)).Iban = ibanNew;
+            await db.SaveChangesAsync();
+        }
+        var acc = await LogsAsync(scope, accId);
+        Assert.Equal([AuditAction.Create, AuditAction.Update], acc.Select(l => l.Action));
+        Assert.Equal("********1111", Value(acc[0].NewValues, "Iban"));
+        Assert.Equal("********1111", Value(acc[1].OldValues, "Iban"));
+        Assert.Equal("********2222", Value(acc[1].NewValues, "Iban"));
+        foreach (var l in acc)
+            Assert.DoesNotContain(zeros, (l.OldValues ?? "") + (l.NewValues ?? ""));
+        // Okuma yüzeyi (Blazor) yazma yolunun kısmi maskesini korur.
+        Assert.Contains("\"Iban\":\"********2222\"", AuditList.Masked(acc[1].NewValues!, acc[1].EntityName));
+
+        // Firma VKN'si: son 4.
+        var setId = Guid.NewGuid();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Add(new TenantSettings { Id = setId, FirmaUnvan = "Deneme Firma", FirmaVergiNo = "0000003456" });
+            await db.SaveChangesAsync();
+        }
+        var set = Assert.Single(await LogsAsync(scope, setId));
+        Assert.Equal("********3456", Value(set.NewValues, "FirmaVergiNo"));
+
+        // Müşteri: TC, VKN ve banka IBAN'ı TAM maskeli kalır (izin listesinde değil).
+        var custId = Guid.NewGuid();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Add(new Customer
+            {
+                Id = custId, Ad = "Deneme", Soyad = "Müşteri", TcKimlik = "10000000146", VergiNo = "0000007654",
+                BankaIban = "TR00" + zeros + "3333",
+            });
+            await db.SaveChangesAsync();
+        }
+        var cust = Assert.Single(await LogsAsync(scope, custId));
+        Assert.Equal("***", Value(cust.NewValues, "TcKimlik"));
+        Assert.Equal("***", Value(cust.NewValues, "VergiNo"));
+        Assert.Equal("***", Value(cust.NewValues, "BankaIban"));
+        Assert.DoesNotContain("3333", cust.NewValues);
+        Assert.DoesNotContain("7654", cust.NewValues);
+    }
+
+    [Fact]
     public void Blazor_audit_screen_masks_legacy_rows_with_the_same_rule()
     {
         // Kural öncesinden kalmış kayıt: cipher/hash/token düz duruyor.
