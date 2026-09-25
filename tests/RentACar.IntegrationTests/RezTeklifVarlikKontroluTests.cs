@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
+using RentACar.Application.FiloKiralamalar;
 using RentACar.IntegrationTests.Infrastructure;
 
 namespace RentACar.IntegrationTests;
@@ -154,5 +155,25 @@ public sealed class RezTeklifVarlikKontroluTests(PostgresFixture fx)
         Assert.Equal(m, q!.MusteriId);
         Assert.Equal(v, q.VehicleId);
         Assert.Equal(200m, q.Tutar); // 2 gün × 100 (elle)
+    }
+
+    [Theory]
+    [MemberData(nameof(Durumlar))]
+    public async Task Filo_kiralama_servis_yolu_yabanci_ya_da_olmayan_kimligi_reddeder(string durum)
+    {
+        // #332 review L2: Blazor /filo-kiralama formu FiloKiralamaService.CreateAsync'e gider (API ucu değil).
+        var (host, a, m, v, ym, yv) = await KurAsync();
+        using var _ = host;
+        using var scope = host.ScopeFor(a);
+        var svc = scope.ServiceProvider.GetRequiredService<FiloKiralamaService>();
+        var (mm, vv, alan, mesaj) = Sec(durum, m, v, ym, yv);
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new FiloKiralamaInput
+        {
+            MusteriId = mm, VehicleId = vv, BasTar = Bas, SureAy = 12, AylikUcret = 1000m
+        }));
+        Assert.Equal(mesaj, ex.Message);
+        Assert.Equal(alan, ex.Alan);
+        Assert.Empty(await svc.ListAsync()); // hiçbir satır yazılmadı
     }
 }
