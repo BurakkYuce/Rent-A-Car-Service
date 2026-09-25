@@ -70,11 +70,11 @@
         </button>
       </div>
     </div>
-    <rc-fin-submit
-      [action]="action"
+    <rc-money-submit
+      [submission]="action"
+      ikon="cash"
       [label]="'finans.topluTahsilat.yap' | transloco"
       (send)="submit()"
-      (giveUp)="abandon()"
     />
   </section>
 </div>

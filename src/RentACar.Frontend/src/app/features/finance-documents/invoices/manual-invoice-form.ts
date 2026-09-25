@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
+import { moneySubmission } from '@core/form/money-submission';
 import { paraBicimle } from '@core/bicim/bicim';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
@@ -18,14 +19,15 @@ import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 
-import { DocumentSubmitBar } from '../document-submit-bar';
 import {
   type DocumentResult,
   INVOICE_DELIVERY_TYPES,
   INVOICE_PAYMENT_TYPES,
   type InvoiceDetail,
+  type ManualInvoiceRequest,
   VAT_LABELS,
   VAT_RATES,
   type VatRate,
@@ -35,7 +37,6 @@ import {
   type ManualInvoiceForm as ManualInvoiceValue,
   manualInvoiceRequest,
 } from '../document-requests';
-import { DocumentSubmission } from '../document-submission';
 import { INVOICES, recordPath } from '../document.store';
 
 const EMPTY = { kdvOrani: '0.20' } as const;
@@ -43,7 +44,7 @@ const EMPTY = { kdvOrani: '0.20' } as const;
 /**
  * Manuel (kiradan bağımsız) fatura — PARA: `POST /faturalar/manuel`, `Idempotency-Key` ZORUNLU; kesilen fatura
  * DEĞİŞMEZ ve boşluksuz GİB numarası alır. KDV ve genel toplam SUNUCUDA; istemci net + oran gönderir. Gönderim
- * yaşam döngüsü {@link DocumentSubmission}: uçuşta form kilitli, belirsiz sonuçta gövde DONAR ve tekrar yalnız o
+ * yaşam döngüsü çekirdek `MoneySubmission`: uçuşta form kilitli, belirsiz sonuçta gövde DONAR ve tekrar yalnız o
  * gövdeyle gider (r300 HIGH-1: düzeltilmiş tutar aynı anahtarla gidip ikinci fatura kestiriyordu). Başarıda genel
  * toplam sunucudan okunup gösterilir.
  */
@@ -55,7 +56,7 @@ const EMPTY = { kdvOrani: '0.20' } as const;
     TranslocoPipe,
     Alan,
     AramaSecim,
-    DocumentSubmitBar,
+    MoneySubmitBar,
     MetinGirdisi,
     ParaGirdisi,
     SayiGirdisi,
@@ -104,40 +105,35 @@ export class ManualInvoiceForm {
     tevkifatTutar: new FormControl<string | null>(null),
     damgaVergisi: new FormControl<string | null>(null),
   });
-  protected readonly submission = new DocumentSubmission(this.form, () => 'manuel-fatura', {
-    cariId: 'cari',
+  protected readonly submission = moneySubmission<ManualInvoiceRequest>({
+    scope: () => 'manuel-fatura',
   });
 
   constructor() {
     this.form.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.dirtyChange.emit(this.form.dirty));
-    this.submission.restore();
+    this.submission.restore(this.form);
   }
 
   protected submit(): void {
-    this.submission.submit<DocumentResult>(
-      `${INVOICES}/manuel`,
-      () => manualInvoiceRequest(this.form.getRawValue() as ManualInvoiceValue),
-      {
-        succeeded: (r) => {
-          this.reset();
-          this.announce(r);
-          this.saved.emit(r);
-        },
-        recorded: () => this.reset(),
-        reload: () => this.saved.emit(null),
+    void this.submission.run<DocumentResult>({
+      form: this.form,
+      fieldMap: () => ({ cariId: 'cari' }),
+      build: () => ({
+        path: `${INVOICES}/manuel`,
+        body: manualInvoiceRequest(this.form.getRawValue() as ManualInvoiceValue),
+      }),
+      success: (r) => {
+        this.reset();
+        this.announce(r);
+        this.saved.emit(r);
       },
-    );
-  }
-
-  protected async abandon(): Promise<void> {
-    const yes = await this.confirm.sor({
-      baslik: this.t('finansBelge.vazgecBaslik'),
-      mesaj: this.t('finansBelge.vazgecMesaj'),
-      tehlikeli: true,
+      afterDuplicate: () => this.reset(),
+      settled: (reason) => {
+        if (reason !== 'done') this.saved.emit(null);
+      },
     });
-    if (yes) this.submission.abandon();
   }
 
   /** Başarı mesajı sunucunun kestiği genel toplamla (fatura yanıtı yalnız no döner; detay okunur). */

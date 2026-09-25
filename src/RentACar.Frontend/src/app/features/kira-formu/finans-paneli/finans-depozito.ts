@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
+
 import { KF_ORTAK } from '../sekmeler/ortak';
 import type { HesapTuru } from './finans-tipleri';
 import { KiraFinansDurumu } from './kira-finans-durumu';
@@ -13,7 +15,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
 @Component({
   selector: 'rc-kf-finans-depozito',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK, RouterLink],
+  imports: [...KF_ORTAK, MoneySubmitBar, RouterLink],
   template: `
     <section class="kf-finans__islem" aria-labelledby="kf-finans-depozito">
       <h3 class="kf-finans__baslik" id="kf-finans-depozito">
@@ -37,23 +39,13 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
             />
           </rc-alan>
         </div>
-        <rc-form-hatalari [hatalar]="f.depozitoAlGonderimi.genelHatalar()" />
-        <div class="kf-eylemler">
-          <button
-            type="button"
-            class="rc-dugme"
-            data-testid="depozito-al"
-            [disabled]="f.depozitoAlGonderimi.gonderiliyor()"
-            (click)="f.depozitoAl()"
-          >
-            {{
-              (f.depozitoAlGonderimi.gonderiliyor()
-                ? 'form.gonderiliyor'
-                : 'kiraFinans.depozito.alDugme'
-              ) | transloco
-            }}
-          </button>
-        </div>
+        <rc-money-submit
+          [submission]="f.depozitoAlGonderimi"
+          testId="depozito-al"
+          [label]="'kiraFinans.depozito.alDugme' | transloco"
+          secondary
+          (send)="f.depozitoAl()"
+        />
 
         <div class="rc-form-izgara" [formGroup]="f.iratFormu">
           <rc-alan
@@ -66,23 +58,13 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
             <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
           </rc-alan>
         </div>
-        <rc-form-hatalari [hatalar]="f.iratGonderimi.genelHatalar()" />
-        <div class="kf-eylemler">
-          <button
-            type="button"
-            class="rc-dugme rc-dugme--tehlike"
-            data-testid="depozito-irat"
-            [disabled]="f.iratGonderimi.gonderiliyor()"
-            (click)="f.depozitoIrat()"
-          >
-            {{
-              (f.iratGonderimi.gonderiliyor()
-                ? 'form.gonderiliyor'
-                : 'kiraFinans.depozito.iratDugme'
-              ) | transloco
-            }}
-          </button>
-        </div>
+        <rc-money-submit
+          [submission]="f.iratGonderimi"
+          testId="depozito-irat"
+          [label]="'kiraFinans.depozito.iratDugme' | transloco"
+          secondary
+          (send)="f.depozitoIrat()"
+        />
         <p class="kf-not">
           {{ 'kiraFinans.depozito.not' | transloco }}
           <a routerLink="/depozito">{{ 'kiraFinans.depozito.ekran' | transloco }}</a>

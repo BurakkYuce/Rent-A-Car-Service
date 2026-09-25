@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { type Observable, finalize } from 'rxjs';
 
+import { ConfirmGate } from '@core/form/money-submission';
 import { apiHatasinaCevir, type ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { paraBicimle } from '@core/bicim/bicim';
@@ -35,7 +36,7 @@ import {
   type RatesScreen,
   financePath,
 } from '../finance-model';
-import { ConfirmGate, FIN_COMMON, toAmount } from '../finance-shared';
+import { FIN_COMMON, toAmount } from '../finance-shared';
 import {
   type FixedRateFormValue,
   asRecord,

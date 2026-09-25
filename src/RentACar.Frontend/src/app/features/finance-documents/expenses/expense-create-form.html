@@ -95,10 +95,10 @@
         <option [value]="b.etiket"></option>
       }
     </datalist>
-    <rc-document-submit-bar
+    <rc-money-submit
       [submission]="submission"
+      type="submit"
       [label]="'finansBelge.kaydet' | transloco"
-      (abandon)="abandon()"
     />
   </form>
 </section>

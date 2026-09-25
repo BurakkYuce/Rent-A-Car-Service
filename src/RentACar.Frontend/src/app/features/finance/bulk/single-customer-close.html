@@ -133,12 +133,13 @@
           </p>
         }
         <p class="not">{{ 'finans.tekCari.bazNot' | transloco }}</p>
-        <rc-fin-submit
-          [action]="action"
+        <rc-money-submit
+          [submission]="action"
+          ikon="cash"
           [label]="'finans.tekCari.kapat' | transloco"
           [disabled]="items.yukleniyor()"
           (send)="submit()"
-          (giveUp)="abandon()"
+          (abandoned)="items.yenile()"
         />
       }
     </section>

@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 
+import { ConfirmGate } from '@core/form/money-submission';
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
@@ -22,7 +23,7 @@ import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
 
 import { type PeriodCloseState, financePath } from '../finance-model';
-import { ConfirmGate, FIN_COMMON, toAmount } from '../finance-shared';
+import { FIN_COMMON, toAmount } from '../finance-shared';
 
 /**
  * Dönem Kapanışı (`/app/donem-kapanis`, Blazor `DonemKapanis.razor`): mevcut kilit, güncel mizan (sunucu; bakiye

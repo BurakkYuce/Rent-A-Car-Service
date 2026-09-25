@@ -1,14 +1,11 @@
 import {
-  ChangeDetectionStrategy,
-  Component,
   Injectable,
   Pipe,
   type PipeTransform,
-  booleanAttribute,
   computed,
+  effect,
   inject,
-  input,
-  output,
+  untracked,
   type WritableSignal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -18,6 +15,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { paraBicimle, sayiBicimle } from '@core/bicim/bicim';
+import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { istekBaglami } from '@core/oturum/istek-baglami';
 import { TemelStore } from '@core/veri/temel-store';
@@ -33,9 +31,10 @@ import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
+import { MoneyNoticeView } from '@shared/form/money-submit/money-notice';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
-import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
 
 import {
   ACCOUNT_KINDS,
@@ -45,7 +44,6 @@ import {
   customerPath,
   financePath,
 } from './finance-model';
-import type { MoneyActionState } from './money-action';
 
 type Translate = ReturnType<typeof ceviriFonksiyonu>;
 
@@ -135,78 +133,75 @@ export const CHANNEL_OPTIONS: readonly SecenekOgesi<string>[] = KANALLAR.map((k)
 }));
 
 /**
- * Para formunun gönder düğmesi + "sonucu bilinmiyor" bandı + vazgeç + alansız hatalar (tüm finans ekranlarında aynı).
- * Donmuş kopya varken düğme "Aynı işlemi tekrar gönder" olur ve formu değil kopyayı gönderir.
- */
-@Component({
-  selector: 'rc-fin-submit',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, FormHatalari, Ikon],
-  template: `
-    @if (action().frozen()) {
-      <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
-        {{ 'finans.islem.sonucBilinmiyor' | transloco }}
-      </div>
-    }
-    <rc-form-hatalari [hatalar]="action().errors()" />
-    <div class="form__eylemler">
-      <button
-        type="button"
-        class="rc-dugme rc-dugme--kucuk"
-        [class.rc-dugme--birincil]="!ikincil()"
-        [disabled]="action().sending() || disabled()"
-        (click)="send.emit()"
-      >
-        <rc-ikon [ad]="ikon()" [boyut]="14" />
-        {{
-          action().sending()
-            ? ('form.gonderiliyor' | transloco)
-            : action().frozen()
-              ? ('finans.islem.tekrarGonder' | transloco)
-              : label()
-        }}
-      </button>
-      @if (action().frozen() && !action().sending()) {
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-          (click)="giveUp.emit()"
-        >
-          {{ 'finans.islem.vazgec' | transloco }}
-        </button>
-      }
-      <ng-content />
-    </div>
-  `,
-})
-export class FinanceSubmit {
-  readonly action = input.required<MoneyActionState>();
-  readonly label = input.required<string>();
-  readonly ikon = input<IkonAdi>('cash');
-  readonly ikincil = input(false, { transform: booleanAttribute });
-  readonly disabled = input(false, { transform: booleanAttribute });
-  readonly send = output<void>();
-  readonly giveUp = output<void>();
-}
-
-/**
  * `?cariId=` sorgusunu İZLER (r299 LOW-3): kalıcı sekmede aynı rota başka cariyle açılınca (ekstreden, kasadan) sayfa
  * yeni cariye geçer; yalnız ilk açılışta okumak eski cariyi gösteriyordu. Sonucu bilinmeyen/uçan işlem varken
  * (`busy`) geçiş YAPILMAZ — donmuş kopya o cariye aittir. Seçici etiketi yeni carinin verisiyle yeniden çözülür.
+ *
+ * #299 L-new-1: form KİRLİYSE (`unsaved`) geçiş sessiz yapılmaz — yazılan tutar yeni cariye gitmesin. Kullanıcıya
+ * sorulur; onaylarsa `discard` formu temizler ve geçilir, vazgeçerse ekrandaki cari kalır.
  */
 export function followCustomerQuery(
   cariId: WritableSignal<string | null>,
   customer: FormControl<SecimSecenegi | null>,
   busy: () => boolean,
+  unsaved: { readonly dirty: () => boolean; readonly discard: () => void },
 ): void {
+  const confirm = inject(OnayServisi);
+  const t = ceviriFonksiyonu();
+  /** URL'deki son `cariId` (meşgulken ya da onay açıkken gelen değişiklik kaybolmaz — r316 L2). */
+  let latest: string | null = null;
+  /** Kullanıcının bu sorgu için "Vazgeç" dediği cari: aynı değer için yeniden sorulmaz. */
+  let declined: string | null = null;
+  let asking = false;
+  /** Sorgu değişikliği meşgulken/onay açıkken geldi ve henüz değerlendirilmedi. */
+  let deferred = false;
+  const change = (id: string) => {
+    customer.setValue(null, { emitEvent: false });
+    cariId.set(id);
+  };
+  const evaluate = (): void => {
+    if (busy() || asking) {
+      deferred = true;
+      return;
+    }
+    deferred = false;
+    const id = latest;
+    if (!id || id === cariId() || id === declined) return;
+    if (!unsaved.dirty()) {
+      change(id);
+      return;
+    }
+    asking = true;
+    void confirm
+      .sor({
+        baslik: t('finans.cariDegisimi.baslik'),
+        mesaj: t('finans.cariDegisimi.mesaj', { ad: customer.value?.etiket ?? '' }),
+        onayEtiketi: t('finans.cariDegisimi.gec'),
+        tehlikeli: true,
+      })
+      .then((yes) => {
+        asking = false;
+        if (!yes) declined = id;
+        else if (busy()) deferred = true;
+        else if (id === latest && id !== cariId()) {
+          unsaved.discard();
+          change(id);
+        }
+        // Onay açıkken URL yeniden değiştiyse son değer değerlendirilir.
+        if (deferred) evaluate();
+      });
+  };
   inject(ActivatedRoute)
     .queryParamMap.pipe(takeUntilDestroyed())
     .subscribe((p) => {
-      const id = p.get('cariId');
-      if (!id || id === cariId() || busy()) return;
-      customer.setValue(null, { emitEvent: false });
-      cariId.set(id);
+      latest = p.get('cariId');
+      if (latest !== declined) declined = null;
+      evaluate();
     });
+  // Gönderim bitince (uçuş/donma kalkınca) ertelenen sorgu değişikliği yeniden değerlendirilir.
+  effect(() => {
+    if (!busy() && deferred) untracked(evaluate);
+  });
 }
 
 /** Seçici etiketi, yalnız GÜNCEL carinin verisi geldiğinde (önceki veri korunurken eski ad yazılmasın). */
@@ -217,24 +212,6 @@ export function labelFromData(
 ): void {
   if (!data || data.cariId !== currentId || customer.value?.id === data.cariId) return;
   customer.setValue({ id: data.cariId, etiket: data.cariAd }, { emitEvent: false });
-}
-
-/**
- * Onay kapısı (r299 LOW-1): onay penceresi açıkken ikinci tık yok sayılır — anahtarsız (yapısal) işlemlerde çift tık
- * iki pencere ve iki POST üretiyordu. `ask` pencere açıkken `false` döner.
- */
-export class ConfirmGate {
-  private open = false;
-
-  async ask(question: () => Promise<boolean>): Promise<boolean> {
-    if (this.open) return false;
-    this.open = true;
-    try {
-      return await question();
-    } finally {
-      this.open = false;
-    }
-  }
 }
 
 /** Sunucu sayısı (`number | string`) → sayı; boş/biçimsiz `null`. HESAP YAPILMAZ, yalnız gösterim. */
@@ -288,7 +265,8 @@ export const FIN_COMMON = [
   SayiGirdisi,
   Secim,
   TarihSecici,
-  FinanceSubmit,
+  MoneyNoticeView,
+  MoneySubmitBar,
   FinanceMoneyPipe,
   FinanceNumberPipe,
   NegativePipe,

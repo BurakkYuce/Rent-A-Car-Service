@@ -464,7 +464,7 @@ test('r300 P3 gider: döviz değişince açık kur temizlenir (USD kuru EUR gide
   expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({ doviz: 'EUR', kur: null });
 });
 
-test('r300 P4 ceza ödemesi: mevcut\'suz 409 → "kaydedilmiş olabilir", anahtar KORUNUR, form kilitli', async ({
+test('r300 P4 ceza ödemesi: mevcut\'suz 409 → "daha önce kaydedildi", anahtar KORUNUR, form kilitli', async ({
   page,
 }) => {
   let n = 0;
@@ -491,7 +491,12 @@ test('r300 P4 ceza ödemesi: mevcut\'suz 409 → "kaydedilmiş olabilir", anahta
   await form.getByRole('button', { name: 'Öde' }).click();
   await expect(form.getByText('İşlemin sonucu bilinmiyor')).toBeVisible();
   await form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' }).click();
-  await expect(form.getByText('Önceki denemeniz kaydedilmiş olabilir')).toBeVisible();
+  // Tek çekirdek (DEVIR §5 gece dersi): mevcut'suz 409 metni tüm para ekranlarında aynı.
+  await expect(
+    form.getByText(
+      'Bu işlem daha önce kaydedildi; ikinci kez yazılmadı. Hareketleri kontrol edin.',
+    ),
+  ).toBeVisible();
   await expect(form.getByRole('textbox', { name: 'Tutar' })).toBeDisabled();
   await form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' }).click();
   await expect(form.getByText('Önceki denemeniz kaydedildi (1, 300,00 ₺)')).toBeVisible();
@@ -702,6 +707,78 @@ test('r300 L3 şubeye bağlı kullanıcı: manuel fatura ve gelen e-fatura eylem
   await expect(
     page.getByRole('region', { name: 'Yeni Gider' }).getByRole('combobox', { name: 'Şube' }),
   ).toHaveValue('Merkez');
+});
+
+// ---------------------------------------------------------------- tek para çekirdeği: #300 L1 / L2
+
+test('#300 L1 gider ödemesi uçuşta: süzgeç formu (Filtrele) PASİF — ödenen satır listeden düşüp formu yok edemez', async ({
+  page,
+}) => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((res) => (release = res));
+  await documentEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== `/api/ui/v1/giderler/${EXPENSE_1}/odeme`) return false;
+      await gate;
+      await r.fulfill({
+        json: {
+          id: 'p1',
+          sira: 1,
+          tutar: 600,
+          kalanSonrasi: 0,
+          tarih: '2026-09-03T00:00:00Z',
+          makbuzNo: null,
+          aciklama: null,
+          islemYapan: 'u',
+        },
+      });
+      return true;
+    },
+  });
+  await page.goto(EXPENSES.yol);
+  await hazirBekle(page, EXPENSES);
+  const filter = page.getByRole('button', { name: 'Filtrele' });
+  await expect(filter).toBeEnabled();
+  await page.getByRole('button', { name: 'Öde', exact: true }).first().click();
+  const form = page.getByRole('region', { name: /Gider Ödemesi/ });
+  await form.getByRole('button', { name: 'Öde', exact: true }).click();
+  await expect(form.getByRole('button', { name: /Gönderiliyor/ })).toBeVisible();
+  await expect(filter).toBeDisabled();
+  release();
+  await expect(page.getByText(/Gider ödemesi kaydedildi/)).toBeVisible();
+  await expect(filter).toBeEnabled();
+});
+
+test('#300 L2 araç satışı: belirsiz denemenin tekrarı BAŞKA bir kesin redle dönerse "satış yazılmış olabilir" notu ÇIKMAZ', async ({
+  page,
+}) => {
+  let n = 0;
+  await documentEndpoints(page, {
+    write: async (r, path) => {
+      if (path !== '/api/ui/v1/satislar') return false;
+      if (++n === 1) await r.abort('failed');
+      else await problem(r, 400, 'dogrulama', 'Dönem 31.08.2026 tarihine kadar KAPALI.');
+      return true;
+    },
+  });
+  await page.goto(SALES.yol);
+  await hazirBekle(page, SALES);
+  await page.getByRole('button', { name: 'Yeni Satış' }).click();
+  const form = page.getByRole('region', { name: 'Yeni Satış' });
+  await form.getByRole('combobox', { name: 'Araç' }).fill('34');
+  await page.getByRole('option', { name: '34ABC123' }).click();
+  await form.getByRole('combobox', { name: /Alıcı/ }).fill('Ay');
+  await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
+  await form.getByRole('textbox', { name: 'Satış Net' }).fill('500000');
+  const dialog = page.locator('rc-onay-diyalogu');
+  await form.getByRole('button', { name: 'Sat', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Onayla' }).click();
+  await expect(form.getByText('İşlemin sonucu bilinmiyor')).toBeVisible();
+  await form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' }).click();
+  await dialog.getByRole('button', { name: 'Onayla' }).click();
+  await expect(form.getByText('Dönem 31.08.2026 tarihine kadar KAPALI.')).toBeVisible();
+  await expect(form.getByText(/önceki denemeniz satışı yazmış olabilir/i)).toHaveCount(0);
+  expect(n).toBe(2);
 });
 
 for (const s of PAGES) {

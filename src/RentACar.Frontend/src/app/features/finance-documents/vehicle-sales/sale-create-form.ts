@@ -11,7 +11,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
+import type { ApiHatasi } from '@core/api/api-hatasi';
 import type { SecimOgesi } from '@core/api/ui-tipleri';
+import { customNotice } from '@core/form/money-notice';
+import { moneySubmission } from '@core/form/money-submission';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -24,10 +27,9 @@ import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 
-import { DocumentSubmission } from '../document-submission';
-import { DocumentSubmitBar } from '../document-submit-bar';
 import {
   CURRENCIES,
   type DocumentResult,
@@ -35,11 +37,16 @@ import {
   VAT_LABELS,
   VAT_RATES,
   type VatRate,
+  type VehicleSaleRequest,
 } from '../document-model';
 import { type SaleForm, saleRequest } from '../document-requests';
 import { SALES } from '../document.store';
 
 const EMPTY = { kdvOrani: '0.20', doviz: 'TRY', kirayaVerme: false, satisiVerildi: false } as const;
+
+/** Sunucunun "araç zaten satılmış" kesin reddi (alan hatasız `dogrulama`; yapısal idempotency). */
+const alreadySold = (e: ApiHatasi): boolean =>
+  e.kod === 'dogrulama' && e.alanlar === undefined && e.detay.includes('zaten satılmış');
 
 /**
  * Yeni araç satışı — PARA (`POST /satislar`; Borç Cari(brüt) / Alacak Gelir(net) + KDV). KDV ve toplam SUNUCUDA; kur
@@ -54,7 +61,7 @@ const EMPTY = { kdvOrani: '0.20', doviz: 'TRY', kirayaVerme: false, satisiVerild
     TranslocoPipe,
     Alan,
     AramaSecim,
-    DocumentSubmitBar,
+    MoneySubmitBar,
     MetinGirdisi,
     OnayKutusu,
     ParaGirdisi,
@@ -117,9 +124,8 @@ export class SaleCreateForm {
   /** Para simgesi form değerinden (donmuş deneme `emitEvent:false` ile geri yüklenir — r300b N2). */
   protected readonly currency = signal<string | null>(EMPTY.doviz);
   /** Yapısal idempotency (araç başına tek satış) + aynı yaşam döngüsü: uçuşta kilit, belirsizde donmuş gövde. */
-  protected readonly submission = new DocumentSubmission(this.form, () => 'yeni-satis', {
-    aracId: 'arac',
-    aliciCariId: 'alici',
+  protected readonly submission = moneySubmission<VehicleSaleRequest>({
+    scope: () => 'yeni-satis',
   });
 
   constructor() {
@@ -133,7 +139,7 @@ export class SaleCreateForm {
       if (this.form.controls.kur.value !== null) this.form.controls.kur.reset(null);
     });
     // r300b N4: sonucu bilinmeyen satış denemesi form yeniden açılınca kilitli, aynı gövde + anahtarla gelir.
-    this.submission.restore();
+    this.submission.restore(this.form);
     this.currency.set(this.form.controls.doviz.value);
   }
 
@@ -151,36 +157,29 @@ export class SaleCreateForm {
       }),
     });
     if (!yes) return;
-    this.submission.submit<DocumentResult>(
-      SALES,
-      () => saleRequest(this.form.getRawValue() as SaleForm),
-      {
-        succeeded: (r) => {
-          this.toast.basari(this.t('finansBelge.satis.kaydedildi', { no: r.no }));
-          this.reset();
-          this.saved.emit(r);
-        },
-        recorded: () => this.reset(),
-        reload: () => this.saved.emit(null),
-        // r300b N4: satış yapısal idempotenttir (araç başına tek satış). Belirsiz denemenin tekrarı reddedildiyse
-        // ("Araç zaten satılmış") bu büyük olasılıkla İLK denemenin yazıldığı anlamına gelir.
-        rejected: (_error, retry) => {
-          if (retry) {
-            this.submission.showNotice({ tone: 'uyari', key: 'satisVar', params: {} });
-            this.saved.emit(null);
-          }
-        },
+    void this.submission.run<DocumentResult>({
+      form: this.form,
+      fieldMap: () => ({ aracId: 'arac', aliciCariId: 'alici' }),
+      build: () => ({ path: SALES, body: saleRequest(this.form.getRawValue() as SaleForm) }),
+      success: (r) => {
+        this.toast.basari(this.t('finansBelge.satis.kaydedildi', { no: r.no }));
+        this.reset();
+        this.saved.emit(r);
       },
-    );
-  }
-
-  protected async abandon(): Promise<void> {
-    const yes = await this.confirm.sor({
-      baslik: this.t('finansBelge.vazgecBaslik'),
-      mesaj: this.t('finansBelge.vazgecMesaj'),
-      tehlikeli: true,
+      afterDuplicate: () => this.reset(),
+      settled: (reason) => {
+        if (reason !== 'done') this.saved.emit(null);
+      },
+      // r300b N4: satış yapısal idempotenttir (araç başına tek satış). Belirsiz denemenin tekrarı "Araç zaten
+      // satılmış" ile reddedildiyse bu büyük olasılıkla İLK denemenin yazıldığı anlamına gelir. #300 L2: not YALNIZ
+      // bu redde; başka kesin red (dönem kilidi, yetki…) satışın yazıldığını göstermez.
+      rejected: (error, retry) => {
+        if (retry && alreadySold(error)) {
+          this.submission.showNotice(customNotice('finansBelge.satis.oncekiSatisYazilmis'));
+          this.saved.emit(null);
+        }
+      },
     });
-    if (yes) this.submission.abandon();
   }
 
   private reset(): void {

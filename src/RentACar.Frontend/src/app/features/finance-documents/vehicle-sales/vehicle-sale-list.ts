@@ -14,6 +14,7 @@ import {
   type KaydedilmemisDegisiklikSahibi,
   sayfaTerkKorumasi,
 } from '@core/form/kaydedilmemis-degisiklik';
+import { PendingMoneyAttempts } from '@core/form/money-attempts';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { FetchPolicy } from '@core/veri/fetch-policy';
@@ -36,7 +37,6 @@ import { SALE_LIST, SALE_STATUSES, type VehicleSaleRow } from '../document-model
 import { BranchNames, SaleStore } from '../document.store';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 
-import { PendingDocumentAttempts } from '../document-submission';
 import { SaleCreateForm } from './sale-create-form';
 
 type SaleStatus = (typeof SALE_STATUSES)[number];
@@ -62,7 +62,7 @@ type SaleStatus = (typeof SALE_STATUSES)[number];
     TabloHucre,
     TarihSecici,
   ],
-  providers: [FetchPolicy, SaleStore, BranchNames, CustomerLabels, PendingDocumentAttempts],
+  providers: [FetchPolicy, SaleStore, BranchNames, CustomerLabels, PendingMoneyAttempts],
   templateUrl: './vehicle-sale-list.html',
   styleUrl: '../finance-documents.scss',
 })
@@ -71,7 +71,7 @@ export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
   protected readonly branches = inject(BranchNames);
   private readonly session = inject(OturumServisi);
   private readonly labels = inject(CustomerLabels);
-  protected readonly pending = inject(PendingDocumentAttempts);
+  protected readonly pending = inject(PendingMoneyAttempts);
   private readonly confirm = inject(OnayServisi);
   private readonly t = ceviriFonksiyonu();
 
@@ -142,7 +142,7 @@ export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.formDirty || this.pending.any() > 0;
+    return this.formDirty || this.pending.count() > 0;
   }
 
   protected dirtyChanged(dirty: boolean): void {

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
 
+import { moneySubmission } from '@core/form/money-submission';
 import { paraBicimle } from '@core/bicim/bicim';
 import {
   type KaydedilmemisDegisiklikSahibi,
@@ -28,7 +29,6 @@ import {
   kindOptions,
   toAmount,
 } from '../finance-shared';
-import { moneyAction } from '../money-action';
 
 type CollectionRow = FormGroup<{
   id: FormControl<string>;
@@ -59,7 +59,9 @@ export class BulkCollection implements KaydedilmemisDegisiklikSahibi {
   protected readonly customers = sunucuSecimKaynagi('musteri');
   protected readonly kindOptions = kindOptions(this.t);
   protected readonly channelOptions = CHANNEL_OPTIONS;
-  protected readonly action = moneyAction<BulkCollectionRequest>();
+  protected readonly action = moneySubmission<BulkCollectionRequest>({
+    scope: () => 'toplu-tahsilat',
+  });
   /** Gönderilen (donmuş) kopyadaki satırların kimlikleri, gövdedeki sırayla — sunucu satır hataları buna göre eşlenir. */
   private sentRowIds: readonly string[] = [];
 
@@ -78,6 +80,16 @@ export class BulkCollection implements KaydedilmemisDegisiklikSahibi {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
     this.accounts.load();
     clearAccountOnKindChange(this.accounts, this.form.controls.hesap, this.form.controls.hesapId);
+    // Sonucu bilinmeyen toplu işlem (sayfa kapanıp açıldıysa) AYNI satırlarla + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form, (value) => {
+      const v = value as ReturnType<typeof this.form.getRawValue>;
+      this.form.controls.satirlar.clear({ emitEvent: false });
+      v.satirlar.forEach(() =>
+        this.form.controls.satirlar.push(this.newRow(), { emitEvent: false }),
+      );
+      this.form.reset(v, { emitEvent: false });
+      this.sentRowIds = v.satirlar.map((r) => r.id);
+    });
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
@@ -127,7 +139,7 @@ export class BulkCollection implements KaydedilmemisDegisiklikSahibi {
         return {
           path: financePath('/toplu-tahsilat'),
           body,
-          content: { tutar: null, doviz: 'TRY', hesap: body.hesap },
+          content: { tutar: null, doviz: 'TRY' },
         };
       },
       success: (r) => {
@@ -140,12 +152,7 @@ export class BulkCollection implements KaydedilmemisDegisiklikSahibi {
         this.resetForm();
       },
       afterDuplicate: () => this.resetForm(),
-      settled: () => undefined,
     });
-  }
-
-  protected abandon(): void {
-    void this.action.abandon(() => undefined);
   }
 
   private rowIds(): string[] {

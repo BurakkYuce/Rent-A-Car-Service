@@ -61,12 +61,17 @@
       </rc-alan>
     </div>
     <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk" [disabled]="pending.inFlight()">
         <rc-ikon ad="filter" [boyut]="14" />
         {{ 'finansBelge.filtrele' | transloco }}
       </button>
       @if (query.etkinFiltreSayisi() > 0) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+          [disabled]="pending.inFlight()"
+          (click)="clear()"
+        >
           {{ 'finansBelge.temizle' | transloco }}
         </button>
       }
@@ -82,9 +87,9 @@
     [satirKimligi]="rowId"
     [sirala]="query.sorgu().sirala"
     [disaAktarma]="export()"
-    (siralaDegisti)="query.degistir({ sirala: $event })"
-    (sayfaDegisti)="query.degistir({ sayfa: $event })"
-    (boyutDegisti)="query.degistir({ boyut: $event })"
+    (siralaDegisti)="changeQuery({ sirala: $event })"
+    (sayfaDegisti)="changeQuery({ sayfa: $event })"
+    (boyutDegisti)="changeQuery({ boyut: $event })"
     (yenidenDene)="store.list.yenile()"
   >
     <ng-template rcTabloHucre="tip" [rcTabloHucreSutunlar]="columns" let-satir>

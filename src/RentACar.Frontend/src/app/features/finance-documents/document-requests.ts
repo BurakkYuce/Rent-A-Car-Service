@@ -1,7 +1,5 @@
-import type { ApiHatasi, MevcutIslem } from '@core/api/api-hatasi';
 import { paraBicimle } from '@core/bicim/bicim';
 import type { GunMetni } from '@core/form/tarih-girdisi';
-import { sonucuBilinmeyenHata } from '@core/form/tahsilat-denemesi';
 import { anDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
@@ -356,31 +354,6 @@ export function incomingExpenseRequest(v: IncomingExpenseForm): IncomingInvoiceE
 }
 
 /**
- * Form altındaki kalıcı not:
- * - `kaydedildi` — 409 `mukerrer` + `mevcut`: önceki deneme KAYITLI (No + tutar); değiştirilen içerik yazılmadı.
- * - `belirsiz` — ağ/5xx: sonuç bilinmiyor; gövde dondu, tekrar aynı içerik + anahtarla.
- * - `olabilir` — `mevcut`suz `mukerrer` (yarış): önceki deneme kaydedilmiş olabilir; anahtar korunur.
- */
-export interface FormNotice {
-  readonly tone: 'bilgi' | 'uyari';
-  readonly key: 'kaydedildi' | 'kaydedildiFarkli' | 'belirsiz' | 'olabilir' | 'satisVar';
-  readonly params: Readonly<Record<string, string>>;
-}
-
-/**
- * `mevcut` → not. `ayniIcerik` true ya da false AYNI metin (r300 HIGH-1): bu anahtar işlem başına rastgeledir; kayıt
- * varsa onu bu işlemin önceki denemesi yazmıştır. "Başka kayıt / girdiğiniz yazılmadı, tekrar girin" metni ikinci
- * belgeye yönlendiriyordu. Düzeltme iade/iptalle yapılır.
- */
-export function recordedNotice(m: MevcutIslem): FormNotice {
-  const params = { no: m.belgeNo ?? '', tutar: paraBicimle(toNumber(m.tutar), m.doviz || 'TRY') };
-  // r300b N3: aynı içerik → yalnız "kaydedildi"; iade/iptal çağrısı yalnız farklı içerikte (değişiklik yazılmadı).
-  return m.ayniIcerik
-    ? { tone: 'bilgi', key: 'kaydedildi', params }
-    : { tone: 'uyari', key: 'kaydedildiFarkli', params };
-}
-
-/**
  * Kayıtlı KDV kırılımının okunur özeti (giderleştirme onayı; r300 M4): yalnız dolu kademeler, tutarlar sunucunun
  * değeri (istemci toplamaz). Hiç kademe yoksa `empty`.
  */
@@ -399,12 +372,4 @@ export function vatBreakdownText(r: IncomingInvoiceRow, empty: string): string {
     parts.push(vat === null ? `${label}: ${m(base)}` : `${label}: ${m(base)} + KDV ${m(vat)}`);
   }
   return parts.length === 0 ? empty : parts.join('; ');
-}
-
-/** Başlıksız (deterministik sunucu anahtarlı) işlemler için hata → not (giderleştirme). */
-export function formNotice(error: ApiHatasi): FormNotice | null {
-  if (error.kod === 'mukerrer' && error.mevcut) return recordedNotice(error.mevcut);
-  if (error.kod === 'mukerrer') return { tone: 'uyari', key: 'olabilir', params: {} };
-  if (sonucuBilinmeyenHata(error)) return { tone: 'uyari', key: 'belirsiz', params: {} };
-  return null;
 }

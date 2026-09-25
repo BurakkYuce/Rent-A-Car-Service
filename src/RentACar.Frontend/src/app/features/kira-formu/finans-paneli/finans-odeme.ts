@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
+
 import { KF_ORTAK } from '../sekmeler/ortak';
 import { KiraFinansDurumu } from './kira-finans-durumu';
 
@@ -9,7 +11,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
 @Component({
   selector: 'rc-kf-finans-odeme',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK],
+  imports: [...KF_ORTAK, MoneySubmitBar],
   template: `
     <section class="kf-finans__islem" aria-labelledby="kf-finans-odeme">
       <h3 class="kf-finans__baslik" id="kf-finans-odeme">
@@ -36,22 +38,14 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
             <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
           </rc-alan>
         </div>
-        <rc-form-hatalari [hatalar]="f.odemeGonderimi.genelHatalar()" />
         <p class="kf-not">{{ 'kiraFinans.odeme.not' | transloco }}</p>
-        <div class="kf-eylemler">
-          <button
-            type="button"
-            class="rc-dugme"
-            data-testid="odeme"
-            [disabled]="f.odemeGonderimi.gonderiliyor()"
-            (click)="f.odemeYap()"
-          >
-            {{
-              (f.odemeGonderimi.gonderiliyor() ? 'form.gonderiliyor' : 'kiraFinans.odeme.dugme')
-                | transloco
-            }}
-          </button>
-        </div>
+        <rc-money-submit
+          [submission]="f.odemeGonderimi"
+          testId="odeme"
+          [label]="'kiraFinans.odeme.dugme' | transloco"
+          secondary
+          (send)="f.odemeYap()"
+        />
       }
     </section>
   `,
