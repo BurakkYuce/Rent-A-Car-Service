@@ -236,7 +236,10 @@ describe('MoneySubmission — sonucu bilinmeyen deneme ve 409 mukerrer', () => {
     expect(form.disabled).toBe(false);
     expect(submission.frozen()).toBeNull();
     expect(submission.notice()?.message).toBe('paraIslemi.tekrarReddedildi');
-    expect(hooks.rejected).toHaveBeenCalledWith(expect.objectContaining({ kod: 'yetki_yok' }), true);
+    expect(hooks.rejected).toHaveBeenCalledWith(
+      expect.objectContaining({ kod: 'yetki_yok' }),
+      true,
+    );
     // Anahtar korunur: düzeltilmiş gövde aynı işlem (ilk deneme yazıldıysa sunucu mukerrer döner).
     await run('50.00');
     expect(calls[2]?.options?.islemAnahtari).toBe('k-1');
@@ -248,7 +251,13 @@ describe('MoneySubmission — sonucu bilinmeyen deneme ve 409 mukerrer', () => {
   it('#320 L1: tekrar reddinde çağıranın özgül notu (rejected kancası) genel notu ezer', async () => {
     const { submission, run, hooks } = mount({ scope: () => 's-l1b' });
     hooks.rejected.mockImplementation(() =>
-      submission.showNotice({ tone: 'uyari', title: null, message: 'paraIslemi.dahaOnceKaydedildi', params: {}, detail: null }),
+      submission.showNotice({
+        tone: 'uyari',
+        title: null,
+        message: 'paraIslemi.dahaOnceKaydedildi',
+        params: {},
+        detail: null,
+      }),
     );
     await run();
     calls[0]?.reply.error(networkError());
