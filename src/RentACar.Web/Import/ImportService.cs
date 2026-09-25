@@ -152,23 +152,28 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
     private static bool LooksLikeXml(ReadOnlySpan<byte> head)
     {
         if (head.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]) || head.StartsWith((ReadOnlySpan<byte>)[0xFF, 0xFE])
-            || head.StartsWith((ReadOnlySpan<byte>)[0xFE, 0xFF]) || head.StartsWith((ReadOnlySpan<byte>)[0x00, 0x00, 0xFE, 0xFF]))
+            || head.StartsWith((ReadOnlySpan<byte>)[0xFE, 0xFF]) || head.StartsWith((ReadOnlySpan<byte>)[0x00, 0x00, 0xFE, 0xFF])
+            || head.StartsWith((ReadOnlySpan<byte>)[0x00, 0x00, 0xFF, 0xFE])) // UCS-4 2143 BOM (3412 BOM FE FF ile yakalanır)
             return true;
-        foreach (var (width, bigEndian) in new[] { (1, false), (2, false), (2, true), (4, false), (4, true) })
-            if (StartsWithTag(head, width, bigEndian)) return true;
+        // (genişlik, anlamlı baytın birim içindeki yeri): UTF-8; UTF-16 LE/BE; UCS-4 LE (1234 ters = 4321), 2143, 3412, BE (1234).
+        // 2026-09-25: UCS-4 2143 (<c>00 00 3C 00</c>) eksikti — XmlReader bu sırayı da tanır ve 3412'yi UTF-16BE yakalıyordu
+        // ama 2143 hiçbir kalıba uymuyor, sayfa taranmadan ClosedXML'e gidiyordu. Dört sıra artık açıkça sayılır.
+        foreach (var (width, lowIndex) in new[] { (1, 0), (2, 0), (2, 1), (4, 0), (4, 2), (4, 1), (4, 3) })
+            if (StartsWithTag(head, width, lowIndex)) return true;
         return false;
     }
 
-    /// <summary>Verilen kod birimi genişliği/sırasında baştaki XML boşluğu atlanınca ilk birim '&lt;' mi (ya da tümü boşluk mu).</summary>
-    private static bool StartsWithTag(ReadOnlySpan<byte> head, int width, bool bigEndian)
+    /// <summary>Verilen kod birimi genişliğinde (anlamlı bayt <paramref name="lowIndex"/>'te, diğerleri 0) baştaki XML
+    /// boşluğu atlanınca ilk birim '&lt;' mi (ya da tümü boşluk mu).</summary>
+    private static bool StartsWithTag(ReadOnlySpan<byte> head, int width, int lowIndex)
     {
         var i = 0;
         for (; i + width <= head.Length; i += width)
         {
             var unit = head.Slice(i, width);
-            var low = bigEndian ? unit[width - 1] : unit[0];
-            var rest = bigEndian ? unit[..(width - 1)] : unit[1..];
-            if (rest.IndexOfAnyExcept((byte)0) >= 0) return false; // ASCII dışı birim: bu kodlamada '<' ya da boşluk değil
+            var low = unit[lowIndex];
+            if (unit[..lowIndex].IndexOfAnyExcept((byte)0) >= 0 || unit[(lowIndex + 1)..].IndexOfAnyExcept((byte)0) >= 0)
+                return false; // ASCII dışı birim: bu kodlamada '<' ya da boşluk değil
             if (low == (byte)'<') return true;
             if (low is not ((byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n')) return false;
         }

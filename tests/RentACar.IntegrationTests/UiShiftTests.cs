@@ -233,8 +233,13 @@ public sealed class UiShiftTests(WebFixture fx)
         var idB = inB.GetProperty("id").GetGuid();
         var vB = inB.GetProperty("surum").GetString();
 
-        // Operatör yalnız kendi şubesine yazar; kadrosu B'de olan personeli A'da çalıştırabilir (vardiya şubesi).
-        var own = await CreateAsync(op, Body(e.StaffB, Day.AddDays(1), "08:00", "16:00", "SubeA"));
+        // Operatör yalnız kendi şubesine ve kadrosu kendi şubesinde olan personele yazar. 2026-09-25: kadrosu B'de olan
+        // personele A'da bile yazamaz — çakışma kontrolü B'deki vardiya saatleri için kehanet olurdu (403, çakışmadan önce).
+        await Problem(await Send(op, HttpMethod.Post, Shifts, Body(e.StaffB, Day, "09:00", "10:00", "SubeA")),
+            HttpStatusCode.Forbidden, "yetki_yok");                                   // B'deki 08–16 ile çakışırdı
+        await Problem(await Send(op, HttpMethod.Post, Shifts, Body(e.StaffB, Day.AddDays(1), "08:00", "16:00", "SubeA")),
+            HttpStatusCode.Forbidden, "yetki_yok");                                   // çakışmıyor: aynı yanıt
+        var own = await CreateAsync(op, Body(e.StaffA, Day.AddDays(1), "08:00", "16:00", "SubeA"));
         Assert.Equal("SubeA", own.GetProperty("sube").GetString());
         await Problem(await Send(op, HttpMethod.Post, Shifts, Body(e.StaffA, Day, "08:00", "16:00", "SubeB")),
             HttpStatusCode.Forbidden, "yetki_yok");

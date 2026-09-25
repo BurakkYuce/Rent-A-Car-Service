@@ -241,6 +241,99 @@ public sealed class ImportLimitsTests
         Assert.Equal("Dosya en çok 500.000 dolu hücre içerebilir.", Refused(() => ImportService.Parse(file, "be.xlsx")).Message);
     }
 
+    /// <summary>UCS-4 metni verilen bayt sırasında kodlar: <paramref name="order"/>[j] = büyük-sonlu birimin kaçıncı baytı
+    /// j. konuma yazılır (1234 → [0,1,2,3]; 2143 → [1,0,3,2]; 3412 → [2,3,0,1]).</summary>
+    private static byte[] Ucs4(string text, int[] order)
+    {
+        var be = new UTF32Encoding(bigEndian: true, byteOrderMark: false).GetBytes(text);
+        var result = new byte[be.Length];
+        for (var i = 0; i < be.Length; i += 4)
+            for (var j = 0; j < 4; j++) result[i + j] = be[i + order[j]];
+        return result;
+    }
+
+    // 2026-09-25 (r314b Y3): UCS-4 "2143" sırası (ilk birim 00 00 3C 00) hiçbir kalıba uymuyordu → sayfa taranmadan
+    // ClosedXML'e gidiyordu. 3412 (00 3C 00 00) UTF-16BE kalıbıyla yakalanıyordu; ikisi de artık sayılır.
+    // Elle: 5.100 satır × 100 boş hücre = 510.000 > 500.000.
+    [Theory]
+    [InlineData(new[] { 1, 0, 3, 2 })]
+    [InlineData(new[] { 2, 3, 0, 1 })]
+    public void Sheet_in_unusual_ucs4_byte_order_is_still_counted(int[] order)
+    {
+        var sb = new StringBuilder("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
+        var row = "<row>" + string.Concat(Enumerable.Repeat("<c/>", 100)) + "</row>";
+        for (var i = 0; i < 5_100; i++) sb.Append(row);
+        var bytes = Ucs4(sb.Append("</sheetData></worksheet>").ToString(), order);
+        // İlk birim: '<' büyük-sonlu birimin 4. baytıdır → order'da 3'ün yeri; diğer üç bayt 0.
+        Assert.Equal((byte)'<', bytes[Array.IndexOf(order, 3)]);
+        Assert.Equal(3, bytes.Take(4).Count(b => b == 0));
+        var zip = new MemoryStream();
+        using (var archive = new ZipArchive(zip, ZipArchiveMode.Create, leaveOpen: true))
+        using (var s = archive.CreateEntry("xl/worksheets/sheet1.xml", CompressionLevel.SmallestSize).Open())
+            s.Write(bytes);
+        zip.Position = 0;
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var ex = Refused(() => ImportService.Parse(zip, "ucs4.xlsx"));
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        // Sayım bu sırayı okuyup hücre sınırında durur ya da (XmlReader tanımıyorsa) bozuk dosya reddi — ClosedXML'e ASLA.
+        Assert.True(ex.Message.Contains("500.000 dolu hücre", StringComparison.Ordinal) || ex.Message.Contains("okunamadı", StringComparison.Ordinal), ex.Message);
+        Assert.True(allocated < 150L * 1024 * 1024, $"red {allocated / (1024 * 1024)} MB ayırdı");
+    }
+
+    // 2026-09-25 (r314b Y2): gerçek çalışma kitabı XML OLMAYAN girdiler taşır (resim, printerSettings.bin, emf, jpeg) ve
+    // XML olan ama sayfa olmayan parçalar (grafik). Sıkı XML algısı bunları "bozuk" sanıp meşru dosyayı reddetmemeli.
+    [Fact]
+    public void Real_workbook_with_picture_chart_and_printer_settings_still_imports()
+    {
+        // 1×1 PNG
+        var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+        // DEVMODE benzeri: aygıt adı UTF-16LE + ikili alanlar (sabit tohumlu).
+        var devmode = new byte[220];
+        Encoding.Unicode.GetBytes("Microsoft Print to PDF").CopyTo(devmode, 0);
+        new Random(7).NextBytes(devmode.AsSpan(64));
+        var extra = new Dictionary<string, byte[]>
+        {
+            ["xl/printerSettings/printerSettings1.bin"] = devmode,
+            ["xl/charts/chart1.xml"] = Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart><c:plotArea><c:layout/></c:plotArea></c:chart></c:chartSpace>"),
+            ["xl/media/image9.emf"] = [0x01, 0x00, 0x00, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x20, 0x45, 0x4D, 0x46],
+            ["xl/media/image10.jpeg"] = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46],
+        };
+
+        var source = new MemoryStream();
+        using (var wb = new ClosedXML.Excel.XLWorkbook())
+        {
+            var ws = wb.AddWorksheet("Araçlar");
+            ws.Cell(1, 1).Value = "Plaka";
+            ws.Cell(2, 1).Value = "34RES1";
+            ws.AddPicture(new MemoryStream(png)).MoveTo(ws.Cell(3, 3));
+            wb.SaveAs(source);
+        }
+        source.Position = 0;
+        var file = new MemoryStream();
+        using (var input = new ZipArchive(source, ZipArchiveMode.Read))
+        using (var output = new ZipArchive(file, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var entry in input.Entries)
+            {
+                using var es = entry.Open();
+                using var os = output.CreateEntry(entry.FullName).Open();
+                es.CopyTo(os);
+            }
+            foreach (var (name, data) in extra)
+            {
+                using var os = output.CreateEntry(name).Open();
+                os.Write(data);
+            }
+        }
+        file.Position = 0;
+        Assert.Contains(new ZipArchive(new MemoryStream(file.ToArray())).Entries, e => e.FullName.StartsWith("xl/media/", StringComparison.Ordinal)
+            && e.FullName.EndsWith(".png", StringComparison.Ordinal));  // ClosedXML resmi gerçekten yazdı
+
+        var rows = ImportService.Parse(file, "gercek.xlsx");
+        Assert.Equal("34RES1", Assert.Single(rows)["plaka"]);
+    }
+
     [Fact]
     public void Valid_small_xlsx_still_parses()
     {

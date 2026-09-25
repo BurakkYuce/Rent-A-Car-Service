@@ -26,11 +26,12 @@ public static partial class FinanceHubApi
         KurService rates, SabitKurService fixedRates, CurrencyService currencies, CancellationToken ct)
     {
         var today = await rates.BugunKurlarAsync(ct);
-        var fixedList = await fixedRates.ListAsync(ct);
-        var activeCodes = fixedList.Where(s => s.Aktif).Select(s => s.Kod).ToHashSet(StringComparer.Ordinal);
-        var items = new List<FixedRate>(fixedList.Count);
-        foreach (var s in fixedList)
-            items.Add(new FixedRate(s.Id, s.Kod, s.Kur, Day(s.BasTar), Day(s.BitTar), s.Aktif, await fixedRates.GetVersionAsync(s.Id, ct)));
+        // 2026-09-25: satır ve sürüm tutarlı çift (sürüm, satır, sürüm — #313 ShiftApi deseni). Önceden liste okunup
+        // sürümler sonra okunuyordu: aradaki yazım yeni sürümü eski alanlarla eşleştiriyordu (TOCTOU).
+        var fixedList = await fixedRates.ListWithVersionsAsync(ct);
+        var activeCodes = fixedList.Where(p => p.Row.Aktif).Select(p => p.Row.Kod).ToHashSet(StringComparer.Ordinal);
+        var items = fixedList.Select(p => new FixedRate(p.Row.Id, p.Row.Kod, p.Row.Kur, Day(p.Row.BasTar), Day(p.Row.BitTar),
+            p.Row.Aktif, p.Version)).ToList();
         var codes = (await currencies.ListActiveAsync(ct)).Select(c => c.Kod)
             .Concat(today.Select(k => k.Kod)).Append("TRY")
             .Select(KurService.NormalizeKod).Distinct(StringComparer.Ordinal).OrderBy(c => c, StringComparer.Ordinal).ToList();
