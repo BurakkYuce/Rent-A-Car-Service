@@ -59,6 +59,7 @@ public sealed class CrmCiroFxTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         // GBP için ne sabit kur ne TCMB kaydı var → FX kira erken ve temiz reddedilir.
-        await Assert.ThrowsAsync<ValidationException>(() => KiraAsync(sp, Guid.NewGuid(), "34 CX 03", "GBP"));
+        var cari = await TestCari.YeniAsync(sp); // gerçek cari: red kurdan gelmeli, varlık kontrolünden değil
+        await Assert.ThrowsAsync<ValidationException>(() => KiraAsync(sp, cari, "34 CX 03", "GBP"));
     }
 }

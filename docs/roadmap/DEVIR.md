@@ -352,8 +352,10 @@ Etiketsiz madde açıktır.
   SPA `formGonderimi` ile işlem başına anahtar (envanter E37; test `LowTemizligiBUiTests.Ek_hizmet_*`). Blazor ve
   SYS-* yolu bilinçli anahtarsız (F13'te Blazor kalkınca kapanır).
 - **Kira oluşturma atomik değil:** ücret satırları ve dönem planı ayrı adımda (açık, ayrı iş — Low PR'larına girmez).
-- `RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok; kalıcı çözüm bileşik FK.
-  45 test sentetik kimlik kullanıyor.
+- ~~`RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok~~ KAPALI: kira için kontrol
+  `RentalService.CreateDirectAsync` girişinde (harici API, `/api/ui`, Blazor aynı kural; uç kopyaları kaldırıldı).
+  Açık kalan: kalıcı çözüm bileşik FK (migration); Blazor `/rezervasyonlar` oluşturma yolunda varlık kontrolü yok
+  (harici + SPA rezervasyon uçları uçta denetliyor; `ReservationService.CreateAsync`'e taşımak ayrı iş).
 - Ofis adları normalize anahtarda tekil değil (kiracı başına tekillik kısıtı).
 - Yakıt ölçeği: kullanıcı kararı bekliyor (§1).
 - ~~Üretimde bağlama hatası `kod`suz 400~~ KAPALI (doğrulandı 2026-09-25): `UiApiExtensions.GenelProblem` 400'ü `dogrulama` koduyla döner.

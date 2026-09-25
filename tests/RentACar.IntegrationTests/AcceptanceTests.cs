@@ -26,7 +26,7 @@ public sealed class AcceptanceTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
         var cari = await TestCari.YeniAsync(scope.ServiceProvider);
-        var vehicle = Guid.NewGuid();
+        var vehicle = await TestArac.YeniAsync(scope.ServiceProvider);
         // Göreli: rezervasyon geçmişe kapalı (TarihPolitikasi); sabit 2026-11-01 Kasım'da kırmızıya dönecekti.
         var bas = TestZaman.GunSonra(40);
         var bit = bas.AddDays(4); // 4 gün

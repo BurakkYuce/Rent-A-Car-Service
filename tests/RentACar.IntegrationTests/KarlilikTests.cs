@@ -37,7 +37,7 @@ public sealed class KarlilikTests(PostgresFixture fx)
 
         // Gelir: araca kira + fatura. 4 gün × 100 = 400 brüt → net 333.33 (KDV 66.67).
         var rentalId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = Guid.NewGuid(), VehicleId = vehicleId, BasTar = Bas, BitTar = Bas.AddDays(4), GunlukUcret = 100m });
+        { MusteriId = await TestCari.YeniAsync(sp), VehicleId = vehicleId, BasTar = Bas, BitTar = Bas.AddDays(4), GunlukUcret = 100m });
         await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rentalId);
 
         var rs = sp.GetRequiredService<ReportService>();

@@ -40,8 +40,8 @@ public sealed class KiraFaturaDovizTests(PostgresFixture fx)
         // Firma EUR'yu 40 TL sabitler (deterministik — TCMB'ye bağımlı olma; override çözümlenir).
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
 
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "EURO")); // form değeri "EURO"
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "EURO")); // form değeri "EURO"
         var invId = await invoices.CreateFromRentalAsync(rentalId);
         var inv = await invoices.GetAsync(invId);
 
@@ -75,8 +75,8 @@ public sealed class KiraFaturaDovizTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = Guid.NewGuid();
-        var rentalId = await rentals.CreateDirectAsync(Rental(cari, Guid.NewGuid(), "TL"));
+        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var rentalId = await rentals.CreateDirectAsync(Rental(cari, await TestArac.YeniAsync(scope.ServiceProvider), "TL"));
         var invId = await invoices.CreateFromRentalAsync(rentalId);
         var inv = await invoices.GetAsync(invId);
 
