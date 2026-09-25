@@ -104,6 +104,33 @@ describe('OturumServisi', () => {
     expect(TestBed.inject(ToastServisi).toastlar()).toEqual([]); // sessiz: mesajı form seçer
   });
 
+  it('#330 L4: açık oturumda ben yenilemesi ağ/sunucu hatası alırsa oturum KORUNUR (bağlam değişmez); 401 kapatır', async () => {
+    await girisYap();
+    const baglam = oturum.baglam();
+    expect(baglam).not.toBeNull();
+
+    const ag = oturum.yukle();
+    http.expectOne('/api/ui/v1/oturum/ben').error(new ProgressEvent('error'));
+    await expect(ag).resolves.toBeNull(); // dönen değer taze değil → null; sinyal korunur
+    expect(oturum.baglam()).toBe(baglam);
+    expect(oturum.girisYapildi()).toBe(true);
+
+    const sunucu = oturum.yukle();
+    http
+      .expectOne('/api/ui/v1/oturum/ben')
+      .flush({ status: 500 }, { status: 500, statusText: 'Internal Server Error' });
+    await expect(sunucu).resolves.toBeNull();
+    expect(oturum.baglam()).toBe(baglam);
+    expect(TestBed.inject(ToastServisi).toastlar().length).toBeGreaterThan(0);
+
+    const kapali = oturum.yukle();
+    http
+      .expectOne('/api/ui/v1/oturum/ben')
+      .flush({ status: 401, kod: 'oturum_yok' }, { status: 401, statusText: 'Unauthorized' });
+    await expect(kapali).resolves.toBeNull();
+    expect(oturum.baglam()).toBeNull();
+  });
+
   it('ilk yükleme: 401 → oturum yok (toast yok); sonuç önbelleklenir', async () => {
     const ilk = oturum.ilkYukleme();
     http

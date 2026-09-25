@@ -75,15 +75,20 @@ export class OturumServisi {
   }
 
   /**
-   * Uygulama açılışında bir kez `ben` okunur (guard'lar bekler). Oturum yoksa `null`; ağ/sunucu
-   * hatası da `null` (giriş sayfası açılır, sunucu hatası toast'la söylenir).
+   * Uygulama açılışında bir kez `ben` okunur (guard'lar bekler). Oturum yoksa `null`; açılıştaki ağ/sunucu
+   * hatası da `null` (değer henüz boş — giriş sayfası açılır, sunucu hatası toast'la söylenir).
    */
   ilkYukleme(): Promise<Ben | null> {
     this.ilkYuklemeSozu ??= this.yukle();
     return this.ilkYuklemeSozu;
   }
 
-  /** `GET oturum/ben` → `ben` günceller. */
+  /**
+   * `GET oturum/ben` → `ben` günceller; dönen değer YALNIZ sunucudan taze okunmuş `ben`'dir (hata → `null`).
+   * Ağ/sunucu hatası oturumun bittiğini GÖSTERMEZ: mevcut `ben` (sinyal) korunur (#330 L4 — `null`a çekmek kimliği değiştirir, para denemelerinin kimlik efekti sekmedeki donmuş denemeleri
+   * düşürür; kullanıcı tutarı yeni anahtarla yeniden girip çift kayıt yazabilirdi). Açılışta değer zaten `null`.
+   * Diğer hatalar (`oturum_yok`, `kiraci_kapali` …) oturumu kapatır.
+   */
   async yukle(): Promise<Ben | null> {
     try {
       const ben = await firstValueFrom(this.api.get<Ben>('/api/ui/v1/oturum/ben', oturumIstegi()));
@@ -93,6 +98,7 @@ export class OturumServisi {
       const apiHatasi = apiHatasinaCevir(hata);
       if (apiHatasi.kod === 'sunucu' || apiHatasi.kod === 'ag') {
         this.toast.hata(apiHatasi.detay);
+        return null;
       }
       this.deger.set(null);
       return null;
