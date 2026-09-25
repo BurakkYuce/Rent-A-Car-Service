@@ -123,7 +123,7 @@ public static partial class CrmApi
         if (r.Plaka is { } p && AssistansTalepService.PlakaNormalize(p).Length > 16)
             throw new ValidationException("Plaka en fazla 16 karakter olabilir.", "plaka");
         var rentalId = r.RentalId == Guid.Empty ? null : r.RentalId;
-        await CrmScope.RequireTargetAsync(user, rentals, locations, rentalId, null, ct);
+        // Hedef kapsamı (kira var mı, kapsamda mı, şubesiz oluşturma) servis katmanında: CrmScopeGuard (r317 M1).
         return new AssistansInput
         {
             RentalId = rentalId, Plaka = r.Plaka, AdSoyad = r.AdSoyad, CepTel = r.CepTel, Zaman = F5Ortak.Utc(r.Zaman),

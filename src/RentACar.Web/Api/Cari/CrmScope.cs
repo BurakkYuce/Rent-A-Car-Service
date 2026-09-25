@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Authorization;
 using RentACar.Application.Bookings;
 using RentACar.Application.Common;
+using RentACar.Application.Crm;
 using RentACar.Application.Locations;
 using RentACar.Domain.Common;
 using RentACar.Infrastructure.Persistence;
@@ -44,40 +45,24 @@ internal static class CrmScope
         foreach (var office in list.Select(r => r.Office?.Trim()).Where(o => !string.IsNullOrEmpty(o)).Distinct())
             officeInScope[office!] = BranchScope.InScope(filter, (await locations.FindByAdAsync(office!, ct))?.SubeId, office);
 
+        // Görünürlük kuralı TEK yerde (CrmScopeGuard.Visible; yazma yolları servis katmanında aynı kuralla korunur).
         return (rentalId, office) =>
         {
-            if (rentalId is { } id && rentalInScope.TryGetValue(id, out var r)) return r;
+            bool? rentalIn = rentalId is { } id && rentalInScope.TryGetValue(id, out var r) ? r : null;
             var o = office?.Trim();
-            if (!string.IsNullOrEmpty(o)) return officeInScope.TryGetValue(o, out var ok) && ok;
-            // Kira kimliği var ama kira yok (FK'sız şikayet, silinmiş kira) ve ofis yok → şubesiz kayıt gibi değil:
-            // kapsamlı kullanıcıya gösterilmez (hangi şubeye ait olduğu bilinmiyor).
-            return rentalId is null;
+            bool? officeIn = string.IsNullOrEmpty(o) ? null : officeInScope.TryGetValue(o, out var ok) && ok;
+            return CrmScopeGuard.Visible(rentalId, rentalIn, o, officeIn);
         };
     }
 
-    /// <summary>Tekil kayıt kapsamı (okuma/güncelleme/silme): kapsam dışı → 403.</summary>
+    /// <summary>Tekil kayıt kapsamı (okuma; güncelleme/silmede durumdan ÖNCE): kapsam dışı → 403. Yazma hedefi, bağ
+    /// korunması ve şubesiz oluşturma kuralları servis katmanında (<see cref="CrmScopeGuard"/>; Blazor yoluyla ortak).</summary>
     public static async Task RequireAsync(
         ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
         Guid? rentalId, string? office, CancellationToken ct)
     {
         var inScope = await BuildAsync(user, dbf, locations, [(rentalId, office)], ct);
-        if (!inScope(rentalId, office)) throw new YetkiYokException("Bu kayıt şube kapsamınız dışında.");
-    }
-
-    /// <summary>
-    /// Yazma HEDEFİ (giriş noktasında): bağlanan kira var olmalı ve kapsamda olmalı (<see cref="RentalService.GetAsync"/>
-    /// kapsam dışında 403 atar; yok/başka kiracı → 400 <c>errors[rentalId]</c>); yazılan çıkış ofisi kapsamda olmalı.
-    /// </summary>
-    public static async Task RequireTargetAsync(
-        ICurrentUser user, RentalService rentals, ILocationRepository locations, Guid? rentalId, string? office, CancellationToken ct)
-    {
-        if (rentalId is { } id && id != Guid.Empty && await rentals.GetAsync(id, ct) is null)
-            throw new ValidationException("Kira sözleşmesi bulunamadı.", "rentalId");
-        var o = office?.Trim();
-        if (string.IsNullOrEmpty(o)) return;
-        var filter = BranchScope.EffectiveFilter(user);
-        if (!filter.Unrestricted && !BranchScope.InScope(filter, (await locations.FindByAdAsync(o, ct))?.SubeId, o))
-            throw new YetkiYokException("Seçilen çıkış ofisi şube kapsamınız dışında.");
+        if (!inScope(rentalId, office)) throw new YetkiYokException(CrmScopeGuard.OutOfScopeMessage);
     }
 
     /// <summary>Bağlanan cari bu kiracıda olmalı (RLS kapsamlı okuma; başka kiracının kimliği "yok"tur).</summary>

@@ -97,6 +97,7 @@ public static class DependencyInjection
         services.AddScoped<Personnel.PersonelService>();
         services.AddScoped<Personnel.PersonelVardiyaService>();   // FAZ-45 — vardiya/çalışma grafiği
         services.AddScoped<Legal.HukukDosyaService>();
+        services.AddScoped<Crm.CrmScopeGuard>();          // r317 M1: CRM şube kapsamı servis katmanında (tek kural)
         services.AddScoped<Crm.AnketService>();
         services.AddScoped<Crm.SikayetService>();
         services.AddScoped<Crm.AssistansTalepService>();   // FAZ-44

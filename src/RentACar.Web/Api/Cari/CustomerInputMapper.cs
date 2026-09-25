@@ -140,7 +140,8 @@ internal static class CustomerInputMapper
             RiskTarihi = F5Ortak.Utc(r.RiskTarihi), HgsYansitmaTuru = r.HgsYansitmaTuru, KaraListe = r.KaraListe, Pasif = r.Pasif,
             OzelCariTip = r.OzelCariTip, MusteriTipi = r.MusteriTipi, Dil = r.Dil, Doviz = r.Doviz,
             TevkifatDurum = r.TevkifatDurum, Sinif = r.Sinif, MailIzin = r.MailIzin, SmsIzin = r.SmsIzin,
-            TelefonIzin = r.TelefonIzin, DogumTarihi = F5Ortak.Utc(r.DogumTarihi),
+            // r317 L2: doğum tarihi kimlik belgesi bilgisi — AnonimBelge'de kartta gizli, null = değiştirme.
+            TelefonIzin = r.TelefonIzin, DogumTarihi = F5Ortak.Utc(KeepDate(r.DogumTarihi, document, s?.DogumTarihi)),
             BabaAdi = Keep(r.BabaAdi, name, s?.BabaAdi), AnaAdi = Keep(r.AnaAdi, name, s?.AnaAdi),
             FaturaDonemi = r.FaturaDonemi, TevkifatOrani = r.TevkifatOrani,
             Kisiler = (r.Kisiler ?? []).Select(k => new CustomerContactInput
@@ -202,7 +203,7 @@ internal static class CustomerInputMapper
             RiskTarihi = c.RiskTarihi, HgsYansitmaTuru = c.HgsYansitmaTuru, KaraListe = c.KaraListe, Pasif = c.Pasif,
             OzelCariTip = c.OzelCariTip, MusteriTipi = c.MusteriTipi, Dil = c.Dil, Doviz = c.Doviz,
             TevkifatDurum = c.TevkifatDurum, Sinif = c.Sinif, MailIzin = c.MailIzin, SmsIzin = c.SmsIzin,
-            TelefonIzin = c.TelefonIzin, DogumTarihi = c.DogumTarihi,
+            TelefonIzin = c.TelefonIzin, DogumTarihi = document ? null : c.DogumTarihi, // r317 L2
             BabaAdi = name ? null : c.BabaAdi, AnaAdi = name ? null : c.AnaAdi,
             FaturaDonemi = c.FaturaDonemi, TevkifatOrani = c.TevkifatOrani,
             Kisiler = c.Kisiler.OrderBy(k => k.Sira).Select(k => new CustomerContactDto(k.AdSoyad, k.Telefon, k.Mail, k.Gorev)).ToList(),

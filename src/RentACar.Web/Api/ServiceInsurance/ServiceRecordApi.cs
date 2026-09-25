@@ -36,6 +36,7 @@ internal static partial class ServiceRecordApi
         g.MapGet("/secenekler", () => TypedResults.Ok(new ServiceOptions(Enum.GetNames<ServisTipi>(), Enum.GetNames<ServisDurum>(),
             Enum.GetNames<HasarSorumlu>(), Enum.GetNames<OdemeYontemi>()))).RequireAnyPermission(ReadAny);
         g.MapGet("", List).AlanlariEsle(F5Ortak.SiralamaKurallari).RequireAnyPermission(ReadAny);
+        g.MapGet("/sayaclar", Counts).RequireAnyPermission(ReadAny);
         g.MapGet("/{id:guid}", Detail).RequireAnyPermission(ReadAny);
         g.MapPost("", Create).AlanlariEsle(Rules).RequirePermission(Permission.OperationsWrite)
             .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
@@ -70,15 +71,37 @@ internal static partial class ServiceRecordApi
         ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         var d = F5Ortak.EnumAdi<ServisDurum>(durum, "durum");
+        var list = (await RowsAsync(tip, plaka, bas, bit, svc, dbf, user, ct))
+            .Where(r => d is null || r.Durum == d.Value.ToString()).ToList();
+        return TypedResults.Ok(F5Ortak.Sayfala(list, Sort, sayfa, boyut, sirala));
+    }
+
+    /// <summary>
+    /// Durum sekmelerinin sayaçları (#301; Blazor "Tümü (n) · Rezerve (n)…"): listeyle AYNI süzgeçler ve kapsam, durum
+    /// süzgeci HARİÇ (her sekme kendi sayısını gösterir). Tüm durumlar sıfır dahil, enum sırasıyla döner.
+    /// </summary>
+    private static async Task<Ok<ServiceCounts>> Counts(
+        string? tip, string? plaka, DateOnly? bas, DateOnly? bit,
+        ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
+    {
+        var rows = await RowsAsync(tip, plaka, bas, bit, svc, dbf, user, ct);
+        var counts = Enum.GetNames<ServisDurum>().Select(n => new ServiceStatusCount(n, rows.Count(r => r.Durum == n))).ToList();
+        return TypedResults.Ok(new ServiceCounts(rows.Count, counts));
+    }
+
+    private static async Task<List<ServiceRecordRow>> RowsAsync(
+        string? tip, string? plaka, DateOnly? bas, DateOnly? bit,
+        ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
+    {
         var t = F5Ortak.EnumAdi<ServisTipi>(tip, "tip");
+        S.Text(plaka, 32, "plaka"); // SPA süzgeci en çok 32
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
-        var rows = (await svc.ListAsync(ct)).Where(s => (d is null || s.Durum == d) && (t is null || s.Tip == t)
+        var rows = (await svc.ListAsync(ct)).Where(s => (t is null || s.Tip == t)
             && (min is null || s.GirisTarihi >= min) && (max is null || s.GirisTarihi <= max));
         var visible = await S.VisibleAsync(dbf, user, rows, s => s.VehicleId, ct);
         var plates = await S.PlatesAsync(dbf, visible.Select(s => s.VehicleId), ct);
-        var list = visible.Select(s => ServiceRecordRow.From(s, F5Ortak.Plaka(plates, s.VehicleId)))
+        return visible.Select(s => ServiceRecordRow.From(s, F5Ortak.Plaka(plates, s.VehicleId)))
             .Where(r => F5Ortak.Nz(plaka) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
-        return TypedResults.Ok(F5Ortak.Sayfala(list, Sort, sayfa, boyut, sirala));
     }
 
     /// <summary>Record (with lines) through the vehicle-branch gate — 403 BEFORE any state check; null = 404.</summary>

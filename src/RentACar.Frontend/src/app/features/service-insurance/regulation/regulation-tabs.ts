@@ -29,6 +29,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 export class RegulationTabs {
   protected readonly links = [
     { path: '/regulasyon', label: 'servisSigorta.sigorta.baslik' },
+    { path: '/regulasyon/zeyiller', label: 'servisSigorta.zeyil.tumBaslik' },
     { path: '/regulasyon/mtv', label: 'servisSigorta.mtv.baslik' },
     { path: '/regulasyon/muayene', label: 'servisSigorta.muayene.baslik' },
     { path: '/vade', label: 'servisSigorta.vade.baslik' },

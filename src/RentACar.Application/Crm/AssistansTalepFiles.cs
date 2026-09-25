@@ -71,7 +71,7 @@ public sealed class AssistansInput
 /// </summary>
 public sealed class AssistansTalepService(
     IAssistansTalepRepository repository, IBookingRepository bookings,
-    ICustomerRepository customers, IVehicleRepository vehicles, ICurrentUser currentUser)
+    ICustomerRepository customers, IVehicleRepository vehicles, ICurrentUser currentUser, CrmScopeGuard scope)
 {
     private readonly IAssistansTalepRepository _repository = repository;
     private readonly IBookingRepository _bookings = bookings;
@@ -89,7 +89,8 @@ public sealed class AssistansTalepService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var row = new AssistansTalep();
-        await UygulaAsync(row, input, fillContact: true, ct);
+        await UygulaAsync(row, input, fillContact: true, ct); // alan doğrulaması (mesaj) önce; kayıt henüz yazılmadı
+        await scope.RequireTargetAsync(input.RentalId, null, creating: true, ct); // r317 M1/L1 (assistansın ofisi yok)
         await _repository.CreateAsync(row, ct);
         return row.Id;
     }
@@ -99,6 +100,7 @@ public sealed class AssistansTalepService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var mevcut = await _repository.FindAsync(id, ct);
         if (mevcut is null) return false;
+        await scope.RequireUpdateAsync(mevcut.RentalId, null, input.RentalId, null, ct); // r317 M1
 
         var kopya = new AssistansTalep { Id = mevcut.Id };
         await UygulaAsync(kopya, input, RentalChanged(mevcut.RentalId, input.RentalId), ct);
@@ -119,6 +121,7 @@ public sealed class AssistansTalepService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var current = await _repository.FindAsync(id, ct);
         if (current is null) return false;
+        await scope.RequireUpdateAsync(current.RentalId, null, input.RentalId, null, ct); // r317 M1
         var copy = new AssistansTalep { Id = id };
         await UygulaAsync(copy, input, RentalChanged(current.RentalId, input.RentalId), ct);
         return await _repository.UpdateAsync(id, expectedVersion, r =>
@@ -137,6 +140,8 @@ public sealed class AssistansTalepService(
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (await _repository.FindAsync(id, ct) is not { } current) return false;
+        await scope.RequireRecordAsync(current.RentalId, null, ct); // r317 M1
         return await _repository.DeleteAsync(id, ct);
     }
 

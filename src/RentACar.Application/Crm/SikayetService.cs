@@ -9,10 +9,18 @@ namespace RentACar.Application.Crm;
 /// Müşteri şikayeti iş mantığı (roadmap C3): CRUD + Konu doğrulama + durum/çözüm takibi. Yazma →
 /// OperationsWrite. Tenant izolasyonu/audit alt katmanda.
 /// </summary>
-public sealed class SikayetService(ISikayetRepository repository, ICurrentUser currentUser)
+public sealed class SikayetService(ISikayetRepository repository, ICurrentUser currentUser, CrmScopeGuard scope)
 {
     private readonly ISikayetRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
+
+    /// <summary>r317 M1: güncellemede mevcut kaydın ve hedefin şube kapsamı (her iki arayüz için tek yer).</summary>
+    private async Task<bool> ScopedUpdateAsync(Guid id, SikayetInput input, CancellationToken ct)
+    {
+        if (await _repository.FindAsync(id, ct) is not { } current) return false;
+        await scope.RequireUpdateAsync(current.RentalId, current.CikisOfisi, input.RentalId, input.CikisOfisi, ct);
+        return true;
+    }
 
     public Task<IReadOnlyList<Sikayet>> ListAsync(CancellationToken ct = default) => _repository.ListAsync(ct);
     public Task<Sikayet?> GetAsync(Guid id, CancellationToken ct = default) => _repository.FindAsync(id, ct);
@@ -26,6 +34,7 @@ public sealed class SikayetService(ISikayetRepository repository, ICurrentUser c
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         Validate(input);
+        await scope.RequireTargetAsync(input.RentalId, input.CikisOfisi, creating: true, ct);
         var row = new Sikayet();
         Apply(row, input);
         await _repository.CreateAsync(row, ct);
@@ -35,6 +44,7 @@ public sealed class SikayetService(ISikayetRepository repository, ICurrentUser c
     public async Task<bool> UpdateAsync(Guid id, SikayetInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (!await ScopedUpdateAsync(id, input, ct)) return false;
         Validate(input);
         return await _repository.UpdateAsync(id, row =>
         {
@@ -47,6 +57,7 @@ public sealed class SikayetService(ISikayetRepository repository, ICurrentUser c
     public async Task<bool> UpdateAsync(Guid id, SikayetInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
+        if (!await ScopedUpdateAsync(id, input, ct)) return false;
         Validate(input);
         return await _repository.UpdateAsync(id, expectedVersion, row =>
         {
@@ -58,10 +69,12 @@ public sealed class SikayetService(ISikayetRepository repository, ICurrentUser c
     /// <summary>F7.1 — satır sürümü (PUT'un <c>surum</c>'u); yok/başka kiracı → null.</summary>
     public Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default) => _repository.GetVersionAsync(id, ct);
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.DeleteAsync(id, ct);
+        if (await _repository.FindAsync(id, ct) is not { } current) return false;
+        await scope.RequireRecordAsync(current.RentalId, current.CikisOfisi, ct); // r317 M1
+        return await _repository.DeleteAsync(id, ct);
     }
 
     private static void Validate(SikayetInput n)

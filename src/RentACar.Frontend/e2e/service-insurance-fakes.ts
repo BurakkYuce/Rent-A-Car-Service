@@ -151,6 +151,42 @@ export function serviceRow(): Record<string, unknown> {
     yansitildi: false,
     planBasTarihi: null,
     planBitTarihi: null,
+    kdvToplam: 40,
+    genelToplam: 240,
+    faturaNo: 'F-77',
+  };
+}
+
+/** Durum sayaçları (`/servisler/sayaclar`): elle — 1 serviste, 2 açık. */
+export const SERVICE_COUNTS = {
+  tumu: 3,
+  durumlar: [
+    { durum: 'Acik', adet: 2 },
+    { durum: 'Serviste', adet: 1 },
+    { durum: 'Tamamlandi', adet: 0 },
+    { durum: 'Iptal', adet: 0 },
+    { durum: 'Rezerve', adet: 0 },
+  ],
+};
+
+export function endorsementRow(): Record<string, unknown> {
+  return {
+    id: 'z1z1z1z1-0000-4000-8000-000000000001',
+    policyId: POLICY_1,
+    vehicleId: VEHICLE_1,
+    plaka: '34ABC123',
+    policeNo: 'P-100',
+    firma: 'Anadolu',
+    policeTipi: 'Kasko',
+    zeyilNo: 'Z-7',
+    tarih: '2026-09-10T00:00:00Z',
+    tanzim: null,
+    deger: 0,
+    brut: 120,
+    net: 100,
+    fonVergi: 20,
+    tipi: 'Zam',
+    neden: 'Araç değeri',
   };
 }
 
@@ -368,6 +404,7 @@ export async function serviceInsuranceEndpoints(
     if (path === `/api/ui/v1/regulasyon/sigortalar/${POLICY_1}`) return json(r, policyDetail());
     if (path === `/api/ui/v1/regulasyon/sigortalar/${POLICY_1}/odeme`)
       return json(r, policyDetail(true));
+    if (path === '/api/ui/v1/regulasyon/zeyiller') return json(r, page1([endorsementRow()]));
     if (path === '/api/ui/v1/regulasyon/mtv')
       return json(r, page1([(mtv as { mtv: unknown }).mtv]));
     if (path === `/api/ui/v1/regulasyon/mtv/${MTV_1}`) return json(r, mtv);
@@ -409,6 +446,7 @@ export async function serviceInsuranceEndpoints(
       });
     if (path === '/api/ui/v1/servisler')
       return json(r, page1([serviceRow()]), method === 'POST' ? 201 : 200);
+    if (path === '/api/ui/v1/servisler/sayaclar') return json(r, SERVICE_COUNTS);
     if (path.startsWith(`/api/ui/v1/servisler/${SERVICE_1}`)) return json(r, service);
     if (path === '/api/ui/v1/tarifeler')
       return json(r, page1([rateCard()]), method === 'POST' ? 201 : 200);

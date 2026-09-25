@@ -144,7 +144,7 @@ public static partial class CrmApi
         await CrmScope.RequireCustomerAsync(dbf, input.CariId, "cariId", ct);
         await CrmScope.RequireStaffAsync(dbf, input.TeslimAlanPersonelId, "teslimAlanPersonelId", ct);
         await CrmScope.RequireStaffAsync(dbf, input.TeslimEdenPersonelId, "teslimEdenPersonelId", ct);
-        await CrmScope.RequireTargetAsync(user, rentals, locations, input.RentalId, input.CikisOfisi, ct);
+        // Hedef kapsamı ve bağ korunması serviste (CrmScopeGuard; Blazor yoluyla aynı kural).
         return input;
     }
 

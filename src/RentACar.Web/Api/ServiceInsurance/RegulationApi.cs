@@ -41,6 +41,7 @@ internal static partial class RegulationApi
         g.MapPost("/sigortalar/{id:guid}/zeyiller", AddEndorsement).AlanlariEsle(EndorsementRules)
             .RequirePermission(Permission.OperationsWrite);
         g.MapDelete("/zeyiller/{id:guid}", DeleteEndorsement).RequirePermission(Permission.OperationsWrite);
+        g.MapGet("/zeyiller", ListEndorsements).AlanlariEsle(F5Ortak.SiralamaKurallari).RequireAnyPermission(ReadAny);
 
         g.MapGet("/mtv", ListMtv).AlanlariEsle(F5Ortak.SiralamaKurallari).RequireAnyPermission(ReadAny);
         g.MapGet("/mtv/{id:guid}", MtvDetailEndpoint).RequireAnyPermission(ReadAny);

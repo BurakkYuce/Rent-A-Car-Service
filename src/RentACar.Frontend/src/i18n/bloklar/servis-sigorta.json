@@ -166,9 +166,13 @@
         "km": "KM",
         "atolye": "Atölye",
         "iscilik": "İşçilik (net)",
+        "kdv": "KDV",
+        "genelToplam": "Genel Toplam",
+        "faturaNo": "Fatura No",
         "durum": "Durum",
         "yansitildi": "Yansıtıldı"
       },
+      "sekmeSayili": "{{ad}} ({{adet}})",
       "durumlar": {
         "Rezerve": "Rezerve",
         "Acik": "Açık",
@@ -253,7 +257,13 @@
       "eklendi": "{{no}} zeyli eklendi.",
       "silBaslik": "Zeyil silinsin mi?",
       "silMesaj": "{{no}} numaralı zeyil kalıcı olarak silinecek. Zeyil defter kaydı üretmediği için muhasebeye etkisi yoktur.",
-      "silindi": "{{no}} zeyli silindi."
+      "silindi": "{{no}} zeyli silindi.",
+      "tumBaslik": "Zeyiller",
+      "tumAciklama": "Tüm poliçelerin zeyilleri tek listede (bilgi kaydı; deftere yazılmaz). Ekleme ve silme poliçe kaydında.",
+      "tabloEtiketi": "Zeyil listesi",
+      "police": "Poliçe",
+      "tarihBas": "Tarih (baş.)",
+      "tarihBit": "Tarih (bit.)"
     },
     "mtv": {
       "baslik": "MTV",

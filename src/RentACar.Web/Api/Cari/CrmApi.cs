@@ -97,14 +97,16 @@ public static partial class CrmApi
             var p = flags.GetValueOrDefault(s.CariId);
             return new CrmSegmentRow(s.CariId, p?.AnonimAd == true ? MusteriGorunumu.AnonimAdEtiketi : s.Ad,
                 p?.AnonimMail == true ? null : s.Mail, p?.AnonimTelefon == true ? null : s.Tel, s.KiraSayisi, s.ToplamCiro,
-                s.OrtalamaKiraBedeli, s.OrtalamaKm, s.HizmetBedeli, s.DogumTarihi, s.IlkKiraZamani, s.SonIslem, s.Segment);
+                s.OrtalamaKiraBedeli, s.OrtalamaKm, s.HizmetBedeli,
+                // #295 bilgi: doğum tarihi kimlik belgesi bilgisidir — AnonimBelge işaretli müşteride dönmez.
+                p?.AnonimBelge == true ? null : s.DogumTarihi, s.IlkKiraZamani, s.SonIslem, s.Segment);
         }).ToList();
         var staff = (await reports.GetPersonelCalismaAsync(ct)).Select(p => new CrmStaffRow(p.PersonelId, p.Ad, p.TahsisSayisi)).ToList();
         return TypedResults.Ok(new CrmAnalysisDto(rows.Count, rows.Sum(r => r.ToplamCiro), rows.Sum(r => r.HizmetBedeli),
             F5Ortak.Sayfala(rows, SegmentSort, sayfa, boyut, sirala), staff));
     }
 
-    private sealed record PrivacyFlags(bool AnonimAd, bool AnonimTelefon, bool AnonimMail);
+    private sealed record PrivacyFlags(bool AnonimAd, bool AnonimTelefon, bool AnonimMail, bool AnonimBelge);
 
     private static async Task<Dictionary<Guid, PrivacyFlags>> PrivacyFlagsAsync(
         IDbContextFactory<AppDbContext> dbf, IEnumerable<Guid> ids, CancellationToken ct)
@@ -113,8 +115,8 @@ public static partial class CrmApi
         if (list.Count == 0) return [];
         await using var db = await dbf.CreateDbContextAsync(ct);
         return await db.Customers.AsNoTracking().Where(c => list.Contains(c.Id))
-            .Select(c => new { c.Id, c.AnonimAd, c.AnonimTelefon, c.AnonimMail })
-            .ToDictionaryAsync(c => c.Id, c => new PrivacyFlags(c.AnonimAd, c.AnonimTelefon, c.AnonimMail), ct);
+            .Select(c => new { c.Id, c.AnonimAd, c.AnonimTelefon, c.AnonimMail, c.AnonimBelge })
+            .ToDictionaryAsync(c => c.Id, c => new PrivacyFlags(c.AnonimAd, c.AnonimTelefon, c.AnonimMail, c.AnonimBelge), ct);
     }
 
     // ================================================================== seçim: kira sözleşmesi
