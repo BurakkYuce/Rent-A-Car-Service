@@ -208,6 +208,21 @@ describe('TahsilatKopyasi (deterministik anahtar satır kopyası)', () => {
     expect(k.gonderiliyor()?.anahtar).toBe(K2);
   });
 
+  it('#318 L2: kardeş formun işlemi sonuçlandı (anahtar kesin bayat) → KİRLİ form da yeni anahtarı alır, değerlere dokunulmaz', () => {
+    const k = new TahsilatKopyasi();
+    k.detayGeldi(bilgi(K1), false);
+    expect(k.detayGeldi(bilgi(K2), true, true)).toBe('anahtar');
+    expect(k.kopya()?.anahtar).toBe(K2);
+  });
+
+  it('#318 L2: donmuş (sonucu bilinmeyen) deneme varken kardeş sonuçlansa da anahtar DEĞİŞMEZ', () => {
+    const k = new TahsilatKopyasi();
+    k.detayGeldi(bilgi(K1), false);
+    k.gonderiliyor(); // ağ hatası: sonuç bilinmiyor
+    expect(k.detayGeldi(bilgi(K2), true, true)).toBe('korundu');
+    expect(k.gonderiliyor()?.anahtar).toBe(K1);
+  });
+
   it('iptal/izinsiz kira (satır yok) → gönderilemez', () => {
     const k = new TahsilatKopyasi();
     k.detayGeldi(null, false);

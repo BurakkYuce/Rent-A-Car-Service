@@ -34,6 +34,7 @@ import type { KiraFinansPaneli } from './kira-finans-paneli';
 })
 export class KiraFinansYuvasi {
   readonly detay = input<KiraDetayYaniti | null>(null);
+  readonly tazelemeHatasi = input(false);
   readonly degisti = output<void>();
 
   private readonly vcr = inject(ViewContainerRef);
@@ -57,6 +58,7 @@ export class KiraFinansYuvasi {
       if (iptal) return;
       const ref = this.vcr.createComponent(KiraFinansPaneli);
       ref.setInput('detay', this.detay());
+      ref.setInput('tazelemeHatasi', this.tazelemeHatasi());
       ref.instance.degisti.subscribe(() => this.degisti.emit());
       this.panel = ref;
       this.yuklendi.set(true);
@@ -64,6 +66,10 @@ export class KiraFinansYuvasi {
     effect(() => {
       const d = this.detay();
       if (this.yuklendi()) this.panel?.setInput('detay', d);
+    });
+    effect(() => {
+      const hata = this.tazelemeHatasi();
+      if (this.yuklendi()) this.panel?.setInput('tazelemeHatasi', hata);
     });
   }
 }

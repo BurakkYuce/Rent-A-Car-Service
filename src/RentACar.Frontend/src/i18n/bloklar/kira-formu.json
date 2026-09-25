@@ -479,6 +479,8 @@
       "kartDugme": "Kart/havale tahsil et",
       "iptalKira": "İptal edilmiş kirada tahsilat yapılmaz.",
       "tazeleniyor": "İşlem sonuçlandı; kira yeniden yükleniyor…",
+      "yuklenemedi": "Kira yüklenemedi; tahsilat için güncel kayıt gerekli.",
+      "yenidenYukle": "Yeniden yükle",
       "bakiyeYok": "Kalan bakiye yok ({{kalan}}); bu tutar ön/fazla tahsilat olarak yazılır.",
       "kalaniAsiyor": "Tutar kalan bakiyeyi ({{kalan}}) aşıyor; fark fazla tahsilat olarak yazılır."
     },

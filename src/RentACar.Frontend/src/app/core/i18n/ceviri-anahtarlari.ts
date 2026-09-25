@@ -2625,6 +2625,8 @@ export type CeviriAnahtari =
   | 'kiraFinans.tahsilat.nakit'
   | 'kiraFinans.tahsilat.nakitDugme'
   | 'kiraFinans.tahsilat.tazeleniyor'
+  | 'kiraFinans.tahsilat.yenidenYukle'
+  | 'kiraFinans.tahsilat.yuklenemedi'
   | 'kiraFinans.yetkiYok'
   | 'kiraFormu.aksesuar.ad'
   | 'kiraFormu.aksesuar.cikis'

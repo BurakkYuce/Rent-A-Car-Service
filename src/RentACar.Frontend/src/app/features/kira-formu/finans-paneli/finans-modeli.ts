@@ -239,11 +239,17 @@ export class TahsilatKopyasi {
   /** Gönderilebilir: kopya var ve sonuçlanan işlemden sonra tazeleme beklenmiyor. */
   readonly gonderilebilir = computed(() => this._kopya() !== null && !this._tazelemeBekleniyor());
 
-  detayGeldi(bilgi: TahsilatBilgisi | null, formKirli: boolean): KopyaSonucu {
+  /**
+   * `anahtarBayat`: bu tazeleme, AYNI anahtarı taşıyan kardeş formun (Nakit ↔ Kart/Havale) SONUÇLANAN işleminden
+   * geliyor — eski anahtar kesin kullanıldı. Kirli form yine de yeni anahtarı alır (değerlere dokunulmaz → 'anahtar');
+   * aksi halde ilk basış kesin bir 409 turu yaşardı (#318 L2). Donmuş (sonucu bilinmeyen) deneme varsa anahtar
+   * DEĞİŞMEZ: o deneme yazılmış olabilir, tekrar aynı anahtarla gitmeli.
+   */
+  detayGeldi(bilgi: TahsilatBilgisi | null, formKirli: boolean, anahtarBayat = false): KopyaSonucu {
     if (this._tazelemeBekleniyor()) {
       this._tazelemeBekleniyor.set(false);
       this.denendi = false;
-    } else if (this._kopya() !== null && (this.denendi || formKirli)) {
+    } else if (this._kopya() !== null && (this.denendi || (formKirli && !anahtarBayat))) {
       return 'korundu';
     }
     this._kopya.set(bilgi);

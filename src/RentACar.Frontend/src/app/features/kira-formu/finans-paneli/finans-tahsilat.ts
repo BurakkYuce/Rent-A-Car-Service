@@ -9,7 +9,8 @@ import { KiraFinansDurumu, type TahsilatFormu } from './kira-finans-durumu';
 /**
  * Kira tahsilatı (Nakit = Kasa, Kart/Havale = Banka) — `POST finans/tahsilat`. Cari, kira ve anahtar
  * sunucunun satır kopyasından; formda yalnız tutar, döviz, kur (dövizde; boş = sunucu çözer), hesap,
- * kanal ve not. Düğme gönderim boyunca ve işlem sonrası yeni kayıt gelene dek kapalı.
+ * kanal ve not. Düğme gönderim boyunca ve işlem sonrası yeni kayıt gelene dek kapalı — iki form (Nakit, Kart/Havale)
+ * aynı anahtarı taşıdığı için ötekinin gönderimi/tazelemesi de düğmeyi kapatır (`tahsilatMesgul`).
  */
 @Component({
   selector: 'rc-kf-finans-tahsilat',
@@ -17,7 +18,11 @@ import { KiraFinansDurumu, type TahsilatFormu } from './kira-finans-durumu';
   imports: [...KF_ORTAK],
   template: `
     @let t = tf();
-    <section class="kf-finans__islem" [attr.aria-labelledby]="baslikId()">
+    <section
+      class="kf-finans__islem"
+      [attr.aria-labelledby]="baslikId()"
+      [attr.data-testid]="'tahsilat-formu-' + t.hesap"
+    >
       <h3 class="kf-finans__baslik" [id]="baslikId()">
         {{
           (t.hesap === 'Kasa' ? 'kiraFinans.tahsilat.nakit' : 'kiraFinans.tahsilat.kart')
@@ -68,7 +73,21 @@ import { KiraFinansDurumu, type TahsilatFormu } from './kira-finans-durumu';
           </p>
         }
         <rc-form-hatalari [hatalar]="t.gonderim.genelHatalar()" />
-        @if (t.kopya.tazelemeBekleniyor()) {
+        @if (f.tahsilatYuklenemedi()) {
+          <div class="kf-finans__satir" role="alert">
+            <p class="kf-not kf-not--uyari">
+              {{ 'kiraFinans.tahsilat.yuklenemedi' | transloco }}
+            </p>
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [attr.data-testid]="'tahsilat-yeniden-yukle-' + t.hesap"
+              (click)="f.yenile()"
+            >
+              {{ 'kiraFinans.tahsilat.yenidenYukle' | transloco }}
+            </button>
+          </div>
+        } @else if (f.tahsilatTazeleniyor()) {
           <p class="kf-not" role="status">{{ 'kiraFinans.tahsilat.tazeleniyor' | transloco }}</p>
         }
         <div class="kf-eylemler">
@@ -76,7 +95,7 @@ import { KiraFinansDurumu, type TahsilatFormu } from './kira-finans-durumu';
             type="button"
             class="rc-dugme rc-dugme--birincil"
             [attr.data-testid]="'tahsilat-' + t.hesap"
-            [disabled]="!t.kopya.gonderilebilir() || t.gonderim.gonderiliyor()"
+            [disabled]="!t.kopya.gonderilebilir() || f.tahsilatMesgul()"
             (click)="f.tahsilatYap(t)"
           >
             {{
