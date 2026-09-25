@@ -1,6 +1,8 @@
 using RentACar.Application.Authorization;
 using RentACar.Application.Common;
+using RentACar.Application.Customers;
 using RentACar.Application.Pricing;
+using RentACar.Application.Vehicles;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
@@ -12,7 +14,9 @@ namespace RentACar.Application.Bookings;
 /// Gün/tutar BookingMath ile (rezervasyonla aynı hesap). Kabul = rezervasyona dönüştür.
 /// Yazma OperationsWrite gerektirir; liste rol bazlı şube kapsamıyla (çıkış ofisi).
 /// </summary>
-public sealed class QuotationService(IQuotationRepository repository, ICurrentUser currentUser, PricingService pricing)
+public sealed class QuotationService(
+    IQuotationRepository repository, ICurrentUser currentUser, PricingService pricing,
+    ICustomerRepository customers, IVehicleRepository vehicles)
 {
     private readonly IQuotationRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -39,6 +43,9 @@ public sealed class QuotationService(IQuotationRepository repository, ICurrentUs
         // zinciri bu guard'ı atlıyordu. Teklif rezervasyona dönüşeceği için rez politikası uygulanır (geçmişe
         // kapalı + ≤+1yıl). Kabul/convert TEKRAR guard'lamaz → gün sonra yaşlanmış teklifin kabulü kilitlenmez.
         TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
+        // Varlık kontrolü (DEVIR §6 Low): teklif → rezervasyon → kira zinciri kimlikleri taşır; müşteri/araç bu
+        // kiracıda var olmalı. /api/ui ve Blazor aynı kuraldan geçer (uç kopyası kaldırıldı).
+        await BookingPartyCheck.RequireAsync(customers, vehicles, input.MusteriId, input.VehicleId, ct);
         // Fiyat motoru: manuel >0 kazanır, yoksa tarife → booking.GunlukUcret efektif ücretle güncellenir.
         var pr = await _pricing.PriceAsync(booking, ct: ct);
         if (input.GecerlilikTarihi is { } g && g < input.BasTar)

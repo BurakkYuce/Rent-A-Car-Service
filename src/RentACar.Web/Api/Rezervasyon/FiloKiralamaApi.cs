@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RentACar.Application.Authorization;
+using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.FiloKiralamalar;
@@ -121,7 +122,7 @@ public static class FiloKiralamaApi
         if (doviz.Length != 3 || !doviz.All(char.IsAsciiLetter))
             throw new ValidationException("Döviz 3 harfli ISO kodu olmalıdır (ör. TRY, EUR).", "doviz");
         Metinler(i.SatisTemsilcisi, i.FaturaTuru, i.MakbuzNo, i.DosyaNo, i.SozlesmeNo, i.FiyatTuru, i.Kaynak, i.Aciklama);
-        await RezervasyonApi.VarlikAsync(musteriler, araclar, i.MusteriId, i.VehicleId, ct);
+        await BookingPartyCheck.RequireAsync(musteriler, araclar, i.MusteriId, i.VehicleId, ct);
         var id = await filo.CreateKapsamliAsync(new FiloKiralamaInput
         {
             MusteriId = i.MusteriId, VehicleId = i.VehicleId, BasTar = F5Ortak.Utc(i.BasTar), SureAy = i.SureAy ?? 0,

@@ -259,9 +259,11 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
             .SaveAsync(new TenantSettingsModel { VarsayilanFiyatTuru = "Otomatik" });
 
         var bas = DateTimeOffset.UtcNow.AddDays(3);
+        var musteri = await TestCari.YeniAsync(sp); // servis müşteri/araç varlığını doğruluyor
+        var arac = await TestArac.YeniAsync(sp);
         var id = await sp.GetRequiredService<ReservationService>().CreateAsync(new BookingInput
         {
-            MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(),
+            MusteriId = musteri, VehicleId = arac,
             BasTar = bas, BitTar = bas.AddDays(4), GunlukUcret = 100m
             // FiyatTuru BİLEREK gönderilmedi
         });
