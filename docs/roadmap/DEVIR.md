@@ -19,9 +19,10 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-09-25. **F4–F12'nin EKRANLARI main'de**; F4, F5, F6, F7 ve F10'un kesişi de main'de. Kalan:
-F8, F9 ve F11 parite + kesiş, F12 kesiş, F13 söküm, Low paketi. Faz sırası kilidi F6–F12 için GEVŞETİLDİ
-(`DEGISIKLIKLER.md`). **Pilot kapalı** — kullanıcılar hâlâ Blazor; kesiş yönlendirmeleri yalnız pilot kiracıda çalışır.
+Güncelleme: 2026-09-25 sabah. **F4–F11'in KODU ve KESİŞİ main'de**; F12'nin ekranları main'de. Tenant sayfalarından
+Blazor'da yalnız `/yetkisiz` ve `/hata` kaldı (hepsinin SPA karşılığı var). Kalan: F12 kesiş (canlı parite
+kullanıcıda), F13 söküm (pilot sonrası), birkaç Low. Faz sırası kilidi F6–F12 için GEVŞETİLDİ (`DEGISIKLIKLER.md`).
+**Pilot kapalı** — kullanıcılar hâlâ Blazor; kesiş yönlendirmeleri yalnız pilot kiracıda çalışır.
 
 **DEVAM EDERKEN İLK İŞ:** `rtk gh pr list --state open` ile açık PR'lara bak (aşağıdaki "Açık PR" satırı bayatlamış
 olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
@@ -72,25 +73,45 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
     bellek sınırları: CSV + xlsx akış sayımı, TC boşlukla silinmez).
   - F12: F12.2 platform ekranları #293.
   - Yan: #289 CI hafifletme, #290 belge, #305 e2e "tüm sayfalar" taramaları sayfa başına bölündü (CI 30 sn sınırı).
+- **2026-09-25 serisi (hepsi bağımsız inceleme + CI yeşil ile):**
+  - Kesişler: F9 #310, F8 #311, F11 #312 (47/47 F11 ekranı SPA'da) → **F8, F9, F11 KODU BİTTİ.**
+  - Backend Low'lar: #313 (sır temizleme bayrağı, Admin ekran kilidi, vardiya mesajı, ShiftApi sürüm-satır-sürüm, CSV
+    formül kaçışı), #314 (depozito anahtarı tüm türlerde tekil + anahtar kilidi, xlsx tüm girdileri kodlamadan
+    bağımsız tarar, `DueItemDto` → `MessageDueItemDto` + şema adı benzersizlik testi), #319 (denetim sır maskesi tek
+    kural `AuditSecretMask`, vardiya kapsam dışı personele 403, pasif override Admin kuralı, sabit kur TOCTOU, UCS-4,
+    CSV baştaki boşluk), #321 (denetimde sürücü belgesi + nüfus cüzdanı alanları maskeli).
+  - Eksik uçlar: #315 (finans: secim/kira FinanceWrite, gider kategori seçimi, fatura döviz özeti, satılabilir araç,
+    ceza belgeNo, toplu faturalama seçimi), #317 (servis sayaçları + KDV/toplam, tüm zeyiller, CRM şube kapsamı SERVİS
+    katmanında — Blazor CRM formları başka şubenin kaydını değiştirip silebiliyordu, CANLI açıktı; oluşturmada şube
+    hedefi zorunlu; AnonimBelge'de doğum tarihi maskeli).
+  - **SPA para çekirdeği #316:** dört ayrı uygulama tek `core/form/money-submission.ts` + `money-attempts.ts` +
+    `money-notice.ts`'te; denemeler oturum KİMLİĞİNE (kiracı|kullanıcı) bağlı, sekmeler arası `rc-oturum-baglami`
+    kanalı, tekrar öncesi `GET oturum/ben` doğrulaması. #320: bağlam anahtarı tek kaynak (`core/oturum/oturum-baglami.ts`)
+    + parite testi, 401'de yeniden giriş + aynı kimlikle aynı anahtar, şube değişimi denemeyi düşürmez.
+  - #318 kira paneli: "H1" test konumlayıcı yarışıydı (ürün hatası değil); tahsilat sürerken/tazeleme beklerken iki
+    Tahsil Et pasif, 5xx'te "Yeniden yükle", tazelemede son iyi detay korunur (donmuş deneme kaybolmaz), 429 geçici.
+  - Belge: #309 DEVIR güncellemesi.
 
 ### ⏳ Açık PR
-- 2026-09-25 başlangıcında açılan: F8 parite + kesiş, F9 parite + kesiş (service-insurance "tüm sayfalar" bölünmesi
-  dahil), F11 parite + kesiş, backend Low düzeltmeleri (§6 "2026-09-24 gece Low'ları"). Gerçek durum için
-  `rtk gh pr list --state open`.
+- Yok (2026-09-25 sabah). Gerçek durum için `rtk gh pr list --state open`.
 
 ### ⬜ Sırada (başlamadı)
 1. **F12 kesiş:** canlı parite kontrolü kullanıcıda; sonra kesiş PR'ı.
-2. **SPA para gönderim çekirdeği birleştirme:** dört ayrı uygulama var — `features/finance/money-action.ts`,
-   `features/service-insurance/.../money-submission.ts`, `features/finance-documents/document-submission.ts`,
-   `core/form/gonderim-kilidi.ts` (`formGonderimi`). Tek çekirdek `core/form/` altında; PARA → §4.
-3. **SPA Low paketi** (§6 "SPA").
-4. **F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm:** YALNIZ pilotta 10 iş günü P1 olmadıktan SONRA.
-5. **İngilizce adlandırma toplu dönüşümü:** kullanıcı "şimdi düzeltme, sonra yaparsın" dedi (2026-09-23).
+2. **Low kalıntıları** (§6 "2026-09-25 Low'ları").
+3. **F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm:** YALNIZ pilotta 10 iş günü P1 olmadıktan SONRA. Blazor'da
+   kapatılmamış bilinen okuma sızıntıları F13'e kadar canlı: CRM liste sayfaları tüm şubeleri gösteriyor,
+   `CustomerEdit.razor` anonimleştirme maskesi uygulamıyor.
+4. **İngilizce adlandırma toplu dönüşümü:** kullanıcı "şimdi düzeltme, sonra yaparsın" dedi (2026-09-23).
    Başka iş koşarken yapılamaz (her dosyaya dokunur); zamanlamayı kullanıcıya sor.
 
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
 - **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok, pilot açılamaz.
 - referans sistem parolası değişimi + GitGuardian olayı 37502190'ın kapatılması.
+- **GitGuardian 37582605 YANLIŞ ALARM** — `IlkKesisTests.cs` yönlendirme yol listesinde `"kullanicilar"` ile
+  `"profil/sifre-degistir"` yan yana; kimlik bilgisi yok. Main'i birleştiren her PR'da kırmızı görünür; panelde
+  "false positive" işaretlenmeli. İşaretlenene kadar yalnız bu olay kırmızıysa merge engeli değildir.
+- **Karar (6): kirasız assistans talebi.** #317'den beri şube kapsamlı operatör kira seçmeden assistans talebi açamıyor
+  (assistansta ofis alanı yok; şubesiz kayıt tüm şubelere açılıyordu). Böyle mi kalsın?
 - ~~Karar (1)~~ ve ~~Karar (2)~~ **KAPANDI** — kullanıcı 2026-09-22'de oturumda doğrudan verdi
   (`DEGISIKLIKLER.md`): F5, F4'ün "pilotta 10 iş günü P1 yok" Exit'ini beklemeden başlar; #264 menü izin eşlemesi
   (Operatör 79 → 74, Muhasebe 48 → 53) onaylandı.
@@ -351,7 +372,18 @@ Etiketsiz madde açıktır.
 - [sürüyor — Low A] Teklif kabulü 409'unda `mevcut` bilgisinin ele alınması.
 - Muhasebe rolü dönem planını okuyamıyor (Blazor paritesi; dokunma).
 
-**2026-09-24 gece Low'ları** (backend olanlar 2026-09-25'te ayrı PR'da ele alındı; SPA olanlar açık)
+**2026-09-25 Low'ları (açık)**
+- SPA: donmuş denemenin tekrarı kesin redle (403/400) dönünce "önceki denemenin sonucu bilinmiyor" notu siliniyor
+  (#320 L1; satış formundaki `rejected` kancasının genel hali). Tekrar öncesi doğrulama ile POST arasında
+  milisaniyelik TOCTOU (#320 L2; kalıcı çözüm sunucuda beklenen kullanıcı başlığı). Sekmeler arası aynı kullanıcının
+  şube değişimi `ben`'i yenilemiyor (görünüm, para riski yok).
+- Backend: firmanın kendi IBAN/VKN'si denetimde tamamen `***` — IBAN değişikliği dolandırıcılık izi için kısmi maske
+  (son 4 hane) ya da KARARLAR kaydı (#319 L2). Personel seçim listesi (`ListForSelectAsync`) şubeye göre süzülmüyor;
+  kapsam dışı personel seçilince 403 (#319 bilgi). Kira paneli: Nakit sonuçlanınca kirli Kart formu yeni anahtarla
+  İKİNCİ tahsilat olarak yazılıyor (#318 L2 tasarımı; isteğe bağlı "diğer formun tahsilatı yazıldı" notu).
+- Kullanıcı kararı bekleyen: şube kapsamlı operatör kirasız assistans talebi açamıyor (#317 L1 yan etkisi).
+
+**2026-09-24 gece Low'ları — 2026-09-25'te KAPANDI** (#313, #314, #315, #316, #317, #319, #321)
 - Backend: sır temizleme bayrağı (#304 L2); ekran override'ında Admin'e dokunma yalnız Admin'e (#304 L3); vardiya
   çakışma mesajı başka şubenin saatini sızdırıyor (#302 L1); `ShiftApi.DtoAsync` satır + sürüm ayrı sorgu (#302 L2);
   depozito Idempotency anahtarı işlem türleri arası (#299 L2); xlsx sayımı `xl/worksheets/*.xml` yoluna bağlı
