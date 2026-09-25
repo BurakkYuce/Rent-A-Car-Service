@@ -238,7 +238,7 @@ public sealed class ListExportCatalogTests
     public void Baflar_projeksiyon()
     {
         var b = new Baf { No = "BF-1", CikisTarihi = new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), CikisKm = 1000,
-            CikisYakit = 80, Sube = "Merkez", Aciklama = "zimmet" };
+            CikisYakit = 10, Sube = "Merkez", Aciklama = "zimmet" };
         var t = ListExportCatalog.Baflar([b]);
         Assert.Equal(10, t.Headers.Count);
         Assert.Equal("BF-1", t.Rows[0][0]);

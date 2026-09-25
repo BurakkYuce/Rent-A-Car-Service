@@ -26,7 +26,7 @@ public sealed class BafTests(PostgresFixture fx)
         BelgeNoOracle.BeklenenlerdenBiri(12, 1, b!.No);   // 12 = Baf (HasarDosyasi 11 ile ayrı)
         Assert.Equal(BafDurum.Acik, b.Durum);
 
-        Assert.True(await svc.TeslimAlAsync(id, donusKm: 10_500, donusYakit: 50));
+        Assert.True(await svc.TeslimAlAsync(id, donusKm: 10_500, donusYakit: 6));
         var b2 = await svc.GetAsync(id);
         Assert.Equal(BafDurum.Kapandi, b2!.Durum);
         Assert.Equal(10_500, b2.DonusKm);   // çıkış 10000 → dönüş 10500 (elle oracle)

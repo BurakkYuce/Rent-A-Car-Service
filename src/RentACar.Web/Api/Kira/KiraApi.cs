@@ -125,9 +125,9 @@ public static class KiraApi
     private static T Zorunlu<T>(T? deger, string alan, string etiket) where T : struct
         => deger ?? throw new ValidationException($"{etiket} zorunludur.", alan);
 
-    /// <summary>Kira formunun yakıt göstergesi ölçeği (Blazor formu ve tenant varsayılanı: 0–12). Servis ayrıca
-    /// 0–100 taşma çiti uygular (harici API yüzde ölçeği kullanıyor).</summary>
-    public const int FormYakitEnFazla = 12;
+    /// <summary>Yakıt ölçeği 0–12 — TEK iç ölçek (<see cref="RentACar.Domain.Common.YakitOlcegi"/>, Karar (3)).
+    /// Servis aynı sınırı ayrıca zorlar; burada alan adıyla 400 <c>errors[alan]</c> üretmek için.</summary>
+    public const int FormYakitEnFazla = RentACar.Domain.Common.YakitOlcegi.EnFazla;
 
     private static int Yakit(int? deger, string alan, string etiket)
     {

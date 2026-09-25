@@ -89,7 +89,8 @@ public static class BafApi
                 new MevcutIslem(m.Id, m.No, 0m, AracFinansOrtak.TemelDoviz,
                     m.VehicleId == i.VehicleId && m.PersonelId == i.PersonelId && m.CikisKm == i.CikisKm));
         if (i.CikisKm is < 0 or > 10_000_000) throw new ValidationException("Çıkış KM 0 ile 10.000.000 arasında olmalıdır.", "cikisKm");
-        if (i.CikisYakit is < 0 or > 100) throw new ValidationException("Çıkış yakıtı 0 ile 100 arasında olmalıdır.", "cikisYakit");
+        if (i.CikisYakit is { } cy && !YakitOlcegi.Gecerli(cy))
+            throw new ValidationException($"Çıkış yakıtı 0 ile {YakitOlcegi.EnFazla} arasında olmalıdır.", "cikisYakit");
         AracFinansOrtak.Metin(i.Sube, 100, "sube");
         AracFinansOrtak.Metin(i.Aciklama, 512, "aciklama");
         await AracFinansOrtak.AracYazimAsync(dbf, kullanici, i.VehicleId, "vehicleId", zorunlu: true, ct);
@@ -126,7 +127,8 @@ public static class BafApi
     {
         if (await svc.GetAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE (403)
         if (i.DonusKm is < 0 or > 10_000_000) throw new ValidationException("Dönüş KM 0 ile 10.000.000 arasında olmalıdır.", "donusKm");
-        if (i.DonusYakit is < 0 or > 100) throw new ValidationException("Dönüş yakıtı 0 ile 100 arasında olmalıdır.", "donusYakit");
+        if (i.DonusYakit is { } dy && !YakitOlcegi.Gecerli(dy))
+            throw new ValidationException($"Dönüş yakıtı 0 ile {YakitOlcegi.EnFazla} arasında olmalıdır.", "donusYakit");
         AracFinansOrtak.Metin(i.DonusSube, 100, "donusSube");
         try
         {

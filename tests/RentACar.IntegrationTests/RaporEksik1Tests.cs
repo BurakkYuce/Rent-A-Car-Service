@@ -56,8 +56,8 @@ public sealed class RaporEksik1Tests(PostgresFixture fx)
             MusteriId = custId, VehicleId = vId, BasTar = bas, BitTar = bit,
             GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 5m
         });
-        await rentals.DeliverAsync(rId, cikisKm: 50000, cikisYakit: 100);
-        await rentals.ReturnAsync(rId, donusKm: 50500, donusYakit: 100, gercekDonus: bit);
+        await rentals.DeliverAsync(rId, cikisKm: 50000, cikisYakit: 12);
+        await rentals.ReturnAsync(rId, donusKm: 50500, donusYakit: 12, gercekDonus: bit);
 
         var rows = await sp.GetRequiredService<ReportService>().GetKmDetayAsync();
         var r = Assert.Single(rows, x => x.RentalId == rId);

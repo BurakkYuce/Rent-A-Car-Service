@@ -201,14 +201,14 @@ describe('BAF', () => {
     expect(
       allocationReturnRequest({
         donusKm: 15000,
-        donusYakit: 80,
+        donusYakit: 10,
         donusTarihi: null,
         donusSube: ' Havalimanı ',
         donusSaat: '09:30',
       }),
     ).toEqual({
       donusKm: 15000,
-      donusYakit: 80,
+      donusYakit: 10,
       donusTarihi: null,
       donusSube: 'Havalimanı',
       donusSaat: '09:30:00',

@@ -42,7 +42,7 @@ public sealed class WireInKapsamaTests
         { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "satisKm", "satış anı km" },
         { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "satisKanali", "satış kanalı kırılımı" },
         { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "devir", "noter/trafik devir notu" },
-        { "src/RentACar.Web/Components/Pages/Baflar/BafList.razor", "donusYakit", "dönüş yakıt yüzdesi" },
+        { "src/RentACar.Web/Components/Pages/Baflar/BafList.razor", "donusYakit", "dönüş yakıt seviyesi (0-12)" },
         { "src/RentACar.Web/Components/Pages/Baflar/BafList.razor", "donusTarihi",
           "gerçek teslim anı; yoksa kayıt anı yazılır" },
     };

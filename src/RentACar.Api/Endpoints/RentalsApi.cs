@@ -5,6 +5,7 @@ using RentACar.Application.Bookings;
 using RentACar.Application.Common;
 using RentACar.Application.Customers;
 using RentACar.Application.Vehicles;
+using RentACar.Domain.Common;
 
 namespace RentACar.Api.Endpoints;
 
@@ -30,12 +31,12 @@ public static class RentalsApi
         }).RequirePermission(Permission.OperationsWrite);
 
         grp.MapPost("/{id:guid}/deliver", async (Guid id, DeliverRequest req, RentalService svc, CancellationToken ct) =>
-            await svc.DeliverAsync(id, req.CikisKm, req.CikisYakit, ct)
+            await svc.DeliverAsync(id, req.CikisKm, YuzdeYakit(req.CikisYakit, "cikisYakit"), ct)
                 ? Results.Ok(RentalResponse.From((await svc.GetAsync(id, ct))!)) : NotFound())
             .RequirePermission(Permission.OperationsWrite);
 
         grp.MapPost("/{id:guid}/return", async (Guid id, ReturnRequest req, RentalService svc, CancellationToken ct) =>
-            await svc.ReturnAsync(id, req.DonusKm, req.DonusYakit, req.GercekDonus, ct: ct)
+            await svc.ReturnAsync(id, req.DonusKm, YuzdeYakit(req.DonusYakit, "donusYakit"), req.GercekDonus, ct: ct)
                 ? Results.Ok(RentalResponse.From((await svc.GetAsync(id, ct))!)) : NotFound())
             .RequirePermission(Permission.OperationsWrite);
 
@@ -60,6 +61,18 @@ public static class RentalsApi
             throw new ValidationException("Müşteri bulunamadı.", "musteriId");
         if (req.VehicleId == Guid.Empty || await araclar.FindAsync(req.VehicleId, ct) is null)
             throw new ValidationException("Araç bulunamadı.", "vehicleId");
+    }
+
+    /// <summary>
+    /// Yakıt ölçeği sınırı (Karar (3), 2026-09-25): harici sözleşme YÜZDE (0–100) korunur, iç ölçek 0–12.
+    /// Aralık dışı → 400 (sessiz kıstırma yok — 101 bir istemci hatasıdır, 100 sayılmaz); geçerli değer en
+    /// yakın on ikide bire çevrilir (50 → 6, 80 → 10).
+    /// </summary>
+    internal static int YuzdeYakit(int yuzde, string alan)
+    {
+        if (yuzde is < 0 or > YakitOlcegi.YuzdeEnFazla)
+            throw new ValidationException($"Yakıt yüzdesi 0-{YakitOlcegi.YuzdeEnFazla} aralığında olmalıdır.", alan);
+        return YakitOlcegi.YuzdedenOnIkiye(yuzde);
     }
 
     private static IResult NotFound()
