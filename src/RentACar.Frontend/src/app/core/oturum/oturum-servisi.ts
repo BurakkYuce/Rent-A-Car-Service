@@ -83,7 +83,12 @@ export class OturumServisi {
     return this.ilkYuklemeSozu;
   }
 
-  /** `GET oturum/ben` → `ben` günceller. */
+  /**
+   * `GET oturum/ben` → `ben` günceller. Ağ/sunucu hatası oturumun bittiğini GÖSTERMEZ: mevcut `ben` korunur ve o
+   * döner (#330 L4 — `null`a çekmek kimliği değiştirir, para denemelerinin kimlik efekti sekmedeki donmuş denemeleri
+   * düşürür; kullanıcı tutarı yeni anahtarla yeniden girip çift kayıt yazabilirdi). Açılışta değer zaten `null`.
+   * Diğer hatalar (`oturum_yok`, `kiraci_kapali` …) oturumu kapatır.
+   */
   async yukle(): Promise<Ben | null> {
     try {
       const ben = await firstValueFrom(this.api.get<Ben>('/api/ui/v1/oturum/ben', oturumIstegi()));
@@ -93,6 +98,7 @@ export class OturumServisi {
       const apiHatasi = apiHatasinaCevir(hata);
       if (apiHatasi.kod === 'sunucu' || apiHatasi.kod === 'ag') {
         this.toast.hata(apiHatasi.detay);
+        return this.deger();
       }
       this.deger.set(null);
       return null;
