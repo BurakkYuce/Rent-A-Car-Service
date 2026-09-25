@@ -113,6 +113,12 @@ const SESSION_CHANGED_IN_FLIGHT_NOTICE = customNotice('paraIslemi.oturumDegistiU
 const SESSION_UNVERIFIED_NOTICE = customNotice('paraIslemi.oturumDogrulanamadi');
 /** Tekrar öncesi oturum kapanmıştı ve yeniden girişten vazgeçildi: gönderilmedi, donmuş deneme (anahtarıyla) duruyor. */
 const RELOGIN_REQUIRED_NOTICE = customNotice('paraIslemi.yenidenGirisGerekli');
+/**
+ * #320 L1: sonucu bilinmeyen denemenin TEKRARI kesin redle (400/403/`cakisma`) döndü. Red yalnız tekrarın yazılmadığını
+ * söyler; İLK denemenin sonucu hâlâ bilinmiyor (yetki/dönem kilidi arada değişmiş olabilir). "Sonucu bilinmiyor" notu
+ * gönderimde silindiği için bu not onun yerini alır; çağıranın daha özgül notu (`rejected` kancası) bunu ezer.
+ */
+const RETRY_REJECTED_NOTICE = customNotice('paraIslemi.tekrarReddedildi');
 
 /**
  * Para yazan formların TEK gönderim çekirdeği (DEVIR §5 "Para formu yaşam döngüsü"; işlem başına rastgele anahtar):
@@ -389,6 +395,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     // Kesin sonuç: yazılmadı. Önce kilit açılır (açmak sunucu hatalarını silerdi), sonra hatalar yazılır.
     this.frozenState.set(null);
     this.unlock();
+    if (retry) this.noticeState.set(RETRY_REJECTED_NOTICE);
     if (error.kod === 'cakisma') {
       this.resetKey();
       o.conflict?.();
