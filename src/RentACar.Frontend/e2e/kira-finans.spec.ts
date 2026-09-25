@@ -1061,6 +1061,170 @@ test('H1 (#316): tahsilat sonrası kira tazelenirken İKİ formda da Tahsil Et p
     ]);
 });
 
+const kartFormu = (page: Page): Locator => panel(page).getByTestId('tahsilat-formu-Banka');
+const nakitFormu = (page: Page): Locator => panel(page).getByTestId('tahsilat-formu-Kasa');
+const tutarKutusu = (l: Locator): Locator => l.getByRole('textbox', { name: 'Tutar', exact: true });
+
+test("#318 T2: Kart'a yazılan 600 + giden havale 2xx (kira tazelenir) → 600 korunur ve aynen gider", async ({
+  page,
+}) => {
+  await oturumAc(page);
+  let odeme = false;
+  const { finansIstekleri, detayOkuma } = await sahteApi(page, {
+    // Giden havale kiraya bağlanmaz: anahtar aynı (K1), yalnız sürüm değişir.
+    detay: () => (odeme ? detay(K1, 2600, 1000, 'v2') : detay(K1, 2600, 1000)),
+    finans: (route) => {
+      odeme = true;
+      return route.fulfill({ json: { id: 'o1' } });
+    },
+  });
+  await page.goto(SAYFA);
+  await sekme(page, 'Kart/Havale');
+  const kartTutar = tutarKutusu(kartFormu(page));
+  await expect(kartTutar).toHaveValue('2.600,00');
+  await kartTutar.fill('600');
+  await tutarKutusu(panel(page).locator('rc-kf-finans-odeme')).fill('100');
+  const once = detayOkuma();
+  await panel(page).getByTestId('odeme').click();
+  await expect.poll(() => detayOkuma()).toBeGreaterThan(once);
+  await expect(kartTutar).toHaveValue(/^600(,00)?$/);
+  await kartFormu(page).getByTestId('tahsilat-Banka').click();
+  await expect
+    .poll(() =>
+      tahsilatlar(finansIstekleri).map((k) => [k.govde['tahsilatAnahtar'], k.govde['tutar']]),
+    )
+    .toEqual([[K1, '600.00']]);
+});
+
+test("#318 T3: Kart'a yazılan 600 + başka rotaya gidip dönüş (sekmeye dönüş tazelemesi) → 600 korunur ve aynen gider", async ({
+  page,
+}) => {
+  await oturumAc(page);
+  const { finansIstekleri, detayOkuma } = await sahteApi(page, {
+    detay: () => detay(K1, 2650, 1000, 'v2'),
+    finans: (route) => route.fulfill({ json: { id: 'c9' } }),
+  });
+  await page.goto(SAYFA);
+  await sekme(page, 'Kart/Havale');
+  await tutarKutusu(kartFormu(page)).fill('600');
+  const once = detayOkuma();
+  await page.evaluate(() => {
+    history.pushState({}, '', '/app/');
+    dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+  });
+  await expect(page).not.toHaveURL(new RegExp(KIRA_ID));
+  await expect(panel(page)).toBeHidden(); // rota gerçekten değişti (kira sekmesi arka planda yaşar)
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(KIRA_ID));
+  await expect.poll(() => detayOkuma()).toBeGreaterThan(once);
+  const kart = kartFormu(page);
+  if (!(await kart.count())) await sekme(page, 'Kart/Havale');
+  await expect(tutarKutusu(kart)).toHaveValue(/^600(,00)?$/);
+  await kart.getByTestId('tahsilat-Banka').click();
+  await expect
+    .poll(() => tahsilatlar(finansIstekleri).map((k) => [k.govde['hesap'], k.govde['tutar']]))
+    .toEqual([['Banka', '600.00']]);
+});
+
+test('#318 T4/L1: Nakit 2xx sonrası kira tazelemesi 503 → iki formda "Yeniden yükle"; başarılı okumada düğmeler açılır', async ({
+  page,
+}) => {
+  await oturumAc(page);
+  let yazildi = false;
+  let bozuk = true;
+  const { finansIstekleri } = await sahteApi(page, {
+    // Sunucu (elle): Nakit 700 yazılır → kalan 2.600 − 700 = 1.900, yeni anahtar K2.
+    detay: () => (yazildi ? detay(K2, 1900, 1700, 'v2') : detay(K1, 2600, 1000)),
+    finans: (route) => {
+      yazildi = true;
+      return route.fulfill({ json: { id: 'c1' } });
+    },
+  });
+  await page.route(
+    (url) => url.pathname === `/api/ui/v1/kiralar/${KIRA_ID}`,
+    (route) =>
+      yazildi && bozuk
+        ? route.fulfill({ status: 503, json: { status: 503, kod: 'sunucu', detail: 'x' } })
+        : route.fallback(),
+  );
+  const hatalar = hatalariTopla(page, [/status of 503/]);
+  await page.goto(SAYFA);
+  await tutarKutusu(nakitFormu(page)).fill('700');
+  await nakitFormu(page).getByTestId('tahsilat-Kasa').click();
+  await expect(toastlar(page)).toContainText('Tahsilat kaydedildi.');
+  await expect(nakitFormu(page).getByTestId('tahsilat-yeniden-yukle-Kasa')).toBeVisible();
+  await expect(nakitFormu(page)).toContainText('Kira yüklenemedi');
+  await expect(nakitFormu(page).getByTestId('tahsilat-Kasa')).toBeDisabled();
+
+  await sekme(page, 'Kart/Havale');
+  const yenidenYukle = kartFormu(page).getByTestId('tahsilat-yeniden-yukle-Banka');
+  await expect(yenidenYukle).toBeVisible();
+  await expect(kartFormu(page).getByTestId('tahsilat-Banka')).toBeDisabled();
+
+  bozuk = false;
+  await yenidenYukle.click();
+  await expect(panel(page).getByTestId('finans-kalan')).toContainText('1.900,00');
+  await expect(yenidenYukle).toHaveCount(0);
+  await expect(kartFormu(page).getByTestId('tahsilat-Banka')).toBeEnabled();
+  await expect(tutarKutusu(kartFormu(page))).toHaveValue('1.900,00');
+  await kartFormu(page).getByTestId('tahsilat-Banka').click();
+  await expect
+    .poll(() =>
+      tahsilatlar(finansIstekleri).map((k) => [
+        k.govde['tahsilatAnahtar'],
+        k.govde['hesap'],
+        k.govde['tutar'],
+      ]),
+    )
+    .toEqual([
+      [K1, 'Kasa', '700.00'],
+      [K2, 'Banka', '1900.00'],
+    ]);
+  expect(hatalar).toEqual([]);
+});
+
+test("#318 T5/L2: Kart'a yazılan 600 + Nakit 700 2xx → Kart YENİ anahtarı alır, 600 korunur; tek basışta 409'suz yazılır", async ({
+  page,
+}) => {
+  await oturumAc(page);
+  let nakit = false;
+  const { finansIstekleri } = await sahteApi(page, {
+    detay: () => (nakit ? detay(K2, 1900, 1700, 'v2') : detay(K1, 2600, 1000)),
+    finans: (route, istek) => {
+      const g = istek.postDataJSON() as Record<string, unknown>;
+      if (g['hesap'] === 'Kasa') nakit = true;
+      else if (g['tahsilatAnahtar'] === K1)
+        return problem(route, 409, 'mukerrer', 'Bayat anahtar.', {
+          mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 700, doviz: 'TRY', ayniIcerik: false },
+        });
+      return route.fulfill({ json: { id: g['hesap'] === 'Kasa' ? 'c1' : 'c2' } });
+    },
+  });
+  await page.goto(SAYFA);
+  await sekme(page, 'Kart/Havale');
+  await tutarKutusu(kartFormu(page)).fill('600');
+  await sekme(page, 'Nakit');
+  await tutarKutusu(nakitFormu(page)).fill('700');
+  await nakitFormu(page).getByTestId('tahsilat-Kasa').click();
+  await expect(panel(page).getByTestId('finans-kalan')).toContainText('1.900,00');
+  await sekme(page, 'Kart/Havale');
+  await expect(tutarKutusu(kartFormu(page))).toHaveValue(/^600(,00)?$/);
+  await kartFormu(page).getByTestId('tahsilat-Banka').click();
+  await expect
+    .poll(() =>
+      tahsilatlar(finansIstekleri).map((k) => [
+        k.govde['tahsilatAnahtar'],
+        k.govde['hesap'],
+        k.govde['tutar'],
+      ]),
+    )
+    .toEqual([
+      [K1, 'Kasa', '700.00'],
+      [K2, 'Banka', '600.00'],
+    ]);
+  await expect(toastlar(page)).not.toContainText('Bayat anahtar');
+});
+
 test('L3 metni: sonucu bilinmeyen tahsilat varken sekmeyi kapatmak özel uyarıyla sorulur', async ({
   page,
 }) => {

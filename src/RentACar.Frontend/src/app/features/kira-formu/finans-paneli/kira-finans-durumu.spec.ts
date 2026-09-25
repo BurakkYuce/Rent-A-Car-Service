@@ -207,10 +207,38 @@ describe('KiraFinansDurumu — tahsilat (deterministik anahtar)', () => {
     expect(f.kart.form.getRawValue().tutar).toBe('600.00'); // öneri (1.900) yazılanı ezmedi
     f.tahsilatYap(f.kart);
     const t = tahsilatlar(cagrilar);
-    expect(t.map((c) => [govdesi(c)['hesap'], govdesi(c)['tutar']])).toEqual([
-      ['Kasa', '700.00'],
-      ['Banka', '600.00'],
+    // #318 L2: Nakit'in 2xx'i K1'i kesin tüketti → kirli Kart da K2'yi aldı (gereksiz 409 turu yok).
+    expect(
+      t.map((c) => [govdesi(c)['hesap'], govdesi(c)['tahsilatAnahtar'], govdesi(c)['tutar']]),
+    ).toEqual([
+      ['Kasa', K1, '700.00'],
+      ['Banka', K2, '600.00'],
     ]);
+  });
+
+  it('#318 L1: tahsilat sonrası tazeleme hata verdi → "Yeniden yükle" (yenile → sayfa), başarılı okumada düğmeler açılır', async () => {
+    const { f, cagrilar, detayVer, degisti } = await kur(() => of({ id: 'c1' }));
+    detayVer(detay(tahsilat(K1)));
+    f.detayHatasiAyarla(true); // ilgisiz hata bayrağı: tahsilat tazeleme beklemiyorsa gösterilmez
+    expect(f.tahsilatYuklenemedi()).toBe(false);
+    f.detayHatasiAyarla(false);
+
+    f.tahsilatYap(f.nakit);
+    expect(degisti).toHaveBeenCalledTimes(1);
+    f.detayHatasiAyarla(true); // sayfa: tazeleme 503, ekran son iyi veriyle
+    expect(f.tahsilatYuklenemedi()).toBe(true);
+    expect(f.tahsilatMesgul()).toBe(true); // bayat K1 ile gönderim yok
+    f.tahsilatYap(f.kart);
+    expect(tahsilatlar(cagrilar)).toHaveLength(1);
+
+    f.yenile(); // "Yeniden yükle"
+    expect(degisti).toHaveBeenCalledTimes(2);
+    f.detayHatasiAyarla(false);
+    detayVer(detay(tahsilat(K2, 1900)));
+    expect(f.tahsilatYuklenemedi()).toBe(false);
+    expect(f.tahsilatMesgul()).toBe(false);
+    f.tahsilatYap(f.kart);
+    expect(govdesi(tahsilatlar(cagrilar)[1])['tahsilatAnahtar']).toBe(K2);
   });
 
   it('409 mukerrer: otomatik tekrar YOK; "Kira kaydı değişmiş" başlığı (Mükerrer işlem değil); sonra yeni anahtar', async () => {

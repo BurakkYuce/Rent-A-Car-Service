@@ -73,7 +73,21 @@ import { KiraFinansDurumu, type TahsilatFormu } from './kira-finans-durumu';
           </p>
         }
         <rc-form-hatalari [hatalar]="t.gonderim.genelHatalar()" />
-        @if (f.tahsilatTazeleniyor()) {
+        @if (f.tahsilatYuklenemedi()) {
+          <div class="kf-finans__satir" role="alert">
+            <p class="kf-not kf-not--uyari">
+              {{ 'kiraFinans.tahsilat.yuklenemedi' | transloco }}
+            </p>
+            <button
+              type="button"
+              class="rc-dugme rc-dugme--kucuk"
+              [attr.data-testid]="'tahsilat-yeniden-yukle-' + t.hesap"
+              (click)="f.yenile()"
+            >
+              {{ 'kiraFinans.tahsilat.yenidenYukle' | transloco }}
+            </button>
+          </div>
+        } @else if (f.tahsilatTazeleniyor()) {
           <p class="kf-not" role="status">{{ 'kiraFinans.tahsilat.tazeleniyor' | transloco }}</p>
         }
         <div class="kf-eylemler">

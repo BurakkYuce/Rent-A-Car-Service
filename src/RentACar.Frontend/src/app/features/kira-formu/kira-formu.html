@@ -184,7 +184,11 @@
         </section>
         <rc-kf-paylas-bari />
         <rc-kf-paylasim />
-        <rc-kira-finans-yuvasi [detay]="d.gorunenDetay() ?? null" (degisti)="d.yenile()" />
+        <rc-kira-finans-yuvasi
+          [detay]="d.gorunenDetay() ?? null"
+          [tazelemeHatasi]="d.tazelemeHatasi() !== null"
+          (degisti)="d.yenile()"
+        />
       </div>
     </rc-sekmeli-form>
   </div>

@@ -327,6 +327,10 @@ export class KiraFormuDurumu {
   readonly gorunenDetay: Signal<KiraDetayYaniti | null> = computed(() => {
     const v = this.detay.veri();
     if (v) return v;
+    // #318 L1: belirsiz hatadan sonraki yeniden okuma sürerken de son iyi veri kalır. Store hata durumunda veriyi
+    // bıraktığı için `onceki` boş gelir; yoksa sayfa iskelete düşer, finans paneli yeniden kurulur ve donmuş
+    // (sonucu bilinmeyen) tahsilat anahtarı kaybolurdu. Kesin hatada `sonIyiDetay` zaten temizlenmiştir.
+    if (this.detay.tur() === 'yukleniyor') return this.sonIyiDetay();
     const h = this.detay.hata();
     // Yalnız 5xx ve ağ: kodsuz 404 istemcide `bilinmeyen` olur (silinmiş kayıt) — o eski veriyle GÖSTERİLMEZ.
     return h && (h.kod === 'sunucu' || h.kod === 'ag') ? this.sonIyiDetay() : null;

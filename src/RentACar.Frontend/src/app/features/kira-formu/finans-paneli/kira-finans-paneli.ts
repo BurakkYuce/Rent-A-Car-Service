@@ -176,6 +176,8 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
 })
 export class KiraFinansPaneli {
   readonly detay = input<KiraDetayYaniti | null>(null);
+  /** Sayfanın kira tazelemesi belirsiz hatayla (5xx/ağ) bitti; `detay` son iyi okumadır (#318 L1). */
+  readonly tazelemeHatasi = input(false);
   /** Finans işlemi sonuçlandı → sayfa kaydı yeniden yükler. */
   readonly degisti = output<void>();
 
@@ -193,6 +195,10 @@ export class KiraFinansPaneli {
         this.f.detayAyarla(d);
         this.f.sekmeAcildi(this.aktif());
       });
+    });
+    effect(() => {
+      const hata = this.tazelemeHatasi();
+      untracked(() => this.f.detayHatasiAyarla(hata));
     });
   }
 

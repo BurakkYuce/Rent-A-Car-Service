@@ -178,6 +178,12 @@ export class KiraFinansDurumu {
   readonly tahsilatTazeleniyor = computed(() =>
     [this.nakit, this.kart].some((tf) => tf.kopya.tazelemeBekleniyor()),
   );
+  private readonly _detayHatasi = signal(false);
+  /**
+   * #318 L1: tahsilat sonrası tazeleme hatayla (5xx/ağ) bitti — düğmeler bayat anahtarla açılamaz; formda
+   * "Yeniden yükle" gösterilir. Donmuş deneme ve anahtar korunur (kesin sonuç yok).
+   */
+  readonly tahsilatYuklenemedi = computed(() => this._detayHatasi() && this.tahsilatTazeleniyor());
   readonly odemeFormu = new FormGroup({
     tutar: tutarKontrolu(),
     hesapId: secenekKontrolu(),
@@ -246,6 +252,11 @@ export class KiraFinansDurumu {
       const d = this._detay();
       untracked(() => this.detayGeldi(d));
     });
+  }
+
+  /** Sayfanın detay tazelemesi belirsiz hatayla bitti mi (ekran son iyi veriyle duruyor). */
+  detayHatasiAyarla(hata: boolean): void {
+    this._detayHatasi.set(hata);
   }
 
   /** Panel girdisi değişti (kira yüklendi/tazelendi). Aynı nesne yeniden verilirse hiçbir şey olmaz. */
@@ -619,8 +630,12 @@ export class KiraFinansDurumu {
   private detayGeldi(d: KiraDetayYaniti | null): void {
     if (d === null) return;
     const k = d.kira;
+    // Tazeleme bekleyen (sonuçlanmış) form varsa ortak anahtar kesin bayat — döngü bayrağı temizlemeden ÖNCE okunur.
+    const sonuclanan = [this.nakit, this.kart].filter((tf) => tf.kopya.tazelemeBekleniyor());
+    this._detayHatasi.set(false);
     for (const tf of [this.nakit, this.kart]) {
-      const sonuc = tf.kopya.detayGeldi(d.tahsilat ?? null, tf.form.dirty);
+      const kardesSonuclandi = sonuclanan.some((s) => s !== tf);
+      const sonuc = tf.kopya.detayGeldi(d.tahsilat ?? null, tf.form.dirty, kardesSonuclandi);
       if (sonuc === 'ondoldur') tf.form.reset(this.tahsilatVarsayilanlari(tf.kopya.kopya(), true));
       // L-2: "YAZILMADI" (başka işlem) sonrası dokunulmamış ön-dolu tutar yeni bakiyeyle yenilenir (eski bakiye
       // gönderilip fazla tahsilat yazılmasın); kullanıcının yazdığı tutar (dirty) korunur.
