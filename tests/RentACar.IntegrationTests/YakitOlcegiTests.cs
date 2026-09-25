@@ -49,9 +49,13 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
     [InlineData(12, 100)]
     public void On_ikiden_yuzdeye(int onIkide, int beklenen) => Assert.Equal(beklenen, YakitOlcegi.OnIkidenYuzdeye(onIkide));
 
-    private static BookingInput Input(decimal yakitBirim) => new()
+    // Kira servisi müşteri/araç varlığını girişte doğrular (#328) → her kira kiracıda GERÇEK araç + cari ile.
+    private static async Task<BookingInput> InputAsync(IServiceProvider sp, decimal yakitBirim)
+        => Input(await TestArac.YeniAsync(sp), await TestCari.YeniAsync(sp), yakitBirim);
+
+    private static BookingInput Input(Guid vehicle, Guid cari, decimal yakitBirim) => new()
     {
-        MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), BasTar = Bas, BitTar = Bit,
+        MusteriId = cari, VehicleId = vehicle, BasTar = Bas, BitTar = Bit,
         GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m, YakitBirimUcret = yakitBirim
     };
 
@@ -63,7 +67,7 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await svc.CreateDirectAsync(Input(yakitBirim: 150m));
+        var id = await svc.CreateDirectAsync(await InputAsync(scope.ServiceProvider, yakitBirim: 150m));
         Assert.True(await svc.DeliverAsync(id, cikisKm: 1000, cikisYakit: 12)); // dolu depo
         Assert.True(await svc.ReturnAsync(id, donusKm: 1000, donusYakit: 7, gercekDonus: Bit));
 
@@ -80,7 +84,7 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await svc.CreateDirectAsync(Input(yakitBirim: 10m));
+        var id = await svc.CreateDirectAsync(await InputAsync(scope.ServiceProvider, yakitBirim: 10m));
         await Assert.ThrowsAsync<ValidationException>(() => svc.DeliverAsync(id, 1000, 13)); // eskiden 0–100 geçiyordu
         await Assert.ThrowsAsync<ValidationException>(() => svc.DeliverAsync(id, 1000, -1));
         Assert.True(await svc.DeliverAsync(id, 1000, 12));
@@ -146,6 +150,10 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
         var bit = bas.AddDays(3);
         var kira = await IdAsync(await c.PostAsJsonAsync("/api/v1/rentals",
             new { musteriId = mId, vehicleId = vId, basTar = bas, bitTar = bit, gunlukUcret = 100m, yakitBirimUcret = 100m }));
+        // Birim ücret sınırda yüzde puanı başından on ikide bir başına: 100 × 100/12 = 833,3333 (4 hane)
+        Assert.Equal(833.3333m, await HamBirimAsync(tenant, kira));
+        var olustu = await c.GetFromJsonAsync<JsonElement>($"/api/v1/rentals/{kira}");
+        Assert.Equal(100m, olustu.GetProperty("yakitBirimUcret").GetDecimal()); // 833,3333 × 12/100 = 99,999996 → 100,00
 
         // 101 / -1 → 400; hiçbir şey yazılmaz
         Assert.Equal(HttpStatusCode.BadRequest,
@@ -164,15 +172,62 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
         Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsJsonAsync($"/api/v1/rentals/{kira}/return",
             new { donusKm = 1000, donusYakit = 101, gercekDonus = bit })).StatusCode);
 
-        // %25 → 3 saklanır; eksik = 6 − 3 = 3 birim × 100 = 300
+        // ESKİ SÖZLEŞME ORACLE'I: %50 → %25 = 25 puan eksik × 100 = 2500,00.
+        // (İç: 6 − 3 = 3 × 833,3333 = 2499,9999 → satır 2 haneye → 2500,00.)
         var donus = await c.PostAsJsonAsync($"/api/v1/rentals/{kira}/return", new { donusKm = 1000, donusYakit = 25, gercekDonus = bit });
         Assert.Equal(HttpStatusCode.OK, donus.StatusCode);
         Assert.Equal(((int?)6, (int?)3), await HamYakitAsync(tenant, kira));
         var j = await donus.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(50, j.GetProperty("cikisYakit").GetInt32());
         Assert.Equal(25, j.GetProperty("donusYakit").GetInt32());
-        Assert.Equal(3, j.GetProperty("eksikYakit").GetInt32());        // bedel birimi: on ikide bir
-        Assert.Equal(300m, j.GetProperty("yakitBedeli").GetDecimal());
+        Assert.Equal(25, j.GetProperty("eksikYakit").GetInt32());        // yüzde puanı (3/12)
+        Assert.Equal(100m, j.GetProperty("yakitBirimUcret").GetDecimal());
+        Assert.Equal(2500.00m, j.GetProperty("yakitBedeli").GetDecimal());
+
+        // İkinci senaryo: birim 10, %100 → %50 = 50 puan × 10 = 500,00.
+        // (İç: 10 → 83,3333; 12 − 6 = 6 × 83,3333 = 499,9998 → 500,00.)
+        var vId2 = await IdAsync(await c.PostAsJsonAsync("/api/v1/vehicles",
+            new { plaka = "34YL" + Random.Shared.Next(100, 999), durum = "Musait", km = 0, yakit = "Benzin" }));
+        var kira2 = await IdAsync(await c.PostAsJsonAsync("/api/v1/rentals",
+            new { musteriId = mId, vehicleId = vId2, basTar = bas, bitTar = bit, gunlukUcret = 100m, yakitBirimUcret = 10m }));
+        Assert.Equal(83.3333m, await HamBirimAsync(tenant, kira2));
+        Assert.Equal(HttpStatusCode.OK,
+            (await c.PostAsJsonAsync($"/api/v1/rentals/{kira2}/deliver", new { cikisKm = 1000, cikisYakit = 100 })).StatusCode);
+        var j2 = await (await c.PostAsJsonAsync($"/api/v1/rentals/{kira2}/return",
+            new { donusKm = 1000, donusYakit = 50, gercekDonus = bit })).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(50, j2.GetProperty("eksikYakit").GetInt32());
+        Assert.Equal(10m, j2.GetProperty("yakitBirimUcret").GetDecimal());
+        Assert.Equal(500.00m, j2.GetProperty("yakitBedeli").GetDecimal());
+
+        // Rezervasyon da aynı sınırdan geçer (kiraya çevrilince birim ücret kopyalanır).
+        var rez = await c.PostAsJsonAsync("/api/v1/reservations", new
+        {
+            musteriId = mId, vehicleId = vId, basTar = bit.AddDays(5), bitTar = bit.AddDays(7), gunlukUcret = 50m, yakitBirimUcret = 10m
+        });
+        Assert.Equal(HttpStatusCode.Created, rez.StatusCode);
+        Assert.Equal(10m, (await rez.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("yakitBirimUcret").GetDecimal());
+
+        // Taşma çiti: decimal/numeric(19,4) taşması 500 değil 400.
+        Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsJsonAsync("/api/v1/rentals", new
+        {
+            musteriId = mId, vehicleId = vId2, basTar = bit.AddDays(10), bitTar = bit.AddDays(11), gunlukUcret = 100m,
+            yakitBirimUcret = 10_000_000_000m
+        })).StatusCode);
+    }
+
+    private async Task<decimal> HamBirimAsync(Guid tenant, Guid rentalId)
+    {
+        await using var con = new NpgsqlConnection(fx.OwnerConnectionString);
+        await con.OpenAsync();
+        await using var tx = await con.BeginTransactionAsync();
+        await using (var set = new NpgsqlCommand("SELECT set_config('app.tenant_id', @t, true)", con, tx))
+        {
+            set.Parameters.AddWithValue("t", tenant.ToString());
+            await set.ExecuteScalarAsync();
+        }
+        await using var cmd = new NpgsqlCommand("SELECT \"YakitBirimUcret\" FROM \"Rentals\" WHERE \"Id\" = @id", con, tx);
+        cmd.Parameters.AddWithValue("id", rentalId);
+        return (decimal)(await cmd.ExecuteScalarAsync())!;
     }
 
     private async Task<Guid> TenantIdAsync(string code)
@@ -213,19 +268,21 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
             await db.SaveChangesAsync();
         }
 
-        Guid yuzdeKira, onIkiKira, baf;
+        Guid yuzdeKira, onIkiKira, kapaliKira, baf;
         using (var host = new TestHost(fx.AppConnectionString))
         using (var scope = host.ScopeFor(tenant))
         {
             var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
-            yuzdeKira = await rentals.CreateDirectAsync(Input(10m));
-            onIkiKira = await rentals.CreateDirectAsync(Input(10m));
+            yuzdeKira = await rentals.CreateDirectAsync(await InputAsync(scope.ServiceProvider, 10m));
+            onIkiKira = await rentals.CreateDirectAsync(await InputAsync(scope.ServiceProvider, 10m));
+            kapaliKira = await rentals.CreateDirectAsync(await InputAsync(scope.ServiceProvider, 10m));
             baf = await scope.ServiceProvider.GetRequiredService<BafService>().CreateAsync(new BafInput
                 { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 100 });
         }
         // Eski yollarla yazılmış olabilecek değerler (harici API yüzdesi / BAF yüzdesi / L6 öncesi negatif):
         await HamYazAsync(tenant, "UPDATE \"Rentals\" SET \"CikisYakit\" = 80, \"DonusYakit\" = 45 WHERE \"Id\" = @id", yuzdeKira);
         await HamYazAsync(tenant, "UPDATE \"Rentals\" SET \"CikisYakit\" = 8, \"DonusYakit\" = -3 WHERE \"Id\" = @id", onIkiKira);
+        await HamYazAsync(tenant, "UPDATE \"Rentals\" SET \"CikisYakit\" = 80, \"DonusYakit\" = 40, \"Durum\" = 1 WHERE \"Id\" = @id", kapaliKira);
         await HamYazAsync(tenant, "UPDATE \"Baflar\" SET \"CikisYakit\" = 80, \"DonusYakit\" = 8 WHERE \"Id\" = @id", baf);
 
         // Migration'ın KENDİ SQL'i; tenant döngüsü yalnız bu testin kiracısına daraltılır (paylaşımlı DB).
@@ -242,6 +299,11 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
 
         Assert.Equal(((int?)10, (int?)5), await HamYakitAsync(tenant, yuzdeKira)); // 80→9,6→10; 45→5,4→5
         Assert.Equal(((int?)8, (int?)0), await HamYakitAsync(tenant, onIkiKira));  // 0–12 dokunulmaz; negatif → 0
+        Assert.Equal(((int?)10, (int?)5), await HamYakitAsync(tenant, kapaliKira)); // 40 → 4,8 → 5
+        // Birim ücret: YALNIZ açık (Kirada) + yüzdeyle teslim edilmiş kirada çevrilir: 10 × 100/12 = 83,3333.
+        Assert.Equal(83.3333m, await HamBirimAsync(tenant, yuzdeKira));
+        Assert.Equal(10m, await HamBirimAsync(tenant, onIkiKira));   // zaten on ikide bir ölçeği
+        Assert.Equal(10m, await HamBirimAsync(tenant, kapaliKira));  // kapanmış: faturalanmış geçmiş, dokunulmaz
         using (var host = new TestHost(fx.AppConnectionString))
         using (var scope = host.ScopeFor(tenant))
         {

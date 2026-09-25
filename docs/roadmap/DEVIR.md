@@ -121,7 +121,32 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
   FinanceWrite ∨ ViewReports; operatöre 403. Kayıt: `DEGISIKLIKLER.md`.
 - ~~Karar (3): yakıt ölçeği~~ **KAPANDI** (kullanıcı 2026-09-25, `DEGISIKLIKLER.md`): TEK iç ölçek 0–12
   (`Domain.Common.YakitOlcegi`). Harici `RentalsApi` yüzde (0–100) sözleşmesini korur, sınırda çevirir (en yakına;
-  aralık dışı 400). BAF da 0–12'ye geçti; eski yüzde veriler `YakitOlcegiOnIki` migration'ıyla çevrildi.
+  aralık dışı 400). Harici `yakitBirimUcret` yüzde puanı başınadır, sınırda × 100/12 çevrilir (yanıtta geri).
+  BAF da 0–12'ye geçti; eski yüzde veriler `YakitOlcegiOnIki` migration'ıyla çevrildi (açık kiralarda birim ücret dahil).
+- **#329 dağıtımı ÖNCESİ elle kontrol (yakıt, otomatik çözülemeyen belirsizlik).** Migration yalnız `CikisYakit > 12`
+  olan açık kiraları kesin "harici API yüzdesi" sayabilir. İki grup kolonlarda iz bırakmıyor: (a) harici API ile
+  %0–12 aralığında teslim edilmiş açık kira (seviye ve birim ücret on ikide bir sayılır); (b) harici API ile
+  oluşturulmuş ama henüz teslim edilmemiş kira / rezervasyon (birim ücret yüzde başına kalır, dönüşte ~8,33 kat
+  eksik faturalanır). Harici API istemcisi olan kiracılarda migration'dan ÖNCE şu adayları listeleyip kaynağını
+  (API istemcisi mi, form mu) doğrulayın; harici olanların `YakitBirimUcret`'ini elle × 100/12 (4 hane) çevirin.
+  Superuser ile çalıştırın (RLS'i atlar; `racar_owner` ile tenant başına `set_config('app.tenant_id', …)` gerekir):
+  ```sql
+  -- (a) açık, yüzde aralığı belirsiz (0–12) teslim edilmiş, ücretli yakıtlı kiralar
+  SELECT "TenantId", "Id", "SozlesmeNo", "CikisYakit", "YakitBirimUcret", "CreatedAtUtc"
+    FROM "Rentals"
+   WHERE "Durum" = 0 AND "CikisYakit" BETWEEN 0 AND 12 AND "YakitBirimUcret" > 0
+   ORDER BY "TenantId", "CreatedAtUtc";
+  -- (b1) henüz teslim edilmemiş açık kiralar
+  SELECT "TenantId", "Id", "SozlesmeNo", "YakitBirimUcret", "CreatedAtUtc"
+    FROM "Rentals"
+   WHERE "Durum" = 0 AND "CikisYakit" IS NULL AND "YakitBirimUcret" > 0
+   ORDER BY "TenantId", "CreatedAtUtc";
+  -- (b2) kiraya çevrilmemiş rezervasyonlar (Rezerv/Onayli) — çevrilince birim ücret kiraya kopyalanır
+  SELECT "TenantId", "Id", "ReservationNo", "YakitBirimUcret", "CreatedAtUtc"
+    FROM "Reservations"
+   WHERE "Durum" IN (0, 1) AND "YakitBirimUcret" > 0
+   ORDER BY "TenantId", "CreatedAtUtc";
+  ```
 - Pilotu platform konsolundan açma (Platform → kiracı detay → "Yeni Arayüz") + canlı duman testi (README "Doğrulama").
 - Üretimde #265 etkisini PR'daki iki SQL ile doğrulama.
 
