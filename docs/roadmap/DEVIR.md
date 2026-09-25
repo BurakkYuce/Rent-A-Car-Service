@@ -350,7 +350,10 @@ Etiketsiz madde açıktır.
   faturası kesebiliyor).
 - [sürüyor — Low B] `FinansApi`: +03:00 tarih parametresi 500 üretiyor (DB'ye giden tarih UTC olmalı, §5).
 - Blazor `BatchCollect`/`BatchPay`: cari varlık kontrolü yok (F8'de).
-- Ek hizmet ekleme anahtarsız (çift gönderim iki kalem; SPA kilidine bağlı).
+- ~~Ek hizmet ekleme anahtarsız~~ KAPALI (doğrulandı 2026-09-25): Low B (#277, `2e21a6c0`) — `/api/ui` ucunda
+  `Idempotency-Key` zorunlu, `RentalAddOns.IslemAnahtari` + kısmi unique index, kira kilidi altında yeniden arama,
+  SPA `formGonderimi` ile işlem başına anahtar (envanter E37; test `LowTemizligiBUiTests.Ek_hizmet_*`). Blazor ve
+  SYS-* yolu bilinçli anahtarsız (F13'te Blazor kalkınca kapanır).
 - **Kira oluşturma atomik değil:** ücret satırları ve dönem planı ayrı adımda (açık, ayrı iş — Low PR'larına girmez).
 - `RentalsApi` (harici): yabancı ya da olmayan müşteri/araç kontrolü yok; kalıcı çözüm bileşik FK.
   45 test sentetik kimlik kullanıyor.
