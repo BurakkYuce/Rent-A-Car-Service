@@ -245,5 +245,24 @@
       "sinir": "En fazla {{sayi}} sekme açık tutulabilir ve hepsinde kaydedilmemiş değişiklik var. Yeni sayfa açmak için bir sekmeyi kaydedip kapatın.",
       "eskiKapatildi": "Sekme sınırı ({{sayi}}): en uzun süredir kullanılmayan “{{etiket}}” sekmesi kapatıldı."
     }
+  },
+  "paraIslemi": {
+    "sonucBilinmiyor": "İşlemin sonucu bilinmiyor (bağlantı ya da sunucu hatası). Form kilitlendi; \"Aynı işlemi tekrar gönder\" AYNI içerik ve işlem anahtarıyla gider, çift kayıt oluşmaz.",
+    "tekrarGonder": "Aynı işlemi tekrar gönder",
+    "vazgec": "Vazgeç",
+    "vazgecBaslik": "Sonucu bilinmeyen işlemden vazgeçilsin mi?",
+    "vazgecMesaj": "Önceki deneme kaydedilmiş olabilir. Vazgeçerseniz form açılır ve sonraki gönderim YENİ bir işlem sayılır; önce hareketleri kontrol edin.",
+    "terkMesaji": "Sonucu bilinmeyen bir para işlemi var. Sayfadan ayrılırsanız aynı işlemi aynı anahtarla tekrar gönderme imkânı kaybolur; önce hareketleri kontrol edin. Ayrılınsın mı?",
+    "zatenKaydedildi": "İşlem zaten kaydedildi",
+    "oncekiKaydedildi": "Önceki denemeniz kaydedildi ({{ no }}, {{ tutar }}).",
+    "farkliBaslik": "Önceki denemeniz kaydedilmiş — yeni tutar yazılmadı",
+    "oncekiKaydedildiFarkli": "Önceki denemeniz kaydedildi ({{ no }}, {{ tutar }}); değiştirdiğiniz içerik yazılmadı. Düzeltme için iade/iptal edin.",
+    "oncekiKaydedildiFarkliTutar": "Önceki denemeniz kaydedildi ({{ no }}, {{ tutar }}); değiştirdiğiniz içerik yazılmadı. Düzeltme için iade/iptal edin. Bu denemede girdiğiniz {{ girilen }} YAZILMADI.",
+    "dahaOnceBaslik": "İşlem daha önce kaydedildi",
+    "dahaOnceKaydedildi": "Bu işlem daha önce kaydedildi; ikinci kez yazılmadı. Hareketleri kontrol edin.",
+    "tutarAcikcaGir": "Önceki işlem kaydedildi. Yeni bir ödeme ancak tutar AÇIKÇA girilerek yapılabilir (boş tutar kalanın tamamını öder).",
+    "kayitZatenIslenmis": "Kayıt zaten işlenmiş",
+    "oturumDegisti": "Oturum başka bir kullanıcıya geçti ya da kapandı. Önceki kullanıcının sonucu bilinmeyen işlemi bu ekrandan GÖNDERİLMEDİ ve form temizlendi; o işlemin durumunu hareketlerden kontrol edin.",
+    "oturumDogrulanamadi": "Oturum doğrulanamadığı için işlem tekrar gönderilmedi (bağlantı ya da sunucu hatası). Bağlantıyı kontrol edip yeniden deneyin; işlem ve anahtarı korunuyor."
   }
 }

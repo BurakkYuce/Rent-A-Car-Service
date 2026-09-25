@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
+import { moneySubmission } from '@core/form/money-submission';
 import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
 import {
   type KaydedilmemisDegisiklikSahibi,
@@ -35,7 +36,6 @@ import {
   clearRateOnCurrencyChange,
   kindOptions,
 } from '../finance-shared';
-import { moneyAction } from '../money-action';
 
 const PAGE_SIZE = 50;
 
@@ -96,7 +96,7 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
   protected readonly channelOptions = CHANNEL_OPTIONS;
   protected readonly currencyOptions = CURRENCY_OPTIONS;
 
-  protected readonly action = moneyAction<CashTransferRequest>();
+  protected readonly action = moneySubmission<CashTransferRequest>({ scope: () => 'kasa-virman' });
   protected readonly form = new FormGroup({
     kaynak: new FormControl<AccountKind | null>('Kasa', Validators.required),
     kaynakHesapId: new FormControl<string | null>(null),
@@ -124,6 +124,8 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form);
     this.accounts.load();
     clearRateOnCurrencyChange(this.form.controls.doviz, this.form.controls.kur);
     clearAccountOnKindChange(
@@ -171,7 +173,7 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
         return {
           path: financePath('/kasa/virman'),
           body,
-          content: { tutar: body.tutar, doviz: body.doviz ?? 'TRY', hesap: body.kaynak ?? null },
+          content: { tutar: body.tutar, doviz: body.doviz ?? 'TRY' },
         };
       },
       success: () => {
@@ -183,10 +185,6 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
     });
   }
 
-  protected abandon(): void {
-    void this.action.abandon(() => this.reloadAll());
-  }
-
   protected makbuzUrl(id: string): string {
     return `/kasa/makbuz/${encodeURIComponent(id)}/pdf`;
   }
@@ -196,7 +194,7 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
     this.transfers.yukle();
   }
 
-  private reloadAll(): void {
+  protected reloadAll(): void {
     this.reloadSummary();
     this.transactions.yenile();
   }

@@ -30,11 +30,9 @@
       }
     </div>
     @if (frozenOperation(); as op) {
-      <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
-        {{ 'finans.depozito.islemAdi.' + op | transloco }}:
-        {{ 'finans.islem.sonucBilinmiyor' | transloco }}
-      </div>
+      <p class="not">{{ 'finans.depozito.islemAdi.' + op | transloco }}</p>
     }
+    <rc-money-notice [notice]="action.notice()" />
     <rc-form-hatalari [hatalar]="action.errors()" />
     <div class="form__eylemler">
       @if (frozenOperation()) {
@@ -44,7 +42,7 @@
           [disabled]="action.sending()"
           (click)="retry()"
         >
-          {{ (action.sending() ? 'form.gonderiliyor' : 'finans.islem.tekrarGonder') | transloco }}
+          {{ (action.sending() ? 'form.gonderiliyor' : 'paraIslemi.tekrarGonder') | transloco }}
         </button>
         @if (!action.sending()) {
           <button
@@ -52,7 +50,7 @@
             class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
             (click)="abandon()"
           >
-            {{ 'finans.islem.vazgec' | transloco }}
+            {{ 'paraIslemi.vazgec' | transloco }}
           </button>
         }
       } @else {

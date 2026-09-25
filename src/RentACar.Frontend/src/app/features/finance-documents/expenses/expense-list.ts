@@ -14,6 +14,7 @@ import {
   type KaydedilmemisDegisiklikSahibi,
   sayfaTerkKorumasi,
 } from '@core/form/kaydedilmemis-degisiklik';
+import { PendingMoneyAttempts } from '@core/form/money-attempts';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { FetchPolicy } from '@core/veri/fetch-policy';
@@ -44,7 +45,6 @@ import {
 import { BranchNames, ExpenseStore } from '../document.store';
 import { ExpenseCreateForm } from './expense-create-form';
 import { ExpensePaymentForm, expensePaymentScope } from './expense-payment-form';
-import { PendingDocumentAttempts } from '../document-submission';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 
 /**
@@ -69,7 +69,7 @@ import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
     TabloHucre,
     TarihSecici,
   ],
-  providers: [FetchPolicy, ExpenseStore, BranchNames, CustomerLabels, PendingDocumentAttempts],
+  providers: [FetchPolicy, ExpenseStore, BranchNames, CustomerLabels, PendingMoneyAttempts],
   templateUrl: './expense-list.html',
   styleUrl: '../finance-documents.scss',
 })
@@ -77,7 +77,7 @@ export class ExpenseList implements KaydedilmemisDegisiklikSahibi {
   protected readonly store = inject(ExpenseStore);
   protected readonly branches = inject(BranchNames);
   private readonly session = inject(OturumServisi);
-  protected readonly pending = inject(PendingDocumentAttempts);
+  protected readonly pending = inject(PendingMoneyAttempts);
   private readonly confirm = inject(OnayServisi);
   private readonly labels = inject(CustomerLabels);
   private readonly t = ceviriFonksiyonu();
@@ -155,7 +155,7 @@ export class ExpenseList implements KaydedilmemisDegisiklikSahibi {
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.dirtyForms.size > 0 || this.pending.any() > 0;
+    return this.dirtyForms.size > 0 || this.pending.count() > 0;
   }
 
   protected dirtyChanged(form: string, dirty: boolean): void {
@@ -173,7 +173,17 @@ export class ExpenseList implements KaydedilmemisDegisiklikSahibi {
     return this.canWrite() && r.takipEdilir && (toNumber(r.kalan) ?? 0) > 0;
   }
 
+  /**
+   * #300 L1: gönderim UÇUŞTAYKEN süzgeç, sayfa ve sıralama değişmez — ödenen satır listeden düşerse ödeme formu yok
+   * edilir (deneme sayfada kalsa da kullanıcı sonucu göremez).
+   */
+  protected changeQuery(patch: Parameters<typeof this.query.degistir>[0]): void {
+    if (this.pending.inFlight()) return;
+    void this.query.degistir(patch);
+  }
+
   protected filter(): void {
+    if (this.pending.inFlight()) return;
     const v = this.filterForm.getRawValue();
     this.labels.remember(v.cari);
     const text = (s: string | null) => s?.trim() || undefined;
@@ -192,6 +202,7 @@ export class ExpenseList implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected clear(): void {
+    if (this.pending.inFlight()) return;
     void this.query.sifirla();
   }
 

@@ -14,6 +14,7 @@ import { EMPTY, type Observable, startWith } from 'rxjs';
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
+import { type MoneySubmission, moneySubmission } from '@core/form/money-submission';
 import {
   TahsilatDenemeKaydi,
   TahsilatDenemesi,
@@ -47,6 +48,9 @@ import {
   tahsilatGovdesi,
 } from './finans-modeli';
 import type {
+  DepozitoAlIstegi,
+  DepozitoIratIstegi,
+  DisHizmetIstegi,
   DonemFaturaIstegi,
   DonemFaturaYaniti,
   FinansHesapOgesi,
@@ -56,6 +60,7 @@ import type {
   KiraDisHizmet,
   KiraDonem,
   KiraFatura,
+  OdemeIstegi,
   KurSecimOgesi,
   TahsilatBilgisi,
 } from './finans-tipleri';
@@ -102,8 +107,9 @@ export type DonemFormu = FormGroup<{
  * `providers`'ında; alt bileşenler yalnız çizer). Blazor `StickyPanel.razor` paritesi.
  *
  * Para kuralları (docs/api/idempotency-envanteri.md "SPA sözleşmesi"):
- * - Her işlem KENDİ gönderimiyle (`formGonderimi` → kendi `GonderimKilidi`, kendi `Idempotency-Key`'i):
- *   çift tık tek istek, anahtar yeniden denemede aynı, her 2xx ve 409 `mukerrer` sonrası yeni.
+ * - Başlık anahtarlı para işlemleri (giden havale, depozito al/irat, dış hizmet) çekirdek `MoneySubmission` ile:
+ *   işlem başına anahtar (2xx ya da `mevcut`lu 409 sonrası yeni; `mevcut`suz 409'da KORUNUR), uçuşta form kilitli,
+ *   sonucu bilinmeyen hatada gövde DONAR ve tekrar yalnız donmuş kopyayla; deneme kira başına kayıtlı.
  * - Tahsilat anahtarı DETAYDAN (`tahsilat.anahtar`, deterministik); başlık gönderilmez, gövde satır
  *   kopyasından kurulur ve sonuçlanmamış gönderimde kopya DONAR (`TahsilatKopyasi`).
  * - 409 `mukerrer`de otomatik yeniden gönderim YOK: kayıt yeniden yüklenir (interceptor
@@ -230,11 +236,13 @@ export class KiraFinansDurumu {
   readonly depozitoHesapTuru = this.degerSinyali(this.depozitoAlFormu.controls.hesap);
 
   // ─── gönderimler (her işlem kendi kilidi + kendi anahtarı) ─────────────────────────────────
-  readonly odemeGonderimi = formGonderimi();
-  readonly depozitoAlGonderimi = formGonderimi();
-  readonly iratGonderimi = formGonderimi();
+  readonly odemeGonderimi = this.paraGonderimi<OdemeIstegi>('odeme');
+  readonly depozitoAlGonderimi = this.paraGonderimi<DepozitoAlIstegi>('depozito-al');
+  readonly iratGonderimi = this.paraGonderimi<DepozitoIratIstegi>('irat');
   readonly faturaGonderimi = formGonderimi();
-  readonly disHizmetGonderimi = formGonderimi();
+  readonly disHizmetGonderimi = this.paraGonderimi<DisHizmetIstegi>('dis-hizmet');
+  /** Kesinleşmemiş denemeleri geri getirilen kira (panel yeniden kurulunca bir kez). */
+  private geriGetirilenKira: string | null = null;
   readonly donemKilidi = new GonderimKilidi();
   readonly iptalKilidi = new GonderimKilidi();
   /** Hangi dönem satırı gönderiliyor (düğme metni için). */
@@ -329,7 +337,7 @@ export class KiraFinansDurumu {
         this.depozitoAlGonderimi,
         this.iratGonderimi,
         this.disHizmetGonderimi,
-      ].some((g) => g.kilit.bekleyenAnahtar !== null)
+      ].some((g) => g.pending())
     );
   }
 
@@ -419,73 +427,71 @@ export class KiraFinansDurumu {
   odemeYap(): void {
     const cariId = this.kira()?.musteriId;
     if (!cariId) return;
-    this.odemeGonderimi.gonder(
-      this.odemeFormu,
-      (anahtar) =>
-        this.api.post<FinansIslemYaniti>(
-          `${FINANS}/odeme`,
-          odemeGovdesi(cariId, this.odemeFormu.getRawValue()),
-          { islemAnahtari: anahtar, context: this.mukerrerBaglami() },
-        ),
-      {
-        basarili: () => {
-          this.odemeFormu.reset({ tutar: null, hesapId: null, kanal: KANALLAR[0], aciklama: null });
-          this.tamam('kiraFinans.bildirim.odeme');
-        },
+    const bos = () =>
+      this.odemeFormu.reset({ tutar: null, hesapId: null, kanal: KANALLAR[0], aciklama: null });
+    void this.odemeGonderimi.run<FinansIslemYaniti>({
+      form: this.odemeFormu,
+      build: () => ({
+        path: `${FINANS}/odeme`,
+        body: odemeGovdesi(cariId, this.odemeFormu.getRawValue()),
+      }),
+      success: () => {
+        bos();
+        this.tamam('kiraFinans.bildirim.odeme');
       },
-    );
+      afterDuplicate: bos,
+      settled: (neden) => neden !== 'done' && this.yenile(),
+    });
   }
 
   /** Depozito al (E09): başlık anahtarı zorunlu; aynı içerik tekrarında sunucu aynı kaydı döner. */
   depozitoAl(): void {
     const cariId = this.kira()?.musteriId;
     if (!cariId) return;
-    this.depozitoAlGonderimi.gonder(
-      this.depozitoAlFormu,
-      (anahtar) =>
-        this.api.post<FinansIslemYaniti>(
-          `${FINANS}/depozito/al`,
-          depozitoAlGovdesi(cariId, this.depozitoAlFormu.getRawValue()),
-          { islemAnahtari: anahtar, context: this.mukerrerBaglami() },
-        ),
-      {
-        basarili: () => {
-          this.depozitoOnDoldur = false;
-          this.depozitoAlFormu.reset({ tutar: null, hesap: 'Kasa', hesapId: null });
-          this.tamam('kiraFinans.bildirim.depozitoAl');
-        },
+    const bos = () => {
+      this.depozitoOnDoldur = false;
+      this.depozitoAlFormu.reset({ tutar: null, hesap: 'Kasa', hesapId: null });
+    };
+    void this.depozitoAlGonderimi.run<FinansIslemYaniti>({
+      form: this.depozitoAlFormu,
+      build: () => ({
+        path: `${FINANS}/depozito/al`,
+        body: depozitoAlGovdesi(cariId, this.depozitoAlFormu.getRawValue()),
+      }),
+      success: () => {
+        bos();
+        this.tamam('kiraFinans.bildirim.depozitoAl');
       },
-    );
+      // Önceki deneme kayıtlı: depozito yeniden ÖNERİLMEZ (ikinci tık ikinci depozito olmasın).
+      afterDuplicate: bos,
+      settled: (neden) => neden !== 'done' && this.yenile(),
+    });
   }
 
   /** Depozito irat (E12): GERİ ALINAMAZ → önce onay; gelir bu kiranın aracına atfedilir. */
   async depozitoIrat(): Promise<void> {
     const k = this.kira();
-    if (!k || this.iratGonderimi.gonderiliyor()) return;
-    this.iratFormu.markAllAsTouched();
-    if (this.iratFormu.invalid) return;
-    const onay = await this.onay.sor({
-      baslik: this.t('kiraFinans.irat.onayBaslik'),
-      mesaj: this.t('kiraFinans.irat.onayMesaj'),
-      onayEtiketi: this.t('kiraFinans.irat.onayla'),
-      tehlikeli: true,
-    });
-    if (!onay) return;
-    this.iratGonderimi.gonder(
-      this.iratFormu,
-      (anahtar) =>
-        this.api.post<FinansIslemYaniti>(
-          `${FINANS}/depozito/irat`,
-          iratGovdesi(k.musteriId, k.id, this.iratFormu.getRawValue()),
-          { islemAnahtari: anahtar, context: this.mukerrerBaglami() },
-        ),
-      {
-        basarili: () => {
-          this.iratFormu.reset();
-          this.tamam('kiraFinans.bildirim.irat');
-        },
+    if (!k) return;
+    await this.iratGonderimi.run<FinansIslemYaniti>({
+      form: this.iratFormu,
+      build: () => ({
+        path: `${FINANS}/depozito/irat`,
+        body: iratGovdesi(k.musteriId, k.id, this.iratFormu.getRawValue()),
+      }),
+      confirm: () =>
+        this.onay.sor({
+          baslik: this.t('kiraFinans.irat.onayBaslik'),
+          mesaj: this.t('kiraFinans.irat.onayMesaj'),
+          onayEtiketi: this.t('kiraFinans.irat.onayla'),
+          tehlikeli: true,
+        }),
+      success: () => {
+        this.iratFormu.reset();
+        this.tamam('kiraFinans.bildirim.irat');
       },
-    );
+      afterDuplicate: () => this.iratFormu.reset(),
+      settled: (neden) => neden !== 'done' && this.yenile(),
+    });
   }
 
   /** Kiradan fatura (E15, yapısal): anahtar kullanılmaz; ikinci çağrı sunucudan 400 (form üstü hata). */
@@ -551,23 +557,23 @@ export class KiraFinansDurumu {
   disHizmetKaydet(): void {
     const k = this.kira();
     if (!k) return;
-    const d = this.disHizmetFormu.getRawValue();
-    this.disHizmetGonderimi.gonder(
-      this.disHizmetFormu,
-      (anahtar) =>
-        this.api.post<FinansIslemYaniti>(
-          `${FINANS}/dis-hizmet`,
-          disHizmetGovdesi(k.id, { ...d, cariId: d.cari?.id ?? null }),
-          { islemAnahtari: anahtar, context: this.mukerrerBaglami() },
-        ),
-      {
-        esleme: { cariId: 'cari' },
-        basarili: () => {
-          this.disHizmetFormu.reset({ doviz: 'TRY' });
-          this.tamam('kiraFinans.bildirim.disHizmet');
-        },
+    void this.disHizmetGonderimi.run<FinansIslemYaniti>({
+      form: this.disHizmetFormu,
+      fieldMap: () => ({ cariId: 'cari' }),
+      build: () => {
+        const d = this.disHizmetFormu.getRawValue();
+        return {
+          path: `${FINANS}/dis-hizmet`,
+          body: disHizmetGovdesi(k.id, { ...d, cariId: d.cari?.id ?? null }),
+        };
       },
-    );
+      success: () => {
+        this.disHizmetFormu.reset({ doviz: 'TRY' });
+        this.tamam('kiraFinans.bildirim.disHizmet');
+      },
+      afterDuplicate: () => this.disHizmetFormu.reset({ doviz: 'TRY' }),
+      settled: (neden) => neden !== 'done' && this.yenile(),
+    });
   }
 
   /** Dış hizmet iptali (E34, FinanceReverse): ters kayıt, geri alınamaz → onay. */
@@ -602,8 +608,11 @@ export class KiraFinansDurumu {
     this.yenile();
   }
 
-  private mukerrerBaglami() {
-    return istekBaglami({ mukerrerdeYenile: () => this.yenile() });
+  /** Kira başına kapsamlı para gönderimi (panel yeniden kurulunca kesinleşmemiş deneme geri gelir). */
+  private paraGonderimi<T>(islem: string): MoneySubmission<T> {
+    return moneySubmission<T>({
+      scope: () => `kira-finans:${islem}:${this.kira()?.id ?? ''}`,
+    });
   }
 
   /** Alan formu olmayan işlem: kilit + hata bildirimi (interceptor göstermediyse). */
@@ -630,6 +639,13 @@ export class KiraFinansDurumu {
   private detayGeldi(d: KiraDetayYaniti | null): void {
     if (d === null) return;
     const k = d.kira;
+    if (this.geriGetirilenKira !== k.id) {
+      this.geriGetirilenKira = k.id;
+      this.odemeGonderimi.restore(this.odemeFormu);
+      this.depozitoAlGonderimi.restore(this.depozitoAlFormu);
+      this.iratGonderimi.restore(this.iratFormu);
+      this.disHizmetGonderimi.restore(this.disHizmetFormu);
+    }
     // Tazeleme bekleyen (sonuçlanmış) form varsa ortak anahtar kesin bayat — döngü bayrağı temizlemeden ÖNCE okunur.
     const sonuclanan = [this.nakit, this.kart].filter((tf) => tf.kopya.tazelemeBekleniyor());
     this._detayHatasi.set(false);
@@ -647,7 +663,11 @@ export class KiraFinansDurumu {
     }
     // L2: kiranın depozitosu yalnız ilk açılışta önerilir; alındıktan sonra yeniden ön-doldurulmaz (ikinci tık
     // ikinci depozito yazıyordu).
-    if (this.depozitoAlFormu.pristine && this.depozitoOnDoldur) {
+    if (
+      this.depozitoAlFormu.pristine &&
+      this.depozitoOnDoldur &&
+      !this.depozitoAlGonderimi.pending()
+    ) {
       this.depozitoAlFormu.reset({ tutar: paraMetni(k.depozito, 2), hesap: 'Kasa', hesapId: null });
     }
     if (this.faturaFormu.pristine) this.faturaFormu.reset(this.faturaVarsayilanlari());

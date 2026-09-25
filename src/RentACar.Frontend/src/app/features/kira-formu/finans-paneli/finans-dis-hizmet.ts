@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { type SecimKaynagi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
+
 import { KF_ORTAK } from '../sekmeler/ortak';
 import { DOVIZLER, TEMEL_DOVIZ, paraGoster } from './finans-modeli';
 import { KiraFinansDurumu } from './kira-finans-durumu';
@@ -14,7 +16,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
 @Component({
   selector: 'rc-kf-finans-dis-hizmet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK],
+  imports: [...KF_ORTAK, MoneySubmitBar],
   template: `
     @let s = f.disHizmetler;
     <div
@@ -123,23 +125,12 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
             <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
           </rc-alan>
         </div>
-        <rc-form-hatalari [hatalar]="f.disHizmetGonderimi.genelHatalar()" />
-        <div class="kf-eylemler">
-          <button
-            type="button"
-            class="rc-dugme rc-dugme--birincil"
-            data-testid="dis-hizmet-kaydet"
-            [disabled]="f.disHizmetGonderimi.gonderiliyor()"
-            (click)="f.disHizmetKaydet()"
-          >
-            {{
-              (f.disHizmetGonderimi.gonderiliyor()
-                ? 'form.gonderiliyor'
-                : 'kiraFinans.disHizmet.kaydet'
-              ) | transloco
-            }}
-          </button>
-        </div>
+        <rc-money-submit
+          [submission]="f.disHizmetGonderimi"
+          testId="dis-hizmet-kaydet"
+          [label]="'kiraFinans.disHizmet.kaydet' | transloco"
+          (send)="f.disHizmetKaydet()"
+        />
       </section>
     }
   `,

@@ -15,6 +15,7 @@ import {
   type KaydedilmemisDegisiklikSahibi,
   sayfaTerkKorumasi,
 } from '@core/form/kaydedilmemis-degisiklik';
+import { moneySubmission } from '@core/form/money-submission';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -39,7 +40,6 @@ import {
   followCustomerQuery,
   labelFromData,
 } from '../finance-shared';
-import { moneyAction } from '../money-action';
 
 /**
  * Bakiye Düzeltme (`/app/finans/bakiye-duzeltme`, Blazor `BakiyeDuzeltme.razor`): Kasa/Banka'ya DOKUNMADAN cari
@@ -65,7 +65,9 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
     inject(ActivatedRoute).snapshot.queryParamMap.get('cariId'),
   );
   protected readonly side = computed(() => balanceSide(this.balance.veri()?.bakiye));
-  protected readonly action = moneyAction<BalanceAdjustmentRequest>();
+  protected readonly action = moneySubmission<BalanceAdjustmentRequest>({
+    scope: () => `bakiye-duzeltme:${this.cariId() ?? ''}`,
+  });
 
   protected readonly form = new FormGroup({
     yon: new FormControl<AdjustmentDirection | null>('Alacaklandir', Validators.required),
@@ -89,6 +91,8 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
+    this.action.restore(this.form);
     clearRateOnCurrencyChange(this.form.controls.doviz, this.form.controls.kur);
     this.customer.valueChanges.pipe(takeUntilDestroyed()).subscribe((c) => {
       if (c && c.id !== this.cariId()) this.cariId.set(c.id);
@@ -97,7 +101,10 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
       const locked = this.action.pending();
       untracked(() => (locked ? this.customer.disable() : this.customer.enable()));
     });
-    followCustomerQuery(this.cariId, this.customer, () => this.action.pending());
+    followCustomerQuery(this.cariId, this.customer, () => this.action.pending(), {
+      dirty: () => this.form.dirty,
+      discard: () => this.resetForm(),
+    });
     effect(() => {
       const b = this.balance.veri();
       const id = this.cariId();
@@ -128,13 +135,14 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
         return {
           path: financePath('/bakiye-duzeltme'),
           body,
-          content: { tutar: body.tutar, doviz: body.doviz ?? 'TRY', hesap: body.yon ?? null },
+          content: { tutar: body.tutar, doviz: body.doviz ?? 'TRY' },
         };
       },
       confirm: () =>
         this.confirm.sor({
           baslik: this.t('finans.duzeltme.onayBaslik'),
-          mesaj: this.t('finans.duzeltme.onayMesaj'),
+          // #299 L-new-1: onay metni HANGİ carinin düzeltileceğini söyler (sorgu ile cari değişmiş olabilir).
+          mesaj: this.t('finans.duzeltme.onayMesaj', { ad: this.customerName(id) }),
         }),
       success: () => {
         this.toast.basari(this.t('finans.duzeltme.kaydedildi'));
@@ -145,8 +153,10 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
     });
   }
 
-  protected abandon(): void {
-    void this.action.abandon(() => this.balance.yenile());
+  /** Gövdedeki carinin adı: bakiye yanıtı o cariye aitse ondan (KVKK kurallı), değilse seçici etiketinden. */
+  private customerName(id: string): string {
+    const b = this.balance.veri();
+    return b?.cariId === id ? b.cariAd : (this.customer.value?.etiket ?? '');
   }
 
   private resetForm(): void {

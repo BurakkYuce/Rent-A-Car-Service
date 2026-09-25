@@ -14,6 +14,7 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
+import { PendingMoneyAttempts } from '@core/form/money-attempts';
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import {
@@ -53,7 +54,6 @@ import {
   VAT_RATES,
   type VatRate,
 } from '../document-model';
-import { PendingDocumentAttempts } from '../document-submission';
 import { INVOICES, InvoiceStore, recordPath, summaryParameters } from '../document.store';
 import { pruneSelection } from './batch-selection';
 import { ManualInvoiceForm } from './manual-invoice-form';
@@ -83,7 +83,7 @@ import { ManualInvoiceForm } from './manual-invoice-form';
     TarihPipe,
     TarihSecici,
   ],
-  providers: [FetchPolicy, InvoiceStore, CustomerLabels, PendingDocumentAttempts],
+  providers: [FetchPolicy, InvoiceStore, CustomerLabels, PendingMoneyAttempts],
   templateUrl: './invoice-list.html',
   styleUrl: '../finance-documents.scss',
 })
@@ -107,7 +107,7 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
   protected readonly canManual = computed(
     () => this.canWrite() && this.session.ben()?.subeKapsami.tumSubeler === true,
   );
-  private readonly pending = inject(PendingDocumentAttempts);
+  private readonly pending = inject(PendingMoneyAttempts);
   protected readonly canRefund = computed(() => this.session.izinVar('FinanceReverse'));
   protected readonly busy = signal(false);
   protected readonly selectedId = signal<string | null>(null);
@@ -197,7 +197,7 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.manualDirty || this.batchSelection().size > 0 || this.pending.any() > 0;
+    return this.manualDirty || this.batchSelection().size > 0 || this.pending.count() > 0;
   }
 
   protected manualDirtyChanged(dirty: boolean): void {

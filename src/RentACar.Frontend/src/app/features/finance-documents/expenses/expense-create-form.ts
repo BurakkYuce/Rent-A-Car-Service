@@ -15,6 +15,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { FinansHesapOgesi, SecimOgesi } from '@core/api/ui-tipleri';
 import { paraBicimle } from '@core/bicim/bicim';
+import { moneySubmission } from '@core/form/money-submission';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
@@ -29,11 +30,13 @@ import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 
 import {
   CURRENCIES,
   type DocumentResult,
+  type ExpenseCreateRequest,
   EXPENSE_PRESETS,
   EXPENSE_TYPES,
   type ExpenseRow,
@@ -45,15 +48,13 @@ import {
   type VatRate,
 } from '../document-model';
 import { type ExpenseForm, expenseRequest } from '../document-requests';
-import { DocumentSubmission } from '../document-submission';
-import { DocumentSubmitBar } from '../document-submit-bar';
 import { EXPENSES, recordPath } from '../document.store';
 import { currencyMismatch } from './currency-rules';
 
 /**
  * Yeni gider — PARA (`POST /giderler`; Borç Gider(net) + Borç KDV / Alacak Kasa·Banka·Cari(brüt)). KDV ve baz tutar
  * SUNUCUDA (satır bazında kuruşa yuvarlama, KurCozucu); istemci net + oran + (isteğe bağlı açık) kur gönderir.
- * Gönderim {@link DocumentSubmission} (uçuşta kilit, belirsizde donmuş gövde, `mevcut`suz 409'da anahtar korunur).
+ * Gönderim çekirdek `MoneySubmission` (uçuşta kilit, belirsizde donmuş gövde, `mevcut`suz 409'da anahtar korunur).
  * Döviz değişince açık kur ve dövizi uymayan kasa/banka hesabı temizlenir (r300 M2: USD kuru EUR'ya gidiyordu).
  * Şubeye bağlı kullanıcıda şube kendi şubesiyle ön-dolu (sunucu kendi şubesini zorunlu tutar).
  */
@@ -65,7 +66,7 @@ import { currencyMismatch } from './currency-rules';
     TranslocoPipe,
     Alan,
     AramaSecim,
-    DocumentSubmitBar,
+    MoneySubmitBar,
     MetinGirdisi,
     ParaGirdisi,
     Secim,
@@ -140,10 +141,8 @@ export class ExpenseCreateForm {
    * yalnız `valueChanges`'e bağlı sinyal eski dövizi (₺) gösteriyordu.
    */
   protected readonly currency = signal<string | null>('TRY');
-  protected readonly submission = new DocumentSubmission(this.form, () => 'yeni-gider', {
-    aracId: 'arac',
-    cariId: 'cari',
-    kiraId: 'kira',
+  protected readonly submission = moneySubmission<ExpenseCreateRequest>({
+    scope: () => 'yeni-gider',
   });
 
   constructor() {
@@ -157,33 +156,28 @@ export class ExpenseCreateForm {
         this.currencyChanged(doviz);
       });
     this.reset();
-    this.submission.restore();
+    this.submission.restore(this.form);
     this.currency.set(this.form.controls.doviz.value);
   }
 
   protected submit(): void {
-    this.submission.submit<DocumentResult>(
-      EXPENSES,
-      () => expenseRequest(this.form.getRawValue() as ExpenseForm),
-      {
-        succeeded: (r) => {
-          this.reset();
-          this.announce(r);
-          this.saved.emit(r);
-        },
-        recorded: () => this.reset(),
-        reload: () => this.saved.emit(null),
+    void this.submission.run<DocumentResult>({
+      form: this.form,
+      fieldMap: () => ({ aracId: 'arac', cariId: 'cari', kiraId: 'kira' }),
+      build: () => ({
+        path: EXPENSES,
+        body: expenseRequest(this.form.getRawValue() as ExpenseForm),
+      }),
+      success: (r) => {
+        this.reset();
+        this.announce(r);
+        this.saved.emit(r);
       },
-    );
-  }
-
-  protected async abandon(): Promise<void> {
-    const yes = await this.confirm.sor({
-      baslik: this.t('finansBelge.vazgecBaslik'),
-      mesaj: this.t('finansBelge.vazgecMesaj'),
-      tehlikeli: true,
+      afterDuplicate: () => this.reset(),
+      settled: (reason) => {
+        if (reason !== 'done') this.saved.emit(null);
+      },
     });
-    if (yes) this.submission.abandon();
   }
 
   /** Açık kur yalnız seçildiği dövize aittir; hesap dövizi uymuyorsa hesap da bırakılır. */

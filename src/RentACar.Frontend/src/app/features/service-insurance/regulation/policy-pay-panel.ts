@@ -1,47 +1,28 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
+  type OnInit,
   computed,
-  effect,
   inject,
   input,
   output,
-  signal,
-  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { FinansHesapOgesi } from '@core/api/ui-tipleri';
 import { paraBicimle } from '@core/bicim/bicim';
-import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
-import { TahsilatDenemeKaydi } from '@core/form/tahsilat-denemesi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
+import { moneySubmission } from '@core/form/money-submission';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 import { Alan } from '@shared/form/alan/alan';
-import { FormHatalari } from '@shared/form/form-hatalari';
 import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
-import { Ikon } from '@shared/ikon/ikon';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 
-import {
-  type FrozenRequest,
-  MoneySubmission,
-  duplicateNotice,
-  round2,
-  setLocked,
-} from '../money-submission';
-
-const asText = (v: number | string | null | undefined): string | null =>
-  v === null || v === undefined ? null : String(v);
+import { round2 } from '../money-math';
 import {
   type AccountKind,
   type PolicyDetail,
@@ -60,7 +41,7 @@ import {
 @Component({
   selector: 'rc-policy-pay-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, Alan, FormHatalari, Ikon, ParaGirdisi, Secim],
+  imports: [ReactiveFormsModule, TranslocoPipe, Alan, MoneySubmitBar, ParaGirdisi, Secim],
   template: `
     <section class="bolum" aria-labelledby="rc-police-ode-baslik">
       <h2 id="rc-police-ode-baslik">{{ 'servisSigorta.sigorta.ode' | transloco }}</h2>
@@ -68,11 +49,6 @@ import {
       <p class="sonraki">
         {{ 'servisSigorta.sigorta.odenecekPrim' | transloco: { prim: premiumText() } }}
       </p>
-      @if (payment.frozen()) {
-        <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
-          {{ 'servisSigorta.para.sonucBilinmiyor' | transloco }}
-        </div>
-      }
       <form class="form" [formGroup]="form" (ngSubmit)="pay()">
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'servisSigorta.para.hesap' | transloco">
@@ -102,57 +78,39 @@ import {
             </rc-alan>
           }
         </div>
-        <rc-form-hatalari [hatalar]="errors()" />
-        <div class="form__eylemler">
-          <button
-            type="submit"
-            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-            [disabled]="payment.sending() || refreshing()"
-          >
-            <rc-ikon ad="cash" [boyut]="14" />
-            {{
-              payment.sending()
-                ? ('form.gonderiliyor' | transloco)
-                : payment.frozen()
-                  ? ('servisSigorta.para.tekrarDene' | transloco)
-                  : ('servisSigorta.sigorta.ode' | transloco)
-            }}
-          </button>
-          @if (payment.frozen() && !payment.sending()) {
-            <button
-              type="button"
-              class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-              (click)="abandon()"
-            >
-              {{ 'servisSigorta.para.vazgec' | transloco }}
-            </button>
-          }
-        </div>
+        <rc-money-submit
+          [submission]="payment"
+          type="submit"
+          ikon="cash"
+          [label]="'servisSigorta.sigorta.ode' | transloco"
+          [disabled]="refreshing()"
+          (abandoned)="settled.emit()"
+        />
       </form>
     </section>
   `,
 })
-export class PolicyPayPanel {
+export class PolicyPayPanel implements OnInit {
   readonly policy = input.required<PolicyRow>();
   readonly accounts = input<readonly FinansHesapOgesi[]>([]);
   readonly refreshing = input(false);
   readonly settled = output<void>();
 
-  private readonly api = inject(ApiIstemcisi);
   private readonly toast = inject(ToastServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
 
-  protected readonly payment = new MoneySubmission<PolicyPaymentRequest>(
-    inject(TahsilatDenemeKaydi),
-  );
-  protected readonly errors = signal<readonly string[]>([]);
   protected readonly form = new FormGroup({
     hesap: new FormControl<AccountKind | null>('Kasa', Validators.required),
     hesapId: new FormControl<string | null>(null),
     zeyilEkPrim: new FormControl<string | null>(null),
     kur: new FormControl<string | null>(null),
+  });
+  /** Ödenen poliçede panel gizlenir: `mukerrer` bildirimi toast'ta (not panelle kaybolurdu). */
+  protected readonly payment = moneySubmission<PolicyPaymentRequest>({
+    scope: () => `sigorta:${this.policy().id}`,
+    duplicateDisplay: 'toast',
+    // E29 yapısal (poliçe başına tek ödeme): ödemeyi başkası yapmış olabilir — nötr metin (r316 L1).
+    recordedMessage: 'servisSigorta.para.policeZatenOdendi',
   });
 
   protected readonly kindOptions: readonly SecenekOgesi<AccountKind>[] = [
@@ -179,24 +137,10 @@ export class PolicyPayPanel {
       if (id !== null && !this.accountOptions().some((h) => h.deger === id))
         this.form.controls.hesapId.setValue(null);
     });
-    // Uçuşta ve donmuş kopyada form kilitli; donmuş gövde forma geri yazılır (inceleme M1).
-    effect(() => {
-      const frozen = this.payment.frozen();
-      const locked = frozen !== null || this.payment.sending();
-      untracked(() => {
-        if (frozen)
-          this.form.patchValue(
-            {
-              hesap: (frozen.body.hesap as AccountKind | null) ?? 'Kasa',
-              hesapId: frozen.body.hesapId ?? null,
-              zeyilEkPrim: asText(frozen.body.zeyilEkPrim),
-              kur: asText(frozen.body.kur),
-            },
-            { emitEvent: false },
-          );
-        setLocked(this.form, locked);
-      });
-    });
+  }
+
+  ngOnInit(): void {
+    this.payment.restore(this.form);
   }
 
   hasPendingWork(): boolean {
@@ -204,84 +148,41 @@ export class PolicyPayPanel {
   }
 
   hasPendingPayment(): boolean {
-    return this.payment.frozen() !== null || this.payment.sending();
+    return this.payment.pending();
   }
 
   protected pay(): void {
-    if (this.payment.sending() || this.refreshing()) return;
-    this.errors.set([]);
-    sunucuHatalariniTemizle(this.form);
-    this.form.markAllAsTouched();
-    if (this.payment.frozen() === null && this.form.invalid) return;
+    if (this.refreshing()) return;
     const p = this.policy();
-    const v = this.form.getRawValue();
-    const body: PolicyPaymentRequest = {
-      hesap: v.hesap ?? 'Kasa',
-      hesapId: v.hesapId,
-      zeyilEkPrim: v.zeyilEkPrim,
-      kur: this.foreign() ? v.kur : null,
-    };
-    // Sunucunun `mevcut.tutar`'ı prim + zeyil ek primidir (inceleme L4): karşılaştırma aynı toplamla.
-    const copy = this.payment.prepare(`sigorta:${p.id}`, body, {
-      tutar: round2((num(p.prim) ?? 0) + (num(v.zeyilEkPrim) ?? 0)),
-      doviz: p.doviz,
-      hesap: v.hesap,
+    void this.payment.run<PolicyDetail>({
+      form: this.form,
+      build: () => {
+        const v = this.form.getRawValue();
+        return {
+          path: recordPath(`${REGULATION}/sigortalar`, p.id, '/odeme'),
+          target: `sigorta:${p.id}`,
+          body: {
+            hesap: v.hesap ?? 'Kasa',
+            hesapId: v.hesapId,
+            zeyilEkPrim: v.zeyilEkPrim,
+            kur: this.foreign() ? v.kur : null,
+          },
+          // Sunucunun `mevcut.tutar`'ı prim + zeyil ek primidir (inceleme L4): bildirimde aynı toplam.
+          content: {
+            tutar: round2((num(p.prim) ?? 0) + (num(v.zeyilEkPrim) ?? 0)),
+            doviz: p.doviz,
+          },
+        };
+      },
+      success: (d) => {
+        this.toast.basari(
+          this.t('servisSigorta.sigorta.odendiBildirim', {
+            tutar: paraBicimle(num(d.odeme?.tutar ?? null), d.odeme?.doviz ?? p.doviz),
+          }),
+        );
+        this.form.reset({ hesap: 'Kasa' });
+      },
+      settled: () => this.settled.emit(),
     });
-    this.payment.started(copy);
-    this.api
-      .post<PolicyDetail>(recordPath(`${REGULATION}/sigortalar`, p.id, '/odeme'), copy.body, {
-        islemAnahtari: copy.key,
-        context: istekBaglami({ mukerrerCagiranGosterir: true }),
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (d) => {
-          this.payment.succeeded();
-          this.toast.basari(
-            this.t('servisSigorta.sigorta.odendiBildirim', {
-              tutar: paraBicimle(num(d.odeme?.tutar ?? null), d.odeme?.doviz ?? p.doviz),
-            }),
-          );
-          this.form.reset({ hesap: 'Kasa' });
-          this.settled.emit();
-        },
-        error: (raw: unknown) => this.failed(copy, raw),
-      });
-  }
-
-  protected async abandon(): Promise<void> {
-    const yes = await this.confirm.sor({
-      baslik: this.t('servisSigorta.para.vazgecBaslik'),
-      mesaj: this.t('servisSigorta.para.vazgecMesaj'),
-    });
-    if (!yes) return;
-    this.payment.abandon();
-    this.settled.emit();
-  }
-
-  private failed(copy: FrozenRequest<PolicyPaymentRequest>, raw: unknown): void {
-    const error = apiHatasinaCevir(raw);
-    const outcome = this.payment.failed(copy, error);
-    switch (outcome.kind) {
-      case 'uncertain':
-        return;
-      case 'duplicate': {
-        const n = duplicateNotice(outcome.type, error, this.payment.lastSubmission, this.t);
-        if (n.tone === 'bilgi') this.toast.bilgi(n.message, { baslik: n.title });
-        else this.toast.uyari(n.message, { baslik: n.title });
-        this.settled.emit();
-        return;
-      }
-      case 'stale':
-        this.settled.emit();
-        return;
-      default: {
-        setLocked(this.form, false); // önce aç: sonra açmak alan hatalarını silerdi
-        const unmatched = sunucuHatalariniUygula(this.form, error.alanlar);
-        if (unmatched.length > 0) this.errors.set(unmatched);
-        else if (error.alanlar === undefined && !genelGosterilir(error))
-          this.errors.set([error.detay]);
-      }
-    }
   }
 }

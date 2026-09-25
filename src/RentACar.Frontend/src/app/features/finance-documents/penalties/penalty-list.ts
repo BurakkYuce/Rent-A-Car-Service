@@ -13,6 +13,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
+import { PendingMoneyAttempts } from '@core/form/money-attempts';
 import { apiHatasinaCevir } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import {
@@ -47,7 +48,6 @@ import {
 } from '../document-model';
 import { PENALTIES, PenaltyStore, recordPath } from '../document.store';
 import { PenaltyCreateForm } from './penalty-create-form';
-import { PendingDocumentAttempts } from '../document-submission';
 import { PenaltyPaymentForm, penaltyPaymentScope } from './penalty-payment-form';
 
 type PenaltyStatus = (typeof PENALTY_STATUSES)[number];
@@ -77,7 +77,7 @@ type PaymentStatus = (typeof PENALTY_PAYMENT_STATUSES)[number];
     TarihPipe,
     TarihSecici,
   ],
-  providers: [FetchPolicy, PenaltyStore, PendingDocumentAttempts],
+  providers: [FetchPolicy, PenaltyStore, PendingMoneyAttempts],
   templateUrl: './penalty-list.html',
   styleUrl: '../finance-documents.scss',
 })
@@ -86,7 +86,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
   private readonly api = inject(ApiIstemcisi);
   private readonly session = inject(OturumServisi);
   private readonly confirm = inject(OnayServisi);
-  protected readonly pending = inject(PendingDocumentAttempts);
+  protected readonly pending = inject(PendingMoneyAttempts);
   private readonly toast = inject(ToastServisi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = ceviriFonksiyonu();
@@ -162,7 +162,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
   }
 
   kaydedilmemisDegisiklikVar(): boolean {
-    return this.dirtyForms.size > 0 || this.pending.any() > 0;
+    return this.dirtyForms.size > 0 || this.pending.count() > 0;
   }
 
   protected dirtyChanged(form: string, dirty: boolean): void {

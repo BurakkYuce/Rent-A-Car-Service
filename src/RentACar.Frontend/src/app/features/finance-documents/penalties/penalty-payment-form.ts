@@ -13,7 +13,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { paraBicimle } from '@core/bicim/bicim';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
+import { moneySubmission } from '@core/form/money-submission';
 import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { toNumber } from '@features/vehicles/vehicle-model';
@@ -22,29 +22,29 @@ import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
+import { MoneyNoticeView } from '@shared/form/money-submit/money-notice';
+import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 
 import {
   ACCOUNT_KINDS,
   type AccountKind,
   type PenaltyDetail,
+  type PenaltyPaymentRequest,
   type PenaltyPaymentResult,
 } from '../document-model';
 import {
   type PenaltyPaymentForm as PaymentValue,
   penaltyPaymentRequest,
 } from '../document-requests';
-import { DocumentNotice } from '../document-notice';
-import { DocumentSubmission } from '../document-submission';
-import { DocumentSubmitBar } from '../document-submit-bar';
 import { PENALTIES, recordPath } from '../document.store';
 
-/** Ceza ödeme formunun donmuş deneme kapsamı (sayfa `PendingDocumentAttempts` anahtarı). */
+/** Ceza ödeme formunun donmuş deneme kapsamı (sayfa `PendingMoneyAttempts` anahtarı). */
 export const penaltyPaymentScope = (id: string) => `ceza-odeme:${id}`;
 
 /**
  * Ceza kalem ödemesi — PARA (`POST /cezalar/{id}/odeme`; Borç Gider / Alacak Kasa·Banka). Gönderim
- * {@link DocumentSubmission}: uçuşta kilit; belirsiz sonuçta gövde donar (ceza başına sayfada saklanır), tekrar yalnız
+ * çekirdek `MoneySubmission`: uçuşta kilit; belirsiz sonuçta gövde donar (ceza başına sayfada saklanır), tekrar yalnız
  * o gövdeyle; `mevcut`suz 409'da anahtar KORUNUR (r300 M3). Tutar boş → kalemin kalanının tamamı (SUNUCU). Kalem
  * değişince tutar TEMİZLENİR (eski kalemin tutarı yeni kaleme gitmesin). Bileşen ceza başına yeniden kurulur.
  */
@@ -55,8 +55,8 @@ export const penaltyPaymentScope = (id: string) => `ceza-odeme:${id}`;
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    DocumentNotice,
-    DocumentSubmitBar,
+    MoneyNoticeView,
+    MoneySubmitBar,
     MetinGirdisi,
     ParaGirdisi,
     Secim,
@@ -66,7 +66,6 @@ export const penaltyPaymentScope = (id: string) => `ceza-odeme:${id}`;
   styleUrl: '../finance-documents.scss',
 })
 export class PenaltyPaymentForm implements OnInit {
-  private readonly confirm = inject(OnayServisi);
   private readonly toast = inject(ToastServisi);
   private readonly t = ceviriFonksiyonu();
 
@@ -99,11 +98,9 @@ export class PenaltyPaymentForm implements OnInit {
     islemYapan: new FormControl<string | null>(null, Validators.maxLength(128)),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = new DocumentSubmission(
-    this.form,
-    () => penaltyPaymentScope(this.detail().ceza.id),
-    {},
-  );
+  protected readonly submission = moneySubmission<PenaltyPaymentRequest>({
+    scope: () => penaltyPaymentScope(this.detail().ceza.id),
+  });
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -116,38 +113,32 @@ export class PenaltyPaymentForm implements OnInit {
   }
 
   ngOnInit(): void {
-    this.submission.restore();
+    this.submission.restore(this.form);
   }
 
   protected submit(): void {
     const id = this.detail().ceza.id;
-    this.submission.submit<PenaltyPaymentResult>(
-      recordPath(PENALTIES, id, '/odeme'),
-      () => penaltyPaymentRequest(this.form.getRawValue() as PaymentValue),
-      {
-        succeeded: (r) => {
-          this.toast.basari(
-            this.t('finansBelge.ceza.odemeYazildi', {
-              tutar: paraBicimle(toNumber(r.tutar)),
-              kalan: paraBicimle(toNumber(r.cezaKalan)),
-            }),
-          );
-          this.reset();
-          this.paid.emit(r);
-        },
-        recorded: () => this.reset(),
-        reload: () => this.paid.emit(null),
+    void this.submission.run<PenaltyPaymentResult>({
+      form: this.form,
+      build: () => ({
+        path: recordPath(PENALTIES, id, '/odeme'),
+        body: penaltyPaymentRequest(this.form.getRawValue() as PaymentValue),
+      }),
+      success: (r) => {
+        this.toast.basari(
+          this.t('finansBelge.ceza.odemeYazildi', {
+            tutar: paraBicimle(toNumber(r.tutar)),
+            kalan: paraBicimle(toNumber(r.cezaKalan)),
+          }),
+        );
+        this.reset();
+        this.paid.emit(r);
       },
-    );
-  }
-
-  protected async abandon(): Promise<void> {
-    const yes = await this.confirm.sor({
-      baslik: this.t('finansBelge.vazgecBaslik'),
-      mesaj: this.t('finansBelge.vazgecMesaj'),
-      tehlikeli: true,
+      afterDuplicate: () => this.reset(),
+      settled: (reason) => {
+        if (reason !== 'done') this.paid.emit(null);
+      },
     });
-    if (yes) this.submission.abandon();
   }
 
   private reset(): void {

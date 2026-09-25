@@ -46,14 +46,15 @@
       <rc-metin-girdisi formControlName="aciklama" [azamiUzunluk]="512" />
     </rc-alan>
   </div>
-  <rc-fin-submit
-    [action]="action"
+  <rc-money-submit
+    [submission]="action"
+    ikon="cash"
     [label]="
       (kind() === 'tahsilat' ? 'finans.nakit.tahsilatYap' : 'finans.nakit.odemeYap') | transloco
     "
-    [ikincil]="kind() === 'odeme'"
+    [secondary]="kind() === 'odeme'"
     [disabled]="refreshing()"
     (send)="submit()"
-    (giveUp)="abandon()"
+    (abandoned)="settled.emit()"
   />
 </section>
