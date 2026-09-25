@@ -17,7 +17,8 @@ namespace RentACar.IntegrationTests;
 /// 50 araç-gün; 8 araç tam (40) + 1 araç 2 gün (42) dolu → %84. Kural eşik 80 / çarpan 15 →
 /// 1000 → 1150/gün (ResolveTierRate SONRASI, iskonto ÖNCESİ — %10 iskonto matrahı SURGE'LÜ bazdan:
 /// 5750 → 5175). Eşik altı (%90 kural) bayt-özdeş 1000. Rezervasyon-UPDATE reprice'ında surge
-/// ATLANIR (5750 → 5000; müşteriye verilen fiyat sıçramaz — bilinçli tek yön). DB CHECK pantolon
+/// ATLANIR (Karar (4) 2026-09-25: no-op düzenleme kilitli fiyatı korur; fiyat-etkileyen düzenleme
+/// surge'süz yeniden fiyatlanır — müşteriye verilen fiyata düzenleme anındaki doluluk zam bindiremez). DB CHECK pantolon
 /// askısı: SQL'le çarpan 70 yazılamaz (uygulama kemeri min(carpan,50) koda ek savunma).
 /// </summary>
 [Collection("postgres")]
@@ -130,10 +131,42 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         });
         Assert.Equal(5750m, (await rez.GetAsync(id))!.Tutar);
 
-        // Fiyat-etkileyen girdi (tarih) değişince YENİ koşullarla TAM reprice — surge dahil (meşru):
-        // 3 günlük pencere: dolu 8×3+2=26 / 30 → %86,67 ≥ 80 → 1150×3 = 3450 (elle).
+        // Fiyat-etkileyen girdi (tarih) değişince reprice — ama SURGE'SÜZ (Karar (4), 2026-09-25):
+        // 3 günlük pencere doluluğu 8×3+2=26 / 30 → %86,67 ≥ 80 olsa da çarpan uygulanmaz → 1000×3 = 3000 (elle).
         await rez.UpdateAsync(id, Girdi(3));
-        Assert.Equal(3450m, (await rez.GetAsync(id))!.Tutar);
+        Assert.Equal(3000m, (await rez.GetAsync(id))!.Tutar);
+    }
+
+    [Fact]
+    public async Task Rez_update_sonradan_eklenen_kurala_ragmen_surge_uygulamaz() // Karar (4)
+    {
+        using var host = new TestHost(fx.AppConnectionString);
+        using var scope = host.ScopeFor(Guid.NewGuid());
+        var sp = scope.ServiceProvider;
+        var bosArac = await SeedFiloAsync(sp);
+        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        { Tip = CariType.Bireysel, Ad = "Rez", Soyad = "K" });
+        var rez = sp.GetRequiredService<ReservationService>();
+
+        BookingInput Girdi(int gun) => new()
+        { MusteriId = m, VehicleId = bosArac, BasTar = Bas, BitTar = Bas.AddDays(gun), FiyatTuru = "Otomatik" };
+
+        // Kural YOKKEN açılan rezervasyon: 1000×5 = 5000 (elle).
+        var id = await rez.CreateAsync(Girdi(5));
+        Assert.Equal(5000m, (await rez.GetAsync(id))!.Tutar);
+
+        // Sonra uygulanabilir surge kuralı eklenir (eşik 80, +%15) — motor artık yeni teklifte surge'lü fiyat verir:
+        // 4 günlük pencere doluluğu 8×4+2=34 / 40 → %85 ≥ 80 → 1150/gün (elle).
+        await KuralAsync(sp, esik: 80, carpan: 15m);
+        var q = await sp.GetRequiredService<RentalQuoteEngine>()
+            .QuoteAsync(new QuoteRequest { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(4) });
+        Assert.Equal(1150m, q.GunlukUcret);
+
+        // Rezervasyon tarihi düzenlenir (aynı sınıf) → reprice surge'süz: 1000×4 = 4000 (elle), 4600 DEĞİL.
+        await rez.UpdateAsync(id, Girdi(4));
+        var r = (await rez.GetAsync(id))!;
+        Assert.Equal(4000m, r.Tutar);
+        Assert.Equal(1000m, r.GunlukUcret);
     }
 
     [Fact]
