@@ -458,6 +458,43 @@ describe('MoneySubmission — oturum bağlamı (r316 M1)', () => {
     expect(calls[1]?.options?.islemAnahtari).toBe('k-2');
   });
 
+  it('#320 M1: yalnız ŞUBE kapsamı değişirse donmuş deneme, kayıt ve anahtar KORUNUR (sunucu anahtarı şube içermez)', async () => {
+    const m = mount({ scope: () => 'sube' });
+    await m.run();
+    calls[0]?.reply.error(networkError());
+    session.set({ anahtar: 'firma|kullanici-a|s-2' });
+    TestBed.tick();
+    expect(m.submission.frozen()?.key).toBe('k-1');
+    expect(m.form.disabled).toBe(true);
+    expect(m.submission.notice()?.message).toBe('paraIslemi.sonucBilinmiyor');
+    expect(TestBed.inject(PendingMoneyAttempts).get('sube')?.key).toBe('k-1');
+    expect(TestBed.inject(PendingMoneyAttempts).count()).toBe(1);
+  });
+
+  it('#320 M1: şube istek UÇUŞTAYKEN değişirse yanıt yutulmaz, normal işlenir', async () => {
+    const m = mount({ scope: () => 'sube-ucus' });
+    await m.run();
+    session.set({ anahtar: 'firma|kullanici-a|s-2' });
+    TestBed.tick();
+    calls[0]?.reply.next({ id: 'v1' });
+    expect(m.hooks.success).toHaveBeenCalledTimes(1);
+    expect(m.submission.sending()).toBe(false);
+    expect(TestBed.inject(PendingMoneyAttempts).count()).toBe(0);
+    expect(m.submission.notice()).toBeNull();
+  });
+
+  it('#320 M1: KİMLİK istek uçuştayken değişirse "gönderilmedi" DENMEZ — sonucu bilinmiyor, hareketleri kontrol', async () => {
+    const m = mount({ scope: () => 'kimlik-ucus' });
+    await m.run();
+    session.set({ anahtar: 'firma|kullanici-b|*' });
+    TestBed.tick();
+    expect(m.submission.notice()?.message).toBe('paraIslemi.oturumDegistiUcusta');
+    calls[0]?.reply.error(networkError()); // yanıt kimlik değiştikten SONRA: bileşene dokunmaz
+    expect(m.submission.notice()?.message).toBe('paraIslemi.oturumDegistiUcusta');
+    expect(m.submission.frozen()).toBeNull();
+    expect(TestBed.inject(PendingMoneyAttempts).count()).toBe(0);
+  });
+
   it('aynı kullanıcı yeniden girişte (bağlam aynı) donmuş deneme KORUNUR', async () => {
     const m = mount({ scope: () => 's' });
     await m.run();
@@ -522,6 +559,26 @@ describe('MoneySubmission — tekrar öncesi oturum doğrulaması (r316 M-new, L
     expect(calls[1]?.options?.islemAnahtari).toBe('k-1');
     expect(calls[1]?.body).toEqual({ tutar: '300.00' });
     calls[1]?.reply.next({ id: 't1' });
+    expect(TestBed.inject(PendingMoneyAttempts).count()).toBe(0);
+  });
+
+  it('#320 M1 (P1): 401 → aynı kullanıcı ŞUBESİ değişmiş girer: TEK gönderim aynı anahtarla, yanıt işlenir, deneme düşmez', async () => {
+    const m = await freeze();
+    serverSession = () => throwError(() => problem(401, 'oturum_yok'));
+    reloginAnswer = async () => {
+      reloginCalls++;
+      session.set({ anahtar: 'firma|kullanici-a|s-9' });
+      return true;
+    };
+    await m.run();
+    TestBed.tick(); // bağlam effect'i: şube değişti, kimlik aynı → hiçbir şey düşmez
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.options?.islemAnahtari).toBe('k-1');
+    expect(m.submission.sending()).toBe(true);
+    expect(TestBed.inject(PendingMoneyAttempts).get('cari-virman')?.key).toBe('k-1');
+    expect(m.submission.notice()?.message).not.toBe('paraIslemi.oturumDegisti');
+    calls[1]?.reply.next({ id: 'cv-2' });
+    expect(m.hooks.success).toHaveBeenCalledTimes(1);
     expect(TestBed.inject(PendingMoneyAttempts).count()).toBe(0);
   });
 

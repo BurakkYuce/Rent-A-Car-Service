@@ -11,6 +11,11 @@ import {
 } from '@angular/core';
 
 import type { ApiYolu } from '@core/api/api-istemcisi';
+import {
+  contextOfSession,
+  identityOfContext,
+  identityOfSession,
+} from '@core/oturum/oturum-baglami';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 
 import type { MoneyContent, MoneyNotice } from './money-notice';
@@ -32,8 +37,9 @@ export interface MoneyAttempt<TBody = unknown> {
   /** Bileşen geri gelince gösterilecek not. */
   readonly notice: MoneyNotice;
   /**
-   * Gönderim anındaki oturum bağlamı (kiracı|kullanıcı|şube). Kayıt yalnız AYNI bağlamda okunur: çıkış ya da başka
-   * kullanıcıyla giriş sonrası önceki kullanıcının kilitli formu, cari adı ve tutarı geri gelmez (r316 M1).
+   * Gönderim anındaki oturum kimliği (kiracı|kullanıcı; şube hariç — {@link sessionContext}). Kayıt yalnız AYNI kimlikte
+   * okunur: çıkış ya da başka kullanıcıyla giriş sonrası önceki kullanıcının kilitli formu, cari adı ve tutarı geri
+   * gelmez (r316 M1); şube kapsamı değişimi denemeyi düşürmez (#320 M1).
    */
   readonly context: string | null;
 }
@@ -42,11 +48,7 @@ export interface MoneyAttempt<TBody = unknown> {
  * Bağlam anahtarı ve kimlik — TEK kaynak `@core/oturum/oturum-baglami` (`OturumServisi.baglam` de onu kullanır).
  * Burada yalnız yeniden dışa aktarılır; kendi biçimini tanımlamaz.
  */
-export {
-  contextOfSession,
-  identityOfContext,
-  identityOfSession,
-} from '@core/oturum/oturum-baglami';
+export { contextOfSession, identityOfContext, identityOfSession };
 
 /**
  * Sekmeler arası oturum bağlamı kanalı (aynı köken). Bir sekmede çıkış ya da başka kullanıcı girişi olunca öteki
@@ -58,9 +60,16 @@ export const MONEY_SESSION_CHANNEL = new InjectionToken<string | null>('MONEY_SE
   factory: () => 'rc-oturum-baglami',
 });
 
-/** Oturum bağlamının anahtarı; oturum yoksa `null` (test sahtelerinde `baglam` olmayabilir). */
+/**
+ * Para denemelerinin bağlı olduğu oturum KİMLİĞİ (kiracı|kullanıcı; şube HARİÇ); oturum yoksa `null` (test sahtelerinde
+ * `baglam` olmayabilir). #320 M1: sunucunun idempotency anahtarı şube içermez — şube kapsamı değişen aynı kullanıcının
+ * denemesi AYNI işlemdir. Şube değişimi denemeyi düşürseydi uçan tekrarın yanıtı yutulur, form temizlenir ve kullanıcı
+ * tutarı yeniden girip ikinci işlemi yazardı. Kayıt, temizleme, bayat yanıt ve sekmeler arası karşılaştırmaların HEPSİ
+ * bunu kullanır; anahtarın biçimi tek kaynaktan (`contextOfSession` → `identityOfContext`).
+ */
 export function sessionContext(session: OturumServisi | null): string | null {
-  return session?.baglam?.()?.anahtar ?? null;
+  const key = session?.baglam?.()?.anahtar;
+  return key == null ? null : identityOfContext(key);
 }
 
 /**
@@ -89,7 +98,7 @@ export class PendingMoneyAttempts {
 
   constructor() {
     this.session?.temizlikKaydet(() => this.attempts.set(new Map()));
-    // Bağlam değişince (çıkış, başka kullanıcı/şube) önceki bağlamın denemeleri düşer.
+    // Kimlik değişince (çıkış, başka kullanıcı/kiracı) önceki kimliğin denemeleri düşer; şube değişimi düşürmez.
     let last = sessionContext(this.session);
     effect(() => {
       const current = sessionContext(this.session);

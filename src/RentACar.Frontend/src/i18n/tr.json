@@ -263,6 +263,7 @@
     "tutarAcikcaGir": "Önceki işlem kaydedildi. Yeni bir ödeme ancak tutar AÇIKÇA girilerek yapılabilir (boş tutar kalanın tamamını öder).",
     "kayitZatenIslenmis": "Kayıt zaten işlenmiş",
     "oturumDegisti": "Oturum başka bir kullanıcıya geçti ya da kapandı. Önceki kullanıcının sonucu bilinmeyen işlemi bu ekrandan GÖNDERİLMEDİ ve form temizlendi; o işlemin durumunu hareketlerden kontrol edin.",
+    "oturumDegistiUcusta": "Oturum başka bir kullanıcıya geçti ya da kapandı; bu sırada gönderilmiş olan işlemin sonucu bilinmiyor (yazılmış olabilir). Form temizlendi. Yeniden girmeden önce işlemin durumunu hareketlerden kontrol edin.",
     "oturumDogrulanamadi": "Oturum doğrulanamadığı için işlem tekrar gönderilmedi (bağlantı ya da sunucu hatası). Bağlantıyı kontrol edip yeniden deneyin; işlem ve anahtarı korunuyor.",
     "yenidenGirisGerekli": "Oturumunuz kapanmış; işlem tekrar gönderilmedi. Aynı kullanıcıyla yeniden giriş yapıp tekrar gönderin — işlem ve anahtarı korunuyor, ikinci kez yazılmaz."
   }

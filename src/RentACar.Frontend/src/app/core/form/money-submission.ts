@@ -107,6 +107,8 @@ let instanceCounter = 0;
 
 /** Oturum başka kullanıcıya geçti (ya da kapandı): önceki kullanıcının denemesi bırakıldı, GÖNDERİLMEDİ. */
 const SESSION_CHANGED_NOTICE = customNotice('paraIslemi.oturumDegisti');
+/** Kimlik, istek UÇUŞTAYKEN değişti: işlem gönderildi ama sonucu bilinmiyor (yazılmış olabilir) — hareketleri kontrol. */
+const SESSION_CHANGED_IN_FLIGHT_NOTICE = customNotice('paraIslemi.oturumDegistiUcusta');
 /** Tekrar öncesi oturum doğrulanamadı (ağ/sunucu): gönderilmedi, donmuş deneme duruyor. */
 const SESSION_UNVERIFIED_NOTICE = customNotice('paraIslemi.oturumDogrulanamadi');
 /** Tekrar öncesi oturum kapanmıştı ve yeniden girişten vazgeçildi: gönderilmedi, donmuş deneme (anahtarıyla) duruyor. */
@@ -174,8 +176,9 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
       // Geri getirilemeyen kapsam: kesinleşmemiş deneme kayıtta asılı kalmasın (uçuştaysa yanıt temizler).
       if (!this.restorable && !this.sendingState()) this.attempts.delete(this.scope());
     });
-    // r316 M1: oturum bağlamı değişince (çıkış, yeniden girişte başka kullanıcı/şube) önceki kullanıcının donmuş
-    // denemesi, notu ve form içeriği bu bileşende de kalmaz; anahtar bırakılır.
+    // r316 M1: oturum KİMLİĞİ değişince (çıkış, yeniden girişte başka kullanıcı/kiracı) önceki kullanıcının donmuş
+    // denemesi, notu ve form içeriği bu bileşende de kalmaz; anahtar bırakılır. #320 M1: yalnız şube kapsamı değişirse
+    // HİÇBİR şey olmaz — `sessionContext` şube içermez (sunucu anahtarı da içermez; aynı işlem).
     let last = sessionContext(this.session);
     effect(() => {
       const current = sessionContext(this.session);
@@ -417,7 +420,8 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
       form.patchValue(attempt.formValue, { emitEvent: false });
   }
 
-  /** Yanıt, gönderildiği oturum bağlamı artık geçerli değilken geldi: bileşene dokunulmaz (yalnız uçuş biter). */
+  /** Yanıt, gönderildiği oturum KİMLİĞİ artık geçerli değilken geldi: bileşene dokunulmaz (yalnız uçuş biter). Yalnız
+   * şube değiştiyse kimlik aynıdır ve yanıt normal işlenir (#320 M1). */
   private staleContext(attempt: MoneyAttempt<TBody>): boolean {
     if (attempt.context === sessionContext(this.session)) return false;
     this.sendingState.set(false);
@@ -430,9 +434,12 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
    */
   private contextChanged(): void {
     const form = this.lockedForm ?? this.lastForm;
-    const hadAttempt = this.frozenState() !== null || this.sendingState();
+    // #320 M1: istek UÇUŞTAYKEN "gönderilmedi" denemez — gitti, sonucu bilinmiyor (yazılmış olabilir).
+    const inFlight = this.sendingState();
+    const hadAttempt = this.frozenState() !== null || inFlight;
     this.frozenState.set(null);
-    if (this.noticeState() !== SESSION_CHANGED_NOTICE)
+    if (inFlight) this.noticeState.set(SESSION_CHANGED_IN_FLIGHT_NOTICE);
+    else if (this.noticeState() !== SESSION_CHANGED_NOTICE)
       this.noticeState.set(hadAttempt ? SESSION_CHANGED_NOTICE : null);
     this.errorsState.set([]);
     this.amountRequiredState.set(false);
@@ -492,7 +499,8 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
       return false;
     }
     const entered = await this.relogin.iste();
-    // Diyalog açıkken bağlam değişip deneme zaten bırakıldıysa (başka kullanıcı/şube) gönderim yok.
+    // Diyalog açıkken kimlik değişip deneme zaten bırakıldıysa (başka kullanıcı/kiracı) gönderim yok. Yalnız şube
+    // değiştiyse deneme durur ve aynı anahtarla gider (#320 M1).
     if (this.destroyed || this.frozenState()?.key !== attempt.key) return false;
     const ben = this.session.ben();
     if (ben !== null && !this.sameIdentity(ben, attempt)) {
