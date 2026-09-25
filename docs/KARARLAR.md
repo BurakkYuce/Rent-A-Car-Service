@@ -199,6 +199,22 @@ bir para hatası kaynağıdır, zorunlu adversarial ister.
 
 ---
 
+## Denetim izinde firma IBAN/VKN kısmi maskesi (2026-09-25, #319 L2)
+
+**Karar (kullanıcı):** Denetim izinde (AuditLogs + `/api/ui/v1/denetim` + Blazor denetim ekranı) FİRMANIN KENDİ
+banka IBAN'ı (`Hesaplar.Iban`) ve VKN'si (`Ayarlar.FirmaVergiNo`) **son 4 karakteri görünür** yazılır:
+`********1234` (boşluklar atılır; önek SABİT 8 yıldız — uzunluk bilgi taşımaz, biçim yeniden maskelemede aynı kalır).
+Boşluksuz 8 karakterden kısa değer TAM maske (`***`). Gerekçe: IBAN değişikliği (ödeme yönlendirme dolandırıcılığı)
+izde fark edilebilmeli; tamamen `***` iken eski/yeni ayırt edilemiyordu.
+
+**Kapsam dışı (TAM maske sürer):** müşteri/personel PII (TC, VKN, `BankaIban`, ehliyet, pasaport, nüfus cüzdanı,
+maaş), sırlar (`*Enc`/`*Hash`/`*Token`, parola, API anahtarı), iç içe nesnelerdeki anahtarlar ve tablo adı bilinmeyen
+çağrılar. İzin listesi `AuditSecretMask.PartialMaskFields`'ta (tablo + TAM anahtar çifti) — yeni alan eklemek
+kullanıcı kararıdır. Bilinen sınır: şahıs firmasında VKN = TCKN olabilir; o durumda TCKN'nin son 4 hanesi görünür
+(kullanıcı aynı kuralı VKN'ye bilerek uyguladı).
+
+---
+
 ## Karar GEREKMEYEN / kendiliğinden çözülenler
 
 - **FAZ-13, FAZ-15, FAZ-41, FAZ-18, FAZ-82:** genel politika (yeni tutar alanları deftere yazmaz)

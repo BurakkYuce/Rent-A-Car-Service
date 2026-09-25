@@ -381,8 +381,8 @@ Etiketsiz madde açıktır.
   (#320 L1; satış formundaki `rejected` kancasının genel hali). Tekrar öncesi doğrulama ile POST arasında
   milisaniyelik TOCTOU (#320 L2; kalıcı çözüm sunucuda beklenen kullanıcı başlığı). Sekmeler arası aynı kullanıcının
   şube değişimi `ben`'i yenilemiyor (görünüm, para riski yok).
-- Backend: firmanın kendi IBAN/VKN'si denetimde tamamen `***` — IBAN değişikliği dolandırıcılık izi için kısmi maske
-  (son 4 hane) ya da KARARLAR kaydı (#319 L2). ~~Personel seçim listesi şubeye göre süzülmüyor~~ KAPALI
+- ~~Backend: firmanın kendi IBAN/VKN'si denetimde tamamen `***`~~ KAPALI (2026-09-25, kullanıcı kararı): firma
+  IBAN'ı/VKN'si denetimde `********1234` (son 4), kural `AuditSecretMask` izin listesinde; bkz. KARARLAR (#319 L2). ~~Personel seçim listesi şubeye göre süzülmüyor~~ KAPALI
   (doğrulandı 2026-09-25): `/secim/personel` `SecimService.PersonelAsync`'te `BranchScope.InScope` ile süzülür. Kira paneli: Nakit sonuçlanınca kirli Kart formu yeni anahtarla
   İKİNCİ tahsilat olarak yazılıyor (#318 L2 tasarımı; isteğe bağlı "diğer formun tahsilatı yazıldı" notu).
 - Kullanıcı kararı bekleyen: şube kapsamlı operatör kirasız assistans talebi açamıyor (#317 L1 yan etkisi).
