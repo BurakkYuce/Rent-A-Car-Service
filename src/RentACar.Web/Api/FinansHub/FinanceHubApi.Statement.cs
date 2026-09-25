@@ -14,9 +14,9 @@ namespace RentACar.Web.Api.FinansHub;
 /// <summary>Cari ekstre (Blazor <c>/cariler/{id}/ekstre</c>) ve tek cari açık borç kalemleri (<c>/tek-cari-toplu</c>).</summary>
 public static partial class FinanceHubApi
 {
-    private static void MapStatement(RouteGroupBuilder write, RouteGroupBuilder anyRead)
+    private static void MapStatement(RouteGroupBuilder write, RouteGroupBuilder financeRead)
     {
-        anyRead.MapGet("/cariler/{cariId:guid}/ekstre", GetStatement);
+        financeRead.MapGet("/cariler/{cariId:guid}/ekstre", GetStatement);
         write.MapGet("/cariler/{cariId:guid}/acik-kalemler", GetOpenItems);
         write.MapPost("/cariler/{cariId:guid}/toplu-kapat", PostCloseItems)
             .Produces<Api.UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");

@@ -5684,6 +5684,73 @@
         }
       }
     },
+    "/api/ui/v1/finans/kurlar": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatesScreen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ui/v1/finans/kurlar/cevir": {
+      "get": {
+        "tags": [
+          "Finans Hub"
+        ],
+        "parameters": [
+          {
+            "name": "tutar",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          },
+          {
+            "name": "kaynak",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hedef",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ui/v1/finans/cariler/{cariId}/ekstre": {
       "get": {
         "tags": [
@@ -5751,73 +5818,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CustomerStatement"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/ui/v1/finans/kurlar": {
-      "get": {
-        "tags": [
-          "Finans Hub"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RatesScreen"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/ui/v1/finans/kurlar/cevir": {
-      "get": {
-        "tags": [
-          "Finans Hub"
-        ],
-        "parameters": [
-          {
-            "name": "tutar",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
-              "type": [
-                "number",
-                "string"
-              ],
-              "format": "double"
-            }
-          },
-          {
-            "name": "kaynak",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "hedef",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConversionResult"
                 }
               }
             }
