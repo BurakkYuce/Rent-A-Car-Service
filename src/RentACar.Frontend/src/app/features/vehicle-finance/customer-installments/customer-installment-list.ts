@@ -46,7 +46,6 @@ import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
@@ -68,6 +67,9 @@ import {
   installmentToForm,
   planRequest,
 } from './installment-form-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id: string };
 
@@ -81,13 +83,15 @@ type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id
   selector: 'rc-customer-installment-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
     AramaSecim,
     FormHatalari,
-    Ikon,
     MetinGirdisi,
     OnayKutusu,
     ParaGirdisi,

@@ -1,12 +1,5 @@
-// F6.2b araç finans ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz tablo)
-// aynen kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
-@use '../vehicles/vehicles';
-
-.sonraki {
-  margin: 0;
-  font-weight: var(--rc-agirlik-kalin);
-  font-variant-numeric: tabular-nums;
-}
+// F6.2b araç finans ekranları (Yol v2): sayfa iskeleti, bölüm, düz tablo ve filtre paneli GLOBAL düzen katmanından
+// (`_duzen.scss`, `rc-filtre-paneli`) gelir; burada yalnız bu ekranlara özgü birkaç kural kalır.
 
 .not {
   margin: 0;
@@ -14,14 +7,61 @@
   font-size: var(--rc-yazi-xs);
 }
 
-.satir-form {
-  > * {
-    min-width: 0;
+.sonraki {
+  margin: 0;
+  font-weight: var(--rc-agirlik-kalin);
+  font-variant-numeric: tabular-nums;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+}
+
+// Özet kartları (`dl.rc-izgara-4.ozet > div.rc-kart`): para toplamları — durum rengi yok.
+.ozet {
+  margin: 0;
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--rc-yazi-xl);
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
   }
 }
 
-.toplam-satiri td {
-  font-weight: var(--rc-agirlik-kalin);
+.kunye {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2) var(--rc-bosluk-4);
+  margin: 0;
+
+  > div {
+    display: flex;
+    gap: var(--rc-bosluk-1);
+    align-items: baseline;
+  }
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.liste-tablosu {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
 }
 
 .duzenleyici {

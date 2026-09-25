@@ -1,26 +1,24 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'aracFinans.kredi.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      @if (canCreate()) {
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-          [attr.aria-expanded]="createOpen()"
-          aria-controls="rc-yeni-kredi"
-          (click)="toggleCreate()"
-        >
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'aracFinans.kredi.yeni' | transloco }}
-        </button>
-      }
-    </div>
-  </header>
-  <p class="aciklama">{{ 'aracFinans.kredi.aciklama1' | transloco }}</p>
-  <p class="aciklama">{{ 'aracFinans.kredi.aciklama2' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'aracFinans.kredi.baslik' | transloco" ikon="cash">
+  @if (canCreate()) {
+    <button
+      birincil
+      type="button"
+      class="rc-dugme rc-dugme--birincil"
+      [attr.aria-expanded]="createOpen()"
+      aria-controls="rc-yeni-kredi"
+      (click)="toggleCreate()"
+    >
+      <rc-ikon ad="plus" [boyut]="14" />
+      {{ 'aracFinans.kredi.yeni' | transloco }}
+    </button>
+  }
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'aracFinans.kredi.aciklama1' | transloco }}</p>
+  <p class="not">{{ 'aracFinans.kredi.aciklama2' | transloco }}</p>
 
   @if (createOpen() && canCreate()) {
-    <section id="rc-yeni-kredi" class="bolum" aria-labelledby="rc-yeni-kredi-baslik">
+    <section id="rc-yeni-kredi" class="rc-bolum" aria-labelledby="rc-yeni-kredi-baslik">
       <h2 id="rc-yeni-kredi-baslik">{{ 'aracFinans.kredi.yeni' | transloco }}</h2>
       <form class="form" [formGroup]="form" (ngSubmit)="create()">
         <div class="rc-form-izgara">
@@ -62,7 +60,7 @@
           </rc-alan>
         </div>
         <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -79,68 +77,56 @@
     </section>
   }
 
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'aracFinans.filtre' | transloco"
-    (ngSubmit)="filter()"
+    [etkinSayisi]="query.etkinFiltreSayisi()"
+    depoAnahtari="rc.filtre.arac-kredi"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan [etiket]="'aracFinans.kredi.cari' | transloco">
-        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.plaka' | transloco">
-        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="20" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.kredi.dosyaNo' | transloco">
-        <rc-metin-girdisi formControlName="dosyaNo" [azamiUzunluk]="64" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.durum' | transloco">
-        <rc-secim
-          formControlName="durum"
-          [secenekler]="statusOptions"
-          [bosEtiket]="'aracFinans.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.kredi.baslangicMin' | transloco">
-        <rc-tarih-secici formControlName="bas" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.kredi.baslangicMax' | transloco">
-        <rc-tarih-secici formControlName="bit" />
-      </rc-alan>
-    </div>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'aracFinans.filtrele' | transloco }}
-      </button>
-      @if (query.etkinFiltreSayisi() > 0) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-          {{ 'aracFinans.temizle' | transloco }}
-        </button>
-      }
-    </div>
-  </form>
+    <rc-alan [etiket]="'aracFinans.kredi.cari' | transloco">
+      <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.plaka' | transloco">
+      <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="20" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.kredi.dosyaNo' | transloco">
+      <rc-metin-girdisi formControlName="dosyaNo" [azamiUzunluk]="64" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.durum' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'aracFinans.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.kredi.baslangicMin' | transloco">
+      <rc-tarih-secici formControlName="bas" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.kredi.baslangicMax' | transloco">
+      <rc-tarih-secici formControlName="bit" />
+    </rc-alan>
+  </rc-filtre-paneli>
 
   @if (store.board.veri(); as b) {
-    <dl class="ozet-serit" [attr.aria-label]="'aracFinans.kredi.ozet' | transloco">
-      <div>
+    <dl class="rc-izgara-4 ozet" [attr.aria-label]="'aracFinans.kredi.ozet' | transloco">
+      <div class="rc-kart">
         <dt>{{ 'aracFinans.kredi.toplamFaiz' | transloco }}</dt>
         <dd>{{ num(b.toplamFaiz) | para }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'aracFinans.kredi.sonVadeGunu' | transloco }}</dt>
         <dd>{{ b.sonVadeGunu ? (b.sonVadeGunu | tarih) : '—' }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'aracFinans.kredi.sonTaksitTutari' | transloco }}</dt>
         <dd>{{ num(b.sonTaksitTutari) | para }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'aracFinans.kredi.buAyToplam' | transloco }}</dt>
         <dd>{{ num(b.buAyToplamTaksit) | para }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'aracFinans.kredi.toplamBorc' | transloco }}</dt>
         <dd>{{ num(b.toplamKrediBorcu) | para }}</dd>
       </div>
@@ -148,7 +134,7 @@
   }
 
   @if (canCancel()) {
-    <div class="filtre__eylemler">
+    <div class="rc-form-eylemler">
       <button
         type="button"
         class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
@@ -162,7 +148,7 @@
   }
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="arac-kredi.liste"
     [etiket]="'aracFinans.kredi.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -179,7 +165,14 @@
     (satirAc)="openRow($event)"
   >
     <ng-template rcTabloHucre="no" [rcTabloHucreSutunlar]="columns" let-satir>
-      <a class="bag" [routerLink]="['/arac-kredi', satir.id]">{{ satir.no }}</a>
+      <a [routerLink]="['/arac-kredi', satir.id]">{{ satir.no }}</a>
+    </ng-template>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka [plaka]="satir.plaka" boyut="sm" />
+      } @else {
+        —
+      }
     </ng-template>
     <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="rc-rozet" [class.rc-rozet--basari]="satir.durum === 'Aktif'">{{
@@ -187,7 +180,7 @@
       }}</span>
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         <a [routerLink]="['/arac-kredi', satir.id]">{{ 'aracFinans.kredi.detay' | transloco }}</a>
         @if (satir.durum === 'Aktif' && canPay()) {
           <a [routerLink]="['/arac-kredi', satir.id]" fragment="odeme">{{

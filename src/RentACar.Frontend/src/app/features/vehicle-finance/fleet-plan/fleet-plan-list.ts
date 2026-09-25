@@ -53,6 +53,7 @@ import {
   fleetPlanToForm,
   fleetPlanTotals,
 } from './fleet-plan-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id: string };
 
@@ -66,6 +67,7 @@ type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id
   selector: 'rc-fleet-plan-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

@@ -55,7 +55,7 @@ import {
     TarihSaatSecici,
   ],
   template: `
-    <section class="bolum" [attr.aria-labelledby]="headingId">
+    <section class="rc-bolum" [attr.aria-labelledby]="headingId">
       <h2 [id]="headingId">
         {{ 'aracFinans.baf.teslimBaslik' | transloco: { no: row().no, plaka: row().plaka } }}
       </h2>
@@ -85,7 +85,7 @@ import {
           </rc-alan>
         </div>
         <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
