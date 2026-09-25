@@ -13,8 +13,11 @@ import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSaatSecici } from '@shared/form/tarih/tarih-saat-secici';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
-/** Rezervasyon ve teklif formlarının ortak içe aktarımları (form seti + biçim pipe'ları). */
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
+
+/** Rezervasyon ve teklif formlarının ortak içe aktarımları (form seti + biçim pipe'ları + sayfa bandı, plaka). */
 export const RF_ORTAK = [
   ReactiveFormsModule,
   TranslocoPipe,
@@ -24,6 +27,8 @@ export const RF_ORTAK = [
   AramaSecim,
   FormHatalari,
   Ikon,
+  PlateChipComponent,
+  SayfaBandi,
   MetinAlani,
   MetinGirdisi,
   ParaGirdisi,

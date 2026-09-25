@@ -25,7 +25,7 @@
     "kiralaBasligi": "Bu araçla yeni kira",
     "kiralaEtiketi": "— bu araçla yeni kira",
     "aracYok": "Araç yok.",
-    "not": "Sarı = rezervasyon (Rezerv/Onaylı), mavi = aktif kira. Kira önceliklidir. Operatör yalnız atanmış şubesini görür.",
+    "not": "Lacivert = rezervasyon (Rezerv/Onaylı), yeşil = aktif kira. Kira önceliklidir. Operatör yalnız atanmış şubesini görür.",
     "hucreBasligi": "{{ plaka }} — {{ tur }}"
   },
   "musaitlikSayfasi": {
@@ -54,6 +54,7 @@
     "brokerNotu": "{{ sayi }} araç, seçili kaynak ({{ kaynak }}) için tanımlı broker satış yasağı nedeniyle listelenmedi ({{ gerekce }}).",
     "tabloEtiketi": "Müsait araçlar",
     "kirala": "Kirala",
+    "bosBaslik": "Henüz arama yapılmadı",
     "baslangic": "Aramak için başlangıç tarihi ile bitiş tarihini ya da gün sayısını girin.",
     "var": "Var",
     "temiz": "Temiz",

@@ -25,10 +25,12 @@ import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
 import { KatlanirFiltre } from '@shared/katlanir-filtre/katlanir-filtre';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { RezervasyonIslemleri } from '../rezervasyon-islemleri';
 import {
   REZERVASYON_DURUMLARI,
@@ -54,6 +56,8 @@ import { rezervasyonSutunlari } from './rezervasyon-sutunlari';
   selector: 'rc-rezervasyon-listesi',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

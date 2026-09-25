@@ -41,7 +41,7 @@ export function rezervasyonSutunlari(t: Ceviri): readonly TabloSutunu<Rezervasyo
       genislik: 180,
     },
     { kod: 'cepTel', baslik: s('cepTel'), deger: (r) => r.cepTel, genislik: 120 },
-    { kod: 'plaka', baslik: s('plaka'), deger: (r) => r.plaka, sirala: true, genislik: 100 },
+    { kod: 'plaka', baslik: s('plaka'), deger: (r) => r.plaka, sirala: true, genislik: 124 },
     {
       kod: 'basTar',
       baslik: s('basTar'),

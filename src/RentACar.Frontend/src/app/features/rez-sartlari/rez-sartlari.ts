@@ -44,6 +44,7 @@ import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
 import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
 
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 import {
   REZ_SART_DURUMLARI,
   REZ_SART_LISTESI,
@@ -76,6 +77,7 @@ type Duzenleme = { readonly tur: 'yeni' } | { readonly tur: 'kayit'; readonly id
   selector: 'rc-rez-sartlari',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,

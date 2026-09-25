@@ -1,17 +1,15 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'rezSartlari.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <button type="button" class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" (click)="yeni()">
-        <rc-ikon ad="plus" [boyut]="14" />
-        {{ 'rezSartlari.yeni' | transloco }}
-      </button>
-    </div>
-  </header>
-  <p class="aciklama">{{ 'rezSartlari.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'rezSartlari.baslik' | transloco" ikon="file-text">
+  <button birincil type="button" class="rc-dugme rc-dugme--birincil" (click)="yeni()">
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'rezSartlari.yeni' | transloco }}
+  </button>
+</rc-sayfa-bandi>
+
+<div class="rc-sayfa">
+  <p class="sayfa-notu">{{ 'rezSartlari.aciklama' | transloco }}</p>
 
   @if (duzenleme(); as d) {
-    <section class="duzenleyici" aria-labelledby="rez-sart-duzenleyici">
+    <section class="rc-bolum duzenleyici" aria-labelledby="rez-sart-duzenleyici">
       <h2 id="rez-sart-duzenleyici" tabindex="-1">
         {{
           (d.tur === 'yeni' ? 'rezSartlari.yeniBaslik' : 'rezSartlari.duzenleBaslik') | transloco
@@ -83,7 +81,7 @@
   }
 
   <form
-    class="filtre"
+    class="rc-kart filtre"
     [formGroup]="filtreFormu"
     [attr.aria-label]="'rezSartlari.filtre.baslik' | transloco"
     (ngSubmit)="filtrele()"
@@ -126,7 +124,7 @@
   <p class="ozet" aria-live="polite">{{ ozet() }}</p>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="rez-sartlari.liste"
     [etiket]="'rezSartlari.tabloEtiketi' | transloco"
     [sutunlar]="sutunlar"
@@ -149,7 +147,7 @@
     </ng-template>
 
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="sutunlar" let-satir>
-      <span class="islemler">
+      <span class="satir-islemleri">
         @if (satir.karsilandi) {
           <button
             type="button"

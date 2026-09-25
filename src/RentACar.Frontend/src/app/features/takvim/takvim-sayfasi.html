@@ -1,8 +1,6 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'takvimSayfasi.baslik' | transloco }}</h1>
-  </header>
+<rc-sayfa-bandi [baslik]="'takvimSayfasi.baslik' | transloco" ikon="calendar" />
 
+<div class="rc-sayfa">
   <nav class="ay-gezinme" [attr.aria-label]="'takvimSayfasi.ayGezinme' | transloco">
     <button
       type="button"
@@ -24,7 +22,7 @@
   </nav>
 
   <form
-    class="filtre"
+    class="rc-kart filtre"
     [formGroup]="filtreFormu"
     [attr.aria-label]="'takvimSayfasi.filtre.baslik' | transloco"
     (ngSubmit)="filtrele()"
@@ -108,7 +106,7 @@
         [attr.aria-label]="'takvimSayfasi.izgara' | transloco: { ay: ayEtiketi() }"
         [attr.aria-busy]="store.izgara.yukleniyor()"
       >
-        <table class="izgara">
+        <table class="rc-duz-tablo izgara">
           <thead>
             <tr>
               <th scope="col" class="arac">{{ 'takvimSayfasi.arac' | transloco }}</th>
@@ -126,8 +124,7 @@
                     routerLink="/kiralar/yeni"
                     [queryParams]="kiralaSorgusu(a)"
                     [title]="'takvimSayfasi.kiralaBasligi' | transloco"
-                    >{{ a.plaka
-                    }}<span class="rc-gorunmez">
+                    ><rc-plaka [plaka]="a.plaka" boyut="sm" /><span class="rc-gorunmez">
                       {{ 'takvimSayfasi.kiralaEtiketi' | transloco }}</span
                     ></a
                   >
@@ -147,7 +144,7 @@
             } @empty {
               @if (store.izgara.tur() === 'hazir') {
                 <tr>
-                  <td class="bos" [attr.colspan]="gunler().length + 1">
+                  <td class="rc-bos bos-hucre" [attr.colspan]="gunler().length + 1">
                     {{ 'takvimSayfasi.aracYok' | transloco }}
                   </td>
                 </tr>
