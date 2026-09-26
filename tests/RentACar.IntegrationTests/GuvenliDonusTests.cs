@@ -377,15 +377,16 @@ public sealed class GuvenliDonusTests
         Assert.DoesNotContain("Redirect(PermissionRedirect.LoginTarget(ctx.Request.Path))", program, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// F13.1a: Blazor giriş sayfası (<c>Login.razor</c>, gizli dönüş alanı) silindi. <c>GET /login</c> tek girişe
+    /// (<c>/app/giris</c>) gider ve dönüş adresini YALNIZ <see cref="PermissionRedirect.SafeReturn"/>'ten geçmiş haliyle
+    /// taşır (<c>Cutover.LoginRedirect</c>; davranış <c>IlkKesisTests.Oturumsuz_login_SPA_girisine</c>'de kilitli).
+    /// </summary>
     [Fact]
-    public void Login_sayfasi_donusu_gizli_alanda_ve_suzulmus_tasir()
+    public void Login_donusu_yalniz_suzulmus_haliyle_tasinir()
     {
-        var page = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Components/Pages/Login.razor"));
-
-        Assert.Contains("type=\"hidden\" name=\"@RentACar.Web.Identity.PermissionRedirect.ReturnParameter\"",
-            page, StringComparison.Ordinal);
-        // Ham ReturnUrl sayfaya basılmaz; yalnız GuvenliDonus'tan geçmiş hali.
-        Assert.Contains("PermissionRedirect.SafeReturn(ReturnUrl)", page, StringComparison.Ordinal);
-        Assert.DoesNotContain("value=\"@ReturnUrl\"", page, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(RepoRoot(), "src/RentACar.Web/Components/Pages/Login.razor")));
+        var cutover = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Spa/Cutover.cs"));
+        Assert.Contains("PermissionRedirect.SafeReturn(raw.ToString())", cutover, StringComparison.Ordinal);
     }
 }

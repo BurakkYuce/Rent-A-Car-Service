@@ -308,30 +308,6 @@ public sealed class OnayVeGonderimKilidiTests
         Assert.Equal(expected, CanCarryConfirm(found[0].Ad, found[0].Ozellikler));
     }
 
-    [Fact]
-    public void Data_confirm_yalniz_form_ya_da_gonder_butonunda_durur()
-    {
-        var root = RepoRoot();
-        var razors = Directory.EnumerateFiles(
-            Path.Combine(root, "src/RentACar.Web/Components"), "*.razor", SearchOption.AllDirectories).ToList();
-
-        var total = 0;
-        var invalid = new List<string>();
-        foreach (var f in razors)
-        {
-            foreach (var (name, oz) in ConfirmTags(File.ReadAllText(f)))
-            {
-                total++;
-                if (!CanCarryConfirm(name, oz))
-                    invalid.Add($"{Path.GetRelativePath(root, f)}: <{name}{oz.Split('\n')[0]}…>");
-            }
-        }
-
-        // Tarayıcı çalışıyor mu: bugün 94 form + 7 buton. Sıfır bulmak regex'in bozulduğu demektir.
-        Assert.True(total > 0, "Hiç data-confirm bulunamadı — tarama bozuk.");
-        Assert.True(invalid.Count == 0,
-            "data-confirm submit olayı ÜRETMEYEN bir etikette: onay HİÇ sorulmaz. Mesajı <form>'a ya da " +
-            "type=\"submit\" butona taşıyın (fetch'le çalışan type=\"button\" için onayı betik sormalı).\n  "
-            + string.Join("\n  ", invalid));
-    }
+    // F13.1a: "data-confirm yalnız form/gönder butonunda" razor taraması silindi — data-confirm taşıyan Blazor formu
+    // kalmadı (sıfır bulgu tarayıcıyı bozuk sayardı). Yeni arayüzde onay rc-onay diyaloğuyla, ekran e2e'lerinde.
 }

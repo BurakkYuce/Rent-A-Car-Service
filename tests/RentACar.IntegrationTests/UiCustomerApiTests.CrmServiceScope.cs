@@ -18,15 +18,8 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed partial class UiCustomerApiTests
 {
-    private static async Task<HttpResponseMessage> BlazorPostAsync(Session s, string path, Dictionary<string, string> form)
-    {
-        var req = new HttpRequestMessage(HttpMethod.Post, path) { Content = new FormUrlEncodedContent(form) };
-        req.Headers.Add("X-XSRF-TOKEN", s.Xsrf);
-        return await s.C.SendAsync(req);
-    }
-
     [Fact]
-    public async Task Blazor_crm_forms_cannot_touch_other_branch_records()
+    public async Task Crm_writes_cannot_touch_other_branch_records()
     {
         var e = await SetupAsync();
         var cust = await CustomerAsync(e, "Formlu");
@@ -44,16 +37,24 @@ public sealed partial class UiCustomerApiTests
             new { rentalId = rentalB.RentalId, mesaj = "Akü" }), HttpStatusCode.Created);
         var assistance = a.GetProperty("talep").GetProperty("id").GetGuid();
 
-        var upd = await BlazorPostAsync(opA, "/sikayetler/update", new()
+        // F13: Blazor form uçları kalktı; aynı saldırı /api/ui üzerinden (tam PUT şubesiz hedefle + DELETE): 403, kayıt
+        // değişmez. Kapsam kontrolü sürüm/durum kontrolünden ÖNCE (DEVIR §5).
+        var surum = (await Json(await Send(opB, HttpMethod.Get, $"{V1}/sikayetler/{complaint}"))).Item1.GetProperty("surum").GetString();
+        await Problem(await Send(opA, HttpMethod.Put, $"{V1}/sikayetler/{complaint}", new Dictionary<string, object?>
         {
-            ["id"] = complaint.ToString(), ["cariId"] = cust.ToString(), ["konu"] = "A ele geçirdi", ["rentalId"] = "", ["cikisOfisi"] = "",
-        });
-        Assert.Contains("kapsam", Uri.UnescapeDataString(upd.Headers.Location?.ToString() ?? ""));
-        await BlazorPostAsync(opA, "/sikayetler/delete", new() { ["id"] = complaint.ToString() });
-        await BlazorPostAsync(opA, "/anketler/update", new() { ["id"] = survey.ToString(), ["puan"] = "1", ["rentalId"] = "" });
-        await BlazorPostAsync(opA, "/anketler/delete", new() { ["id"] = survey.ToString() });
-        await BlazorPostAsync(opA, "/assistans/update", new() { ["id"] = assistance.ToString(), ["mesaj"] = "A", ["rentalId"] = "" });
-        await BlazorPostAsync(opA, "/assistans/delete", new() { ["id"] = assistance.ToString() });
+            ["cariId"] = cust, ["konu"] = "A ele geçirdi", ["rentalId"] = null, ["cikisOfisi"] = null, ["surum"] = surum,
+        }), HttpStatusCode.Forbidden, "yetki_yok");
+        await Problem(await Send(opA, HttpMethod.Delete, $"{V1}/sikayetler/{complaint}"), HttpStatusCode.Forbidden, "yetki_yok");
+        await Problem(await Send(opA, HttpMethod.Put, $"{V1}/anketler/{survey}", new Dictionary<string, object?>
+        {
+            ["cariId"] = cust, ["puan"] = 1, ["rentalId"] = null,
+        }), HttpStatusCode.Forbidden, "yetki_yok");
+        await Problem(await Send(opA, HttpMethod.Delete, $"{V1}/anketler/{survey}"), HttpStatusCode.Forbidden, "yetki_yok");
+        await Problem(await Send(opA, HttpMethod.Put, $"{V1}/assistans-talepleri/{assistance}", new Dictionary<string, object?>
+        {
+            ["mesaj"] = "A", ["rentalId"] = null,
+        }), HttpStatusCode.Forbidden, "yetki_yok");
+        await Problem(await Send(opA, HttpMethod.Delete, $"{V1}/assistans-talepleri/{assistance}"), HttpStatusCode.Forbidden, "yetki_yok");
 
         var sk = await ReadAsync(e.TenantId, db => db.Sikayetler.AsNoTracking().SingleAsync(x => x.Id == complaint));
         Assert.Equal(("B'nin", (Guid?)rentalB.RentalId), (sk.Konu, sk.RentalId));
@@ -73,11 +74,11 @@ public sealed partial class UiCustomerApiTests
         await Assert.ThrowsAsync<NoPermissionException>(() => sp.GetRequiredService<AssistanceRequestService>().DeleteAsync(assistance));
         Assert.True(await ReadAsync(e.TenantId, db => db.Sikayetler.AnyAsync(x => x.Id == complaint)));
 
-        // Kendi şubesindeki operatör aynı Blazor ucuyla güncelleyebilir (kemer yetkiliyi durdurmaz).
-        await BlazorPostAsync(opB, "/sikayetler/update", new()
+        // Kendi şubesindeki operatör aynı uçla güncelleyebilir (kemer yetkiliyi durdurmaz).
+        await Json(await Send(opB, HttpMethod.Put, $"{V1}/sikayetler/{complaint}", new Dictionary<string, object?>
         {
-            ["id"] = complaint.ToString(), ["cariId"] = cust.ToString(), ["konu"] = "B güncelledi", ["rentalId"] = rentalB.RentalId.ToString(),
-        });
+            ["cariId"] = cust, ["konu"] = "B güncelledi", ["rentalId"] = rentalB.RentalId, ["surum"] = surum,
+        }));
         Assert.Equal("B güncelledi", (await ReadAsync(e.TenantId, db => db.Sikayetler.AsNoTracking().SingleAsync(x => x.Id == complaint))).Konu);
     }
 
@@ -93,8 +94,11 @@ public sealed partial class UiCustomerApiTests
             new Dictionary<string, object?> { ["cariId"] = cust, ["puan"] = 5 }), HttpStatusCode.BadRequest, "dogrulama", "rentalId");
         await Problem(await Send(opA, HttpMethod.Post, V1 + "/assistans-talepleri",
             new { mesaj = "Şubesiz" }), HttpStatusCode.BadRequest, "dogrulama", "rentalId");
-        // Blazor oluşturma formu da aynı kurala tabi.
-        await BlazorPostAsync(opA, "/sikayetler/create", new() { ["cariId"] = cust.ToString(), ["konu"] = "Blazor şubesiz" });
+        // Servis girişi de aynı kurala tabi (F13: Blazor oluşturma formu kalktı; kural serviste — her çağıran).
+        using (var host = new TestHost(fx.Pg.AppConnectionString))
+        using (var scope = host.ScopeFor(e.TenantId, Guid.NewGuid(), "opA", UserRole.Operator, "SubeA"))
+            await Assert.ThrowsAnyAsync<ValidationException>(() => scope.ServiceProvider.GetRequiredService<ComplaintService>()
+                .CreateAsync(new SikayetInput { CariId = cust, Konu = "Servis şubesiz" }));
         Assert.Equal(0, await ReadAsync(e.TenantId, db => db.Sikayetler.CountAsync()));
 
         // Kendi şubesinin ofisiyle izinli; kapsamsız kullanıcı şubesiz açabilir.

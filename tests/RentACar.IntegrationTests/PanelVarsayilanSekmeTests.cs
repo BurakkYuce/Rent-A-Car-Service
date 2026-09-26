@@ -126,34 +126,8 @@ public sealed class PanelVarsayilanSekmeTests
         Assert.Equal("gec", PanelTab.Active(null, 1));
     }
 
-    // ── Kaynak çitleri: kararın sayfada tekrar ham değerden verilmesini önler ──────────────────
-    [Fact]
-    public void Home_ham_df_cf_ile_karar_vermez()
-    {
-        var home = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Components/Pages/Home.razor"));
-
-        // Eski hata üç ayrı yerde ham null'ı yorumlamaktı: `Df == "gec"`, `Df is null or "bugun"`,
-        // `Df switch {...}`. Herhangi biri geri gelirse vurgu/liste/dönüş adresi yeniden ayrışabilir.
-        var raw = Regex.Matches(home, @"\b(Df|Cf)\s*(==|!=|is\b|switch\b)")
-            .Select(m => m.Value).ToList();
-        Assert.True(raw.Count == 0,
-            "Home.razor sekme kararını ham df/cf'den veriyor; PanelSekme.Etkin kullanılmalı:\n  "
-            + string.Join("\n  ", raw));
-
-        // Tahsil Et dönüş adresi HAM (normalize) seçimi taşımalı, ETKİNİ DEĞİL (adversarial bulgu):
-        // varsayılanla "gec"te açılmış pano "/?df=gec" açık seçimine dönerse gecikmişler kapandığında
-        // 120 sn tazeleme kartı "Gecikmiş 0 — Kayıt yok."ta tutar, Bugün'ün dönüşleri gizli kalırdı.
-        // Seçimsiz dönüş aynı sekmeyi açar: tahsilat kiranın durumunu (gecikmiş sayısını) değiştirmez.
-        Assert.Contains("name=\"donus\" value=\"/?df=@DfSecilen&cf=@CfSecilen\"", home, StringComparison.Ordinal);
-        Assert.DoesNotContain("value=\"/?df=@DfEtkin", home, StringComparison.Ordinal);
-
-        // Çıkışlar kartı Dönüşler'in "gecikmiş varsa gec" kuralını KULLANMAZ (bayat no-show).
-        Assert.Contains("PanelTab.IsPickupActive(Cf)", home, StringComparison.Ordinal);
-        Assert.DoesNotContain("PanelTab.Active(Cf", home, StringComparison.Ordinal);
-
-        // 6 çipin (2 kart × 3 sekme) tümü sınıfını aynı fonksiyondan alır.
-        Assert.Equal(6, Regex.Matches(home, @"class=""@PanelTab\.ChipClass\(").Count);
-    }
+    // F13.1a: Blazor Panel (Home.razor) silindi; "kararı ham df/cf'den verme" kaynak çiti anlamını yitirdi. Kural
+    // yukarıdaki saf PanelTab testlerinde ve sunucunun hesapladığı `varsayilanSekme`'de (PanelApi → PanelTab) yaşar.
 
     // ── Acil çipin metin rengi zeminden türetilir (adversarial bulgu) ──────────────────────────
     // Zemin tenant'ın serbest seçtiği "Gecikenler" rengi; sabit beyaz metin sarı seçen tenant'ta

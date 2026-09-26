@@ -81,18 +81,6 @@ public sealed class KacakYonlendirmeTests
             "gerçek hedef URL kullan.\n  " + string.Join("\n  ", found));
     }
 
-    [Fact]
-    public void Tazeleme_ozniteligi_kullaniliyorsa_script_yuklu()
-    {
-        var root = RepoRoot();
-        var consumer = WebRazors(root)
-            .Where(f => File.ReadAllText(f).Contains("data-rc-tazele", StringComparison.Ordinal))
-            .Select(f => Path.GetRelativePath(root, f))
-            .ToList();
-
-        // Öznitelik kullanılıyorsa onu okuyan script yüklenmiş olmalı; yoksa tazeleme SESSİZCE ölür.
-        Assert.NotEmpty(consumer);   // Home + FleetStatus: meta-refresh'ten buraya taşındılar
-        var app = File.ReadAllText(Path.Combine(root, "src/RentACar.Web/Components/App.razor"));
-        Assert.Contains("js/rc-tazele.js", app, StringComparison.Ordinal);
-    }
+    // F13.1a: "data-rc-tazele kullanılıyorsa script yüklü" testi silindi — tazeleme özniteliğini kullanan Blazor
+    // sayfaları (Panel, Filo durumu) kalktı; yeni arayüz tazelemeyi kendi veri katmanında yapar.
 }

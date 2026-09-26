@@ -90,16 +90,13 @@ public sealed class RezervasyonKolonVeriTests(PostgresFixture fx)
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
         Assert.NotNull(d);
-        var page = File.ReadAllText(Path.Combine(d!.FullName,
-            "src/RentACar.Web/Components/Pages/Bookings/ReservationList.razor"));
-
-        foreach (var expected in new[] { "<th>Cep Tel</th>", "<th>Teslim</th>", "<th>Alış Şube</th>", "<th>Kaynak</th>" })
-            Assert.Contains(expected, page, StringComparison.Ordinal);
-        Assert.Contains("name=\"kaynak\"", page, StringComparison.Ordinal);
-
-        // Başlık ve gövde hücre sayısı eşit olmalı (colspan dahil) — kolon eklerken en sık hata bu.
-        var startCount = Regex.Matches(page.Split("<tbody>")[0], "<th>").Count;
-        Assert.Equal(startCount, Regex.Matches(page, @"colspan=""(\d+)""") is { Count: > 0 } m
-            ? int.Parse(m[0].Groups[1].Value) : -1);
+        // F13.1a: Blazor ReservationList.razor silindi; aynı kolonlar ve süzgeç yeni arayüzün rezervasyon listesinde
+        // (kolon kataloğu + liste süzgeç şeması). Cep Tel = cepTel, Teslim = bitTar, Alış Şube = cikisOfisi.
+        var app = Path.Combine(d!.FullName, "src/RentACar.Frontend/src/app/features/rezervasyonlar/rezervasyon-listesi");
+        var columns = File.ReadAllText(Path.Combine(app, "reservation-columns.ts"));
+        foreach (var expected in new[] { "cepTel", "bitTar", "cikisOfisi", "kaynak" })
+            Assert.Matches($@"kod: '{expected}'", columns);
+        Assert.Contains("kaynak: { tur: 'metin' }", File.ReadAllText(Path.Combine(app, "reservation-list.store.ts")),
+            StringComparison.Ordinal);
     }
 }

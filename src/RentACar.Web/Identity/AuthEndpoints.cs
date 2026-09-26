@@ -36,13 +36,14 @@ public static class AuthEndpoints
             // kayboluyordu. LocalRedirect İKİNCİ çittir: GuvenliDonus bir gün gerilese bile yerel
             // olmayan adrese yönlendirmek yerine istisna atar (açık yönlendirme yerine görünür hata).
             return Results.LocalRedirect(PermissionRedirect.SafeReturn(donus));
-        }).AntiforgeryByEnv().RequireRateLimiting("login"); // P0: brute-force koruması
+        }).AntiforgeryByEnv().RequireRateLimiting("login") // P0: brute-force koruması
+            .AllowAnonymous(); // açık karar (giriş ucu oturum istemez; NonApiEndpointAuthorizationTests)
 
         app.MapPost("/auth/logout", async (HttpContext http) =>
         {
             await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Results.Redirect("/login");
-        }).AntiforgeryByEnv();
+        }).AntiforgeryByEnv().AllowAnonymous(); // açık karar: süresi dolmuş oturumla da çıkış çalışmalı
 
         return app;
     }

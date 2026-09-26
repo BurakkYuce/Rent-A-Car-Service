@@ -180,10 +180,7 @@ public sealed class SpaBarindirmaHostTests(SpaWebFixture fx)
         Assert.Null(spaEntry.Headers.Location);
         Assert.Contains(ShellMarker, await spaEntry.Content.ReadAsStringAsync());
 
-        // Korumalı Blazor sayfası anonim istekte hâlâ /login'e gider (challenge yalnız /app'ten kalktı).
-        var main = await c.GetAsync("/");
-        Assert.Equal(HttpStatusCode.Redirect, main.StatusCode);
-        Assert.StartsWith("/login", main.Headers.Location?.OriginalString);
+        // F13.1a: korumalı Blazor sayfası kalmadı ("/" silindi); oturumsuz eski adreslerin pilotsuz yönlendirmesi F13.1b'de.
     }
 }
 

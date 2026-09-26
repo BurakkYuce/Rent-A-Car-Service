@@ -166,12 +166,12 @@ public sealed class GiderAramaTests(PostgresFixture fx)
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
         Assert.NotNull(d);
-        var page = File.ReadAllText(Path.Combine(d!.FullName,
-            "src/RentACar.Web/Components/Pages/ExpenseCategories/ExpenseCategoryList.razor"));
-        Assert.Contains("<th>Tür</th>", page, StringComparison.Ordinal);
-        Assert.Contains("@c.Tur", page, StringComparison.Ordinal);
-        // Başlık ve colspan tutarlı olmalı (kolon eklerken en sık hata bu).
-        var startCount = Regex.Matches(page.Split("<tbody>")[0], "<th>").Count;
-        Assert.Equal(startCount, int.Parse(Regex.Match(page, @"colspan=""(\d+)""").Groups[1].Value));
+        // F13.1a: Blazor ExpenseCategoryList.razor silindi; yeni arayüzün tanım kataloğunda gider türü "tur" alanı formda
+        // ve listede (inList: false YOK) durmalı.
+        var catalog = File.ReadAllText(Path.Combine(d!.FullName,
+            "src/RentACar.Frontend/src/app/features/definitions/definition-catalog.ts"));
+        var block = Regex.Match(catalog, @"case 'expenseCategory':(?<b>[\s\S]*?)case '").Groups["b"].Value;
+        Assert.Contains("text('tur', l('tur')", block, StringComparison.Ordinal);
+        Assert.DoesNotContain("inList: false", block, StringComparison.Ordinal);
     }
 }

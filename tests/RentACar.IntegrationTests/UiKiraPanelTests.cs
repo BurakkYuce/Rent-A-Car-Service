@@ -475,7 +475,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
     // ------------------------------------------------------------ canlı hesap paritesi
 
     [Fact]
-    public async Task Hesapla_Blazor_ucuyla_birebir_ve_oracle()
+    public async Task Hesapla_oracle()
     {
         var o = await SetUpEnvironmentAsync();
         var vehicle = await VehicleAsync(o);
@@ -484,11 +484,10 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         var q = $"vehicleId={vehicle}&basTar={Uri.EscapeDataString(start.ToString("O"))}&bitTar={Uri.EscapeDataString(start.AddDays(3).ToString("O"))}" +
                 $"&gunlukUcret=100&fiyatTuru={Uri.EscapeDataString("Günlük")}&musteriId={o.MusteriId}&ek={o.EkHizmetId}:1";
 
+        // F13.1a: Blazor GET /kiralar/hesapla silindi (parite karşılaştırması anlamını yitirdi); motor aynı
+        // (RentalCalculationService), değerler aşağıdaki elle kurulmuş oracle'la kilitli.
         var api = await Json(await s.C.GetAsync($"{Rental}/hesapla?{q}"));
-        var blazorResponse = await s.C.GetAsync($"/kiralar/hesapla?{q}");
-        Assert.Equal(HttpStatusCode.OK, blazorResponse.StatusCode);
-        var blazor = JsonDocument.Parse(await blazorResponse.Content.ReadAsStringAsync()).RootElement;
-        Assert.Equal(blazor.GetRawText(), api.GetRawText()); // aynı motor, aynı JSON
+        Assert.Equal(HttpStatusCode.NotFound, (await s.C.GetAsync($"/kiralar/hesapla?{q}")).StatusCode);
 
         // ORACLE: 3 × 100 net = 300; KDV 60; baz 360. GPS 60. Genel 420.
         Assert.True(api.GetProperty("ok").GetBoolean(), api.ToString());
@@ -508,10 +507,8 @@ public sealed class UiKiraPanelTests(WebFixture fx)
 
     // ------------------------------------------------------------ TahsilatAnahtar
 
-    private static readonly Regex OperationKey = new("name=\"islemAnahtari\" value=\"([0-9a-fA-F-]{36})\"", RegexOptions.Compiled);
-
     [Fact]
-    public async Task Tahsilat_anahtari_liste_ve_panelde_Blazor_ile_ayni_islem_sonrasi_degisir_tekrari_mukerrer()
+    public async Task Tahsilat_anahtari_liste_ve_panelde_ayni_islem_sonrasi_degisir_tekrari_mukerrer()
     {
         var o = await SetUpEnvironmentAsync();
         var vehicle = await VehicleAsync(o);
@@ -522,18 +519,6 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         async Task<JsonElement> ListRow(Oturum s)
             => (await Json(await s.C.GetAsync(Rental))).GetProperty("kayitlar").EnumerateArray().Single(r => r.GetProperty("id").GetGuid() == id);
 
-        // F4.6: pilot firmada Blazor /kiralar ve / yeni arayüze yönlenir (IlkKesisMiddleware). Blazor paritesini
-        // ölçmek için sayfa pilot KAPALIYKEN okunur (bayrak önbelleksiz — bir sonraki istekte geçerli), sonra açılır.
-        async Task<string> BlazorHtml(Oturum s, string path)
-        {
-            var yon = await s.C.GetAsync(path);
-            Assert.Equal(HttpStatusCode.Redirect, yon.StatusCode);
-            Assert.StartsWith("/app/", yon.Headers.Location?.OriginalString);
-            await fx.MakePilotAsync(o.TenantId, false);
-            try { return await (await s.C.GetAsync(path)).Content.ReadAsStringAsync(); }
-            finally { await fx.MakePilotAsync(o.TenantId, true); }
-        }
-
         var row = await ListRow(name);
         var th = row.GetProperty("tahsilat");
         var k1 = th.GetProperty("anahtar").GetGuid();
@@ -542,11 +527,8 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         Assert.Equal("TRY", th.GetProperty("doviz").GetString());
         Assert.Equal(360m, Dec(th, "varsayilanTutar"));
 
-        // Blazor kira listesi ve panosu AYNI anahtarı basıyor.
-        var listHtml = await BlazorHtml(name, "/kiralar");
-        Assert.Contains(k1.ToString(), OperationKey.Matches(listHtml).Select(m => m.Groups[1].Value));
-        var dashboardHtml = await BlazorHtml(name, "/");
-        Assert.Contains(k1.ToString(), OperationKey.Matches(dashboardHtml).Select(m => m.Groups[1].Value));
+        // F13.1a: Blazor kira listesi/panosu silindi; anahtarın deterministik olduğu (liste = panel = sunucunun yeniden
+        // hesabı) aşağıda API ile ve mükerrer tekrarla kilitli.
 
         var panel = await Json(await name.C.GetAsync(V1 + "/panel/ozet"));
         var returnInfo = panel.GetProperty("donusler");
@@ -571,8 +553,10 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         Assert.Equal(260m, Dec(after, "bakiye"));
         var k2 = after.GetProperty("tahsilat").GetProperty("anahtar").GetGuid();
         Assert.NotEqual(k1, k2);
-        var listHtml2 = await BlazorHtml(name, "/kiralar");
-        Assert.Contains(k2.ToString(), OperationKey.Matches(listHtml2).Select(m => m.Groups[1].Value));
+        // Panel de aynı yeni anahtarı verir (liste = panel, tek kural).
+        var panel2 = await Json(await name.C.GetAsync(V1 + "/panel/ozet"));
+        Assert.Equal(k2, panel2.GetProperty("donusler").GetProperty("gecikmis").EnumerateArray()
+            .Single(r => r.GetProperty("rentalId").GetGuid() == id).GetProperty("tahsilat").GetProperty("anahtar").GetGuid());
 
         // Finans yetkisi olmayan operatörde tahsilat verisi ve finans özeti YOK.
         var op = await LoginAsync(o, Kim.OperatorA);
