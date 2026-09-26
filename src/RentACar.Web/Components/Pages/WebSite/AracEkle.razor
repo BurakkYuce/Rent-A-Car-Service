@@ -109,7 +109,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _modul = Tenant.TenantId is { } id && await Durum.WebSitesiModuluAsync(id);
+        _modul = Tenant.TenantId is { } id && await Durum.WebsiteModuleAsync(id);
         if (!_modul) return;
         _ayri = string.Equals(Mod, "ayri", StringComparison.OrdinalIgnoreCase);
         _havuz = await Ilanlar.PoolAsync();

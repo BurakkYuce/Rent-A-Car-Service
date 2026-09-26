@@ -22,12 +22,12 @@ public sealed class RateCardRepository(IDbContextFactory<AppDbContext> factory) 
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<RateCard>> ListByGroupAsync(string grup, CancellationToken ct = default)
+    public async Task<IReadOnlyList<RateCard>> ListByGroupAsync(string group, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Grup büyük/küçük harf duyarsız eşleşir; yalnız aktif tarifeler (lookup adayları).
         return await db.RateCards.AsNoTracking()
-            .Where(r => r.Aktif && EF.Functions.ILike(r.Grup, grup))
+            .Where(r => r.Aktif && EF.Functions.ILike(r.Grup, group))
             .ToListAsync(ct);
     }
 
@@ -37,10 +37,10 @@ public sealed class RateCardRepository(IDbContextFactory<AppDbContext> factory) 
         return await db.RateCards.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.RateCards.AsNoTracking()
             .Where(r => r.Kod == k && (excludeId == null || r.Id != excludeId))
             .AnyAsync(ct);

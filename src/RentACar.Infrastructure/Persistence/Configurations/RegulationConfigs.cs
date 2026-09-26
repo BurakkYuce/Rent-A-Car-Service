@@ -39,7 +39,7 @@ internal sealed class InsurancePolicyConfig : IEntityTypeConfiguration<Insurance
 /// FAZ-15 — poliçe zeyli (poliçe eki). Mali belge DEĞİL: deftere hiç yazmaz, yalnız bilgi/geçmiş
 /// tutar → değişmezlik trigger'ı YOK, tam CRUD (yanlış girilen zeyil silinebilmeli).
 /// </summary>
-internal sealed class InsurancePolicyZeyilConfig : IEntityTypeConfiguration<InsurancePolicyZeyil>
+internal sealed class InsurancePolicyEndorsementConfig : IEntityTypeConfiguration<InsurancePolicyZeyil>
 {
     public void Configure(EntityTypeBuilder<InsurancePolicyZeyil> e)
     {
@@ -129,7 +129,7 @@ internal sealed class PenaltyConfig : IEntityTypeConfiguration<Penalty>
 
 // ---- FAZ-60 ceza kalemi + kalem ödemesi ----
 
-internal sealed class PenaltySatirConfig : IEntityTypeConfiguration<PenaltySatir>
+internal sealed class PenaltyLineConfig : IEntityTypeConfiguration<PenaltySatir>
 {
     public void Configure(EntityTypeBuilder<PenaltySatir> e)
     {
@@ -150,7 +150,7 @@ internal sealed class PenaltySatirConfig : IEntityTypeConfiguration<PenaltySatir
     }
 }
 
-internal sealed class PenaltyOdemeConfig : IEntityTypeConfiguration<PenaltyOdeme>
+internal sealed class PenaltyPaymentConfig : IEntityTypeConfiguration<PenaltyOdeme>
 {
     public void Configure(EntityTypeBuilder<PenaltyOdeme> e)
     {
@@ -183,7 +183,7 @@ internal sealed class PenaltyOdemeConfig : IEntityTypeConfiguration<PenaltyOdeme
 
 // ---- FAZ-14 kısmi ödeme çocukları (MALİ BELGE: app'e yalnız SELECT/INSERT verilir) ----
 
-internal sealed class MtvOdemeConfig : IEntityTypeConfiguration<MtvOdeme>
+internal sealed class MtvPaymentConfig : IEntityTypeConfiguration<MtvOdeme>
 {
     public void Configure(EntityTypeBuilder<MtvOdeme> e)
     {
@@ -211,7 +211,7 @@ internal sealed class MtvOdemeConfig : IEntityTypeConfiguration<MtvOdeme>
     }
 }
 
-internal sealed class MuayeneOdemeConfig : IEntityTypeConfiguration<MuayeneOdeme>
+internal sealed class InspectionPaymentConfig : IEntityTypeConfiguration<MuayeneOdeme>
 {
     public void Configure(EntityTypeBuilder<MuayeneOdeme> e)
     {

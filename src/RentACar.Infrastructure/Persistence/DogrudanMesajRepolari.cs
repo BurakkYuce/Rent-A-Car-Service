@@ -19,24 +19,24 @@ namespace RentACar.Infrastructure.Persistence;
 /// (şablon çözümü, idempotency, deneme sayacı, izin kuralı) job yolunda DA aynen kullanılır —
 /// kopyalanmaz.</para>
 /// </summary>
-public sealed class DogrudanMesajRepository(AppDbContext db, Guid tenantId) : IMessageRepository
+public sealed class DirectMessageRepository(AppDbContext db, Guid tenantId) : IMessageRepository
 {
     public Task<IReadOnlyList<MesajSablonRow>> ListTemplatesAsync(CancellationToken ct = default)
         => throw new NotSupportedException("Şablon listesi job yolunda kullanılmaz.");
 
-    public Task<MesajSablon?> FindTemplateAsync(MessageType tur, MessageChannel kanal, CancellationToken ct = default)
-        => db.MesajSablonlari.AsNoTracking().FirstOrDefaultAsync(x => x.Tur == tur && x.Kanal == kanal, ct);
+    public Task<MesajSablon?> FindTemplateAsync(MessageType type, MessageChannel channel, CancellationToken ct = default)
+        => db.MesajSablonlari.AsNoTracking().FirstOrDefaultAsync(x => x.Tur == type && x.Kanal == channel, ct);
 
     public Task UpsertTemplateAsync(MesajSablonInput input, CancellationToken ct = default)
         => throw new NotSupportedException("Şablon yazımı job yolunda kullanılmaz.");
 
-    public Task<GidenMesaj?> FindMessageAsync(string anahtar, CancellationToken ct = default)
-        => db.GidenMesajlar.AsNoTracking().FirstOrDefaultAsync(x => x.Anahtar == anahtar, ct);
+    public Task<GidenMesaj?> FindMessageAsync(string key, CancellationToken ct = default)
+        => db.GidenMesajlar.AsNoTracking().FirstOrDefaultAsync(x => x.Anahtar == key, ct);
 
-    public async Task<bool> AddMessageAsync(GidenMesaj mesaj, CancellationToken ct = default)
+    public async Task<bool> AddMessageAsync(GidenMesaj message, CancellationToken ct = default)
     {
-        mesaj.TenantId = tenantId; // interceptor'sız job yolu → açık damga (VadeBildirimUretici deseni)
-        db.GidenMesajlar.Add(mesaj);
+        message.TenantId = tenantId; // interceptor'sız job yolu → açık damga (VadeBildirimUretici deseni)
+        db.GidenMesajlar.Add(message);
         try
         {
             await db.SaveChangesAsync(ct);
@@ -65,7 +65,7 @@ public sealed class DogrudanMesajRepository(AppDbContext db, Guid tenantId) : IM
 }
 
 /// <summary>Job yolunda tenant ayarını elindeki context'ten okuyan uyarlama (yalnız okuma).</summary>
-public sealed class DogrudanAyarRepository(AppDbContext db) : ITenantSettingsRepository
+public sealed class DirectSettingsRepository(AppDbContext db) : ITenantSettingsRepository
 {
     public Task<Ayar?> GetAsync(CancellationToken ct = default)
         => db.TenantSettings.AsNoTracking().FirstOrDefaultAsync(ct);

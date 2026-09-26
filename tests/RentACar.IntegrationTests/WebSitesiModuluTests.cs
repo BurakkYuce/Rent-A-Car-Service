@@ -150,11 +150,11 @@ public sealed class WebSitesiModuluTests(PostgresFixture fx)
         var (svc, cache) = BuildPlatform();
         var tenantId = await SeedTenantAsync(modul: false);
 
-        Assert.False(await cache.WebSitesiModuluAsync(tenantId)); // cache'i ISIT (kapalı değerle)
+        Assert.False(await cache.WebsiteModuleAsync(tenantId)); // cache'i ISIT (kapalı değerle)
         await svc.SetWebSitesiModuluAsync(tenantId, true, "op");
 
         // Invalidate çağrılmasaydı TTL (60 sn) boyunca "modülü açtım, menü gelmedi" yaşanırdı.
-        Assert.True(await cache.WebSitesiModuluAsync(tenantId));
+        Assert.True(await cache.WebsiteModuleAsync(tenantId));
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class WebSitesiModuluTests(PostgresFixture fx)
 
         await svc.SetWebSitesiModuluAsync(tenantId, false, "op");
 
-        Assert.False(await cache.WebSitesiModuluAsync(tenantId));
+        Assert.False(await cache.WebsiteModuleAsync(tenantId));
         await using var db = Owner();
         Assert.NotNull(await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId)); // tenant duruyor
     }
@@ -198,7 +198,7 @@ public sealed class WebSitesiModuluTests(PostgresFixture fx)
 
         await svc.SetWebSitesiModuluAsync(t1, true, "op");
 
-        Assert.True(await cache.WebSitesiModuluAsync(t1));
-        Assert.False(await cache.WebSitesiModuluAsync(t2)); // T1'in lisansı T2'ye SIZMAZ
+        Assert.True(await cache.WebsiteModuleAsync(t1));
+        Assert.False(await cache.WebsiteModuleAsync(t2)); // T1'in lisansı T2'ye SIZMAZ
     }
 }

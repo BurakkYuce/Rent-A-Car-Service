@@ -112,7 +112,7 @@ public static partial class TanimApi
     /// field produces on the production server; read back as the Istanbul day.</summary>
     private static DateTimeOffset? Start(DateOnly? day) => day is { } d ? F5Ortak.GunBasi(d) : null;
 
-    private static DateOnly? Day(DateTimeOffset? at) => at is { } a ? TenantGun.Gun(a) : null;
+    private static DateOnly? Day(DateTimeOffset? at) => at is { } a ? TenantDay.Day(a) : null;
 
     private static DropTanimInput DropInputOf(DropRequest b) => new()
     {

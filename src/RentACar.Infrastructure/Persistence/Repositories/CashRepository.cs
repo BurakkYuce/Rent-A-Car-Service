@@ -53,32 +53,32 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             q = q.Where(t => t.Kanal == k);
         }
 
-        var islemler = await q.OrderByDescending(t => t.Tarih).Take(limit).ToListAsync(ct);
-        if (islemler.Count == 0) return [];
+        var transactions = await q.OrderByDescending(t => t.Tarih).Take(limit).ToListAsync(ct);
+        if (transactions.Count == 0) return [];
 
-        var cariIdler = islemler.Select(t => t.CariId).Distinct().ToList();
-        var cariler = (await db.Customers.AsNoTracking().Where(c => cariIdler.Contains(c.Id))
+        var customerIds = transactions.Select(t => t.CariId).Distinct().ToList();
+        var customers = (await db.Customers.AsNoTracking().Where(c => customerIds.Contains(c.Id))
                 .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad, c.OzelKod }).ToListAsync(ct))
             .ToDictionary(c => c.Id, c => (
                 Ad: new Customer { Tip = c.Tip, Unvan = c.Unvan, Ad = c.Ad, Soyad = c.Soyad }.DisplayName,
                 Kod: c.OzelKod));
 
-        IEnumerable<NakitIslemSatirDto> satirlar = islemler.Select(t =>
+        IEnumerable<NakitIslemSatirDto> rows = transactions.Select(t =>
         {
-            var c = cariler.TryGetValue(t.CariId, out var v) ? v : (Ad: "—", Kod: (string?)null);
+            var c = customers.TryGetValue(t.CariId, out var v) ? v : (Ad: "—", Kod: (string?)null);
             return new NakitIslemSatirDto(t, c.Ad, c.Kod);
         });
 
         if (!string.IsNullOrWhiteSpace(f.Ara))
         {
             var a = f.Ara.Trim();
-            satirlar = satirlar.Where(x =>
+            rows = rows.Where(x =>
                 x.Islem.No.Contains(a, StringComparison.OrdinalIgnoreCase)
                 || x.CariAd.Contains(a, StringComparison.OrdinalIgnoreCase)
                 || (x.CariKod?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (x.Islem.Aciklama?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false));
         }
-        return [.. satirlar];
+        return [.. rows];
     }
 
     public async Task<CashTransaction?> FindAsync(Guid id, CancellationToken ct = default)
@@ -93,20 +93,20 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.TersAlinanId == originalId, ct);
     }
 
-    public async Task<bool> OperationKeyExistsAsync(Guid islemAnahtari, CancellationToken ct = default)
+    public async Task<bool> OperationKeyExistsAsync(Guid operationKey, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.IslemAnahtari == islemAnahtari, ct);
+        return await db.CashTransactions.AsNoTracking().AnyAsync(t => t.IslemAnahtari == operationKey, ct);
     }
 
-    public async Task<CashTransaction?> FindByOperationKeyAsync(Guid islemAnahtari, CancellationToken ct = default)
+    public async Task<CashTransaction?> FindByOperationKeyAsync(Guid operationKey, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.CashTransactions.AsNoTracking().FirstOrDefaultAsync(t => t.IslemAnahtari == islemAnahtari, ct);
+        return await db.CashTransactions.AsNoTracking().FirstOrDefaultAsync(t => t.IslemAnahtari == operationKey, ct);
     }
 
     /// <summary>F1.4 mükerrer mesajı — servis ön-kontrolü, kilit-içi kontrol ve kısıt yolu AYNI metni verir.</summary>
-    internal const string MukerrerMesaji = "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).";
+    internal const string DuplicateMessage = "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).";
 
     /// <summary>
     /// Kira tahsilat deltası — KİRA DÖVİZİNDE (K2 fix). Yön = Tip(Tahsilat:+/Ödeme:−) × TersKayitMi(−).
@@ -118,13 +118,13 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     /// çağırır — işaret/döviz kuralının ikinci bir kopyası çıkmasın (kopya çıksaydı rapor ile
     /// sözleşme satırı sessizce ayrışabilirdi).
     /// </summary>
-    internal static decimal RentalDelta(CashTransaction tx, string? kiraDoviz)
+    internal static decimal RentalDelta(CashTransaction tx, string? rentalCurrency)
     {
         var yon = (tx.Tip == CashTransactionType.Tahsilat ? 1m : -1m) * (tx.TersKayitMi ? -1m : 1m);
-        var kira = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(kiraDoviz);
-        if (kira == "TRY") return yon * tx.Amount.AmountInBase;
-        if (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(tx.Amount.Currency) != kira)
-            throw new ValidationException($"Kira dövizi {kira}; tahsilat/iade aynı dövizde girilmelidir.");
+        var rental = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(rentalCurrency);
+        if (rental == "TRY") return yon * tx.Amount.AmountInBase;
+        if (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(tx.Amount.Currency) != rental)
+            throw new ValidationException($"Kira dövizi {rental}; tahsilat/iade aynı dövizde girilmelidir.");
         return yon * tx.Amount.Amount;
     }
 
@@ -142,15 +142,15 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         // COMMITTED'da UPDATE satır kilidini bekledikten sonra WHERE'i GÜNCEL satırda yeniden değerlendirir, yani
         // eşzamanlı iptal (aynı satır kilidi) commit ettiyse 0 satır → red, tüm hareket geri alınır. İade ÖDEMESİ ve
         // ters kayıtlar iptal kiraya bağlanabilir kalır (alınmış paranın iadesi — F4.4a sözleşmesi).
-        var yeniTahsilat = tx.Tip == CashTransactionType.Tahsilat && !tx.TersKayitMi;
-        var iptal = (int)RentalStatus.Iptal;
-        var etkilenen = await db.Database.ExecuteSqlInterpolatedAsync($@"
+        var newCollection = tx.Tip == CashTransactionType.Tahsilat && !tx.TersKayitMi;
+        var cancel = (int)RentalStatus.Iptal;
+        var affected = await db.Database.ExecuteSqlInterpolatedAsync($@"
             UPDATE ""Rentals"" SET
                 ""Tahsilat"" = ""Tahsilat"" + {delta},
                 ""Bakiye"" = ""GenelToplam"" - (""Tahsilat"" + {delta}),
                 ""UpdatedAtUtc"" = {DateTimeOffset.UtcNow}
-            WHERE ""Id"" = {rentalId} AND (NOT {yeniTahsilat} OR ""Durum"" <> {iptal})", ct);
-        if (etkilenen == 0 && yeniTahsilat)
+            WHERE ""Id"" = {rentalId} AND (NOT {newCollection} OR ""Durum"" <> {cancel})", ct);
+        if (affected == 0 && newCollection)
             throw new ValidationException("İptal edilmiş kiraya tahsilat yazılamaz.");
     }
 
@@ -168,7 +168,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var dbTx = await db.Database.BeginTransactionAsync(ct);
 
-            tx.No = await BelgeNoUretici.UretAsync(db, db.TenantId,
+            tx.No = await DocumentNoGenerator.GenerateAsync(db, db.TenantId,
                 tx.Tip == CashTransactionType.Odeme ? DocumentNoType.Tediye : DocumentNoType.Tahsilat, ct);
             db.CashTransactions.Add(tx);
             db.AccountLedgerEntries.AddRange(entries);
@@ -187,21 +187,21 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
                 RentACar.Application.Observability.RacarMetrics.LedgerIdempotentRejected(); // metrik: idempotent red
                 // F1.4: ters kayıt yarışında mesaj servis ön-kontrolüyle BİREBİR aynı (tip de aynı: Mukerrer)
                 // → sonuç sıralı/eşzamanlı ayrımına bağlı değil.
-                var ikinciTers = (ex.InnerException as PostgresException)?.ConstraintName == IdempotencyKisiti.IkinciTersKayit;
-                throw IdempotencyKisiti.Red(ex, ikinciTers
+                var secondReverse = (ex.InnerException as PostgresException)?.ConstraintName == IdempotencyConstraint.SecondReversal;
+                throw IdempotencyConstraint.Red(ex, secondReverse
                     ? "Bu işlem zaten ters kaydedilmiş."
-                    : MukerrerMesaji);
+                    : DuplicateMessage);
             }
         }, ct);
     }
 
     public async Task<Dictionary<Guid, Guid>> InvoiceRentalsAsync(
-        IReadOnlyCollection<Guid> faturaIds, CancellationToken ct = default)
+        IReadOnlyCollection<Guid> invoiceIds, CancellationToken ct = default)
     {
-        if (faturaIds.Count == 0) return [];
+        if (invoiceIds.Count == 0) return [];
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Invoices.AsNoTracking()
-            .Where(i => faturaIds.Contains(i.Id) && i.RentalId != null)
+            .Where(i => invoiceIds.Contains(i.Id) && i.RentalId != null)
             .Select(i => new { i.Id, RentalId = i.RentalId!.Value })
             .ToDictionaryAsync(x => x.Id, x => x.RentalId, ct);
     }
@@ -219,15 +219,15 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     }
 
     public async Task PostAccountClosingAsync(
-        Guid cariId, CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries,
-        IReadOnlyList<KapatmaTahsis> tahsisler, CancellationToken ct = default)
+        Guid customerId, CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries,
+        IReadOnlyList<KapatmaTahsis> allocations, CancellationToken ct = default)
     {
         // Dengelilik guard (PostAsync deseni).
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
         var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
         if (debit != credit)
             throw new ValidationException($"Defter dengesiz: borç {debit} ≠ alacak {credit}.");
-        if (tahsisler.Count == 0)
+        if (allocations.Count == 0)
             throw new ValidationException("Kapatma en az bir tahsis içermelidir.");
 
         await PgRetry.RunAsync(async () =>
@@ -238,66 +238,66 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             // TOCTOU çiti (adversarial H2): (tenant, cari) danışma kilidi — bu carinin kapatma
             // işlemleri tx sonuna dek SIRALANIR. Kontroller kilidin ARKASINDA yapılır; kilitsiz
             // sürümde 8 eşzamanlı kapatma çiti geçip bakiyeyi −7000'e düşürmüştü.
-            await KapatmaKilitAsync(db, cariId, ct);
+            await SettlementLockAsync(db, customerId, ct);
 
             // F1.4 — ANAHTAR ÖNCE: aynı anahtarlı ikinci gönderim, tahsis/bakiye çitlerinden ÖNCE mükerrer
             // sayılır. Aksi halde ilk gönderim kalemi TAMAMEN kapattıysa ikinci "zaten kapatılmış" (400),
             // kısmen kapattıysa kısıt (409) alıyordu — sonuç tutara bağlıydı.
-            if (tx.IslemAnahtari is Guid anahtar &&
-                await db.CashTransactions.AsNoTracking().AnyAsync(t => t.IslemAnahtari == anahtar, ct))
-                throw new DuplicateOperationException(MukerrerMesaji);
+            if (tx.IslemAnahtari is Guid key &&
+                await db.CashTransactions.AsNoTracking().AnyAsync(t => t.IslemAnahtari == key, ct))
+                throw new DuplicateOperationException(DuplicateMessage);
 
             // 1) TAHSİS ÇİTİ (asıl çit): bir borç satırına tahsis edilen toplam, o satırın baz
             //    tutarını AŞAMAZ. Aynı kalemi ikinci kez kapatmayı engelleyen budur — bakiye çiti
             //    tek başına yetmiyordu (adversarial H1).
-            var hedefIds = tahsisler.Select(t => t.LedgerEntryId).Distinct().ToList();
-            var satirlar = await db.AccountLedgerEntries.AsNoTracking()
-                .Where(e => hedefIds.Contains(e.Id))
+            var targetIds = allocations.Select(t => t.LedgerEntryId).Distinct().ToList();
+            var rows = await db.AccountLedgerEntries.AsNoTracking()
+                .Where(e => targetIds.Contains(e.Id))
                 .Select(e => new { e.Id, e.AccountType, e.AccountRef, e.Direction,
                                    A = e.Amount.Amount, R = e.Amount.Rate })
                 .ToListAsync(ct);
-            var mevcut = await db.KapatmaTahsisleri.AsNoTracking()
-                .Where(t => hedefIds.Contains(t.LedgerEntryId))
+            var existing = await db.KapatmaTahsisleri.AsNoTracking()
+                .Where(t => targetIds.Contains(t.LedgerEntryId))
                 .GroupBy(t => t.LedgerEntryId)
                 .Select(g => new { g.Key, Toplam = g.Sum(x => x.KapatilanBaz) })
                 .ToDictionaryAsync(x => x.Key, x => x.Toplam, ct);
 
-            foreach (var grup in tahsisler.GroupBy(t => t.LedgerEntryId))
+            foreach (var group in allocations.GroupBy(t => t.LedgerEntryId))
             {
-                var satir = satirlar.FirstOrDefault(s => s.Id == grup.Key)
+                var row = rows.FirstOrDefault(s => s.Id == group.Key)
                     ?? throw new ValidationException("Kapatılacak kalem bulunamadı.");
-                if (satir.AccountType != LedgerAccountType.Cari || satir.AccountRef != cariId)
+                if (row.AccountType != LedgerAccountType.Cari || row.AccountRef != customerId)
                     throw new ValidationException("Kapatılacak kalem bu cariye ait değil.");
-                if (satir.Direction != LedgerDirection.Debit)
+                if (row.Direction != LedgerDirection.Debit)
                     throw new ValidationException("Yalnız BORÇ kalemleri kapatılabilir.");
 
-                var satirBaz = satir.A * satir.R;
-                var oncekiler = mevcut.TryGetValue(grup.Key, out var t0) ? t0 : 0m;
-                var yeni = grup.Sum(x => x.KapatilanBaz);
+                var rowBase = row.A * row.R;
+                var previousItems = existing.TryGetValue(group.Key, out var t0) ? t0 : 0m;
+                var newItem = group.Sum(x => x.KapatilanBaz);
                 // Kuruş toleransı: satır bazı 4-6 haneli kurla türetilir, tahsis kuruşa yuvarlanır.
-                if (oncekiler + yeni > satirBaz + 0.005m)
+                if (previousItems + newItem > rowBase + 0.005m)
                     throw new ValidationException(
-                        $"Kalem zaten kapatılmış ya da tutar kalemi aşıyor (kalem {satirBaz:N2}, önceki {oncekiler:N2}, istenen {yeni:N2}).");
+                        $"Kalem zaten kapatılmış ya da tutar kalemi aşıyor (kalem {rowBase:N2}, önceki {previousItems:N2}, istenen {newItem:N2}).");
             }
 
             // 2) BAKİYE ÇİTİ (ikincil): yuvarlanmamış karşılaştırma (adversarial M3 — iki tarafı
             //    ayrı ayrı yukarı yuvarlamak bakiyeyi 0,0044 aşırıyordu).
-            var cariSatirlar = await db.AccountLedgerEntries.AsNoTracking()
-                .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == cariId)
+            var accountLines = await db.AccountLedgerEntries.AsNoTracking()
+                .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == customerId)
                 .Select(e => new { e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
                 .ToListAsync(ct);
-            var bakiye = cariSatirlar.Sum(r => r.Direction == LedgerDirection.Debit ? r.A * r.R : -(r.A * r.R));
-            var tahsilTutar = tx.Amount.AmountInBase;
-            if (bakiye <= 0m)
+            var balance = accountLines.Sum(r => r.Direction == LedgerDirection.Debit ? r.A * r.R : -(r.A * r.R));
+            var collectAmount = tx.Amount.AmountInBase;
+            if (balance <= 0m)
                 throw new ValidationException("Carinin kapatılacak borcu yok (bakiye borçlu değil).");
-            if (tahsilTutar > bakiye)
+            if (collectAmount > balance)
                 throw new ValidationException(
-                    $"Tahsil edilecek tutar ({tahsilTutar:N2}) carinin güncel borcunu ({bakiye:N2}) aşıyor.");
+                    $"Tahsil edilecek tutar ({collectAmount:N2}) carinin güncel borcunu ({balance:N2}) aşıyor.");
 
-            tx.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Tahsilat, ct);
+            tx.No = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.Tahsilat, ct);
             db.CashTransactions.Add(tx);
             db.AccountLedgerEntries.AddRange(entries);
-            db.KapatmaTahsisleri.AddRange(tahsisler);
+            db.KapatmaTahsisleri.AddRange(allocations);
             await ApplyRentalDeltaAsync(db, tx, ct);   // kira bağlıysa Tahsilat/Bakiye atomik güncellenir
 
             try
@@ -309,13 +309,13 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             {
                 await dbTx.RollbackAsync(ct);
                 RentACar.Application.Observability.RacarMetrics.LedgerIdempotentRejected();
-                throw IdempotencyKisiti.Red(ex, MukerrerMesaji);
+                throw IdempotencyConstraint.Red(ex, DuplicateMessage);
             }
         }, ct);
     }
 
     /// <summary>Kapatma serileştirme kilidi — depozito desenıyle aynı (pg_advisory_xact_lock).</summary>
-    private static async Task KapatmaKilitAsync(AppDbContext db, Guid cariId, CancellationToken ct)
+    private static async Task SettlementLockAsync(AppDbContext db, Guid customerId, CancellationToken ct)
     {
         var conn = db.Database.GetDbConnection();
         await using var cmd = conn.CreateCommand();
@@ -323,13 +323,13 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         cmd.CommandText = "SELECT pg_advisory_xact_lock(hashtextextended(@k, 42))";
         var p = cmd.CreateParameter();
         p.ParameterName = "k";
-        p.Value = $"kapatma:{db.TenantId}:{cariId}";
+        p.Value = $"kapatma:{db.TenantId}:{customerId}";
         cmd.Parameters.Add(p);
         await cmd.ExecuteScalarAsync(ct);
     }
 
     public async Task PostDepositTransactionAsync(
-        Guid cariId, bool kontrolEt, DepozitoIrat? izKaydi,
+        Guid customerId, bool shouldCheck, DepozitoIrat? auditTrail,
         IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
     {
         // Dengelilik guard (PostAsync deseni).
@@ -350,7 +350,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             // gibi farklı TÜRDEKİ iki gönderim aynı anahtarla yarışırsa unique index (SourceType dahil) ikisini de
             // kabul ederdi; anahtar kilidi ikinciyi birincinin kaydını görmeye zorlar.
             await AdvisoryLockAsync(db, $"depozito-anahtar:{db.TenantId}:{entries[0].SourceId}", ct);
-            await DepozitoKilitAsync(db, cariId, ct);
+            await DepositLockAsync(db, customerId, ct);
 
             // F1.4 — ANAHTAR ÖNCE (kilidin arkasında): bu (SourceType, SourceId) kümesi bu kiracıda zaten
             // yazılmışsa çift gönderimdir → I3 sözleşmesiyle AYNI sessiz idempotent no-op. Bakiye çitinden
@@ -360,38 +360,38 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             // Adversarial MEDIUM-1: sessiz başarı YALNIZ içerik birebir aynıysa (cari, hesap, tutar, döviz,
             // kur; irat'ta ayrıca kira atfı). Aynı anahtar başka cari/tutarla → 409 (önceden sessizce hiçbir
             // şey yazmadan "tamam" dönüyordu).
-            if (await DepozitoMevcutMuAsync(db, entries, izKaydi, ct))
+            if (await DepositExistsAsync(db, entries, auditTrail, ct))
             {
                 await dbTx.RollbackAsync(ct);
                 return;
             }
 
-            if (kontrolEt)
+            if (shouldCheck)
             {
                 var rows = await db.AccountLedgerEntries.AsNoTracking()
-                    .Where(e => e.AccountType == LedgerAccountType.Depozito && e.AccountRef == cariId)
+                    .Where(e => e.AccountType == LedgerAccountType.Depozito && e.AccountRef == customerId)
                     .Select(e => new { e.Direction, A = e.Amount.Amount, R = e.Amount.Rate })
                     .ToListAsync(ct);
-                var tutulan = rows.Sum(r => r.Direction == LedgerDirection.Credit ? r.A * r.R : -(r.A * r.R));
-                var cikan = entries
+                var kept = rows.Sum(r => r.Direction == LedgerDirection.Credit ? r.A * r.R : -(r.A * r.R));
+                var outflow = entries
                     .Where(e => e.AccountType == LedgerAccountType.Depozito && e.Direction == LedgerDirection.Debit)
                     .Sum(e => e.Amount.AmountInBase);
-                if (cikan > tutulan)
-                    throw new ValidationException($"İşlem tutarı ({cikan}) tutulan depozitoyu ({tutulan}) aşamaz.");
+                if (outflow > kept)
+                    throw new ValidationException($"İşlem tutarı ({outflow}) tutulan depozitoyu ({kept}) aşamaz.");
             }
 
-            if (izKaydi is not null)
+            if (auditTrail is not null)
             {
                 // Kira bağı çiti: verilen kira BU carinin olmalı (yanlış araca gelir atfı engellenir).
-                if (izKaydi.RentalId is { } rid)
+                if (auditTrail.RentalId is { } rid)
                 {
-                    var musteri = await db.Rentals.Where(r => r.Id == rid)
+                    var customer = await db.Rentals.Where(r => r.Id == rid)
                         .Select(r => (Guid?)r.MusteriId).FirstOrDefaultAsync(ct)
                         ?? throw new ValidationException("İrat için verilen kira bulunamadı.");
-                    if (musteri != izKaydi.CariId)
+                    if (customer != auditTrail.CariId)
                         throw new ValidationException("İrat kirası bu cariye ait değil.");
                 }
-                db.DepozitoIratlar.Add(izKaydi);
+                db.DepozitoIratlar.Add(auditTrail);
             }
             db.AccountLedgerEntries.AddRange(entries);
             try
@@ -406,7 +406,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
                 // çift-submit → sessiz idempotent no-op (I3). Görünmüyorsa (çapraz-tenant PK çakışması)
                 // sessiz yutmak geliri kaybettirir → net red. F1.4 MEDIUM-1: görünse de içerik farklıysa
                 // (farklı cari kilitleri aynı anahtarla yarıştı) → 409 (DepozitoMevcutMuAsync fırlatır).
-                if (!await DepozitoMevcutMuAsync(db, entries, izKaydi, ct))
+                if (!await DepositExistsAsync(db, entries, auditTrail, ct))
                     throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
             }
         }, ct);
@@ -417,8 +417,8 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     /// içerik gelenle BİREBİR aynıysa true (çağıran sessiz no-op yapar). Yazılmış ama içerik farklıysa
     /// (başka cari/hesap/tutar ya da irat'ta başka kira) <see cref="DuplicateOperationException"/>.
     /// </summary>
-    private static async Task<bool> DepozitoMevcutMuAsync(
-        AppDbContext db, IReadOnlyList<AccountLedgerEntry> entries, DepozitoIrat? izKaydi, CancellationToken ct)
+    private static async Task<bool> DepositExistsAsync(
+        AppDbContext db, IReadOnlyList<AccountLedgerEntry> entries, DepozitoIrat? auditTrail, CancellationToken ct)
     {
         // #299 L2: anahtar TÜM depozito türlerinde tekildir. Aynı anahtarla BAŞKA türde (al ↔ iade/mahsup/irat)
         // yazılmış küme varsa bu farklı bir işlemdir → 409 mukerrer + mevcut (ayniIcerik=false). Önceden unique
@@ -434,14 +434,14 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             throw new DuplicateOperationException(DuplicateOperationException.DifferentContentMessage,
                 new MevcutIslem(sourceId, DepositLabel(otherType.SourceType), otherType.Amount, otherType.Currency, AyniIcerik: false));
 
-        var mevcut = await DefterKumesi.OkuAsync(db, [sourceType], [sourceId], ct);
-        if (mevcut.Count == 0) return false;
-        if (!DefterKumesi.Ayni(mevcut, entries)) throw DuplicateOperationException.DifferentContent();
-        if (izKaydi is not null)
+        var existing = await LedgerSet.ReadAsync(db, [sourceType], [sourceId], ct);
+        if (existing.Count == 0) return false;
+        if (!LedgerSet.Same(existing, entries)) throw DuplicateOperationException.DifferentContent();
+        if (auditTrail is not null)
         {
-            var kayitliKira = await db.DepozitoIratlar.AsNoTracking()
-                .Where(d => d.Id == izKaydi.Id).Select(d => d.RentalId).FirstOrDefaultAsync(ct);
-            if (kayitliKira != izKaydi.RentalId) throw DuplicateOperationException.DifferentContent();
+            var savedRental = await db.DepozitoIratlar.AsNoTracking()
+                .Where(d => d.Id == auditTrail.Id).Select(d => d.RentalId).FirstOrDefaultAsync(ct);
+            if (savedRental != auditTrail.RentalId) throw DuplicateOperationException.DifferentContent();
         }
         return true;
     }
@@ -471,8 +471,8 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
     }
 
     /// <summary>(tenant, cari) kapsamlı pg_advisory_xact_lock — tx bitince otomatik bırakılır.</summary>
-    private static Task DepozitoKilitAsync(AppDbContext db, Guid cariId, CancellationToken ct)
-        => AdvisoryLockAsync(db, $"depozito:{db.TenantId}:{cariId}", ct);
+    private static Task DepositLockAsync(AppDbContext db, Guid customerId, CancellationToken ct)
+        => AdvisoryLockAsync(db, $"depozito:{db.TenantId}:{customerId}", ct);
 
     public async Task PostBatchAsync(IReadOnlyList<CashPosting> items, CancellationToken ct = default)
     {
@@ -494,7 +494,7 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             // ATOMİK: tüm satırlar TEK transaction'da. No'lar boşluksuz; rollback olursa sıra geri alınır.
             foreach (var it in items)
             {
-                it.Tx.No = await BelgeNoUretici.UretAsync(db, db.TenantId,
+                it.Tx.No = await DocumentNoGenerator.GenerateAsync(db, db.TenantId,
                     it.Tx.Tip == CashTransactionType.Odeme ? DocumentNoType.Tediye : DocumentNoType.Tahsilat, ct);
                 db.CashTransactions.Add(it.Tx);
                 db.AccountLedgerEntries.AddRange(it.Entries);
@@ -510,28 +510,28 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
             {
                 // İşlem anahtarı çakışması (aynı toplu işlem yeniden gönderildi) → TÜM batch geri alınır (idempotent).
                 await dbTx.RollbackAsync(ct);
-                throw IdempotencyKisiti.Red(ex, "Bu toplu işlem zaten kaydedilmiş.");
+                throw IdempotencyConstraint.Red(ex, "Bu toplu işlem zaten kaydedilmiş.");
             }
         }, ct);
     }
 
-    public async Task<decimal> GetAccountBalanceAsync(Guid cariId, CancellationToken ct = default)
+    public async Task<decimal> GetAccountBalanceAsync(Guid customerId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Σ (Borç +AmountInBase, Alacak −AmountInBase). AmountInBase = Amount * Rate.
         var rows = await db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == cariId)
+            .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == customerId)
             .Select(e => new { e.Direction, e.Amount })
             .ToListAsync(ct);
         return rows.Sum(r => r.Direction == LedgerDirection.Debit ? r.Amount.AmountInBase : -r.Amount.AmountInBase);
     }
 
-    public async Task<decimal> GetDepositBalanceAsync(Guid cariId, CancellationToken ct = default)
+    public async Task<decimal> GetDepositBalanceAsync(Guid customerId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Depozito yükümlülük: Alacak (al) +AmountInBase, Borç (iade/mahsup) −AmountInBase → elde tutulan.
         var rows = await db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Depozito && e.AccountRef == cariId)
+            .Where(e => e.AccountType == LedgerAccountType.Depozito && e.AccountRef == customerId)
             .Select(e => new { e.Direction, e.Amount })
             .ToListAsync(ct);
         return rows.Sum(r => r.Direction == LedgerDirection.Credit ? r.Amount.AmountInBase : -r.Amount.AmountInBase);
@@ -586,52 +586,52 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         if (f.Bas is { } b) q = q.Where(e => e.EntryDateUtc >= b);
         if (f.Bit is { } t) q = q.Where(e => e.EntryDateUtc <= t);
 
-        var bacaklar = await q
+        var legs = await q
             .Select(e => new
             {
                 e.SourceId, e.EntryDateUtc, e.AccountType, e.AccountRef, e.Direction,
                 Tutar = e.Amount.Amount, e.Amount.Currency, e.Amount.Rate, e.Description
             })
             .ToListAsync(ct);
-        if (bacaklar.Count == 0) return [];
+        if (legs.Count == 0) return [];
 
         // Hesap süzgeci: kaynak VEYA hedef tarafı o hesap olan virmanlar.
-        var gruplar = bacaklar.GroupBy(x => x.SourceId).ToList();
+        var groups = legs.GroupBy(x => x.SourceId).ToList();
         if (f.HesapId is { } hid)
-            gruplar = [.. gruplar.Where(g => g.Any(x => x.AccountRef == hid))];
+            groups = [.. groups.Where(g => g.Any(x => x.AccountRef == hid))];
 
-        var idler = gruplar.Select(g => g.Key).ToList();
-        var kunyeler = (await db.KasaVirmanBilgileri.AsNoTracking()
-            .Where(k => idler.Contains(k.Id)).ToListAsync(ct)).ToDictionary(k => k.Id);
+        var ids = groups.Select(g => g.Key).ToList();
+        var profiles = (await db.KasaVirmanBilgileri.AsNoTracking()
+            .Where(k => ids.Contains(k.Id)).ToListAsync(ct)).ToDictionary(k => k.Id);
 
-        var satirlar = new List<KasaVirmanSatirDto>(gruplar.Count);
-        foreach (var g in gruplar)
+        var rows = new List<KasaVirmanSatirDto>(groups.Count);
+        foreach (var g in groups)
         {
             // Dengeli çift: Debit = hedef (para giren), Credit = kaynak (para çıkan).
-            var hedef = g.FirstOrDefault(x => x.Direction == LedgerDirection.Debit);
-            var kaynak = g.FirstOrDefault(x => x.Direction == LedgerDirection.Credit);
-            if (hedef is null || kaynak is null) continue;   // yarım küme olamaz (LedgerPoster dengeyi zorlar)
+            var target = g.FirstOrDefault(x => x.Direction == LedgerDirection.Debit);
+            var source = g.FirstOrDefault(x => x.Direction == LedgerDirection.Credit);
+            if (target is null || source is null) continue;   // yarım küme olamaz (LedgerPoster dengeyi zorlar)
 
-            kunyeler.TryGetValue(g.Key, out var k);
-            satirlar.Add(new KasaVirmanSatirDto(
-                g.Key, k?.Tarih ?? hedef.EntryDateUtc,
-                kaynak.AccountType, hedef.AccountType,
-                kaynak.AccountRef, hedef.AccountRef,
-                hedef.Tutar, hedef.Currency, hedef.Rate,
-                k?.MakbuzNo, k?.Sube, k?.IslemYapan, k?.Aciklama ?? hedef.Description,
+            profiles.TryGetValue(g.Key, out var k);
+            rows.Add(new KasaVirmanSatirDto(
+                g.Key, k?.Tarih ?? target.EntryDateUtc,
+                source.AccountType, target.AccountType,
+                source.AccountRef, target.AccountRef,
+                target.Tutar, target.Currency, target.Rate,
+                k?.MakbuzNo, k?.Sube, k?.IslemYapan, k?.Aciklama ?? target.Description,
                 KunyeVar: k is not null));
         }
 
         if (!string.IsNullOrWhiteSpace(f.Ara))
         {
             var a = f.Ara.Trim();
-            satirlar = [.. satirlar.Where(x =>
+            rows = [.. rows.Where(x =>
                 (x.MakbuzNo?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (x.Sube?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (x.Aciklama?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false))];
         }
 
-        return [.. satirlar.OrderByDescending(x => x.Tarih).ThenBy(x => x.Id).Take(limit)];
+        return [.. rows.OrderByDescending(x => x.Tarih).ThenBy(x => x.Id).Take(limit)];
     }
 
     public async Task<IReadOnlyList<CariVirmanSatirDto>> ListAccountTransfersAsync(
@@ -655,88 +655,88 @@ public sealed class CashRepository(IDbContextFactory<AppDbContext> factory) : IC
         }
 
         var limit = Math.Clamp(filter?.EnFazla ?? 1000, 1, 10000);
-        var kunyeler = await q.OrderByDescending(x => x.Tarih).Take(limit).ToListAsync(ct);
-        if (kunyeler.Count == 0) return [];
+        var profiles = await q.OrderByDescending(x => x.Tarih).Take(limit).ToListAsync(ct);
+        if (profiles.Count == 0) return [];
 
-        var idler = kunyeler.Select(k => k.Id).ToList();
+        var ids = profiles.Select(k => k.Id).ToList();
         // Tutar DEFTERDEN: virmanın Debit bacağı (hedef cariye giren tutar) işlemin tutarıdır.
-        var tutarlar = await db.AccountLedgerEntries.AsNoTracking()
+        var amounts = await db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.SourceType == "CariVirman" && e.Direction == LedgerDirection.Debit
-                        && idler.Contains(e.SourceId))
+                        && ids.Contains(e.SourceId))
             .Select(e => new { e.SourceId, e.Amount.Amount, e.Amount.Currency, e.Amount.Rate })
             .ToListAsync(ct);
-        var tutarMap = tutarlar.GroupBy(x => x.SourceId)
+        var amountMap = amounts.GroupBy(x => x.SourceId)
             .ToDictionary(g => g.Key, g => g.First());
 
-        var cariIds = kunyeler.SelectMany(k => new[] { k.KaynakCariId, k.HedefCariId }).Distinct().ToList();
-        var adlar = (await db.Customers.AsNoTracking().Where(c => cariIds.Contains(c.Id)).ToListAsync(ct))
+        var customerIds = profiles.SelectMany(k => new[] { k.KaynakCariId, k.HedefCariId }).Distinct().ToList();
+        var names = (await db.Customers.AsNoTracking().Where(c => customerIds.Contains(c.Id)).ToListAsync(ct))
             .ToDictionary(c => c.Id, c => c.DisplayName);
-        string Ad(Guid id) => adlar.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n)
+        string Name(Guid id) => names.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n)
             ? n : "(bilinmeyen cari)";
 
-        return kunyeler.Select(k =>
+        return profiles.Select(k =>
         {
-            tutarMap.TryGetValue(k.Id, out var t);
+            amountMap.TryGetValue(k.Id, out var t);
             return new CariVirmanSatirDto(
                 k.Id, k.Tarih, k.Vade,
-                k.KaynakCariId, Ad(k.KaynakCariId), k.HedefCariId, Ad(k.HedefCariId),
+                k.KaynakCariId, Name(k.KaynakCariId), k.HedefCariId, Name(k.HedefCariId),
                 t?.Amount ?? 0m, t?.Currency ?? "TRY", t?.Rate ?? 1m,
                 k.MakbuzNo, k.Sube, k.IslemYapan, k.Aciklama);
         }).ToList();
     }
 
     public async Task<CariEkstreSonuc> GetAccountStatementAsync(
-        Guid cariId, CariEkstreFilter? filter = null, CancellationToken ct = default)
+        Guid customerId, CariEkstreFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var taban = db.AccountLedgerEntries.AsNoTracking()
-            .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == cariId);
+        var floor = db.AccountLedgerEntries.AsNoTracking()
+            .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == customerId);
 
         if (filter is null || filter.BosMu)
-            return new CariEkstreSonuc(0m, await taban.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
+            return new CariEkstreSonuc(0m, await floor.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
 
         // Tarih DIŞI daraltmalar hem görünen satırlara hem DEVİR'e uygulanır: devir "aynı süzgeçten
         // geçen önceki hareketlerin toplamı" olmalı, yoksa yürüyen bakiye tutmaz.
-        var suzulmus = taban;
+        var filtered = floor;
 
         if (!string.IsNullOrWhiteSpace(filter.Doviz))
         {
             var d = filter.Doviz.Trim().ToUpperInvariant();
-            suzulmus = suzulmus.Where(e => e.Amount.Currency.ToUpper() == d);
+            filtered = filtered.Where(e => e.Amount.Currency.ToUpper() == d);
         }
         if (!string.IsNullOrWhiteSpace(filter.SourceType))
         {
             var st = filter.SourceType.Trim();
-            suzulmus = suzulmus.Where(e => e.SourceType == st);
+            filtered = filtered.Where(e => e.SourceType == st);
         }
-        if (filter.KiraDurum is { } durum)
+        if (filter.KiraDurum is { } status)
         {
             // Kira bağı DEFTERDE YOK: tahsilat/ödeme satırının SourceId'si CashTransaction'ı
             // gösterir, kira bağı orada (RentalId). Kira bağı olmayan satırlar (fatura, ceza,
             // araç satışı…) bu filtre açıkken listeden düşer — kasıtlı.
-            var kiraIds = db.Rentals.Where(r => r.Durum == durum).Select(r => r.Id);
+            var rentalIds = db.Rentals.Where(r => r.Durum == status).Select(r => r.Id);
             var txIds = db.CashTransactions
-                .Where(t => t.RentalId != null && kiraIds.Contains(t.RentalId.Value))
+                .Where(t => t.RentalId != null && rentalIds.Contains(t.RentalId.Value))
                 .Select(t => t.Id);
-            suzulmus = suzulmus.Where(e => txIds.Contains(e.SourceId));
+            filtered = filtered.Where(e => txIds.Contains(e.SourceId));
         }
 
-        var devir = 0m;
-        if (filter.Bas is { } bas)
+        var carryForward = 0m;
+        if (filter.Bas is { } start)
         {
             // SignedBase türetilmiş (mapped değil) → SQL'de yazılamaz; Debit/Credit ayrı toplanır.
-            var oncekiler = suzulmus.Where(e => e.EntryDateUtc < bas);
-            var borc = await oncekiler.Where(e => e.Direction == LedgerDirection.Debit)
+            var previousItems = filtered.Where(e => e.EntryDateUtc < start);
+            var debit = await previousItems.Where(e => e.Direction == LedgerDirection.Debit)
                 .SumAsync(e => (decimal?)(e.Amount.Amount * e.Amount.Rate), ct) ?? 0m;
-            var alacak = await oncekiler.Where(e => e.Direction == LedgerDirection.Credit)
+            var credit = await previousItems.Where(e => e.Direction == LedgerDirection.Credit)
                 .SumAsync(e => (decimal?)(e.Amount.Amount * e.Amount.Rate), ct) ?? 0m;
-            devir = borc - alacak;
+            carryForward = debit - credit;
 
-            suzulmus = suzulmus.Where(e => e.EntryDateUtc >= bas);
+            filtered = filtered.Where(e => e.EntryDateUtc >= start);
         }
-        if (filter.Bit is { } bit) suzulmus = suzulmus.Where(e => e.EntryDateUtc <= bit);
+        if (filter.Bit is { } bit) filtered = filtered.Where(e => e.EntryDateUtc <= bit);
 
-        return new CariEkstreSonuc(devir, await suzulmus.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
+        return new CariEkstreSonuc(carryForward, await filtered.OrderBy(e => e.EntryDateUtc).ToListAsync(ct));
     }
 
     public async Task<Dictionary<Guid, int>> GetRentalTransactionCountsAsync(

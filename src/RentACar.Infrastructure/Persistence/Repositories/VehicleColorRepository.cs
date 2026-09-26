@@ -4,6 +4,6 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
-/// <summary>Renk repo — generic <see cref="MasterTanimRepository{T}"/> ince alt sınıfı (O12d); gövde tabandan gelir.</summary>
+/// <summary>Renk repo — generic <see cref="MasterDefinitionRepository{T}"/> ince alt sınıfı (O12d); gövde tabandan gelir.</summary>
 public sealed class VehicleColorRepository(IDbContextFactory<AppDbContext> factory)
-    : MasterTanimRepository<VehicleColor>(factory, "renk"), IVehicleColorRepository;
+    : MasterDefinitionRepository<VehicleColor>(factory, "renk"), IVehicleColorRepository;

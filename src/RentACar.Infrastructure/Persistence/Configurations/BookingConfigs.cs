@@ -60,10 +60,10 @@ internal sealed class ReservationConfig : IEntityTypeConfiguration<Reservation>
         e.HasIndex(x => new { x.TenantId, x.Durum, x.BasTar });
         // F5.1 adversarial H1 — bir teklif tek rezervasyon (eşzamanlı kabulün yapısal çiti; kilidin arkasındaki ağ).
         e.HasIndex(x => new { x.TenantId, x.KaynakTeklifId }).IsUnique()
-            .HasFilter("\"KaynakTeklifId\" IS NOT NULL").HasDatabaseName(TeklifTekRezervasyonIndeksi);
+            .HasFilter("\"KaynakTeklifId\" IS NOT NULL").HasDatabaseName(QuotationSingleReservationIndex);
     }
 
-    public const string TeklifTekRezervasyonIndeksi = "UX_Reservations_TenantId_KaynakTeklifId";
+    public const string QuotationSingleReservationIndex = "UX_Reservations_TenantId_KaynakTeklifId";
 }
 
 // ---- Quotation / Teklif (tenant-owned; operasyonel, güncellenebilir) ----
@@ -98,7 +98,7 @@ internal sealed class QuotationConfig : IEntityTypeConfiguration<Quotation>
 }
 
 // ---- FaturaDonemi (FAZ 4.2-B1 — periyodik fatura dönem planı; Kesildi satır Invoice'a bağlı) ----
-internal sealed class FaturaDonemiConfig : IEntityTypeConfiguration<FaturaDonemi>
+internal sealed class InvoicePeriodConfig : IEntityTypeConfiguration<FaturaDonemi>
 {
     public void Configure(EntityTypeBuilder<FaturaDonemi> e)
     {
@@ -209,7 +209,7 @@ internal sealed class RentalAddOnConfig : IEntityTypeConfiguration<RentalAddOn>
 }
 
 // ---- PR-C: paylasilan sozlesmenin anlik goruntusu (tenant-owned + RLS; kisisel veri PDF'in icinde) ----
-internal sealed class SozlesmePdfConfig : IEntityTypeConfiguration<SozlesmePdf>
+internal sealed class ContractPdfConfig : IEntityTypeConfiguration<SozlesmePdf>
 {
     public void Configure(EntityTypeBuilder<SozlesmePdf> e)
     {

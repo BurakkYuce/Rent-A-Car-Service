@@ -6,7 +6,7 @@ namespace RentACar.Infrastructure.Persistence;
 
 /// <summary>
 /// F11.1a — optimistic concurrency for full-replacement PUTs on definition (master) tables, generic over the entity
-/// type. Same mechanism as <see cref="SatirSurumu"/> (Postgres <c>xmin</c> as an opaque version text + row lock
+/// type. Same mechanism as <see cref="RowVersionSql"/> (Postgres <c>xmin</c> as an opaque version text + row lock
 /// <c>FOR UPDATE</c>), but the table name comes from the EF model of <typeparamref name="T"/>, never from input —
 /// so no whitelist is needed and a new definition table needs no change here.
 /// Reads run on the app role: RLS limits them to the current tenant (another tenant's row reads as "missing").

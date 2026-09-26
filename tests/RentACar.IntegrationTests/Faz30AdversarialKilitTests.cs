@@ -226,7 +226,7 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
 
         // Job'un yakalama genişliği ile manuel yolunki AYNI olmalı (tek kopya ilkesi).
         var jobKaynak = await File.ReadAllTextAsync(Path.Combine(RepoKok(),
-            "src/RentACar.Infrastructure/Persistence/DonemFaturaUretici.cs"));
+            "src/RentACar.Infrastructure/Persistence/PeriodInvoiceGenerator.cs"));
         var manuelKaynak = await File.ReadAllTextAsync(Path.Combine(RepoKok(),
             "src/RentACar.Application/FaturaDonemleri/AutoCollectionService.cs"));
         Assert.True(

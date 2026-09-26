@@ -45,9 +45,9 @@ public sealed class DetailRepository(IDbContextFactory<AppDbContext> factory) : 
             .Where(e => e.AccountType == LedgerAccountType.Cari && e.AccountRef == customerId)
             .OrderByDescending(e => e.EntryDateUtc)
             .ToListAsync(ct);
-        var bakiye = ledger.Sum(e => e.SignedBase);
+        var balance = ledger.Sum(e => e.SignedBase);
         var recent = ledger.Take(20).ToList();
 
-        return new CustomerDetailDto(customer, bakiye, rentals, recent);
+        return new CustomerDetailDto(customer, balance, rentals, recent);
     }
 }

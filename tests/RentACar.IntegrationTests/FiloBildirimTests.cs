@@ -25,7 +25,7 @@ public sealed class FiloBildirimTests(PostgresFixture fx)
     private static async Task<int> UretAsync(IServiceProvider sp, Guid tenant, DateTimeOffset now)
     {
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
-        return await FiloBildirimUretici.RunAsync(db, tenant, now, TutSatEsikleri.Default);
+        return await FleetNotificationGenerator.RunAsync(db, tenant, now, TutSatEsikleri.Default);
     }
 
     /// <summary>Servis kaydı aç → başlat → tamamla (sonraki bakım hedefi yaz).</summary>

@@ -41,19 +41,19 @@ public static class BranchBackfill
                 $"SELECT set_config('app.tenant_id', {tenantId.ToString()}, false)", ct);
 
             var t = tenantId.ToString(); // Tenants'tan gelen güvenilir Guid → literal (injection yok)
-            foreach (var (table, subeCol, fkCol) in Targets)
+            foreach (var (table, branchCol, fkCol) in Targets)
             {
                 // Açık TenantId scope: FORCE-RLS olmayan Users'ta owner bypass'ına karşı korur; Branches
                 // FORCE-RLS'te GUC ile zaten kapsanır ama açık koşul defense-in-depth.
                 var sql = $"""
                     UPDATE "{table}" x SET "{fkCol}" = (
                         SELECT b."Id" FROM "Branches" b
-                        WHERE b."TenantId" = '{t}' AND lower(btrim(b."Ad")) = lower(btrim(x."{subeCol}"))
+                        WHERE b."TenantId" = '{t}' AND lower(btrim(b."Ad")) = lower(btrim(x."{branchCol}"))
                         ORDER BY b."Kod" LIMIT 1)
-                    WHERE x."TenantId" = '{t}' AND x."{fkCol}" IS NULL AND x."{subeCol}" IS NOT NULL
-                        AND btrim(x."{subeCol}") <> ''
+                    WHERE x."TenantId" = '{t}' AND x."{fkCol}" IS NULL AND x."{branchCol}" IS NOT NULL
+                        AND btrim(x."{branchCol}") <> ''
                         AND EXISTS (SELECT 1 FROM "Branches" b2 WHERE b2."TenantId" = '{t}'
-                            AND lower(btrim(b2."Ad")) = lower(btrim(x."{subeCol}")));
+                            AND lower(btrim(b2."Ad")) = lower(btrim(x."{branchCol}")));
                     """;
                 total += await db.Database.ExecuteSqlRawAsync(sql, ct);
             }

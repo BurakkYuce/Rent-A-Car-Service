@@ -65,7 +65,7 @@ internal sealed class TenantSettingsConfig : IEntityTypeConfiguration<TenantSett
 }
 
 // ---- Bildirim / uygulama-içi vade uyarısı (tenant-owned; scheduler yazar) ----
-internal sealed class BildirimConfig : IEntityTypeConfiguration<Bildirim>
+internal sealed class NotificationConfig : IEntityTypeConfiguration<Bildirim>
 {
     public void Configure(EntityTypeBuilder<Bildirim> e)
     {
@@ -81,7 +81,7 @@ internal sealed class BildirimConfig : IEntityTypeConfiguration<Bildirim>
 }
 
 // ---- WhatsAppGonderim (tenant-owned; günlük özet log/idempotency) ----
-internal sealed class WhatsAppGonderimConfig : IEntityTypeConfiguration<WhatsAppGonderim>
+internal sealed class WhatsAppDispatchConfig : IEntityTypeConfiguration<WhatsAppGonderim>
 {
     public void Configure(EntityTypeBuilder<WhatsAppGonderim> e)
     {
@@ -97,7 +97,7 @@ internal sealed class WhatsAppGonderimConfig : IEntityTypeConfiguration<WhatsApp
 }
 
 // ---- MesajSablon (tenant-owned; müşteriye giden mesaj metni — tür + kanal başına tek) ----
-internal sealed class MesajSablonConfig : IEntityTypeConfiguration<MesajSablon>
+internal sealed class MessageTemplateConfig : IEntityTypeConfiguration<MesajSablon>
 {
     public void Configure(EntityTypeBuilder<MesajSablon> e)
     {
@@ -114,7 +114,7 @@ internal sealed class MesajSablonConfig : IEntityTypeConfiguration<MesajSablon>
 }
 
 // ---- GidenMesaj (tenant-owned; gönderim kaydı + ŞEMA düzeyinde idempotency) ----
-internal sealed class GidenMesajConfig : IEntityTypeConfiguration<GidenMesaj>
+internal sealed class OutgoingMessageConfig : IEntityTypeConfiguration<GidenMesaj>
 {
     public void Configure(EntityTypeBuilder<GidenMesaj> e)
     {
@@ -154,7 +154,7 @@ internal sealed class ScreenPermissionConfig : IEntityTypeConfiguration<ScreenPe
 }
 
 // ---- YetkiGrup / ekran-izni şablonu (tenant-owned, PR-D) ----
-internal sealed class YetkiGrupConfig : IEntityTypeConfiguration<YetkiGrup>
+internal sealed class PermissionGroupConfig : IEntityTypeConfiguration<YetkiGrup>
 {
     public void Configure(EntityTypeBuilder<YetkiGrup> e)
     {
@@ -168,7 +168,7 @@ internal sealed class YetkiGrupConfig : IEntityTypeConfiguration<YetkiGrup>
 }
 
 // ---- TabloDuzeni (tenant-owned; yeni arayüzün kişisel tablo düzeni — kullanıcı × tablo başına tek, F3.5) ----
-internal sealed class TabloDuzeniConfig : IEntityTypeConfiguration<TabloDuzeni>
+internal sealed class TableLayoutConfig : IEntityTypeConfiguration<TabloDuzeni>
 {
     public void Configure(EntityTypeBuilder<TabloDuzeni> e)
     {

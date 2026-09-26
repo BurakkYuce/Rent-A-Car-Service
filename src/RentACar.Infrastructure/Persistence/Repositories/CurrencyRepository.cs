@@ -32,10 +32,10 @@ public sealed class CurrencyRepository(IDbContextFactory<AppDbContext> factory) 
         return await db.Currencies.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.Currencies.AsNoTracking()
             .Where(c => c.Kod == k && (excludeId == null || c.Id != excludeId))
             .AnyAsync(ct);

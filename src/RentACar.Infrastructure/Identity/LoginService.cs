@@ -65,13 +65,13 @@ public sealed class LoginService(
         // Kullanıcı-bazlı izin istisnaları (2026-08-17). Login-bootstrap yolunda GUC yok →
         // istisna_select politikası GUC-boşken açık (Users deseni); sorgu (TenantId, UserId) ile
         // DAR okur. Buradan dönen adlar claim'e yazılır — değişiklik SONRAKİ girişte etkinleşir.
-        var istisnalar = await db.KullaniciIzinIstisnalari.AsNoTracking()
+        var exceptions = await db.KullaniciIzinIstisnalari.AsNoTracking()
             .Where(i => i.TenantId == tenant.Id && i.UserId == user.Id)
             .Select(i => new { i.Izin, i.Ver })
             .ToListAsync(ct);
 
         return new LoginResult(tenant, user,
-            EkIzinler: istisnalar.Where(i => i.Ver).Select(i => i.Izin).ToList(),
-            YasakIzinler: istisnalar.Where(i => !i.Ver).Select(i => i.Izin).ToList());
+            EkIzinler: exceptions.Where(i => i.Ver).Select(i => i.Izin).ToList(),
+            YasakIzinler: exceptions.Where(i => !i.Ver).Select(i => i.Izin).ToList());
     }
 }

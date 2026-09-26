@@ -288,7 +288,7 @@
         // Yetkisiz rol guard'a takılırsa pano DÜŞMEMELİ (menüdeki sayaçla aynı savunma).
         try
         {
-            if (TenantCtx.TenantId is { } tid && await TenantDurum.WebSitesiModuluAsync(tid))
+            if (TenantCtx.TenantId is { } tid && await TenantDurum.WebsiteModuleAsync(tid))
                 _siteTalep = await SiteTalepleri.SummaryAsync();
         }
         catch { _siteTalep = null; }

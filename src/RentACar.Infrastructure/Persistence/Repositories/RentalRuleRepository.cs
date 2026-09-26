@@ -41,10 +41,10 @@ public sealed class RentalRuleRepository(IDbContextFactory<AppDbContext> factory
         return await db.RentalRules.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.RentalRules.AsNoTracking()
             .Where(r => r.Kod == k && (excludeId == null || r.Id != excludeId))
             .AnyAsync(ct);

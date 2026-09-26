@@ -21,7 +21,7 @@ public sealed class TenantStatusCache(IMemoryCache cache, IDbContextFactory<AppD
     /// <summary>Bilinmeyen tenant → <c>(false, false)</c> — güvenli varsayılan.</summary>
     private readonly record struct Durum(bool Aktif, bool WebSitesiModulu);
 
-    private async Task<Durum> DurumAsync(Guid tenantId, CancellationToken ct)
+    private async Task<Durum> StatusAsync(Guid tenantId, CancellationToken ct)
     {
         if (cache.TryGetValue(Key(tenantId), out Durum d)) return d;
         await using var db = await factory.CreateDbContextAsync(ct);
@@ -35,12 +35,12 @@ public sealed class TenantStatusCache(IMemoryCache cache, IDbContextFactory<AppD
     }
 
     public async Task<bool> IsActiveAsync(Guid tenantId, CancellationToken ct = default)
-        => (await DurumAsync(tenantId, ct)).Aktif;
+        => (await StatusAsync(tenantId, ct)).Aktif;
 
     /// <summary>PR-12: "Web Sitesi" modülü satın alınmış mı. ERP menü kapısı VE <c>/web-sitesi/*</c>
     /// uçlarının SUNUCU-taraflı doğrulaması bunu okur — menü gizlemek yalnız görseldir.</summary>
-    public async Task<bool> WebSitesiModuluAsync(Guid tenantId, CancellationToken ct = default)
-        => (await DurumAsync(tenantId, ct)).WebSitesiModulu;
+    public async Task<bool> WebsiteModuleAsync(Guid tenantId, CancellationToken ct = default)
+        => (await StatusAsync(tenantId, ct)).WebSitesiModulu;
 
     public void Invalidate(Guid tenantId) => cache.Remove(Key(tenantId));
 }

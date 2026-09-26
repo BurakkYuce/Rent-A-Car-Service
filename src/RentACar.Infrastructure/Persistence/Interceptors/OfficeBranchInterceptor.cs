@@ -57,13 +57,13 @@ public sealed class OfficeBranchInterceptor : SaveChangesInterceptor
         // (salt-metin davranış). Eskiden en düşük Kod kazanıyordu: bir operatör başka şubenin ofis adını ("otogar b ")
         // kendi şubesine düşük kodla açıp o şubenin kayıtlarının türetilmiş şubesini ele geçiriyordu.
         var map = locations
-            .GroupBy(l => OfisAdiAnahtari.Uret(l.Ad))
-            .ToDictionary(g => g.Key, g => OfisAdiAnahtari.UnambiguousBranch(g.Select(l => l.SubeId)));
+            .GroupBy(l => OfficeNameKey.Generate(l.Ad))
+            .ToDictionary(g => g.Key, g => OfficeNameKey.UnambiguousBranch(g.Select(l => l.SubeId)));
 
         foreach (var e in scoped)
         {
-            var key = OfisAdiAnahtari.Uret(e.Entity.OfisAdi!);
-            e.Entity.OfisSubeFk = map.TryGetValue(key, out var subeId) ? subeId : null;
+            var key = OfficeNameKey.Generate(e.Entity.OfisAdi!);
+            e.Entity.OfisSubeFk = map.TryGetValue(key, out var branchId) ? branchId : null;
         }
     }
 }

@@ -6,7 +6,7 @@ using RentACar.Domain.Enums;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>CRM anket repo'su (roadmap C3). Tenant izolasyonu RLS + query filter ile otomatik.</summary>
-public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : ISurveyRepository
+public sealed class SurveyRepository(IDbContextFactory<AppDbContext> factory) : ISurveyRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -16,19 +16,19 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
         return await db.Anketler.AsNoTracking().OrderByDescending(r => r.Tarih).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<Anket>> ListAsync(AnketFilter filtre, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Anket>> ListAsync(AnketFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Anketler.AsNoTracking();
 
-        if (filtre.CariId is Guid cid) q = q.Where(x => x.CariId == cid);
-        if (filtre.AnketTuru is { } t) q = q.Where(x => x.AnketTuru == t);
-        if (filtre.Durum is { } d) q = q.Where(x => x.Durum == d);
-        if (filtre.TarihMin is { } min) q = q.Where(x => x.Tarih >= min);
-        if (filtre.TarihMax is { } max) q = q.Where(x => x.Tarih <= max);
-        if (!string.IsNullOrWhiteSpace(filtre.CikisOfisi))
+        if (filter.CariId is Guid cid) q = q.Where(x => x.CariId == cid);
+        if (filter.AnketTuru is { } t) q = q.Where(x => x.AnketTuru == t);
+        if (filter.Durum is { } d) q = q.Where(x => x.Durum == d);
+        if (filter.TarihMin is { } min) q = q.Where(x => x.Tarih >= min);
+        if (filter.TarihMax is { } max) q = q.Where(x => x.Tarih <= max);
+        if (!string.IsNullOrWhiteSpace(filter.CikisOfisi))
         {
-            var o = filtre.CikisOfisi.Trim();
+            var o = filter.CikisOfisi.Trim();
             q = q.Where(x => x.CikisOfisi != null && x.CikisOfisi.Trim() == o);
         }
         return await q.OrderByDescending(r => r.Tarih).Take(10_000).ToListAsync(ct); // #283 L2: upper bound
@@ -40,26 +40,26 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
         return await db.Anketler.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<IReadOnlyList<AnketCevap>> ListResponsesAsync(Guid anketId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<AnketCevap>> ListResponsesAsync(Guid surveyId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.AnketCevaplari.AsNoTracking()
-            .Where(x => x.AnketId == anketId).OrderBy(x => x.SoruNo).ToListAsync(ct);
+            .Where(x => x.AnketId == surveyId).OrderBy(x => x.SoruNo).ToListAsync(ct);
     }
 
-    public async Task CreateWithAnswersAsync(Anket anket, IReadOnlyList<AnketCevap> cevaplar, CancellationToken ct = default)
+    public async Task CreateWithAnswersAsync(Anket survey, IReadOnlyList<AnketCevap> answers, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        db.Anketler.Add(anket);
-        foreach (var c in cevaplar) { c.AnketId = anket.Id; db.AnketCevaplari.Add(c); }
+        db.Anketler.Add(survey);
+        foreach (var c in answers) { c.AnketId = survey.Id; db.AnketCevaplari.Add(c); }
         // TEK transaction: anket yazılıp cevapları yazılamazsa yarım anket kalırdı.
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
 
     public async Task<bool> UpdateWithResponseAsync(Guid id, Action<Anket> apply,
-        IReadOnlyList<AnketCevap> cevaplar, CancellationToken ct = default)
+        IReadOnlyList<AnketCevap> answers, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -69,9 +69,9 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
 
         // Cevaplar TAMAMEN değiştirilir: kısmi güncelleme yapsaydık formdan kaldırılan soru
         // eski cevabıyla kalır ve anket ekranda görünmeyen bir satır taşırdı.
-        var eski = await db.AnketCevaplari.Where(x => x.AnketId == id).ToListAsync(ct);
-        db.AnketCevaplari.RemoveRange(eski);
-        foreach (var c in cevaplar) { c.AnketId = id; db.AnketCevaplari.Add(c); }
+        var old = await db.AnketCevaplari.Where(x => x.AnketId == id).ToListAsync(ct);
+        db.AnketCevaplari.RemoveRange(old);
+        foreach (var c in answers) { c.AnketId = id; db.AnketCevaplari.Add(c); }
 
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -106,7 +106,7 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
     }
 
     /// <summary>
-    /// F7.1 — <see cref="UpdateWithResponseAsync"/> satır kilidi + iyimser sürüm altında (<see cref="SatirSurumu"/>):
+    /// F7.1 — <see cref="UpdateWithResponseAsync"/> satır kilidi + iyimser sürüm altında (<see cref="RowVersionSql"/>):
     /// eski cevaplar kilitli işlem içinde okunur, silinir ve yenileri aynı SaveChanges'ta yazılır.
     /// </summary>
     public Task<bool> UpdateWithAnswersAsync(Guid id, string expectedVersion, Action<Anket> apply,
@@ -114,7 +114,7 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
     {
         AppDbContext? context = null;
         List<AnketCevap> old = [];
-        return SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Surveys, id, expectedVersion,
+        return RowVersionSql.UpdateAsync(_factory, RowVersionSql.Surveys, id, expectedVersion,
             async (db, key, c) =>
             {
                 var row = await db.Anketler.FirstOrDefaultAsync(r => r.Id == key, c);
@@ -133,12 +133,12 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
     public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.Surveys, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.Surveys, id, ct);
     }
 }
 
 /// <summary>CRM şikayet repo'su (roadmap C3). Tenant izolasyonu RLS + query filter ile otomatik.</summary>
-public sealed class SikayetRepository(IDbContextFactory<AppDbContext> factory) : IComplaintRepository
+public sealed class ComplaintRepository(IDbContextFactory<AppDbContext> factory) : IComplaintRepository
 {
     /// <summary>
     /// FAZ-43 — filtreli şikayet listesi. Plaka/sözleşme no SNAPSHOT DEĞİL: sözleşme→araç bağından
@@ -166,7 +166,7 @@ public sealed class SikayetRepository(IDbContextFactory<AppDbContext> factory) :
         if (filter is not null)
         {
             if (filter.CariId is { } cid) q = q.Where(x => x.s.CariId == cid);
-            if (filter.Yer is { } yer) q = q.Where(x => x.s.SikayetYeri == yer);
+            if (filter.Yer is { } place) q = q.Where(x => x.s.SikayetYeri == place);
             if (filter.Durum is { } d) q = q.Where(x => x.s.Durum == d);
             if (!string.IsNullOrWhiteSpace(filter.Ofis))
             {
@@ -250,14 +250,14 @@ public sealed class SikayetRepository(IDbContextFactory<AppDbContext> factory) :
         return true;
     }
 
-    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="SatirSurumu"/>).</summary>
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="RowVersionSql"/>).</summary>
     public Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<Sikayet> apply, CancellationToken ct = default)
-        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Complaints, id, expectedVersion,
+        => RowVersionSql.UpdateAsync(_factory, RowVersionSql.Complaints, id, expectedVersion,
             (db, key, c) => db.Sikayetler.FirstOrDefaultAsync(r => r.Id == key, c), apply, ct);
 
     public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.Complaints, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.Complaints, id, ct);
     }
 }

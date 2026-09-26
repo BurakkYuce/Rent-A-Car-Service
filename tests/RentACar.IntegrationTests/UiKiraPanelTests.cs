@@ -1157,7 +1157,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
     {
         var o = await OrtamKurAsync();
         var s = await GirisAsync(o, Kim.Admin);
-        var tz = TenantGun.Dilim;
+        var tz = TenantDay.Slice;
         var d = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz).DateTime).AddDays(40);
         DateTimeOffset Yerel(DateOnly g, int sa, int dk, int sn = 0, int ms = 0)
         {
@@ -1181,7 +1181,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
     {
         var o = await OrtamKurAsync();
         var s = await GirisAsync(o, Kim.Admin);
-        var tz = TenantGun.Dilim;
+        var tz = TenantDay.Slice;
         var bugun = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz).DateTime);
         DateTimeOffset Yerel(DateOnly g, int sa, int dk)
         {

@@ -45,40 +45,40 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         if (f.Bit is { } t) q = q.Where(i => i.Tarih <= t);
         if (!string.IsNullOrWhiteSpace(f.Doviz)) { var dv = f.Doviz.Trim(); q = q.Where(i => i.Currency == dv); }
 
-        var faturalar = await q.OrderByDescending(i => i.Tarih).Take(limit).ToListAsync(ct);
-        if (faturalar.Count == 0) return [];
+        var invoices = await q.OrderByDescending(i => i.Tarih).Take(limit).ToListAsync(ct);
+        if (invoices.Count == 0) return [];
 
-        var cariIdler = faturalar.Select(i => i.CariId).Distinct().ToList();
-        var cariler = (await db.Customers.AsNoTracking().Where(x => cariIdler.Contains(x.Id))
+        var customerIds = invoices.Select(i => i.CariId).Distinct().ToList();
+        var customers = (await db.Customers.AsNoTracking().Where(x => customerIds.Contains(x.Id))
                 .Select(x => new { x.Id, x.Tip, x.Unvan, x.Ad, x.Soyad, x.OzelKod, x.VergiDairesi, x.VergiNo, x.Ulke })
                 .ToListAsync(ct))
             .ToDictionary(x => x.Id);
 
-        var kiraIdler = faturalar.Where(i => i.RentalId != null).Select(i => i.RentalId!.Value).Distinct().ToList();
-        var kiralar = (await db.Rentals.AsNoTracking().Where(r => kiraIdler.Contains(r.Id))
+        var rentalIds = invoices.Where(i => i.RentalId != null).Select(i => i.RentalId!.Value).Distinct().ToList();
+        var rentals = (await db.Rentals.AsNoTracking().Where(r => rentalIds.Contains(r.Id))
             .Select(r => new { r.Id, r.SozlesmeNo, r.VehicleId, r.CikisOfisi }).ToListAsync(ct))
             .ToDictionary(r => r.Id);
-        var aracIdler = kiralar.Values.Select(r => r.VehicleId).Distinct().ToList();
-        var plakalar = (await db.Vehicles.AsNoTracking().Where(v => aracIdler.Contains(v.Id))
+        var vehicleIds = rentals.Values.Select(r => r.VehicleId).Distinct().ToList();
+        var plates = (await db.Vehicles.AsNoTracking().Where(v => vehicleIds.Contains(v.Id))
             .Select(v => new { v.Id, v.Plaka }).ToListAsync(ct)).ToDictionary(v => v.Id, v => v.Plaka);
 
-        IEnumerable<InvoiceRow> satirlar = faturalar.Select(i =>
+        IEnumerable<InvoiceRow> rows = invoices.Select(i =>
         {
-            cariler.TryGetValue(i.CariId, out var c);
-            var kira = i.RentalId is { } rid && kiralar.TryGetValue(rid, out var k) ? k : null;
+            customers.TryGetValue(i.CariId, out var c);
+            var rental = i.RentalId is { } rid && rentals.TryGetValue(rid, out var k) ? k : null;
             return new InvoiceRow(
                 i,
                 c is null ? "—" : new Customer { Tip = c.Tip, Unvan = c.Unvan, Ad = c.Ad, Soyad = c.Soyad }.DisplayName,
                 c?.OzelKod, c?.VergiDairesi, c?.VergiNo, c?.Ulke,
-                kira is null ? null : plakalar.GetValueOrDefault(kira.VehicleId),
-                kira?.SozlesmeNo, kira?.CikisOfisi);
+                rental is null ? null : plates.GetValueOrDefault(rental.VehicleId),
+                rental?.SozlesmeNo, rental?.CikisOfisi);
         });
 
         if (!string.IsNullOrWhiteSpace(f.Ofis))
         {
-            var ofis = f.Ofis.Trim();
-            satirlar = satirlar.Where(x => x.Ofis != null
-                && string.Equals(x.Ofis.Trim(), ofis, StringComparison.OrdinalIgnoreCase));
+            var office = f.Ofis.Trim();
+            rows = rows.Where(x => x.Ofis != null
+                && string.Equals(x.Ofis.Trim(), office, StringComparison.OrdinalIgnoreCase));
         }
         if (!string.IsNullOrWhiteSpace(f.Ara))
         {
@@ -86,17 +86,17 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             // Plaka DB'de BOŞLUKSUZ saklanıyor: kullanıcı "34 FL 02" yazdığında da bulunsun diye
             // terim ayrıca harf/rakama indirgenip DENENİR (kira listesindeki desenin aynısı).
             // Yalnız GENİŞLETİR — ham eşleşme aynen korunur.
-            var plakaTerim = new string([.. a.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant)]);
-            satirlar = satirlar.Where(x =>
+            var plateTerm = new string([.. a.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant)]);
+            rows = rows.Where(x =>
                 x.Fatura.No.Contains(a, StringComparison.OrdinalIgnoreCase)
                 || x.CariAd.Contains(a, StringComparison.OrdinalIgnoreCase)
                 || (x.CariOzelKod?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (x.Plaka?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (plakaTerim.Length > 0 && (x.Plaka?.Contains(plakaTerim, StringComparison.OrdinalIgnoreCase) ?? false))
+                || (plateTerm.Length > 0 && (x.Plaka?.Contains(plateTerm, StringComparison.OrdinalIgnoreCase) ?? false))
                 || (x.SozlesmeNo?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (x.VergiNo?.Contains(a, StringComparison.OrdinalIgnoreCase) ?? false));
         }
-        return [.. satirlar];
+        return [.. rows];
     }
 
     public async Task<Invoice?> FindAsync(Guid id, CancellationToken ct = default)
@@ -127,9 +127,9 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             from r in rg.DefaultIfEmpty()
             join v in db.Vehicles.AsNoTracking() on (Guid?)r.VehicleId equals (Guid?)v.Id into vg
             from v in vg.DefaultIfEmpty()
-            join rez in db.Reservations.AsNoTracking() on r.ReservationId equals (Guid?)rez.Id into rezg
-            from rez in rezg.DefaultIfEmpty()
-            select new { l, i, c, r, v, rez };
+            join res in db.Reservations.AsNoTracking() on r.ReservationId equals (Guid?)res.Id into rezg
+            from res in rezg.DefaultIfEmpty()
+            select new { l, i, c, r, v, rez = res };
 
         if (filter is not null)
         {
@@ -194,23 +194,23 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         // base (RentalId) + fark (KaynakKiraId) — GetFarkStateAsync ile aynı kapsam; burada iptal/iade de
         // listelenir (görsel liste, filtre yok). İadeler kaynak fatura üzerinden dolaylı bağlı olduğundan
         // ikinci sorguyla eklenir.
-        var kiraFaturalari = await db.Invoices.AsNoTracking()
+        var rentalInvoices = await db.Invoices.AsNoTracking()
             .Where(i => i.RentalId == rentalId || i.KaynakKiraId == rentalId)
             .ToListAsync(ct);
-        var ids = kiraFaturalari.Select(x => x.Id).ToList();
-        var iadeler = ids.Count == 0
+        var ids = rentalInvoices.Select(x => x.Id).ToList();
+        var refunds = ids.Count == 0
             ? []
             : await db.Invoices.AsNoTracking()
                 .Where(i => i.KaynakFaturaId != null && ids.Contains(i.KaynakFaturaId.Value))
                 .ToListAsync(ct);
-        return kiraFaturalari.Concat(iadeler.Where(i => !ids.Contains(i.Id)))
+        return rentalInvoices.Concat(refunds.Where(i => !ids.Contains(i.Id)))
             .OrderByDescending(i => i.Tarih).ThenByDescending(i => i.CreatedAtUtc).ToList();
     }
 
-    public async Task<bool> RefundExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default)
+    public async Task<bool> RefundExistsForAsync(Guid sourceInvoiceId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == kaynakFaturaId, ct);
+        return await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == sourceInvoiceId, ct);
     }
 
     public async Task<(decimal FaturalananBrut, int FarkSayisi)> GetDifferenceStateAsync(Guid rentalId, CancellationToken ct = default)
@@ -221,22 +221,22 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct);
         try
         {
-            return await FarkStateHesaplaAsync(db, rentalId, ct);
+            return await CalculateDifferenceStateAsync(db, rentalId, ct);
         }
         finally { await tx.RollbackAsync(ct); }
     }
 
     /// <summary>Fark-state (iade-netli faturalanan brüt + fark sayısı) — GetFarkStateAsync ile
     /// posting TX-içi yeniden doğrulaması (adversarial B2-Kritik-1) AYNI sorgudan geçer (tek kopya).</summary>
-    private static Task<(decimal FaturalananBrut, int FarkSayisi)> FarkStateHesaplaAsync(
+    private static Task<(decimal FaturalananBrut, int FarkSayisi)> CalculateDifferenceStateAsync(
         AppDbContext db, Guid rentalId, CancellationToken ct)
-        => OrtakSorgular.FarkStateAsync(db, rentalId, ct); // tek kopya (job üreticisiyle ortak)
+        => SharedQueries.DifferenceStateAsync(db, rentalId, ct); // tek kopya (job üreticisiyle ortak)
 
     /// <summary>Kira-fatura advisory kilidi (adversarial B2-Kritik-1): base/fark/dönem posting'leri
     /// aynı kira üzerinde SERİLEŞİR — iki farklı unique-index'e yazan yollar (base: (TenantId,RentalId);
     /// fark/dönem: (TenantId,KaynakKiraId,Sıra)) birbirini görmeden commit edemez.</summary>
-    private static Task KiraFaturaKilidiAsync(AppDbContext db, Guid rentalId, CancellationToken ct)
-        => KiraKilitleri.FaturaAsync(db, rentalId, ct); // F4.1: tek kopya (kira iptali de aynı kilidi alır)
+    private static Task RentalInvoiceLockAsync(AppDbContext db, Guid rentalId, CancellationToken ct)
+        => RentalLocks.InvoiceAsync(db, rentalId, ct); // F4.1: tek kopya (kira iptali de aynı kilidi alır)
 
     public async Task PostAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
     {
@@ -254,30 +254,30 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             // BASE yolu yalnız HİÇ fatura yokken çalışır (IsRentalInvoiced kapısı) — kilit altında
             // yeniden bakılır; bu arada dönem/fark faturası commit ettiyse base TAM tutarı ikinci kez
             // keserdi (çift faturalama) → temiz red (operatör fark yoluna düşer).
-            var kiraBagi = invoice.RentalId ?? invoice.KaynakKiraId;
-            if (kiraBagi is Guid kb && !invoice.IadeMi)
+            var rentalLink = invoice.RentalId ?? invoice.KaynakKiraId;
+            if (rentalLink is Guid kb && !invoice.IadeMi)
             {
-                await KiraFaturaKilidiAsync(db, kb, ct);
+                await RentalInvoiceLockAsync(db, kb, ct);
                 // F4.1 adversarial M3: iptal ile kesim yarışı — iptal AYNI kilidi alıp açık fatura yokken
                 // iptal eder; kesim de kilit altında kiranın hâlâ iptal olmadığını doğrular.
-                await KiraKilitleri.IptalKirayaFaturaYokAsync(db, kb, ct);
+                await RentalLocks.CancelledRentalHasNoInvoiceAsync(db, kb, ct);
                 // F4.1 adversarial N2: BASE faturanın tutarı servis tarafından kilit DIŞINDA hesaplandı. Bu arada
                 // ek hizmet eklendi/silindi ya da dönüş bedeli yazıldıysa tutar bayattır → fatura sözleşmeden sapardı
                 // (P17: fatura 420 / sözleşme 360 — fazla faturalama). Kilit altında aynı formülle yeniden hesapla.
-                if (invoice.RentalId is Guid bazKira)
-                    await KiraKilitleri.BazFaturaGuncelMiAsync(db, bazKira, invoice.GenelToplam, ct);
+                if (invoice.RentalId is Guid baseRental)
+                    await RentalLocks.IsBaseInvoiceCurrentAsync(db, baseRental, invoice.GenelToplam, ct);
                 if (invoice.RentalId is Guid rid &&
                     await db.Invoices.AsNoTracking().AnyAsync(i => i.RentalId == rid || i.KaynakKiraId == rid, ct))
                     throw new ValidationException("Kira bu sırada faturalandı (eşzamanlı istek) — kalan tutar için 'Fatura Kes' fark yolunu kullanın.");
             }
 
-            invoice.No = await BelgeNoUretici.FaturaAsync(db, db.TenantId, ct);
+            invoice.No = await DocumentNoGenerator.InvoiceAsync(db, db.TenantId, ct);
             // No defter açıklamasında kullanıldığından satırların ait olduğu fatura no'yu yansıt.
             // İade satırları cari ekstrede "İade" etiketiyle görünsün (adversarial Low: eskiden
             // hepsi "Fatura" yazılıyordu).
-            var etiket = invoice.IadeMi ? "İade" : "Fatura";
+            var label = invoice.IadeMi ? "İade" : "Fatura";
             foreach (var entry in entries)
-                entry.Description = $"{etiket} {invoice.No}";
+                entry.Description = $"{label} {invoice.No}";
 
             db.Invoices.Add(invoice);          // satırlar cascade
             db.AccountLedgerEntries.AddRange(entries);
@@ -301,14 +301,14 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
                 if (invoice.ManuelMi && !invoice.IadeMi && invoice.RentalId is null && invoice.KaynakKiraId is null
                     && (ex.InnerException as PostgresException)?.ConstraintName == "PK_Invoices")
                 {
-                    var mevcut = await db.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.Id == invoice.Id, ct)
+                    var existing = await db.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.Id == invoice.Id, ct)
                         ?? throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
                     // Adversarial MEDIUM-1: sessiz başarı YALNIZ aynı cari + aynı tutarlar için (servis
                     // ön-kontrolüyle aynı kural); farklıysa ikinci fatura kesilmedi → 409.
-                    if (mevcut.ManuelMi && !mevcut.IadeMi && mevcut.RentalId is null && mevcut.KaynakKiraId is null
-                        && mevcut.CariId == invoice.CariId && mevcut.NetTutar == invoice.NetTutar
-                        && mevcut.KdvTutar == invoice.KdvTutar
-                        && string.Equals(mevcut.Currency, invoice.Currency, StringComparison.OrdinalIgnoreCase))
+                    if (existing.ManuelMi && !existing.IadeMi && existing.RentalId is null && existing.KaynakKiraId is null
+                        && existing.CariId == invoice.CariId && existing.NetTutar == invoice.NetTutar
+                        && existing.KdvTutar == invoice.KdvTutar
+                        && string.Equals(existing.Currency, invoice.Currency, StringComparison.OrdinalIgnoreCase))
                         return;
                     throw DuplicateOperationException.DifferentContent();
                 }
@@ -321,7 +321,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
     }
 
     public async Task<Guid> PostPeriodAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
-        Guid donemId, decimal kesilenTutar, decimal beklenenFaturalanan, CancellationToken ct = default)
+        Guid periodId, decimal issuedAmount, decimal expectedInvoiced, CancellationToken ct = default)
     {
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
         var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
@@ -336,38 +336,38 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             // Adversarial B2-Kritik-1: advisory kilit + FATURALANAN TX-İÇİ yeniden doğrulama —
             // servis kesileceği kilit DIŞINDA hesapladı; bu arada base/fark/dönem faturası commit
             // ettiyse tutar bayattır → temiz red (çağıran güncel durumla yeniden dener).
-            await KiraFaturaKilidiAsync(db, invoice.KaynakKiraId!.Value, ct);
-            await KiraKilitleri.IptalKirayaFaturaYokAsync(db, invoice.KaynakKiraId!.Value, ct); // F4.1 M3
+            await RentalInvoiceLockAsync(db, invoice.KaynakKiraId!.Value, ct);
+            await RentalLocks.CancelledRentalHasNoInvoiceAsync(db, invoice.KaynakKiraId!.Value, ct); // F4.1 M3
 
             // F1.4 — AYNI dönemin çift gönderimi: sıralı ikinci istek serviste "Kesildi → mevcut
             // InvoiceId" sessiz başarısı alıyor. Yarışı kaybeden ikinci istek ise aşağıdaki faturalanan
             // kontrolüne takılıp 400 alıyordu → sonuç zamanlamaya bağlıydı. Dönem kilidin arkasında
             // Kesildi ise AYNI sessiz başarı: mevcut fatura id'si döner, hiçbir şey yazılmaz.
-            var donemDurum = await db.FaturaDonemleri.AsNoTracking()
-                .Where(d => d.Id == donemId).Select(d => new { d.Durum, d.InvoiceId }).FirstOrDefaultAsync(ct);
-            if (donemDurum is { Durum: InvoicePeriodStatus.Kesildi, InvoiceId: Guid mevcutFatura })
+            var periodStatus = await db.FaturaDonemleri.AsNoTracking()
+                .Where(d => d.Id == periodId).Select(d => new { d.Durum, d.InvoiceId }).FirstOrDefaultAsync(ct);
+            if (periodStatus is { Durum: InvoicePeriodStatus.Kesildi, InvoiceId: Guid existingInvoice })
             {
                 await tx.RollbackAsync(ct);
-                return mevcutFatura;
+                return existingInvoice;
             }
 
-            var (guncelFaturalanan, _) = await FarkStateHesaplaAsync(db, invoice.KaynakKiraId.Value, ct);
-            if (guncelFaturalanan != beklenenFaturalanan)
+            var (currentInvoiced, _) = await CalculateDifferenceStateAsync(db, invoice.KaynakKiraId.Value, ct);
+            if (currentInvoiced != expectedInvoiced)
                 throw new ValidationException("Kira faturaları bu sırada değişti (eşzamanlı istek) — dönem kesimini yeniden deneyin.");
 
             // FAZ 4.2-B2: dönem satırı fatura+defterle AYNI transaction'da Kesildi'ye geçer — yarım
             // durum imkânsız (fatura var/dönem Planlandi ya da tersi olamaz). TX-içi yarış çiti:
             // Planlandi DIŞI her durum reddedilir (Kesildi/Atlandi yarışı; unique index ikinci savunma).
-            var donem = await db.FaturaDonemleri.FirstOrDefaultAsync(d => d.Id == donemId, ct)
+            var period = await db.FaturaDonemleri.FirstOrDefaultAsync(d => d.Id == periodId, ct)
                 ?? throw new ValidationException("Fatura dönemi bulunamadı.");
-            if (donem.Durum != InvoicePeriodStatus.Planlandi)
+            if (period.Durum != InvoicePeriodStatus.Planlandi)
                 throw new ValidationException("Dönem bu sırada kesilmiş/atlanmış (eşzamanlı istek).");
-            donem.Durum = InvoicePeriodStatus.Kesildi;
-            donem.InvoiceId = invoice.Id;
-            donem.KesilenTutar = kesilenTutar;
-            donem.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            period.Durum = InvoicePeriodStatus.Kesildi;
+            period.InvoiceId = invoice.Id;
+            period.KesilenTutar = issuedAmount;
+            period.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-            invoice.No = await BelgeNoUretici.FaturaAsync(db, db.TenantId, ct);
+            invoice.No = await DocumentNoGenerator.InvoiceAsync(db, db.TenantId, ct);
             foreach (var entry in entries)
                 entry.Description = $"Fatura {invoice.No}";
 

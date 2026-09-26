@@ -47,7 +47,7 @@ public static partial class FinanceHubApi
         PeriodCloseRequest req, PeriodClosingVoucherService closing, CancellationToken ct)
     {
         if (req.KapanisTarihi is not { } day) throw new ValidationException("Kapanış tarihi gerekli.", "kapanisTarihi");
-        if (day > TenantGun.Gun(DateTimeOffset.UtcNow))
+        if (day > TenantDay.Day(DateTimeOffset.UtcNow))
             throw new ValidationException("Kapanış tarihi bugünden ileri olamaz.", "kapanisTarihi");
         if (day < DateOnly.FromDateTime(DatePolicy.EarliestDocumentDate.UtcDateTime))
             throw new ValidationException("Kapanış tarihi 2000 yılından önce olamaz.", "kapanisTarihi");

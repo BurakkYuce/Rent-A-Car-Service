@@ -69,7 +69,7 @@ public sealed record ReportPeriod(DateOnly? Bas, DateOnly? Bit)
     public DateTimeOffset? ToAnchorEnd => Bit is { } t ? Anchor(t).AddDays(1).AddMicroseconds(-1) : null;
 
     /// <summary>Bugünün İstanbul günü (varsayılan pencereler için).</summary>
-    public static DateOnly Today => TenantGun.Gun(DateTimeOffset.UtcNow);
+    public static DateOnly Today => TenantDay.Day(DateTimeOffset.UtcNow);
 
     /// <summary>Yanıttaki dönem yankısı.</summary>
     public ReportPeriodDto ToDto() => new(Bas, Bit);

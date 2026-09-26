@@ -5,7 +5,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Configurations;
 
 /// <summary>Müşteri taksiti (FAZ-66). Takip kaydı — mali belge DEĞİL, tam CRUD.</summary>
-internal sealed class MusteriTaksitConfig : IEntityTypeConfiguration<MusteriTaksit>
+internal sealed class CustomerInstallmentConfig : IEntityTypeConfiguration<MusteriTaksit>
 {
     public void Configure(EntityTypeBuilder<MusteriTaksit> e)
     {

@@ -81,19 +81,19 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
 
         // Sıradaki rezervasyon: HENÜZ BİTMEMİŞ ve iptal/kiraya-çevrilmemiş olanlardan en erken başlayan.
         // (Devam eden bir rezervasyon da "sıradaki"dir — bitişi geçmişte olan artık gündemde değil.)
-        var rezervler = await db.Reservations.AsNoTracking()
+        var reserved = await db.Reservations.AsNoTracking()
             .Where(r => vehicleIds.Contains(r.VehicleId)
                      && r.BitTar >= now
                      && (r.Durum == ReservationStatus.Rezerv || r.Durum == ReservationStatus.Onayli))
             .Select(r => new { r.VehicleId, r.MusteriId, r.BasTar })
             .ToListAsync(ct);
-        var rezByVehicle = rezervler
+        var resByVehicle = reserved
             .GroupBy(r => r.VehicleId)
             .ToDictionary(g => g.Key, g => g.OrderBy(r => r.BasTar).First());
 
         // Müşteri adı/telefonu TEK sorguda (kira + rezervasyon müşterileri birlikte).
         var custIds = activeRentals.Select(r => r.MusteriId)
-            .Concat(rezervler.Select(r => r.MusteriId)).Distinct().ToList();
+            .Concat(reserved.Select(r => r.MusteriId)).Distinct().ToList();
         // DisplayName hesaplanan bir property (SQL'e çevrilemez) → entity çekilir ve TEK kural
         // (Customer.DisplayName) kullanılır. Burada "Unvan varsa unvan" gibi bir kopya kural yazmak,
         // listede müşteri adının cari ekranındakinden farklı görünmesine yol açardı.
@@ -104,7 +104,7 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
             c => c.Id, c => (Ad: (string?)c.DisplayName, Tel: c.CepTel));
 
         // Açık servis kaydı (Acik veya Serviste) — araç başına en yenisi.
-        var servisler = (await db.ServiceRecords.AsNoTracking()
+        var services = (await db.ServiceRecords.AsNoTracking()
                 .Where(s => vehicleIds.Contains(s.VehicleId)
                          && (s.Durum == ServiceStatus.Acik || s.Durum == ServiceStatus.Serviste))
                 .Select(s => new { s.VehicleId, s.No, s.AtolyeAdi, s.GirisTarihi })
@@ -113,13 +113,13 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
             .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.GirisTarihi).First());
 
         // Açık BAF tahsisi — araç başına en yenisi + personel adı.
-        var baflar = (await db.Baflar.AsNoTracking()
+        var bafs = (await db.Baflar.AsNoTracking()
                 .Where(b => vehicleIds.Contains(b.VehicleId) && b.Durum == BafStatus.Acik)
                 .Select(b => new { b.VehicleId, b.No, b.PersonelId, b.CikisTarihi })
                 .ToListAsync(ct))
             .GroupBy(b => b.VehicleId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(b => b.CikisTarihi).First());
-        var persIds = baflar.Values.Select(b => b.PersonelId).Distinct().ToList();
+        var persIds = bafs.Values.Select(b => b.PersonelId).Distinct().ToList();
         // PII notu: yalnız Ad/Soyad projekte ediliyor — TcKimlikEnc/MaasEnc hiç OKUNMUYOR.
         var persById = new Dictionary<Guid, string>();
         if (persIds.Count > 0)
@@ -132,7 +132,7 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
         }
 
         // Aktif uzun-dönem filo kiralama dosyası (araç başına en yenisi).
-        var filoKira = (await db.FiloKiralamalar.AsNoTracking()
+        var fleetRental = (await db.FiloKiralamalar.AsNoTracking()
                 .Where(k => vehicleIds.Contains(k.VehicleId) && k.Durum == FleetRentalStatus.Aktif)
                 .Select(k => new { k.VehicleId, k.DosyaNo, k.BasTar })
                 .ToListAsync(ct))
@@ -142,12 +142,12 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
         var rows = vehicles.Select(v =>
         {
             rentalByVehicle.TryGetValue(v.Id, out var rental);
-            rezByVehicle.TryGetValue(v.Id, out var rez);
-            servisler.TryGetValue(v.Id, out var servis);
-            baflar.TryGetValue(v.Id, out var baf);
+            resByVehicle.TryGetValue(v.Id, out var res);
+            services.TryGetValue(v.Id, out var service);
+            bafs.TryGetValue(v.Id, out var baf);
 
-            var musteri = rental is null ? default : custById.GetValueOrDefault(rental.MusteriId);
-            var rezMusteri = rez is null ? default : custById.GetValueOrDefault(rez.MusteriId);
+            var customer = rental is null ? default : custById.GetValueOrDefault(rental.MusteriId);
+            var resCustomer = res is null ? default : custById.GetValueOrDefault(res.MusteriId);
 
             return new FleetStatusRow
             {
@@ -174,25 +174,25 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
                 AktifKiraId = rental?.Id,
                 KiraSozlesmeNo = rental?.SozlesmeNo,
                 MusteriId = rental?.MusteriId,
-                RezMusteriId = rez?.MusteriId,
-                MusteriAd = musteri.Ad,
-                MusteriTel = musteri.Tel,
+                RezMusteriId = res?.MusteriId,
+                MusteriAd = customer.Ad,
+                MusteriTel = customer.Tel,
                 KiraBitTar = rental?.BitTar,
                 KiraBakiye = rental?.Bakiye,
                 KiraKalanGun = rental is null ? null : FleetStatusRow.RemainingDays(rental.BitTar, now),
-                RezMusteriAd = rezMusteri.Ad,
-                RezBasTar = rez?.BasTar,
-                AcikServisNo = servis?.No,
-                ServisAtolye = servis?.AtolyeAdi,
+                RezMusteriAd = resCustomer.Ad,
+                RezBasTar = res?.BasTar,
+                AcikServisNo = service?.No,
+                ServisAtolye = service?.AtolyeAdi,
                 AktifBafNo = baf?.No,
                 BafPersonelAd = baf is null ? null : persById.GetValueOrDefault(baf.PersonelId),
-                DosyaNo = filoKira.GetValueOrDefault(v.Id)
+                DosyaNo = fleetRental.GetValueOrDefault(v.Id)
             };
         });
 
         // Kirada filtresi (rental varlığına bağlı → projeksiyon sonrası).
-        if (filter.KiradaMi is { } kirada)
-            rows = rows.Where(r => r.Kirada == kirada);
+        if (filter.KiradaMi is { } onRent)
+            rows = rows.Where(r => r.Kirada == onRent);
 
         return rows.ToList();
     }

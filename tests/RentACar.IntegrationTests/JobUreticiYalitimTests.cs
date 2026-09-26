@@ -43,7 +43,7 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
     private static readonly DateTimeOffset Now = new(2026, 7, 6, 9, 0, 0, TimeSpan.Zero);
 
     private static readonly string[] Sira =
-        [JobCalismaKaydedici.VadeBildirim, JobCalismaKaydedici.FiloBildirim, JobCalismaKaydedici.MusteriBildirim];
+        [JobRunRecorder.DueNotification, JobRunRecorder.FleetNotification, JobRunRecorder.CustomerNotification];
 
     /// <summary>Elle kurulmuş sahneden beklenen üretim sayıları (sıra ile aynı).</summary>
     private static readonly int[] Beklenen = [1, 1, 0];
@@ -199,7 +199,7 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
         Assert.All(loglar, l => Assert.True(l.Basarili, $"{l.JobAdi}: {l.Detay}"));
 
         var hata = Assert.Single(log.Kayitlar, k => k.Seviye >= LogLevel.Error);
-        Assert.Equal(JobCalismaKaydedici.WhatsAppOzet, hata.Alanlar["Uretici"]);
+        Assert.Equal(JobRunRecorder.WhatsAppSummary, hata.Alanlar["Uretici"]);
         Assert.Equal(tenant, hata.Alanlar["Tenant"]);
     }
 
@@ -220,7 +220,7 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
         {
             await TenantGuc.OpenAsync(db, tenant);
             var ofsetli = new DateTimeOffset(2026, 7, 7, 0, 0, 0, TimeSpan.FromHours(3));
-            await Assert.ThrowsAsync<ArgumentException>(() => JobCalismaKaydedici.CalistirAsync(db, tenant,
+            await Assert.ThrowsAsync<ArgumentException>(() => JobRunRecorder.RunAsync(db, tenant,
                 "kirik-baglanti", () => db.Reservations.CountAsync(r => r.BasTar >= ofsetli)));
         }
 
@@ -244,7 +244,7 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
         {
             await TenantGuc.OpenAsync(db, tenant);
             // JobAdi kolonu varchar(64) → 100 karakterlik ad INSERT'te reddedilir (22001).
-            sonuc = await JobCalismaKaydedici.CalistirAsync(db, tenant, new string('x', 100),
+            sonuc = await JobRunRecorder.RunAsync(db, tenant, new string('x', 100),
                 () => Task.FromResult(7), n => n, log: log);
         }
 

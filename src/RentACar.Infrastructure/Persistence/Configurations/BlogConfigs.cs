@@ -58,7 +58,7 @@ internal sealed class PublicBookingRequestConfig : IEntityTypeConfiguration<Publ
 }
 
 // ---- PR-16: halka açık site içerik sayfaları + SSS (tenant-owned; merkezi query filter kapsıyor) ----
-internal sealed class SayfaIcerikConfig : IEntityTypeConfiguration<SayfaIcerik>
+internal sealed class PageContentConfig : IEntityTypeConfiguration<SayfaIcerik>
 {
     public void Configure(EntityTypeBuilder<SayfaIcerik> e)
     {
@@ -76,7 +76,7 @@ internal sealed class SayfaIcerikConfig : IEntityTypeConfiguration<SayfaIcerik>
     }
 }
 
-internal sealed class SssKaydiConfig : IEntityTypeConfiguration<SssKaydi>
+internal sealed class FaqEntryConfig : IEntityTypeConfiguration<SssKaydi>
 {
     public void Configure(EntityTypeBuilder<SssKaydi> e)
     {
@@ -90,7 +90,7 @@ internal sealed class SssKaydiConfig : IEntityTypeConfiguration<SssKaydi>
 }
 
 // ---- PR-17: talep takip notlari (tenant-owned) ----
-internal sealed class TalepNotuConfig : IEntityTypeConfiguration<TalepNotu>
+internal sealed class RequestNoteConfig : IEntityTypeConfiguration<TalepNotu>
 {
     public void Configure(EntityTypeBuilder<TalepNotu> e)
     {

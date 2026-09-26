@@ -60,12 +60,12 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         await using (var db = await JobContextAsync(tenant))
         {
             // Job'ın yaptığının aynısı: üreticiyi kaydedici üzerinden çağır.
-            vadeSonuc = await JobCalismaKaydedici.CalistirAsync(db, tenant,
-                JobCalismaKaydedici.VadeBildirim,
-                () => VadeBildirimUretici.RunAsync(db, tenant, Now), n => n);
-            await JobCalismaKaydedici.CalistirAsync(db, tenant,
-                JobCalismaKaydedici.FiloBildirim,
-                () => FiloBildirimUretici.RunAsync(db, tenant, Now, TutSatEsikleri.Default), n => n);
+            vadeSonuc = await JobRunRecorder.RunAsync(db, tenant,
+                JobRunRecorder.DueNotification,
+                () => DueNotificationGenerator.RunAsync(db, tenant, Now), n => n);
+            await JobRunRecorder.RunAsync(db, tenant,
+                JobRunRecorder.FleetNotification,
+                () => FleetNotificationGenerator.RunAsync(db, tenant, Now, TutSatEsikleri.Default), n => n);
         }
 
         // Elle beklenen: 2 üretici çağrıldı → 2 satır.
@@ -73,13 +73,13 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         Assert.Equal(2, loglar.Count);
         Assert.All(loglar, l => Assert.True(l.Basarili));
         Assert.All(loglar, l => Assert.Null(l.Detay));
-        Assert.Contains(loglar, l => l.JobAdi == JobCalismaKaydedici.VadeBildirim);
-        Assert.Contains(loglar, l => l.JobAdi == JobCalismaKaydedici.FiloBildirim);
+        Assert.Contains(loglar, l => l.JobAdi == JobRunRecorder.DueNotification);
+        Assert.Contains(loglar, l => l.JobAdi == JobRunRecorder.FleetNotification);
 
         // SonucSayisi üreticinin GERÇEK dönüşüyle aynı olmalı (kayıt uydurmuyor).
         // 2 vade tohumlandı (Kasko 5g + MTV 20g) → üretici 2 bildirim üretir.
         Assert.Equal(2, vadeSonuc);
-        Assert.Equal(vadeSonuc, loglar.Single(l => l.JobAdi == JobCalismaKaydedici.VadeBildirim).SonucSayisi);
+        Assert.Equal(vadeSonuc, loglar.Single(l => l.JobAdi == JobRunRecorder.DueNotification).SonucSayisi);
 
         Assert.All(loglar, l => Assert.True(l.BitisUtc >= l.BaslangicUtc));
         Assert.All(loglar, l => Assert.True(l.SureMs >= 0));
@@ -95,7 +95,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         await using (var db = await JobContextAsync(tenant))
         {
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                JobCalismaKaydedici.CalistirAsync<int>(db, tenant, "test-hatali",
+                JobRunRecorder.RunAsync<int>(db, tenant, "test-hatali",
                     () => throw new InvalidOperationException("kasten patlatildi")));
             Assert.Equal("kasten patlatildi", ex.Message);   // hata yutulmadı, çağırana geçti
         }
@@ -117,7 +117,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         var uzun = new string('x', 5000);
         await using (var db = await JobContextAsync(tenant))
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                JobCalismaKaydedici.CalistirAsync<int>(db, tenant, "uzun-hata",
+                JobRunRecorder.RunAsync<int>(db, tenant, "uzun-hata",
                     () => throw new InvalidOperationException(uzun)));
 
         var log = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
@@ -136,9 +136,9 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         // Senaryo elle: "a" işi 2 başarılı, "b" işi 1 başarısız.
         await using (var db = await JobContextAsync(tenant))
         {
-            await JobCalismaKaydedici.YazAsync(db, tenant, "a", Now.AddDays(-5), true, 3, null);
-            await JobCalismaKaydedici.YazAsync(db, tenant, "a", Now.AddDays(-1), true, 0, null);
-            await JobCalismaKaydedici.YazAsync(db, tenant, "b", Now.AddDays(-1), false, null, "patladi");
+            await JobRunRecorder.WriteAsync(db, tenant, "a", Now.AddDays(-5), true, 3, null);
+            await JobRunRecorder.WriteAsync(db, tenant, "a", Now.AddDays(-1), true, 0, null);
+            await JobRunRecorder.WriteAsync(db, tenant, "b", Now.AddDays(-1), false, null, "patladi");
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<JobRunLogService>();
@@ -165,7 +165,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         await using (var db = await JobContextAsync(t1))
-            await JobCalismaKaydedici.YazAsync(db, t1, "gizli", Now, true, 1, null);
+            await JobRunRecorder.WriteAsync(db, t1, "gizli", Now, true, 1, null);
 
         using var s2 = host.ScopeFor(t2);
         Assert.Empty(await s2.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
@@ -180,7 +180,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         await using (var db = await JobContextAsync(tenant))
-            await JobCalismaKaydedici.YazAsync(db, tenant, "a", Now, true, 1, null);
+            await JobRunRecorder.WriteAsync(db, tenant, "a", Now, true, 1, null);
 
         using var s = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         var svc = s.ServiceProvider.GetRequiredService<JobRunLogService>();

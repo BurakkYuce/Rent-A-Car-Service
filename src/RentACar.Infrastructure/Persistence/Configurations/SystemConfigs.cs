@@ -37,7 +37,7 @@ internal sealed class TenantSequenceConfig : IEntityTypeConfiguration<TenantSequ
 }
 
 // ---- JobCalismaLog (FAZ-26 — otomatik servis koşu günlüğü; tenant-owned, append-only) ----
-internal sealed class JobCalismaLogConfig : IEntityTypeConfiguration<JobCalismaLog>
+internal sealed class JobRunLogConfig : IEntityTypeConfiguration<JobCalismaLog>
 {
     public void Configure(EntityTypeBuilder<JobCalismaLog> e)
     {

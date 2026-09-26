@@ -138,7 +138,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _modul = Tenant.TenantId is { } id && await Durum.WebSitesiModuluAsync(id);
+        _modul = Tenant.TenantId is { } id && await Durum.WebsiteModuleAsync(id);
         if (!_modul) return;
 
         _satirlar = await Ilanlar.ListAsync(); // foto durumu servis içinde TEK toplu sorguyla

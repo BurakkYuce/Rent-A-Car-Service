@@ -272,9 +272,9 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
             .LogTo(sql.Add, [RelationalEventId.CommandExecuted])
             .Options;
         var identity = new SystemTenantContext { TenantId = tenantId };
-        var repo = new PlatformBelgeRepository(new ScopedAppDbContextFactory(options, identity, identity));
+        var repo = new PlatformDocumentRepository(new ScopedAppDbContextFactory(options, identity, identity));
 
-        var liste = await repo.ListAsync(tenantId, yoneticiMi: true);
+        var liste = await repo.ListAsync(tenantId, isManager: true);
         Assert.Contains(liste, x => x.Id == belgeId);
 
         var gidenSql = string.Join("\n", sql);

@@ -85,7 +85,7 @@ public sealed class IyzicoPosTests
         // (alan sırası/boşluk farkı) "Geçersiz imza" üretirdi — bu testin varlık sebebi bu.
         var rnd = h.Istek.Headers.GetValues("x-iyzi-rnd").Single();
         var yol = h.Istek.RequestUri!.AbsolutePath;
-        var beklenen = IyzicoImza.Uret(Ayar.ApiKey, Ayar.SecretKey, yol, h.Govde!, rnd).Authorization;
+        var beklenen = IyzicoSignature.Generate(Ayar.ApiKey, Ayar.SecretKey, yol, h.Govde!, rnd).Authorization;
         Assert.Equal(beklenen, auth);
     }
 
@@ -127,7 +127,7 @@ public sealed class IyzicoPosTests
         try
         {
             Thread.CurrentThread.CurrentCulture = new CultureInfo("tr-TR");
-            Assert.Equal(beklenen, IyzicoPosService.Tutar(deger));
+            Assert.Equal(beklenen, IyzicoPosService.Amount(deger));
         }
         finally { Thread.CurrentThread.CurrentCulture = eski; }
     }

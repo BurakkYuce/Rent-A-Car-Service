@@ -5,7 +5,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Configurations;
 
 /// <summary>Assistans (yol yardım) talebi — FAZ-44. Yeni dikey olduğu için ayrı config dosyası.</summary>
-internal sealed class AssistansTalepConfig : IEntityTypeConfiguration<AssistansTalep>
+internal sealed class AssistanceRequestConfig : IEntityTypeConfiguration<AssistansTalep>
 {
     public void Configure(EntityTypeBuilder<AssistansTalep> e)
     {

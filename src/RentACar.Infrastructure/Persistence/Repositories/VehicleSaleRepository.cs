@@ -29,27 +29,27 @@ public sealed class VehicleSaleRepository(IDbContextFactory<AppDbContext> factor
     /// alt-sorgusu ile süzülür; tüm satışları belleğe çekip filtrelemek listeyi ölçeklenemez yapardı.
     /// Plaka DB'de boşluksuz-büyük harf saklanır → arama terimi de AYNI kuraldan geçer (tek kural, kopya yok).
     /// </summary>
-    public async Task<IReadOnlyList<VehicleSale>> SearchAsync(VehicleSaleFilter filtre, CancellationToken ct = default)
+    public async Task<IReadOnlyList<VehicleSale>> SearchAsync(VehicleSaleFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.VehicleSales.AsNoTracking();
 
-        if (filtre.AliciCariId is Guid c) q = q.Where(x => x.AliciCariId == c);
-        if (filtre.Durum is { } d) q = q.Where(x => x.Durum == d);
-        if (filtre.SatisiVerildi is bool sv) q = q.Where(x => x.SatisiVerildi == sv);
-        if (filtre.Bas is { } bas) q = q.Where(x => x.Tarih >= bas);
-        if (filtre.Bit is { } bit) q = q.Where(x => x.Tarih <= bit);
+        if (filter.AliciCariId is Guid c) q = q.Where(x => x.AliciCariId == c);
+        if (filter.Durum is { } d) q = q.Where(x => x.Durum == d);
+        if (filter.SatisiVerildi is bool sv) q = q.Where(x => x.SatisiVerildi == sv);
+        if (filter.Bas is { } start) q = q.Where(x => x.Tarih >= start);
+        if (filter.Bit is { } bit) q = q.Where(x => x.Tarih <= bit);
 
-        if (!string.IsNullOrWhiteSpace(filtre.Plaka))
+        if (!string.IsNullOrWhiteSpace(filter.Plaka))
         {
-            var p = RentACar.Application.Vehicles.VehicleService.PlateKey(filtre.Plaka);
+            var p = RentACar.Application.Vehicles.VehicleService.PlateKey(filter.Plaka);
             q = q.Where(x => db.Vehicles.Any(v => v.Id == x.VehicleId && EF.Functions.ILike(v.Plaka, $"%{p}%")));
         }
 
-        if (!string.IsNullOrWhiteSpace(filtre.Ofis))
+        if (!string.IsNullOrWhiteSpace(filter.Ofis))
         {
             // Ofis = SATILAN ARACIN şubesi (VehicleSale mali belgeye şube kolonu eklenmedi — bkz. filtre notu).
-            var o = filtre.Ofis.Trim();
+            var o = filter.Ofis.Trim();
             q = q.Where(x => db.Vehicles.Any(v => v.Id == x.VehicleId && v.Sube != null && v.Sube == o));
         }
 
@@ -74,7 +74,7 @@ public sealed class VehicleSaleRepository(IDbContextFactory<AppDbContext> factor
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            sale.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.AracSatis, ct);
+            sale.No = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.AracSatis, ct);
             foreach (var entry in entries)
                 entry.Description = $"Araç satış {sale.No}";
 

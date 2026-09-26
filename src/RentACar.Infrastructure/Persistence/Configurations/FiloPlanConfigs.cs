@@ -5,7 +5,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Configurations;
 
 /// <summary>Filo plan hedefi (FAZ-19). Yeni dikey → ayrı config dosyası.</summary>
-internal sealed class FiloPlanHedefiConfig : IEntityTypeConfiguration<FiloPlanHedefi>
+internal sealed class FleetPlanTargetConfig : IEntityTypeConfiguration<FiloPlanHedefi>
 {
     public void Configure(EntityTypeBuilder<FiloPlanHedefi> e)
     {

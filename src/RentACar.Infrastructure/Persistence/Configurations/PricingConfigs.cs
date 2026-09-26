@@ -173,7 +173,7 @@ internal sealed class RentalRuleConfig : IEntityTypeConfiguration<RentalRule>
 }
 
 // ---- BrokerYasak / Broker-kaynak satış yasağı (tenant-owned; kural-tanım, defter postalamaz) ----
-internal sealed class BrokerYasakConfig : IEntityTypeConfiguration<BrokerYasak>
+internal sealed class BrokerBanConfig : IEntityTypeConfiguration<BrokerYasak>
 {
     public void Configure(EntityTypeBuilder<BrokerYasak> e)
     {
@@ -191,7 +191,7 @@ internal sealed class BrokerYasakConfig : IEntityTypeConfiguration<BrokerYasak>
 }
 
 // ---- DolulukFiyatKural (FAZ 3.A7 — doluluk-bazlı çarpan; tenant-owned master, defter postalamaz) ----
-internal sealed class DolulukFiyatKuralConfig : IEntityTypeConfiguration<DolulukFiyatKural>
+internal sealed class OccupancyPriceRuleConfig : IEntityTypeConfiguration<DolulukFiyatKural>
 {
     public void Configure(EntityTypeBuilder<DolulukFiyatKural> e)
     {
@@ -213,7 +213,7 @@ internal sealed class DolulukFiyatKuralConfig : IEntityTypeConfiguration<Doluluk
 }
 
 // ---- TarifeGrubu (FAZ-72 — fiyat grubu master; tenant-owned, defter postalamaz) ----
-internal sealed class TarifeGrubuConfig : IEntityTypeConfiguration<TarifeGrubu>
+internal sealed class TariffGroupConfig : IEntityTypeConfiguration<TarifeGrubu>
 {
     public void Configure(EntityTypeBuilder<TarifeGrubu> e)
     {
@@ -231,7 +231,7 @@ internal sealed class TarifeGrubuConfig : IEntityTypeConfiguration<TarifeGrubu>
 
 // ---- MaliyetTeklifi (FAZ-74 — kaydedilmiş filo maliyet teklifi) ----
 // PLANLAMA BELGESİ, mali belge DEĞİL: deftere postalamaz → değişmezlik trigger'ı YOK, tam CRUD.
-internal sealed class MaliyetTeklifiConfig : IEntityTypeConfiguration<MaliyetTeklifi>
+internal sealed class CostQuotationConfig : IEntityTypeConfiguration<MaliyetTeklifi>
 {
     public void Configure(EntityTypeBuilder<MaliyetTeklifi> e)
     {

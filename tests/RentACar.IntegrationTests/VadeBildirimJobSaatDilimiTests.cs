@@ -133,8 +133,8 @@ public sealed class VadeBildirimJobSaatDilimiTests(PostgresFixture fx)
 
     private static Task<int> MusteriKosAsync(AppDbContext db, Guid tenant, DateTimeOffset now,
         IServiceProvider sp, IEmailSender posta)
-        => JobCalismaKaydedici.CalistirAsync(db, tenant, JobCalismaKaydedici.MusteriBildirim,
-            () => MusteriBildirimUretici.RunAsync(db, tenant, now, Ist,
+        => JobRunRecorder.RunAsync(db, tenant, JobRunRecorder.CustomerNotification,
+            () => CustomerNotificationGenerator.RunAsync(db, tenant, now, Ist,
                 sp.GetRequiredService<ISecretProtector>(), posta, sp.GetRequiredService<ISmsService>()),
             n => n);
 
@@ -187,7 +187,7 @@ public sealed class VadeBildirimJobSaatDilimiTests(PostgresFixture fx)
 
         // Koşu günlüğü: başarı satırı yazıldı (eski kodda bu iş için HİÇ satır oluşmuyordu).
         var log = Assert.Single(await sp.GetRequiredService<JobRunLogService>().ListAsync(),
-            l => l.JobAdi == JobCalismaKaydedici.MusteriBildirim);
+            l => l.JobAdi == JobRunRecorder.CustomerNotification);
         Assert.True(log.Basarili);
         Assert.Equal(3, log.SonucSayisi);
     }
@@ -227,10 +227,10 @@ public sealed class VadeBildirimJobSaatDilimiTests(PostgresFixture fx)
         await using (var db = await JobContextAsync(tenant))
         {
             // VadeBildirimJob.RunOnceAsync'in tenant bloğu — aynı sıra, aynı db.
-            vade = await JobCalismaKaydedici.CalistirAsync(db, tenant, JobCalismaKaydedici.VadeBildirim,
-                () => VadeBildirimUretici.RunAsync(db, tenant, nowIst), n => n);
-            filo = await JobCalismaKaydedici.CalistirAsync(db, tenant, JobCalismaKaydedici.FiloBildirim,
-                () => FiloBildirimUretici.RunAsync(db, tenant, nowIst, TutSatEsikleri.Default), n => n);
+            vade = await JobRunRecorder.RunAsync(db, tenant, JobRunRecorder.DueNotification,
+                () => DueNotificationGenerator.RunAsync(db, tenant, nowIst), n => n);
+            filo = await JobRunRecorder.RunAsync(db, tenant, JobRunRecorder.FleetNotification,
+                () => FleetNotificationGenerator.RunAsync(db, tenant, nowIst, TutSatEsikleri.Default), n => n);
             musteri = await MusteriKosAsync(db, tenant, nowIst, sp, posta);
         }
 

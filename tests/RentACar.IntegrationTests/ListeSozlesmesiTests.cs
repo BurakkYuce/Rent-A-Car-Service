@@ -246,7 +246,7 @@ public sealed class ListeSozlesmesiPostgresTests(PostgresFixture fx)
         async Task<Sayfa<Guid>> Getir(ListeIstegi istek)
         {
             await using var db = await factory.CreateDbContextAsync();
-            return await db.Brands.AsNoTracking().SayfalaAsync(istek, Harita, b => b.Id);
+            return await db.Brands.AsNoTracking().PaginateAsync(istek, Harita, b => b.Id);
         }
 
         // Artan ad: Audi(2), BMW(4), Fiat(1), Fiat(3), Fiat(5) — Fiat'lar Id artan.
@@ -284,7 +284,7 @@ public sealed class ListeSozlesmesiPostgresTests(PostgresFixture fx)
         // Entity izdüşümsüz aşırı yükleme de aynı sırayı verir.
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var markalar = await db.Brands.AsNoTracking().SayfalaAsync(new ListeIstegi(1, 2, "ad"), Harita);
+            var markalar = await db.Brands.AsNoTracking().PaginateAsync(new ListeIstegi(1, 2, "ad"), Harita);
             Assert.Equal(["Audi", "BMW"], markalar.Kayitlar.Select(b => b.Ad));
         }
 

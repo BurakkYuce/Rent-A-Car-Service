@@ -19,14 +19,14 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
     // ---- Rezervasyon ----
 
-    public async Task<IReadOnlyList<Reservation>> ListReservationsAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Reservation>> ListReservationsAsync(RentACar.Application.Authorization.BranchScope.BranchFilter scope = default, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Reservations.AsNoTracking();
         // C4 ŞABLON (InScope ile birebir): türetilmiş-FK-eşit VEYA ofis-metni-eşit (Ordinal).
-        if (!kapsam.Unrestricted)
+        if (!scope.Unrestricted)
         {
-            var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
+            var kid = scope.SubeId; var kad = scope.SubeAd;
             q = q.Where(r => (kid != null && r.CikisSubeId == kid)
                           || ((kid == null || r.CikisSubeId == null) && kad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kad)); // C5
         }
@@ -55,30 +55,30 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         if (filter.TarihMin is { } min) q = q.Where(r => r.BasTar >= min);
         if (filter.TarihMax is { } max) q = q.Where(r => r.BasTar <= max);
 
-        var rezler = await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
-        if (rezler.Count == 0) return [];
+        var reservations = await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
+        if (reservations.Count == 0) return [];
 
-        var custIds = rezler.Select(r => r.MusteriId).Distinct().ToList();
-        var vehIds = rezler.Select(r => r.VehicleId).Distinct().ToList();
+        var custIds = reservations.Select(r => r.MusteriId).Distinct().ToList();
+        var vehIds = reservations.Select(r => r.VehicleId).Distinct().ToList();
 
         // PII çözülmez: DisplayName girdileri (Unvan/Ad/Soyad) ve CepTel düz-metin kolonlar.
-        var cariSatirlari = await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id))
+        var accountLines = await db.Customers.AsNoTracking().Where(c => custIds.Contains(c.Id))
                 .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad, c.CepTel, c.AnonimAd }).ToListAsync(ct);
-        var cariler = cariSatirlari.ToDictionary(c => c.Id, c => (
+        var customers = accountLines.ToDictionary(c => c.Id, c => (
                 Ad: new Customer { Tip = c.Tip, Unvan = c.Unvan, Ad = c.Ad, Soyad = c.Soyad }.DisplayName,
                 c.CepTel));
         // F5.1 adversarial L5 — KVKK: adı anonimleştirilmiş carinin GERÇEK adı arama terimiyle eşleşmez (aksi hâlde
         // "soyadı X olan var mı" sorusu, adı gizlenen kişinin kimliğini sızdırır). Görüntü kuralı MusteriGorunumu'nda.
-        var anonimAdlar = cariSatirlari.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet();
-        var plakalar = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
+        var anonymousNames = accountLines.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet();
+        var plates = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
                 .Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
             .ToDictionary(v => v.Id, v => v.Plaka);
 
-        var rows = rezler.Select(r =>
+        var rows = reservations.Select(r =>
         {
-            var cari = cariler.TryGetValue(r.MusteriId, out var c) ? c : (Ad: "—", CepTel: (string?)null);
-            return new ReservationRow(r, cari.Ad, cari.CepTel, plakalar.GetValueOrDefault(r.VehicleId, "—"),
-                anonimAdlar.Contains(r.MusteriId));
+            var account = customers.TryGetValue(r.MusteriId, out var c) ? c : (Ad: "—", CepTel: (string?)null);
+            return new ReservationRow(r, account.Ad, account.CepTel, plates.GetValueOrDefault(r.VehicleId, "—"),
+                anonymousNames.Contains(r.MusteriId));
         }).AsEnumerable();
 
         // Kaynak eşleşmesi BELLEK-İÇİ ve ORDINAL: SQL'e `lower()` olarak itmek karşılaştırmayı iki ayrı
@@ -86,20 +86,20 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         // gibi bir kaynak sessizce eşleşmez. Ekranın FAZ-85'teki davranışı da tam olarak buydu.
         if (!string.IsNullOrWhiteSpace(filter.Kaynak))
         {
-            var kaynak = filter.Kaynak.Trim();
-            rows = rows.Where(r => string.Equals(r.Rez.Kaynak?.Trim(), kaynak, StringComparison.OrdinalIgnoreCase));
+            var source = filter.Kaynak.Trim();
+            rows = rows.Where(r => string.Equals(r.Rez.Kaynak?.Trim(), source, StringComparison.OrdinalIgnoreCase));
         }
         if (!string.IsNullOrWhiteSpace(filter.Query))
         {
             var t = filter.Query.Trim();
             // Plaka DB'de boşluksuz saklanıyor: kullanıcı "34 AA 11" yazınca da bulunsun diye terim
             // ayrıca harf/rakama indirgenip DENENİR (yalnız GENİŞLETİR — ham eşleşme aynen korunur).
-            var plakaTerim = new string(t.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+            var plateTerm = new string(t.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
             rows = rows.Where(r =>
                 r.Rez.ReservationNo.Contains(t, StringComparison.OrdinalIgnoreCase)
-                || (!anonimAdlar.Contains(r.Rez.MusteriId) && r.MusteriAd.Contains(t, StringComparison.OrdinalIgnoreCase))
+                || (!anonymousNames.Contains(r.Rez.MusteriId) && r.MusteriAd.Contains(t, StringComparison.OrdinalIgnoreCase))
                 || r.Plaka.Contains(t, StringComparison.OrdinalIgnoreCase)
-                || (plakaTerim.Length > 0 && r.Plaka.Contains(plakaTerim, StringComparison.OrdinalIgnoreCase)));
+                || (plateTerm.Length > 0 && r.Plaka.Contains(plateTerm, StringComparison.OrdinalIgnoreCase)));
         }
         return rows.ToList();
     }
@@ -116,7 +116,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            reservation.ReservationNo = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Rezervasyon, ct);
+            reservation.ReservationNo = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.Rezervasyon, ct);
             db.Reservations.Add(reservation);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -127,29 +127,29 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
     /// onayla/iptal/güncelle'nin <paramref name="apply"/> içindeki durum denetimi eşzamanlı kiraya-çevirme ile yarışamaz
     /// (kiraya çevrilmiş rezervasyon "İptal"/"Onaylı"ya ezilmez).</summary>
     public Task<bool> UpdateReservationAsync(Guid id, Action<Reservation> apply, CancellationToken ct = default)
-        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Rezervasyonlar, id, beklenenSurum: null,
+        => RowVersionSql.UpdateAsync(_factory, RowVersionSql.Reservations, id, expectedVersion: null,
             (db, k, c) => db.Reservations.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 
-    public Task<bool> UpdateReservationAsync(Guid id, string? beklenenSurum, Action<Reservation> apply, CancellationToken ct = default)
-        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Rezervasyonlar, id, beklenenSurum,
+    public Task<bool> UpdateReservationAsync(Guid id, string? expectedVersion, Action<Reservation> apply, CancellationToken ct = default)
+        => RowVersionSql.UpdateAsync(_factory, RowVersionSql.Reservations, id, expectedVersion,
             (db, k, c) => db.Reservations.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 
     public async Task<string?> ReservationVersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.Rezervasyonlar, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.Reservations, id, ct);
     }
 
     // ---- Kira ----
 
-    public async Task<IReadOnlyList<RentalContract>> ListRentalsAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)
+    public async Task<IReadOnlyList<RentalContract>> ListRentalsAsync(RentACar.Application.Authorization.BranchScope.BranchFilter scope = default, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Rentals.AsNoTracking();
         // C4 ŞABLON (InScope ile birebir): türetilmiş-FK-eşit VEYA ofis-metni-eşit (Ordinal).
-        if (!kapsam.Unrestricted)
+        if (!scope.Unrestricted)
         {
-            var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
+            var kid = scope.SubeId; var kad = scope.SubeAd;
             q = q.Where(r => (kid != null && r.CikisSubeId == kid)
                           || ((kid == null || r.CikisSubeId == null) && kad != null && r.CikisOfisi != null && r.CikisOfisi.Trim() == kad)); // C5
         }
@@ -207,12 +207,12 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         // FAZ-46 — ofis filtresi çıkış/dönüş ayrımıyla. Seçim yoksa eski davranış (herhangi biri).
         if (!string.IsNullOrWhiteSpace(filter.Ofis))
         {
-            var ofis = filter.Ofis;
+            var office = filter.Ofis;
             q = filter.OfisDurum switch
             {
-                OfficeStatus.Cikis => q.Where(r => r.CikisOfisi == ofis),
-                OfficeStatus.Donus => q.Where(r => r.DonusOfisi == ofis),
-                _ => q.Where(r => r.CikisOfisi == ofis || r.DonusOfisi == ofis)
+                OfficeStatus.Cikis => q.Where(r => r.CikisOfisi == office),
+                OfficeStatus.Donus => q.Where(r => r.DonusOfisi == office),
+                _ => q.Where(r => r.CikisOfisi == office || r.DonusOfisi == office)
             };
         }
 
@@ -221,8 +221,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         // eşitlik Ordinal'e denk gelen doğrudan karşılaştırmadır (Trim uygulaması yazma yolunda).
         if (!string.IsNullOrWhiteSpace(filter.RezKaynak))
         {
-            var kaynak = filter.RezKaynak.Trim();
-            q = q.Where(r => r.Kaynak == kaynak);
+            var source = filter.RezKaynak.Trim();
+            q = q.Where(r => r.Kaynak == source);
         }
         if (filter.PersonelId is { } pid) q = q.Where(r => r.TeslimAlanPersonelId == pid);
 
@@ -233,17 +233,17 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             var vq = db.Vehicles.AsNoTracking().Select(v => new { v.Id, v.Grup, v.AracSahibi });
             if (!string.IsNullOrWhiteSpace(filter.SahipGrup))
             {
-                var sahip = filter.SahipGrup.Trim();
-                vq = vq.Where(v => v.AracSahibi == sahip);
+                var owner = filter.SahipGrup.Trim();
+                vq = vq.Where(v => v.AracSahibi == owner);
             }
             if (!string.IsNullOrWhiteSpace(filter.AracGrubu))
             {
-                var grup = filter.AracGrubu.Trim();
-                vq = vq.Where(v => v.Grup == grup);
+                var group = filter.AracGrubu.Trim();
+                vq = vq.Where(v => v.Grup == group);
             }
-            var eslesen = await vq.Select(v => v.Id).ToListAsync(ct);
-            if (eslesen.Count == 0) return [];
-            q = q.Where(r => eslesen.Contains(r.VehicleId));
+            var matching = await vq.Select(v => v.Id).ToListAsync(ct);
+            if (matching.Count == 0) return [];
+            q = q.Where(r => matching.Contains(r.VehicleId));
         }
 
         var rentals = await q.OrderByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
@@ -256,8 +256,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         var custNames = custRows.ToDictionary(c => c.Id, c => c.DisplayName);
         // KVKK (rezervasyon aramasıyla aynı desen): adı anonimleştirilmiş carinin GERÇEK adı arama terimiyle
         // eşleşmez; satır bayrağı taşır, /api/ui yüzeyleri MusteriGorunumu.ListeAdi ile maskeler.
-        var anonimAdlar = custRows.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet();
-        var plakalar = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
+        var anonymousNames = custRows.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet();
+        var plates = (await db.Vehicles.AsNoTracking().Where(v => vehIds.Contains(v.Id))
             .Select(v => new { v.Id, v.Plaka }).ToListAsync(ct))
             .ToDictionary(v => v.Id, v => v.Plaka);
         var invoicedSet = (await db.Invoices.AsNoTracking()
@@ -271,8 +271,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             MusteriId = r.MusteriId,
             Doviz = r.Doviz,
             MusteriAd = custNames.GetValueOrDefault(r.MusteriId, "—"),
-            MusteriAnonimAd = anonimAdlar.Contains(r.MusteriId),
-            Plaka = plakalar.GetValueOrDefault(r.VehicleId, "—"),
+            MusteriAnonimAd = anonymousNames.Contains(r.MusteriId),
+            Plaka = plates.GetValueOrDefault(r.VehicleId, "—"),
             BasTar = r.BasTar,
             BitTar = r.BitTar,
             Gun = r.Gun,
@@ -315,7 +315,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            contract.SozlesmeNo = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
+            contract.SozlesmeNo = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
             db.Rentals.Add(contract);
             try
             {
@@ -333,7 +333,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
     public Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default)
         => UpdateRentalAsync(id, null, apply, ct);
 
-    public async Task<bool> UpdateRentalAsync(Guid id, string? beklenenSurum, Action<RentalContract> apply, CancellationToken ct = default)
+    public async Task<bool> UpdateRentalAsync(Guid id, string? expectedVersion, Action<RentalContract> apply, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // P0-5: deadlock/serialization çakışmasında baştan dene
         {
@@ -341,11 +341,11 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             // F4.1 adversarial M2: satır OKUNMADAN önce kilitlenir — eşzamanlı dönüş/ek hizmet/uzatma
             // serileşir, apply kilit altındaki GÜNCEL durumu görür (Tamamlandı kira uzatılamaz, += kaybolmaz).
-            await KiraKilitleri.SatirAsync(db, id, ct);
+            await RentalLocks.RowAsync(db, id, ct);
             // F4.3 adversarial F2: iyimser eşzamanlılık — sürüm kilit ALTINDA okunur (kontrol ile yazma arasında
             // başka yazım giremez). Bayat istemci (başka oturum drop ücretini değiştirdi) hiçbir şey yazamaz.
-            if (beklenenSurum is not null && await KiraKilitleri.SurumAsync(db, id, ct) is { } guncel
-                && !string.Equals(guncel, beklenenSurum.Trim(), StringComparison.Ordinal))
+            if (expectedVersion is not null && await RentalLocks.VersionAsync(db, id, ct) is { } current
+                && !string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
                 throw new ConcurrentModificationException(ConcurrentModificationException.RentalMessage);
             var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (r is null) return false;
@@ -369,22 +369,22 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
     public async Task<string?> RentalVersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await KiraKilitleri.SurumAsync(db, id, ct);
+        return await RentalLocks.VersionAsync(db, id, ct);
     }
 
     public Task<bool> UpdateRentalWithVehicleAsync(
         Guid id, Action<RentalContract> applyRental, Action<Vehicle> applyVehicle,
         Func<RentalContract, VehicleKmLog>? kmLog = null, CancellationToken ct = default)
-        => KiraAracGuncelleAsync(id, (r, _) => applyRental(r), applyVehicle, kmLog, baglamli: false, ct);
+        => UpdateRentalVehicleAsync(id, (r, _) => applyRental(r), applyVehicle, kmLog, contextual: false, ct);
 
     public Task<bool> UpdateRentalWithVehicleAsync(
         Guid id, Action<RentalContract, KiraKilitBaglami> applyRental, Action<Vehicle> applyVehicle,
         Func<RentalContract, VehicleKmLog>? kmLog = null, CancellationToken ct = default)
-        => KiraAracGuncelleAsync(id, applyRental, applyVehicle, kmLog, baglamli: true, ct);
+        => UpdateRentalVehicleAsync(id, applyRental, applyVehicle, kmLog, contextual: true, ct);
 
-    private async Task<bool> KiraAracGuncelleAsync(
+    private async Task<bool> UpdateRentalVehicleAsync(
         Guid id, Action<RentalContract, KiraKilitBaglami> applyRental, Action<Vehicle> applyVehicle,
-        Func<RentalContract, VehicleKmLog>? kmLog, bool baglamli, CancellationToken ct)
+        Func<RentalContract, VehicleKmLog>? kmLog, bool contextual, CancellationToken ct)
     {
         return await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
         {
@@ -395,20 +395,20 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
             // F4.1 adversarial M2/M3: bağlamlı yolda ÖNCE kira-fatura advisory kilidi (fatura kesimiyle
             // serileşir), SONRA satır kilidi (KiraKilitleri sıra kuralı). Satır OKUNMADAN önce kilitlenir.
-            if (baglamli) await KiraKilitleri.FaturaAsync(db, id, ct);
-            await KiraKilitleri.SatirAsync(db, id, ct);
+            if (contextual) await RentalLocks.InvoiceAsync(db, id, ct);
+            await RentalLocks.RowAsync(db, id, ct);
 
             var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (r is null) return false;
 
             // Ek hizmet toplamı ve açık fatura KİLİT ALTINDA: ek hizmet ekle/sil de aynı satır kilidini
             // alıp SUM'u yazıyor → burada okunan toplam commit edilmiş son hâldir.
-            var baglam = baglamli
+            var context = contextual
                 ? new KiraKilitBaglami(
                     await db.RentalAddOns.Where(a => a.RentalId == id).SumAsync(a => a.Toplam, ct),
-                    await KiraKilitleri.AcikFaturaVarAsync(db, id, ct))
+                    await RentalLocks.HasOpenInvoiceAsync(db, id, ct))
                 : new KiraKilitBaglami(0m, false);
-            applyRental(r, baglam);
+            applyRental(r, context);
 
             var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.Id == r.VehicleId, ct);
             if (vehicle is not null)
@@ -427,7 +427,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
     }
 
     public async Task<bool> HasOverlappingActiveRentalAsync(
-        Guid vehicleId, DateTimeOffset basTar, DateTimeOffset bitTar,
+        Guid vehicleId, DateTimeOffset startDate, DateTimeOffset bitTar,
         Guid? excludeRentalId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -435,7 +435,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             .Where(r => r.VehicleId == vehicleId
                 && r.Durum == RentalStatus.Kirada
                 && (excludeRentalId == null || r.Id != excludeRentalId)
-                && r.BasTar < bitTar && basTar < r.BitTar) // [bas,bit) ∩ [r.Bas,r.Bit)
+                && r.BasTar < bitTar && startDate < r.BitTar) // [bas,bit) ∩ [r.Bas,r.Bit)
             .AnyAsync(ct);
     }
 
@@ -449,7 +449,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
 
             // F5.1 adversarial L6: satır OKUMADAN ÖNCE kilitlenir, durum kilit ALTINDA yeniden denetlenir — servisin kilit
             // dışı kontrolü ile eşzamanlı iptal/ikinci çevirme arasındaki pencere kapanır.
-            await SatirSurumu.KilitleAsync(db, SatirSurumu.Rezervasyonlar, reservationId, ct);
+            await RowVersionSql.LockAsync(db, RowVersionSql.Reservations, reservationId, ct);
             var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == reservationId, ct)
                 ?? throw new ValidationException("Rezervasyon bulunamadı.");
             if (reservation.RentalContractId is not null
@@ -458,7 +458,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
                     $"Rezervasyon bu sırada başka bir oturumda '{reservation.Durum}' durumuna geçti; kiraya çevrilmedi.");
 
             var rental = buildRental(reservation);
-            rental.SozlesmeNo = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
+            rental.SozlesmeNo = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
             db.Rentals.Add(rental);
 
             reservation.Durum = ReservationStatus.KirayaCevrildi;

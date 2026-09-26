@@ -66,18 +66,18 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
 
     /// <summary>F1.6 sınırlı seçim araması — PII kolonlarına HİÇ dokunmaz; Türkçe katlamalı
     /// (<see cref="TrSql"/>) ad+soyad+ünvan araması; en çok <paramref name="limit"/> satır.</summary>
-    public async Task<IReadOnlyList<CariSecimSatiri>> SearchSelectionAsync(string katlanmisTerim, int limit, CancellationToken ct = default)
+    public async Task<IReadOnlyList<CariSecimSatiri>> SearchSelectionAsync(string foldedTerm, int limit, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Customers.AsNoTracking();
         // KVKK: adı anonimleştirilmiş carinin aranan metni GERÇEK adı DEĞİL, görünen etiketidir
         // (CariAnonimlik.AdEtiketi) — "soyadı X olan var mı" sorusu gizlenen kişiyi sızdırmasın (rezervasyon
         // aramasındaki F5.1 L5 deseni). Etiket de aynı Türkçe katlamadan geçer ("anonim" yazınca bulunur).
-        if (katlanmisTerim.Length > 0)
-            q = q.Where(TrSql.Icerir<Customer>(
+        if (foldedTerm.Length > 0)
+            q = q.Where(TrSql.ContainsFold<Customer>(
                 c => c.AnonimAd
                     ? CustomerAnonymity.NameLabel
-                    : (c.Ad ?? "") + " " + (c.Soyad ?? "") + " " + (c.Unvan ?? ""), katlanmisTerim));
+                    : (c.Ad ?? "") + " " + (c.Soyad ?? "") + " " + (c.Unvan ?? ""), foldedTerm));
         var rows = await q
             // #280 KVKK L-1: the sort key follows the DISPLAYED name — an anonymised customer sorts by the label
             // (ties by Id), never by its real Unvan/Ad/Soyad; otherwise its position leaks the real name.
@@ -114,7 +114,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         if (!string.IsNullOrWhiteSpace(filter.Query))
         {
             var term = $"%{filter.Query.Trim()}%";
-            var tcHash = filter.TcHash;
+            var nationalIdHash = filter.TcHash;
             // #283 KVKK M1: an anonymised name is searchable only by its displayed label (never by the real
             // Ad/Soyad/Unvan — prefix probing would rebuild it); M3: an individual's tax number may be the TC, so
             // it is never matched with ILIKE (TC search stays exact-match via the blind index).
@@ -124,7 +124,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
                 || (!c.AnonimAd && c.Soyad != null && EF.Functions.ILike(c.Soyad, term))
                 || (!c.AnonimAd && c.Unvan != null && EF.Functions.ILike(c.Unvan, term))
                 || (c.AnonimAd && EF.Functions.ILike(label, term))
-                || (tcHash != null && c.TcKimlikHash == tcHash)
+                || (nationalIdHash != null && c.TcKimlikHash == nationalIdHash)
                 // #295 H1 / L-A: a tax number carrying exactly 11 digits (legacy TC in VergiNo, also formatted as
                 // "123 456 789 01" / "123-45678901" / trailing space) is shown masked → not ILIKE-probeable.
                 || (c.Tip != CustomerType.Bireysel && c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)
@@ -233,19 +233,19 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         return found.ToHashSet();
     }
 
-    public async Task<bool> NationalIdHashExistsAsync(string tcHash, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> NationalIdHashExistsAsync(string nationalIdHash, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Customers.AsNoTracking()
-            .Where(c => c.TcKimlikHash == tcHash && (excludeId == null || c.Id != excludeId))
+            .Where(c => c.TcKimlikHash == nationalIdHash && (excludeId == null || c.Id != excludeId))
             .AnyAsync(ct);
     }
 
-    public async Task<bool> TaxNoExistsAsync(string vergiNo, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> TaxNoExistsAsync(string taxNo, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Customers.AsNoTracking()
-            .Where(c => c.VergiNo == vergiNo && (excludeId == null || c.Id != excludeId))
+            .Where(c => c.VergiNo == taxNo && (excludeId == null || c.Id != excludeId))
             .AnyAsync(ct);
     }
 
@@ -283,13 +283,13 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         return true;
     }
 
-    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="SatirSurumu"/>); yetkili kişiler aynı işlemde yüklenir.</summary>
+    /// <summary>F7.1 — satır kilidi + iyimser sürüm (<see cref="RowVersionSql"/>); yetkili kişiler aynı işlemde yüklenir.</summary>
     public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Customer> apply, CancellationToken ct = default)
     {
         Customer? current = null;
         try
         {
-            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Customers, id, expectedVersion,
+            return await RowVersionSql.UpdateAsync(_factory, RowVersionSql.Customers, id, expectedVersion,
                 (db, key, c) => db.Customers.Include(x => x.Kisiler.OrderBy(k => k.Sira)).FirstOrDefaultAsync(x => x.Id == key, c),
                 x => { apply(x); current = x; }, ct);
         }
@@ -302,7 +302,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
     public async Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.Customers, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.Customers, id, ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
