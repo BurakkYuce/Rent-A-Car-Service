@@ -159,9 +159,11 @@ test('panel: vade kutuları ve "Vade panosu" bağlantısı SPA vade ekranına ro
 
   const board = page.getByRole('link', { name: 'Vade panosu →' });
   await expect(board).toHaveAttribute('href', '/app/vade');
-  // KPI kartlarının altındaki vade kademe kutuları (1 hafta / 1 ay / geçmiş) da SPA rotasına gider.
-  await expect(page.locator('main a.vade__kutu[href="/app/vade"]').first()).toBeVisible();
-  expect(await page.locator('main a.vade__kutu[href="/vade"]').count()).toBe(0);
+  // Hatırlatmalar'daki vade kademe satırları (trafik / kasko / muayene) da SPA rotasına gider.
+  await expect(
+    page.locator('main rc-hatirlatma-listesi a[href="/app/vade"]').first(),
+  ).toBeVisible();
+  expect(await page.locator('main rc-hatirlatma-listesi a[href="/vade"]').count()).toBe(0);
   expect(await fallenLinks(page)).toEqual([]);
 
   await markWindow(page);

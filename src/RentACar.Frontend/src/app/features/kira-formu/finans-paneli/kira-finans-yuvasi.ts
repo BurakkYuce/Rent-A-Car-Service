@@ -26,7 +26,7 @@ import type { KiraFinansPaneli } from './kira-finans-paneli';
   imports: [TranslocoPipe],
   template: `
     @if (!yuklendi()) {
-      <section class="kf-kart" aria-busy="true">
+      <section class="rc-bolum kf-kart" aria-busy="true">
         <h2 class="kf-kart__baslik">{{ 'kiraFinans.baslik' | transloco }}</h2>
       </section>
     }

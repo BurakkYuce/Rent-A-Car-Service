@@ -132,7 +132,8 @@ test('kira formu: cari kartı ve ekstre bağlantıları SPA rotasına router ile
     'href',
     statementHref,
   );
-  const header = page.getByRole('navigation', { name: 'Sözleşme bağlantıları' });
+  // Sözleşme bağlantıları sayfa bandının ikincil eylemlerinde (Yol v2 §5.4).
+  const header = page.locator('rc-sayfa-bandi');
   await expect(header.getByRole('link', { name: 'Cari ekstre' })).toHaveAttribute(
     'href',
     statementHref,

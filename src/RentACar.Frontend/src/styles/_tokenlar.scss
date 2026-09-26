@@ -1,28 +1,155 @@
-// Tasarım token'ları (--rc-*). Revlo `_tokens.scss` yapısından türetildi; ERP için YOĞUN varsayılan.
+// Tasarım token'ları (--rc-*): "Yol" tasarım dili (docs/tasarim/YOL-PLANI-v2.md §2–§4).
+//
+// Üç katman:
+// 1. Ham palet `--rc-ham-*` — tema bağımsız renkler (Kağıt, Asfalt, Mürekkep, Lacivert, Otoyol,
+//    İşaret, Dur, Petrol, Plaka). Bileşen stilinde DOĞRUDAN okunmaz; yalnız bu dosyada anlamsal ve
+//    bileşen token'larını besler.
+// 2. Anlamsal token'lar (`--rc-zemin`, `--rc-metin`, `--rc-vurgu`, `--rc-{durum}-{metin,zemin,kenar}`…)
+//    — adlar kalıcı, değerleri temaya göre değişir. Bileşen stilleri bunları okur.
+// 3. Bileşen token'ları (`--rc-kenar-cubugu-*`, `--rc-bant-*`, `--rc-tabela-*`, `--rc-plaka-*`,
+//    `--rc-tablo-baslik-*`, `--rc-cip-*`) — yalnız kendi bileşeninde okunur.
 //
 // Kurallar:
-// - Yazı boyutu yalnız ölçek adımlarıyla (--rc-yazi-*). Ara değer yok.
+// - Yazı boyutu yalnız ölçek adımlarıyla (--rc-yazi-*). Ara değer yok. Gövde 14 px (md).
 // - Boşluk 4 px ızgarası: --rc-bosluk-N = N × 4 px (0-5 = 2 px, 1-5 = 6 px).
-// - Renk yalnız anlamsal token'larla. Ham hex bileşen stilinde yazılmaz.
+// - Renk yalnız token'larla. Ham hex bileşen stilinde yazılmaz.
+// - Durum rengi yalnız filo durum sözlüğü anlamında (plan §1.2): başarı = kirada, nötr = boşta,
+//   uyarı = serviste/bugün, vurgu = rezerve/eylem, hata = gecikmiş, bilgi = petrol bilgi kutusu.
 // - Açık ve koyu tema aynı token adlarını taşır. Kontrast `scripts/kontrast-denetimi.mjs` ile
-//   denetlenir (metin ≥ 4.5, kontrol kenarı ve odak ≥ 3); `npm run lint` bunu da koşar.
+//   denetlenir (metin ≥ 4.5, kontrol kenarı ve odak ≥ 3; `var(--rc-ham-*)` zinciri çözülür);
+//   `npm run lint` bunu da koşar.
 // - Kiracı vurgusu çalışma zamanında `--rc-kiraci-*` ile gelir (TemaServisi). Yoksa varsayılan.
+
+// Ham palet (tema bağımsız). Plaka ve tabela gibi fiziksel nesneler iki temada aynı renkte kalır.
+@mixin ham-palet {
+  --rc-ham-beyaz: #ffffff;
+
+  --rc-ham-kagit-50: #f4f2ec;
+  --rc-ham-kagit-100: #ece9e1;
+  --rc-ham-kagit-200: #e2ded3;
+  --rc-ham-kagit-300: #e7e4dc;
+
+  --rc-ham-asfalt-950: #0f0e0c;
+  --rc-ham-asfalt-900: #141310;
+  --rc-ham-asfalt-800: #1c1b17;
+  --rc-ham-asfalt-700: #24221d;
+  --rc-ham-asfalt-600: #2d2b25;
+
+  --rc-ham-murekkep-900: #1b1a16;
+  --rc-ham-murekkep-700: #49463f;
+  --rc-ham-murekkep-600: #5f5b53;
+  --rc-ham-murekkep-400: #8a8578;
+  --rc-ham-murekkep-300: #78746a;
+
+  --rc-ham-lacivert-900: #172b66;
+  --rc-ham-lacivert-800: #1f3a8a;
+  --rc-ham-lacivert-700: #2a428f;
+  --rc-ham-lacivert-600: #33509f;
+  --rc-ham-lacivert-500: #4a6bd0;
+  --rc-ham-lacivert-400: #5a72c4;
+  --rc-ham-lacivert-300: #7d91d6;
+  --rc-ham-lacivert-200: #a9bcf5;
+  --rc-ham-lacivert-100: #c5d0f0;
+  --rc-ham-lacivert-50: #e4e9f7;
+
+  --rc-ham-otoyol-900: #0f2e1c;
+  --rc-ham-otoyol-700: #0f6e4a;
+  --rc-ham-otoyol-300: #6fd39a;
+  --rc-ham-otoyol-50: #dcf2e3;
+
+  --rc-ham-isaret-900: #33260a;
+  --rc-ham-isaret-800: #7f4d00;
+  --rc-ham-isaret-500: #f2b705;
+  --rc-ham-isaret-300: #f5c969;
+  --rc-ham-isaret-50: #fcefd2;
+
+  --rc-ham-dur-900: #3a1614;
+  --rc-ham-dur-700: #b3261e;
+  --rc-ham-dur-300: #f6a29a;
+  --rc-ham-dur-50: #fce4e0;
+
+  --rc-ham-petrol-900: #113a37;
+  --rc-ham-petrol-700: #0e6b67;
+  --rc-ham-petrol-300: #6ad2c8;
+  --rc-ham-petrol-50: #dcefec;
+
+  --rc-ham-plaka-beyaz: #ffffff;
+  --rc-ham-plaka-siyah: #111111;
+  --rc-ham-plaka-kenar: #1b1b1b;
+}
+
+// Tema bağımsız bileşen token'ları: fiziksel nesneler (plaka, tabela) ve asfalt tablo başlığı iki
+// temada aynı. Kayıtlı görünüm çipleri anlamsal token'lardan türer (tema onlarla döner; hepsi
+// :root'ta tanımlı olduğu için aynı öğede çözülür).
+@mixin bilesen-sabit {
+  // Tabela kartı (plan §1.2): dolu zemin + okunur metin; oran çubuğunun izi yarı saydam.
+  --rc-tabela-kirada-zemin: var(--rc-ham-otoyol-700);
+  --rc-tabela-kirada-metin: var(--rc-ham-beyaz);
+  --rc-tabela-bosta-zemin: var(--rc-ham-asfalt-600);
+  --rc-tabela-bosta-metin: var(--rc-ham-beyaz);
+  --rc-tabela-serviste-zemin: var(--rc-ham-isaret-500);
+  --rc-tabela-serviste-metin: var(--rc-ham-murekkep-900);
+  --rc-tabela-rezerve-zemin: var(--rc-ham-lacivert-800);
+  --rc-tabela-rezerve-metin: var(--rc-ham-beyaz);
+  --rc-tabela-gecikmis-zemin: var(--rc-ham-dur-700);
+  --rc-tabela-gecikmis-metin: var(--rc-ham-beyaz);
+  --rc-tabela-bar-iz: rgb(255 255 255 / 0.28);
+  --rc-tabela-bar-iz-koyu-metin: rgb(27 26 22 / 0.18); // koyu metinli kart (serviste)
+
+  // Plaka çipi (TR plakası: beyaz zemin, siyah yazı, lacivert TR şeridi).
+  --rc-plaka-zemin: var(--rc-ham-plaka-beyaz);
+  --rc-plaka-metin: var(--rc-ham-plaka-siyah);
+  --rc-plaka-serit: var(--rc-ham-lacivert-800);
+  --rc-plaka-serit-metin: var(--rc-ham-beyaz);
+  --rc-plaka-kenar: var(--rc-ham-plaka-kenar);
+
+  // Tablo başlığı: ASFALT, iki temada aynı (referans görüntü).
+  --rc-tablo-baslik-zemin: var(--rc-ham-asfalt-600);
+  --rc-tablo-baslik-metin: var(--rc-ham-kagit-100);
+
+  // İki temada aynı kalan kabuk ve durum token'ları (tek kopya; tema blokları tekrarlamaz).
+  --rc-uyari-dolgu: var(--rc-ham-isaret-500); // dolu sarı (tabela/serviste); üstünde koyu metin
+  --rc-uyari-dolgu-metin: var(--rc-ham-murekkep-900);
+  --rc-kenar-cubugu-rozet-uyari-zemin: var(--rc-ham-dur-700);
+  --rc-kenar-cubugu-rozet-uyari-metin: var(--rc-ham-beyaz);
+  --rc-bant-metin: var(--rc-ham-beyaz);
+  --rc-bant-ikincil: var(--rc-ham-lacivert-100);
+  --rc-bant-buton-kenar: var(--rc-ham-lacivert-300);
+  --rc-bant-dolu-buton-zemin: var(--rc-ham-beyaz);
+  --rc-bant-dolu-buton-metin: var(--rc-ham-lacivert-800);
+
+  // Kayıtlı görünüm çipleri.
+  --rc-cip-kenar: var(--rc-kenar-kontrol);
+  --rc-cip-metin: var(--rc-metin-ikincil);
+  --rc-cip-secili-zemin: var(--rc-vurgu);
+  --rc-cip-secili-metin: var(--rc-vurgu-uzeri);
+  --rc-cip-sayac-zemin: var(--rc-yuzey-vurgu);
+  --rc-cip-sayac-metin: var(--rc-metin);
+  --rc-cip-secili-sayac-zemin: var(--rc-vurgu-uzeri);
+  --rc-cip-secili-sayac-metin: var(--rc-vurgu);
+  --rc-cip-hata-sayac-zemin: var(--rc-hata-zemin);
+  --rc-cip-hata-sayac-metin: var(--rc-hata-metin);
+}
 
 // Yapısal ölçekler temadan bağımsız.
 @mixin olcekler {
-  // Yazı tipi
+  // Yazı tipi (IBM Plex, self-host; plaka için dar kesim)
   --rc-font:
-    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --rc-font-plaka:
+    'IBM Plex Sans Condensed', 'IBM Plex Sans', 'Arial Narrow', system-ui, sans-serif;
   --rc-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
-  // Tip ölçeği (kök 16 px). Gövde 13 px.
-  --rc-yazi-2xs: 0.6875rem; // 11 px: tablo alt bilgisi, dipnot
+  // Tip ölçeği (kök 16 px). Gövde 14 px (md).
+  --rc-yazi-2xs: 0.6875rem; // 11 px: dipnot
   --rc-yazi-xs: 0.75rem; // 12 px: etiket, rozet, tablo başlığı
-  --rc-yazi-sm: 0.8125rem; // 13 px: gövde, tablo hücresi, kontrol
-  --rc-yazi-md: 0.875rem; // 14 px: vurgulu gövde
+  --rc-yazi-sm: 0.8125rem; // 13 px: tablo hücresi, yoğun kontrol
+  --rc-yazi-md: 0.875rem; // 14 px: gövde
   --rc-yazi-lg: 1rem; // 16 px: bölüm başlığı
-  --rc-yazi-xl: 1.125rem; // 18 px: sayfa başlığı
+  --rc-yazi-xl: 1.125rem; // 18 px: sayfa bandı başlığı
   --rc-yazi-2xl: 1.375rem; // 22 px: KPI / büyük sayı
+  --rc-yazi-3xl: 1.625rem; // 26 px: bandsız sayfa başlığı
   --rc-satir-sik: 1.25;
   --rc-satir: 1.45;
   --rc-agirlik-normal: 400;
@@ -42,19 +169,21 @@
   --rc-bosluk-8: 2rem; // 32
   --rc-bosluk-12: 3rem; // 48
 
-  // Yoğun kontrol ve tablo ölçüleri
-  --rc-kontrol-yukseklik-kucuk: 1.75rem; // 28
-  --rc-kontrol-yukseklik: 2rem; // 32 (varsayılan)
-  --rc-kontrol-yukseklik-buyuk: 2.25rem; // 36
+  // Kontrol ve tablo ölçüleri
+  --rc-kontrol-yukseklik-kucuk: 1.875rem; // 30
+  --rc-kontrol-yukseklik: 2.125rem; // 34 (varsayılan)
+  --rc-kontrol-yukseklik-buyuk: 2.5rem; // 40
   --rc-kontrol-ic-bosluk: var(--rc-bosluk-3);
-  --rc-tablo-satir: 2rem; // 32
+  --rc-tablo-satir: 2.25rem; // 36: basit tablo
+  --rc-tablo-satir-liste: 2.875rem; // 46: liste gridi (iki satırlı hücre)
+  --rc-tablo-satir-panel: 2.625rem; // 42: panel tabloları
   --rc-tablo-hucre-bosluk: var(--rc-bosluk-2);
 
-  // Köşe yarıçapı
-  --rc-yaricap-sm: 0.1875rem; // 3
-  --rc-yaricap-md: 0.25rem; // 4
-  --rc-yaricap-lg: 0.375rem; // 6
-  --rc-yaricap-xl: 0.5rem; // 8
+  // Köşe yarıçapı (hiyerarşi: plaka < kontrol < kart/bölüm < diyalog; çip/rozet tam)
+  --rc-yaricap-sm: 0.25rem; // 4: plaka
+  --rc-yaricap-md: 0.375rem; // 6: kontrol
+  --rc-yaricap-lg: 0.625rem; // 10: kart, bölüm
+  --rc-yaricap-xl: 0.75rem; // 12: diyalog
   --rc-yaricap-tam: 999px;
 
   // Katman sırası
@@ -74,103 +203,142 @@
   --rc-odak-bosluk: 2px;
 }
 
-// Açık tema renkleri. Kiracı değişkenleri tanımsızsa virgül sonrası varsayılan kullanılır.
+// Açık tema (Kağıt). Kiracı değişkenleri tanımsızsa virgül sonrası varsayılan kullanılır.
 @mixin acik-renkler {
   color-scheme: light;
 
-  --rc-zemin: #f5f7fa;
-  --rc-yuzey: #ffffff;
-  --rc-yuzey-alt: #eef2f6;
-  --rc-yuzey-vurgu: #e4eaf2;
-  --rc-metin: #0f172a;
-  --rc-metin-ikincil: #475569;
-  --rc-metin-soluk: #5b6778;
-  --rc-metin-pasif: #94a3b8; // devre dışı; WCAG kontrast şartı dışında
-  --rc-kenar: #dde3eb; // süs çizgisi (ayraç, kart)
-  --rc-kenar-kontrol: #7b8595; // girdi/kontrol sınırı (≥ 3:1)
-  --rc-odak: #1d5fd6;
-  --rc-secim: #cfe0ff;
+  --rc-zemin: var(--rc-ham-kagit-50);
+  --rc-yuzey: var(--rc-ham-beyaz);
+  --rc-yuzey-alt: var(--rc-ham-kagit-100);
+  --rc-yuzey-vurgu: var(--rc-ham-kagit-200);
+  --rc-metin: var(--rc-ham-murekkep-900);
+  --rc-metin-ikincil: var(--rc-ham-murekkep-700);
+  --rc-metin-soluk: var(--rc-ham-murekkep-600);
+  --rc-metin-pasif: #a8a396; // devre dışı; WCAG kontrast şartı dışında
+  --rc-kenar: var(--rc-ham-kagit-200); // süs çizgisi (ayraç, kart)
+  --rc-kenar-kontrol: var(--rc-ham-murekkep-400); // girdi/kontrol sınırı (≥ 3:1)
+  --rc-odak: var(--rc-ham-lacivert-800);
+  --rc-secim: #d7dff5;
+  --rc-satir-vurgu: #fffbeb; // bugünün işi (satır vurgusu)
 
-  --rc-vurgu: var(--rc-kiraci-vurgu, #1d4ed8);
-  --rc-vurgu-hover: var(--rc-kiraci-vurgu-hover, #1e40af);
-  --rc-vurgu-uzeri: var(--rc-kiraci-vurgu-uzeri, #ffffff);
-  --rc-vurgu-metin: var(--rc-kiraci-vurgu-metin-acik, #1d4ed8);
-  --rc-vurgu-zemin: #e3ebfd;
+  --rc-vurgu: var(--rc-kiraci-vurgu, var(--rc-ham-lacivert-800));
+  --rc-vurgu-hover: var(--rc-kiraci-vurgu-hover, #172c6b);
+  --rc-vurgu-uzeri: var(--rc-kiraci-vurgu-uzeri, var(--rc-ham-beyaz));
+  --rc-vurgu-metin: var(--rc-kiraci-vurgu-metin-acik, #1b337a);
+  --rc-vurgu-zemin: var(--rc-ham-lacivert-50);
 
-  --rc-basari-metin: #166534;
-  --rc-basari-zemin: #dcfce7;
-  --rc-basari-kenar: #86efac;
-  --rc-uyari-metin: #854d0e;
-  --rc-uyari-zemin: #fef3c7;
-  --rc-uyari-kenar: #fcd34d;
-  --rc-hata-metin: #b91c1c;
-  --rc-hata-zemin: #fee2e2;
-  --rc-hata-kenar: #fca5a5;
-  --rc-bilgi-metin: #1e40af;
-  --rc-bilgi-zemin: #dbeafe;
-  --rc-bilgi-kenar: #93c5fd;
-  --rc-notr-metin: #334155;
-  --rc-notr-zemin: #e2e8f0;
-  --rc-notr-kenar: #cbd5e1;
+  --rc-basari-metin: var(--rc-ham-otoyol-700);
+  --rc-basari-zemin: var(--rc-ham-otoyol-50);
+  --rc-basari-kenar: #8fcba6;
+  --rc-uyari-metin: var(--rc-ham-isaret-800);
+  --rc-uyari-zemin: var(--rc-ham-isaret-50);
+  --rc-uyari-kenar: #e6c074;
+  --rc-hata-metin: var(--rc-ham-dur-700);
+  --rc-hata-zemin: var(--rc-ham-dur-50);
+  --rc-hata-kenar: #ec9a91;
+  --rc-bilgi-metin: var(--rc-ham-petrol-700);
+  --rc-bilgi-zemin: var(--rc-ham-petrol-50);
+  --rc-bilgi-kenar: #86c3bd;
+  --rc-notr-metin: var(--rc-ham-murekkep-700);
+  --rc-notr-zemin: var(--rc-ham-kagit-300);
+  --rc-notr-kenar: #bdb8ac;
 
-  --rc-iskelet: #e2e8f0;
-  --rc-iskelet-parlama: #f1f5f9;
-  --rc-perde: rgb(15 23 42 / 0.45);
-  --rc-golge-1: 0 1px 2px rgb(15 23 42 / 0.06);
-  --rc-golge-2: 0 1px 3px rgb(15 23 42 / 0.1), 0 1px 2px rgb(15 23 42 / 0.06);
-  --rc-golge-3: 0 10px 28px rgb(15 23 42 / 0.16), 0 2px 6px rgb(15 23 42 / 0.08);
+  --rc-iskelet: var(--rc-ham-kagit-200);
+  --rc-iskelet-parlama: var(--rc-ham-kagit-50);
+  --rc-perde: rgb(27 26 22 / 0.45);
+  --rc-golge-1: 0 1px 2px rgb(27 26 22 / 0.06);
+  --rc-golge-2: 0 1px 3px rgb(27 26 22 / 0.1), 0 1px 2px rgb(27 26 22 / 0.06);
+  --rc-golge-3: 0 10px 28px rgb(27 26 22 / 0.16), 0 2px 6px rgb(27 26 22 / 0.08);
+  --rc-golge-katman: 0 8px 24px rgb(27 26 22 / 0.18); // yalnız katmanlar (panel, diyalog, toast)
+
+  // Kenar çubuğu (lacivert)
+  --rc-kenar-cubugu-zemin: var(--rc-ham-lacivert-900);
+  --rc-kenar-cubugu-metin: var(--rc-ham-beyaz);
+  --rc-kenar-cubugu-ikincil: #b4c1ea;
+  --rc-kenar-cubugu-grup: #8a9bd6;
+  --rc-kenar-cubugu-aktif-zemin: var(--rc-ham-lacivert-700);
+  --rc-kenar-cubugu-aktif-metin: var(--rc-ham-beyaz);
+  --rc-kenar-cubugu-ayrac: #22397a;
+  // Plandaki lacivert-400 (#5a72c4) lacivert-900 üstünde 2.95:1 (kontrol kenarı eşiği 3) → bir ton açık.
+  --rc-kenar-cubugu-kontrol-kenar: var(--rc-ham-lacivert-300);
+  --rc-kenar-cubugu-rozet-zemin: var(--rc-ham-beyaz);
+  --rc-kenar-cubugu-rozet-metin: var(--rc-ham-lacivert-800);
+
+  // Sayfa bandı (zemin temaya göre; metin ve butonlar bilesen-sabit'te)
+  --rc-bant-zemin: var(--rc-ham-lacivert-800);
 }
 
+// Koyu tema (Asfalt).
 @mixin koyu-renkler {
   color-scheme: dark;
 
-  --rc-zemin: #0d131c;
-  --rc-yuzey: #151d29;
-  --rc-yuzey-alt: #1b2533;
-  --rc-yuzey-vurgu: #233044;
-  --rc-metin: #e5eaf1;
-  --rc-metin-ikincil: #a9b5c6;
-  --rc-metin-soluk: #93a1b5;
-  --rc-metin-pasif: #5d6b7f;
-  --rc-kenar: #2a3546;
-  --rc-kenar-kontrol: #6f7e93;
-  --rc-odak: #6aa5ff;
-  --rc-secim: #1e3a6e;
+  --rc-zemin: var(--rc-ham-asfalt-900);
+  --rc-yuzey: var(--rc-ham-asfalt-800);
+  --rc-yuzey-alt: var(--rc-ham-asfalt-700);
+  --rc-yuzey-vurgu: var(--rc-ham-asfalt-600);
+  --rc-metin: var(--rc-ham-kagit-100);
+  --rc-metin-ikincil: #b8b3a6;
+  --rc-metin-soluk: #9b9688;
+  --rc-metin-pasif: var(--rc-ham-murekkep-600);
+  --rc-kenar: var(--rc-ham-asfalt-600);
+  --rc-kenar-kontrol: var(--rc-ham-murekkep-300);
+  --rc-odak: #8fa8f0;
+  --rc-secim: #23366a;
+  --rc-satir-vurgu: #2b2416;
 
-  --rc-vurgu: var(--rc-kiraci-vurgu, #2f66d9);
-  --rc-vurgu-hover: var(--rc-kiraci-vurgu-hover, #2657c2);
-  --rc-vurgu-uzeri: var(--rc-kiraci-vurgu-uzeri, #ffffff);
-  --rc-vurgu-metin: var(--rc-kiraci-vurgu-metin-koyu, #8ab4ff);
-  --rc-vurgu-zemin: #1a2a4a;
+  --rc-vurgu: var(--rc-kiraci-vurgu, var(--rc-ham-lacivert-500));
+  --rc-vurgu-hover: var(--rc-kiraci-vurgu-hover, #3d5cbf);
+  --rc-vurgu-uzeri: var(--rc-kiraci-vurgu-uzeri, var(--rc-ham-beyaz));
+  --rc-vurgu-metin: var(--rc-kiraci-vurgu-metin-koyu, var(--rc-ham-lacivert-200));
+  --rc-vurgu-zemin: #1b2a55;
 
-  --rc-basari-metin: #6ee7a0;
-  --rc-basari-zemin: #0f2e1f;
-  --rc-basari-kenar: #1f6b43;
-  --rc-uyari-metin: #fcd34d;
-  --rc-uyari-zemin: #33260a;
+  --rc-basari-metin: var(--rc-ham-otoyol-300);
+  --rc-basari-zemin: var(--rc-ham-otoyol-900);
+  --rc-basari-kenar: #2f7a52;
+  --rc-uyari-metin: var(--rc-ham-isaret-300);
+  --rc-uyari-zemin: var(--rc-ham-isaret-900);
   --rc-uyari-kenar: #7a5a12;
-  --rc-hata-metin: #fca5a5;
-  --rc-hata-zemin: #3a1618;
-  --rc-hata-kenar: #8a2c2c;
-  --rc-bilgi-metin: #93c5fd;
-  --rc-bilgi-zemin: #13284a;
-  --rc-bilgi-kenar: #2c5594;
-  --rc-notr-metin: #cbd5e1;
-  --rc-notr-zemin: #263243;
-  --rc-notr-kenar: #3a485d;
+  --rc-hata-metin: var(--rc-ham-dur-300);
+  --rc-hata-zemin: var(--rc-ham-dur-900);
+  --rc-hata-kenar: #8a3a33;
+  --rc-bilgi-metin: var(--rc-ham-petrol-300);
+  --rc-bilgi-zemin: var(--rc-ham-petrol-900);
+  --rc-bilgi-kenar: #2a7a73;
+  --rc-notr-metin: #c9c4b7;
+  --rc-notr-zemin: #2e2c27;
+  --rc-notr-kenar: #4a473f;
 
-  --rc-iskelet: #223044;
-  --rc-iskelet-parlama: #2c3b52;
+  --rc-iskelet: var(--rc-ham-asfalt-600);
+  --rc-iskelet-parlama: #37342d;
   --rc-perde: rgb(0 0 0 / 0.6);
   --rc-golge-1: 0 1px 2px rgb(0 0 0 / 0.4);
   --rc-golge-2: 0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.35);
   --rc-golge-3: 0 10px 28px rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.4);
+  --rc-golge-katman: 0 8px 24px rgb(0 0 0 / 0.5);
+
+  // Kenar çubuğu (asfalt varyantı)
+  --rc-kenar-cubugu-zemin: var(--rc-ham-asfalt-950);
+  --rc-kenar-cubugu-metin: var(--rc-ham-kagit-100);
+  --rc-kenar-cubugu-ikincil: #a39e91;
+  --rc-kenar-cubugu-grup: #857f73;
+  --rc-kenar-cubugu-aktif-zemin: #23366a;
+  --rc-kenar-cubugu-aktif-metin: var(--rc-ham-kagit-100);
+  --rc-kenar-cubugu-ayrac: var(--rc-ham-asfalt-600);
+  --rc-kenar-cubugu-kontrol-kenar: var(--rc-ham-murekkep-300);
+  --rc-kenar-cubugu-rozet-zemin: var(--rc-ham-lacivert-500);
+  --rc-kenar-cubugu-rozet-metin: var(--rc-ham-beyaz);
+
+  // Sayfa bandı (zemin temaya göre; metin ve butonlar bilesen-sabit'te)
+  --rc-bant-zemin: #1b2f6e;
 }
 
 // Blazor uygulamasıyla aynı desen: :root açık; sistem koyuysa ve kullanıcı "açık" seçmediyse koyu;
-// kullanıcı "koyu" seçtiyse her durumda koyu.
+// kullanıcı "koyu" seçtiyse her durumda koyu. Ham palet, ölçekler ve sabit bileşen token'ları
+// yalnız :root'ta (tema bağımsız).
 :root {
+  @include ham-palet;
   @include olcekler;
+  @include bilesen-sabit;
   @include acik-renkler;
 }
 

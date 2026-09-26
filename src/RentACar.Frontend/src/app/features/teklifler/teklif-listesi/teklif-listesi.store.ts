@@ -67,7 +67,7 @@ export function teklifSutunlari(t: Ceviri): readonly TabloSutunu<TeklifListeSati
       sirala: true,
       genislik: 180,
     },
-    { kod: 'plaka', baslik: s('plaka'), deger: (r) => r.plaka, sirala: true, genislik: 100 },
+    { kod: 'plaka', baslik: s('plaka'), deger: (r) => r.plaka, sirala: true, genislik: 124 },
     {
       kod: 'basTar',
       baslik: s('basTar'),

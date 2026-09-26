@@ -162,7 +162,7 @@ test('gecikmiş dönüş varsa Gecikmiş açılır; satır kira formuna bağlan�
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
-    .toBe('rgb(13, 19, 28)');
+    .toBe('rgb(20, 19, 16)');
   expect(await ciddiIhlaller(page), 'koyu tema').toEqual([]);
 
   // Sekme seçimi sorguya yazılır (Blazor ?df= sözleşmesi; yenilemede korunur).

@@ -46,6 +46,8 @@ import { BranchNames, ExpenseStore } from '../document.store';
 import { ExpenseCreateForm } from './expense-create-form';
 import { ExpensePaymentForm, expensePaymentScope } from './expense-payment-form';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
  * Giderler (`/app/giderler`) — Blazor `ExpenseList.razor` paritesi: yeni gider (FinanceWrite, `Idempotency-Key`),
@@ -56,6 +58,8 @@ import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
   selector: 'rc-expense-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,

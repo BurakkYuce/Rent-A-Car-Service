@@ -1,14 +1,11 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'rezervasyon.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/rezervasyonlar/yeni">
-        <rc-ikon ad="plus" [boyut]="14" />
-        {{ 'rezervasyon.yeni' | transloco }}
-      </a>
-    </div>
-  </header>
+<rc-sayfa-bandi [baslik]="'rezervasyon.baslik' | transloco" ikon="calendar-event">
+  <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/rezervasyonlar/yeni">
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'rezervasyon.yeni' | transloco }}
+  </a>
+</rc-sayfa-bandi>
 
+<div class="rc-sayfa">
   <rc-katlanir-filtre
     class="filtre"
     [baslik]="'rezervasyon.filtre.baslik' | transloco"
@@ -64,7 +61,7 @@
   </rc-katlanir-filtre>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="rezervasyonlar.liste"
     [etiket]="'rezervasyon.tabloEtiketi' | transloco"
     [sutunlar]="sutunlar"
@@ -83,6 +80,12 @@
       <a class="bag" [routerLink]="['/rezervasyonlar', satir.id]">{{ satir.no }}</a>
     </ng-template>
 
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="sutunlar" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka [plaka]="satir.plaka" boyut="sm" />
+      }
+    </ng-template>
+
     <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="sutunlar" let-satir>
       <span [class]="rozet(satir.durum)" [class.opsiyonlu]="satir.durum === 'Rezerv'">{{
         durumEtiketi(satir.durum)
@@ -90,7 +93,7 @@
     </ng-template>
 
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="sutunlar" let-satir>
-      <span class="islemler">
+      <span class="satir-islemleri">
         @if (satir.durum === 'Rezerv') {
           <button
             type="button"

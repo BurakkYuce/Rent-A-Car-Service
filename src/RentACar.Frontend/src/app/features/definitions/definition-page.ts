@@ -7,6 +7,7 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
 import { restTanimKaynagi } from '@shared/form/tanim-crud/tanim-kaynagi';
 
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 import { type DefinitionKind, definitionConfig, selectionSuggestions } from './definition-catalog';
 import { pagedDefinitionSource } from './paged-source';
 
@@ -21,14 +22,14 @@ import { pagedDefinitionSource } from './paged-source';
 @Component({
   selector: 'rc-definition-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TanimCrud],
+  imports: [TranslocoPipe, TanimCrud, SayfaBandi],
   styleUrl: './definitions.scss',
   template: `
-    <div class="sayfa">
-      <h1>{{ 'tanimlar.' + kind + '.baslik' | transloco }}</h1>
-      <p class="aciklama">{{ 'tanimlar.' + kind + '.aciklama' | transloco }}</p>
+    <rc-sayfa-bandi [baslik]="'tanimlar.' + kind + '.baslik' | transloco" ikon="tag" />
+    <div class="rc-sayfa">
+      <p class="not">{{ 'tanimlar.' + kind + '.aciklama' | transloco }}</p>
       @if (kind === 'drop') {
-        <p class="aciklama">{{ 'tanimlar.drop.aciklama2' | transloco }}</p>
+        <p class="not">{{ 'tanimlar.drop.aciklama2' | transloco }}</p>
       }
       <rc-tanim-crud
         [baslik]="'tanimlar.' + kind + '.tablo' | transloco"

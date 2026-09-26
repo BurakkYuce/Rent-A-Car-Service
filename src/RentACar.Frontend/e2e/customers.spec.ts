@@ -328,12 +328,12 @@ test('#295 M2: 11 haneli TC araması adres çubuğuna yazılmaz, istek yine gide
   await hazirBekle(page, LIST);
   const box = page.getByRole('searchbox', { name: 'Ara' });
   await box.fill('10000000146');
-  await page.getByRole('button', { name: 'Filtrele' }).click();
+  await page.getByRole('button', { name: 'Filtrele', exact: true }).click();
   await expect.poll(() => searches.includes('10000000146')).toBe(true);
   expect(page.url()).not.toContain('10000000146');
   await expect(box).toHaveValue('10000000146');
   await box.fill('Ayşe');
-  await page.getByRole('button', { name: 'Filtrele' }).click();
+  await page.getByRole('button', { name: 'Filtrele', exact: true }).click();
   await expect(page).toHaveURL(/q=Ay%C5%9Fe/);
 });
 

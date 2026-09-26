@@ -1,44 +1,13 @@
 // Kira formu (F4.3) — sayfa ve sekme bileşenlerinin ortak stili. Kapsülleme yok (ViewEncapsulation.None):
-// her seçici `.rc-kira-formu` altında, yalnız token'lar (ham renk/boyut yok).
-.rc-kira-formu {
+// her seçici `.kira-formu` altında, yalnız token'lar. Başlık = `rc-sayfa-bandi`, iskelet `.rc-sayfa`, kartlar
+// `.rc-bolum`, düz tablolar `.rc-tablo-kap > .rc-duz-tablo` + `.rc-num` (global, Yol v2 §7/§18); burada yalnız
+// forma özgü ayrıntı kalır.
+.kira-formu {
   display: block;
-  padding: var(--rc-bosluk-4);
 
-  .kf-ust {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--rc-bosluk-2) var(--rc-bosluk-4);
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: var(--rc-bosluk-3);
-
-    h1 {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--rc-bosluk-2);
-      align-items: center;
-      margin: 0;
-      font-size: var(--rc-yazi-xl);
-    }
-  }
-
-  .kf-baglantilar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--rc-bosluk-2) var(--rc-bosluk-3);
-    align-items: center;
-  }
-
+  // `.rc-bolum` alt alta dizilirken aradaki boşluk (sekme gövdeleri flex değil).
   .kf-kart {
-    display: flex;
-    flex-direction: column;
-    gap: var(--rc-bosluk-2);
-    min-width: 0;
     margin-bottom: var(--rc-bosluk-3);
-    padding: var(--rc-bosluk-3);
-    border: 1px solid var(--rc-kenar);
-    border-radius: var(--rc-yaricap-md);
-    background-color: var(--rc-yuzey);
   }
 
   .kf-kart__baslik {
@@ -160,48 +129,6 @@
     margin-bottom: var(--rc-bosluk-2);
     color: var(--rc-vurgu-metin);
     cursor: pointer;
-  }
-
-  // `position: relative`: tablodaki görünmez (absolute) etiketler kaydırma kutusunun içinde kalır;
-  // yoksa kutunun dışına konumlanıp belgeyi yatayda taşırır (390 px'te ölçüldü).
-  .kf-tablo-kutusu {
-    position: relative;
-    max-width: 100%;
-    overflow-x: auto;
-  }
-
-  .kf-tablo {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: var(--rc-yazi-sm);
-
-    th,
-    td {
-      padding: var(--rc-tablo-hucre-bosluk);
-      border-bottom: 1px solid var(--rc-kenar);
-      text-align: start;
-      vertical-align: middle;
-    }
-
-    th {
-      color: var(--rc-metin-ikincil);
-      font-weight: var(--rc-agirlik-orta);
-      white-space: nowrap;
-    }
-
-    .num {
-      font-variant-numeric: tabular-nums;
-      text-align: end;
-      white-space: nowrap;
-    }
-  }
-
-  .kf-secili {
-    background-color: var(--rc-secim);
-  }
-
-  .kf-bos {
-    color: var(--rc-metin-ikincil);
   }
 
   .kf-miktar {

@@ -22,6 +22,7 @@ import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { ParaPipe } from '@shared/bicim/bicim-pipe';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { Alan } from '@shared/form/alan/alan';
 import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
 import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
@@ -33,11 +34,11 @@ import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { legalColumns } from '../crm-columns';
 import { emptyLegal, legalRequest, legalToForm } from '../crm-forms';
 import {
@@ -67,12 +68,13 @@ type LegalStatus = (typeof LEGAL_STATUSES)[number];
   selector: 'rc-legal-file-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
     AramaSecim,
     FormHatalari,
-    Ikon,
     MetinGirdisi,
     OnayKutusu,
     ParaGirdisi,

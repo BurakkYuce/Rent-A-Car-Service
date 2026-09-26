@@ -24,6 +24,7 @@ import { FormHatalari } from '@shared/form/form-hatalari';
 import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
 import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { mergeServerValues } from '../shared/version-merge';
 import { LISTINGS_ROOT } from './website-hub';
 
@@ -48,6 +49,7 @@ function priceValues(d: ListingDetail): Record<string, unknown> {
   selector: 'rc-listing-price',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

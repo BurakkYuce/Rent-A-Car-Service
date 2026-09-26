@@ -1,6 +1,6 @@
-<div class="sayfa">
-  <h1>{{ 'sistem.blog.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'sistem.blog.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'sistem.blog.baslik' | transloco" ikon="edit" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'sistem.blog.aciklama' | transloco }}</p>
   <rc-tanim-crud
     [baslik]="'sistem.blog.yazilar' | transloco"
     [alanlar]="fields"
@@ -8,7 +8,7 @@
     layout="panel"
   />
 
-  <section class="bolum" aria-labelledby="blog-kapak">
+  <section class="rc-bolum" aria-labelledby="blog-kapak">
     <h2 id="blog-kapak">{{ 'sistem.blog.kapak.baslik' | transloco }}</h2>
     <div class="rc-form-izgara">
       <rc-alan [etiket]="'sistem.blog.yazi' | transloco">

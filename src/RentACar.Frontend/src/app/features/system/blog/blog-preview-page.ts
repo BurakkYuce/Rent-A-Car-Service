@@ -6,6 +6,7 @@ import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { Sema } from '@core/api/ui-tipleri';
 import { TemelStore } from '@core/veri/temel-store';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { BLOG_ROOT } from './blog-page';
 
 type BlogPreview = Sema<'BlogPreviewDto'>;
@@ -17,7 +18,7 @@ type BlogPreview = Sema<'BlogPreviewDto'>;
 @Component({
   selector: 'rc-blog-preview-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslocoPipe],
+  imports: [SayfaBandi, RouterLink, TranslocoPipe],
   styleUrl: '../system.scss',
   templateUrl: './blog-preview-page.html',
 })

@@ -27,17 +27,38 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
 
 ## Tasarım sistemi (F3.1)
 
-- **Token'lar** `src/styles/_tokenlar.scss`, önek `--rc-*`. Yoğun varsayılan: gövde 13 px, kontrol
-  32 px (28/36), tablo satırı 32 px. Yazı boyutu yalnız ölçekten (`--rc-yazi-2xs…2xl`), boşluk 4 px
-  ızgarasından (`--rc-bosluk-N` = N × 4 px). Bileşen stilinde ham hex/px renk-boyut yazılmaz.
+- **Tasarım dili "Yol"** — ÖNCE `docs/tasarim/TASARIM-DILI.md` (kısa kural kitabı: ilkeler, token katmanları,
+  durum sözlüğü, bileşen/düzen kullanımı, yap/yapma, ekran kalıpları); ayrıntılı spesifikasyon ve göç reçetesi
+  (§18) `docs/tasarim/YOL-PLANI-v2.md`, hedef görünüm `docs/tasarim/referans/`. Renk = durum. Sayfa başlığı
+  `rc-sayfa-bandi` (gövdede ikinci `<h1>` yok), gövde global düzen katmanı (`src/styles/_duzen.scss`: `.rc-sayfa`,
+  `.rc-bolum`, `.rc-kart`, `.rc-tablo-kap > .rc-duz-tablo`, `.rc-num`…); feature SCSS'te `.sayfa/.ust/.kart/
+.tablo/.num/.bolum/.aciklama/.islemler` ya da `.rc-*` tanımlanmaz, `box-shadow` yazılmaz.
+- **Stil denetimi** `npm run stil` (`scripts/stil-denetimi.mjs --kati`; `npm run lint` içinde HATA kipi): renk,
+  yazı, medya, global sınıf, gölge, plaka-tr, gövde `<h1>` kuralları; bulgu varsa lint kırmızı. Feature dışındaki zorunlu
+  istisna gerekçeli `// stil-denetimi: izin — <gerekçe>` yorumuyla (aynı/önceki satır); `features/**` istisna alamaz.
+- **Token'lar** `src/styles/_tokenlar.scss`, önek `--rc-*`, üç katman: **ham** `--rc-ham-*` (tema
+  bağımsız palet; bileşen stilinde OKUNMAZ) → **anlamsal** (`--rc-zemin`, `--rc-metin`, `--rc-vurgu`,
+  `--rc-{basari,uyari,hata,bilgi,notr}-{metin,zemin,kenar}`, `--rc-satir-vurgu`, `--rc-uyari-dolgu`,
+  `--rc-golge-katman`…; adlar kalıcı) → **bileşen** (`--rc-kenar-cubugu-*`, `--rc-bant-*`,
+  `--rc-tabela-*`, `--rc-plaka-*`, `--rc-tablo-baslik-*`, `--rc-cip-*`; yalnız kendi bileşeninde).
+  Ölçü: gövde 14 px, kontrol 34 px (30/40), tablo satırı 36 / liste 46 / panel 42, yarıçap plaka 4 ·
+  kontrol 6 · kart 10 · diyalog 12 · tam. Yazı boyutu yalnız ölçekten (`--rc-yazi-2xs…3xl`), boşluk
+  4 px ızgarasından (`--rc-bosluk-N` = N × 4 px). Gölge yalnız katmanlarda (`--rc-golge-katman`).
+  Bileşen stilinde ham hex/px renk-boyut yazılmaz.
+- **Kırılımlar** `src/styles/_kirilim.scss` (`$rc-kirilim-mobil` 900px, `-dar` 600px, `-form` 64rem,
+  `-cok-dar` 30rem): bileşen SCSS'inde `@use 'kirilim';` (`includePaths: src/styles`); ham kırılım
+  değeri yazılmaz.
 - **Tema:** `:root` açık; `prefers-color-scheme: dark` + `:root:not([data-theme=light])` koyu;
   `[data-theme=dark]` her durumda koyu. `TemaServisi` (`@core/tema`) modu yazar/saklar
   (`localStorage` `rc.tema`, yalnız mod — kişisel veri değil) ve kiracı rengini `--rc-kiraci-*`
   değişkenlerine uygular; üstündeki metin ve okunur ton otomatik seçilir.
 - **Kontrast kapısı:** `npm run kontrast` iki temada metin ≥ 4.5, kontrol kenarı ve odak ≥ 3 denetler
-  ve `TEMA_ZEMINLERI` kopyasının SCSS'le aynı olduğunu doğrular. Renk değiştiren PR tabloyu yeşil
+  (`var(--rc-ham-*)` zincirini çözer; kenar çubuğu, bant, tabela, plaka, tablo başlığı, çip çiftleri
+  dahil; `rgba()` token'lar hariç) ve `TEMA_ZEMINLERI` kopyasının SCSS'le aynı olduğunu doğrular. Renk değiştiren PR tabloyu yeşil
   tutmak zorunda (`npm run lint` bunu da koşar).
-- **Font:** Inter değişken, self-host (`src/styles/fonts/`, latin + latin-ext; ğ/ş/İ/₺ latin-ext'te).
+- **Font:** IBM Plex Sans 400/500/600 (`--rc-font`) + IBM Plex Sans Condensed 600 yalnız plaka
+  (`--rc-font-plaka`); self-host woff2 (`src/styles/fonts/`, kaynak `@fontsource/*` devDependency,
+  latin + latin-ext; ğ/Ğ/ş/Ş/İ/₺ latin-ext'te, ı/ç/ö/ü latin'de). Sayılar global `tabular-nums`.
 - **Biçim:** `@core/bicim/bicim` (`paraBicimle` → `1.234,56 ₺`, yarım kuruş sıfırdan uzağa;
   `tarihBicimle` → `dd.MM.yyyy`; `tarihSaatBicimle` İstanbul saatiyle) ve pipe'ları `para`, `sayi`,
   `tarih`, `tarihSaat` (`@shared/bicim/bicim-pipe`). `LOCALE_ID = 'tr'`. Kendi `toFixed`/`Intl`
@@ -218,6 +239,16 @@ detay, alanlar? }`. `features/**` içinde `HttpClient` içe aktarımı lint'le y
   içe aktarılan modülün tüm dışa aktarımları canlı sayılır, `core.mjs` ve rxjs'in paylaşılan kısmı ilk pakete
   şişer (+12 kB ölçüldü). CDK tembel modülün içinde STATİK içe aktarılır, kabuk o modülü dinamik yükler.
 - **Mobil (≤ 900 px):** yan menü çekmece; açıkken içerik sütunu `inert`, Esc/perde kapatır, odak menü düğmesine döner.
+- **Yol v2 görünümü (`docs/tasarim/YOL-PLANI-v2.md` §5):** lacivert kenar çubuğu (`--rc-kenar-cubugu-*`; 240 px ↔
+  56 px şerit, `rc.kabuk.dar`), akordeon tek grup (`rc.menu.acik`), grup ikonu `menu-ikonlari.ts` (grup ADI →
+  ikon; yeni sunucu grubu buraya). Kısayol çifti `+ Kira`/`+ Rezervasyon` sunucunun HIZLI bağlantılarından
+  (`kisayollar.ts`; izin süzmesi sunucuda). SPA kira listesi Kira grubunda kayıtlı görünümlerle
+  (`kiralar?gorunum=…`) açılır; sayaçlar `@core/sayac/kabuk-sayaclari` (kabuk istek ATMAZ — Panel yanıtı yayımlar).
+  Kullanıcı kartı/çıkış kenar çubuğunun altında; üst çubukta tekrar yok. Üst çubuk erişilebilir adlarında
+  "Plaka" GEÇMEZ ("Hızlı araç arama") — e2e'deki `getByLabel('Plaka')` form alanlarıyla çakışır.
+- **Sayfa bandı** `kabuk/sayfa-bandi` (`rc-sayfa-bandi`): sayfanın TEK `<h1>`'i; `[eylemler]` çerçeveli ikinciller
+  (≤ 900 px "…" menüsüne iner), `[birincil]` tek dolu birincil. Stil kapsüllenmez (projeksiyondaki `.rc-dugme`
+  bantta yeniden boyanır).
 - **Sekmeler** (`@core/sekme` ilk pakette küçük çekirdek + `kabuk/sekmeler` tembel): her kabuk sayfası (desen +
   yol parametreleri; sorgu/fragment HARİÇ) bir sekme. Başka sekmeye geçince bileşen YOK EDİLMEZ
   (`SekmeRotaStratejisi`, `RouteReuseStrategy`): form, kaydırma, sayfa store'u yaşar. Bu yüzden

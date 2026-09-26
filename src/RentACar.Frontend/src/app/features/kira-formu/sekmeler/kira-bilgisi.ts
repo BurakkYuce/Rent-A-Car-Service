@@ -13,7 +13,7 @@ import { KF_ORTAK } from './ortak';
   imports: [...KF_ORTAK],
   template: `
     <div [formGroup]="d.form">
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.kiraBilgisi' | transloco }}</h3>
         <div class="rc-form-izgara">
           <rc-alan
@@ -70,7 +70,7 @@ import { KF_ORTAK } from './ortak';
         </div>
       </section>
 
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.km' | transloco }}</h3>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'kiraFormu.alan.kmLimit' | transloco">
@@ -88,7 +88,7 @@ import { KF_ORTAK } from './ortak';
         </p>
       </section>
 
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.opsiyon' | transloco }}</h3>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'kiraFormu.alan.opsiyonNet' | transloco">
@@ -109,7 +109,7 @@ import { KF_ORTAK } from './ortak';
         </div>
       </section>
 
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.kabis' | transloco }}</h3>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'kiraFormu.alan.kabisCikis' | transloco" etiketGizli>
@@ -127,7 +127,7 @@ import { KF_ORTAK } from './ortak';
       </section>
     </div>
 
-    <section class="kf-kart">
+    <section class="rc-bolum kf-kart">
       <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.teslimat' | transloco }}</h3>
       @if (d.kirada() && !d.teslimEdildi()) {
         <div class="rc-form-izgara" [formGroup]="d.teslimFormu" data-testid="teslim-formu">

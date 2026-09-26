@@ -1,0 +1,102 @@
+// Yol v2 §5.5: sol lacivert panel (logo + tek cümle), sağ kağıt zeminde form. Plaka motifi yok.
+// Lacivert panel kenar çubuğu tokenlarını kullanır (koyu temada asfalt varyantı aynı katmandan). Bandsız ekran:
+// sayfanın tek `<h1>`'i form başlığı.
+@use 'kirilim' as k;
+
+.giris {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--rc-zemin);
+}
+
+.tanitim {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--rc-bosluk-8);
+  padding: var(--rc-bosluk-8) var(--rc-bosluk-8) var(--rc-bosluk-12);
+  background-color: var(--rc-kenar-cubugu-zemin);
+  color: var(--rc-kenar-cubugu-metin);
+}
+
+.marka {
+  display: flex;
+  align-items: center;
+  gap: var(--rc-bosluk-3);
+}
+
+.logo {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-kenar-cubugu-rozet-zemin);
+  color: var(--rc-kenar-cubugu-rozet-metin);
+  font-size: var(--rc-yazi-md);
+  font-weight: var(--rc-agirlik-cok-kalin);
+}
+
+.marka__ad {
+  font-size: var(--rc-yazi-lg);
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.tanitim__cumle {
+  max-width: 22rem;
+  color: var(--rc-kenar-cubugu-metin);
+  font-size: var(--rc-yazi-2xl);
+  font-weight: var(--rc-agirlik-orta);
+  line-height: var(--rc-satir-sik);
+}
+
+.form-alani {
+  display: grid;
+  place-items: center;
+  padding: var(--rc-bosluk-8) var(--rc-bosluk-4);
+}
+
+.giris-kutusu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-5);
+  width: min(24rem, 100%);
+}
+
+.giris-basligi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-1);
+}
+
+.giris-basligi h1 {
+  font-size: var(--rc-yazi-2xl);
+}
+
+.not {
+  color: var(--rc-metin-ikincil);
+}
+
+@media (max-width: k.$rc-kirilim-mobil) {
+  .giris {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .tanitim {
+    gap: var(--rc-bosluk-2);
+    padding: var(--rc-bosluk-4);
+  }
+
+  .tanitim__cumle {
+    font-size: var(--rc-yazi-sm);
+    color: var(--rc-kenar-cubugu-ikincil);
+  }
+
+  .form-alani {
+    place-items: start center;
+    padding-block: var(--rc-bosluk-6);
+  }
+}

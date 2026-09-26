@@ -8,6 +8,7 @@ import type { Sema } from '@core/api/ui-tipleri';
 import { TemelStore } from '@core/veri/temel-store';
 import { Alan } from '@shared/form/alan/alan';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type SearchHit = Sema<'SearchHitDto'>;
 
@@ -82,7 +83,7 @@ export function hitRoute(url: string): string | null {
 @Component({
   selector: 'rc-search-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, TranslocoPipe, Alan, MetinGirdisi],
+  imports: [SayfaBandi, ReactiveFormsModule, RouterLink, TranslocoPipe, Alan, MetinGirdisi],
   styleUrl: '../system.scss',
   templateUrl: './search-page.html',
 })

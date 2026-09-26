@@ -1,12 +1,16 @@
-<ng-template #baglanti let-kayit>
+<ng-template #baglanti let-kayit let-ikon="ikon">
   <a
     class="oge"
     [class.oge--etkin]="kayit.kimlik === etkinKimlik()"
     [href]="href(kayit)"
+    [attr.title]="dar() ? kayit.etiket : null"
     [attr.aria-current]="kayit.kimlik === etkinKimlik() ? 'page' : null"
     [attr.aria-describedby]="kayit.hedef.tur === 'blazor' ? 'rc-menu-eski-ekran' : null"
     (click)="tikla($event, kayit)"
   >
+    @if (ikon) {
+      <rc-ikon class="oge__ikon" [ad]="ikon" [boyut]="16" />
+    }
     <span class="oge__etiket">{{ kayit.etiket }}</span>
     @if (rozet(kayit); as sayi) {
       <span class="oge__rozet"
@@ -29,7 +33,7 @@
     @if (!model()) {
       <div class="durum durum--hata" role="alert">
         <p>{{ 'kabuk.menu.hata' | transloco }}</p>
-        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="yenile.emit()">
+        <button type="button" class="durum__dugme" (click)="yenile.emit()">
           <rc-ikon ad="refresh" [boyut]="14" />
           {{ 'kabuk.menu.yenidenDene' | transloco }}
         </button>
@@ -42,43 +46,67 @@
   @if (guncellenemedi()) {
     <div class="durum durum--uyari">
       <p>{{ 'kabuk.menu.guncellenemedi' | transloco }}</p>
-      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="yenile.emit()">
+      <button type="button" class="durum__dugme" (click)="yenile.emit()">
         {{ 'kabuk.menu.yenidenDene' | transloco }}
       </button>
     </div>
   }
 
-  @if (m.hizli.length) {
-    <p class="bolum" id="rc-menu-hizli">{{ 'kabuk.menu.kisaYollar' | transloco }}</p>
-    <ul class="liste liste--hizli" aria-labelledby="rc-menu-hizli">
-      @for (kayit of m.hizli; track kayit.kimlik) {
-        <li>
-          <ng-container *ngTemplateOutlet="baglanti; context: { $implicit: kayit }" />
-        </li>
+  @let k = kisayollar();
+  @if (k.kira || k.rezervasyon) {
+    <div class="kisayol">
+      @if (k.kira; as kira) {
+        <a
+          class="kisayol__dugme kisayol__dugme--dolu"
+          [href]="href(kira)"
+          [attr.aria-label]="kira.etiket"
+          [attr.title]="dar() ? kira.etiket : null"
+          [attr.aria-current]="kira.kimlik === etkinKimlik() ? 'page' : null"
+          (click)="tikla($event, kira)"
+        >
+          <rc-ikon [ad]="dar() ? 'key' : 'plus'" [boyut]="dar() ? 16 : 14" />
+          <span class="kisayol__metin">{{ 'kabuk.kisayol.kira' | transloco }}</span>
+        </a>
       }
-    </ul>
+      @if (k.rezervasyon; as rez) {
+        <a
+          class="kisayol__dugme"
+          [href]="href(rez)"
+          [attr.aria-label]="rez.etiket"
+          [attr.title]="dar() ? rez.etiket : null"
+          [attr.aria-current]="rez.kimlik === etkinKimlik() ? 'page' : null"
+          (click)="tikla($event, rez)"
+        >
+          <rc-ikon [ad]="dar() ? 'calendar-event' : 'plus'" [boyut]="dar() ? 16 : 14" />
+          <span class="kisayol__metin">{{ 'kabuk.kisayol.rezervasyon' | transloco }}</span>
+        </a>
+      }
+    </div>
   }
 
   <ul class="liste">
     @for (blok of m.bloklar; track $index; let i = $index) {
       @if (blok.tur === 'oge') {
         <li>
-          <ng-container *ngTemplateOutlet="baglanti; context: { $implicit: blok.kayit }" />
+          <ng-container
+            *ngTemplateOutlet="
+              baglanti;
+              context: { $implicit: blok.kayit, ikon: ogeIkonu(blok.kayit) }
+            "
+          />
         </li>
       } @else {
         <li class="grup">
           <button
             type="button"
             class="grup__baslik"
+            [class.grup__baslik--acik]="acikMi(blok.ad)"
+            [attr.title]="dar() ? blok.ad : null"
             [attr.aria-expanded]="acikMi(blok.ad)"
             [attr.aria-controls]="'rc-menu-grup-' + i"
             (click)="grubuDegistir(blok.ad)"
           >
-            <rc-ikon
-              class="grup__ok"
-              [ad]="acikMi(blok.ad) ? 'chevron-down' : 'chevron-right'"
-              [boyut]="14"
-            />
+            <rc-ikon class="oge__ikon" [ad]="grupIkonu(blok.ad)" [boyut]="16" />
             <span class="oge__etiket">{{ blok.ad }}</span>
             @if (!acikMi(blok.ad)) {
               @if (grupRozeti(blok.kayitlar); as sayi) {
@@ -88,12 +116,43 @@
                 >
               }
             }
+            <rc-ikon
+              class="grup__ok"
+              [ad]="acikMi(blok.ad) ? 'chevron-down' : 'chevron-right'"
+              [boyut]="14"
+            />
           </button>
           <ul class="liste liste--grup" [id]="'rc-menu-grup-' + i" [hidden]="!acikMi(blok.ad)">
             @for (kayit of blok.kayitlar; track kayit.kimlik) {
-              <li>
-                <ng-container *ngTemplateOutlet="baglanti; context: { $implicit: kayit }" />
-              </li>
+              @if (kiraListesiMi(kayit)) {
+                @for (g of gorunumler(kayit); track g.kayit.kimlik) {
+                  <li>
+                    <a
+                      class="oge oge--alt"
+                      [class.oge--etkin]="gorunumEtkin(g, kayit)"
+                      [href]="href(g.kayit)"
+                      [attr.aria-current]="gorunumEtkin(g, kayit) ? 'page' : null"
+                      (click)="tikla($event, g.kayit)"
+                    >
+                      <span class="oge__etiket">{{ g.etiket | transloco }}</span>
+                      @if (gorunumSayaci(g); as sayi) {
+                        <span class="oge__rozet" [class.oge__rozet--hata]="g.hata && sayi !== '0'"
+                          >{{ sayi
+                          }}<span class="rc-gorunmez">
+                            {{ 'kabuk.menu.kayit' | transloco }}</span
+                          ></span
+                        >
+                      }
+                    </a>
+                  </li>
+                }
+              } @else {
+                <li>
+                  <ng-container
+                    *ngTemplateOutlet="baglanti; context: { $implicit: kayit, ikon: null }"
+                  />
+                </li>
+              }
             }
           </ul>
         </li>

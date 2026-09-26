@@ -9,6 +9,7 @@ import { PlatformSessionService } from './platform-session';
 /**
  * Platform operator layout (Blazor `PlatformLayout` parity): brand, console navigation, operator name,
  * sign-out. NO tenant sidebar, menu, tabs or command palette — the two authority domains stay apart.
+ * Pages render their own `rc-sayfa-bandi` (the single `<h1>`) + `.rc-sayfa` body, so the outlet has no padding.
  */
 @Component({
   selector: 'rc-platform-shell',
@@ -96,7 +97,6 @@ import { PlatformSessionService } from './platform-session';
       width: 100%;
       max-width: 90rem;
       margin: 0 auto;
-      padding: var(--rc-bosluk-4);
       min-width: 0;
     }
   `,

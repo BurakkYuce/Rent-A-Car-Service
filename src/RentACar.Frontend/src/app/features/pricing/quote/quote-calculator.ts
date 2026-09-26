@@ -22,6 +22,7 @@ import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import { TarihSaatSecici } from '@shared/form/tarih/tarih-saat-secici';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type PriceQuote = Sema<'PriceQuoteDto'>;
 type PriceQuoteRequest = Sema<'PriceQuoteRequest'>;
@@ -55,6 +56,7 @@ export function parseCodes(text: string | null): string[] {
   selector: 'rc-quote-calculator',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,

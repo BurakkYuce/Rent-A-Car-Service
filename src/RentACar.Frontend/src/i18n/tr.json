@@ -28,6 +28,19 @@
     "bosDurum": {
       "baslik": "Kayıt yok",
       "aciklama": "Gösterilecek kayıt bulunamadı."
+    },
+    "plaka": {
+      "aramaEtiketi": "Plaka ile ara",
+      "aramaIpucu": "Plaka yaz, Enter"
+    },
+    "gorunumler": {
+      "etiket": "Kayıtlı görünümler"
+    },
+    "filtre": {
+      "baslik": "Filtreler",
+      "etkin": "{{adet}} etkin",
+      "temizle": "Temizle",
+      "filtrele": "Filtrele"
     }
   },
   "oturum": {
@@ -47,7 +60,8 @@
         "kiraciKapali": "Firma hesabı kapalı. Yöneticinizle iletişime geçin.",
         "ag": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.",
         "genel": "Giriş yapılamadı. Lütfen yeniden deneyin."
-      }
+      },
+      "tanitim": "Filo, kira ve ön muhasebe tek ekranda."
     },
     "yenidenGiris": {
       "baslik": "Oturumunuz sona erdi",
@@ -223,7 +237,8 @@
       "guncellenemedi": "Menü güncellenemedi; son yüklenen gösteriliyor.",
       "yenidenDene": "Yeniden dene",
       "eskiEkran": "Mevcut (eski) ekranda, tam sayfa açılır.",
-      "yeni": "yeni"
+      "yeni": "yeni",
+      "kayit": "kayıt"
     },
     "tema": {
       "sistem": "Sistem teması",
@@ -244,6 +259,44 @@
       "kapat": "{{etiket}} sekmesini kapat",
       "sinir": "En fazla {{sayi}} sekme açık tutulabilir ve hepsinde kaydedilmemiş değişiklik var. Yeni sayfa açmak için bir sekmeyi kaydedip kapatın.",
       "eskiKapatildi": "Sekme sınırı ({{sayi}}): en uzun süredir kullanılmayan “{{etiket}}” sekmesi kapatıldı."
+    },
+    "menuyuDaralt": "Menüyü daralt",
+    "menuyuGenislet": "Menüyü genişlet",
+    "kisayol": {
+      "kira": "Kira",
+      "rezervasyon": "Rezervasyon"
+    },
+    "gorunum": {
+      "tum": "Tüm sözleşmeler",
+      "kirada": "Kiradaki araçlar",
+      "geciken": "Dönüşü gecikenler",
+      "bugunCikan": "Bugün çıkanlar",
+      "bugunDonecek": "Bugün dönecekler",
+      "faturasiz": "Faturası kesilmeyenler",
+      "kapali": "Kapalı sözleşmeler"
+    },
+    "sube": {
+      "etiket": "Şube",
+      "ipucu": "Şube kapsamı kullanıcı tanımından gelir."
+    },
+    "rol": {
+      "Admin": "Admin",
+      "Yonetici": "Yönetici",
+      "Operator": "Operatör",
+      "Muhasebe": "Muhasebe"
+    },
+    "plaka": {
+      "etiket": "Hızlı araç arama",
+      "yerTutucu": "Plaka yaz, Enter",
+      "ac": "Hızlı araç aramasını aç",
+      "kapat": "Hızlı araç aramasını kapat"
+    },
+    "bildirim": {
+      "etiket": "Bildirimler",
+      "sayili": "Bildirimler ({{sayi}} okunmamış)"
+    },
+    "bant": {
+      "digerEylemler": "Diğer işlemler"
     }
   },
   "paraIslemi": {

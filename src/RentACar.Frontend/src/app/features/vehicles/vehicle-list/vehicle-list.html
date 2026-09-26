@@ -1,95 +1,145 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'arac.liste.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      @if (canReport()) {
-        <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/araclar/detayli">
-          {{ 'arac.liste.detayliListe' | transloco }}
-        </a>
-      }
-      @if (canWrite()) {
-        <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/araclar/yeni">
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'arac.liste.yeni' | transloco }}
-        </a>
-      }
-    </div>
-  </header>
+<rc-sayfa-bandi
+  [baslik]="'arac.liste.baslik' | transloco"
+  ikon="car"
+  [pill]="
+    total() !== null && !grouped()
+      ? ('arac.liste.kayitSayisi' | transloco: { sayi: total() })
+      : null
+  "
+>
+  <ng-container eylemler>
+    @if (canReport()) {
+      <a class="rc-dugme" routerLink="/araclar/detayli">
+        {{ 'arac.liste.detayliListe' | transloco }}
+      </a>
+    }
+  </ng-container>
+  @if (canWrite()) {
+    <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/araclar/yeni">
+      <rc-ikon ad="plus" [boyut]="14" />
+      {{ 'arac.liste.yeni' | transloco }}
+    </a>
+  }
+</rc-sayfa-bandi>
 
-  <form
-    class="filtre"
-    [formGroup]="filterForm"
-    [attr.aria-label]="'arac.filtre.baslik' | transloco"
-    (ngSubmit)="filter()"
-  >
-    <div class="rc-form-izgara">
-      <rc-alan [etiket]="'arac.filtre.ara' | transloco">
-        <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="100" />
-      </rc-alan>
-      <rc-alan [etiket]="'arac.filtre.grupTuru' | transloco">
-        <rc-secim formControlName="grupTuru" [secenekler]="groupKindOptions" />
-      </rc-alan>
-      <rc-alan
-        [etiket]="(sippMode() ? 'arac.filtre.sipp' : 'arac.filtre.grup') | transloco"
-        [ipucu]="sippMode() ? ('arac.filtre.sippIpucu' | transloco) : ''"
-      >
-        <rc-metin-girdisi
-          formControlName="grup"
-          [azamiUzunluk]="64"
-          [liste]="sippMode() ? undefined : 'dl-arac-liste-grup'"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'arac.filtre.durum' | transloco">
-        <rc-secim
-          formControlName="durum"
-          [secenekler]="statusOptions"
-          [bosEtiket]="'arac.filtre.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'arac.filtre.sube' | transloco">
-        <rc-metin-girdisi formControlName="sube" [azamiUzunluk]="64" liste="dl-arac-liste-sube" />
-      </rc-alan>
-      <rc-alan [etiket]="'arac.filtre.sahip' | transloco">
-        <rc-secim
-          formControlName="sahip"
-          [secenekler]="ownerOptions()"
-          [bosEtiket]="'arac.filtre.sahipHepsi' | transloco"
-        />
-      </rc-alan>
-      <rc-alan
-        [etiket]="'arac.filtre.tarihTuru' | transloco"
-        [ipucu]="'arac.filtre.tarihTuruIpucu' | transloco"
-      >
-        <rc-secim
-          formControlName="tarihTuru"
-          [secenekler]="dateKindOptions"
-          [bosEtiket]="'arac.filtre.tarihYok' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'arac.filtre.tarihBas' | transloco">
-        <rc-tarih-secici formControlName="tarihBas" />
-      </rc-alan>
-      <rc-alan [etiket]="'arac.filtre.tarihBit' | transloco">
-        <rc-tarih-secici formControlName="tarihBit" />
-      </rc-alan>
+<div class="rc-sayfa">
+  @if (store.summary.veri(); as o) {
+    <div class="rc-izgara-3" role="group" [attr.aria-label]="'arac.liste.ozet' | transloco">
+      <rc-tabela-karti
+        durum="bosta"
+        ikon="car"
+        [etiket]="'arac.durumlar.Musait' | transloco"
+        [deger]="num(o.musait)"
+        [oran]="share(o.musait, o.toplam)"
+        [altMetin]="'arac.liste.toplamArac' | transloco: { sayi: num(o.toplam) }"
+      />
+      <rc-tabela-karti
+        durum="serviste"
+        ikon="tool"
+        [etiket]="'arac.durumlar.Serviste' | transloco"
+        [deger]="num(o.serviste)"
+        [oran]="share(o.serviste, o.toplam)"
+        [altMetin]="'arac.liste.toplamArac' | transloco: { sayi: num(o.toplam) }"
+      />
+      <rc-tabela-karti
+        durum="kirada"
+        ikon="key"
+        [etiket]="'arac.liste.dolulukYuzde' | transloco"
+        [deger]="num(o.doluluk)"
+        [oran]="percentRatio(o.doluluk)"
+        [altMetin]="'arac.liste.toplamArac' | transloco: { sayi: num(o.toplam) }"
+      />
     </div>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'arac.filtre.filtrele' | transloco }}
+  }
+
+  <div class="rc-arac-cubugu">
+    <rc-gorunum-cipleri
+      [gorunumler]="statusViews()"
+      [etiket]="'arac.filtre.durum' | transloco"
+      (secildi)="selectStatus($event)"
+    />
+    <div
+      class="rc-arac-cubugu__sag rc-dugme-grubu"
+      role="group"
+      [attr.aria-label]="'arac.liste.gorunum' | transloco"
+    >
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk"
+        [attr.aria-pressed]="!grouped()"
+        (click)="setView(null)"
+      >
+        {{ 'arac.liste.gorunumListe' | transloco }}
       </button>
-      @if (query.etkinFiltreSayisi() > 0) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-          {{ 'arac.filtre.temizle' | transloco }}
-        </button>
-      }
-      @if (total() !== null && !grouped()) {
-        <span class="rozet-sayac" aria-live="polite">
-          {{ 'arac.liste.kayitSayisi' | transloco: { sayi: total() } }}
-        </span>
-      }
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--kucuk"
+        [attr.aria-pressed]="grouped()"
+        (click)="setView('grup')"
+      >
+        {{ 'arac.liste.gorunumGrup' | transloco }}
+      </button>
     </div>
-  </form>
+  </div>
+
+  <rc-filtre-paneli
+    [formGroup]="filterForm"
+    [baslik]="'arac.filtre.baslik' | transloco"
+    [etkinSayisi]="query.etkinFiltreSayisi()"
+    depoAnahtari="rc.filtre.araclar"
+    (filtrele)="filter()"
+    (temizle)="clear()"
+  >
+    <rc-alan [etiket]="'arac.filtre.ara' | transloco">
+      <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="100" />
+    </rc-alan>
+    <rc-alan [etiket]="'arac.filtre.grupTuru' | transloco">
+      <rc-secim formControlName="grupTuru" [secenekler]="groupKindOptions" />
+    </rc-alan>
+    <rc-alan
+      [etiket]="(sippMode() ? 'arac.filtre.sipp' : 'arac.filtre.grup') | transloco"
+      [ipucu]="sippMode() ? ('arac.filtre.sippIpucu' | transloco) : ''"
+    >
+      <rc-metin-girdisi
+        formControlName="grup"
+        [azamiUzunluk]="64"
+        [liste]="sippMode() ? undefined : 'dl-arac-liste-grup'"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'arac.filtre.durum' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'arac.filtre.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'arac.filtre.sube' | transloco">
+      <rc-metin-girdisi formControlName="sube" [azamiUzunluk]="64" liste="dl-arac-liste-sube" />
+    </rc-alan>
+    <rc-alan [etiket]="'arac.filtre.sahip' | transloco">
+      <rc-secim
+        formControlName="sahip"
+        [secenekler]="ownerOptions()"
+        [bosEtiket]="'arac.filtre.sahipHepsi' | transloco"
+      />
+    </rc-alan>
+    <rc-alan
+      [etiket]="'arac.filtre.tarihTuru' | transloco"
+      [ipucu]="'arac.filtre.tarihTuruIpucu' | transloco"
+    >
+      <rc-secim
+        formControlName="tarihTuru"
+        [secenekler]="dateKindOptions"
+        [bosEtiket]="'arac.filtre.tarihYok' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'arac.filtre.tarihBas' | transloco">
+      <rc-tarih-secici formControlName="tarihBas" />
+    </rc-alan>
+    <rc-alan [etiket]="'arac.filtre.tarihBit' | transloco">
+      <rc-tarih-secici formControlName="tarihBit" />
+    </rc-alan>
+  </rc-filtre-paneli>
   <datalist id="dl-arac-liste-grup">
     @for (g of groupSuggestions(); track g) {
       <option [value]="g"></option>
@@ -100,48 +150,6 @@
       <option [value]="s"></option>
     }
   </datalist>
-
-  @if (store.summary.veri(); as o) {
-    <dl class="ozet-serit" [attr.aria-label]="'arac.liste.ozet' | transloco">
-      <div>
-        <dt>{{ 'arac.liste.toplam' | transloco }}</dt>
-        <dd>{{ num(o.toplam) | sayi: '1.0-0' }}</dd>
-      </div>
-      <div>
-        <dt>{{ 'arac.durumlar.Musait' | transloco }}</dt>
-        <dd>{{ num(o.musait) | sayi: '1.0-0' }}</dd>
-      </div>
-      <div>
-        <dt>{{ 'arac.durumlar.Serviste' | transloco }}</dt>
-        <dd>{{ num(o.serviste) | sayi: '1.0-0' }}</dd>
-      </div>
-      <div>
-        <dt>{{ 'arac.liste.doluluk' | transloco }}</dt>
-        <dd>%{{ num(o.doluluk) | sayi: '1.0-0' }}</dd>
-      </div>
-    </dl>
-  }
-
-  <div class="gorunum" role="group" [attr.aria-label]="'arac.liste.gorunum' | transloco">
-    <button
-      type="button"
-      class="rc-dugme rc-dugme--kucuk"
-      [class.rc-dugme--birincil]="!grouped()"
-      [attr.aria-pressed]="!grouped()"
-      (click)="setView(null)"
-    >
-      {{ 'arac.liste.gorunumListe' | transloco }}
-    </button>
-    <button
-      type="button"
-      class="rc-dugme rc-dugme--kucuk"
-      [class.rc-dugme--birincil]="grouped()"
-      [attr.aria-pressed]="grouped()"
-      (click)="setView('grup')"
-    >
-      {{ 'arac.liste.gorunumGrup' | transloco }}
-    </button>
-  </div>
 
   @if (grouped()) {
     <section class="model-gruplari" [attr.aria-busy]="store.modelGroups.yukleniyor()">
@@ -161,7 +169,7 @@
         @default {
           @if (store.modelGroups.veri(); as mg) {
             @if (mg.kirpildi) {
-              <p class="aciklama">
+              <p class="not">
                 {{ 'arac.liste.grupKirpildi' | transloco: { toplam: mg.toplamArac } }}
               </p>
             }
@@ -173,11 +181,11 @@
                     <span class="rc-rozet">{{ g.grup }}</span>
                   }
                   @if (g.yilAralik) {
-                    <span class="aciklama">{{
+                    <span class="not">{{
                       'arac.liste.yil' | transloco: { yil: g.yilAralik }
                     }}</span>
                   }
-                  <span class="aciklama">
+                  <span class="not">
                     {{
                       'arac.liste.grupSayac'
                         | transloco
@@ -190,8 +198,8 @@
                     }}
                   </span>
                 </summary>
-                <div class="tablo-kap">
-                  <table class="duz-tablo">
+                <div class="rc-tablo-kap">
+                  <table class="rc-duz-tablo">
                     <caption class="rc-gorunmez">
                       {{
                         g.etiket
@@ -204,7 +212,7 @@
                         <th scope="col">{{ 'arac.sutun.renk' | transloco }}</th>
                         <th scope="col">{{ 'arac.sutun.vites' | transloco }}</th>
                         <th scope="col">{{ 'arac.sutun.yakit' | transloco }}</th>
-                        <th scope="col" class="num">{{ 'arac.sutun.km' | transloco }}</th>
+                        <th scope="col" class="rc-num">{{ 'arac.sutun.km' | transloco }}</th>
                         <th scope="col">{{ 'arac.sutun.sube' | transloco }}</th>
                         <th scope="col">{{ 'arac.sutun.durum' | transloco }}</th>
                         <th scope="col">{{ 'arac.sutun.sipp' | transloco }}</th>
@@ -215,13 +223,15 @@
                       @for (a of g.araclar; track a.id) {
                         <tr>
                           <td>
-                            <a [routerLink]="['/araclar', a.id]">{{ a.plaka }}</a>
+                            <a [routerLink]="['/araclar', a.id]"
+                              ><rc-plaka [plaka]="a.plaka" boyut="sm"
+                            /></a>
                           </td>
                           <td>{{ a.modelYili }}</td>
                           <td>{{ a.renk }}</td>
                           <td>{{ a.vites }}</td>
                           <td>{{ a.yakit ?? '—' }}</td>
-                          <td class="num">{{ num(a.km) | sayi: '1.0-0' }}</td>
+                          <td class="rc-num">{{ num(a.km) | sayi: '1.0-0' }}</td>
                           <td>{{ a.sube }}</td>
                           <td>
                             <span [class]="badge(a.durum)">{{ statusLabel(a.durum) }}</span>
@@ -245,7 +255,7 @@
               </details>
             } @empty {
               @if (store.modelGroups.tur() === 'hazir') {
-                <p class="aciklama">{{ 'arac.liste.bos' | transloco }}</p>
+                <p class="rc-bos">{{ 'arac.liste.bos' | transloco }}</p>
               }
             }
           }
@@ -254,7 +264,7 @@
     </section>
   } @else {
     <rc-tablo
-      class="tablo"
+      class="liste-tablosu liste-tablosu--iki-satir"
       tabloKodu="araclar.liste"
       [etiket]="'arac.liste.tabloEtiketi' | transloco"
       [sutunlar]="columns"
@@ -269,13 +279,19 @@
       (satirAc)="openRow($event)"
     >
       <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
-        <a class="bag" [routerLink]="['/araclar', satir.id]">{{ satir.plaka }}</a>
+        <a [routerLink]="['/araclar', satir.id]"><rc-plaka [plaka]="satir.plaka" boyut="sm" /></a>
+      </ng-template>
+      <ng-template rcTabloHucre="marka" [rcTabloHucreSutunlar]="columns" let-satir>
+        {{ satir.marka }}
+        @if (vehicleSubLine(satir); as alt) {
+          <span class="rc-hucre-alt">{{ alt }}</span>
+        }
       </ng-template>
       <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
         <span [class]="badge(satir.durum)">{{ statusLabel(satir.durum) }}</span>
       </ng-template>
       <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-        <span class="satir-eylem">
+        <span class="rc-form-eylemler">
           <a [routerLink]="['/araclar', satir.id, 'detay']">{{ 'arac.detay' | transloco }}</a>
           @if (canScorecard()) {
             <a [routerLink]="['/raporlar/arac-karne', satir.id]">{{ 'arac.karne' | transloco }}</a>

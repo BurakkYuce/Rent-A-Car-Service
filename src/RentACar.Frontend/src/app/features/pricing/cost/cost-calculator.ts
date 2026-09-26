@@ -56,6 +56,7 @@ import {
   costInputToForm,
   initialCostForm,
 } from './cost-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 interface HeaderForm {
   readonly baslik: string | null;
@@ -86,6 +87,7 @@ const toNum = (v: number | string | null | undefined): number | null => {
   selector: 'rc-cost-calculator',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

@@ -14,6 +14,7 @@ import {
   type TanimSatiri,
   restTanimKaynagi,
 } from '@shared/form/tanim-crud/tanim-kaynagi';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type LocationList = Sema<'SayfaOfLocationDto'>;
 
@@ -92,12 +93,12 @@ export function locationFields(
 @Component({
   selector: 'rc-location-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TanimCrud],
+  imports: [SayfaBandi, TranslocoPipe, TanimCrud],
   styleUrl: '../system.scss',
   template: `
-    <div class="sayfa">
-      <h1>{{ 'sistem.ofis.baslik' | transloco }}</h1>
-      <p class="aciklama">{{ 'sistem.ofis.aciklama' | transloco }}</p>
+    <rc-sayfa-bandi [baslik]="'sistem.ofis.baslik' | transloco" ikon="building" />
+    <div class="rc-sayfa">
+      <p class="not">{{ 'sistem.ofis.aciklama' | transloco }}</p>
       <rc-tanim-crud
         [baslik]="'sistem.ofis.tablo' | transloco"
         [alanlar]="fields"

@@ -53,7 +53,7 @@ export const expensePaymentScope = (id: string) => `gider-odeme:${id}`;
     TarihSecici,
   ],
   template: `
-    <section class="bolum" aria-labelledby="rc-gider-odeme">
+    <section class="rc-bolum" aria-labelledby="rc-gider-odeme">
       <h2 id="rc-gider-odeme">
         {{ 'finansBelge.gider.odemeBaslik' | transloco: { no: expense().no } }}
       </h2>

@@ -1,20 +1,18 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finansBelge.fatura.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--kucuk" routerLink="/faturalar/detay-listesi">
-        {{ 'finansBelge.faturaSatir.baslik' | transloco }}
-      </a>
-    </div>
-  </header>
-
+<rc-sayfa-bandi [baslik]="'finansBelge.fatura.baslik' | transloco" ikon="file-invoice">
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/faturalar/detay-listesi">
+      {{ 'finansBelge.faturaSatir.baslik' | transloco }}
+    </a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   <form
-    class="filtre"
+    class="rc-bolum filtre"
     [formGroup]="filterForm"
     [attr.aria-label]="'finansBelge.filtre' | transloco"
     (ngSubmit)="filter()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan [etiket]="'finansBelge.fatura.ara' | transloco">
         <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="128" />
       </rc-alan>
@@ -59,7 +57,7 @@
   </form>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablo"
     tabloKodu="faturalar.liste"
     [etiket]="'finansBelge.fatura.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -82,7 +80,7 @@
       }}</span>
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="open(satir)">
           {{ 'finansBelge.detay' | transloco }}
         </button>
@@ -95,6 +93,13 @@
           {{ 'finansBelge.fatura.pdf' | transloco }}
         </a>
       </span>
+    </ng-template>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka boyut="sm" [plaka]="satir.plaka" />
+      } @else {
+        —
+      }
     </ng-template>
   </rc-tablo>
 
@@ -128,7 +133,7 @@
   }
 
   @if (selectedId()) {
-    <section class="bolum" aria-labelledby="rc-fatura-detay">
+    <section class="rc-bolum" aria-labelledby="rc-fatura-detay">
       @if (store.detail.veri(); as d) {
         <h2 id="rc-fatura-detay">
           {{ 'finansBelge.fatura.detayBaslik' | transloco: { no: d.no } }}
@@ -169,8 +174,8 @@
             <dd>{{ d.eFaturaEttn ?? ('finansBelge.fatura.gonderilmedi' | transloco) }}</dd>
           </div>
         </dl>
-        <div class="tablo-kap">
-          <table class="duz-tablo">
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <caption class="rc-gorunmez">
               {{
                 'finansBelge.fatura.kalemler' | transloco
@@ -179,26 +184,26 @@
             <thead>
               <tr>
                 <th scope="col">{{ 'finansBelge.aciklama' | transloco }}</th>
-                <th scope="col" class="num">{{ 'finansBelge.fatura.miktar' | transloco }}</th>
-                <th scope="col" class="num">{{ 'finansBelge.netTutar' | transloco }}</th>
-                <th scope="col" class="num">{{ 'finansBelge.kdv' | transloco }}</th>
-                <th scope="col" class="num">{{ 'finansBelge.genelToplam' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'finansBelge.fatura.miktar' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'finansBelge.netTutar' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'finansBelge.kdv' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'finansBelge.genelToplam' | transloco }}</th>
               </tr>
             </thead>
             <tbody>
               @for (l of d.satirlar; track l.id) {
                 <tr>
                   <td>{{ l.aciklama }}</td>
-                  <td class="num">{{ num(l.miktar) | sayi }}</td>
-                  <td class="num">{{ num(l.satirNet) | para: d.doviz }}</td>
-                  <td class="num">{{ num(l.satirKdv) | para: d.doviz }}</td>
-                  <td class="num">{{ num(l.satirToplam) | para: d.doviz }}</td>
+                  <td class="rc-num">{{ num(l.miktar) | sayi }}</td>
+                  <td class="rc-num">{{ num(l.satirNet) | para: d.doviz }}</td>
+                  <td class="rc-num">{{ num(l.satirKdv) | para: d.doviz }}</td>
+                  <td class="rc-num">{{ num(l.satirToplam) | para: d.doviz }}</td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <a class="rc-dugme rc-dugme--kucuk" [href]="d.pdfAdresi" target="_blank" rel="noopener">
             {{ 'finansBelge.fatura.pdf' | transloco }}
           </a>
@@ -237,7 +242,7 @@
     <rc-manual-invoice-form (saved)="manualSaved()" (dirtyChange)="manualDirtyChanged($event)" />
   }
   @if (canWrite()) {
-    <section class="bolum" aria-labelledby="rc-toplu-fatura">
+    <section class="rc-bolum" aria-labelledby="rc-toplu-fatura">
       <h2 id="rc-toplu-fatura">{{ 'finansBelge.fatura.topluBaslik' | transloco }}</h2>
       <p class="not">{{ 'finansBelge.fatura.topluAciklama' | transloco }}</p>
       <button
@@ -252,8 +257,8 @@
         @if (candidates().length === 0 && !store.unbilled.yukleniyor()) {
           <p class="not">{{ 'finansBelge.fatura.faturalanacakYok' | transloco }}</p>
         } @else {
-          <div class="tablo-kap">
-            <table class="duz-tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <caption class="rc-gorunmez">
                 {{
                   'finansBelge.fatura.adaylar' | transloco
@@ -266,7 +271,7 @@
                   <th scope="col">{{ 'finansBelge.fatura.sutun.cari' | transloco }}</th>
                   <th scope="col">{{ 'finansBelge.fatura.sutun.plaka' | transloco }}</th>
                   <th scope="col">{{ 'finansBelge.durum' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'finansBelge.tutar' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'finansBelge.tutar' | transloco }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -284,9 +289,13 @@
                     </td>
                     <td>{{ r.sozlesmeNo }}</td>
                     <td>{{ r.musteriAd }}</td>
-                    <td>{{ r.plaka }}</td>
+                    <td>
+                      @if (r.plaka) {
+                        <rc-plaka boyut="sm" [plaka]="r.plaka" />
+                      }
+                    </td>
                     <td>{{ r.durum }}</td>
-                    <td class="num">{{ num(r.tutar) | para: r.doviz || 'TRY' }}</td>
+                    <td class="rc-num">{{ num(r.tutar) | para: r.doviz || 'TRY' }}</td>
                   </tr>
                 }
               </tbody>
@@ -304,7 +313,7 @@
               />
             </rc-alan>
           </div>
-          <div class="form__eylemler">
+          <div class="rc-form-eylemler">
             <button
               type="button"
               class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"

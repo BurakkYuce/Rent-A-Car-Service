@@ -19,55 +19,33 @@ const NEDEN_MESAJI: Readonly<Record<string, CeviriAnahtari>> = {
  * `/app/giris` — TEK giriş (F4.6: Blazor `/login` buraya yönlenir; aynı kimlik doğrulaması ve cookie).
  * Başarılı girişte `girisSonrasiHedef`: pilot firma → `returnUrl` (yeni arayüz) ya da Panel; pilot olmayan
  * firma ya da Blazor dönüşü → tam sayfa geçiş (sunucu `/login` kapısı dönüşü doğrular).
+ * Görünüm Yol v2 §5.5 (sol lacivert tanıtım paneli, sağ kağıt form).
  */
 @Component({
   selector: 'rc-giris-sayfasi',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [GirisFormu, TranslocoPipe],
   template: `
-    <main class="sayfa">
-      <div class="kart">
-        <header class="ust">
-          <p class="marka">{{ 'uygulama.ad' | transloco }}</p>
-          <h1>{{ 'oturum.giris.baslik' | transloco }}</h1>
-          <p class="aciklama">{{ 'oturum.giris.aciklama' | transloco }}</p>
-        </header>
-        <rc-giris-formu [bilgi]="bilgi()" (girisYapildi)="girildi($event)" />
-      </div>
+    <main class="giris">
+      <section class="tanitim" aria-labelledby="rc-giris-marka">
+        <div class="marka">
+          <span class="logo" aria-hidden="true">RA</span>
+          <span class="marka__ad" id="rc-giris-marka">{{ 'uygulama.ad' | transloco }}</span>
+        </div>
+        <p class="tanitim__cumle">{{ 'oturum.giris.tanitim' | transloco }}</p>
+      </section>
+      <section class="form-alani">
+        <div class="giris-kutusu">
+          <header class="giris-basligi">
+            <h1>{{ 'oturum.giris.baslik' | transloco }}</h1>
+            <p class="not">{{ 'oturum.giris.aciklama' | transloco }}</p>
+          </header>
+          <rc-giris-formu [bilgi]="bilgi()" (girisYapildi)="girildi($event)" />
+        </div>
+      </section>
     </main>
   `,
-  styles: `
-    .sayfa {
-      display: grid;
-      place-items: center;
-      min-height: 100vh;
-      padding: var(--rc-bosluk-6) var(--rc-bosluk-4);
-    }
-    .kart {
-      display: flex;
-      flex-direction: column;
-      gap: var(--rc-bosluk-4);
-      width: min(24rem, 100%);
-      padding: var(--rc-bosluk-6);
-      border: 1px solid var(--rc-kenar);
-      border-radius: var(--rc-yaricap-xl);
-      background-color: var(--rc-yuzey);
-      box-shadow: var(--rc-golge-2);
-    }
-    .ust {
-      display: flex;
-      flex-direction: column;
-      gap: var(--rc-bosluk-1);
-    }
-    .marka {
-      color: var(--rc-vurgu-metin);
-      font-size: var(--rc-yazi-xs);
-      font-weight: var(--rc-agirlik-kalin);
-    }
-    .aciklama {
-      color: var(--rc-metin-ikincil);
-    }
-  `,
+  styleUrl: './giris-sayfasi.scss',
 })
 export class GirisSayfasi {
   private readonly router = inject(Router);

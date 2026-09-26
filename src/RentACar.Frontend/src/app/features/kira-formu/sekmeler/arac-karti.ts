@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, booleanAttribute, inject, input } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { BICIM_PIPELARI } from '@shared/bicim/bicim-pipe';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 import { KiraFormuDurumu } from '../kira-formu-durumu';
 import { sayiya } from '../kira-formu-modeli';
 
@@ -11,9 +12,12 @@ import { sayiya } from '../kira-formu-modeli';
 @Component({
   selector: 'rc-kf-arac-karti',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, ...BICIM_PIPELARI],
+  imports: [TranslocoPipe, ...BICIM_PIPELARI, PlateChipComponent],
   template: `
     @let a = d.secilenArac();
+    @if (a?.plaka; as plaka) {
+      <rc-plaka [plaka]="plaka" />
+    }
     <dl class="kf-bilgiler" [attr.aria-label]="'kiraFormu.bolum.aracBilgisi' | transloco">
       <div>
         <dt>{{ 'kiraFormu.arac.marka' | transloco }}</dt>

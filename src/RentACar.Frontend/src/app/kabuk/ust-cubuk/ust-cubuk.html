@@ -2,7 +2,7 @@
   <button
     #menuDugmesi
     type="button"
-    class="rc-dugme rc-dugme--hayalet rc-dugme--ikon menu-dugmesi"
+    class="ikon-dugme menu-dugmesi"
     aria-controls="rc-yan-menu"
     [attr.aria-expanded]="cekmeceAcik()"
     [attr.aria-label]="'kabuk.menuyuAc' | transloco"
@@ -10,46 +10,96 @@
   >
     <rc-ikon ad="menu-2" [boyut]="18" />
   </button>
+  <button
+    type="button"
+    class="ikon-dugme daralt-dugmesi"
+    aria-controls="rc-yan-menu"
+    [attr.aria-expanded]="!dar()"
+    [attr.aria-label]="(dar() ? 'kabuk.menuyuGenislet' : 'kabuk.menuyuDaralt') | transloco"
+    [title]="(dar() ? 'kabuk.menuyuGenislet' : 'kabuk.menuyuDaralt') | transloco"
+    (click)="daralt.emit()"
+  >
+    <rc-ikon
+      [ad]="dar() ? 'layout-sidebar-left-expand' : 'layout-sidebar-left-collapse'"
+      [boyut]="18"
+    />
+  </button>
 
   <button
     type="button"
-    class="rc-dugme palet"
+    class="palet"
     aria-haspopup="dialog"
     aria-keyshortcuts="Control+K Meta+K"
     [attr.aria-label]="('kabuk.palet.ac' | transloco) + ' (' + kisayol + ')'"
     (click)="paletAc.emit()"
   >
-    <rc-ikon ad="search" [boyut]="14" />
-    <span class="palet__metin">{{ 'kabuk.palet.ac' | transloco }}</span>
+    <rc-ikon ad="search" [boyut]="16" />
+    <span class="palet__metin">{{ 'kabuk.palet.yerTutucu' | transloco }}</span>
     <kbd class="palet__tus" aria-hidden="true">{{ kisayol }}</kbd>
   </button>
 
   <span class="bosluk"></span>
 
-  <div class="rc-dugme-grubu" role="group" [attr.aria-label]="'tema.etiket' | transloco">
+  <!-- Erişilebilir ad "Plaka" İÇERMEZ: e2e'deki getByLabel('Plaka') form alanlarıyla çakışmasın. -->
+  <div
+    class="plaka"
+    [class.plaka--acik]="plakaAcik()"
+    role="search"
+    [attr.aria-label]="'kabuk.plaka.etiket' | transloco"
+    (keydown.escape)="plakaKapat($event)"
+  >
+    <rc-plaka-arama [etiket]="'kabuk.plaka.etiket' | transloco" (ara)="plakaAra($event)" />
+    @if (plakaAcik()) {
+      <button
+        type="button"
+        class="ikon-dugme plaka__kapat"
+        [attr.aria-label]="'kabuk.plaka.kapat' | transloco"
+        (click)="plakaAcik.set(false)"
+      >
+        <rc-ikon ad="x" [boyut]="16" />
+      </button>
+    }
+  </div>
+  <button
+    type="button"
+    class="ikon-dugme plaka-dugmesi"
+    [attr.aria-label]="'kabuk.plaka.ac' | transloco"
+    (click)="plakaAramasiniAc()"
+  >
+    <rc-ikon ad="car" [boyut]="18" />
+  </button>
+
+  @if (bildirimVar()) {
+    @let sayi = rozetMetni(bildirimSayisi());
+    <button
+      type="button"
+      class="ikon-dugme zil"
+      [attr.aria-label]="
+        sayi
+          ? ('kabuk.bildirim.sayili' | transloco: { sayi: sayi })
+          : ('kabuk.bildirim.etiket' | transloco)
+      "
+      (click)="bildirimAc.emit()"
+    >
+      <rc-ikon ad="bell" [boyut]="18" />
+      @if (sayi) {
+        <span class="zil__rozet" aria-hidden="true">{{ sayi }}</span>
+      }
+    </button>
+  }
+
+  <div class="tema" role="group" [attr.aria-label]="'tema.etiket' | transloco">
     @for (secenek of temaSecenekleri; track secenek.mod) {
       <button
         type="button"
-        class="rc-dugme rc-dugme--kucuk rc-dugme--ikon"
+        class="tema__dugme"
         [attr.aria-pressed]="tema.mod() === secenek.mod"
         [attr.aria-label]="secenek.etiket | transloco"
         [title]="secenek.etiket | transloco"
         (click)="tema.modAyarla(secenek.mod)"
       >
-        <rc-ikon [ad]="secenek.ikon" [boyut]="14" />
+        <rc-ikon [ad]="secenek.ikon" [boyut]="16" />
       </button>
     }
   </div>
-
-  @if (kimlik(); as k) {
-    <div class="kimlik">
-      <span class="kimlik__ad">{{ k.ad }}</span>
-      <span class="kimlik__firma">{{ k.firma }} · {{ k.sube }}</span>
-    </div>
-  }
-
-  <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="cikis.emit()">
-    <rc-ikon ad="logout" [boyut]="14" />
-    {{ 'oturum.cikis' | transloco }}
-  </button>
 </header>

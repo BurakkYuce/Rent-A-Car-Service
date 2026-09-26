@@ -1,6 +1,12 @@
-// F9.2 servis / sigorta / vade ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz
-// tablo) aynen kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
-@use '../vehicles/vehicles';
+// F9.2 servis / sigorta / vade ekranları — yalnız bu ekranlara özgü kurallar. Sayfa iskeleti, bölüm, kart, düz tablo,
+// sayı hücresi ve eylem satırı global düzen katmanından (`src/styles/_duzen.scss`: `.rc-sayfa`, `.rc-bolum`,
+// `.rc-kart`, `.rc-duz-tablo`, `.rc-num`, `.rc-form-eylemler`); başlık `rc-sayfa-bandi`.
+
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
 
 .sonraki {
   margin: 0;
@@ -8,8 +14,67 @@
   font-variant-numeric: tabular-nums;
 }
 
-.geri {
-  font-size: var(--rc-yazi-sm);
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+}
+
+.satir-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: flex-end;
+}
+
+// Künye: satır içi etiket–değer çiftleri.
+.kunye {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2) var(--rc-bosluk-4);
+  margin: 0;
+
+  > div {
+    display: flex;
+    gap: var(--rc-bosluk-1);
+    align-items: baseline;
+  }
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// Vade özeti: kova kartları (uyarı/gecikme anlamı; filo durumu değil → tabela kartı değil).
+.ozet {
+  margin: 0;
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--rc-yazi-xl);
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.gecikmis {
+  color: var(--rc-hata-metin);
+}
+
+.liste-tablosu {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
 }
 
 .sekmeler {

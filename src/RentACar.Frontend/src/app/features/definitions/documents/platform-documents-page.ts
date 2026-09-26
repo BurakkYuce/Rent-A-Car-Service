@@ -6,6 +6,7 @@ import type { Sema } from '@core/api/ui-tipleri';
 import { TemelStore } from '@core/veri/temel-store';
 import { TarihPipe } from '@shared/bicim/bicim-pipe';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { kilobytes } from './documents-page';
 
 type PlatformDocument = Sema<'PlatformDocumentDto'>;
@@ -17,12 +18,12 @@ type PlatformDocument = Sema<'PlatformDocumentDto'>;
 @Component({
   selector: 'rc-platform-documents-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TarihPipe],
+  imports: [TranslocoPipe, TarihPipe, SayfaBandi],
   styleUrl: '../definitions.scss',
   template: `
-    <div class="sayfa">
-      <h1>{{ 'tanimlar.platformDocument.baslik' | transloco }}</h1>
-      <p class="aciklama">{{ 'tanimlar.platformDocument.aciklama' | transloco }}</p>
+    <rc-sayfa-bandi [baslik]="'tanimlar.platformDocument.baslik' | transloco" ikon="file-text" />
+    <div class="rc-sayfa">
+      <p class="not">{{ 'tanimlar.platformDocument.aciklama' | transloco }}</p>
       @switch (list.tur()) {
         @case ('hata') {
           <div class="rc-form-hatalari" role="alert">
@@ -34,19 +35,21 @@ type PlatformDocument = Sema<'PlatformDocumentDto'>;
         }
         @case ('hazir') {
           @if (rows().length === 0) {
-            <p class="bos">{{ 'tanimlar.platformDocument.bos' | transloco }}</p>
+            <p class="not">{{ 'tanimlar.platformDocument.bos' | transloco }}</p>
           } @else {
-            <div class="kaydirma">
-              <table class="tablo">
+            <div class="rc-tablo-kap">
+              <table class="rc-duz-tablo">
                 <thead>
                   <tr>
                     <th scope="col">{{ 'tanimlar.document.belge' | transloco }}</th>
-                    <th scope="col" class="sayi">
+                    <th scope="col" class="rc-num">
                       {{ 'tanimlar.platformDocument.surum' | transloco }}
                     </th>
-                    <th scope="col" class="sayi">{{ 'tanimlar.document.boyut' | transloco }}</th>
+                    <th scope="col" class="rc-num">{{ 'tanimlar.document.boyut' | transloco }}</th>
                     <th scope="col">{{ 'tanimlar.platformDocument.guncelleme' | transloco }}</th>
-                    <th scope="col" class="islemler">{{ 'form.tanim.islemler' | transloco }}</th>
+                    <th scope="col" class="satir-eylemleri">
+                      {{ 'form.tanim.islemler' | transloco }}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -60,15 +63,15 @@ type PlatformDocument = Sema<'PlatformDocumentDto'>;
                           }}</span>
                         }
                         @if (b.aciklama) {
-                          <span class="alt-metin">{{ b.aciklama }}</span>
+                          <span class="rc-hucre-alt">{{ b.aciklama }}</span>
                         }
                       </td>
-                      <td class="sayi">v{{ b.surum }}</td>
-                      <td class="sayi">
+                      <td class="rc-num">v{{ b.surum }}</td>
+                      <td class="rc-num">
                         {{ 'tanimlar.document.kb' | transloco: { kb: kilobytes(b.boyut) } }}
                       </td>
                       <td>{{ b.guncelleme | tarih }}</td>
-                      <td class="islemler">
+                      <td class="satir-eylemleri">
                         <a
                           class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
                           [href]="b.indirmeYolu"
@@ -90,7 +93,7 @@ type PlatformDocument = Sema<'PlatformDocumentDto'>;
           }
         }
         @default {
-          <p class="bos" role="status">{{ 'form.tanim.yukleniyor' | transloco }}</p>
+          <p class="not" role="status">{{ 'form.tanim.yukleniyor' | transloco }}</p>
         }
       }
     </div>

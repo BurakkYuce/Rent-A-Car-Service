@@ -26,6 +26,8 @@ import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
 
+import { PlateChipComponent } from '@shared/plaka/plaka';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { LISTINGS_ROOT } from './website-hub';
 
 type ListingDetail = Sema<'ListingDetailDto'>;
@@ -61,7 +63,16 @@ function featureRow(f?: ListingFeature): FeatureRow {
 @Component({
   selector: 'rc-listing-features',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, TranslocoPipe, FormHatalari, MetinGirdisi, OnayKutusu],
+  imports: [
+    SayfaBandi,
+    PlateChipComponent,
+    ReactiveFormsModule,
+    RouterLink,
+    TranslocoPipe,
+    FormHatalari,
+    MetinGirdisi,
+    OnayKutusu,
+  ],
   styleUrl: '../system.scss',
   templateUrl: './listing-features.html',
 })

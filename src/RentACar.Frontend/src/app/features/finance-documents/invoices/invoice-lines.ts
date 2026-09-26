@@ -31,6 +31,9 @@ import {
   invoiceLineExportParameters,
 } from '../document-model';
 import { InvoiceLineStore } from '../document.store';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
+import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
 /**
  * Fatura detay listesi (`/app/faturalar/detay-listesi`) — Blazor `InvoiceLineList.razor` paritesi: fatura SATIRI
@@ -41,6 +44,9 @@ import { InvoiceLineStore } from '../document.store';
   selector: 'rc-invoice-lines',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TabloHucre,
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

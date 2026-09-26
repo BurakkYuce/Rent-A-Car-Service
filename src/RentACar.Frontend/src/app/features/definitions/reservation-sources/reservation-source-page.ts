@@ -16,6 +16,7 @@ import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
 import { restTanimKaynagi } from '@shared/form/tanim-crud/tanim-kaynagi';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { reservationSourceFields } from './reservation-source-fields';
 
 type ReflectResult = Sema<'ReflectRatesResult'>;
@@ -30,16 +31,16 @@ const ROOT: ApiYolu = '/api/ui/v1/rezervasyon-kaynaklari';
 @Component({
   selector: 'rc-reservation-source-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, TanimCrud, Alan, FormHatalari, Secim],
+  imports: [ReactiveFormsModule, TranslocoPipe, TanimCrud, Alan, FormHatalari, Secim, SayfaBandi],
   styleUrl: '../definitions.scss',
   template: `
-    <div class="sayfa">
-      <h1>{{ 'tanimlar.reservationSource.baslik' | transloco }}</h1>
-      <p class="aciklama">{{ 'tanimlar.reservationSource.aciklama' | transloco }}</p>
-      <p class="aciklama">
+    <rc-sayfa-bandi [baslik]="'tanimlar.reservationSource.baslik' | transloco" ikon="inbox" />
+    <div class="rc-sayfa">
+      <p class="not">{{ 'tanimlar.reservationSource.aciklama' | transloco }}</p>
+      <p class="not">
         <strong>{{ 'tanimlar.reservationSource.oranNotu' | transloco }}</strong>
       </p>
-      <p class="aciklama">{{ 'tanimlar.reservationSource.kuralNotu' | transloco }}</p>
+      <p class="not">{{ 'tanimlar.reservationSource.kuralNotu' | transloco }}</p>
       <rc-tanim-crud
         layout="panel"
         [baslik]="'tanimlar.reservationSource.tablo' | transloco"
@@ -47,9 +48,9 @@ const ROOT: ApiYolu = '/api/ui/v1/rezervasyon-kaynaklari';
         [kaynak]="source"
       />
 
-      <section class="bolum" aria-labelledby="rk-yansit-baslik">
+      <section class="rc-bolum" aria-labelledby="rk-yansit-baslik">
         <h2 id="rk-yansit-baslik">{{ 'tanimlar.reservationSource.yansit.baslik' | transloco }}</h2>
-        <p class="aciklama">{{ 'tanimlar.reservationSource.yansit.aciklama' | transloco }}</p>
+        <p class="not">{{ 'tanimlar.reservationSource.yansit.aciklama' | transloco }}</p>
         <rc-form-hatalari [hatalar]="reflectSubmit.genelHatalar()" />
         <div class="rc-form-izgara" [formGroup]="reflectForm">
           <rc-alan [etiket]="'tanimlar.reservationSource.yansit.kaynak' | transloco">

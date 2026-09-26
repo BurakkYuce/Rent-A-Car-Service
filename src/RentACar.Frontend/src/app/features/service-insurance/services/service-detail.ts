@@ -70,6 +70,8 @@ import {
   infoToForm,
   lineRequest,
 } from './service-form-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type Transition = 'servise-al' | 'baslat' | 'tamamla' | 'iptal';
 
@@ -84,6 +86,8 @@ type Transition = 'servise-al' | 'baslat' | 'tamamla' | 'iptal';
   selector: 'rc-service-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

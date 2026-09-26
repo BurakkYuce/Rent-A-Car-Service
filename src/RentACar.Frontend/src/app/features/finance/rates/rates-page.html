@@ -1,21 +1,15 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finans.kur.baslik' | transloco }}</h1>
+<rc-sayfa-bandi [baslik]="'finans.kur.baslik' | transloco" ikon="refresh">
+  <ng-container eylemler>
     @if (canWrite()) {
-      <div class="ust__eylemler">
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--kucuk"
-          [disabled]="busy()"
-          (click)="refresh()"
-        >
-          <rc-ikon ad="refresh" [boyut]="14" /> {{ 'finans.kur.yenile' | transloco }}
-        </button>
-      </div>
+      <button type="button" class="rc-dugme" [disabled]="busy()" (click)="refresh()">
+        <rc-ikon ad="refresh" [boyut]="14" /> {{ 'finans.kur.yenile' | transloco }}
+      </button>
     }
-  </header>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @if (rateDate(); as d) {
-    <p class="ozet">
+    <p class="not">
       {{ 'finans.kur.gecerliTarih' | transloco }} <strong>{{ d | tarih }}</strong>
     </p>
   }
@@ -24,18 +18,18 @@
   }
   <rc-form-hatalari [hatalar]="errors()" />
 
-  <section class="bolum" aria-labelledby="rc-kur-tcmb">
+  <section class="rc-bolum" aria-labelledby="rc-kur-tcmb">
     <h2 id="rc-kur-tcmb">{{ 'finans.kur.tcmb' | transloco }}</h2>
-    <div class="tablo-kap">
-      <table class="duz-tablo">
+    <div class="rc-tablo-kap">
+      <table class="rc-duz-tablo">
         <thead>
           <tr>
             <th>{{ 'finans.kur.kod' | transloco }}</th>
             <th>{{ 'finans.kur.ad' | transloco }}</th>
-            <th class="num">{{ 'finans.kur.birim' | transloco }}</th>
-            <th class="num">{{ 'finans.kur.alis' | transloco }}</th>
-            <th class="num">{{ 'finans.kur.satis' | transloco }}</th>
-            <th class="num">{{ 'finans.kur.sabitFirma' | transloco }}</th>
+            <th class="rc-num">{{ 'finans.kur.birim' | transloco }}</th>
+            <th class="rc-num">{{ 'finans.kur.alis' | transloco }}</th>
+            <th class="rc-num">{{ 'finans.kur.satis' | transloco }}</th>
+            <th class="rc-num">{{ 'finans.kur.sabitFirma' | transloco }}</th>
           </tr>
         </thead>
         <tbody>
@@ -45,19 +39,21 @@
                 <strong>{{ k.kod }}</strong>
               </td>
               <td>{{ k.ad }}</td>
-              <td class="num">{{ k.birim }}</td>
-              <td class="num">{{ k.forexAlis === null ? '—' : (k.forexAlis | fsayi: '1.4-4') }}</td>
-              <td class="num">
+              <td class="rc-num">{{ k.birim }}</td>
+              <td class="rc-num">
+                {{ k.forexAlis === null ? '—' : (k.forexAlis | fsayi: '1.4-4') }}
+              </td>
+              <td class="rc-num">
                 {{ k.forexSatis === null ? '—' : (k.forexSatis | fsayi: '1.4-4') }}
               </td>
-              <td class="num">
+              <td class="rc-num">
                 {{ fixedActive(k.kod) ? (fixedActive(k.kod)?.kur | fsayi: '1.4-6') : '' }}
               </td>
             </tr>
           } @empty {
             @if (screen.tur() === 'hazir') {
               <tr>
-                <td colspan="6">{{ 'finans.kur.kayitYok' | transloco }}</td>
+                <td colspan="6" class="rc-bos">{{ 'finans.kur.kayitYok' | transloco }}</td>
               </tr>
             }
           }
@@ -66,7 +62,7 @@
     </div>
   </section>
 
-  <section class="bolum" aria-labelledby="rc-kur-cevirici">
+  <section class="rc-bolum" aria-labelledby="rc-kur-cevirici">
     <h2 id="rc-kur-cevirici">{{ 'finans.kur.cevirici' | transloco }}</h2>
     <form class="filtre" [formGroup]="converter" (ngSubmit)="convert()">
       <div class="rc-form-izgara">
@@ -93,7 +89,7 @@
     </form>
   </section>
 
-  <section class="bolum" aria-labelledby="rc-kur-sabit">
+  <section class="rc-bolum" aria-labelledby="rc-kur-sabit">
     <h2 id="rc-kur-sabit">{{ 'finans.kur.sabitBaslik' | transloco }}</h2>
     <p class="not">{{ 'finans.kur.sabitNot' | transloco }}</p>
     @if (canWrite()) {
@@ -120,7 +116,7 @@
           <rc-onay-kutusu formControlName="aktif" />
         </rc-alan>
       </div>
-      <div class="form__eylemler">
+      <div class="rc-form-eylemler">
         <button
           type="button"
           class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -140,12 +136,12 @@
         }
       </div>
     }
-    <div class="tablo-kap">
-      <table class="duz-tablo">
+    <div class="rc-tablo-kap">
+      <table class="rc-duz-tablo">
         <thead>
           <tr>
             <th>{{ 'finans.kur.kod' | transloco }}</th>
-            <th class="num">{{ 'finans.kur.sabitKur' | transloco }}</th>
+            <th class="rc-num">{{ 'finans.kur.sabitKur' | transloco }}</th>
             <th>{{ 'finans.kur.baslangic' | transloco }}</th>
             <th>{{ 'finans.kur.bitis' | transloco }}</th>
             <th>{{ 'finans.kur.durum' | transloco }}</th>
@@ -160,13 +156,13 @@
               <td>
                 <strong>{{ s.kod }}</strong>
               </td>
-              <td class="num">{{ s.kur | fsayi: '1.4-6' }}</td>
+              <td class="rc-num">{{ s.kur | fsayi: '1.4-6' }}</td>
               <td>{{ s.basTar ? (s.basTar | tarih) : '—' }}</td>
               <td>{{ s.bitTar ? (s.bitTar | tarih) : '—' }}</td>
               <td>{{ (s.aktif ? 'finans.kur.aktif' : 'finans.kur.pasif') | transloco }}</td>
               <td>
                 @if (canWrite()) {
-                  <div class="satir-eylem">
+                  <div class="rc-form-eylemler">
                     <button
                       type="button"
                       class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
@@ -189,7 +185,7 @@
           } @empty {
             @if (screen.tur() === 'hazir') {
               <tr>
-                <td colspan="6">{{ 'finans.kur.sabitYok' | transloco }}</td>
+                <td colspan="6" class="rc-bos">{{ 'finans.kur.sabitYok' | transloco }}</td>
               </tr>
             }
           }

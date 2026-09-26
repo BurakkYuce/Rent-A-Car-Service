@@ -1,45 +1,20 @@
+// Panel (Yol v2 §8 "Panel"): band → 4 tabela kartı → sol Dönüşler + Çıkışlar, sağ 316 px Hatırlatmalar +
+// Hızlı işlemler. Sayfa iskeleti, ızgara ve düz tablo global düzen katmanından (`_duzen.scss`).
+@use 'duzen-kaliplari' as d;
+@use 'kirilim' as k;
+
 :host {
   display: block;
-  padding: var(--rc-bosluk-4);
 }
 
-.panel {
+.icerik,
+.sol,
+.sag,
+.iskelet {
   display: flex;
   flex-direction: column;
   gap: var(--rc-bosluk-4);
   min-width: 0;
-}
-
-.icerik {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-4);
-  min-width: 0;
-}
-
-h1 {
-  margin: 0;
-  font-size: var(--rc-yazi-xl);
-}
-
-h2 {
-  margin: 0;
-  font-size: var(--rc-yazi-lg);
-  font-weight: var(--rc-agirlik-kalin);
-}
-
-.ust {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rc-bosluk-3);
-  align-items: center;
-  justify-content: space-between;
-}
-
-.ust__eylemler {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rc-bosluk-2);
 }
 
 .hata-bandi {
@@ -59,130 +34,122 @@ h2 {
   }
 }
 
-// Dönüşler / Çıkışlar ----------------------------------------------------------------------------
-.dc {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
-  gap: var(--rc-bosluk-4);
+// Mobilde tabela kartları 2×2 (§5.6); düzen katmanının dar ekran tek sütunu yerine.
+.tabelalar {
+  @media (max-width: k.$rc-kirilim-dar) {
+    --_sutun: 2;
+  }
 }
 
-.dc__panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-2);
-  min-width: 0;
+// Dönüşler / Çıkışlar: başlık satırı + kenardan kenara tablo tek yüzey kutusunda.
+.liste-karti {
+  @include d.yuzey-kutusu;
+
+  overflow: hidden;
 }
 
-.dc__ust {
+.liste-karti__ust {
   display: flex;
   flex-wrap: wrap;
   gap: var(--rc-bosluk-2);
   align-items: center;
   justify-content: space-between;
+  padding: var(--rc-bosluk-3) var(--rc-bosluk-4);
+
+  h2 {
+    margin: 0;
+    font-size: var(--rc-yazi-md);
+    font-weight: var(--rc-agirlik-kalin);
+  }
 }
 
-.dc__cipler {
+.cipler {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--rc-bosluk-1);
+  gap: var(--rc-bosluk-1-5);
 }
 
+// Gün kovası çipi (kayıtlı görünüm çipiyle aynı dil): seçili dolu lacivert, sayaç rozeti.
 .cip {
   display: inline-flex;
-  gap: var(--rc-bosluk-1);
+  gap: var(--rc-bosluk-1-5);
   align-items: center;
   height: var(--rc-kontrol-yukseklik-kucuk);
-  padding: 0 var(--rc-bosluk-2);
+  padding: 0 var(--rc-bosluk-1) 0 var(--rc-bosluk-3);
   border: 1px solid var(--rc-kenar-kontrol);
   border-radius: var(--rc-yaricap-tam);
   background-color: var(--rc-yuzey);
   color: var(--rc-metin);
   font-size: var(--rc-yazi-xs);
+  font-weight: var(--rc-agirlik-orta);
   cursor: pointer;
 
   &:hover {
-    background-color: var(--rc-yuzey-vurgu);
+    background-color: var(--rc-yuzey-alt);
   }
 
   &[aria-pressed='true'] {
-    border-color: var(--rc-vurgu-metin);
-    background-color: var(--rc-vurgu-zemin);
-    color: var(--rc-vurgu-metin);
-    font-weight: var(--rc-agirlik-kalin);
+    border-color: var(--rc-vurgu);
+    background-color: var(--rc-vurgu);
+    color: var(--rc-vurgu-uzeri);
   }
 }
 
-// Gecikmiş kayıt var: hangi sekme açık olursa olsun Gecikmiş çipi acil görünür (Blazor CipSinifi).
-.cip--acil,
-.cip--acil[aria-pressed='true'] {
-  border-color: var(--rc-hata-kenar);
+.cip__sayac {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.125rem;
+  padding: 0 var(--rc-bosluk-1-5);
+  border-radius: var(--rc-yaricap-tam);
+  background-color: var(--rc-yuzey-alt);
+  color: var(--rc-metin);
+  font-size: var(--rc-yazi-2xs);
+  font-weight: var(--rc-agirlik-kalin);
+  font-variant-numeric: tabular-nums;
+}
+
+.cip[aria-pressed='true'] .cip__sayac {
+  background-color: var(--rc-vurgu-uzeri);
+  color: var(--rc-vurgu);
+}
+
+// Gecikmiş kayıt var: hangi sekme açık olursa olsun Gecikmiş sayacı kırmızı (Blazor CipSinifi).
+.cip--acil .cip__sayac,
+.cip--acil[aria-pressed='true'] .cip__sayac {
   background-color: var(--rc-hata-zemin);
   color: var(--rc-hata-metin);
 }
 
 .kaydirma {
   overflow-x: auto;
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-md);
-  background-color: var(--rc-yuzey);
+  border-top: 1px solid var(--rc-kenar);
 }
 
-.tablo {
-  width: 100%;
-  border-collapse: collapse;
-
-  th,
-  td {
-    height: var(--rc-tablo-satir);
-    padding: var(--rc-bosluk-1) var(--rc-tablo-hucre-bosluk);
-    border-bottom: 1px solid var(--rc-kenar);
-    text-align: start;
-    vertical-align: middle;
-  }
-
-  th {
-    background-color: var(--rc-yuzey-alt);
-    color: var(--rc-metin-ikincil);
-    font-size: var(--rc-yazi-xs);
-    font-weight: var(--rc-agirlik-kalin);
-    white-space: nowrap;
-  }
-
-  tbody tr:last-child td {
-    border-bottom: 0;
-  }
-
-  .sayi {
-    font-variant-numeric: tabular-nums;
-    text-align: end;
-    white-space: nowrap;
-  }
-
-  .tarih,
-  .plaka {
-    white-space: nowrap;
-  }
-
-  .islem {
-    width: 1%;
-    white-space: nowrap;
-  }
-
-  .bos {
-    color: var(--rc-metin-ikincil);
-  }
+// Panel tabloları 42 px (§4).
+.liste-karti td {
+  height: 2.625rem;
 }
 
-// Firma durum renkleri (Blazor FAZ-81): tanımsızsa şeffaf → vurgu yok.
-.tablo--donus tbody tr td:first-child {
-  box-shadow: inset 3px 0 0 var(--rc-kiraci-renk-bugun-donecekler, transparent);
+.islem {
+  width: 1%;
 }
 
-.tablo--cikis tbody tr td:first-child {
-  box-shadow: inset 3px 0 0 var(--rc-kiraci-renk-bugun-cikacaklar, transparent);
+// Firma durum renkleri (Blazor FAZ-81): tanımsızsa şeffaf → vurgu yok. Gölge değil iç kenar çizgisi.
+.tablo--donus tbody td:first-child {
+  border-inline-start: 3px solid var(--rc-kiraci-renk-bugun-donecekler, transparent);
 }
 
-// Vade uyarısı -----------------------------------------------------------------------------------
+.tablo--cikis tbody td:first-child {
+  border-inline-start: 3px solid var(--rc-kiraci-renk-bugun-cikacaklar, transparent);
+}
+
+.tahsilat {
+  padding: var(--rc-bosluk-3) var(--rc-bosluk-4);
+  border-top: 1px solid var(--rc-kenar);
+}
+
 .vade-uyarisi {
   display: flex;
   flex-wrap: wrap;
@@ -190,15 +157,8 @@ h2 {
   align-items: center;
   padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
   border: 1px solid var(--rc-uyari-kenar);
-  border-radius: var(--rc-yaricap-md);
+  border-radius: var(--rc-yaricap-lg);
   background-color: var(--rc-yuzey);
-}
-
-// İskelet ----------------------------------------------------------------------------------------
-.iskelet {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-4);
 }
 
 .iskelet__kart {

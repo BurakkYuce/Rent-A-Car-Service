@@ -51,7 +51,7 @@ export const SAYFALAR: Routes = [
   {
     // F4.2 kira listesi. Kayıt formu (`kiralar/yeni`, `kiralar/:id`) F4.3'te; liste yalnız bağlantı verir.
     path: 'kiralar',
-    title: 'Kira Sözleşmeleri — RentACar',
+    title: 'Kira listesi — RentACar',
     loadComponent: () =>
       import('@features/kiralar/kira-listesi/kira-listesi').then((m) => m.KiraListesi),
     canActivate: [ceviriBlogu('kiralar')],

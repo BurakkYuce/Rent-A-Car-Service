@@ -1,20 +1,17 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'fiyatTarife.aktar.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/tarife-matris">
-        {{ 'fiyatTarife.tarifeMatris.baslik' | transloco }}
-      </a>
-    </div>
-  </header>
-  <p class="aciklama">{{ 'fiyatTarife.aktar.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'fiyatTarife.aktar.baslik' | transloco" ikon="download">
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/tarife-matris">
+      {{ 'fiyatTarife.tarifeMatris.baslik' | transloco }}
+    </a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'fiyatTarife.aktar.aciklama' | transloco }}</p>
 
-  <section class="bolum" aria-labelledby="rc-aktar-yukle">
+  <section class="rc-bolum" aria-labelledby="rc-aktar-yukle">
     <h2 id="rc-aktar-yukle">{{ 'fiyatTarife.aktar.yukle' | transloco }}</h2>
     <div class="satir-form">
-      <label class="aciklama" for="rc-tarife-dosya">{{
-        'fiyatTarife.aktar.dosya' | transloco
-      }}</label>
+      <label class="not" for="rc-tarife-dosya">{{ 'fiyatTarife.aktar.dosya' | transloco }}</label>
       <input
         #fileInput
         id="rc-tarife-dosya"
@@ -36,18 +33,18 @@
     @if (uploadError(); as e) {
       <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ e }}</div>
     }
-    <p class="aciklama">{{ 'fiyatTarife.aktar.sutunlar' | transloco }}</p>
+    <p class="not">{{ 'fiyatTarife.aktar.sutunlar' | transloco }}</p>
     @if (lastResult(); as r) {
       <dl class="ozet-serit" aria-live="polite">
-        <div>
+        <div class="rc-kart">
           <dt>{{ 'fiyatTarife.aktar.eklenen' | transloco }}</dt>
           <dd>{{ r.eklenen }}</dd>
         </div>
-        <div>
+        <div class="rc-kart">
           <dt>{{ 'fiyatTarife.aktar.atlanan' | transloco }}</dt>
           <dd>{{ r.atlanan }}</dd>
         </div>
-        <div>
+        <div class="rc-kart">
           <dt>{{ 'fiyatTarife.aktar.hatali' | transloco }}</dt>
           <dd>{{ r.hatali }}</dd>
         </div>
@@ -67,12 +64,12 @@
 
   <h2 class="alt-baslik">{{ 'fiyatTarife.aktar.canli' | transloco }}</h2>
   <form
-    class="filtre"
+    class="rc-bolum filtre"
     [formGroup]="filterForm"
     [attr.aria-label]="'fiyatTarife.filtre' | transloco"
     (ngSubmit)="filter()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan [etiket]="'fiyatTarife.alan.kanal' | transloco">
         <rc-metin-girdisi formControlName="kanal" [azamiUzunluk]="64" />
       </rc-alan>
@@ -99,7 +96,7 @@
   </form>
 
   @if (view(); as v) {
-    <p class="aciklama">
+    <p class="not">
       {{
         'fiyatTarife.aktar.sayac'
           | transloco: { toplam: v.satirlar.toplam, bekleyen: v.bekleyen, onayli: v.onayli }
@@ -118,10 +115,10 @@
         >
           {{ 'fiyatTarife.aktar.kanalSil' | transloco: { adet: toDelete() } }}
         </button>
-        <p class="aciklama">{{ 'fiyatTarife.aktar.kanalSilAciklama' | transloco: { kanal: k } }}</p>
+        <p class="not">{{ 'fiyatTarife.aktar.kanalSilAciklama' | transloco: { kanal: k } }}</p>
       </div>
     } @else {
-      <p class="aciklama">
+      <p class="not">
         {{ 'fiyatTarife.aktar.silmeGizli' | transloco }}
         <button
           type="button"
@@ -135,7 +132,7 @@
   }
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablo"
     tabloKodu="fiyat.tarife-aktar"
     [etiket]="'fiyatTarife.aktar.canli' | transloco"
     [sutunlar]="columns"

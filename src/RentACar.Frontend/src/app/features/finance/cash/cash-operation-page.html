@@ -1,8 +1,6 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finans.nakit.baslik' | transloco }}</h1>
-  </header>
-  <p class="aciklama">{{ 'finans.nakit.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'finans.nakit.baslik' | transloco" ikon="cash" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'finans.nakit.aciklama' | transloco }}</p>
 
   <div class="rc-form-izgara">
     <rc-alan [etiket]="'finans.alan.cari' | transloco">
@@ -12,9 +10,9 @@
 
   @if (cariId(); as id) {
     @if (balance.veri(); as b) {
-      <section class="bolum" aria-labelledby="rc-nakit-cari">
+      <section class="rc-bolum" aria-labelledby="rc-nakit-cari">
         <h2 id="rc-nakit-cari">{{ b.cariAd }}</h2>
-        <p class="ozet">
+        <p class="not">
           {{ 'finans.cari.guncelBakiye' | transloco }}
           <strong [class.negatif]="side() === 'borclu'">{{ b.bakiye | fpara }}</strong>
           @if (side(); as s) {

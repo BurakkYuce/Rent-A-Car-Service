@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Tema kontrast denetimi: src/styles/_tokenlar.scss içindeki açık ve koyu renk token'larını okur,
 // WCAG 2.x kontrast oranlarını hesaplar ve tablo basar. Eşik altı çift varsa çıkış kodu 1.
+// Her tema = tema bağımsız katmanlar (`ham-palet`, `bilesen-sabit`) + temanın kendi mixin'i; böylece
+// `var(--rc-ham-*)` zinciri ve iki temada aynı kalan bileşen token'ları (plaka, tabela) çözülür.
 //   Metin ≥ 4.5 (AA, normal boyut) · Kontrol kenarı ve odak halkası ≥ 3 (WCAG 1.4.11)
 // Kullanım: node scripts/kontrast-denetimi.mjs            (npm run lint de koşar)
 import { readFileSync } from 'node:fs';
@@ -22,7 +24,16 @@ function mixinTokenlari(ad) {
   return tokenlar;
 }
 
-/** `#abc`, `#aabbcc`, `var(--x)` ya da `var(--kiraci, #hex)` → `#aabbcc`. */
+/** Tema bağımsız katmanlar + tema mixin'i (tema son yazılır, :root sırasıyla aynı). */
+function temaTokenlari(temaMixini) {
+  return new Map([
+    ...mixinTokenlari('ham-palet'),
+    ...mixinTokenlari('bilesen-sabit'),
+    ...mixinTokenlari(temaMixini),
+  ]);
+}
+
+/** `#abc`, `#aabbcc`, `var(--x)` ya da `var(--kiraci, var(--rc-ham-y))` → `#aabbcc`. */
 function coz(tokenlar, deger, derinlik = 0) {
   if (derinlik > 8) throw new Error(`Döngüsel token: ${deger}`);
   const v = deger.trim();
@@ -78,6 +89,49 @@ const CIFTLER = [
   ]),
   // Halka `outline-offset` ile dışarı çizilir; arkasında düğme değil yüzey vardır.
   ...YUZEYLER.map((arka) => ['--rc-odak', arka, ARAYUZ, 'odak halkası']),
+  // Satır vurgusu (bugünün işi) ve dolu sarı (serviste).
+  ['--rc-metin', '--rc-satir-vurgu', METIN, 'bugün satırı'],
+  ['--rc-metin-ikincil', '--rc-satir-vurgu', METIN, 'bugün satırı ikincil'],
+  ['--rc-uyari-dolgu-metin', '--rc-uyari-dolgu', METIN, 'dolu sarı'],
+  // Bileşen çiftleri (plan §2.4). `rgba()` içeren token'lar (tabela bar izi) denetlenmez.
+  ...['metin', 'ikincil', 'grup'].map((on) => [
+    `--rc-kenar-cubugu-${on}`,
+    '--rc-kenar-cubugu-zemin',
+    METIN,
+    'kenar çubuğu',
+  ]),
+  ['--rc-kenar-cubugu-aktif-metin', '--rc-kenar-cubugu-aktif-zemin', METIN, 'kenar çubuğu aktif'],
+  ['--rc-kenar-cubugu-rozet-metin', '--rc-kenar-cubugu-rozet-zemin', METIN, 'kenar çubuğu rozeti'],
+  [
+    '--rc-kenar-cubugu-rozet-uyari-metin',
+    '--rc-kenar-cubugu-rozet-uyari-zemin',
+    METIN,
+    'kenar çubuğu uyarı rozeti',
+  ],
+  [
+    '--rc-kenar-cubugu-kontrol-kenar',
+    '--rc-kenar-cubugu-zemin',
+    ARAYUZ,
+    'kenar çubuğu kontrol kenarı',
+  ],
+  ['--rc-bant-metin', '--rc-bant-zemin', METIN, 'sayfa bandı'],
+  ['--rc-bant-ikincil', '--rc-bant-zemin', METIN, 'sayfa bandı ikincil'],
+  ['--rc-bant-buton-kenar', '--rc-bant-zemin', ARAYUZ, 'sayfa bandı buton kenarı'],
+  ['--rc-bant-dolu-buton-metin', '--rc-bant-dolu-buton-zemin', METIN, 'sayfa bandı birincil'],
+  ...['kirada', 'bosta', 'serviste', 'rezerve', 'gecikmis'].map((d) => [
+    `--rc-tabela-${d}-metin`,
+    `--rc-tabela-${d}-zemin`,
+    METIN,
+    'tabela kartı',
+  ]),
+  ['--rc-plaka-metin', '--rc-plaka-zemin', METIN, 'plaka'],
+  ['--rc-plaka-serit-metin', '--rc-plaka-serit', METIN, 'plaka TR şeridi'],
+  ['--rc-tablo-baslik-metin', '--rc-tablo-baslik-zemin', METIN, 'tablo başlığı'],
+  ['--rc-cip-metin', '--rc-yuzey', METIN, 'görünüm çipi'],
+  ['--rc-cip-secili-metin', '--rc-cip-secili-zemin', METIN, 'seçili çip'],
+  ['--rc-cip-sayac-metin', '--rc-cip-sayac-zemin', METIN, 'çip sayacı'],
+  ['--rc-cip-secili-sayac-metin', '--rc-cip-secili-sayac-zemin', METIN, 'seçili çip sayacı'],
+  ['--rc-cip-hata-sayac-metin', '--rc-cip-hata-sayac-zemin', METIN, 'çip hata sayacı'],
 ];
 
 let hata = 0;
@@ -85,7 +139,7 @@ for (const [tema, mixin] of [
   ['açık', 'acik-renkler'],
   ['koyu', 'koyu-renkler'],
 ]) {
-  const tokenlar = mixinTokenlari(mixin);
+  const tokenlar = temaTokenlari(mixin);
   console.log(`\n${tema} tema`);
   let enDusuk = Infinity;
   for (const [on, arka, esik, aciklama] of CIFTLER) {
@@ -115,7 +169,7 @@ for (const [tema, mixin] of [
   ['acik', 'acik-renkler'],
   ['koyu', 'koyu-renkler'],
 ]) {
-  const tokenlar = mixinTokenlari(mixin);
+  const tokenlar = temaTokenlari(mixin);
   const beklenen = ZEMIN_SIRASI.map((ad) => coz(tokenlar, `var(${ad})`));
   const satir = new RegExp(`${tema}: \\[([^\\]]+)\\]`).exec(servisKaynak);
   const servisteki = satir ? [...satir[1].matchAll(/'(#[0-9a-f]{6})'/gi)].map((m) => m[1]) : [];

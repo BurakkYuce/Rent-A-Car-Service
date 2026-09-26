@@ -1,4 +1,4 @@
-<section class="bolum" aria-labelledby="rc-vardiya-formu">
+<section class="rc-bolum" aria-labelledby="rc-vardiya-formu">
   <h2 id="rc-vardiya-formu" tabindex="-1">
     {{
       (editing().kind === 'new' ? 'rapor.vardiya.ekleBaslik' : 'rapor.vardiya.duzenleBaslik')
@@ -38,7 +38,7 @@
     </div>
     <p class="not">{{ 'rapor.vardiya.kural' | transloco }}</p>
     <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-    <div class="form__eylemler">
+    <div class="rc-form-eylemler">
       <button
         type="submit"
         class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -64,20 +64,20 @@
   </form>
 </section>
 
-<section class="bolum" aria-labelledby="rc-vardiya-listesi">
+<section class="rc-bolum" aria-labelledby="rc-vardiya-listesi">
   <h2 id="rc-vardiya-listesi">{{ 'rapor.bolum.vardiyalar' | transloco }}</h2>
   @if (rows().length === 0) {
-    <p class="aciklama">{{ 'rapor.kayitYok' | transloco }}</p>
+    <p class="not">{{ 'rapor.kayitYok' | transloco }}</p>
   } @else {
-    <div class="tablo-kap" tabindex="0" [attr.aria-label]="'rapor.bolum.vardiyalar' | transloco">
-      <table class="duz-tablo">
+    <div class="rc-tablo-kap" tabindex="0" [attr.aria-label]="'rapor.bolum.vardiyalar' | transloco">
+      <table class="rc-duz-tablo">
         <thead>
           <tr>
             <th scope="col">{{ 'rapor.alan.tarih' | transloco }}</th>
             <th scope="col">{{ 'rapor.alan.personelAd' | transloco }}</th>
             <th scope="col">{{ 'rapor.alan.personelKadroSube' | transloco }}</th>
             <th scope="col">{{ 'rapor.alan.aralik' | transloco }}</th>
-            <th scope="col" class="num">{{ 'rapor.vardiya.sureBaslik' | transloco }}</th>
+            <th scope="col" class="rc-num">{{ 'rapor.vardiya.sureBaslik' | transloco }}</th>
             <th scope="col">{{ 'rapor.alan.sube' | transloco }}</th>
             <th scope="col">{{ 'rapor.alan.aciklama' | transloco }}</th>
             <th scope="col">{{ 'rapor.vardiya.islemler' | transloco }}</th>
@@ -90,7 +90,7 @@
               <td>{{ r.personelAd }}</td>
               <td>{{ r.personelKadroSube ?? '—' }}</td>
               <td>{{ r.aralik }}</td>
-              <td class="num">{{ duration(r.sureDk) }}</td>
+              <td class="rc-num">{{ duration(r.sureDk) }}</td>
               <td>{{ r.sube ?? '—' }}</td>
               <td>{{ r.aciklama ?? '—' }}</td>
               <td>

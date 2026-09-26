@@ -1,23 +1,21 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'aracFinans.hasar.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <button
-        type="button"
-        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-        [attr.aria-expanded]="createOpen()"
-        aria-controls="rc-yeni-hasar"
-        (click)="toggleCreate()"
-      >
-        <rc-ikon ad="plus" [boyut]="14" />
-        {{ 'aracFinans.hasar.yeni' | transloco }}
-      </button>
-    </div>
-  </header>
-  <p class="aciklama">{{ 'aracFinans.hasar.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'aracFinans.hasar.baslik' | transloco" ikon="alert-triangle">
+  <button
+    birincil
+    type="button"
+    class="rc-dugme rc-dugme--birincil"
+    [attr.aria-expanded]="createOpen()"
+    aria-controls="rc-yeni-hasar"
+    (click)="toggleCreate()"
+  >
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'aracFinans.hasar.yeni' | transloco }}
+  </button>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'aracFinans.hasar.aciklama' | transloco }}</p>
 
   @if (createOpen()) {
-    <section id="rc-yeni-hasar" class="bolum" aria-labelledby="rc-yeni-hasar-baslik">
+    <section id="rc-yeni-hasar" class="rc-bolum" aria-labelledby="rc-yeni-hasar-baslik">
       <h2 id="rc-yeni-hasar-baslik">{{ 'aracFinans.hasar.yeni' | transloco }}</h2>
       <form class="form" [formGroup]="form" (ngSubmit)="create()">
         <div class="rc-form-izgara">
@@ -38,7 +36,7 @@
           </rc-alan>
         </div>
         <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -55,31 +53,24 @@
     </section>
   }
 
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'aracFinans.filtre' | transloco"
-    (ngSubmit)="filter()"
+    [etkinSayisi]="query.etkinFiltreSayisi()"
+    depoAnahtari="rc.filtre.hasar"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan [etiket]="'aracFinans.durum' | transloco">
-        <rc-secim
-          formControlName="durum"
-          [secenekler]="statusOptions"
-          [bosEtiket]="'aracFinans.tumu' | transloco"
-        />
-      </rc-alan>
-    </div>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'aracFinans.filtrele' | transloco }}
-      </button>
-    </div>
-  </form>
+    <rc-alan [etiket]="'aracFinans.durum' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'aracFinans.tumu' | transloco"
+      />
+    </rc-alan>
+  </rc-filtre-paneli>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="hasar.liste"
     [etiket]="'aracFinans.hasar.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -91,11 +82,18 @@
     (boyutDegisti)="query.degistir({ boyut: $event })"
     (yenidenDene)="store.list.yenile()"
   >
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka [plaka]="satir.plaka" boyut="sm" />
+      } @else {
+        —
+      }
+    </ng-template>
     <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="rc-rozet">{{ statusLabel(satir.durum) }}</span>
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         @if (satir.yetkiler.onayaGonder) {
           <button
             type="button"

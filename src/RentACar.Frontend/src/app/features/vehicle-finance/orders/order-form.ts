@@ -48,6 +48,7 @@ import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { ORDER_CURRENCIES, type OrderDetail } from '../finance-model';
 import { ORDERS, OrderFormStore, recordPath } from '../finance.store';
 import { type OrderFormValue, emptyOrder, orderRequest, orderToForm } from './order-form-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type Transition = 'onayla' | 'teslim-al' | 'iptal';
 
@@ -60,6 +61,7 @@ type Transition = 'onayla' | 'teslim-al' | 'iptal';
   selector: 'rc-order-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

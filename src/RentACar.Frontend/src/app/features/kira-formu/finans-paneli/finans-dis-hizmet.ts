@@ -20,19 +20,19 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
   template: `
     @let s = f.disHizmetler;
     <div
-      class="kf-tablo-kutusu"
+      class="rc-tablo-kap"
       role="region"
       tabindex="0"
       [attr.aria-label]="'kiraFinans.disHizmet.liste' | transloco"
       [attr.aria-busy]="s.yukleniyor()"
     >
-      <table class="kf-tablo" [attr.aria-label]="'kiraFinans.disHizmet.liste' | transloco">
+      <table class="rc-duz-tablo" [attr.aria-label]="'kiraFinans.disHizmet.liste' | transloco">
         <thead>
           <tr>
             <th scope="col">{{ 'kiraFinans.disHizmet.no' | transloco }}</th>
             <th scope="col">{{ 'kiraFinans.disHizmet.hizmet' | transloco }}</th>
-            <th scope="col" class="num">{{ 'kiraFinans.disHizmet.bedel' | transloco }}</th>
-            <th scope="col" class="num">{{ 'kiraFinans.disHizmet.komisyon' | transloco }}</th>
+            <th scope="col" class="rc-num">{{ 'kiraFinans.disHizmet.bedel' | transloco }}</th>
+            <th scope="col" class="rc-num">{{ 'kiraFinans.disHizmet.komisyon' | transloco }}</th>
             <th scope="col">{{ 'kiraFinans.alan.durum' | transloco }}</th>
             <th scope="col">
               <span class="rc-gorunmez">{{ 'kiraFinans.donem.islem' | transloco }}</span>
@@ -42,15 +42,15 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
         <tbody>
           @if (s.tur() === 'hata') {
             <tr>
-              <td colspan="6" class="kf-bos">{{ s.hata()?.detay }}</td>
+              <td colspan="6" class="rc-bos">{{ s.hata()?.detay }}</td>
             </tr>
           }
           @for (x of s.veri() ?? []; track x.id) {
             <tr>
               <td>{{ x.no }}</td>
               <td>{{ x.alinanHizmet }}</td>
-              <td class="num">{{ para(x.hizmetBedeli, x.currency) }}</td>
-              <td class="num">{{ x.tedarikciKomisyonOran }}</td>
+              <td class="rc-num">{{ para(x.hizmetBedeli, x.currency) }}</td>
+              <td class="rc-num">{{ x.tedarikciKomisyonOran }}</td>
               <td>{{ x.durum }}</td>
               <td>
                 @if (x.durum === 'Kayitli' && f.finans() && f.tersIzni()) {
@@ -69,7 +69,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
           } @empty {
             @if (s.tur() === 'hazir') {
               <tr>
-                <td colspan="6" class="kf-bos">{{ 'kiraFinans.disHizmet.yok' | transloco }}</td>
+                <td colspan="6" class="rc-bos">{{ 'kiraFinans.disHizmet.yok' | transloco }}</td>
               </tr>
             }
           }

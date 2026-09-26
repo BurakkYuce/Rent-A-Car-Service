@@ -29,6 +29,7 @@ import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
 import { Secim } from '@shared/form/kontroller/secim';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { ROLES } from '../users/users-model';
 
 type ScreenPermission = Sema<'ScreenPermissionDto'>;
@@ -47,6 +48,7 @@ const ROOT = '/api/ui/v1/yetki' as const;
   selector: 'rc-permissions-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     TarihSaatPipe,

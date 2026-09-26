@@ -1,6 +1,6 @@
-<div class="sayfa">
-  <h1>{{ 'sistem.talep.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'sistem.talep.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'sistem.talep.baslik' | transloco" ikon="inbox" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'sistem.talep.aciklama' | transloco }}</p>
 
   <div class="rc-form-izgara" [formGroup]="filters">
     <rc-alan [etiket]="'sistem.talep.durumBaslik' | transloco">
@@ -44,8 +44,8 @@
         @if (d.kayitlar.length === 0) {
           <p class="bos">{{ 'sistem.talep.bos' | transloco }}</p>
         } @else {
-          <div class="kaydirma">
-            <table class="tablo" [attr.aria-busy]="list.yukleniyor()">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo" [attr.aria-busy]="list.yukleniyor()">
               <thead>
                 <tr>
                   <th scope="col">{{ 'sistem.talep.musteri' | transloco }}</th>
@@ -53,7 +53,9 @@
                   <th scope="col">{{ 'sistem.talep.tarihler' | transloco }}</th>
                   <th scope="col">{{ 'sistem.talep.durumBaslik' | transloco }}</th>
                   <th scope="col">{{ 'sistem.talep.atanan' | transloco }}</th>
-                  <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+                  <th scope="col" class="satir-eylemleri">
+                    {{ 'sistem.ortak.islemler' | transloco }}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -105,7 +107,7 @@
                       }
                     </td>
                     <td>{{ r.atananAd ?? '—' }}</td>
-                    <td class="islemler">
+                    <td class="satir-eylemleri">
                       <button
                         type="button"
                         class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"

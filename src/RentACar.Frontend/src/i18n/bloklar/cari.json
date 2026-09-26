@@ -137,6 +137,12 @@
       "kiralar": "Kiralar",
       "ekstre": "Ekstre"
     },
+    "ozetKart": {
+      "etiket": "Cari özeti",
+      "kimlik": "Kimlik ve ehliyet",
+      "iletisim": "İletişim",
+      "bakiye": "Bakiye"
+    },
     "bakiyeEtiket": "Cari bakiye",
     "bakiye": "Bakiye",
     "bakiyeNotu": "Pozitif = müşteri borçlu.",

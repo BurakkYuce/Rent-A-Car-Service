@@ -1,55 +1,56 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>
-      @if (isNew) {
-        {{ 'aracFinans.siparis.yeni' | transloco }}
-      } @else if (base(); as d) {
-        {{ 'aracFinans.siparis.duzenleBaslik' | transloco: { no: d.no } }}
-        <span class="rc-rozet">{{ statusLabel(d.durum) }}</span>
-      } @else {
-        {{ 'aracFinans.siparis.kayit' | transloco }}
+@let od = isNew ? null : base();
+<rc-sayfa-bandi
+  ikon="car"
+  [baslik]="
+    isNew
+      ? ('aracFinans.siparis.yeni' | transloco)
+      : od
+        ? ('aracFinans.siparis.duzenleBaslik' | transloco: { no: od.no })
+        : ('aracFinans.siparis.kayit' | transloco)
+  "
+  [pill]="od ? statusLabel(od.durum) : null"
+>
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/arac-siparis">
+      {{ 'aracFinans.siparis.listeyeDon' | transloco }}
+    </a>
+    @if (base(); as d) {
+      @if (d.yetkiler.onayla) {
+        <button
+          type="button"
+          class="rc-dugme"
+          [disabled]="transitioning()"
+          (click)="transition('onayla')"
+        >
+          {{ 'aracFinans.siparis.onayla' | transloco }}
+        </button>
       }
-    </h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/arac-siparis">
-        {{ 'aracFinans.siparis.listeyeDon' | transloco }}
-      </a>
-      @if (base(); as d) {
-        @if (d.yetkiler.onayla) {
-          <button
-            type="button"
-            class="rc-dugme rc-dugme--kucuk"
-            [disabled]="transitioning()"
-            (click)="transition('onayla')"
-          >
-            {{ 'aracFinans.siparis.onayla' | transloco }}
-          </button>
-        }
-        @if (d.yetkiler.teslimAl) {
-          <button
-            type="button"
-            class="rc-dugme rc-dugme--kucuk"
-            [disabled]="transitioning()"
-            (click)="transition('teslim-al')"
-          >
-            {{ 'aracFinans.siparis.teslimAl' | transloco }}
-          </button>
-        }
-        @if (d.yetkiler.iptal) {
-          <button
-            type="button"
-            class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
-            [disabled]="transitioning()"
-            (click)="transition('iptal')"
-          >
-            {{ 'aracFinans.siparis.iptal' | transloco }}
-          </button>
-        }
+      @if (d.yetkiler.teslimAl) {
+        <button
+          type="button"
+          class="rc-dugme"
+          [disabled]="transitioning()"
+          (click)="transition('teslim-al')"
+        >
+          {{ 'aracFinans.siparis.teslimAl' | transloco }}
+        </button>
       }
-    </div>
-  </header>
-  <p class="aciklama">{{ 'aracFinans.siparis.aciklama1' | transloco }}</p>
-  <p class="aciklama">{{ 'aracFinans.siparis.aciklama2' | transloco }}</p>
+      @if (d.yetkiler.iptal) {
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--tehlike"
+          [disabled]="transitioning()"
+          (click)="transition('iptal')"
+        >
+          {{ 'aracFinans.siparis.iptal' | transloco }}
+        </button>
+      }
+    }
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'aracFinans.siparis.aciklama1' | transloco }}</p>
+  <p class="not">{{ 'aracFinans.siparis.aciklama2' | transloco }}</p>
 
   @if (store.order.tur() === 'hata' && !isNew) {
     <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
@@ -69,7 +70,7 @@
     </dl>
   }
 
-  <form class="form bolum" [formGroup]="form" (ngSubmit)="save()">
+  <form class="form rc-bolum" [formGroup]="form" (ngSubmit)="save()">
     <div class="rc-form-izgara">
       <rc-alan [etiket]="'aracFinans.siparis.tedarikci' | transloco">
         <rc-metin-girdisi
@@ -181,7 +182,7 @@
     </div>
     <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
     @if (editable()) {
-      <div class="form__eylemler">
+      <div class="rc-form-eylemler">
         <button
           type="submit"
           class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"

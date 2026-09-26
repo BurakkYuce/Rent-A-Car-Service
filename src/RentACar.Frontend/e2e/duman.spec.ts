@@ -23,9 +23,11 @@ test('yer tutucu sayfa /app/ altında açılır, CSP ihlali yok, axe ciddi/kriti
   await expect(page.locator('html')).toHaveAttribute('lang', 'tr');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni arayüz yapım aşamasında');
 
-  // Self-host Inter: başlıktaki "ş" latin-ext alt kümesini de çeker; ikisi de kendi sunucumuzdan.
+  // Self-host IBM Plex (ağırlık başına ayrı dosya: sayfadaki ağırlık × alt küme kadar istek). Başlıktaki
+  // "ş" latin-ext alt kümesini de çeker; hepsi kendi sunucumuzdan.
   await page.evaluate(() => document.fonts.ready);
-  expect(fontlar).toHaveLength(2);
+  expect(fontlar.length).toBeGreaterThanOrEqual(2);
+  expect(fontlar.some((f) => /ibm-plex-sans-latin-ext-/.test(f))).toBe(true);
   for (const font of fontlar) expect(font).toMatch(/^200 http:\/\/127\.0\.0\.1:\d+\/app\/media\//);
 
   expect(await ciddiIhlaller(page)).toEqual([]);
@@ -38,8 +40,8 @@ test('tema: sistem izlenir, açık/koyu seçimi uygulanır ve saklanır; iki tem
   page,
 }) => {
   const hatalar = hatalariTopla(page);
-  const ACIK_ZEMIN = 'rgb(245, 247, 250)';
-  const KOYU_ZEMIN = 'rgb(13, 19, 28)';
+  const ACIK_ZEMIN = 'rgb(244, 242, 236)';
+  const KOYU_ZEMIN = 'rgb(20, 19, 16)';
 
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/app/');

@@ -1,31 +1,29 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finans.kasa.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--kucuk" routerLink="/finans/nakit-islem">
-        <rc-ikon ad="plus" [boyut]="14" /> {{ 'finans.kasa.yeniNakitIslem' | transloco }}
-      </a>
-      <a href="/listeler/export/nakit-islemler">Excel</a>
-      <a href="/listeler/export/nakit-islemler?format=csv">CSV</a>
-      <a href="/listeler/export/nakit-islemler?format=pdf">PDF</a>
-    </div>
-  </header>
-
+<rc-sayfa-bandi [baslik]="'finans.kasa.baslik' | transloco" ikon="cash">
+  <ng-container eylemler>
+    <a class="rc-dugme" href="/listeler/export/nakit-islemler">Excel</a>
+    <a class="rc-dugme" href="/listeler/export/nakit-islemler?format=csv">CSV</a>
+    <a class="rc-dugme" href="/listeler/export/nakit-islemler?format=pdf">PDF</a>
+    <a class="rc-dugme" routerLink="/finans/nakit-islem">
+      <rc-ikon ad="plus" [boyut]="14" /> {{ 'finans.kasa.yeniNakitIslem' | transloco }}
+    </a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @if (summary.veri(); as s) {
     <dl class="ozet-serit">
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'finans.kasa.kasaBakiye' | transloco }}</dt>
         <dd [class.negatif]="s.kasaBakiye | negatif">{{ s.kasaBakiye | fpara }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'finans.kasa.bankaBakiye' | transloco }}</dt>
         <dd [class.negatif]="s.bankaBakiye | negatif">{{ s.bankaBakiye | fpara }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'finans.kasa.kasaGiris' | transloco }}</dt>
         <dd>{{ s.kasaGiris | fpara }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'finans.kasa.bankaGiris' | transloco }}</dt>
         <dd>{{ s.bankaGiris | fpara }}</dd>
       </div>
@@ -34,7 +32,7 @@
     <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ summary.hata()?.detay }}</p>
   }
 
-  <section class="bolum" aria-labelledby="rc-kasa-virman">
+  <section class="rc-bolum" aria-labelledby="rc-kasa-virman">
     <h2 id="rc-kasa-virman">{{ 'finans.kasa.virman' | transloco }}</h2>
     <div class="rc-form-izgara" [formGroup]="form">
       <rc-alan [etiket]="'finans.kasa.kaynak' | transloco">
@@ -91,16 +89,16 @@
     />
   </section>
 
-  <section class="bolum" aria-labelledby="rc-kasa-son-virman">
+  <section class="rc-bolum" aria-labelledby="rc-kasa-son-virman">
     <h2 id="rc-kasa-son-virman">{{ 'finans.kasa.sonVirmanlar' | transloco }}</h2>
-    <div class="tablo-kap">
-      <table class="duz-tablo">
+    <div class="rc-tablo-kap">
+      <table class="rc-duz-tablo">
         <thead>
           <tr>
             <th>{{ 'finans.alan.tarih' | transloco }}</th>
             <th>{{ 'finans.kasa.kaynak' | transloco }}</th>
             <th>{{ 'finans.kasa.hedef' | transloco }}</th>
-            <th class="num">{{ 'finans.alan.tutar' | transloco }}</th>
+            <th class="rc-num">{{ 'finans.alan.tutar' | transloco }}</th>
             <th>{{ 'finans.alan.doviz' | transloco }}</th>
             <th>{{ 'finans.alan.makbuzNo' | transloco }}</th>
             <th>{{ 'finans.alan.islemSubesi' | transloco }}</th>
@@ -114,7 +112,7 @@
               <td>{{ v.tarih | tarihSaat }}</td>
               <td>{{ v.kaynakTur }}{{ v.kaynakHesapAd ? ' · ' + v.kaynakHesapAd : '' }}</td>
               <td>{{ v.hedefTur }}{{ v.hedefHesapAd ? ' · ' + v.hedefHesapAd : '' }}</td>
-              <td class="num">{{ v.tutar | fsayi }}</td>
+              <td class="rc-num">{{ v.tutar | fsayi }}</td>
               <td>{{ v.doviz }}</td>
               <td>{{ v.makbuzNo ?? '—' }}</td>
               <td>{{ v.sube ?? '—' }}</td>
@@ -124,7 +122,7 @@
           } @empty {
             @if (transfers.tur() === 'hazir') {
               <tr>
-                <td colspan="9">{{ 'finans.kasa.virmanYok' | transloco }}</td>
+                <td colspan="9" class="rc-bos">{{ 'finans.kasa.virmanYok' | transloco }}</td>
               </tr>
             }
           }
@@ -132,10 +130,10 @@
       </table>
     </div>
   </section>
-  <section class="bolum" aria-labelledby="rc-kasa-islemler">
+  <section class="rc-bolum" aria-labelledby="rc-kasa-islemler">
     <h2 id="rc-kasa-islemler">{{ 'finans.kasa.sonIslemler' | transloco }}</h2>
     <form class="filtre" [formGroup]="filter" (ngSubmit)="applyFilter()">
-      <div class="rc-form-izgara">
+      <div class="rc-filtre-izgara">
         <rc-alan [etiket]="'finans.kasa.ara' | transloco">
           <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="100" />
         </rc-alan>
@@ -191,8 +189,8 @@
       @if (l.kesildi) {
         <p class="not">{{ 'finans.kasa.kesildi' | transloco }}</p>
       }
-      <div class="tablo-kap" [attr.aria-busy]="transactions.yukleniyor()">
-        <table class="duz-tablo">
+      <div class="rc-tablo-kap" [attr.aria-busy]="transactions.yukleniyor()">
+        <table class="rc-duz-tablo">
           <thead>
             <tr>
               <th>{{ 'finans.alan.tarih' | transloco }}</th>
@@ -203,7 +201,7 @@
               <th>{{ 'finans.alan.kanal' | transloco }}</th>
               <th>{{ 'finans.alan.cari' | transloco }}</th>
               <th>{{ 'finans.kasa.cariKod' | transloco }}</th>
-              <th class="num">{{ 'finans.alan.tutar' | transloco }}</th>
+              <th class="rc-num">{{ 'finans.alan.tutar' | transloco }}</th>
               <th>{{ 'finans.alan.aciklama' | transloco }}</th>
               <th>{{ 'finans.kasa.makbuz' | transloco }}</th>
             </tr>
@@ -228,13 +226,13 @@
                   <a [routerLink]="['/cariler', x.cariId, 'ekstre']">{{ x.cariAd }}</a>
                 </td>
                 <td>{{ x.cariKod ?? '—' }}</td>
-                <td class="num">{{ x.tutar | fpara: x.doviz }}</td>
+                <td class="rc-num">{{ x.tutar | fpara: x.doviz }}</td>
                 <td>{{ x.aciklama }}</td>
                 <td><a [href]="makbuzUrl(x.id)" target="_blank" rel="noopener">PDF</a></td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="11">{{ 'finans.kasa.islemYok' | transloco }}</td>
+                <td colspan="11" class="rc-bos">{{ 'finans.kasa.islemYok' | transloco }}</td>
               </tr>
             }
           </tbody>

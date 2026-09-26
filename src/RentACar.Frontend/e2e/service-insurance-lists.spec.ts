@@ -51,10 +51,10 @@ test('zeyiller: tüm poliçelerin zeyilleri tek listede, poliçe bağlantısı +
   await page.getByRole('link', { name: 'Zeyiller' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Zeyiller');
   await expect(page.getByRole('gridcell', { name: 'Z-7' })).toBeVisible();
-  const link = page.getByRole('link', { name: '34ABC123 — P-100' });
+  const link = page.getByRole('link', { name: '34 ABC 123 — P-100' });
   await expect(link).toHaveAttribute('href', `/app/regulasyon/sigortalar/${POLICY_1}`);
   await page.getByRole('textbox', { name: 'Tipi' }).fill('Zam');
-  await page.getByRole('button', { name: 'Filtrele' }).click();
+  await page.getByRole('button', { name: 'Filtrele', exact: true }).click();
   await expect
     .poll(() => new URL(listUrls.at(-1) ?? 'http://x').searchParams.get('tipi'))
     .toBe('Zam');

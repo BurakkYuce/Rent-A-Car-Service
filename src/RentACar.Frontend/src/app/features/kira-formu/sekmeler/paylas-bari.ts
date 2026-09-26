@@ -30,7 +30,7 @@ import { KiraFormuDurumu } from '../kira-formu-durumu';
   template: `
     @if (d.gorunenDetay()?.paylasim) {
       <section
-        class="kf-kart"
+        class="rc-bolum kf-kart"
         [attr.aria-label]="'kiraFormuParite.paylas.baslik' | transloco"
         data-testid="paylas-bari"
       >

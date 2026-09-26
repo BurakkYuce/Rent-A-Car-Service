@@ -34,7 +34,7 @@ const LOANS: VitrinSayfasi = {
 const LOAN: VitrinSayfasi = {
   ad: 'arac-kredi-kayit',
   yol: `/app/arac-kredi/${LOAN_1}`,
-  baslik: 'Kredi KR-000001 Aktif',
+  baslik: 'Kredi KR-000001',
   hazir: async (page) => {
     await expect(page.getByText('Sonraki taksit: 4/12')).toBeVisible();
   },
@@ -58,7 +58,7 @@ const ORDERS: VitrinSayfasi = {
 const ORDER: VitrinSayfasi = {
   ad: 'arac-siparis-kayit',
   yol: `/app/arac-siparis/${ORDER_1}`,
-  baslik: 'Sipariş SP-000001 Bekliyor',
+  baslik: 'Sipariş SP-000001',
   hazir: async (page) => {
     await expect(page.getByRole('combobox', { name: 'Tedarikçi', exact: true })).toHaveValue(
       'Bayi A',
@@ -513,7 +513,7 @@ test('durum panosu "Tahsis" → BAF formu araç + çıkış KM + şube dolu aç�
   await page.goto('/app/arac-durum');
   await page
     .getByRole('row')
-    .filter({ hasText: '34ABC123' })
+    .filter({ hasText: '34 ABC 123' })
     .getByRole('link', { name: 'Tahsis' })
     .click();
   await expect(page).toHaveURL(/\/app\/baf$/);

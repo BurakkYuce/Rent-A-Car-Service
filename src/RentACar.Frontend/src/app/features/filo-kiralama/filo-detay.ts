@@ -31,11 +31,12 @@ import { formGonderimi } from '@shared/form/form-gonderimi';
 import { FormHatalari } from '@shared/form/form-hatalari';
 import { ParaPipe, SayiPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
 import { Ikon } from '@shared/ikon/ikon';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
 
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 import { FiloKunyeAlanlari, kunyeKontrolleri } from './filo-kunye-alanlari';
-import { DURUM_ROZETI } from './filo-listesi';
 import {
   type FiloKiralama,
   type FiloKunyeDegeri,
@@ -65,6 +66,8 @@ import { FiloDetayStore } from './filo.store';
     ParaPipe,
     SayiPipe,
     TarihPipe,
+    PlateChipComponent,
+    SayfaBandi,
   ],
   providers: [FetchPolicy, FiloDetayStore],
   templateUrl: './filo-detay.html',
@@ -111,11 +114,6 @@ export class FiloDetay implements KaydedilmemisDegisiklikSahibi {
 
   kaydedilmemisDegisiklikVar(): boolean {
     return this.form.dirty;
-  }
-
-  protected rozet(): string {
-    const d = this.durum();
-    return `rc-rozet ${d ? DURUM_ROZETI[d] : ''}`;
   }
 
   protected durumEtiketi(): string {

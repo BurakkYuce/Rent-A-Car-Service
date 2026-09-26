@@ -1,9 +1,9 @@
-<div class="sayfa">
-  <h1>{{ 'sistem.web.ekle.baslik' | transloco }}</h1>
+<rc-sayfa-bandi [baslik]="'sistem.web.ekle.baslik' | transloco" ikon="world" />
+<div class="rc-sayfa">
   @if (!module()) {
     <p class="bos">{{ 'sistem.ortak.modulYok' | transloco }}</p>
   } @else {
-    <p class="aciklama">
+    <p class="not">
       <a routerLink="/web-sitesi">{{ 'sistem.web.geri' | transloco }}</a>
     </p>
     @switch (pool.tur()) {
@@ -43,7 +43,7 @@
               {{ 'sistem.web.ekle.ayri' | transloco }}
             </button>
           </div>
-          <p class="aciklama">
+          <p class="not">
             {{
               (mode() === 'ayri'
                 ? 'sistem.web.ekle.ayriAciklama'
@@ -52,8 +52,8 @@
             }}
           </p>
           <rc-form-hatalari [hatalar]="submit.genelHatalar()" />
-          <div class="kaydirma">
-            <table class="tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <thead>
                 <tr>
                   <th scope="col">
@@ -64,7 +64,7 @@
                   @if (mode() === 'ayri') {
                     <th scope="col">{{ 'sistem.web.ekle.plaka' | transloco }}</th>
                   } @else {
-                    <th scope="col" class="sayi">{{ 'sistem.web.ekle.adet' | transloco }}</th>
+                    <th scope="col" class="rc-num">{{ 'sistem.web.ekle.adet' | transloco }}</th>
                   }
                 </tr>
               </thead>
@@ -83,7 +83,7 @@
                         </td>
                         <td>{{ k.baslik }}</td>
                         <td>{{ k.yilAralik ?? '—' }}</td>
-                        <td class="kod">{{ v.plaka }}</td>
+                        <td><rc-plaka boyut="sm" [plaka]="v.plaka" /></td>
                       </tr>
                     }
                   } @else {
@@ -98,7 +98,7 @@
                       </td>
                       <td>{{ k.baslik }}</td>
                       <td>{{ k.yilAralik ?? '—' }}</td>
-                      <td class="sayi">{{ k.araclar.length }}</td>
+                      <td class="rc-num">{{ k.araclar.length }}</td>
                     </tr>
                   }
                 }

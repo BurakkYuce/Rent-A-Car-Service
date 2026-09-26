@@ -20,7 +20,9 @@ import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { Ikon } from '@shared/ikon/ikon';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 import {
   TAKVIM,
   type TakvimAraci,
@@ -44,7 +46,17 @@ const ARAC_SINIRI = 200;
 @Component({
   selector: 'rc-takvim-sayfasi',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, TranslocoPipe, Alan, Ikon, MetinGirdisi, Secim],
+  imports: [
+    PlateChipComponent,
+    SayfaBandi,
+    ReactiveFormsModule,
+    RouterLink,
+    TranslocoPipe,
+    Alan,
+    Ikon,
+    MetinGirdisi,
+    Secim,
+  ],
   providers: [FetchPolicy, TakvimStore],
   templateUrl: './takvim-sayfasi.html',
   styleUrl: './takvim-sayfasi.scss',

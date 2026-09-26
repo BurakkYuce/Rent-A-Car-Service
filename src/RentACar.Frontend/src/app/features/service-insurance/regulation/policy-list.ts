@@ -50,6 +50,9 @@ import {
 } from '../service-insurance-model';
 import { PolicyListStore, RegulationOptionsStore } from '../service-insurance.store';
 import { RegulationTabs } from './regulation-tabs';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
  * Sigorta poliçeleri (`/app/regulasyon`) — Blazor `/regulasyon` "Sigorta" bölümü: süzgeç, liste (Araç/İMM/Aksesuar
@@ -60,6 +63,9 @@ import { RegulationTabs } from './regulation-tabs';
   selector: 'rc-policy-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

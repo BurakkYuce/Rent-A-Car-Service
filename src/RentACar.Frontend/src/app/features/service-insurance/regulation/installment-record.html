@@ -1,16 +1,23 @@
-<div class="sayfa">
-  <nav class="geri" [attr.aria-label]="'servisSigorta.gezinme' | transloco">
-    <a [routerLink]="kind === 'mtv' ? '/regulasyon/mtv' : '/regulasyon/muayene'">
+@let bant = view();
+<rc-sayfa-bandi
+  [baslik]="
+    ((kind === 'mtv' ? 'servisSigorta.mtv.kayit' : 'servisSigorta.muayene.kayit') | transloco) +
+    (bant ? ' ' + bant.plaka + ' ' + (bant.title ?? '') : '')
+  "
+  [ikon]="kind === 'mtv' ? 'cash' : 'calendar'"
+  [pill]="
+    bant ? ((bant.paid ? 'servisSigorta.odendi' : 'servisSigorta.odenmedi') | transloco) : null
+  "
+>
+  <ng-container eylemler>
+    <a class="rc-dugme" [routerLink]="kind === 'mtv' ? '/regulasyon/mtv' : '/regulasyon/muayene'">
       {{ (kind === 'mtv' ? 'servisSigorta.mtv.liste' : 'servisSigorta.muayene.liste') | transloco }}
     </a>
-  </nav>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @switch (state().tur) {
     @case ('hata') {
-      <h1>
-        {{
-          (kind === 'mtv' ? 'servisSigorta.mtv.kayit' : 'servisSigorta.muayene.kayit') | transloco
-        }}
-      </h1>
       <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
         {{ 'servisSigorta.yuklenemedi' | transloco }}
         <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="reload()">
@@ -20,22 +27,6 @@
     }
     @default {
       @if (view(); as v) {
-        <header class="ust">
-          <h1>
-            {{
-              (kind === 'mtv' ? 'servisSigorta.mtv.kayit' : 'servisSigorta.muayene.kayit')
-                | transloco
-            }}
-            {{ v.plaka }} {{ v.title ?? '' }}
-            <span
-              class="rc-rozet"
-              [class.rc-rozet--basari]="v.paid"
-              [class.rc-rozet--uyari]="!v.paid"
-            >
-              {{ (v.paid ? 'servisSigorta.odendi' : 'servisSigorta.odenmedi') | transloco }}
-            </span>
-          </h1>
-        </header>
         <dl class="kunye">
           @if (kind === 'mtv') {
             <div>
@@ -76,26 +67,30 @@
           </div>
         </dl>
         @if (v.note) {
-          <p class="aciklama">{{ v.note }}</p>
+          <p class="not">{{ v.note }}</p>
         }
-        <p class="aciklama">{{ 'servisSigorta.odeme.defterNotu' | transloco }}</p>
+        <p class="not">{{ 'servisSigorta.odeme.defterNotu' | transloco }}</p>
 
-        <section class="bolum" aria-labelledby="rc-odemeler-baslik">
+        <section class="rc-bolum" aria-labelledby="rc-odemeler-baslik">
           <h2 id="rc-odemeler-baslik">{{ 'servisSigorta.odeme.gecmis' | transloco }}</h2>
           @if (v.payments.length === 0) {
-            <p class="aciklama">{{ 'servisSigorta.odeme.gecmisYok' | transloco }}</p>
+            <p class="not">{{ 'servisSigorta.odeme.gecmisYok' | transloco }}</p>
           } @else {
-            <div class="tablo-kap">
-              <table class="duz-tablo">
+            <div class="rc-tablo-kap">
+              <table class="rc-duz-tablo">
                 <thead>
                   <tr>
                     <th scope="col">#</th>
                     <th scope="col">{{ 'servisSigorta.odeme.tarih' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'servisSigorta.odeme.tutar' | transloco }}</th>
+                    <th scope="col" class="rc-num">
+                      {{ 'servisSigorta.odeme.tutar' | transloco }}
+                    </th>
                     @if (kind === 'muayene') {
-                      <th scope="col" class="num">{{ 'servisSigorta.odeme.ceza' | transloco }}</th>
+                      <th scope="col" class="rc-num">
+                        {{ 'servisSigorta.odeme.ceza' | transloco }}
+                      </th>
                     }
-                    <th scope="col" class="num">
+                    <th scope="col" class="rc-num">
                       {{ 'servisSigorta.odeme.kalanSonrasi' | transloco }}
                     </th>
                     <th scope="col">{{ 'servisSigorta.para.hesap' | transloco }}</th>
@@ -108,11 +103,11 @@
                     <tr>
                       <td>{{ p.sira }}</td>
                       <td>{{ p.tarih | tarih }}</td>
-                      <td class="num">{{ num(p.tutar) | para }}</td>
+                      <td class="rc-num">{{ num(p.tutar) | para }}</td>
                       @if (kind === 'muayene') {
-                        <td class="num">{{ num(p.ceza) | para }}</td>
+                        <td class="rc-num">{{ num(p.ceza) | para }}</td>
                       }
-                      <td class="num">{{ num(p.kalanSonrasi) | para }}</td>
+                      <td class="rc-num">{{ num(p.kalanSonrasi) | para }}</td>
                       <td>{{ p.hesap }}</td>
                       <td>{{ p.evrakNo ?? '—' }}</td>
                       <td>{{ p.islemYapan ?? '—' }}</td>
@@ -135,12 +130,7 @@
           />
         }
       } @else {
-        <h1>
-          {{
-            (kind === 'mtv' ? 'servisSigorta.mtv.kayit' : 'servisSigorta.muayene.kayit') | transloco
-          }}
-        </h1>
-        <p class="aciklama" role="status">{{ 'servisSigorta.yukleniyor' | transloco }}</p>
+        <p class="not" role="status">{{ 'servisSigorta.yukleniyor' | transloco }}</p>
       }
     }
   }

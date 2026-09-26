@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { TAM_SAYFA_GEZINMESI } from '@core/form/kaydedilmemis-degisiklik';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -18,17 +19,21 @@ export function invoicePdfPath(id: string | null | undefined): string | null {
 @Component({
   selector: 'rc-invoice-print',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe],
+  imports: [SayfaBandi, TranslocoPipe],
   template: `
-    <h1>{{ 'finansBelge.fatura.yazdirBaslik' | transloco }}</h1>
-    @if (path; as p) {
-      <p>
-        {{ 'finansBelge.fatura.yazdirAciliyor' | transloco }}
-        <a [href]="p">{{ 'finansBelge.fatura.yazdirBaglanti' | transloco }}</a>
-      </p>
-    } @else {
-      <p role="alert">{{ 'finansBelge.fatura.bulunamadi' | transloco }}</p>
-    }
+    <rc-sayfa-bandi [baslik]="'finansBelge.fatura.yazdirBaslik' | transloco" ikon="printer" />
+    <div class="rc-sayfa">
+      @if (path; as p) {
+        <p>
+          {{ 'finansBelge.fatura.yazdirAciliyor' | transloco }}
+          <a [href]="p">{{ 'finansBelge.fatura.yazdirBaglanti' | transloco }}</a>
+        </p>
+      } @else {
+        <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+          {{ 'finansBelge.fatura.bulunamadi' | transloco }}
+        </p>
+      }
+    </div>
   `,
 })
 export class InvoicePrint {

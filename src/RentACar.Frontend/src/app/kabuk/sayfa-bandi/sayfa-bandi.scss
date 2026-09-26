@@ -1,0 +1,167 @@
+// Yol v2 §5.4 — sayfa bandı (52 px lacivert; mobilde 44 px). Kapsüllenmemiş: projeksiyonla gelen `.rc-dugme`
+// burada yeniden boyanır; her seçici `rc-sayfa-bandi` altında. Renkler yalnız `--rc-bant-*`.
+@use 'kirilim' as k;
+
+rc-sayfa-bandi {
+  display: block;
+  color: var(--rc-bant-metin);
+  background-color: var(--rc-bant-zemin);
+
+  .bant {
+    display: flex;
+    align-items: center;
+    gap: var(--rc-bosluk-3);
+    min-height: 3.25rem;
+    padding: var(--rc-bosluk-2) var(--rc-bosluk-6);
+  }
+
+  .bant__baslik {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--rc-bosluk-1) var(--rc-bosluk-3);
+    min-width: 0;
+  }
+
+  .bant__ikon {
+    color: var(--rc-bant-metin);
+  }
+
+  .bant__h1 {
+    margin: 0;
+    color: var(--rc-bant-metin);
+    font-size: var(--rc-yazi-xl);
+    font-weight: var(--rc-agirlik-kalin);
+    line-height: var(--rc-satir-sik);
+  }
+
+  .bant__pill {
+    padding: 0 var(--rc-bosluk-2);
+    border-radius: var(--rc-yaricap-tam);
+    background-color: var(--rc-bant-dolu-buton-zemin);
+    color: var(--rc-bant-dolu-buton-metin);
+    font-size: var(--rc-yazi-xs);
+    font-weight: var(--rc-agirlik-kalin);
+    line-height: 1.375rem;
+    white-space: nowrap;
+  }
+
+  .bant__alt {
+    color: var(--rc-bant-ikincil);
+    font-size: var(--rc-yazi-sm);
+  }
+
+  .bant__eylemler-sar {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--rc-bosluk-2);
+  }
+
+  .bant__eylemler {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--rc-bosluk-2);
+  }
+
+  // Bant düğmeleri: çerçeveli beyaz; birincil dolu beyaz. 32 px (§4).
+  .rc-dugme,
+  .bant__menu-dugmesi {
+    height: 2rem;
+    border: 1px solid var(--rc-bant-buton-kenar);
+    background-color: transparent;
+    color: var(--rc-bant-metin);
+
+    &:hover {
+      border-color: var(--rc-bant-metin);
+      background-color: transparent;
+      color: var(--rc-bant-metin);
+    }
+
+    &:focus-visible {
+      outline: var(--rc-odak-kalinlik) solid var(--rc-bant-metin);
+      outline-offset: var(--rc-odak-bosluk);
+    }
+  }
+
+  .rc-dugme--birincil {
+    border-color: var(--rc-bant-dolu-buton-zemin);
+    background-color: var(--rc-bant-dolu-buton-zemin);
+    color: var(--rc-bant-dolu-buton-metin);
+
+    &:hover {
+      border-color: var(--rc-bant-dolu-buton-zemin);
+      background-color: var(--rc-bant-dolu-buton-zemin);
+      color: var(--rc-bant-dolu-buton-metin);
+      text-decoration: underline;
+    }
+  }
+
+  .bant__menu-dugmesi {
+    display: none;
+    place-items: center;
+    width: 2rem;
+    padding: 0;
+    border-radius: var(--rc-yaricap-md);
+    cursor: pointer;
+  }
+
+  @media (max-width: k.$rc-kirilim-mobil) {
+    .bant {
+      min-height: 2.75rem;
+      padding: var(--rc-bosluk-1-5) var(--rc-bosluk-4);
+    }
+
+    .bant__h1 {
+      font-size: var(--rc-yazi-lg);
+    }
+
+    .bant__alt {
+      display: none;
+    }
+
+    .bant__menu-dugmesi {
+      display: inline-grid;
+    }
+
+    // İkincil eylemler "…" altında açılır panel (katman: gölge var).
+    .bant__eylemler {
+      position: absolute;
+      z-index: var(--rc-z-yapiskan);
+      inset-block-start: calc(100% + var(--rc-bosluk-1));
+      inset-inline-end: 0;
+      display: none;
+      flex-direction: column;
+      align-items: stretch;
+      min-width: 12rem;
+      padding: var(--rc-bosluk-1-5);
+      border: 1px solid var(--rc-kenar);
+      border-radius: var(--rc-yaricap-lg);
+      background-color: var(--rc-yuzey);
+      box-shadow: var(--rc-golge-katman);
+
+      .rc-dugme {
+        justify-content: flex-start;
+        border-color: transparent;
+        color: var(--rc-metin);
+
+        &:hover {
+          border-color: transparent;
+          background-color: var(--rc-yuzey-alt);
+          color: var(--rc-metin);
+        }
+
+        &:focus-visible {
+          outline-color: var(--rc-odak);
+        }
+      }
+    }
+
+    .bant__eylemler--acik {
+      display: flex;
+    }
+  }
+}

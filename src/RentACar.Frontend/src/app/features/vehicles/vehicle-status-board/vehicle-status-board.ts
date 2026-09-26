@@ -48,6 +48,10 @@ import {
 } from '../vehicle-model';
 import { StatusBoardStore, secimSuggestionFetch } from '../vehicle.store';
 import { statusColumns } from './status-columns';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
+import { StatusSignCardComponent } from '@shared/tabela-karti/tabela-karti';
 
 /** Canlı pano tazeleme aralığı (Blazor `data-rc-tazele="60"`). */
 export const REFRESH_INTERVAL_MS = 60_000;
@@ -65,6 +69,10 @@ type TriState = (typeof TRI_STATE)[number];
   selector: 'rc-vehicle-status-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    StatusSignCardComponent,
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
@@ -77,7 +85,7 @@ type TriState = (typeof TRI_STATE)[number];
   ],
   providers: [FetchPolicy, StatusBoardStore],
   templateUrl: './vehicle-status-board.html',
-  styleUrl: '../vehicles.scss',
+  styleUrl: '../vehicle-screens.scss',
 })
 export class VehicleStatusBoard {
   protected readonly store = inject(StatusBoardStore);
@@ -163,6 +171,18 @@ export class VehicleStatusBoard {
       default:
         return d;
     }
+  });
+
+  /** Tabela kartları için ham sayaçlar (sunucu, filtreye uyan tüm satırlar). */
+  protected readonly boardCounts = computed(() => {
+    const b = this.store.board.veri();
+    if (!b) return null;
+    return {
+      toplam: toNumber(b.liste.toplam) ?? 0,
+      kirada: toNumber(b.kirada) ?? 0,
+      serviste: toNumber(b.serviste) ?? 0,
+      bafta: toNumber(b.bafta) ?? 0,
+    };
   });
 
   protected readonly counters = computed(() => {

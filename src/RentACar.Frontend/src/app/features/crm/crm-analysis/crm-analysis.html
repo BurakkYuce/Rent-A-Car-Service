@@ -1,68 +1,54 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'crm.analiz.baslik' | transloco }}</h1>
-  </header>
-  <p class="aciklama">{{ 'crm.analiz.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'crm.analiz.baslik' | transloco" ikon="chart-bar" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'crm.analiz.aciklama' | transloco }}</p>
 
   <h2>{{ 'crm.analiz.segment' | transloco }}</h2>
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'crm.filtre' | transloco"
-    (ngSubmit)="filter()"
+    [etkinSayisi]="query.etkinFiltreSayisi()"
+    depoAnahtari="rc.filtre.crm"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan
-        [etiket]="'crm.analiz.tarihBas' | transloco"
-        [ipucu]="'crm.analiz.tarihIpucu' | transloco"
-      >
-        <rc-tarih-secici formControlName="tarihBas" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.analiz.tarihBit' | transloco">
-        <rc-tarih-secici formControlName="tarihBit" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.analiz.minKira' | transloco">
-        <rc-sayi-girdisi formControlName="minKira" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.analiz.kaynak' | transloco">
-        <rc-secim
-          formControlName="kaynak"
-          [secenekler]="sourceOptions()"
-          [bosEtiket]="'crm.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.analiz.ofis' | transloco">
-        <rc-secim
-          formControlName="ofis"
-          [secenekler]="officeOptions()"
-          [bosEtiket]="'crm.tumu' | transloco"
-        />
-      </rc-alan>
-    </div>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'crm.filtrele' | transloco }}
-      </button>
-      @if (query.etkinFiltreSayisi() > 0) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-          {{ 'crm.temizle' | transloco }}
-        </button>
-      }
-    </div>
-  </form>
+    <rc-alan
+      [etiket]="'crm.analiz.tarihBas' | transloco"
+      [ipucu]="'crm.analiz.tarihIpucu' | transloco"
+    >
+      <rc-tarih-secici formControlName="tarihBas" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.analiz.tarihBit' | transloco">
+      <rc-tarih-secici formControlName="tarihBit" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.analiz.minKira' | transloco">
+      <rc-sayi-girdisi formControlName="minKira" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.analiz.kaynak' | transloco">
+      <rc-secim
+        formControlName="kaynak"
+        [secenekler]="sourceOptions()"
+        [bosEtiket]="'crm.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.analiz.ofis' | transloco">
+      <rc-secim
+        formControlName="ofis"
+        [secenekler]="officeOptions()"
+        [bosEtiket]="'crm.tumu' | transloco"
+      />
+    </rc-alan>
+  </rc-filtre-paneli>
 
   @if (store.analysis.veri(); as a) {
-    <dl class="ozet-serit" [attr.aria-label]="'crm.analiz.ozet' | transloco">
-      <div>
+    <dl class="rc-izgara-4 ozet" [attr.aria-label]="'crm.analiz.ozet' | transloco">
+      <div class="rc-kart">
         <dt>{{ 'crm.analiz.musteriSayisi' | transloco }}</dt>
         <dd>{{ num(a.musteriSayisi) | sayi: '1.0-0' }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'crm.analiz.toplamCiro' | transloco }}</dt>
         <dd>{{ num(a.toplamCiro) | para }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'crm.analiz.ekHizmet' | transloco }}</dt>
         <dd>{{ num(a.toplamHizmetBedeli) | para }}</dd>
       </div>
@@ -70,7 +56,7 @@
   }
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="crm.segment"
     [etiket]="'crm.analiz.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -83,29 +69,29 @@
     (yenidenDene)="store.analysis.yenile()"
   />
 
-  <section class="bolum" aria-labelledby="rc-crm-personel">
+  <section class="rc-bolum" aria-labelledby="rc-crm-personel">
     <h2 id="rc-crm-personel">{{ 'crm.analiz.personelBaslik' | transloco }}</h2>
-    <p class="aciklama">
+    <p class="not">
       {{ 'crm.analiz.personelAciklama' | transloco }}
       <a routerLink="/raporlar/personel-calisma">{{ 'crm.analiz.personelRapor' | transloco }}</a>
     </p>
-    <div class="tablo-kap">
-      <table class="duz-tablo">
+    <div class="rc-tablo-kap">
+      <table class="rc-duz-tablo">
         <thead>
           <tr>
             <th scope="col">{{ 'crm.analiz.personel' | transloco }}</th>
-            <th scope="col" class="num">{{ 'crm.analiz.tahsisSayisi' | transloco }}</th>
+            <th scope="col" class="rc-num">{{ 'crm.analiz.tahsisSayisi' | transloco }}</th>
           </tr>
         </thead>
         <tbody>
           @for (p of store.analysis.veri()?.personel ?? []; track p.personelId) {
             <tr>
               <td>{{ p.ad }}</td>
-              <td class="num">{{ num(p.tahsisSayisi) | sayi: '1.0-0' }}</td>
+              <td class="rc-num">{{ num(p.tahsisSayisi) | sayi: '1.0-0' }}</td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="2" class="aciklama">{{ 'crm.veriYok' | transloco }}</td>
+              <td colspan="2" class="rc-bos">{{ 'crm.veriYok' | transloco }}</td>
             </tr>
           }
         </tbody>

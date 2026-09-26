@@ -16,7 +16,7 @@ import { KF_ORTAK } from './ortak';
   imports: [...KF_ORTAK, RouterLink],
   template: `
     <div [formGroup]="d.form">
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.musteriSecimi' | transloco }}</h3>
         <div class="rc-form-izgara">
           <rc-alan
@@ -69,7 +69,7 @@ import { KF_ORTAK } from './ortak';
       @if (d.yeni) {
         <p class="kf-not">{{ 'kiraFormuParite.musteri.kayittanSonra' | transloco }}</p>
       } @else if (ozet(); as m) {
-        <section class="kf-kart" data-testid="musteri-ozeti">
+        <section class="rc-bolum kf-kart" data-testid="musteri-ozeti">
           <h3 class="kf-kart__baslik">
             {{ 'kiraFormuParite.musteri.iletisimBaslik' | transloco }}
           </h3>
@@ -96,7 +96,7 @@ import { KF_ORTAK } from './ortak';
             </div>
           </dl>
         </section>
-        <section class="kf-kart">
+        <section class="rc-bolum kf-kart">
           <h3 class="kf-kart__baslik">{{ 'kiraFormuParite.musteri.adresBaslik' | transloco }}</h3>
           <dl class="kf-bilgiler">
             <div class="rc-form-izgara__genis">
@@ -144,7 +144,7 @@ import { KF_ORTAK } from './ortak';
         </p>
       }
 
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.misafirSurucu' | transloco }}</h3>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'kiraFormu.alan.ad' | transloco">
@@ -171,7 +171,7 @@ import { KF_ORTAK } from './ortak';
         <p class="kf-not">{{ 'kiraFormu.not.misafirSurucu' | transloco }}</p>
       </section>
 
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.risk' | transloco }}</h3>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'kiraFormu.alan.findeks' | transloco">

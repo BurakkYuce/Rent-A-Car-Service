@@ -1,4 +1,4 @@
-<section id="rc-yeni-ceza" class="bolum" aria-labelledby="rc-yeni-ceza-baslik">
+<section id="rc-yeni-ceza" class="rc-bolum" aria-labelledby="rc-yeni-ceza-baslik">
   <h2 id="rc-yeni-ceza-baslik">{{ 'finansBelge.ceza.yeni' | transloco }}</h2>
   <form class="form" [formGroup]="form" (ngSubmit)="submit()">
     <div class="rc-form-izgara">
@@ -60,7 +60,7 @@
       }
     </datalist>
     <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-    <div class="form__eylemler">
+    <div class="rc-form-eylemler">
       <button
         type="submit"
         class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"

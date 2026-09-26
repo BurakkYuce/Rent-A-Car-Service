@@ -1,3 +1,5 @@
+@use 'kirilim' as k;
+
 :host {
   display: block;
 }
@@ -18,6 +20,7 @@
   }
 }
 
+// Yol v2 §5.1: kenar çubuğu 240 px, daraltılınca 56 px ikon şeridi.
 .kabuk {
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr);
@@ -25,30 +28,126 @@
   min-height: 100dvh;
 }
 
+.kabuk--dar {
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+}
+
 .yan {
   position: sticky;
   top: 0;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  overflow-y: auto;
-  border-inline-end: 1px solid var(--rc-kenar);
-  background-color: var(--rc-yuzey);
-  overscroll-behavior: contain;
+  background-color: var(--rc-kenar-cubugu-zemin);
+  color: var(--rc-kenar-cubugu-metin);
 }
 
 .yan__ust {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
-  justify-content: space-between;
-  min-height: 2.75rem;
-  padding: var(--rc-bosluk-1) var(--rc-bosluk-3);
-  border-block-end: 1px solid var(--rc-kenar);
+  gap: var(--rc-bosluk-2);
+  min-height: 3.5rem;
+  padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
+}
+
+.logo {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--rc-yaricap-md);
+  background-color: var(--rc-kenar-cubugu-rozet-zemin);
+  color: var(--rc-kenar-cubugu-rozet-metin);
+  font-size: var(--rc-yazi-sm);
+  font-weight: var(--rc-agirlik-cok-kalin);
 }
 
 .yan__marka {
-  color: var(--rc-vurgu-metin);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: var(--rc-satir-sik);
+}
+
+.yan__ad {
   font-size: var(--rc-yazi-md);
-  font-weight: var(--rc-agirlik-cok-kalin);
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.yan__firma,
+.kullanici__rol,
+.yan__firma,
+.kullanici__rol {
+  color: var(--rc-kenar-cubugu-ikincil);
+  font-size: var(--rc-yazi-2xs);
+}
+
+.yan__menu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.yan__ikon-dugme {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: var(--rc-kontrol-yukseklik-kucuk);
+  height: var(--rc-kontrol-yukseklik-kucuk);
+  padding: 0;
+  border: 1px solid var(--rc-kenar-cubugu-kontrol-kenar);
+  border-radius: var(--rc-yaricap-md);
+  background: none;
+  color: var(--rc-kenar-cubugu-metin);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--rc-kenar-cubugu-aktif-zemin);
+  }
+
+  &:focus-visible {
+    outline: var(--rc-odak-kalinlik) solid var(--rc-kenar-cubugu-metin);
+  }
+}
+
+// 56 px şerit: marka metni, şube adı ve kullanıcı metni görsel olarak gizli; avatar + çıkış alt alta.
+.kabuk--dar {
+  .yan__ust {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .yan__marka,
+  .sube__ad,
+  .kullanici__metin {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .yan__alt {
+    align-items: center;
+    padding-inline: var(--rc-bosluk-1);
+  }
+
+  .sube {
+    justify-content: center;
+    width: var(--rc-kontrol-yukseklik-kucuk);
+    padding: 0;
+  }
+
+  .kullanici {
+    flex-direction: column;
+  }
 }
 
 .ana {
@@ -73,8 +172,9 @@
   background-color: var(--rc-perde);
 }
 
-@media (max-width: 900px) {
-  .kabuk {
+@media (max-width: k.$rc-kirilim-mobil) {
+  .kabuk,
+  .kabuk--dar {
     grid-template-columns: minmax(0, 1fr);
   }
 

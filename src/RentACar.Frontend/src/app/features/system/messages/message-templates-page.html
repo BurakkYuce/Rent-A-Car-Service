@@ -1,14 +1,14 @@
-<div class="sayfa">
-  <h1>{{ 'sistem.mesaj.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'sistem.mesaj.aciklama' | transloco }}</p>
-  <p class="aciklama">
+<rc-sayfa-bandi [baslik]="'sistem.mesaj.baslik' | transloco" ikon="file-text" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'sistem.mesaj.aciklama' | transloco }}</p>
+  <p class="not">
     {{ 'sistem.mesaj.yerTutucular' | transloco }}
     @for (p of placeholders; track p) {
       <code class="kod-metin">{{ p }}</code
       >{{ ' ' }}
     }
   </p>
-  <p class="aciklama">{{ 'sistem.mesaj.yerTutucuNotu' | transloco }}</p>
+  <p class="not">{{ 'sistem.mesaj.yerTutucuNotu' | transloco }}</p>
 
   @switch (list.tur()) {
     @case ('hata') {
@@ -20,15 +20,15 @@
       </div>
     }
     @case ('hazir') {
-      <div class="kaydirma">
-        <table class="tablo">
+      <div class="rc-tablo-kap">
+        <table class="rc-duz-tablo">
           <thead>
             <tr>
               <th scope="col">{{ 'sistem.mesaj.olay' | transloco }}</th>
               <th scope="col">{{ 'sistem.mesaj.kanal' | transloco }}</th>
               <th scope="col">{{ 'sistem.mesaj.konu' | transloco }}</th>
               <th scope="col">{{ 'sistem.mesaj.durum' | transloco }}</th>
-              <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+              <th scope="col" class="satir-eylemleri">{{ 'sistem.ortak.islemler' | transloco }}</th>
             </tr>
           </thead>
           <tbody>
@@ -44,7 +44,7 @@
                     {{ (m.aktif ? 'sistem.ortak.aktif' : 'sistem.mesaj.kapali') | transloco }}
                   }
                 </td>
-                <td class="islemler">
+                <td class="satir-eylemleri">
                   <button
                     type="button"
                     class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"

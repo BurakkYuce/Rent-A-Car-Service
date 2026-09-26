@@ -14,8 +14,8 @@ export const TEMA_ANAHTARI = 'rc.tema';
  * okunur yapılır. Eşleşmeyi `scripts/kontrast-denetimi.mjs` denetler (lint kapısı).
  */
 export const TEMA_ZEMINLERI: Readonly<Record<EtkinTema, readonly string[]>> = {
-  acik: ['#f5f7fa', '#ffffff', '#eef2f6', '#e4eaf2', '#e3ebfd'],
-  koyu: ['#0d131c', '#151d29', '#1b2533', '#233044', '#1a2a4a'],
+  acik: ['#f4f2ec', '#ffffff', '#ece9e1', '#e2ded3', '#e4e9f7'],
+  koyu: ['#141310', '#1c1b17', '#24221d', '#2d2b25', '#1b2a55'],
 };
 
 /** Kiracı vurgusundan türetilen CSS değişkenleri (tokenlar bunları `var(--rc-kiraci-*, …)` ile okur). */

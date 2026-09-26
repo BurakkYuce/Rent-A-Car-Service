@@ -37,6 +37,7 @@ import {
   exceptionTargets,
   grantablePermissions,
 } from './users-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 const ROOT = '/api/ui/v1/kullanicilar' as const;
 const PASSWORD_MAX = 128;
@@ -50,6 +51,7 @@ const PASSWORD_MAX = 128;
   selector: 'rc-users-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

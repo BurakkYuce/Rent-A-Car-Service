@@ -1,4 +1,7 @@
-// Tablo motoru. Yoğun: satır = --rc-tablo-satir (32 px), hücre iç boşluğu --rc-tablo-hucre-bosluk.
+// Tablo motoru. Yoğun: satır = --rc-tablo-satir, hücre iç boşluğu --rc-tablo-hucre-bosluk. İki satırlı hücreli liste
+// gridi (Yol v2 §4: 46 px) için kullanan sayfa `--rc-tablo-satir`'ı host'ta büyütür; sanal ölçüm de oradan okur.
+// Yol v2: ASFALT başlık (iki temada aynı, `--rc-tablo-baslik-*`), hover, seçili (`--rc-secim`), bugün
+// (`.rc-satir-bugun` → `--rc-satir-vurgu`, `satirSinifi` girdisiyle).
 // Sabit başlık (top) ve sabit sütunlar (left) aynı kaydırıcıda `position: sticky` ile; sanal
 // satırlar boşluk satırlarıyla (tablo semantiği korunur, div ızgarası yok).
 :host {
@@ -10,12 +13,14 @@
   background: var(--rc-yuzey);
 }
 
+// Üst çubuk = toplu işlem yuvası (`[rcTabloAraclari]`, ör. `.rc-toplu-islem`) + dışa aktarma + sütun seçici.
 .arac-cubugu {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--rc-bosluk-2);
-  padding: var(--rc-bosluk-1-5) var(--rc-bosluk-2);
+  min-height: calc(var(--rc-kontrol-yukseklik) + var(--rc-bosluk-3));
+  padding: var(--rc-bosluk-1-5) var(--rc-bosluk-3);
   border-bottom: 1px solid var(--rc-kenar);
 }
 
@@ -83,13 +88,17 @@
 }
 
 .baslik {
+  // Asfalt üstünde lacivert odak halkası kaybolur: başlıkta açık lacivert.
+  --rc-odak: var(--rc-ham-lacivert-200);
+
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--rc-yuzey-alt);
-  color: var(--rc-metin-ikincil);
+  border-bottom-color: var(--rc-tablo-baslik-zemin);
+  background: var(--rc-tablo-baslik-zemin);
+  color: var(--rc-tablo-baslik-metin);
   font-size: var(--rc-yazi-xs);
-  font-weight: var(--rc-agirlik-kalin);
+  font-weight: var(--rc-agirlik-orta);
   user-select: none;
 
   &.hucre--sabit {
@@ -116,11 +125,11 @@
 }
 
 .baslik__siralama {
-  color: var(--rc-metin-pasif);
+  color: color-mix(in srgb, currentColor 55%, transparent);
 }
 
 .baslik__siralama--etkin {
-  color: var(--rc-vurgu-metin);
+  color: inherit;
 }
 
 .boyutlayici {
@@ -140,8 +149,14 @@
   background: var(--rc-yuzey-alt);
 }
 
-.satir--secili .hucre {
-  background: var(--rc-vurgu-zemin);
+// Bugün dönen/çıkan: krem satır (sıra önemli — seçim bugünü ezer).
+.satir.rc-satir-bugun .hucre {
+  background: var(--rc-satir-vurgu);
+}
+
+.satir--secili .hucre,
+.satir--secili:hover .hucre {
+  background: var(--rc-secim);
 }
 
 .bosluk td {

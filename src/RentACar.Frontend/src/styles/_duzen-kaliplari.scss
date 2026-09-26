@@ -1,0 +1,173 @@
+// Düzen kalıpları (Yol v2 §7): YALNIZ mixin — bu dosya CSS üretmez. Tüketicisi `_duzen.scss` (global `.rc-*` düzen
+// sınıfları; ızgara/medya kuralları orada gruplu). Göç (PR-D1–D4) bitti: feature'lar bu mixin'leri değil global
+// sınıfları kullanır.
+// Renk yalnız var(--rc-*); kırılım yalnız `_kirilim.scss` değişkeniyle.
+@use 'kirilim' as k;
+
+// `$duyarli: false` → dar ekran kuralını çağıran kendi ortak medya bloğunda verir (global katman CSS'i küçük kalsın).
+@mixin sayfa($duyarli: true) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  min-width: 0;
+  padding: var(--rc-bosluk-4) var(--rc-bosluk-6);
+
+  @if $duyarli {
+    @media (max-width: k.$rc-kirilim-dar) {
+      @include sayfa-dar;
+    }
+  }
+}
+
+@mixin sayfa-dar {
+  padding: var(--rc-bosluk-3) var(--rc-bosluk-4);
+}
+
+// Bandsız ekranların başlık satırı: başlık solda, eylemler sağda.
+@mixin sayfa-basligi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2) var(--rc-bosluk-3);
+  align-items: center;
+  justify-content: space-between;
+
+  > h1 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--rc-bosluk-2);
+    align-items: center;
+    margin: 0;
+    font-size: var(--rc-yazi-3xl);
+    font-weight: var(--rc-agirlik-kalin);
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+  }
+}
+
+// Kağıt üstüne yazı: gölge yok, 1 px kenar + yüzey farkı.
+@mixin yuzey-kutusu {
+  min-width: 0;
+  border: 1px solid var(--rc-kenar);
+  border-radius: var(--rc-yaricap-lg);
+  background-color: var(--rc-yuzey);
+}
+
+@mixin bolum {
+  @include yuzey-kutusu;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  padding: var(--rc-bosluk-4);
+
+  > h2 {
+    margin: 0;
+    font-size: var(--rc-yazi-lg);
+    font-weight: var(--rc-agirlik-kalin);
+  }
+}
+
+@mixin tablo-kap {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@mixin num {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+@mixin hucre-alt {
+  display: block;
+  margin-top: var(--rc-bosluk-0-5);
+  color: var(--rc-metin-soluk);
+  font-size: var(--rc-yazi-2xs);
+  font-weight: var(--rc-agirlik-normal);
+  line-height: var(--rc-satir-sik);
+}
+
+@mixin bos {
+  padding: var(--rc-bosluk-6) var(--rc-bosluk-3);
+  color: var(--rc-metin-soluk);
+  text-align: center;
+}
+
+// Düz <table>: rc-tablo motoruyla aynı görünüm — asfalt başlık, 36 px satır, hover, bugün/seçili satır.
+@mixin duz-tablo {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--rc-yazi-sm);
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    height: var(--rc-tablo-satir);
+    padding: var(--rc-bosluk-1) var(--rc-bosluk-3);
+    border-bottom: 1px solid var(--rc-kenar);
+    background-color: var(--rc-yuzey);
+    text-align: start;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  thead th {
+    background-color: var(--rc-tablo-baslik-zemin);
+    border-bottom-color: var(--rc-tablo-baslik-zemin);
+    color: var(--rc-tablo-baslik-metin);
+    font-size: var(--rc-yazi-xs);
+    font-weight: var(--rc-agirlik-orta);
+
+    a {
+      color: inherit;
+    }
+  }
+
+  tbody tr:hover > td {
+    background-color: var(--rc-yuzey-alt);
+  }
+
+  tbody tr:last-child > td {
+    border-bottom: 0;
+  }
+
+  tbody tr.rc-satir-bugun > td {
+    background-color: var(--rc-satir-vurgu);
+  }
+
+  tbody tr.rc-satir-secili > td,
+  tbody tr[aria-selected='true'] > td {
+    background-color: var(--rc-secim);
+  }
+
+  tfoot td,
+  tfoot th {
+    border-top: 1px solid var(--rc-kenar);
+    border-bottom: 0;
+    background-color: var(--rc-yuzey-alt);
+    font-weight: var(--rc-agirlik-kalin);
+  }
+
+  td a + a {
+    margin-inline-start: var(--rc-bosluk-2);
+  }
+
+  .rc-num {
+    @include num;
+  }
+
+  .rc-bos {
+    @include bos;
+
+    white-space: normal;
+  }
+}
+
+@mixin form-eylemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+}

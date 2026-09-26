@@ -34,6 +34,7 @@ import {
   type PlatformTenantOption,
   toNumber,
 } from '../platform-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { PlatformSessionService } from '../platform-session';
 
 /** Max PDF size (server `PdfValidation.MaxBayt`, 3 MB) — shown as a hint; the server decides. */
@@ -56,6 +57,7 @@ const MAX_MB = 3;
     Ikon,
     MetinGirdisi,
     OnayKutusu,
+    SayfaBandi,
     TarihSaatPipe,
   ],
   templateUrl: './document-center-page.html',

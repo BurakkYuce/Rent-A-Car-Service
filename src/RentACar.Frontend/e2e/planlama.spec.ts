@@ -55,7 +55,7 @@ const TAKVIM: VitrinSayfasi = {
   yol: '/app/takvim?ay=2026-10',
   baslik: 'Rezervasyon Takvimi',
   hazir: async (page) => {
-    await expect(page.getByRole('link', { name: /34ABC123/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /34 ABC 123/ })).toBeVisible();
   },
 };
 
@@ -68,7 +68,7 @@ const MUSAITLIK: VitrinSayfasi = {
       'aria-busy',
       'true',
     );
-    await expect(page.getByRole('gridcell', { name: '34ABC123', exact: true })).toBeVisible();
+    await expect(page.getByRole('gridcell', { name: '34 ABC 123', exact: true })).toBeVisible();
   },
 };
 
@@ -89,7 +89,7 @@ test('takvim: doluluk sunucudan (K/R), plaka → kira formu ?varac=, ay gezinmes
   await expect(page.getByTitle('34ABC123 — Kira')).toHaveCount(3);
   await expect(page.getByTitle('34ABC123 — Rezervasyon')).toHaveCount(1);
   await expect(page.getByText('Araç: 2')).toBeVisible();
-  await expect(page.getByRole('link', { name: /34ABC123/ })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: /34 ABC 123/ })).toHaveAttribute(
     'href',
     `/app/kiralar/yeni?varac=${ARAC_1}`,
   );

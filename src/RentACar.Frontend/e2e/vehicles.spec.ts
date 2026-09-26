@@ -16,7 +16,7 @@ const LIST: VitrinSayfasi = {
   yol: '/app/araclar',
   baslik: 'Araç Listesi',
   hazir: async (page) => {
-    await expect(page.getByRole('link', { name: '34ABC123' }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: '34 ABC 123' }).first()).toBeVisible();
   },
 };
 const DETAILED: VitrinSayfasi = {
@@ -24,7 +24,7 @@ const DETAILED: VitrinSayfasi = {
   yol: '/app/araclar/detayli',
   baslik: 'Detaylı Araç Listesi',
   hazir: async (page) => {
-    await expect(page.getByRole('link', { name: '34ABC123' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '34 ABC 123' })).toBeVisible();
   },
 };
 const NEW: VitrinSayfasi = { ad: 'arac-yeni', yol: '/app/araclar/yeni', baslik: 'Yeni Araç' };

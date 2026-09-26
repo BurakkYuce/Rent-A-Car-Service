@@ -1,6 +1,6 @@
-<div class="sayfa">
-  <h1>{{ 'sistem.ara.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'sistem.ara.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'sistem.ara.baslik' | transloco" ikon="search" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'sistem.ara.aciklama' | transloco }}</p>
   <div class="rc-form-izgara" [formGroup]="form" role="search">
     <rc-alan [etiket]="'sistem.ara.metin' | transloco">
       <rc-metin-girdisi
@@ -28,7 +28,7 @@
         @if ((results.veri() ?? []).length === 0) {
           <p class="bos" role="status">{{ 'sistem.ara.bos' | transloco }}</p>
         } @else {
-          <ul class="bolum" role="list">
+          <ul class="rc-bolum sonuc-listesi" role="list">
             @for (h of results.veri() ?? []; track $index) {
               <li>
                 <span class="rc-rozet">{{ h.tur }}</span>

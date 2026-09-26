@@ -44,6 +44,7 @@ import {
   customerPath,
   financePath,
 } from './finance-model';
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type Translate = ReturnType<typeof ceviriFonksiyonu>;
 
@@ -267,6 +268,7 @@ export const FIN_COMMON = [
   TarihSecici,
   MoneyNoticeView,
   MoneySubmitBar,
+  SayfaBandi,
   FinanceMoneyPipe,
   FinanceNumberPipe,
   NegativePipe,

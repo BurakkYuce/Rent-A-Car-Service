@@ -1,8 +1,7 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finans.duzeltme.baslik' | transloco }}</h1>
-  </header>
-  <p class="uyari-kutusu">{{ 'finans.duzeltme.uyari' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'finans.duzeltme.baslik' | transloco" ikon="adjustments-horizontal">
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="rc-form-mesaji rc-form-mesaji--uyari">{{ 'finans.duzeltme.uyari' | transloco }}</p>
 
   <div class="rc-form-izgara">
     <rc-alan [etiket]="'finans.alan.cari' | transloco">
@@ -11,10 +10,10 @@
   </div>
 
   @if (cariId(); as id) {
-    <section class="bolum" aria-labelledby="rc-duzeltme-form">
+    <section class="rc-bolum" aria-labelledby="rc-duzeltme-form">
       <h2 id="rc-duzeltme-form">{{ balance.veri()?.cariAd ?? '' }}</h2>
       @if (balance.veri(); as b) {
-        <p class="ozet">
+        <p class="not">
           {{ 'finans.cari.guncelBakiye' | transloco }}
           <strong [class.negatif]="side() === 'borclu'">{{ b.bakiye | fpara }}</strong>
           @if (side(); as s) {

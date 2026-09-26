@@ -1,67 +1,49 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'crm.anket.baslik' | transloco }}</h1>
-  </header>
-  <p class="aciklama">{{ 'crm.anket.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'crm.anket.baslik' | transloco" ikon="file-text" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'crm.anket.aciklama' | transloco }}</p>
 
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'crm.filtre' | transloco"
-    (ngSubmit)="filter()"
+    [etkinSayisi]="query.etkinFiltreSayisi()"
+    depoAnahtari="rc.filtre.anketler"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan [etiket]="'crm.musteri' | transloco">
-        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.anket.tur' | transloco">
-        <rc-secim
-          formControlName="anketTuru"
-          [secenekler]="typeOptions"
-          [bosEtiket]="'crm.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.durum' | transloco">
-        <rc-secim
-          formControlName="durum"
-          [secenekler]="statusOptions"
-          [bosEtiket]="'crm.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.baslangic' | transloco">
-        <rc-tarih-secici formControlName="tarihBas" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.bitis' | transloco">
-        <rc-tarih-secici formControlName="tarihBit" />
-      </rc-alan>
-      <rc-alan [etiket]="'crm.cikisOfisi' | transloco">
-        <rc-metin-girdisi
-          formControlName="cikisOfisi"
-          [azamiUzunluk]="128"
-          liste="dl-anket-ofis-f"
-        />
-      </rc-alan>
-    </div>
-    <datalist id="dl-anket-ofis-f">
-      @for (o of filterOffices(); track o) {
-        <option [value]="o"></option>
-      }
-    </datalist>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'crm.filtrele' | transloco }}
-      </button>
-      @if (query.etkinFiltreSayisi() > 0) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-          {{ 'crm.temizle' | transloco }}
-        </button>
-      }
-    </div>
-  </form>
+    <rc-alan [etiket]="'crm.musteri' | transloco">
+      <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.anket.tur' | transloco">
+      <rc-secim
+        formControlName="anketTuru"
+        [secenekler]="typeOptions"
+        [bosEtiket]="'crm.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.durum' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'crm.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.baslangic' | transloco">
+      <rc-tarih-secici formControlName="tarihBas" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.bitis' | transloco">
+      <rc-tarih-secici formControlName="tarihBit" />
+    </rc-alan>
+    <rc-alan [etiket]="'crm.cikisOfisi' | transloco">
+      <rc-metin-girdisi formControlName="cikisOfisi" [azamiUzunluk]="128" liste="dl-anket-ofis-f" />
+    </rc-alan>
+  </rc-filtre-paneli>
+  <datalist id="dl-anket-ofis-f">
+    @for (o of filterOffices(); track o) {
+      <option [value]="o"></option>
+    }
+  </datalist>
 
   @if (store.list.veri(); as page) {
-    <p class="ozet" aria-live="polite">
+    <p class="not" aria-live="polite">
       {{ 'crm.anket.ozet' | transloco: { toplam: page.toplam } }}
       @if (store.counts.veri(); as c) {
         · {{ 'crm.anket.ozetYapildi' | transloco: { sayi: c['yapildi'] } }} ·
@@ -71,7 +53,7 @@
   }
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="anket.liste"
     [etiket]="'crm.anket.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -92,7 +74,7 @@
       >
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         <button
           type="button"
           class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
@@ -112,7 +94,7 @@
     </ng-template>
   </rc-tablo>
 
-  <section class="bolum duzenleyici" aria-labelledby="rc-anket-formu">
+  <section class="rc-bolum duzenleyici" aria-labelledby="rc-anket-formu">
     <h2 id="rc-anket-formu" tabindex="-1">
       {{ (editor.editing().kind === 'new' ? 'crm.anket.yeni' : 'crm.anket.duzenle') | transloco }}
     </h2>
@@ -169,11 +151,11 @@
       </datalist>
 
       <p class="not">{{ 'crm.anket.sorularNotu' | transloco }}</p>
-      <div class="tablo-kap">
-        <table class="duz-tablo soru-tablosu">
+      <div class="rc-tablo-kap">
+        <table class="rc-duz-tablo soru-tablosu">
           <thead>
             <tr>
-              <th scope="col" class="num">#</th>
+              <th scope="col" class="rc-num">#</th>
               <th scope="col">{{ 'crm.anket.soru' | transloco }}</th>
               <th scope="col">{{ 'crm.anket.cevap' | transloco }}</th>
               <th scope="col">{{ 'crm.anket.cevapAciklama' | transloco }}</th>
@@ -182,7 +164,7 @@
           <tbody>
             @for (row of answers.controls; track row; let i = $index) {
               <tr [formGroup]="row">
-                <td class="num">{{ i + 1 | sayi: '1.0-0' }}</td>
+                <td class="rc-num">{{ i + 1 | sayi: '1.0-0' }}</td>
                 <td>
                   <input
                     class="rc-girdi"
@@ -214,7 +196,7 @@
       </div>
 
       <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-      <div class="form__eylemler">
+      <div class="rc-form-eylemler">
         <button
           type="submit"
           class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"

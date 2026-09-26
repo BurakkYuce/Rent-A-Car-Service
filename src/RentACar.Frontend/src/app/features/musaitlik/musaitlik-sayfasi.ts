@@ -24,6 +24,7 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
 import type { StoreDurumu } from '@core/veri/temel-store';
+import { BosDurum } from '@shared/bos-durum/bos-durum';
 import { Alan } from '@shared/form/alan/alan';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
@@ -31,9 +32,11 @@ import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 import {
   MUSAITLIK,
   type MusaitlikSatiri,
@@ -62,6 +65,9 @@ const jsonEsit = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringif
   selector: 'rc-musaitlik-sayfasi',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BosDurum,
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

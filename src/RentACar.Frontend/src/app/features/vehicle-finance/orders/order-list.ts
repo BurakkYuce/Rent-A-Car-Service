@@ -46,6 +46,8 @@ import {
 } from '../finance-model';
 import { ORDERS, OrderListStore, recordPath } from '../finance.store';
 import { CustomerLabels } from '../labels';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 
 type OrderStatus = (typeof ORDER_STATUSES)[number];
 type Transition = 'onayla' | 'teslim-al' | 'iptal';
@@ -59,6 +61,8 @@ type Transition = 'onayla' | 'teslim-al' | 'iptal';
   selector: 'rc-order-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

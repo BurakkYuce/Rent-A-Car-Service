@@ -11,7 +11,6 @@ import { metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
@@ -19,6 +18,9 @@ import { endorsementColumns } from '../service-insurance-columns';
 import { ENDORSEMENT_LIST, type EndorsementRow } from '../service-insurance-model';
 import { EndorsementListStore } from '../service-insurance.store';
 import { RegulationTabs } from './regulation-tabs';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
  * Zeyiller (`/app/regulasyon/zeyiller`, #301) — Blazor `/regulasyon` "Zeyil (Poliçe Ekleri)" tablosu: TÜM poliçelerin
@@ -29,11 +31,13 @@ import { RegulationTabs } from './regulation-tabs';
   selector: 'rc-endorsement-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    Ikon,
     MetinGirdisi,
     RegulationTabs,
     Tablo,

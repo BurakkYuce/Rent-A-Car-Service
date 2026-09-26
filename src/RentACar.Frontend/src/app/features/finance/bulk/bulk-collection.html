@@ -1,13 +1,14 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finans.topluTahsilat.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a routerLink="/tek-cari-toplu">{{ 'finans.topluTahsilat.tekCariModu' | transloco }}</a>
-    </div>
-  </header>
-  <p class="aciklama">{{ 'finans.topluTahsilat.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'finans.topluTahsilat.baslik' | transloco" ikon="cash">
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/tek-cari-toplu">{{
+      'finans.topluTahsilat.tekCariModu' | transloco
+    }}</a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'finans.topluTahsilat.aciklama' | transloco }}</p>
 
-  <section class="bolum" aria-labelledby="rc-toplu-tahsilat">
+  <section class="rc-bolum" aria-labelledby="rc-toplu-tahsilat">
     <h2 id="rc-toplu-tahsilat">{{ 'finans.topluTahsilat.satirlar' | transloco }}</h2>
     <div class="rc-form-izgara" [formGroup]="form">
       <rc-alan [etiket]="'finans.alan.hesap' | transloco">
@@ -59,7 +60,7 @@
           </div>
         }
       </div>
-      <div class="form__eylemler">
+      <div class="rc-form-eylemler">
         <button
           type="button"
           class="rc-dugme rc-dugme--kucuk"

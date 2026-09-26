@@ -47,6 +47,7 @@ import {
 } from '../service-insurance-model';
 import { PolicyDetailStore, RegulationOptionsStore } from '../service-insurance.store';
 import { PolicyPayPanel } from './policy-pay-panel';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 /**
  * Sigorta poliçesi kaydı (`/app/regulasyon/sigortalar/:id`) — Blazor `/regulasyon` poliçe satırı + "Öde" formu +
@@ -57,6 +58,7 @@ import { PolicyPayPanel } from './policy-pay-panel';
   selector: 'rc-policy-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

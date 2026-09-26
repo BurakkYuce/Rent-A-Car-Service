@@ -1,22 +1,32 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'filoKiralama.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/filo-kiralama/yeni">
-        <rc-ikon ad="plus" [boyut]="14" />
-        {{ 'filoKiralama.yeni' | transloco }}
-      </a>
-    </div>
-  </header>
-  <p class="aciklama">{{ 'filoKiralama.aciklama' | transloco }}</p>
+<rc-sayfa-bandi ikon="car" [baslik]="'filoKiralama.baslik' | transloco">
+  <ng-container eylemler>
+    @if (disaAktarma(); as d) {
+      @for (bicim of d.bicimler ?? []; track bicim) {
+        <a class="rc-dugme" [href]="disaAktarmaAdresi(d, bicim)">
+          @if ($first) {
+            <rc-ikon ad="download" [boyut]="14" />
+          }
+          {{ 'tablo.disaAktar.' + bicim | transloco }}
+        </a>
+      }
+    }
+  </ng-container>
+  <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/filo-kiralama/yeni">
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'filoKiralama.yeni' | transloco }}
+  </a>
+</rc-sayfa-bandi>
+
+<div class="rc-sayfa">
+  <p class="not">{{ 'filoKiralama.aciklama' | transloco }}</p>
 
   <form
-    class="filtre"
+    class="filtre rc-bolum"
     [formGroup]="filtreFormu"
     [attr.aria-label]="'filoKiralama.filtre.baslik' | transloco"
     (ngSubmit)="filtrele()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan [etiket]="'filoKiralama.filtre.musteri' | transloco">
         <rc-arama-secim formControlName="musteri" [kaynak]="musteriler" />
       </rc-alan>
@@ -60,25 +70,26 @@
     </div>
   </form>
 
-  <p class="ozet" aria-live="polite">{{ ozet() }}</p>
-
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="filo-kiralama.liste"
     [etiket]="'filoKiralama.tabloEtiketi' | transloco"
     [sutunlar]="sutunlar"
     [kaynak]="store.liste.durum()"
     [satirKimligi]="kimlik"
     [sirala]="liste.sorgu().sirala"
-    [disaAktarma]="disaAktarma()"
     (siralaDegisti)="liste.degistir({ sirala: $event })"
     (sayfaDegisti)="liste.degistir({ sayfa: $event })"
     (boyutDegisti)="liste.degistir({ boyut: $event })"
     (yenidenDene)="store.liste.yenile()"
     (satirAc)="satiriAc($event)"
   >
+    <p rcTabloAraclari class="ozet" aria-live="polite">{{ ozet() }}</p>
     <ng-template rcTabloHucre="no" [rcTabloHucreSutunlar]="sutunlar" let-satir>
       <a class="bag" [routerLink]="['/filo-kiralama', satir.id]">{{ satir.no }}</a>
+    </ng-template>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="sutunlar" let-satir>
+      <rc-plaka boyut="sm" [plaka]="satir.plaka" />
     </ng-template>
     <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="sutunlar" let-satir>
       <span [class]="rozet(satir.durum)">{{ durumEtiketi(satir.durum) }}</span>

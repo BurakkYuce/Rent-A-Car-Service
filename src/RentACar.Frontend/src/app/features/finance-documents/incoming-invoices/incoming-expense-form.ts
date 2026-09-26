@@ -51,7 +51,7 @@ import { INCOMING, recordPath } from '../document.store';
     Secim,
   ],
   template: `
-    <section class="bolum" aria-labelledby="rc-gelen-gider">
+    <section class="rc-bolum" aria-labelledby="rc-gelen-gider">
       <h2 id="rc-gelen-gider">
         {{ 'finansBelge.gelen.giderlestirBaslik' | transloco: { ettn: invoice().ettn } }}
       </h2>
@@ -78,7 +78,7 @@ import { INCOMING, recordPath } from '../document.store';
         </datalist>
         <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
         <rc-money-notice [notice]="notice()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"

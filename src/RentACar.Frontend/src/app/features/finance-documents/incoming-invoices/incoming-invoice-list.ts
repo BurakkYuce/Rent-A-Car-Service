@@ -55,6 +55,8 @@ import {
 import { BranchNames, INCOMING, IncomingInvoiceStore, recordPath } from '../document.store';
 import { IncomingExpenseForm } from './incoming-expense-form';
 import { IncomingLinkForm } from './incoming-link-form';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type IncomingStatus = (typeof INCOMING_STATUSES)[number];
 type Panel =
@@ -71,6 +73,8 @@ type Panel =
   selector: 'rc-incoming-invoice-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

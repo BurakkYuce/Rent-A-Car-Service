@@ -41,9 +41,9 @@ const toNum = (v: number | string): number => (typeof v === 'number' ? v : Numbe
     TarihSecici,
   ],
   template: `
-    <details class="bolum">
+    <details class="rc-bolum acilir">
       <summary>{{ 'fiyatTarife.fiyatSorgu.baslik' | transloco }}</summary>
-      <p class="aciklama">{{ 'fiyatTarife.fiyatSorgu.aciklama' | transloco }}</p>
+      <p class="not">{{ 'fiyatTarife.fiyatSorgu.aciklama' | transloco }}</p>
       <form class="form" [formGroup]="form" (ngSubmit)="run()">
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'fiyatTarife.alan.kanal' | transloco">
@@ -66,14 +66,14 @@ const toNum = (v: number | string): number => (typeof v === 'number' ? v : Numbe
           </rc-alan>
         </div>
         <rc-form-hatalari [hatalar]="errors()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button type="submit" class="rc-dugme rc-dugme--kucuk" [disabled]="busy()">
             {{ 'fiyatTarife.fiyatSorgu.sorgula' | transloco }}
           </button>
         </div>
       </form>
       @if (notFound()) {
-        <p class="aciklama" role="status">{{ 'fiyatTarife.fiyatSorgu.yok' | transloco }}</p>
+        <p class="not" role="status">{{ 'fiyatTarife.fiyatSorgu.yok' | transloco }}</p>
       }
       @if (result(); as r) {
         <p class="sonraki" role="status">

@@ -52,14 +52,16 @@ import type { TabloSayfasi } from './tablo-modeli';
       align-items: center;
       justify-content: flex-end;
       gap: var(--rc-bosluk-2) var(--rc-bosluk-4);
-      padding: var(--rc-bosluk-1-5) var(--rc-bosluk-2);
+      min-height: calc(var(--rc-kontrol-yukseklik) + var(--rc-bosluk-3));
+      padding: var(--rc-bosluk-1-5) var(--rc-bosluk-3);
       border-top: 1px solid var(--rc-kenar);
       color: var(--rc-metin-ikincil);
-      font-size: var(--rc-yazi-xs);
+      font-size: var(--rc-yazi-sm);
       font-variant-numeric: tabular-nums;
     }
     .aralik {
       margin-inline-end: auto;
+      color: var(--rc-metin);
     }
     .boyut {
       display: inline-flex;

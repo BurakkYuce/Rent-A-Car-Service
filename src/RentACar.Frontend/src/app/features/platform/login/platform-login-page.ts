@@ -28,7 +28,8 @@ const REASON_MESSAGE: Readonly<Record<string, CeviriAnahtari>> = {
 /**
  * `/app/platform/giris` — platform operator login (Blazor `PlatformLogin` parity). Separate from the
  * tenant login: no company field, own session endpoint. The error is ALWAYS generic ("user name or
- * password wrong"); the password is cleared on error, the user name kept.
+ * password wrong"); the password is cleared on error, the user name kept. Bandless (Yol v2 §5.5): the card
+ * is in-page paper — 1 px border, no shadow (shadows only on layers).
  */
 @Component({
   selector: 'rc-platform-login-page',
@@ -105,6 +106,7 @@ const REASON_MESSAGE: Readonly<Record<string, CeviriAnahtari>> = {
       place-items: center;
       min-height: 100vh;
       padding: var(--rc-bosluk-6) var(--rc-bosluk-4);
+      background-color: var(--rc-zemin);
     }
     .card {
       display: flex;
@@ -115,7 +117,6 @@ const REASON_MESSAGE: Readonly<Record<string, CeviriAnahtari>> = {
       border: 1px solid var(--rc-kenar);
       border-radius: var(--rc-yaricap-xl);
       background-color: var(--rc-yuzey);
-      box-shadow: var(--rc-golge-2);
     }
     .head,
     form {

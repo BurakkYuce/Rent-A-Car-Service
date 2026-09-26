@@ -1,29 +1,32 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finansBelge.gelen.baslik' | transloco }}</h1>
+<rc-sayfa-bandi [baslik]="'finansBelge.gelen.baslik' | transloco" ikon="inbox">
+  <ng-container eylemler>
     @if (unrestricted()) {
-      <div class="ust__eylemler">
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-          [attr.aria-expanded]="createOpen()"
-          (click)="createOpen.set(!createOpen())"
-        >
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'finansBelge.gelen.elleGir' | transloco }}
-        </button>
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--kucuk"
-          [attr.aria-expanded]="syncOpen()"
-          (click)="syncOpen.set(!syncOpen())"
-        >
-          {{ 'finansBelge.gelen.gibdenCek' | transloco }}
-        </button>
-      </div>
+      <button
+        type="button"
+        class="rc-dugme"
+        [attr.aria-expanded]="syncOpen()"
+        (click)="syncOpen.set(!syncOpen())"
+      >
+        {{ 'finansBelge.gelen.gibdenCek' | transloco }}
+      </button>
     }
-  </header>
-  <p class="aciklama">
+  </ng-container>
+  <ng-container birincil>
+    @if (unrestricted()) {
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--birincil"
+        [attr.aria-expanded]="createOpen()"
+        (click)="createOpen.set(!createOpen())"
+      >
+        <rc-ikon ad="plus" [boyut]="14" />
+        {{ 'finansBelge.gelen.elleGir' | transloco }}
+      </button>
+    }
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">
     {{ 'finansBelge.gelen.aciklama' | transloco }}
     <a routerLink="/giderler">{{ 'finansBelge.gider.baslik' | transloco }}</a>
   </p>
@@ -32,7 +35,7 @@
   }
 
   @if (unrestricted() && createOpen()) {
-    <section class="bolum" aria-labelledby="rc-gelen-yeni">
+    <section class="rc-bolum" aria-labelledby="rc-gelen-yeni">
       <h2 id="rc-gelen-yeni">{{ 'finansBelge.gelen.elleGir' | transloco }}</h2>
       <form class="form" [formGroup]="createForm" (ngSubmit)="create()">
         <div class="rc-form-izgara">
@@ -68,7 +71,7 @@
           </rc-alan>
         </div>
         <rc-form-hatalari [hatalar]="createSubmission.genelHatalar()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -86,7 +89,7 @@
   }
 
   @if (unrestricted() && syncOpen()) {
-    <section class="bolum" aria-labelledby="rc-gelen-cek">
+    <section class="rc-bolum" aria-labelledby="rc-gelen-cek">
       <h2 id="rc-gelen-cek">{{ 'finansBelge.gelen.gibdenCek' | transloco }}</h2>
       <p class="not">{{ 'finansBelge.gelen.cekAciklama' | transloco }}</p>
       <form class="form" [formGroup]="syncForm" (ngSubmit)="sync()">
@@ -99,7 +102,7 @@
           </rc-alan>
         </div>
         <rc-form-hatalari [hatalar]="syncSubmission.genelHatalar()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--kucuk"
@@ -113,12 +116,12 @@
   }
 
   <form
-    class="filtre"
+    class="rc-bolum filtre"
     [formGroup]="filterForm"
     [attr.aria-label]="'finansBelge.filtre' | transloco"
     (ngSubmit)="filter()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan [etiket]="'finansBelge.gelen.firma' | transloco">
         <rc-metin-girdisi formControlName="firma" [azamiUzunluk]="256" />
       </rc-alan>
@@ -166,7 +169,7 @@
   </form>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablo"
     tabloKodu="gelen-efatura.liste"
     [etiket]="'finansBelge.gelen.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -187,7 +190,7 @@
       }
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         @if (unrestricted() && satir.durum === 'Beklemede') {
           <button
             type="button"
@@ -229,6 +232,13 @@
         }
       </span>
     </ng-template>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka boyut="sm" [plaka]="satir.plaka" />
+      } @else {
+        —
+      }
+    </ng-template>
   </rc-tablo>
 
   @if (panel(); as p) {
@@ -255,7 +265,7 @@
           }
         }
         @case ('reject') {
-          <section class="bolum" aria-labelledby="rc-gelen-red">
+          <section class="rc-bolum" aria-labelledby="rc-gelen-red">
             <h2 id="rc-gelen-red">
               {{ 'finansBelge.gelen.reddetBaslik' | transloco: { ettn: row.ettn } }}
             </h2>
@@ -265,7 +275,7 @@
                   <rc-metin-girdisi formControlName="neden" [azamiUzunluk]="512" />
                 </rc-alan>
               </div>
-              <div class="form__eylemler">
+              <div class="rc-form-eylemler">
                 <button
                   type="submit"
                   class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"

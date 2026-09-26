@@ -42,6 +42,7 @@ import { LOANS, recordPath } from '../finance.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, TranslocoPipe, Alan, MoneySubmitBar, Secim],
   templateUrl: './installment-payment-panel.html',
+  styleUrl: '../vehicle-finance.scss',
 })
 export class InstallmentPaymentPanel implements OnInit {
   readonly loan = input.required<LoanDetail>();

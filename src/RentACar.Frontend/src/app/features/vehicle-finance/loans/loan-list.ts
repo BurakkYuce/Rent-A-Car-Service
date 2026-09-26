@@ -58,6 +58,9 @@ import {
 import { LOANS, LoanListStore } from '../finance.store';
 import { CustomerLabels } from '../labels';
 import { activeSelection, emptyLoanForm, loanRequest, type LoanFormValue } from './loan-form-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type LoanStatus = (typeof LOAN_STATUSES)[number];
 
@@ -70,6 +73,9 @@ type LoanStatus = (typeof LOAN_STATUSES)[number];
   selector: 'rc-loan-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

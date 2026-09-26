@@ -10,11 +10,12 @@ import { TabloHucre } from '@shared/tablo/tablo-hucre';
 import { ARAC_SUTUNLARI, SENARYOLAR, type AracSatiri, type Senaryo } from './arac-verisi';
 import { ARAC_VITRIN_LISTESI, TabloVitriniStore } from './tablo-vitrini.store';
 
+// Yol v2 §1.2 filo durum sözlüğü: kirada yeşil, boşta nötr, serviste sarı, rezerve lacivert.
 const DURUM_ROZETI: Readonly<Record<string, string>> = {
-  Müsait: 'rc-rozet--basari',
-  Kirada: 'rc-rozet--bilgi',
+  Müsait: 'rc-rozet--notr',
+  Kirada: 'rc-rozet--basari',
   Serviste: 'rc-rozet--uyari',
-  Rezerve: '',
+  Rezerve: 'rc-rozet--vurgu',
 };
 
 /**
@@ -37,6 +38,9 @@ export class TabloVitrini {
   protected readonly varsayilanSirala = ARAC_VITRIN_LISTESI.varsayilanSirala;
   protected readonly senaryolar = SENARYOLAR;
   protected readonly kimlik = (a: AracSatiri) => a.id;
+  /** Vitrin: "bugünün işi" krem satır vurgusu (her 7. araç; gerçek ekranda bugün dönen/çıkan kira). */
+  protected readonly satirSinifi = (a: AracSatiri) =>
+    Number(a.id.slice(-5)) % 7 === 0 ? 'rc-satir-bugun' : null;
   protected readonly secim = signal<readonly string[]>([]);
   protected readonly acilan = signal<AracSatiri | null>(null);
 

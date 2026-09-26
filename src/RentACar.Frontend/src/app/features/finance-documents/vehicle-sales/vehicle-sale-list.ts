@@ -38,6 +38,8 @@ import { BranchNames, SaleStore } from '../document.store';
 import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
 
 import { SaleCreateForm } from './sale-create-form';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type SaleStatus = (typeof SALE_STATUSES)[number];
 
@@ -50,6 +52,8 @@ type SaleStatus = (typeof SALE_STATUSES)[number];
   selector: 'rc-vehicle-sale-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,

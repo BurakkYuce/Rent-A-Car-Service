@@ -157,6 +157,11 @@ export class Tablo<T> {
   readonly disaAktarma = input<DisaAktarma | null>(null);
   /** Bu satır sayısının üstünde satırlar sanallaştırılır. */
   readonly sanalEsik = input(60);
+  /**
+   * Satıra ek sınıf (Yol v2): ör. bugün dönen/çıkan satır → `'rc-satir-bugun'` (krem vurgu). Seçili satır vurgusu
+   * motorun kendisinde (`secilebilir` + `secim`); bu yalnız görünüm, davranış değiştirmez.
+   */
+  readonly satirSinifi = input<((satir: T) => string | null) | null>(null);
 
   readonly siralaDegisti = output<string | null>();
   readonly sayfaDegisti = output<number>();

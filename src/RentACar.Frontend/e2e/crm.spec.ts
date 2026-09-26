@@ -59,19 +59,20 @@ test.beforeEach(async ({ page }) => {
   await oturumAc(page, BEN);
 });
 
-test('CRM sayfaları: içerik + axe iki tema, konsol hatası yok', async ({ page }) => {
-  const errors = hatalariTopla(page, AG_HATASI);
-  await customerCrmEndpoints(page);
-  for (const s of PAGES) {
+// Sayfa başına ayrı test (#305 deseni): tek testte 5 sayfa × 2 tema axe taraması yük altında 30 sn sınırına dayanıyordu.
+for (const s of PAGES) {
+  test(`CRM ${s.ad}: içerik + axe iki tema, konsol hatası yok`, async ({ page }) => {
+    const errors = hatalariTopla(page, AG_HATASI);
+    await customerCrmEndpoints(page);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
     await hazirBekle(page, s);
     expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
-  }
-  expect(errors).toEqual([]);
-});
+    expect(errors).toEqual([]);
+  });
+}
 
 test('anket: yeni kayıt — kira seçimi, varsayılan sorular, sorusu boş satır gitmez', async ({
   page,

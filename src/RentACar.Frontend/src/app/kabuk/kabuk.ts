@@ -15,7 +15,9 @@ import {
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { MenuYaniti } from '@core/api/ui-tipleri';
+import { subeEtiketi, type MenuYaniti } from '@core/api/ui-tipleri';
+import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
+import { trBuyukHarf } from '@core/metin/tr-normalize';
 import { SayfaTerki } from '@core/form/kaydedilmemis-degisiklik';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { FetchPolicy } from '@core/veri/fetch-policy';
@@ -33,10 +35,21 @@ import { UstCubuk } from './ust-cubuk/ust-cubuk';
 const MENU_TAZELEME_MS = 5 * 60_000;
 /** Çekmece (mobil yan menü) bu genişlikte ve altında. `_kabuk` stilleriyle aynı. */
 const MOBIL_SORGU = '(max-width: 900px)';
+/** Daraltılmış kenar çubuğu (56 px ikon şeridi) kalıcı anahtarı. */
+export const KABUK_DAR_ANAHTARI = 'rc.kabuk.dar';
+/** Okunmamış bildirim rozeti (sunucu `MenuKaydi.RozetOkunmamisBildirim`): üst çubuk zili bu öğeyi açar. */
+const BILDIRIM_ROZETI = 'okunmamis-bildirim';
+const ROL_ETIKETLERI: Readonly<Record<string, CeviriAnahtari>> = {
+  Admin: 'kabuk.rol.Admin',
+  Yonetici: 'kabuk.rol.Yonetici',
+  Operator: 'kabuk.rol.Operator',
+  Muhasebe: 'kabuk.rol.Muhasebe',
+};
 
 /**
- * Uygulama kabuğu (F3.2, Blazor `MainLayout` yeniden yazıldı): yan menü `GET /api/ui/v1/menu`'den,
- * üst çubuk, sekmeli çalışma alanı ve Ctrl+K komut paleti. Oturum isteyen tüm sayfalar bunun içinde
+ * Uygulama kabuğu (F3.2, Blazor `MainLayout` yeniden yazıldı; Yol v2 §5 görünümü): lacivert kenar çubuğu
+ * (`GET /api/ui/v1/menu`, 240 px ↔ 56 px ikon şeridi, `rc.kabuk.dar`), altta şube + kullanıcı kartı + çıkış;
+ * üst çubuk (daralt, Ctrl+K paleti, plaka arama, bildirim zili, tema), sekmeli çalışma alanı. Oturum isteyen tüm sayfalar bunun içinde
  * (`sayfalar.ts`); giriş sayfası dışında.
  *
  * - SPA öğesi router ile; Blazor öğesi TAM SAYFA açılır (`/app` dışı) — önce tüm sekmelerde
@@ -50,7 +63,7 @@ const MOBIL_SORGU = '(max-width: 900px)';
   imports: [Ikon, RouterOutlet, TranslocoPipe, SekmeCubugu, UstCubuk, YanMenu],
   providers: [FetchPolicy, MenuStore],
   templateUrl: './kabuk.html',
-  styleUrl: './kabuk.scss',
+  styleUrls: ['./kabuk.scss', './kabuk-yan-alt.scss'],
   host: { '(document:keydown)': 'kisayol($event)' },
 })
 export class Kabuk {
@@ -69,6 +82,8 @@ export class Kabuk {
 
   /** Geçerli SPA yolu (sorgu/fragment yok) — etkin menü öğesi için. */
   private readonly yol = signal(yolunuAl(this.router.url));
+  /** Geçerli adresin `gorunum` sorgusu — kira kayıtlı görünümünün işareti. */
+  protected readonly gorunum = signal(gorunumunuAl(this.router.url));
 
   /** Son başarılı menü: yenileme hatasında eski menü kalır (hata BOŞ menü olarak gösterilmez). */
   private readonly sonMenu = linkedSignal<StoreDurumu<MenuYaniti>, MenuYaniti | null>({
@@ -95,8 +110,33 @@ export class Kabuk {
     return model ? etkinKayit(model, this.yol()) : null;
   });
 
+  /** Üst çubuk zili: okunmamış bildirim öğesi (sunucu menüde gönderdiyse) + sayacı. */
+  protected readonly bildirim = computed(() => {
+    const model = this.model();
+    const kayit = model?.tumu.find((k) => !k.hizli && k.rozetKodu === BILDIRIM_ROZETI);
+    return model && kayit ? { kayit, sayi: model.rozetler.get(BILDIRIM_ROZETI) ?? 0 } : null;
+  });
+
+  /** Kenar çubuğu altı: kullanıcı kartı (baş harf avatarı, ad, rol · şube) ve firma. */
+  protected readonly kimlik = computed(() => {
+    const ben = this.oturum.ben();
+    if (!ben) return null;
+    const ad = ben.kullanici.adSoyad || ben.kullanici.kullaniciAdi;
+    return {
+      ad,
+      basHarf: basHarfler(ad),
+      rol: ROL_ETIKETLERI[ben.rol] ?? null,
+      rolHam: ben.rol,
+      sube: subeEtiketi(ben),
+      firma: ben.kiraci.ad,
+    };
+  });
+
   protected readonly mobil = signal(false);
   protected readonly cekmeceAcik = signal(false);
+  /** 56 px ikon şeridi (masaüstü); mobilde çekmece her zaman tam genişlik. */
+  protected readonly dar = signal(this.darOku());
+  protected readonly darEtkin = computed(() => this.dar() && !this.mobil());
   private paletAcik = false;
 
   constructor() {
@@ -109,6 +149,7 @@ export class Kabuk {
     const abonelik = this.router.events.subscribe((olay) => {
       if (!(olay instanceof NavigationEnd)) return;
       this.yol.set(yolunuAl(olay.urlAfterRedirects));
+      this.gorunum.set(gorunumunuAl(olay.urlAfterRedirects));
       if (this.cekmeceAcik()) this.cekmeceyiKapat(false);
     });
 
@@ -133,6 +174,29 @@ export class Kabuk {
     });
   }
 
+  protected menuyuDaralt(): void {
+    const yeni = !this.dar();
+    this.dar.set(yeni);
+    try {
+      if (yeni) this.pencere?.localStorage.setItem(KABUK_DAR_ANAHTARI, '1');
+      else this.pencere?.localStorage.removeItem(KABUK_DAR_ANAHTARI);
+    } catch {
+      // Depo kapalı: tercih yalnız bu oturumda.
+    }
+  }
+
+  protected menuyuGenislet(): void {
+    if (this.dar()) this.menuyuDaralt();
+  }
+
+  private darOku(): boolean {
+    try {
+      return this.pencere?.localStorage.getItem(KABUK_DAR_ANAHTARI) === '1';
+    } catch {
+      return false;
+    }
+  }
+
   protected menuyuYenile(): void {
     this.politika.yenile();
   }
@@ -146,6 +210,12 @@ export class Kabuk {
     }
     if (!(await this.sekmeler.ayrilmaOnayi())) return;
     this.terk.tamSayfayaGit(hedef.adres);
+  }
+
+  /** Üst çubuk zili: bildirim öğesini menüdeki gibi açar (Blazor ise kirli form sorusu). */
+  protected async bildirimleriAc(): Promise<void> {
+    const b = this.bildirim();
+    if (b) await this.ogeAc(b.kayit);
   }
 
   /** Çıkış: tüm sekmelerdeki kaydedilmemiş değişiklik TEK soruyla; onaylanınca guard yeniden sormaz. */
@@ -209,4 +279,20 @@ export class Kabuk {
 
 function yolunuAl(url: string): string {
   return url.split(/[?#]/, 1)[0] || '/';
+}
+
+function gorunumunuAl(url: string): string | null {
+  const sorgu = url.split('#', 1)[0]?.split('?')[1];
+  return sorgu ? new URLSearchParams(sorgu).get('gorunum') : null;
+}
+
+/** "Ayşe Yılmaz" → "AY"; tek kelime → ilk iki harf. Türkçe büyük harf (i → İ). */
+function basHarfler(ad: string): string {
+  const kelimeler = ad.trim().split(/\s+/).filter(Boolean);
+  const harfler =
+    kelimeler.length > 1
+      ? [...(kelimeler[0] ?? '')].slice(0, 1).join('') +
+        [...(kelimeler[kelimeler.length - 1] ?? '')].slice(0, 1).join('')
+      : [...(kelimeler[0] ?? '')].slice(0, 2).join('');
+  return trBuyukHarf(harfler);
 }
