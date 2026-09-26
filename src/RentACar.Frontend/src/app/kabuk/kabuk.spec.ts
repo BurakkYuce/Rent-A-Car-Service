@@ -15,6 +15,7 @@ import { provideCeviri } from '@core/i18n/ceviri';
 import { OTURUM_BAGLAMI } from '@core/oturum/oturum-baglami';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import type { Ben } from '@core/oturum/oturum-tipleri';
+import { KabukSayaclari } from '@core/sayac/kabuk-sayaclari';
 import { SekmeRotaStratejisi } from '@core/sekme/sekme-stratejisi';
 
 import { Kabuk } from './kabuk';
@@ -51,6 +52,8 @@ const SAYFALAR: Routes = [
     canDeactivate: [kaydedilmemisDegisiklikGuard],
   },
   { path: 'vitrin/tablo', component: BosSayfa, title: 'Tablo vitrini — RentACar' },
+  { path: 'araclar', component: BosSayfa, title: 'Araçlar — RentACar' },
+  { path: 'kiralar', component: BosSayfa, title: 'Kiralar — RentACar' },
 ];
 
 const BEN: Ben = {
@@ -137,7 +140,11 @@ describe('Kabuk', () => {
     expect(
       [...kok.querySelectorAll('rc-yan-menu .grup__baslik')].map((b) => b.textContent?.trim()),
     ).toEqual(['Araçlar', 'Vitrin', 'Kira', 'Servis & Sigorta', 'Tanımlar']);
-    expect(kok.querySelector('.liste--hizli')?.textContent).toContain('Yeni Rezervasyon');
+    // Kısayol çifti sunucunun hızlı bağlantısından: görünen "Rezervasyon", erişilebilir ad sunucu etiketi.
+    const rez = kok.querySelector<HTMLAnchorElement>('rc-yan-menu .kisayol a');
+    expect(rez?.getAttribute('aria-label')).toBe('Yeni Rezervasyon');
+    expect(rez?.textContent?.trim()).toBe('Rezervasyon');
+    expect(rez?.getAttribute('href')).toBe('/rezervasyonlar');
     expect(baglanti(kok, 'Bildirimler')?.textContent).toMatch(/3\s*yeni/);
     // İzin süzmesi sunucuda: Finans (FinanceWrite) yanıtta yok → menüde de yok, istemci eklemez.
     expect(kok.textContent).not.toContain('Faturalar');
@@ -232,11 +239,32 @@ describe('Kabuk', () => {
     ).toEqual(['/', '/vitrin/tablo']);
   });
 
-  it('üst çubuk: kullanıcı/firma/şube, tema düğmeleri, çıkış (kirli formda önce sorar)', async () => {
+  it('kenar çubuğu altı: firma, kullanıcı kartı (baş harf, rol · şube), şube; çıkış kirli formda önce sorar', async () => {
     const { h, kok } = await ac('/vitrin/form');
-    expect(kok.querySelector('.kimlik')?.textContent).toContain('Ayşe Yılmaz');
-    expect(kok.querySelector('.kimlik')?.textContent).toContain('Pilot Firma · Tüm şubeler');
+    expect(kok.querySelector('.yan__firma')?.textContent?.trim()).toBe('Pilot Firma');
+    expect(kok.querySelector('.avatar')?.textContent?.trim()).toBe('AY');
+    expect(kok.querySelector('.kullanici__ad')?.textContent?.trim()).toBe('Ayşe Yılmaz');
+    expect(kok.querySelector('.kullanici__rol')?.textContent?.trim()).toBe('Admin · Tüm şubeler');
+    expect(kok.querySelector('.sube')?.textContent).toContain('Tüm şubeler');
+    // Kullanıcı bloğu üst çubukta tekrar edilmez.
+    expect(kok.querySelector('rc-ust-cubuk')?.textContent).not.toContain('Ayşe Yılmaz');
 
+    const cikis = kok.querySelector<HTMLButtonElement>(
+      '#rc-yan-menu button[aria-label="Çıkış yap"]',
+    );
+    if (!cikis) throw new Error('çıkış düğmesi yok');
+    formKirli = true;
+    cikis.click();
+    await h.fixture.whenStable();
+    expect(sorular).toHaveLength(1);
+    expect(cikisYap).not.toHaveBeenCalled();
+    onayYaniti = true;
+    cikis.click();
+    await vi.waitFor(() => expect(cikisYap).toHaveBeenCalledTimes(1));
+  });
+
+  it('üst çubuk: tema üçlüsü; zil okunmamış sayıyla bildirim öğesini açar', async () => {
+    const { h, kok } = await ac();
     const tema = (ad: string) =>
       kok.querySelector<HTMLButtonElement>(`rc-ust-cubuk button[aria-label="${ad}"]`);
     tema('Koyu tema')?.click();
@@ -247,17 +275,114 @@ describe('Kabuk', () => {
     await h.fixture.whenStable();
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
 
-    const cikis = [...kok.querySelectorAll('rc-ust-cubuk button')].find((b) =>
-      b.textContent?.includes('Çıkış yap'),
-    ) as HTMLButtonElement;
-    formKirli = true;
-    cikis.click();
+    const zil = tema('Bildirimler (3 okunmamış)');
+    expect(zil?.querySelector('.zil__rozet')?.textContent?.trim()).toBe('3');
+    zil?.click();
+    await vi.waitFor(() => expect(gezin).toHaveBeenCalledWith('/bildirimler'));
+  });
+
+  it('akordeon: tek grup açık, açık grup kalıcı (rc.menu.acik)', async () => {
+    const { h, kok } = await ac();
+    grupDugmesi(kok, 'Kira')?.click();
     await h.fixture.whenStable();
-    expect(sorular).toHaveLength(1);
-    expect(cikisYap).not.toHaveBeenCalled();
-    onayYaniti = true;
-    cikis.click();
-    await vi.waitFor(() => expect(cikisYap).toHaveBeenCalledTimes(1));
+    expect(grupDugmesi(kok, 'Kira')?.getAttribute('aria-expanded')).toBe('true');
+    grupDugmesi(kok, 'Araçlar')?.click();
+    await h.fixture.whenStable();
+    expect(grupDugmesi(kok, 'Araçlar')?.getAttribute('aria-expanded')).toBe('true');
+    expect(grupDugmesi(kok, 'Kira')?.getAttribute('aria-expanded')).toBe('false');
+    expect(localStorage.getItem('rc.menu.acik')).toBe('Araçlar');
+    grupDugmesi(kok, 'Araçlar')?.click();
+    await h.fixture.whenStable();
+    expect(kok.querySelectorAll('rc-yan-menu .grup__baslik[aria-expanded="true"]')).toHaveLength(0);
+    expect(localStorage.getItem('rc.menu.acik')).toBeNull();
+  });
+
+  it('daralt: 56 px şerit kalıcı (rc.kabuk.dar); şeritte gruba tıklamak menüyü genişletip grubu açar', async () => {
+    const { h, kok } = await ac();
+    const daralt = kok.querySelector<HTMLButtonElement>('.daralt-dugmesi');
+    expect(daralt?.getAttribute('aria-label')).toBe('Menüyü daralt');
+    daralt?.click();
+    await h.fixture.whenStable();
+    expect(kok.querySelector('.kabuk')?.classList).toContain('kabuk--dar');
+    expect(localStorage.getItem('rc.kabuk.dar')).toBe('1');
+    expect(daralt?.getAttribute('aria-label')).toBe('Menüyü genişlet');
+    // Etiket görsel olarak gizli, erişilebilir ad duruyor.
+    expect(grupDugmesi(kok, 'Kira')?.getAttribute('title')).toBe('Kira');
+
+    grupDugmesi(kok, 'Kira')?.click();
+    await h.fixture.whenStable();
+    expect(kok.querySelector('.kabuk')?.classList).not.toContain('kabuk--dar');
+    expect(grupDugmesi(kok, 'Kira')?.getAttribute('aria-expanded')).toBe('true');
+    expect(localStorage.getItem('rc.kabuk.dar')).toBeNull();
+  });
+
+  it('Kira grubu: SPA kira listesi kayıtlı görünümlerle; sayaçlar Panel kaynağından, geciken kırmızı', async () => {
+    menuGetir.mockReturnValueOnce(
+      of({
+        ...ORNEK_MENU,
+        ogeler: ORNEK_MENU.ogeler.map((o) =>
+          o.rota === '/kiralar' ? { ...o, rota: '/app/kiralar', sahip: 'spa' } : o,
+        ),
+      }),
+    );
+    TestBed.inject(KabukSayaclari).yayinla({
+      kirada: 23,
+      geciken: 3,
+      bugunCikan: 1,
+      bugunDonecek: 0,
+    });
+    const { h, kok } = await ac('/kiralar?gorunum=geciken');
+    expect(grupDugmesi(kok, 'Kira')?.getAttribute('aria-expanded')).toBe('true');
+    const gorunum = (ad: string) =>
+      [...kok.querySelectorAll<HTMLAnchorElement>('rc-yan-menu .oge--alt')].find(
+        (a) => a.querySelector('.oge__etiket')?.textContent?.trim() === ad,
+      );
+    expect(
+      [...kok.querySelectorAll('rc-yan-menu .oge--alt .oge__etiket')].map((e) =>
+        e.textContent?.trim(),
+      ),
+    ).toEqual([
+      'Tüm sözleşmeler',
+      'Kiradaki araçlar',
+      'Dönüşü gecikenler',
+      'Bugün çıkanlar',
+      'Bugün dönecekler',
+      'Faturası kesilmeyenler',
+      'Kapalı sözleşmeler',
+    ]);
+    expect(gorunum('Tüm sözleşmeler')?.getAttribute('href')).toBe('/kiralar');
+    expect(gorunum('Kiradaki araçlar')?.getAttribute('href')).toBe('/kiralar?gorunum=kirada');
+    expect(gorunum('Kiradaki araçlar')?.textContent).toMatch(/23\s*kayıt/);
+    expect(gorunum('Dönüşü gecikenler')?.querySelector('.oge__rozet--hata')?.textContent).toMatch(
+      /^3/,
+    );
+    expect(gorunum('Bugün dönecekler')?.querySelector('.oge__rozet')?.textContent).toMatch(/^0/);
+    expect(gorunum('Faturası kesilmeyenler')?.querySelector('.oge__rozet')).toBeNull();
+    // Etkin: sorgudaki görünüm (tek aria-current).
+    expect(gorunum('Dönüşü gecikenler')?.getAttribute('aria-current')).toBe('page');
+    expect(kok.querySelectorAll('rc-yan-menu [aria-current="page"]')).toHaveLength(1);
+
+    gorunum('Kiradaki araçlar')?.click();
+    await h.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/kiralar?gorunum=kirada');
+    expect(gorunum('Kiradaki araçlar')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('plaka arama: Enter araç listesine plaka süzgeciyle gider; boş aramada gezinme yok', async () => {
+    const { h, kok } = await ac();
+    const girdi = kok.querySelector<HTMLInputElement>('rc-ust-cubuk .plaka__girdi');
+    const form = kok.querySelector<HTMLFormElement>('rc-ust-cubuk form[role="search"]');
+    if (!girdi || !form) throw new Error('plaka arama yok');
+    girdi.value = '   ';
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    await h.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/');
+
+    girdi.value = ' 07  bkl 496 ';
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    await h.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/araclar?q=07%20bkl%20496');
+    expect(girdi.value).toBe('');
   });
 
   it('mobil çekmece: menü düğmesi açar (odak içeride, arka plan inert), Esc kapatır ve odağı geri verir', async () => {

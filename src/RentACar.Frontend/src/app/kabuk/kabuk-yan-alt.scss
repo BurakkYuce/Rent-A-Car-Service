@@ -1,0 +1,54 @@
+// Kenar çubuğu altı (Yol v2 §5.1): şube (salt okunur) + kullanıcı kartı. Renkler `--rc-kenar-cubugu-*`.
+.yan__alt {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: var(--rc-bosluk-2);
+  padding: var(--rc-bosluk-2);
+  border-block-start: 1px solid var(--rc-kenar-cubugu-ayrac);
+}
+
+.sube {
+  display: flex;
+  align-items: center;
+  gap: var(--rc-bosluk-2);
+  height: var(--rc-kontrol-yukseklik-kucuk);
+  padding-inline: var(--rc-bosluk-2);
+  border: 1px solid var(--rc-kenar-cubugu-kontrol-kenar);
+  border-radius: var(--rc-yaricap-md);
+  color: var(--rc-kenar-cubugu-metin);
+  font-size: var(--rc-yazi-xs);
+}
+
+.kullanici {
+  display: flex;
+  align-items: center;
+  gap: var(--rc-bosluk-2);
+  min-width: 0;
+}
+
+.avatar {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--rc-yaricap-tam);
+  background-color: var(--rc-kenar-cubugu-aktif-zemin);
+  color: var(--rc-kenar-cubugu-aktif-metin);
+  font-size: var(--rc-yazi-xs);
+  font-weight: var(--rc-agirlik-kalin);
+}
+
+.kullanici__metin {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: var(--rc-satir-sik);
+}
+
+.kullanici__ad {
+  font-size: var(--rc-yazi-sm);
+  font-weight: var(--rc-agirlik-kalin);
+}

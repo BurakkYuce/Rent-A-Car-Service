@@ -49,7 +49,14 @@ test('menü kayıttan: gruplar, hızlı bağlantı, rozet; etkin sayfa işaretli
     '/kiralar',
   );
 
+  // Akordeon (Yol v2 §5.1): Kira açılınca Vitrin kapandı — tek grup açık.
+  await expect(menu(page).getByRole('button', { name: 'Vitrin' })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+
   // Başka SPA sayfası: işaret taşınır.
+  await menu(page).getByRole('button', { name: 'Vitrin' }).click();
   await menu(page).getByRole('link', { name: 'Tanım CRUD' }).click();
   await expect(page).toHaveURL(/\/app\/vitrin\/tanim$/);
   await expect(menu(page).getByRole('link', { name: 'Tanım CRUD' })).toHaveAttribute(

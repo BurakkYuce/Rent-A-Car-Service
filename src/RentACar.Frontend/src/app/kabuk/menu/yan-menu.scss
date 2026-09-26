@@ -1,6 +1,9 @@
+// Yol v2 §5.1 — lacivert kenar çubuğu menüsü. Renkler YALNIZ `--rc-kenar-cubugu-*` bileşen tokenlarından
+// (koyu temada asfalt varyantı token katmanında döner; burada tema dalı yok).
 :host {
   display: block;
-  padding: var(--rc-bosluk-2);
+  padding: var(--rc-bosluk-2) var(--rc-bosluk-2) var(--rc-bosluk-3);
+  color: var(--rc-kenar-cubugu-metin);
 }
 
 .liste {
@@ -9,75 +12,105 @@
   list-style: none;
 }
 
-.liste--hizli {
-  margin-block-end: var(--rc-bosluk-2);
-  padding-block-end: var(--rc-bosluk-2);
-  border-block-end: 1px solid var(--rc-kenar);
-}
-
 .liste--grup {
-  margin-inline-start: var(--rc-bosluk-3);
-  padding-inline-start: var(--rc-bosluk-1);
-  border-inline-start: 1px solid var(--rc-kenar);
+  padding-block: var(--rc-bosluk-0-5);
+  padding-inline-start: var(--rc-bosluk-6);
 }
 
-.bolum {
-  padding: var(--rc-bosluk-1) var(--rc-bosluk-2);
-  color: var(--rc-metin-soluk);
-  font-size: var(--rc-yazi-2xs);
+// ---- kısayol çifti
+.kisayol {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: var(--rc-bosluk-1-5);
+  margin-block-end: var(--rc-bosluk-3);
+}
+
+.kisayol__dugme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rc-bosluk-1);
+  min-width: 0;
+  height: var(--rc-kontrol-yukseklik-kucuk);
+  padding-inline: var(--rc-bosluk-1-5);
+  border: 1px solid var(--rc-kenar-cubugu-kontrol-kenar);
+  border-radius: var(--rc-yaricap-md);
+  color: var(--rc-kenar-cubugu-metin);
+  font-size: var(--rc-yazi-sm);
   font-weight: var(--rc-agirlik-kalin);
-  letter-spacing: 0.04em;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: var(--rc-kenar-cubugu-aktif-zemin);
+  }
 }
 
+.kisayol__dugme--dolu {
+  border-color: var(--rc-kenar-cubugu-rozet-zemin);
+  background-color: var(--rc-kenar-cubugu-rozet-zemin);
+  color: var(--rc-kenar-cubugu-rozet-metin);
+
+  &:hover {
+    background-color: var(--rc-kenar-cubugu-rozet-zemin);
+  }
+}
+
+.kisayol__metin {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ---- öğe + grup başlığı
 .oge,
 .grup__baslik {
   display: flex;
   align-items: center;
-  gap: var(--rc-bosluk-1-5);
+  gap: var(--rc-bosluk-2);
   width: 100%;
-  min-height: var(--rc-kontrol-yukseklik-kucuk);
+  min-height: 1.875rem; // 30 px satır (§4)
   padding: var(--rc-bosluk-1) var(--rc-bosluk-2);
   border: 0;
   border-radius: var(--rc-yaricap-md);
   background: none;
-  color: var(--rc-metin);
+  color: var(--rc-kenar-cubugu-metin);
+  font: inherit;
   font-size: var(--rc-yazi-sm);
   text-align: start;
   text-decoration: none;
   cursor: pointer;
 
   &:hover {
-    background-color: var(--rc-yuzey-alt);
+    background-color: var(--rc-kenar-cubugu-aktif-zemin);
   }
 }
 
 .grup__baslik {
-  color: var(--rc-metin-ikincil);
   font-weight: var(--rc-agirlik-orta);
 }
 
-.grup__ok {
-  color: var(--rc-metin-soluk);
+.oge--alt {
+  min-height: 1.75rem; // 28 px alt madde
+  color: var(--rc-kenar-cubugu-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.oge__ikon {
+  color: var(--rc-kenar-cubugu-ikincil);
+}
+
+.grup__ok,
+.oge__dis {
+  color: var(--rc-kenar-cubugu-grup);
 }
 
 .oge--etkin {
-  position: relative;
-  background-color: var(--rc-vurgu-zemin);
-  color: var(--rc-vurgu-metin);
+  background-color: var(--rc-kenar-cubugu-aktif-zemin);
+  color: var(--rc-kenar-cubugu-aktif-metin);
   font-weight: var(--rc-agirlik-kalin);
 
-  &::before {
-    content: '';
-    position: absolute;
-    inset-block: var(--rc-bosluk-1);
-    inset-inline-start: 0;
-    width: 3px;
-    border-radius: var(--rc-yaricap-tam);
-    background-color: var(--rc-vurgu);
-  }
-
-  &:hover {
-    background-color: var(--rc-vurgu-zemin);
+  .oge__ikon {
+    color: var(--rc-kenar-cubugu-aktif-metin);
   }
 }
 
@@ -90,21 +123,34 @@
 }
 
 .oge__rozet {
-  min-width: 1.25rem;
-  padding: 0 var(--rc-bosluk-1);
+  min-width: 1.375rem;
+  padding: 0 var(--rc-bosluk-1-5);
   border-radius: var(--rc-yaricap-tam);
-  background-color: var(--rc-vurgu);
-  color: var(--rc-vurgu-uzeri);
+  background-color: var(--rc-kenar-cubugu-rozet-zemin);
+  color: var(--rc-kenar-cubugu-rozet-metin);
   font-size: var(--rc-yazi-2xs);
   font-weight: var(--rc-agirlik-kalin);
   line-height: 1.125rem;
   text-align: center;
 }
 
-.oge__dis {
-  color: var(--rc-metin-soluk);
+.oge__rozet--hata {
+  background-color: var(--rc-kenar-cubugu-rozet-uyari-zemin);
+  color: var(--rc-kenar-cubugu-rozet-uyari-metin);
 }
 
+// Lacivert zeminde genel odak rengi (lacivert) görünmez: odak halkası kenar çubuğu metin renginde.
+.oge,
+.grup__baslik,
+.kisayol__dugme,
+.durum__dugme {
+  &:focus-visible {
+    outline: var(--rc-odak-kalinlik) solid var(--rc-kenar-cubugu-metin);
+    outline-offset: calc(var(--rc-odak-kalinlik) * -1);
+  }
+}
+
+// ---- durum kutuları (yükleniyor / hata / güncellenemedi)
 .durum {
   display: flex;
   flex-direction: column;
@@ -112,19 +158,63 @@
   gap: var(--rc-bosluk-2);
   margin-block-end: var(--rc-bosluk-2);
   padding: var(--rc-bosluk-2);
-  color: var(--rc-metin-ikincil);
-}
-
-.durum--hata {
-  border: 1px solid var(--rc-hata-kenar);
+  border: 1px solid var(--rc-kenar-cubugu-ayrac);
   border-radius: var(--rc-yaricap-md);
-  background-color: var(--rc-hata-zemin);
-  color: var(--rc-hata-metin);
+  color: var(--rc-kenar-cubugu-ikincil);
 }
 
+.durum--hata,
 .durum--uyari {
-  border: 1px solid var(--rc-uyari-kenar);
+  color: var(--rc-kenar-cubugu-metin);
+  border-color: var(--rc-kenar-cubugu-kontrol-kenar);
+}
+
+.durum__dugme {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rc-bosluk-1);
+  height: var(--rc-kontrol-yukseklik-kucuk);
+  padding-inline: var(--rc-bosluk-2);
+  border: 1px solid var(--rc-kenar-cubugu-kontrol-kenar);
   border-radius: var(--rc-yaricap-md);
-  background-color: var(--rc-uyari-zemin);
-  color: var(--rc-uyari-metin);
+  background: none;
+  color: var(--rc-kenar-cubugu-metin);
+  font: inherit;
+  cursor: pointer;
+}
+
+// ---- 56 px ikon şeridi: etiket/rozet/ok görsel olarak gizli (erişilebilir ad kalır)
+:host(.dar) {
+  padding-inline: var(--rc-bosluk-1-5);
+
+  .kisayol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kisayol__dugme {
+    padding-inline: 0;
+  }
+
+  .oge,
+  .grup__baslik {
+    position: relative;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .kisayol__metin,
+  .oge__etiket,
+  .oge__rozet {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .grup__ok,
+  .oge__dis {
+    display: none;
+  }
 }
