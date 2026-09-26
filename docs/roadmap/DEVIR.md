@@ -102,6 +102,12 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
     `ben` yenilenir. #331 `ben` yenilemesinde ağ/5xx oturumu kapatmaz (donmuş para denemesi düşmez).
   - #332 rezervasyon ve teklif de varlık kontrolünü servis girişinde yapar (`BookingPartyCheck` tek kural).
   - Belge: #323, #325 (§6 bayat maddeler — zaten kapalıydı).
+- **2026-09-26: Tasarım dili "Yol v2" (#334–#342)** — Kağıt/Asfalt + Lacivert token'ları, IBM Plex, lacivert kabuk + sayfa
+  bandı + plaka araması, rc-plaka/rc-tabela-karti/görünüm çipleri/filtre paneli, tüm ekranlar göçtü; stil denetimi
+  `npm run lint`'te HATA kipinde. Kaynak `docs/tasarim/YOL-PLANI-v2.md`, kurallar `docs/tasarim/TASARIM-DILI.md`.
+  Açık küçükler: kira listesinde iki satırlı araç/müşteri hücresi API alanı ister; panelde "Tümü" çipi/göz ikonu yok;
+  birkaç para formunda birden çok dolu düğme (davranış korunsun diye bilinçli).
+- **2026-09-26: İngilizce kod adları (#343–#346)** — bkz. Sırada madde 4.
 
 ### ⏳ Açık PR
 - Yok (2026-09-25 akşam). Gerçek durum için `rtk gh pr list --state open`.
@@ -115,8 +121,10 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
 3. **F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm:** YALNIZ pilotta 10 iş günü P1 olmadıktan SONRA. Blazor'da
    kapatılmamış bilinen okuma sızıntıları F13'e kadar canlı: CRM liste sayfaları tüm şubeleri gösteriyor,
    `CustomerEdit.razor` anonimleştirme maskesi uygulamıyor.
-4. **İngilizce adlandırma toplu dönüşümü:** kullanıcı "şimdi düzeltme, sonra yaparsın" dedi (2026-09-23).
-   Başka iş koşarken yapılamaz (her dosyaya dokunur); zamanlamayı kullanıcıya sor.
+4. ~~İngilizce adlandırma toplu dönüşümü~~ **KOD ADLARI BİTTİ (2026-09-26, #343–#346):** Roslyn/ts-morph semantik
+   yeniden adlandırma (graphify envanteri) — ~18.700 sembol, sözleşmeler (entity/DTO özellikleri, JSON, DB, enum
+   üyeleri, i18n, CSS, seçiciler) DOKUNULMADI. Kalan (ayrı küçük PR'lar): Türkçe namespace/klasörler (78 + Angular
+   klasörleri), bilinçli atlanan ~840 frontend adı (çakışma / betik-test okuması) ve `ICurrentUser.EkIzinler/YasakIzinler`.
 
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
 - **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok, pilot açılamaz.
