@@ -61,13 +61,13 @@
                 <td>@(f.TahminiTutar?.ToString("N2") ?? "—")</td>
                 <td>@f.Durum</td>
                 <td>
-                    @if (f.Durum == HasarDurum.Acik)
+                    @if (f.Durum == DamageStatus.Acik)
                     {
                         <form method="post" action="/hasar/onaya-gonder" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@f.Id" /><button type="submit">Onaya Gönder</button>
                         </form>
                     }
-                    @if (f.Durum == HasarDurum.Onayda)
+                    @if (f.Durum == DamageStatus.Onayda)
                     {
                         <form method="post" action="/hasar/onayla" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@f.Id" /><button type="submit">Onayla</button>
@@ -76,7 +76,7 @@
                             <input type="hidden" name="id" value="@f.Id" /><button type="submit">Reddet</button>
                         </form>
                     }
-                    @if (f.Durum is HasarDurum.Onaylandi or HasarDurum.Reddedildi)
+                    @if (f.Durum is DamageStatus.Onaylandi or DamageStatus.Reddedildi)
                     {
                         <form method="post" action="/hasar/kapat" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@f.Id" /><button type="submit">Kapat</button>

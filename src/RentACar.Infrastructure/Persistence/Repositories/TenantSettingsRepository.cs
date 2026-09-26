@@ -43,11 +43,11 @@ public sealed class TenantSettingsRepository(IDbContextFactory<AppDbContext> fac
                     await SatirSurumu.KilitleAsync(db, SatirSurumu.FirmaAyarlari, k, ct);
                     var current = await SatirSurumu.OkuAsync(db, SatirSurumu.FirmaAyarlari, k, ct);
                     if (expectedVersion is null || !string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
-                        throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+                        throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
                 }
                 else if (expectedVersion is not null)
                 {
-                    throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+                    throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
                 }
 
                 var s = await db.TenantSettings.FirstOrDefaultAsync(ct);
@@ -62,7 +62,7 @@ public sealed class TenantSettingsRepository(IDbContextFactory<AppDbContext> fac
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+            throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
         }
     }
 
@@ -91,7 +91,7 @@ public sealed class TenantSettingsRepository(IDbContextFactory<AppDbContext> fac
         }
     }
 
-    public async Task<IReadOnlyList<WhatsAppGonderim>> ListWhatsAppGonderimAsync(int take = 7, CancellationToken ct = default)
+    public async Task<IReadOnlyList<WhatsAppGonderim>> ListWhatsAppDispatchesAsync(int take = 7, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.WhatsAppGonderimler.AsNoTracking()

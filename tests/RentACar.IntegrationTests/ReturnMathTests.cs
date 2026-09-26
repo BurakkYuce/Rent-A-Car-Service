@@ -22,7 +22,7 @@ public sealed class ReturnMathTests
     public void No_extras_genel_toplam_equals_base()
     {
         var c = Base();
-        var r = ReturnMath.Compute(c, donusKm: 1300, donusYakit: 8, gercekDonus: Bit);
+        var r = ReturnMath.Compute(c, returnKm: 1300, returnFuel: 8, actualReturn: Bit);
         Assert.Equal(0, r.FazlaKm);
         Assert.Equal(0m, r.FazlaKmBedeli);
         Assert.Equal(0, r.EksikYakit);
@@ -37,7 +37,7 @@ public sealed class ReturnMathTests
         c.KmLimit = 400;          // 4 gün × 100 km gibi (manuel)
         c.FazlaKmUcret = 2m;
         // katEdilen = 1500-1000 = 500; fazla = 500-400 = 100; bedel = 200
-        var r = ReturnMath.Compute(c, donusKm: 1500, donusYakit: 8, gercekDonus: Bit);
+        var r = ReturnMath.Compute(c, returnKm: 1500, returnFuel: 8, actualReturn: Bit);
         Assert.Equal(100, r.FazlaKm);
         Assert.Equal(200m, r.FazlaKmBedeli);
         Assert.Equal(600m, r.GenelToplam); // 400 + 200
@@ -49,7 +49,7 @@ public sealed class ReturnMathTests
         var c = Base();
         c.YakitBirimUcret = 50m;
         // eksik = 8 - 5 = 3; bedel = 150
-        var r = ReturnMath.Compute(c, donusKm: 1100, donusYakit: 5, gercekDonus: Bit);
+        var r = ReturnMath.Compute(c, returnKm: 1100, returnFuel: 5, actualReturn: Bit);
         Assert.Equal(3, r.EksikYakit);
         Assert.Equal(150m, r.YakitBedeli);
         Assert.Equal(550m, r.GenelToplam); // 400 + 150
@@ -60,7 +60,7 @@ public sealed class ReturnMathTests
     {
         var c = Base();
         // 2 gün geç (48 saat) → uzatma 2 gün × 100 = 200
-        var r = ReturnMath.Compute(c, donusKm: 1100, donusYakit: 8, gercekDonus: Bit.AddDays(2));
+        var r = ReturnMath.Compute(c, returnKm: 1100, returnFuel: 8, actualReturn: Bit.AddDays(2));
         Assert.Equal(2, r.UzatmaGun);
         Assert.Equal(200m, r.UzatmaBedeli);
         Assert.Equal(600m, r.GenelToplam);
@@ -71,7 +71,7 @@ public sealed class ReturnMathTests
     {
         var c = Base();
         // 1 saat geç → 1 güne yuvarlanır
-        var r = ReturnMath.Compute(c, donusKm: 1100, donusYakit: 8, gercekDonus: Bit.AddHours(1));
+        var r = ReturnMath.Compute(c, returnKm: 1100, returnFuel: 8, actualReturn: Bit.AddHours(1));
         Assert.Equal(1, r.UzatmaGun);
         Assert.Equal(100m, r.UzatmaBedeli);
     }
@@ -82,7 +82,7 @@ public sealed class ReturnMathTests
         var c = Base();
         c.KmLimit = 400; c.FazlaKmUcret = 2m; c.YakitBirimUcret = 50m;
         // fazla km: 1500-1000-400=100 → 200; yakıt: 8-6=2 → 100; uzatma: 1 gün → 100
-        var r = ReturnMath.Compute(c, donusKm: 1500, donusYakit: 6, gercekDonus: Bit.AddDays(1));
+        var r = ReturnMath.Compute(c, returnKm: 1500, returnFuel: 6, actualReturn: Bit.AddDays(1));
         Assert.Equal(200m, r.FazlaKmBedeli);
         Assert.Equal(100m, r.YakitBedeli);
         Assert.Equal(100m, r.UzatmaBedeli);
@@ -94,7 +94,7 @@ public sealed class ReturnMathTests
     {
         var c = Base(); // KmLimit=0
         c.FazlaKmUcret = 5m;
-        var r = ReturnMath.Compute(c, donusKm: 9999, donusYakit: 8, gercekDonus: Bit);
+        var r = ReturnMath.Compute(c, returnKm: 9999, returnFuel: 8, actualReturn: Bit);
         Assert.Equal(0, r.FazlaKm);
         Assert.Equal(0m, r.FazlaKmBedeli);
     }

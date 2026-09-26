@@ -24,7 +24,7 @@
 
 <div class="u-row-wrap">
     <a class="link @(DurumSecili(null) ? "aktif" : "")" href="/servisler">Tümü (@_tumu.Count)</a>
-    @foreach (var d in Enum.GetValues<ServisDurum>())
+    @foreach (var d in Enum.GetValues<ServiceStatus>())
     {
         <a class="link @(DurumSecili(d) ? "aktif" : "")" href="/servisler?durum=@d">@DurumAd(d) (@_tumu.Count(s => s.Durum == d))</a>
     }
@@ -44,7 +44,7 @@
         </label>
         <label>Tür
             <select name="tip">
-                @foreach (var t in Enum.GetValues<ServisTipi>())
+                @foreach (var t in Enum.GetValues<ServiceType>())
                 {
                     <option value="@t">@t</option>
                 }
@@ -54,7 +54,7 @@
         <label>Giriş KM<input name="girisKm" type="number" value="0" /></label>
         <label>Hasar Sorumlu
             <select name="hasarSorumlu">
-                @foreach (var h in Enum.GetValues<HasarSorumlu>())
+                @foreach (var h in Enum.GetValues<DamageResponsible>())
                 {
                     <option value="@h">@h</option>
                 }
@@ -106,7 +106,7 @@
             <label>Ödeme Türü
                 <select name="odemeTuru">
                     <option value="">—</option>
-                    @foreach (var o in Enum.GetValues<OdemeYontemi>())
+                    @foreach (var o in Enum.GetValues<PaymentMethod>())
                     {
                         <option value="@o">@o</option>
                     }
@@ -164,7 +164,7 @@
                 <td>@(s.FaturaNo ?? "—")@(s.FaturaGenelToplam is decimal fg ? $" / {fg:N2}" : "")</td>
                 <td data-etiket="Durum">@DurumAd(s.Durum)</td>
                 <td class="kart-aksiyon">
-                    @if (s.Durum == ServisDurum.Rezerve)
+                    @if (s.Durum == ServiceStatus.Rezerve)
                     {
                         <form method="post" action="/servisler/servise-al" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
@@ -172,14 +172,14 @@
                             <button type="submit" title="Randevu gerçekleşti: kayıt Açık'a geçer, giriş anı yazılır">Servise Al</button>
                         </form>
                     }
-                    @if (s.Durum == ServisDurum.Acik)
+                    @if (s.Durum == ServiceStatus.Acik)
                     {
                         <form method="post" action="/servisler/baslat" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
                             <button type="submit" title="Araç servise girer (durumu Serviste olur)">Servise Başla</button>
                         </form>
                     }
-                    @if (s.Durum == ServisDurum.Serviste)
+                    @if (s.Durum == ServiceStatus.Serviste)
                     {
                         <form method="post" action="/servisler/tamamla" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
@@ -188,7 +188,7 @@
                             <button type="submit">Tamamla</button>
                         </form>
                     }
-                    @if (s.Durum is ServisDurum.Rezerve or ServisDurum.Acik or ServisDurum.Serviste)
+                    @if (s.Durum is ServiceStatus.Rezerve or ServiceStatus.Acik or ServiceStatus.Serviste)
                     {
                         @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
                         <AuthorizeView Policy="izin:FinanceWrite" Context="kalemCtx">
@@ -211,8 +211,8 @@
                             </form>
                         </AuthorizeView>
                     }
-                    @if (s.Durum == ServisDurum.Tamamlandi && !s.Yansitildi
-                         && s.HasarSorumlu is HasarSorumlu.Musteri or HasarSorumlu.Sigorta && s.KusurOrani > 0m)
+                    @if (s.Durum == ServiceStatus.Tamamlandi && !s.Yansitildi
+                         && s.HasarSorumlu is DamageResponsible.Musteri or DamageResponsible.Sigorta && s.KusurOrani > 0m)
                     {
                         <form method="post" action="/servis-yansitma/yansit" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
@@ -244,7 +244,7 @@
                                 <tbody>
                                     @foreach (var l in s.Lines)
                                     {
-                                        var h = ServisKalemHesap.Hesapla(l.Tutar, l.BirimFiyat, l.Miktar, l.KdvOran);
+                                        var h = ServiceItemCalculation.Calculate(l.Tutar, l.BirimFiyat, l.Miktar, l.KdvOran);
                                         <tr>
                                             <td class="kart-baslik">@l.Aciklama</td>
                                             <td class="num" data-etiket="Birim Fiyat">@(l.BirimFiyat?.ToString("N2") ?? "—")</td>
@@ -300,7 +300,7 @@
                                 <label>Ödeme Türü
                                     <select name="odemeTuru">
                                         <option value="">—</option>
-                                        @foreach (var o in Enum.GetValues<OdemeYontemi>())
+                                        @foreach (var o in Enum.GetValues<PaymentMethod>())
                                         {
                                             <option value="@o" selected="@(s.OdemeTuru == o)">@o</option>
                                         }
@@ -341,24 +341,24 @@
     protected override async Task OnInitializedAsync()
     {
         _tumu = await Services.ListAsync();
-        _list = Secili is ServisDurum d ? _tumu.Where(s => s.Durum == d).ToList() : _tumu;
+        _list = Secili is ServiceStatus d ? _tumu.Where(s => s.Durum == d).ToList() : _tumu;
         _vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
     }
 
-    private ServisDurum? Secili => Enum.TryParse<ServisDurum>(Durum, out var d) ? d : null;
-    private bool DurumSecili(ServisDurum? d) => Secili == d;
+    private ServiceStatus? Secili => Enum.TryParse<ServiceStatus>(Durum, out var d) ? d : null;
+    private bool DurumSecili(ServiceStatus? d) => Secili == d;
 
     private string VehLabel(Guid id) => _vehMap.TryGetValue(id, out var p) ? p : "—";
 
-    private static string DurumAd(ServisDurum d) => d switch
+    private static string DurumAd(ServiceStatus d) => d switch
     {
-        ServisDurum.Acik => "Açık",
-        ServisDurum.Serviste => "Serviste",
-        ServisDurum.Tamamlandi => "Tamamlandı",
-        ServisDurum.Iptal => "İptal",
-        ServisDurum.Rezerve => "Rezerve",
+        ServiceStatus.Acik => "Açık",
+        ServiceStatus.Serviste => "Serviste",
+        ServiceStatus.Tamamlandi => "Tamamlandı",
+        ServiceStatus.Iptal => "İptal",
+        ServiceStatus.Rezerve => "Rezerve",
         _ => d.ToString()
     };
 
@@ -380,7 +380,7 @@
         decimal net = 0m, kdv = 0m;
         foreach (var l in s.Lines)
         {
-            var h = ServisKalemHesap.Hesapla(l.Tutar, l.BirimFiyat, l.Miktar, l.KdvOran);
+            var h = ServiceItemCalculation.Calculate(l.Tutar, l.BirimFiyat, l.Miktar, l.KdvOran);
             net += h.Net;
             kdv += h.KdvTutar;
         }

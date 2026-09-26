@@ -25,7 +25,7 @@ public sealed class FiloBildirimTests(PostgresFixture fx)
     private static async Task<int> UretAsync(IServiceProvider sp, Guid tenant, DateTimeOffset now)
     {
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
-        return await FiloBildirimUretici.RunAsync(db, tenant, now, TutSatEsikleri.Varsayilan);
+        return await FiloBildirimUretici.RunAsync(db, tenant, now, TutSatEsikleri.Default);
     }
 
     /// <summary>Servis kaydı aç → başlat → tamamla (sonraki bakım hedefi yaz).</summary>
@@ -33,8 +33,8 @@ public sealed class FiloBildirimTests(PostgresFixture fx)
     {
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var id = await svc.CreateAsync(new ServiceRecordInput { VehicleId = veh, GirisKm = girisKm });
-        Assert.True(await svc.BaslatAsync(id));
-        Assert.True(await svc.TamamlaAsync(id, cikisKm, sonrakiBakimKm: hedef));
+        Assert.True(await svc.StartAsync(id));
+        Assert.True(await svc.CompleteAsync(id, cikisKm, nextMaintenanceKm: hedef));
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class FiloBildirimTests(PostgresFixture fx)
         Assert.Equal(2, await UretAsync(sp, tenant, now));            // V1 + V3 (elle)
         Assert.Equal(0, await UretAsync(sp, tenant, now));            // idempotent
 
-        var bildirimler = await sp.GetRequiredService<BildirimService>().ListPersistedAsync();
+        var bildirimler = await sp.GetRequiredService<InAppNotificationService>().ListPersistedAsync();
         var bakimlar = bildirimler.Where(b => b.Tur == "Bakım-Km").ToList();
         Assert.Equal(2, bakimlar.Count);
         Assert.Contains(bakimlar, b => b.VehicleId == v1 && b.Mesaj.Contains("kalan 500"));
@@ -87,18 +87,18 @@ public sealed class FiloBildirimTests(PostgresFixture fx)
         var v1 = await veh.CreateAsync(new VehicleInput { Plaka = "34 FB 01", Grup = "EKO", IkinciElDeger = 1000m });
         var exp = sp.GetRequiredService<ExpenseService>();
         await exp.CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v1, NetTutar = 500m, KdvOrani = 0m, Tarih = simdi.AddMonths(-2), OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Arac, VehicleId = v1, NetTutar = 500m, KdvOrani = 0m, Tarih = simdi.AddMonths(-2), OdemeYontemi = PaymentMethod.Nakit });
         await exp.CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v1, NetTutar = 150m, KdvOrani = 0m, Tarih = simdi.AddMonths(-18), OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Arac, VehicleId = v1, NetTutar = 150m, KdvOrani = 0m, Tarih = simdi.AddMonths(-18), OdemeYontemi = PaymentMethod.Nakit });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "FB", Soyad = "C" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "FB", Soyad = "C" });
         var rentals = sp.GetRequiredService<RentalService>();
         async Task KiraKmAsync(DateTimeOffset bas, int km)
         {
             var r = await rentals.CreateDirectAsync(new BookingInput
             { MusteriId = cari, VehicleId = v1, BasTar = bas, BitTar = bas.AddDays(2), GunlukUcret = 10m });
-            await rentals.DeliverAsync(r, cikisKm: 0, cikisYakit: 8);
-            await rentals.ReturnAsync(r, donusKm: km, donusYakit: 8, bas.AddDays(2));
+            await rentals.DeliverAsync(r, pickupKm: 0, pickupFuel: 8);
+            await rentals.ReturnAsync(r, returnKm: km, returnFuel: 8, bas.AddDays(2));
         }
         await KiraKmAsync(simdi.AddMonths(-18), 300);                 // önceki-12 penceresi
         await KiraKmAsync(simdi.AddMonths(-2), 250);                  // son-12 penceresi
@@ -109,7 +109,7 @@ public sealed class FiloBildirimTests(PostgresFixture fx)
         Assert.Equal(1, await UretAsync(sp, tenant, simdi));          // yalnız V1
         Assert.Equal(0, await UretAsync(sp, tenant, simdi));          // ay çıpası → idempotent
 
-        var b = Assert.Single((await sp.GetRequiredService<BildirimService>().ListPersistedAsync())
+        var b = Assert.Single((await sp.GetRequiredService<InAppNotificationService>().ListPersistedAsync())
             .Where(x => x.Tur == "Tut/Sat"));
         Assert.Equal(v1, b.VehicleId);
         Assert.Contains("tut/sat sinyali (2/3)", b.Mesaj);
@@ -126,14 +126,14 @@ public sealed class FiloBildirimTests(PostgresFixture fx)
 
         // Manuel fatura (KDV %0 → gelir = net, elle): geçen ayın 15'i 100; bu ayın 1'i 300.
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Trend", Soyad = "C" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Trend", Soyad = "C" });
         var inv = sp.GetRequiredService<InvoiceService>();
         await inv.CreateManualAsync(new ManualInvoiceInput
         { CariId = cari, NetTutar = 100m, KdvOrani = 0m, Tarih = buAy.AddMonths(-1).AddDays(14), Aciklama = "gecen ay" });
         await inv.CreateManualAsync(new ManualInvoiceInput
         { CariId = cari, NetTutar = 300m, KdvOrani = 0m, Tarih = buAy, Aciklama = "bu ay" });
 
-        var trend = await sp.GetRequiredService<ReportService>().GetAylikGelirTrendAsync(3, simdi);
+        var trend = await sp.GetRequiredService<ReportService>().GetMonthlyRevenueTrendAsync(3, simdi);
         Assert.Equal(3, trend.Count);
         Assert.Equal(0m, trend[0].Gelir);                             // 2 ay önce: boş
         Assert.Equal(100m, trend[1].Gelir);                           // geçen ay (elle)

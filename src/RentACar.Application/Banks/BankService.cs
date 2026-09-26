@@ -29,7 +29,7 @@ public sealed class BankService(IBankRepository repository, ICurrentUser current
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu banka zaten var.");
 
         var bank = new Bank();
@@ -56,7 +56,7 @@ public sealed class BankService(IBankRepository repository, ICurrentUser current
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu banka zaten var.");
 
         void Update(Bank bank)

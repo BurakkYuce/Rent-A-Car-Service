@@ -93,7 +93,7 @@ internal static class SatirSurumu
 
     /// <summary>
     /// Kilit + sürüm karşılaştırması + <paramref name="uygula"/> TEK işlemde. <paramref name="beklenenSurum"/> null →
-    /// yalnız kilit (karşılaştırma yok). Sürüm farklı → <see cref="Application.Common.EszamanliDegisiklikException"/>,
+    /// yalnız kilit (karşılaştırma yok). Sürüm farklı → <see cref="Application.Common.ConcurrentModificationException"/>,
     /// hiçbir şey yazılmaz (kontrol ile yazma arasında başka yazım giremez).
     /// </summary>
     public static async Task<bool> GuncelleAsync<T>(
@@ -107,7 +107,7 @@ internal static class SatirSurumu
             await KilitleAsync(db, tablo, id, ct);
             if (beklenenSurum is not null && await OkuAsync(db, tablo, id, ct) is { } guncel
                 && !string.Equals(guncel, beklenenSurum.Trim(), StringComparison.Ordinal))
-                throw new Application.Common.EszamanliDegisiklikException(Application.Common.EszamanliDegisiklikException.KayitMesaji);
+                throw new Application.Common.ConcurrentModificationException(Application.Common.ConcurrentModificationException.RecordMessage);
             var satir = await bul(db, id, ct);
             if (satir is null) return false;
             uygula(satir);

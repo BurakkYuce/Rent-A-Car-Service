@@ -22,7 +22,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
     private static async Task<Guid> SeedCariAsync(IServiceScope scope, string ad)
     {
         var customers = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        return await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+        return await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
     }
 
     private static IDbContextFactory<AppDbContext> Factory(IServiceScope scope)
@@ -44,8 +44,8 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
             CariId = cari, Tutar = 100m, Doviz = "USD", Kur = 30m, Hesap = LedgerAccountType.Kasa
         });
 
-        Assert.Equal(3000m, await cash.GetCariBalanceAsync(cari));
-        var s = await reports.GetKasaBankaSummaryAsync();
+        Assert.Equal(3000m, await cash.GetAccountBalanceAsync(cari));
+        var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(3000m, s.KasaCikis);
         Assert.Equal(-3000m, s.KasaBakiye);
 
@@ -71,12 +71,12 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         {
             CariId = cari, Tutar = 100m, Doviz = "USD", Kur = 30m, Hesap = LedgerAccountType.Kasa
         });
-        Assert.Equal(3000m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(3000m, await cash.GetAccountBalanceAsync(cari));
 
         await cash.ReverseAsync(id);
 
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
-        var s = await reports.GetKasaBankaSummaryAsync();
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+        var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(3000m, s.KasaGiris);
         Assert.Equal(3000m, s.KasaCikis);
         Assert.Equal(0m, s.KasaBakiye);
@@ -93,10 +93,10 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
 
         var id = await cash.PayAsync(new CashInput { CariId = cari, Tutar = 500m, Hesap = LedgerAccountType.Kasa });
         await cash.ReverseAsync(id);
-        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.ReverseAsync(id)); // F1.4: mükerrer tipi
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.ReverseAsync(id)); // F1.4: mükerrer tipi
 
         // Net cari must still be exactly zero, not double-zeroed.
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
     }
 
     // ---- 3b. Cannot reverse a reversal ----
@@ -137,7 +137,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
 
         // Exactly one succeeds.
         Assert.Equal(1, results.Count(r => r.ok));
-        Assert.Equal(0m, await cash0.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash0.GetAccountBalanceAsync(cari));
 
         static async Task<(bool ok, string? err)> Wrap(Task t)
         {
@@ -253,7 +253,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         // Tenant B sees nothing.
         using var b = host.ScopeFor(tenantB);
         var reportsB = b.ServiceProvider.GetRequiredService<ReportService>();
-        var s = await reportsB.GetKasaBankaSummaryAsync();
+        var s = await reportsB.GetCashBankSummaryAsync();
         Assert.Equal(0m, s.KasaGiris);
         Assert.Equal(0m, s.KasaCikis);
         Assert.Equal(0m, s.BankaGiris);
@@ -268,7 +268,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 100m));
     }
 
@@ -286,7 +286,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         }
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => cash.ReverseAsync(id));
+        await Assert.ThrowsAsync<NoPermissionException>(() => cash.ReverseAsync(id));
     }
 
     // ---- 5b. Cross-tenant reversal: tenant B must NOT be able to reverse tenant A's tx ----
@@ -313,7 +313,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         // A's balance is untouched and still reversible by A.
         using var a2 = host.ScopeFor(tenantA);
         var cashA2 = a2.ServiceProvider.GetRequiredService<CashService>();
-        Assert.Equal(700m, await cashA2.GetCariBalanceAsync(cariA));
+        Assert.Equal(700m, await cashA2.GetAccountBalanceAsync(cariA));
     }
 
     // ---- 4. Guard: FX with high-precision rate stays balanced (both legs same Money) ----
@@ -336,7 +336,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         var debit = rows.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Amount.AmountInBase);
         var credit = rows.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Amount.AmountInBase);
         Assert.Equal(debit, credit);
-        Assert.Equal(3333.3333m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(3333.3333m, await cash.GetAccountBalanceAsync(cari));
     }
 
     // ---- 7. Virman FX: does kur=1 hardcode in endpoint silently lose value? ----
@@ -352,7 +352,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
 
         // 100 USD @30 kasa->banka. Both legs same Money → base conserved.
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 100m, "USD", 30m);
-        var s = await reports.GetKasaBankaSummaryAsync();
+        var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(3000m, s.BankaGiris);
         Assert.Equal(3000m, s.KasaCikis);
         Assert.Equal(0m, s.KasaBakiye + s.BankaBakiye);

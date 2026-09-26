@@ -95,7 +95,7 @@ public sealed class CalendarFeedService(IConfiguration config)
                 AllDay($"mtv-{t.Id}", t.Vade, $"MTV vade: {P(t.VehicleId)}");
         // Ceza vade (iptal/ödenmemiş olanlar). Şube kapsamında araçsız ceza gösterilmez.
         foreach (var c in await db.Penalties.AsNoTracking()
-            .Where(x => x.Durum != CezaDurum.Iptal && x.Durum != CezaDurum.Odendi && x.VadeTarihi >= altSinir).ToListAsync(ct))
+            .Where(x => x.Durum != PenaltyStatus.Iptal && x.Durum != PenaltyStatus.Odendi && x.VadeTarihi >= altSinir).ToListAsync(ct))
             if (c.VehicleId is Guid cvId ? AracKapsamda(cvId) : sube is null)
                 AllDay($"ceza-{c.Id}", c.VadeTarihi, $"Ceza vade: {P(c.VehicleId ?? Guid.Empty)}");
         // Fatura ödeme vadesi — FİNANSAL: şube-kapsamlı Operatör feed'inde GÖSTERİLMEZ (O4: uygulamada da

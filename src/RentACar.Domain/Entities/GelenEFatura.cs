@@ -34,7 +34,7 @@ public class GelenEFatura : ITenantOwned, IAuditable
     public decimal GenelToplam { get; set; }
     public string Currency { get; set; } = "TRY";
 
-    public GelenEFaturaDurum Durum { get; set; } = GelenEFaturaDurum.Beklemede;
+    public IncomingEInvoiceStatus Durum { get; set; } = IncomingEInvoiceStatus.Beklemede;
     public string? RedNedeni { get; set; }
     public string? Aciklama { get; set; }
 

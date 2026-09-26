@@ -371,7 +371,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                     Renk = Get(r, "Renk"),
                     ModelYili = ParseInt(Get(r, "Model Yılı", "Yıl", "Model Yili", "Model")),
                     Yakit = ParseEnum<FuelType>(Get(r, "Yakıt Türü", "Yakıt", "Yakit")) ?? FuelType.Benzin,
-                    Vites = ParseEnum<Vites>(VitesNorm(Get(r, "Vites", "Şanzıman"))),
+                    Vites = ParseEnum<Transmission>(VitesNorm(Get(r, "Vites", "Şanzıman"))),
                     Km = ParseInt(Get(r, "KM", "Kilometre", "Son Km")) ?? 0,
                     SasiNo = Get(r, "Şasi No", "Şase No", "Şase", "Şasi", "Şasi Numarası"),
                     MotorNo = Get(r, "Motor No", "Motor Numarası"),
@@ -423,7 +423,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
             {
                 await _customers.CreateAsync(new CustomerInput
                 {
-                    Tip = kurumsal ? CariType.Kurumsal : CariType.Bireysel,
+                    Tip = kurumsal ? CustomerType.Kurumsal : CustomerType.Bireysel,
                     Ad = ad, Soyad = soyad, Unvan = unvan,
                     TcKimlik = tcOn,
                     VergiNo = vergiNoOn,
@@ -493,7 +493,7 @@ public sealed class ImportService(VehicleService vehicles, CustomerService custo
                     GunHaftalik = ParseDec(Get(r, "Haftalık", "Gün Haftalık", "Haftalık (8-29)")),
                     GunAylik = ParseDec(Get(r, "Aylık", "Gün Aylık", "Aylık (30+)")),
                     // Onay alanları BİLİNÇLİ sabit (dosyadan okunmaz) — çit yukarıdaki özet.
-                    OnayDurumu = TarifeOnayDurumu.Bekliyor,
+                    OnayDurumu = TariffApprovalStatus.Bekliyor,
                     Onaylayan = null, OnayZaman = null, Aktif = true
                 }, ct);
                 eklenen++;

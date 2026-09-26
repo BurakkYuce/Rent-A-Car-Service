@@ -5,20 +5,20 @@ namespace RentACar.Application.PublicSite;
 /// <summary>PR-8: halka açık site talebi (lead) kalıcılığı.</summary>
 public interface IPublicBookingRequestRepository
 {
-    Task AddAsync(PublicBookingRequest talep, CancellationToken ct = default);
+    Task AddAsync(PublicBookingRequest request, CancellationToken ct = default);
 
     Task<IReadOnlyList<PublicBookingRequest>> ListAsync(CancellationToken ct = default);
 
     /// <summary>PR-17: filtreli + sayfalı liste. Eski sınırsız <see cref="ListAsync"/> yalnız
     /// dönüştürme akışı için duruyor; ekran bu metodu kullanır.</summary>
-    Task<(IReadOnlyList<PublicBookingRequest> Satirlar, int Toplam)> SayfaliAsync(
-        PublicBookingRequestDurum? durum, string? ara, int sayfa, int boyut, CancellationToken ct = default);
+    Task<(IReadOnlyList<PublicBookingRequest> Satirlar, int Toplam)> PagedAsync(
+        PublicBookingRequestDurum? status, string? search, int page, int size, CancellationToken ct = default);
 
     /// <summary>PR-17: nav sayacı + Home KPI — `Yeni` durumdaki talep sayısı.</summary>
-    Task<int> YeniSayisiAsync(CancellationToken ct = default);
+    Task<int> NewCountAsync(CancellationToken ct = default);
 
     /// <summary>PR-17: en eski `Yeni` talebin oluşma zamanı (KPI: "en eskisi 3 gündür bekliyor"). Yoksa null.</summary>
-    Task<DateTimeOffset?> EnEskiYeniAsync(CancellationToken ct = default);
+    Task<DateTimeOffset?> OldestNewAsync(CancellationToken ct = default);
 
     Task<PublicBookingRequest?> FindAsync(Guid id, CancellationToken ct = default);
 
@@ -32,29 +32,29 @@ public interface IPublicBookingRequestRepository
     /// dönüştürülemez hale getiriyordu — personel "İletişimde" işaretlediği anda lead kilitleniyordu.
     /// Kural artık <c>TalepDurumu.Terminal</c> ile TEK yerden geliyor.</para>
     /// </summary>
-    Task<bool> TryClaimAsync(Guid id, PublicBookingRequestDurum hedef, CancellationToken ct = default);
+    Task<bool> TryClaimAsync(Guid id, PublicBookingRequestDurum target, CancellationToken ct = default);
 
     /// <summary>PR-17: aktif durumlar arası geçiş (Yeni→İletişimde→Teklif) ve Kayıp işaretleme.
     /// Terminal durumda olan satırı DEĞİŞTİRMEZ (0 döner) — atomik, oku-kontrol-yaz değil.</summary>
-    Task<bool> DurumDegistirAsync(Guid id, PublicBookingRequestDurum hedef, CancellationToken ct = default);
+    Task<bool> ChangeStatusAsync(Guid id, PublicBookingRequestDurum target, CancellationToken ct = default);
 
-    /// <summary>PR-17: talebi kendine ata / atamayı kaldır (<paramref name="kullaniciId"/> null).</summary>
-    Task<bool> AtaAsync(Guid id, Guid? kullaniciId, string? ad, CancellationToken ct = default);
+    /// <summary>PR-17: talebi kendine ata / atamayı kaldır (<paramref name="userId"/> null).</summary>
+    Task<bool> AssignAsync(Guid id, Guid? userId, string? name, CancellationToken ct = default);
 
     /// <summary>PR-17: takip notu ekler (notlar SİLİNMEZ — geçmiş kanıttır).</summary>
-    Task NotEkleAsync(TalepNotu not, CancellationToken ct = default);
+    Task AddNoteAsync(TalepNotu not, CancellationToken ct = default);
 
     /// <summary>PR-17: bir talebin notları, en yeni önce.</summary>
-    Task<IReadOnlyList<TalepNotu>> NotlarAsync(Guid talepId, CancellationToken ct = default);
+    Task<IReadOnlyList<TalepNotu>> NotesAsync(Guid requestId, CancellationToken ct = default);
 
     /// <summary>PR-17: liste ekranındaki "N not" göstergesi — talep başına not sayısı (tek sorgu).</summary>
-    Task<Dictionary<Guid, int>> NotSayilariAsync(IReadOnlyCollection<Guid> talepIdler, CancellationToken ct = default);
+    Task<Dictionary<Guid, int>> NoteCountsAsync(IReadOnlyCollection<Guid> requestIds, CancellationToken ct = default);
 
     /// <summary>Claim SONRASI rezervasyon id'sini yazar (dönüştürme başarıyla tamamlandığında).</summary>
-    Task SetDonusenReservationAsync(Guid id, Guid reservationId, CancellationToken ct = default);
+    Task SetConvertedReservationAsync(Guid id, Guid reservationId, CancellationToken ct = default);
 
     /// <summary>
-    /// Claim'i GERİ ALIR (<c>DonusenReservationId=null</c> + durum <paramref name="oncekiDurum"/>) —
+    /// Claim'i GERİ ALIR (<c>DonusenReservationId=null</c> + durum <paramref name="previousStatus"/>) —
     /// dönüştürmenin Cari/Rezervasyon aşaması patlarsa satır "Donustu ama rezervasyonsuz" YARIM
     /// kalmasın, personel tekrar deneyebilsin.
     ///
@@ -62,9 +62,9 @@ public interface IPublicBookingRequestRepository
     /// "İletişimde/Teklif verildi" ilerlemesini SESSİZCE siliyordu. Artık claim ÖNCESİ durum geri
     /// yazılıyor.</para>
     /// </summary>
-    Task ReleaseClaimAsync(Guid id, PublicBookingRequestDurum oncekiDurum, CancellationToken ct = default);
+    Task ReleaseClaimAsync(Guid id, PublicBookingRequestDurum previousStatus, CancellationToken ct = default);
 
     /// <summary>Telefonla mevcut Cari arama (dönüştürmede yeniden müşteri yaratmamak için). Normalize
     /// edilmiş (yalnız rakam) karşılaştırma — "0555 111 22 33" ile "05551112233" AYNI sayılır.</summary>
-    Task<Guid?> FindCustomerIdByPhoneAsync(string telefon, CancellationToken ct = default);
+    Task<Guid?> FindCustomerIdByPhoneAsync(string phone, CancellationToken ct = default);
 }

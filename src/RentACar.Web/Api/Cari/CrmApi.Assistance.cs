@@ -35,8 +35,8 @@ public static partial class CrmApi
 
     private static ProblemHttpResult AssistanceNotFound() => F5Ortak.Bulunamadi("Assistans talebi bulunamadı.");
 
-    private static readonly SiralamaHaritasi<AssistanceRow> AssistanceSort = SiralamaHaritasi<AssistanceRow>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<AssistanceRow> AssistanceSort = SortFieldMap<AssistanceRow>
+        .Create(r => r.Id)
         .Alan("zaman", r => r.Zaman).Alan("plaka", r => r.Plaka).Alan("kapandi", r => r.Kapandi)
         .Alan("sozlesmeNo", r => r.SozlesmeNo).Alan("sebep", r => r.Sebep);
 
@@ -54,7 +54,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Ok<Sayfa<AssistanceRow>>> ListAssistance(
-        [AsParameters] AssistanceListFilter f, AssistansTalepService requests, ICurrentUser user,
+        [AsParameters] AssistanceListFilter f, AssistanceRequestService requests, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, ILocationRepository locations, int? sayfa, int? boyut, string? sirala,
         CancellationToken ct)
     {
@@ -96,12 +96,12 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Ok<AssistanceCardDto>, ProblemHttpResult>> GetAssistance(
-        Guid id, AssistansTalepService requests, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
+        Guid id, AssistanceRequestService requests, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
         ILocationRepository locations, CancellationToken ct)
         => await AssistanceCardAsync(id, requests, user, dbf, locations, ct) is { } c ? TypedResults.Ok(c) : AssistanceNotFound();
 
     private static async Task<AssistanceCardDto?> AssistanceCardAsync(
-        Guid id, AssistansTalepService requests, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
+        Guid id, AssistanceRequestService requests, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
         ILocationRepository locations, CancellationToken ct)
     {
         var version = await requests.GetVersionAsync(id, ct);
@@ -120,7 +120,7 @@ public static partial class CrmApi
         Sinirlar.Metin(r.Mesaj, 2048, "mesaj", "Mesaj");
         Sinirlar.Metin(r.Sebep, 512, "sebep", "Sebep");
         Sinirlar.Metin(r.Cozum, 1024, "cozum", "Çözüm");
-        if (r.Plaka is { } p && AssistansTalepService.PlakaNormalize(p).Length > 16)
+        if (r.Plaka is { } p && AssistanceRequestService.NormalizePlate(p).Length > 16)
             throw new ValidationException("Plaka en fazla 16 karakter olabilir.", "plaka");
         var rentalId = r.RentalId == Guid.Empty ? null : r.RentalId;
         // Hedef kapsamı (kira var mı, kapsamda mı, şubesiz oluşturma) servis katmanında: CrmScopeGuard (r317 M1).
@@ -136,7 +136,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Created<AssistanceCardDto>, ProblemHttpResult>> CreateAssistance(
-        AssistanceRequest request, AssistansTalepService requests, RentalService rentals, ICurrentUser user,
+        AssistanceRequest request, AssistanceRequestService requests, RentalService rentals, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, ILocationRepository locations, CancellationToken ct)
     {
         var input = await AssistanceInputAsync(request, user, rentals, locations, ct);
@@ -146,7 +146,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Ok<AssistanceCardDto>, ProblemHttpResult>> UpdateAssistance(
-        Guid id, AssistanceUpdateRequest request, AssistansTalepService requests, RentalService rentals, ICurrentUser user,
+        Guid id, AssistanceUpdateRequest request, AssistanceRequestService requests, RentalService rentals, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, ILocationRepository locations, CancellationToken ct)
     {
         var current = await requests.GetAsync(id, ct);
@@ -178,7 +178,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAssistance(
-        Guid id, AssistansTalepService requests, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
+        Guid id, AssistanceRequestService requests, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
         ILocationRepository locations, CancellationToken ct)
     {
         var current = await requests.GetAsync(id, ct);

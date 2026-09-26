@@ -23,7 +23,7 @@ public sealed class RaporEksik2Tests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var custId = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Rez Müşteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rez Müşteri" });
         var vehicles = sp.GetRequiredService<VehicleService>();
         var rez = sp.GetRequiredService<ReservationService>();
         var bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
@@ -38,7 +38,7 @@ public sealed class RaporEksik2Tests(PostgresFixture fx)
             });
         }
 
-        var rows = await sp.GetRequiredService<ReportService>().GetRezervasyonKaynakAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetReservationSourceAsync();
         var web = Assert.Single(rows, r => r.Kaynak == "Web");
         Assert.Equal(2, web.Adet);
         Assert.Equal(6, web.ToplamGun);     // 2 × 3 gün
@@ -52,11 +52,11 @@ public sealed class RaporEksik2Tests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var cariId = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Fatura Müşteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Fatura Müşteri" });
         await sp.GetRequiredService<InvoiceService>()
             .CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m });
 
-        var rows = await sp.GetRequiredService<ReportService>().GetFaturaDonemAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetInvoicePeriodAsync();
         var r = Assert.Single(rows);
         Assert.Equal(1200m, r.GenelToplam);   // 1000 + 200 (elle oracle)
         Assert.Equal("Fatura Müşteri", r.Cari);

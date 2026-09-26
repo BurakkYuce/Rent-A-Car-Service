@@ -9,7 +9,7 @@ namespace RentACar.Web.Api.Platform;
 
 public static partial class PlatformApi
 {
-    /// <summary>Request cap: 3 MB PDF (<see cref="PdfValidation.MaxBayt"/>) + multipart/form-field overhead.</summary>
+    /// <summary>Request cap: 3 MB PDF (<see cref="PdfValidation.MaxBytes"/>) + multipart/form-field overhead.</summary>
     private const long DocumentRequestLimit = 4_000_000;
 
     /// <summary>
@@ -62,8 +62,8 @@ public static partial class PlatformApi
     private static async Task<byte[]> ReadPdfAsync(IFormFile? file, CancellationToken ct)
     {
         if (file is null || file.Length == 0) throw new ValidationException("PDF dosyası seçilmedi.", "dosya");
-        if (file.Length > PdfValidation.MaxBayt)
-            throw new ValidationException($"Dosya en fazla {PdfValidation.MaxBayt / (1024 * 1024)} MB olabilir.", "dosya");
+        if (file.Length > PdfValidation.MaxBytes)
+            throw new ValidationException($"Dosya en fazla {PdfValidation.MaxBytes / (1024 * 1024)} MB olabilir.", "dosya");
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms, ct);
         return ms.ToArray();

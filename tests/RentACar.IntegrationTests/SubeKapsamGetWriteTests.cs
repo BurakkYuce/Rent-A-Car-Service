@@ -28,7 +28,7 @@ public sealed class SubeKapsamGetWriteTests(PostgresFixture fx)
         {
             var sp = seed.ServiceProvider;
             var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "06 ANK 01" });
-            var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "A", Soyad = "B" });
+            var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "A", Soyad = "B" });
             kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
             { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m, CikisOfisi = "Ankara" });
         }
@@ -36,12 +36,12 @@ public sealed class SubeKapsamGetWriteTests(PostgresFixture fx)
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
         {
             var rentals = op.ServiceProvider.GetRequiredService<RentalService>();
-            Assert.Contains("kapsamınız dışında", (await Assert.ThrowsAsync<YetkiYokException>(() => rentals.GetAsync(kira))).Message);
+            Assert.Contains("kapsamınız dışında", (await Assert.ThrowsAsync<NoPermissionException>(() => rentals.GetAsync(kira))).Message);
             // İnceltme (2026-08-17): operatör kira İPTALİNİ artık hiç yapamaz (OperationsDelete yok)
             // ve yetki reddi şube-kapsam kontrolünden ÖNCE gelir — doğru sıra: önce "bu işlemi
             // yapabilir misin", sonra "bu kayda erişebilir misin". Şube-kapsam semantiği yukarıdaki
             // GetAsync assert'iyle korunmaya devam ediyor.
-            Assert.Contains("OperationsDelete", (await Assert.ThrowsAsync<YetkiYokException>(() => rentals.CancelAsync(kira))).Message);
+            Assert.Contains("OperationsDelete", (await Assert.ThrowsAsync<NoPermissionException>(() => rentals.CancelAsync(kira))).Message);
         }
 
         using (var op2 = host.ScopeFor(tenant, Guid.NewGuid(), "op2", UserRole.Operator, assignedBranch: "Ankara"))

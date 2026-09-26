@@ -12,7 +12,7 @@ public sealed class BafInput
     public string? Aciklama { get; set; }
 
     // ---- FAZ-18: çıkış anında girilen bilgi alanları (defter postlamaz) ----
-    public Domain.Enums.BafKullanimAmaci? KullanimAmaci { get; set; }
+    public Domain.Enums.BafUsagePurpose? KullanimAmaci { get; set; }
     /// <summary>Onaylayan personel (Personel.Id) — BİLGİ; yetki kontrolü bu alandan YAPILMAZ.</summary>
     public Guid? Onaylayan { get; set; }
     public bool KirayaVer { get; set; }

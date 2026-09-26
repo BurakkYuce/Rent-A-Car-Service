@@ -53,8 +53,8 @@ public static partial class ReportApi
         };
         IReadOnlyList<AracDurumTakipRow> gunler = [];
         IReadOnlyList<AracDurumTakipAracRow> araclar = [];
-        if (g == "arac") araclar = await reports.GetAracDurumTakipAracBazliAsync(filtre, p.FromAnchor, p.Bas is null ? null : ReportPeriod.Anchor(p.Bit!.Value), ct);
-        else gunler = await reports.GetAracDurumTakipAsync(filtre, p.FromAnchor, p.Bas is null ? null : ReportPeriod.Anchor(p.Bit!.Value), ct);
+        if (g == "arac") araclar = await reports.GetVehicleStatusTrackingByVehicleAsync(filtre, p.FromAnchor, p.Bas is null ? null : ReportPeriod.Anchor(p.Bit!.Value), ct);
+        else gunler = await reports.GetVehicleStatusTrackingAsync(filtre, p.FromAnchor, p.Bas is null ? null : ReportPeriod.Anchor(p.Bit!.Value), ct);
         var export = ReportExport.Links(http, user, g == "arac" ? "arac-durum-takip-arac" : "arac-durum-takip",
         [
             .. ReportExport.Period(p), ("sube", filtre.Sube), ("aracSahibi", aracSahibi), ("grup", grup), ("sipp", sipp),
@@ -64,8 +64,8 @@ public static partial class ReportApi
             new VehicleTrackingReport(g, gunler), page.Apply(araclar, TrackingMap), export));
     }
 
-    private static readonly SiralamaHaritasi<AracDurumTakipAracRow> TrackingMap = SiralamaHaritasi<AracDurumTakipAracRow>
-        .Olustur(r => r.VehicleId).Alan("plaka", r => r.Plaka).Alan("doluGun", r => r.DoluGun)
+    private static readonly SortFieldMap<AracDurumTakipAracRow> TrackingMap = SortFieldMap<AracDurumTakipAracRow>
+        .Create(r => r.VehicleId).Alan("plaka", r => r.Plaka).Alan("doluGun", r => r.DoluGun)
         .Alan("bosGun", r => r.BosGun).Alan("bakimGun", r => r.BakimGun).Alan("sube", r => r.Sube);
 
     // ------------------------------------------------------------------ km detay
@@ -78,7 +78,7 @@ public static partial class ReportApi
         ICurrentUser user, IDbContextFactory<AppDbContext> dbf, HttpContext http, CancellationToken ct)
     {
         var p = q.Validate();
-        var satirlar = await reports.GetKmDetayAsync(p.FromUtc, p.ToUtc, ct);
+        var satirlar = await reports.GetKmDetailAsync(p.FromUtc, p.ToUtc, ct);
         var kapsam = await ReportScope.RentalsInScopeAsync(user, satirlar.Select(r => r.RentalId), dbf, ct);
         var rows = kapsam is null ? satirlar.ToList() : satirlar.Where(r => kapsam.Contains(r.RentalId)).ToList();
         return TypedResults.Ok(new ReportResult<MileageSummary, KmDetayRow>(p.ToDto(),
@@ -86,8 +86,8 @@ public static partial class ReportApi
             page.Apply(rows, MileageMap), ReportExport.Links(http, user, "km-detay", ReportExport.Period(p))));
     }
 
-    private static readonly SiralamaHaritasi<KmDetayRow> MileageMap = SiralamaHaritasi<KmDetayRow>
-        .Olustur(r => r.RentalId).Alan("sozlesmeNo", r => r.SozlesmeNo).Alan("plaka", r => r.Plaka)
+    private static readonly SortFieldMap<KmDetayRow> MileageMap = SortFieldMap<KmDetayRow>
+        .Create(r => r.RentalId).Alan("sozlesmeNo", r => r.SozlesmeNo).Alan("plaka", r => r.Plaka)
         .Alan("katedilenKm", r => r.KatedilenKm).Alan("fazlaKm", r => r.FazlaKm).Alan("basTar", r => r.BasTar);
 
     // ------------------------------------------------------------------ periyodik servis
@@ -100,7 +100,7 @@ public static partial class ReportApi
         if (esik is < 0 or > 10_000_000)
             throw new ValidationException("Eşik 0 ile 10.000.000 km arasında olmalıdır.", "esik");
         var etkinSube = await ReportScope.BranchFilterAsync(user, sube, dbf, ct);
-        var rows = await reports.GetPeriyodikServisAsync(new PeriyodikServisFilter
+        var rows = await reports.GetPeriodicServiceAsync(new PeriyodikServisFilter
         {
             Plaka = F(plaka), Sube = etkinSube, Aktif = aktif, UyariEsigi = esik,
         }, ct);
@@ -109,7 +109,7 @@ public static partial class ReportApi
             ReportExport.Links(http, user, "periyodik-servis", [])));
     }
 
-    private static readonly SiralamaHaritasi<PeriyodikServisRow> PeriodicMap = SiralamaHaritasi<PeriyodikServisRow>
-        .Olustur(r => r.VehicleId).Alan("plaka", r => r.Plaka).Alan("kalanKm", r => r.KalanKm)
+    private static readonly SortFieldMap<PeriyodikServisRow> PeriodicMap = SortFieldMap<PeriyodikServisRow>
+        .Create(r => r.VehicleId).Alan("plaka", r => r.Plaka).Alan("kalanKm", r => r.KalanKm)
         .Alan("guncelKm", r => r.GuncelKm).Alan("sube", r => r.Sube);
 }

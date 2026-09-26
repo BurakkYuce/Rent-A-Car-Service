@@ -31,7 +31,7 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
         var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
         var customers = s.ServiceProvider.GetRequiredService<CustomerService>();
         var arac = await vehicles.CreateAsync(new VehicleInput { Plaka = "34OTM01", Grup = "B" });
-        var musteri = await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Otomatik", Soyad = "Test" });
+        var musteri = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Otomatik", Soyad = "Test" });
         if (matris)
         {
             var matrisler = s.ServiceProvider.GetRequiredService<RateMatrixService>();
@@ -39,7 +39,7 @@ public sealed class FiyatOtomatikTests(PostgresFixture fx)
             {
                 Kod = "OTM-B", Ad = "Otomatik B", AracGrupKod = "B", ParaBirimi = matrisParaBirimi,
                 Gun1 = 300m, Gun2 = 280m, Gun3 = 240m,
-                OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "test"
+                OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "test"
             });
         }
         return (musteri, arac);

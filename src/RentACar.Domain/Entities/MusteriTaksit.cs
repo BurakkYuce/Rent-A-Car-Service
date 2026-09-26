@@ -37,7 +37,7 @@ public class MusteriTaksit : ITenantOwned, IAuditable
     public string Currency { get; set; } = "TRY";
     public decimal Kur { get; set; } = 1m;
 
-    public TaksitDurum Durum { get; set; } = TaksitDurum.Bekliyor;
+    public InstallmentStatus Durum { get; set; } = InstallmentStatus.Bekliyor;
     /// <summary>Ödendi işaretlendiği an (takip bilgisi — defter tarihi DEĞİLDİR).</summary>
     public DateTimeOffset? OdemeTarihi { get; set; }
 
@@ -53,5 +53,5 @@ public class MusteriTaksit : ITenantOwned, IAuditable
     /// Gecikme TÜRETİLİR: vadesi geçmiş ve ödenmemiş. Kolona yazılsaydı gece yarısı bayatlar,
     /// bir job'a bağımlı hâle gelir ve güncellenmediğinde rapor yanlış gösterirdi.
     /// </summary>
-    public bool Gecikti => Durum != TaksitDurum.Odendi && Vade.UtcDateTime.Date < DateTimeOffset.UtcNow.UtcDateTime.Date;
+    public bool Gecikti => Durum != InstallmentStatus.Odendi && Vade.UtcDateTime.Date < DateTimeOffset.UtcNow.UtcDateTime.Date;
 }

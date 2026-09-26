@@ -13,7 +13,7 @@ using RentACar.Web.Api.Kira;
 namespace RentACar.Web.Api.Tanim;
 
 /// <summary>
-/// F11.1a — definitions with their own service (not the <see cref="MasterTanimService{T}"/> base): Aksesuar, Banka,
+/// F11.1a — definitions with their own service (not the <see cref="MasterDefinitionService{T}"/> base): Aksesuar, Banka,
 /// Döviz, Özel kod, Gider türü. Same generic contract; extra columns and limits per entity.
 /// Free-text columns without a DB limit (<c>text</c>) get a 512-char edge cap so a body cannot grow unbounded.
 /// </summary>

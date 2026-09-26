@@ -29,7 +29,7 @@ public static class BafEndpoints
                 Aciklama = S("aciklama"),
                 // ---- FAZ-18 bilgi alanları ----
                 // Enum'u doğrudan [FromForm] bağlamak boş string'te 400 verirdi → elle TryParse.
-                KullanimAmaci = Enum.TryParse<RentACar.Domain.Enums.BafKullanimAmaci>(S("kullanimAmaci"), out var ka) ? ka : null,
+                KullanimAmaci = Enum.TryParse<RentACar.Domain.Enums.BafUsagePurpose>(S("kullanimAmaci"), out var ka) ? ka : null,
                 Onaylayan = FormParse.Id(S("onaylayan")),
                 KirayaVer = f.ContainsKey("kirayaVer"),   // işaretsiz checkbox HİÇ gönderilmez
                 CikisSaat = FormParse.Saat(S("cikisSaat"))
@@ -50,13 +50,13 @@ public static class BafEndpoints
             // FAZ-18: dönüş şubesi/saati BİLGİdir — şube KAPSAMI hâlâ çıkış şubesinden işler.
             var donusSube = FormParse.Str(f, "donusSube");
             var donusSaat = FormParse.Saat(FormParse.Str(f, "donusSaat"));
-            try { await svc.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi, donusSube, donusSaat); return Sonuc.Tamam("/baf", "Teslim alındı."); }
+            try { await svc.ReceiveAsync(id, donusKm, donusYakit, donusTarihi, donusSube, donusSaat); return Sonuc.Tamam("/baf", "Teslim alındı."); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
         grp.MapPost("/iptal", async (BafService svc, [FromForm] Guid id) =>
         {
-            try { await svc.IptalAsync(id); return Sonuc.Tamam("/baf", "İşlem iptal edildi."); }
+            try { await svc.CancelAsync(id); return Sonuc.Tamam("/baf", "İşlem iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/baf?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.OperationsDelete);
 

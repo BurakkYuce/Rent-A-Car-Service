@@ -14,6 +14,6 @@ public interface IVersionedRepository<T> where T : class
     Task<IReadOnlyDictionary<Guid, string>> GetVersionsAsync(CancellationToken ct = default);
 
     /// <summary>Row lock + version comparison + apply in one transaction; mismatch →
-    /// <see cref="EszamanliDegisiklikException"/>; missing row → false.</summary>
+    /// <see cref="ConcurrentModificationException"/>; missing row → false.</summary>
     Task<bool> UpdateAsync(Guid id, string expectedVersion, Action<T> apply, CancellationToken ct = default);
 }

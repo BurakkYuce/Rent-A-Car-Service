@@ -17,7 +17,7 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
     private static async Task<(Guid cust, Guid veh)> Seed(IServiceProvider sp, string plaka)
     {
         var cust = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Filo Müşteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Filo Müşteri" });
         var veh = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
         return (cust, veh);
@@ -30,7 +30,7 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (cust, veh) = await Seed(sp, "34 FK 01");
-        var svc = sp.GetRequiredService<FiloKiralamaService>();
+        var svc = sp.GetRequiredService<FleetRentalService>();
 
         var id = await svc.CreateAsync(new FiloKiralamaInput
         { MusteriId = cust, VehicleId = veh, SureAy = 12, AylikUcret = 1000m, KdvOrani = 0.20m });
@@ -39,7 +39,7 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
         BelgeNoOracle.BeklenenlerdenBiri(16, 1, k!.No);   // 16 = FiloKiralama
         Assert.Equal(12, k.SureAy);
 
-        var ozet = FiloKiralamaService.TaksitPlani(k);
+        var ozet = FleetRentalService.InstallmentPlan(k);
         Assert.Equal(12, ozet.Taksitler.Count);
         Assert.Equal(12000m, ozet.ToplamNet);    // 1000 × 12 (elle oracle)
         Assert.Equal(2400m, ozet.ToplamKdv);     // 12000 × 0.20
@@ -56,7 +56,7 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var (cust, veh) = await Seed(sp, "34 FK 02");
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
-            sp.GetRequiredService<FiloKiralamaService>().CreateAsync(new FiloKiralamaInput
+            sp.GetRequiredService<FleetRentalService>().CreateAsync(new FiloKiralamaInput
             { MusteriId = cust, VehicleId = veh, SureAy = 0, AylikUcret = 1000m }));
     }
 
@@ -68,11 +68,11 @@ public sealed class FiloKiralamaTests(PostgresFixture fx)
         using (var a = host.ScopeFor(tenantA))
         {
             var (cust, veh) = await Seed(a.ServiceProvider, "34 FK 03");
-            await a.ServiceProvider.GetRequiredService<FiloKiralamaService>()
+            await a.ServiceProvider.GetRequiredService<FleetRentalService>()
                 .CreateAsync(new FiloKiralamaInput { MusteriId = cust, VehicleId = veh, SureAy = 6, AylikUcret = 500m });
         }
         using var b = host.ScopeFor(Guid.NewGuid());
-        var list = await b.ServiceProvider.GetRequiredService<FiloKiralamaService>().ListAsync();
+        var list = await b.ServiceProvider.GetRequiredService<FleetRentalService>().ListAsync();
         Assert.Empty(list); // başka tenant'ın sözleşmesi RLS ile gizli
     }
 }

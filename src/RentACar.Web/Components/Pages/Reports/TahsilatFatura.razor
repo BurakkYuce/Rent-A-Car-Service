@@ -145,11 +145,11 @@
     {
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
-        _data = await Reports.GetTahsilatFaturaAsync(from, to);
+        _data = await Reports.GetCollectionInvoiceAsync(from, to);
 
         // Satır modu AYNI dönem penceresini kullanır (kira başlangıcına göre) — iki bölüm
         // birbirinden bağımsız dönemler göstermesin.
-        _satirlar = await Reports.GetTahsilatMutabakatAsync(new TahsilatMutabakatFilter
+        _satirlar = await Reports.GetCollectionReconciliationAsync(new TahsilatMutabakatFilter
         {
             Ara = Ara,
             Durum = Enum.TryParse<RentACar.Domain.Enums.RentalStatus>(Durum, out var d) ? d : null,

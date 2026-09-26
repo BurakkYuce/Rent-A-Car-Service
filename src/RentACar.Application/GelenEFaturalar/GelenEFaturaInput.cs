@@ -50,7 +50,7 @@ public sealed class GelenEFaturaGiderInput
 
     /// <summary>Karşı hesap seçimi. Varsayılan AçıkHesap: gelen (tedarikçi) faturası tipik olarak
     /// henüz ödenmemiştir → tedarikçi cariye borçlanılır.</summary>
-    public OdemeYontemi OdemeYontemi { get; set; } = OdemeYontemi.AcikHesap;
+    public PaymentMethod OdemeYontemi { get; set; } = PaymentMethod.AcikHesap;
 
     /// <summary>AçıkHesap'ta tedarikçi cari. Boşsa faturanın kendi <c>CariId</c>'si kullanılır.</summary>
     public Guid? CariId { get; set; }

@@ -61,7 +61,7 @@ else
         <label>Vites
             <select name="vites">
                 <option value="">—</option>
-                @foreach (var vt in Enum.GetValues<Vites>())
+                @foreach (var vt in Enum.GetValues<Transmission>())
                 {
                     <option value="@vt" selected="@(_vehicle.Vites == vt)">@vt</option>
                 }
@@ -81,7 +81,7 @@ else
         <label>Filo Status
             <select name="filoDurum">
                 <option value="">—</option>
-                @foreach (var fs in Enum.GetValues<FiloStatus>())
+                @foreach (var fs in Enum.GetValues<FleetLifecycleStatus>())
                 {
                     <option value="@fs" selected="@(_vehicle.FiloDurum == fs)">@fs</option>
                 }
@@ -223,7 +223,7 @@ else
                             <tr>
                                 <td>@k.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                                 <td class="num">@k.Km.ToString("N0")</td>
-                                <td>@(k.Kaynak switch { KmLogKaynak.Donus => "Kira dönüşü", KmLogKaynak.Servis => "Servis çıkışı", _ => "Manuel" })</td>
+                                <td>@(k.Kaynak switch { KmLogSource.Donus => "Kira dönüşü", KmLogSource.Servis => "Servis çıkışı", _ => "Manuel" })</td>
                             </tr>
                         }
                     </tbody>
@@ -324,7 +324,7 @@ else
         if (_vehicle is not null)
         {
             _photos = await Fotograflar.ListMetaAsync(Id);
-            _sonKm = await Vehicles.KmLoglariAsync(Id, 3);
+            _sonKm = await Vehicles.KmLogsAsync(Id, 3);
         }
         var markalar = await Markalar.ListActiveAsync();
         var gruplar = await AracGruplari.ListActiveAsync();

@@ -22,7 +22,7 @@ public sealed class KdvModuTests(PostgresFixture fx)
     private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plaka)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
-        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Kdv", Soyad = "M" });
+        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kdv", Soyad = "M" });
         return (m, v);
     }
 
@@ -63,7 +63,7 @@ public sealed class KdvModuTests(PostgresFixture fx)
         Assert.Equal(beklenenNet, f.NetTutar);      // net girilen niyeti korur (mod'a göre)
         Assert.Equal(beklenenKdv, f.KdvTutar);
         // Cari borç = brüt (defter).
-        Assert.Equal(brut, await sp.GetRequiredService<CashService>().GetCariBalanceAsync(m));
+        Assert.Equal(brut, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(m));
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class KdvModuTests(PostgresFixture fx)
         var (m, v) = await SeedAsync(sp, "34 KY 01");
         var netId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m, v, 100, "Günlük"));
         var ex = await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => invoices.CreateFromRentalAsync(netId, kdvRate: 0.10m));
+            () => invoices.CreateFromRentalAsync(netId, vatRate: 0.10m));
         Assert.Contains("Net fiyat modlu", ex.Message);
         // Varsayılan oran → sorunsuz (net 300).
         var fId = await invoices.CreateFromRentalAsync(netId);
@@ -87,7 +87,7 @@ public sealed class KdvModuTests(PostgresFixture fx)
         // Brüt modda override SERBEST (girilen zaten brüt; oran yalnız yeniden ayrıştırır).
         var (m2, v2) = await SeedAsync(sp, "34 KY 02");
         var brutId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(B(m2, v2, 100, "KDV Dahil Günlük"));
-        var f2 = await invoices.CreateFromRentalAsync(brutId, kdvRate: 0.10m); // reddedilmez
+        var f2 = await invoices.CreateFromRentalAsync(brutId, vatRate: 0.10m); // reddedilmez
         Assert.NotEqual(Guid.Empty, f2);
     }
 

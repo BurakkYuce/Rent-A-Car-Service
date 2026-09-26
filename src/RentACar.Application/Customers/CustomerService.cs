@@ -34,30 +34,30 @@ public sealed class CustomerService(
 
     /// <summary>Dropdown listesi (Id + görünen ad). PII ÇÖZMEZ — cari seçtirmek için
     /// <see cref="ListAsync"/> yerine BUNU kullanın (bkz. ICustomerRepository.ListSecimAsync).</summary>
-    public Task<IReadOnlyList<CariSecim>> ListSecimAsync(CancellationToken ct = default)
-        => _repository.ListSecimAsync(ct);
+    public Task<IReadOnlyList<CariSecim>> ListForSelectAsync(CancellationToken ct = default)
+        => _repository.ListForSelectAsync(ct);
 
     /// <summary>
-    /// F1.6 SINIRLI + YETKİLİ seçim araması (yeni arayüz typeahead'i). <see cref="ListSecimAsync"/>'in
+    /// F1.6 SINIRLI + YETKİLİ seçim araması (yeni arayüz typeahead'i). <see cref="ListForSelectAsync"/>'in
     /// KVKK açığını (yetkisiz, sınırsız → tüm müşteri adları; ad kişisel veridir) yeni yüzeyde taşımaz:
     /// OperationsWrite VEYA FinanceWrite ister (F4.4: Muhasebe sabit finans panelinde dış hizmet tedarikçisini
     /// arar), en çok <paramref name="limit"/> (1–20) satır döner, PII kolonu okumaz.
-    /// Blazor çağıranları davranış değişmesin diye <see cref="ListSecimAsync"/>'i kullanmaya devam eder.
+    /// Blazor çağıranları davranış değişmesin diye <see cref="ListForSelectAsync"/>'i kullanmaya devam eder.
     /// Arama Türkçe katlamalıdır (<see cref="TurkishText.Normalize"/>): "ışık" = "IŞIK" = "isik".
     /// </summary>
-    public Task<IReadOnlyList<CariSecimSatiri>> SecimAraAsync(string? q, int limit, CancellationToken ct = default)
+    public Task<IReadOnlyList<CariSecimSatiri>> SearchSelectionAsync(string? q, int limit, CancellationToken ct = default)
     {
         PermissionGuard.RequireAny(_currentUser, Permission.OperationsWrite, Permission.FinanceWrite);
         var t = q?.Trim() ?? string.Empty;
         if (t.Length > 100) t = t[..100];
-        return _repository.SecimAraAsync(TurkishText.Normalize(t), Math.Clamp(limit, 1, 20), ct);
+        return _repository.SearchSelectionAsync(TurkishText.Normalize(t), Math.Clamp(limit, 1, 20), ct);
     }
 
-    /// <summary>F4.3b — kimlikle tek seçim satırı (PII'sız; <see cref="SecimAraAsync"/> ile aynı izin).</summary>
-    public Task<CariSecimSatiri?> SecimGetirAsync(Guid id, CancellationToken ct = default)
+    /// <summary>F4.3b — kimlikle tek seçim satırı (PII'sız; <see cref="SearchSelectionAsync"/> ile aynı izin).</summary>
+    public Task<CariSecimSatiri?> GetSelectionAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.SecimGetirAsync(id, ct);
+        return _repository.GetSelectionAsync(id, ct);
     }
 
     /// <summary>Liste ekranı: arama + sayfalama.</summary>
@@ -65,7 +65,7 @@ public sealed class CustomerService(
     {
         if (filter.Page < 1) filter.Page = 1;
         if (filter.PageSize is < 1 or > 200) filter.PageSize = 20;
-        PrepareTcSearch(filter);
+        PrepareNationalIdSearch(filter);
         return _repository.SearchAsync(filter, ct);
     }
 
@@ -74,13 +74,13 @@ public sealed class CustomerService(
     {
         if (filter.Page < 1) filter.Page = 1;
         if (filter.PageSize is < 1 or > 200) filter.PageSize = 20;
-        PrepareTcSearch(filter);
+        PrepareNationalIdSearch(filter);
         return _repository.SearchRowsAsync(filter, ct);
     }
 
     /// <summary>Sorgu 11 haneli TC ise blind-index özetini filtreye koyar (şifreli TC'de
     /// ILike çalışmaz; tam-eşleşme hash üzerinden). Kısmi TC araması bilinçli olarak yok.</summary>
-    private void PrepareTcSearch(CustomerFilter filter)
+    private void PrepareNationalIdSearch(CustomerFilter filter)
     {
         var digits = OnlyDigitsOrNull(filter.Query);
         filter.TcHash = digits?.Length == 11 ? _pii.Hash(TenantId, digits) : null;
@@ -121,7 +121,7 @@ public sealed class CustomerService(
 
     /// <summary>
     /// F7.1 — tam değiştirme, iyimser eşzamanlılıkla: <paramref name="expectedVersion"/> satır kilidi ALTINDA
-    /// karşılaştırılır; farklıysa <see cref="EszamanliDegisiklikException"/> (409) ve hiçbir şey yazılmaz.
+    /// karşılaştırılır; farklıysa <see cref="ConcurrentModificationException"/> (409) ve hiçbir şey yazılmaz.
     /// Doğrulama/benzersizlik kuralları <see cref="UpdateAsync(Guid, CustomerInput, CancellationToken)"/> ile aynı.
     /// </summary>
     public async Task<bool> UpdateAsync(Guid id, CustomerInput input, string expectedVersion, CancellationToken ct = default)
@@ -160,7 +160,7 @@ public sealed class CustomerService(
         if (previous is not null && (n.VergiNo == previous || n.VergiNo == OnlyDigitsOrNull(previous))) return;
         if (n.VergiNo.Length == 11)
             throw new ValidationException("Vergi No 11 haneli olamaz; TC kimlik numarası için TC Kimlik alanını kullanın.");
-        if (!TurkishIdentity.IsValidVergiNoFormat(n.VergiNo))
+        if (!TurkishIdentity.IsValidTaxNoFormat(n.VergiNo))
             throw new ValidationException("Vergi No 10 haneli olmalıdır.");
     }
 
@@ -170,7 +170,7 @@ public sealed class CustomerService(
                      || (current.AnonimTelefon && !n.AnonimTelefon) || (current.AnonimMail && !n.AnonimMail)
                      || (current.AnonimAdres && !n.AnonimAdres) || (current.AnonimBelge && !n.AnonimBelge);
         if (lifted && !EffectivePermission.Has(_currentUser, Permission.ManageUsers))
-            throw new YetkiYokException("KVKK anonimleştirmesini kaldırmak için kullanıcı yönetimi yetkisi gerekir.");
+            throw new NoPermissionException("KVKK anonimleştirmesini kaldırmak için kullanıcı yönetimi yetkisi gerekir.");
     }
 
     /// <summary>F7.1 — satır sürümü (PUT'un <c>surum</c>'u); yok/başka kiracı → null.</summary>
@@ -186,11 +186,11 @@ public sealed class CustomerService(
 
     private static void Validate(CustomerInput n)
     {
-        if (n.Tip == CariType.Bireysel)
+        if (n.Tip == CustomerType.Bireysel)
         {
             if (string.IsNullOrWhiteSpace(n.Ad))
                 throw new ValidationException("Bireysel cari için Ad zorunludur.");
-            if (!string.IsNullOrEmpty(n.TcKimlik) && !TurkishIdentity.IsValidTcKimlik(n.TcKimlik))
+            if (!string.IsNullOrEmpty(n.TcKimlik) && !TurkishIdentity.IsValidNationalId(n.TcKimlik))
                 throw new ValidationException("TC Kimlik No geçersiz.");
         }
         else
@@ -201,7 +201,7 @@ public sealed class CustomerService(
 
         if (!string.IsNullOrEmpty(n.Email) && !IsValidEmail(n.Email))
             throw new ValidationException("E-posta adresi geçersiz.");
-        TarihPolitikasi.DogumTarihi(n.DogumTarihi); // gelecekte doğmuş olamaz (yaş kuralı AYRI: fiyat motoru)
+        DatePolicy.BirthDate(n.DogumTarihi); // gelecekte doğmuş olamaz (yaş kuralı AYRI: fiyat motoru)
         if (n.VadeGun < 0)
             throw new ValidationException("Vade günü negatif olamaz.");
         if (n.RiskLimiti < 0)
@@ -215,9 +215,9 @@ public sealed class CustomerService(
         // TC benzersizliği blind-index üzerinden (düz metin DB'de yok) — DB'deki kısmi unique
         // index (TenantId, TcKimlikHash) yarışta ikinci savunmadır.
         if (!string.IsNullOrEmpty(n.TcKimlik)
-            && await _repository.TcKimlikHashExistsAsync(_pii.Hash(TenantId, n.TcKimlik)!, excludeId, ct))
+            && await _repository.NationalIdHashExistsAsync(_pii.Hash(TenantId, n.TcKimlik)!, excludeId, ct))
             throw new DuplicateCariException("TC Kimlik No", n.TcKimlik!);
-        if (!string.IsNullOrEmpty(n.VergiNo) && await _repository.VergiNoExistsAsync(n.VergiNo!, excludeId, ct))
+        if (!string.IsNullOrEmpty(n.VergiNo) && await _repository.TaxNoExistsAsync(n.VergiNo!, excludeId, ct))
             throw new DuplicateCariException("Vergi No", n.VergiNo!);
     }
 

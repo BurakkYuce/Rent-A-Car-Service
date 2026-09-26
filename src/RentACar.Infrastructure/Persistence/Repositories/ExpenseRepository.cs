@@ -77,7 +77,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
     /// <c>(tenant, gider)</c> danışma kilidinin ARKASINDA; kilitsiz "önce oku sonra yaz" TOCTOU'dur
     /// (depozito/ceza deseniyle aynı). Aynı işlem anahtarıyla ikinci gönderim sessizce yutulur.
     /// </summary>
-    public async Task<GiderOdeme?> OdemeEkleAsync(
+    public async Task<GiderOdeme?> AddPaymentAsync(
         Guid expenseId, decimal? tutar, DateTimeOffset tarih, string? makbuzNo, string? aciklama,
         string? islemYapan, Guid? islemAnahtari, CancellationToken ct = default)
     {
@@ -99,7 +99,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
 
         var gider = await db.Expenses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == expenseId, ct)
             ?? throw new ValidationException("Gider bulunamadı.");
-        if (gider.OdemeYontemi != OdemeYontemi.AcikHesap)
+        if (gider.OdemeYontemi != PaymentMethod.AcikHesap)
             throw new ValidationException(
                 "Bu gider kayıt anında ödendi (nakit/banka); kısmi ödeme takibi yalnız açık hesap giderlerinde yapılır.");
 
@@ -145,7 +145,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
     /// <summary>
     /// F1.4 — bu anahtarla yazılmış gider ödemesi var mı? Yoksa false. Varsa ve AYNI gidere AYNI tutarla
     /// yazılmışsa true (sessiz). Tutar null ("kalanın tamamı") yalnız kayıtlı ödeme o gideri KAPATTIYSA
-    /// aynı istek sayılır. Başka gider ya da tutar → <see cref="MukerrerIslemException"/>.
+    /// aynı istek sayılır. Başka gider ya da tutar → <see cref="DuplicateOperationException"/>.
     /// </summary>
     private static async Task<bool> GiderOdemeMevcutMuAsync(
         AppDbContext db, Guid? islemAnahtari, Guid expenseId, decimal? tutar, CancellationToken ct)
@@ -159,11 +159,11 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
         var ayni = mevcut.ExpenseId == expenseId && (tutar is { } t
             ? decimal.Round(t, 2, MidpointRounding.ToZero) == mevcut.Tutar
             : mevcut.KalanSonrasi == 0m);
-        if (!ayni) throw MukerrerIslemException.FarkliIcerik();
+        if (!ayni) throw DuplicateOperationException.DifferentContent();
         return true;
     }
 
-    public async Task<Dictionary<Guid, decimal>> OdenenToplamlariAsync(
+    public async Task<Dictionary<Guid, decimal>> PaidTotalsAsync(
         IReadOnlyCollection<Guid> expenseIds, CancellationToken ct = default)
     {
         if (expenseIds.Count == 0) return [];
@@ -176,7 +176,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
             .ToDictionaryAsync(x => x.Key, x => x.Toplam, ct);
     }
 
-    public async Task<IReadOnlyList<GiderOdeme>> ListOdemelerAsync(Guid expenseId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<GiderOdeme>> ListPaymentsAsync(Guid expenseId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.GiderOdemeleri.AsNoTracking()
@@ -207,7 +207,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            expense.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Gider, ct);
+            expense.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Gider, ct);
 
             db.Expenses.Add(expense);
             db.AccountLedgerEntries.AddRange(entries);
@@ -246,7 +246,7 @@ public sealed class ExpenseRepository(IDbContextFactory<AppDbContext> factory) :
             // ATOMİK: tüm kalemler TEK transaction'da. No'lar boşluksuz; rollback olursa sıra geri alınır.
             foreach (var it in items)
             {
-                it.Expense.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Gider, ct);
+                it.Expense.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Gider, ct);
                 db.Expenses.Add(it.Expense);
                 db.AccountLedgerEntries.AddRange(it.Entries);
             }

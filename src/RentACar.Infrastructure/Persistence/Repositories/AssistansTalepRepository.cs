@@ -5,7 +5,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Assistans (yol yardım) talebi kalıcılığı — FAZ-44.</summary>
-public sealed class AssistansTalepRepository(IDbContextFactory<AppDbContext> factory) : IAssistansTalepRepository
+public sealed class AssistansTalepRepository(IDbContextFactory<AppDbContext> factory) : IAssistanceRequestRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -27,7 +27,7 @@ public sealed class AssistansTalepRepository(IDbContextFactory<AppDbContext> fac
         {
             // Plaka DB'de normalize (34AA01); kullanıcı "34 AA" yazabilir → arama terimi de
             // normalize edilir, yoksa boşluklu giriş hiçbir şey bulmaz (FAZ-63 dersi).
-            var p = AssistansTalepService.PlakaNormalize(filtre.Plaka);
+            var p = AssistanceRequestService.NormalizePlate(filtre.Plaka);
             if (p.Length > 0) q = q.Where(x => x.Plaka != null && x.Plaka.Contains(p));
         }
 

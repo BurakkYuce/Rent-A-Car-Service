@@ -34,7 +34,7 @@ public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(
             new VehicleInput { Plaka = plaka, Grup = grup, GrupBilincliBos = grup is null });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Oto", Soyad = "Kurtarma" });
+        { Tip = CustomerType.Bireysel, Ad = "Oto", Soyad = "Kurtarma" });
         return (m, v);
     }
 
@@ -109,7 +109,7 @@ public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
         {
             Kod = "OT-TARIFE", Ad = "Oto tarife", AracGrupKod = "EKO", ParaBirimi = "TRY",
             Gun1 = 500m, Gun2 = 500m, Gun3 = 500m, Gun4 = 500m, Gun5 = 500m,
-            OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t",
+            OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t",
         });
 
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
@@ -132,7 +132,7 @@ public sealed class OtomatikFiyatKurtarmaTests(PostgresFixture fx)
         var (m, v) = await SeedAsync(sp, "34 OT 05");
 
         // Canlı hesap ucu (mega-formun sağ paneli) eskiden burada ok:false + hata mesajı dönüyordu.
-        var onizleme = await sp.GetRequiredService<KiraHesapService>().HesaplaAsync(new KiraHesapIstek(
+        var onizleme = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(new KiraHesapIstek(
             VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: 1000m,
             FiyatTuru: "Otomatik", Doviz: "TL", CikisOfisi: null, EkHizmetler: [], MusteriId: m));
 

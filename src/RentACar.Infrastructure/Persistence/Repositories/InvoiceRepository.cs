@@ -165,7 +165,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             {
                 x.i.Id, x.i.No, x.i.Tarih, x.i.VadeTarihi, x.i.Durum, x.i.IadeMi, x.i.ManuelMi,
                 x.i.Currency, x.i.Kur, x.i.CariId,
-                CariAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                CariAd = x.c == null ? null : (x.c.Tip == CustomerType.Bireysel
                     ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan),
                 CariSehir = x.c == null ? null : x.c.Il,
                 CariEmail = x.c == null ? null : x.c.Email,
@@ -207,13 +207,13 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             .OrderByDescending(i => i.Tarih).ThenByDescending(i => i.CreatedAtUtc).ToList();
     }
 
-    public async Task<bool> IadeExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default)
+    public async Task<bool> RefundExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Invoices.AsNoTracking().AnyAsync(i => i.KaynakFaturaId == kaynakFaturaId, ct);
     }
 
-    public async Task<(decimal FaturalananBrut, int FarkSayisi)> GetFarkStateAsync(Guid rentalId, CancellationToken ct = default)
+    public async Task<(decimal FaturalananBrut, int FarkSayisi)> GetDifferenceStateAsync(Guid rentalId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // TOCTOU koruması (adversarial Kritik-1): faturalanan + fark-sayısı AYNI snapshot'tan okunur → eşzamanlı
@@ -310,7 +310,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
                         && mevcut.KdvTutar == invoice.KdvTutar
                         && string.Equals(mevcut.Currency, invoice.Currency, StringComparison.OrdinalIgnoreCase))
                         return;
-                    throw MukerrerIslemException.FarkliIcerik();
+                    throw DuplicateOperationException.DifferentContent();
                 }
                 // Fark faturası (KaynakKiraId): eşzamanlı/çift istek aynı hedefe çarptı → idempotent reddet.
                 throw new ValidationException(
@@ -320,7 +320,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
         }, ct);
     }
 
-    public async Task<Guid> PostDonemAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
+    public async Task<Guid> PostPeriodAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
         Guid donemId, decimal kesilenTutar, decimal beklenenFaturalanan, CancellationToken ct = default)
     {
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
@@ -345,7 +345,7 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             // Kesildi ise AYNI sessiz başarı: mevcut fatura id'si döner, hiçbir şey yazılmaz.
             var donemDurum = await db.FaturaDonemleri.AsNoTracking()
                 .Where(d => d.Id == donemId).Select(d => new { d.Durum, d.InvoiceId }).FirstOrDefaultAsync(ct);
-            if (donemDurum is { Durum: FaturaDonemDurum.Kesildi, InvoiceId: Guid mevcutFatura })
+            if (donemDurum is { Durum: InvoicePeriodStatus.Kesildi, InvoiceId: Guid mevcutFatura })
             {
                 await tx.RollbackAsync(ct);
                 return mevcutFatura;
@@ -360,9 +360,9 @@ public sealed class InvoiceRepository(IDbContextFactory<AppDbContext> factory) :
             // Planlandi DIŞI her durum reddedilir (Kesildi/Atlandi yarışı; unique index ikinci savunma).
             var donem = await db.FaturaDonemleri.FirstOrDefaultAsync(d => d.Id == donemId, ct)
                 ?? throw new ValidationException("Fatura dönemi bulunamadı.");
-            if (donem.Durum != FaturaDonemDurum.Planlandi)
+            if (donem.Durum != InvoicePeriodStatus.Planlandi)
                 throw new ValidationException("Dönem bu sırada kesilmiş/atlanmış (eşzamanlı istek).");
-            donem.Durum = FaturaDonemDurum.Kesildi;
+            donem.Durum = InvoicePeriodStatus.Kesildi;
             donem.InvoiceId = invoice.Id;
             donem.KesilenTutar = kesilenTutar;
             donem.UpdatedAtUtc = DateTimeOffset.UtcNow;

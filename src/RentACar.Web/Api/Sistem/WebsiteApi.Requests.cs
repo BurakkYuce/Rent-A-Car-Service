@@ -30,15 +30,15 @@ public static partial class WebsiteApi
             var status = F5Ortak.EnumAdi<PublicBookingRequestDurum>(durum, "durum");
             var page = Math.Max(1, sayfa ?? 1);
             var size = Math.Clamp(boyut ?? 25, 1, 200);
-            var (rows, total) = await s.ListeleAsync(new TalepFiltre(status, SystemApiCommon.Clean(ara), page, size), ct);
-            var summary = await s.OzetAsync(ct);
+            var (rows, total) = await s.ListRequestsAsync(new TalepFiltre(status, SystemApiCommon.Clean(ara), page, size), ct);
+            var summary = await s.SummaryAsync(ct);
             return TypedResults.Ok(new BookingRequestPageDto(rows.Select(ToRequestRow).ToList(), total, page, size,
                 new BookingRequestSummaryDto(summary.Yeni, summary.EnEskiGun)));
         }).AlanlariEsle([("Geçersiz durum", "durum")]);
 
         g.MapGet("/ozet", async (PublicBookingRequestService s, CancellationToken ct) =>
         {
-            var summary = await s.OzetAsync(ct);
+            var summary = await s.SummaryAsync(ct);
             return TypedResults.Ok(new BookingRequestSummaryDto(summary.Yeni, summary.EnEskiGun));
         });
 
@@ -46,7 +46,7 @@ public static partial class WebsiteApi
             Guid id, PublicBookingRequestService s, IPublicBookingRequestRepository r, CancellationToken ct) =>
         {
             if (await r.FindAsync(id, ct) is null) return RequestNotFound();
-            return TypedResults.Ok<IReadOnlyList<BookingRequestNoteDto>>((await s.NotlarAsync(id, ct))
+            return TypedResults.Ok<IReadOnlyList<BookingRequestNoteDto>>((await s.NotesAsync(id, ct))
                 .Select(n => new BookingRequestNoteDto(n.Id, n.Metin, n.Kullanici, n.ZamanUtc)).ToList());
         });
 
@@ -58,7 +58,7 @@ public static partial class WebsiteApi
             if (await r.FindAsync(id, ct) is null) return RequestNotFound();
             var status = F5Ortak.EnumAdi<PublicBookingRequestDurum>(i.Durum, "durum")
                          ?? throw new ValidationException("Durum zorunludur.", "durum");
-            await s.DurumAtaAsync(id, status, ct);
+            await s.AssignStatusAsync(id, status, ct);
             return TypedResults.NoContent();
         }).AlanlariEsle([("\"Dönüştü\"", "durum")]);
 
@@ -66,7 +66,7 @@ public static partial class WebsiteApi
             Guid id, BookingRequestClaimRequest i, PublicBookingRequestService s, IPublicBookingRequestRepository r, CancellationToken ct) =>
         {
             if (await r.FindAsync(id, ct) is null) return RequestNotFound();
-            await s.UstlenAsync(id, i.Ustlen, ct); // yalnız KENDİNE atanır (kimlik oturumdan)
+            await s.ClaimAsync(id, i.Ustlen, ct); // yalnız KENDİNE atanır (kimlik oturumdan)
             return TypedResults.NoContent();
         });
 
@@ -74,9 +74,9 @@ public static partial class WebsiteApi
             Guid id, BookingRequestNoteRequest i, PublicBookingRequestService s, IPublicBookingRequestRepository r, CancellationToken ct) =>
         {
             if (await r.FindAsync(id, ct) is null) return RequestNotFound();
-            await s.NotEkleAsync(id, i.Metin ?? "", ct);
+            await s.AddNoteAsync(id, i.Metin ?? "", ct);
             return TypedResults.Created($"{UiApiExtensions.V1}/gelen-talepler/{id}/notlar",
-                (IReadOnlyList<BookingRequestNoteDto>)(await s.NotlarAsync(id, ct))
+                (IReadOnlyList<BookingRequestNoteDto>)(await s.NotesAsync(id, ct))
                     .Select(n => new BookingRequestNoteDto(n.Id, n.Metin, n.Kullanici, n.ZamanUtc)).ToList());
         }).AlanlariEsle([("Not ", "metin")]);
 
@@ -84,7 +84,7 @@ public static partial class WebsiteApi
             Guid id, PublicBookingRequestService s, IPublicBookingRequestRepository r, CancellationToken ct) =>
         {
             if (await r.FindAsync(id, ct) is null) return RequestNotFound();
-            await s.ReddetAsync(id, ct);
+            await s.RejectAsync(id, ct);
             return TypedResults.NoContent();
         });
 
@@ -98,7 +98,7 @@ public static partial class WebsiteApi
             // Kapsam GİRİŞ NOKTASINDA: VehicleService.GetAsync kapsam dışı araçta 403 (yetki_yok) fırlatır.
             if (await vehicles.GetAsync(vehicleId, ct) is null)
                 throw new ValidationException("Araç bulunamadı.", "aracId");
-            var reservationId = await s.DonusturAsync(id, vehicleId, ct);
+            var reservationId = await s.ConvertAsync(id, vehicleId, ct);
             return TypedResults.Ok(new BookingRequestConvertedDto(reservationId));
         });
     }
@@ -110,12 +110,12 @@ public static partial class WebsiteApi
     /// kapsamına süzülmüş. Talebin geldiği ilanın üye araçları <c>ilanAraci</c> ile işaretlenir. Talep kapanmışsa boş liste.
     /// </summary>
     private static async Task<Results<Ok<IReadOnlyList<CandidateVehicleDto>>, ProblemHttpResult>> CandidatesAsync(
-        Guid id, IPublicBookingRequestRepository r, AvailabilityService availability, IWebIlanRepository listings,
+        Guid id, IPublicBookingRequestRepository r, AvailabilityService availability, IWebListingRepository listings,
         ICurrentUser user, CancellationToken ct)
     {
         PermissionGuard.Require(user, Permission.OperationsWrite);
         if (await r.FindAsync(id, ct) is not { } t) return RequestNotFound();
-        if (!TalepDurumu.Aktif(t.Durum)) return TypedResults.Ok<IReadOnlyList<CandidateVehicleDto>>([]);
+        if (!TalepDurumu.IsActive(t.Durum)) return TypedResults.Ok<IReadOnlyList<CandidateVehicleDto>>([]);
         var scope = BranchScope.EffectiveFilter(user);
         var available = (await availability.FindAvailableAsync(t.BasTar, t.BitTar, null, t.Sube, ct))
             .Where(v => scope.Unrestricted || BranchScope.InScope(scope, v.SubeId, v.Sube)).ToList();
@@ -133,7 +133,7 @@ public static partial class WebsiteApi
         var t = row.Talep;
         return new BookingRequestRowDto(t.Id, t.AdSoyad, t.Telefon, t.Email, t.IlanId, t.IlanBaslik, t.AracGrupKod,
             t.BasTar, t.BitTar, t.Sube, t.Not, t.GosterilenGunlukUcretKdvDahil, t.GosterilenKdvDahil,
-            t.Durum.ToString(), TalepDurumu.Etiket(t.Durum), TalepDurumu.Aktif(t.Durum),
+            t.Durum.ToString(), TalepDurumu.Label(t.Durum), TalepDurumu.IsActive(t.Durum),
             NextStatuses(t.Durum).Select(d => d.ToString()).ToList(),
             t.DonusenReservationId, t.AtananKullaniciId, t.AtananAd, t.CreatedAtUtc, row.NotSayisi, row.BekleyenGun);
     }

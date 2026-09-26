@@ -9,7 +9,7 @@ namespace RentACar.Web.Api.Platform;
 
 public static partial class PlatformApi
 {
-    /// <summary>Logo request cap: 1 MB logo (<see cref="LogoKurallari.MaxBayt"/>) + multipart overhead (Blazor parity).</summary>
+    /// <summary>Logo request cap: 1 MB logo (<see cref="LogoValidationRules.MaxBytes"/>) + multipart overhead (Blazor parity).</summary>
     private const long LogoRequestLimit = 2_000_000;
 
     /// <summary>
@@ -59,8 +59,8 @@ public static partial class PlatformApi
 
     private sealed record ListRow(PlatformTenantRow Row, string Status);
 
-    private static readonly SiralamaHaritasi<ListRow> SortMap = SiralamaHaritasi<ListRow>
-        .Olustur(r => r.Row.Id)
+    private static readonly SortFieldMap<ListRow> SortMap = SortFieldMap<ListRow>
+        .Create(r => r.Row.Id)
         .Alan("kod", r => r.Row.Code)
         .Alan("ad", r => r.Row.Name)
         .Alan("durum", r => r.Status)
@@ -69,7 +69,7 @@ public static partial class PlatformApi
         .Alan("aktifKira", r => r.Row.AktifKira)
         .Alan("sonGiris", r => r.Row.SonGiris)
         .Alan("olusturma", r => r.Row.CreatedAtUtc)
-        .Varsayilan("kod");
+        .Default("kod");
 
     /// <summary>Tenant console. Filters: <c>q</c> (code/name contains, case-insensitive), <c>durum</c>
     /// (<c>Aktif</c>|<c>Pasif</c>|<c>Kapali</c>). The tenant count is small (platform scale): filtered in memory.</summary>
@@ -86,7 +86,7 @@ public static partial class PlatformApi
                         || r.Row.Code.Contains(query, StringComparison.OrdinalIgnoreCase)
                         || r.Row.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase))
             .ToList();
-        var page = SortMap.Uygula(rows.AsQueryable(), request.Sirala)
+        var page = SortMap.Apply(rows.AsQueryable(), request.Sirala)
             .Skip((int)request.Atla).Take(request.Boyut)
             .Select(r => ToRowDto(r.Row)).ToList();
         return TypedResults.Ok(new Sayfa<PlatformTenantRowDto>(page, rows.Count, request.Sayfa, request.Boyut));

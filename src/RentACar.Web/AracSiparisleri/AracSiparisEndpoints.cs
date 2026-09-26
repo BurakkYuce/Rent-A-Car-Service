@@ -19,19 +19,19 @@ public static class AracSiparisEndpoints
     {
         var grp = app.MapGroup("/arac-siparis").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (AracSiparisService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (VehicleOrderService svc, HttpRequest req) =>
             await Durum(req, async () => await svc.CreateAsync(Build(req.Form)), "ok=1"));
 
         // FAZ-17: alan güncelleme (aynı ekranın "Düzenle" formu). Durum BURADAN değişmez.
-        grp.MapPost("/update", async (AracSiparisService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (VehicleOrderService svc, HttpRequest req, [FromForm] Guid id) =>
             await Durum(req, async () => await svc.UpdateAsync(id, Build(req.Form)), "ok=1"));
 
-        grp.MapPost("/onayla", async (AracSiparisService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Durum(req, () => svc.OnaylaAsync(id)));
-        grp.MapPost("/teslim-al", async (AracSiparisService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Durum(req, () => svc.TeslimAlAsync(id)));
-        grp.MapPost("/iptal", async (AracSiparisService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Durum(req, () => svc.IptalAsync(id)));
+        grp.MapPost("/onayla", async (VehicleOrderService svc, HttpRequest req, [FromForm] Guid id) =>
+            await Durum(req, () => svc.ApproveAsync(id)));
+        grp.MapPost("/teslim-al", async (VehicleOrderService svc, HttpRequest req, [FromForm] Guid id) =>
+            await Durum(req, () => svc.ReceiveAsync(id)));
+        grp.MapPost("/iptal", async (VehicleOrderService svc, HttpRequest req, [FromForm] Guid id) =>
+            await Durum(req, () => svc.CancelAsync(id)));
 
         return app;
     }

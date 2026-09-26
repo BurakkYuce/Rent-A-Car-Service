@@ -57,7 +57,7 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
         Assert.NotNull(await svc.GetAsync(merkezArac));
         var ankara = (await host.ScopeFor(tenant).ServiceProvider
             .GetRequiredService<VehicleService>().ListAsync()).Single(v => v.Sube == "Ankara").Id;
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.GetAsync(ankara));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.GetAsync(ankara));
     }
 
     [Fact]
@@ -93,9 +93,9 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
                 .CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
             var exp = sp.GetRequiredService<ExpenseService>();
             await exp.CreateAsync(new ExpenseInput
-            { Tip = ExpenseType.Genel, NetTutar = 10m, KdvOrani = 0m, Sube = "Merkez", OdemeYontemi = OdemeYontemi.Nakit });
+            { Tip = ExpenseType.Genel, NetTutar = 10m, KdvOrani = 0m, Sube = "Merkez", OdemeYontemi = PaymentMethod.Nakit });
             await exp.CreateAsync(new ExpenseInput
-            { Tip = ExpenseType.Genel, NetTutar = 20m, KdvOrani = 0m, Sube = "Ankara", OdemeYontemi = OdemeYontemi.Nakit });
+            { Tip = ExpenseType.Genel, NetTutar = 20m, KdvOrani = 0m, Sube = "Ankara", OdemeYontemi = PaymentMethod.Nakit });
             // Şube rename → gider FK'sı (varsa) kurtarır; Expense.SubeId interceptor'la doldu.
             await sp.GetRequiredService<BranchService>()
                 .UpdateAsync(subeId, new BranchInput { Kod = "MRK", Ad = "Merkez Ofis" });
@@ -144,7 +144,7 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
         var liste = await svc.ListAsync();
         var tek = Assert.Single(liste);                            // C5 öncesi 2 dönerdi (B2 aracı sızardı)
         Assert.Equal("34RC01", tek.Plaka);
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.GetAsync(sizanArac)); // tekil guard da RED
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.GetAsync(sizanArac)); // tekil guard da RED
     }
 
     [Fact]
@@ -168,17 +168,17 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator,
             assignedBranch: "Merkez", assignedBranchId: subeId);
         var musait = await op.ServiceProvider.GetRequiredService<AvailabilityService>()
-            .FindAvailableAsync(from, from.AddDays(2), grup: null, sube: null);
+            .FindAvailableAsync(from, from.AddDays(2), group: null, branch: null);
         Assert.Single(musait);
         Assert.Equal("34MS01", musait[0].Plaka);
 
         // Admin: kapsam yok; UI sube filtresi ek daraltma olarak çalışır.
         using var admin = host.ScopeFor(tenant);
         var adminHepsi = await admin.ServiceProvider.GetRequiredService<AvailabilityService>()
-            .FindAvailableAsync(from, from.AddDays(2), grup: null, sube: null);
+            .FindAvailableAsync(from, from.AddDays(2), group: null, branch: null);
         Assert.Equal(2, adminHepsi.Count);
         var adminAnkara = await admin.ServiceProvider.GetRequiredService<AvailabilityService>()
-            .FindAvailableAsync(from, from.AddDays(2), grup: null, sube: "Ankara");
+            .FindAvailableAsync(from, from.AddDays(2), group: null, branch: "Ankara");
         Assert.Single(adminAnkara);
     }
 }

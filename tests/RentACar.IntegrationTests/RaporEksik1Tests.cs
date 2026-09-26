@@ -26,11 +26,11 @@ public sealed class RaporEksik1Tests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 PS 01", Km = 50000, Durum = VehicleStatus.Musait });
 
         var svc = sp.GetRequiredService<ServiceRecordService>();
-        var sId = await svc.CreateAsync(new ServiceRecordInput { VehicleId = vId, Tip = ServisTipi.Periyodik, GirisKm = 50000 });
-        await svc.BaslatAsync(sId);
-        await svc.TamamlaAsync(sId, cikisKm: 50000, sonrakiBakimKm: 60000);
+        var sId = await svc.CreateAsync(new ServiceRecordInput { VehicleId = vId, Tip = ServiceType.Periyodik, GirisKm = 50000 });
+        await svc.StartAsync(sId);
+        await svc.CompleteAsync(sId, pickupKm: 50000, nextMaintenanceKm: 60000);
 
-        var rows = await sp.GetRequiredService<ReportService>().GetPeriyodikServisAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetPeriodicServiceAsync();
         var r = Assert.Single(rows);
         Assert.Equal(50000, r.GuncelKm);
         Assert.Equal(60000, r.SonrakiBakimKm);
@@ -44,7 +44,7 @@ public sealed class RaporEksik1Tests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var custId = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "KM Müşteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "KM Müşteri" });
         var vId = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 KM 02", Durum = VehicleStatus.Musait });
 
@@ -56,10 +56,10 @@ public sealed class RaporEksik1Tests(PostgresFixture fx)
             MusteriId = custId, VehicleId = vId, BasTar = bas, BitTar = bit,
             GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 5m
         });
-        await rentals.DeliverAsync(rId, cikisKm: 50000, cikisYakit: 12);
-        await rentals.ReturnAsync(rId, donusKm: 50500, donusYakit: 12, gercekDonus: bit);
+        await rentals.DeliverAsync(rId, pickupKm: 50000, pickupFuel: 12);
+        await rentals.ReturnAsync(rId, returnKm: 50500, returnFuel: 12, actualReturn: bit);
 
-        var rows = await sp.GetRequiredService<ReportService>().GetKmDetayAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetKmDetailAsync();
         var r = Assert.Single(rows, x => x.RentalId == rId);
         Assert.Equal(50000, r.CikisKm);
         Assert.Equal(50500, r.DonusKm);

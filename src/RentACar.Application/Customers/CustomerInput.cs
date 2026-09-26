@@ -14,7 +14,7 @@ public sealed class CustomerContactInput
 /// <summary>Cari oluştur/düzenle giriş modeli (Blazor formu da buna bağlanır).</summary>
 public sealed class CustomerInput
 {
-    public CariType Tip { get; set; } = CariType.Bireysel;
+    public CustomerType Tip { get; set; } = CustomerType.Bireysel;
 
     public string? Ad { get; set; }
     public string? Soyad { get; set; }

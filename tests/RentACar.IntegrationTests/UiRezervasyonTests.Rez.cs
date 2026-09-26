@@ -105,7 +105,7 @@ public sealed partial class UiRezervasyonTests
         await ProblemBekle(await s.C.GetAsync($"{Rez}?sirala=hack"), HttpStatusCode.BadRequest, "dogrulama", "sirala");
 
         // KVKK: AnonimAd + AnonimTelefon → listede sabit etiket, telefon yok.
-        var anonim = new Customer { Tip = RentACar.Domain.Enums.CariType.Bireysel, Ad = "Gizli", Soyad = "Kişi", CepTel = "05329998877", AnonimAd = true, AnonimTelefon = true };
+        var anonim = new Customer { Tip = RentACar.Domain.Enums.CustomerType.Bireysel, Ad = "Gizli", Soyad = "Kişi", CepTel = "05329998877", AnonimAd = true, AnonimTelefon = true };
         await VeriYazAsync(o.TenantId, db => db.Customers.Add(anonim));
         g = RezGovde(o, arac, Yarin()); g["musteriId"] = anonim.Id;
         await Json(await Gonder(s, HttpMethod.Post, Rez, g), HttpStatusCode.Created);

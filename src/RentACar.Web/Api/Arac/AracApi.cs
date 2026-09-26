@@ -63,8 +63,8 @@ public static partial class AracApi
 
     // ================================================================== liste
 
-    private static readonly SiralamaHaritasi<Vehicle> Harita = SiralamaHaritasi<Vehicle>
-        .Olustur(v => v.Id)
+    private static readonly SortFieldMap<Vehicle> Harita = SortFieldMap<Vehicle>
+        .Create(v => v.Id)
         .Alan("plaka", v => v.Plaka)
         .Alan("marka", v => v.Marka)
         .Alan("tip", v => v.Tip)
@@ -111,12 +111,12 @@ public static partial class AracApi
         {
             Query = F5Ortak.Nz(Q),
             Grup = F5Ortak.Nz(Grup),
-            GrupTuru = F5Ortak.EnumAdi<AracGrupTuru>(GrupTuru, "grupTuru") ?? AracGrupTuru.Grup,
+            GrupTuru = F5Ortak.EnumAdi<VehicleGroupType>(GrupTuru, "grupTuru") ?? VehicleGroupType.Grup,
             Durum = F5Ortak.EnumAdi<VehicleStatus>(Durum, "durum"),
             Sube = F5Ortak.Nz(Sube),
-            Sahiplik = F5Ortak.EnumAdi<AracSahiplik>(Sahiplik, "sahiplik") ?? AracSahiplik.Hepsi,
+            Sahiplik = F5Ortak.EnumAdi<VehicleOwnership>(Sahiplik, "sahiplik") ?? VehicleOwnership.Hepsi,
             AracSahibi = F5Ortak.Nz(AracSahibi),
-            TarihTuru = F5Ortak.EnumAdi<AracTarihTuru>(TarihTuru, "tarihTuru") ?? AracTarihTuru.Yok,
+            TarihTuru = F5Ortak.EnumAdi<VehicleDateType>(TarihTuru, "tarihTuru") ?? VehicleDateType.Yok,
             // Repo sözleşmesi: TarihBit = bitiş GÜNÜNÜN başlangıç anı (repo +1 gün, strict <). İstanbul günü.
             TarihBas = TarihBas is { } b ? F5Ortak.GunBasi(b, "tarihBas") : null,
             TarihBit = TarihBit is { } t ? F5Ortak.GunBasi(t, "tarihBit") : null,
@@ -130,13 +130,13 @@ public static partial class AracApi
         var filtre = f.ToFilter();
         if (istek.Sirala is { } s)
         {
-            Harita.Uygula(Array.Empty<Vehicle>().AsQueryable(), s); // bilinmeyen alan → 400 errors[sirala], sorgudan ÖNCE
-            filtre.Siralama = q => Harita.Uygula(q, s);
+            Harita.Apply(Array.Empty<Vehicle>().AsQueryable(), s); // bilinmeyen alan → 400 errors[sirala], sorgudan ÖNCE
+            filtre.Siralama = q => Harita.Apply(q, s);
         }
         filtre.Page = istek.Sayfa;
         filtre.PageSize = istek.Boyut;
         var sonuc = await araclar.SearchAsync(filtre, ct); // şube kapsamı serviste zorlanır
-        var ek = await araclar.ListeEkAsync(sonuc.Items.Select(v => v.Id).ToList(), ct);
+        var ek = await araclar.ListExtrasAsync(sonuc.Items.Select(v => v.Id).ToList(), ct);
         var satirlar = sonuc.Items.Select(v => Satir(v, ek.GetValueOrDefault(v.Id))).ToList();
         return TypedResults.Ok(new Sayfa<AracListeSatiri>(satirlar, sonuc.Total, istek.Sayfa, istek.Boyut));
     }

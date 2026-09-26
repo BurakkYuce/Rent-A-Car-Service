@@ -65,11 +65,11 @@ public static partial class FinanceHubApi
 
     private static async Task ThrowIfBatchRecordedAsync(Guid key, List<CashInput> inputs, CashService cash, CancellationToken ct)
     {
-        if (await cash.IslemAnahtariylaBulAsync(CashService.RowKey(key, 0), ct) is not { } first) return;
+        if (await cash.FindByOperationKeyAsync(CashService.RowKey(key, 0), ct) is not { } first) return;
         var recorded = new List<CashTransaction> { first };
         for (var i = 1; ; i++)
         {
-            if (i > BulkMaxLines || await cash.IslemAnahtariylaBulAsync(CashService.RowKey(key, i), ct) is not { } t) break;
+            if (i > BulkMaxLines || await cash.FindByOperationKeyAsync(CashService.RowKey(key, i), ct) is not { } t) break;
             recorded.Add(t);
         }
         var same = recorded.Count == inputs.Count && recorded.Select((t, i) => (t, i)).All(x =>
@@ -82,7 +82,7 @@ public static partial class FinanceHubApi
         });
         var total = recorded.Sum(t => t.Amount.AmountInBase);
         var text = total.ToString("N2", Tr);
-        throw new MukerrerIslemException(
+        throw new DuplicateOperationException(
             string.Format(Tr, same ? BulkAlreadyRecordedMessage : BulkOtherRecordedMessage, recorded.Count, text),
             new MevcutIslem(first.Id, first.No, total, "TRY", same));
     }
@@ -95,7 +95,7 @@ public static partial class FinanceHubApi
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
         var type = F5Ortak.EnumAdi<ExpenseType>(req.Tip, "tip") ?? ExpenseType.Genel;
-        var payment = F5Ortak.EnumAdi<OdemeYontemi>(req.OdemeYontemi, "odemeYontemi")
+        var payment = F5Ortak.EnumAdi<PaymentMethod>(req.OdemeYontemi, "odemeYontemi")
                       ?? throw new ValidationException("Ödeme yöntemi seçilmelidir.", "odemeYontemi");
         if (req.KdvOrani is < 0m or > 1m)
             throw new ValidationException("KDV oranı 0 ile 1 arasında bir kesir olmalıdır (0,20 = %20).", "kdvOrani");
@@ -119,7 +119,7 @@ public static partial class FinanceHubApi
             inputs.Add(new ExpenseInput
             {
                 Tip = type, NetTutar = l.NetTutar, KdvOrani = req.KdvOrani, Doviz = "TRY", Kur = 1m,
-                OdemeYontemi = payment, KasaBankaHesap = payment == OdemeYontemi.Banka ? LedgerAccountType.Banka : LedgerAccountType.Kasa,
+                OdemeYontemi = payment, KasaBankaHesap = payment == PaymentMethod.Banka ? LedgerAccountType.Banka : LedgerAccountType.Kasa,
                 VehicleId = l.AracId, CariId = req.CariId, Vade = due, FinansalHesapId = req.FinansalHesapId,
                 Aciklama = Text(l.Aciklama, 512, $"satirlar[{i}].aciklama") ?? "Toplu gider",
             });

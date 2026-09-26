@@ -30,7 +30,7 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         var bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Job", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "Job", Soyad = "M" });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
             MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90), GunlukUcret = 100m,
@@ -61,17 +61,17 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         Assert.Equal(2, s1.Kesilen);
 
         // Tutarlar manuel yol matematiğiyle özdeş: Σ kesilen = ilk 2 dönem tahakkuku; Σ tüm plan = 9000.
-        var donemler = await sp.GetRequiredService<IFaturaDonemRepository>().ListForRentalAsync(kira);
-        Assert.Equal(FaturaDonemDurum.Kesildi, donemler[0].Durum);
-        Assert.Equal(FaturaDonemDurum.Kesildi, donemler[1].Durum);
-        Assert.Equal(FaturaDonemDurum.Planlandi, donemler[2].Durum);
-        var (faturalanan, _) = await sp.GetRequiredService<IInvoiceRepository>().GetFarkStateAsync(kira);
+        var donemler = await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(kira);
+        Assert.Equal(InvoicePeriodStatus.Kesildi, donemler[0].Durum);
+        Assert.Equal(InvoicePeriodStatus.Kesildi, donemler[1].Durum);
+        Assert.Equal(InvoicePeriodStatus.Planlandi, donemler[2].Durum);
+        var (faturalanan, _) = await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(kira);
         Assert.Equal(donemler[0].KesilenTutar + donemler[1].KesilenTutar, faturalanan);
 
         // Aynı gün ikinci koşu → no-op (idempotent).
         var s2 = await KosAsync(sp, tenant);
         Assert.Equal(0, s2.Kesilen);
-        Assert.Equal(faturalanan, (await sp.GetRequiredService<IInvoiceRepository>().GetFarkStateAsync(kira)).FaturalananBrut);
+        Assert.Equal(faturalanan, (await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(kira)).FaturalananBrut);
     }
 
     [Fact]
@@ -90,21 +90,21 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         var t1 = Task.Run(() => KosAsync(sp, tenant));
         var t2 = Task.Run(() => KosAsync(sp, tenant));
         var t3 = Task.Run(async () =>
-        { try { await invoices.CreateDonemFaturasiAsync(kira, 1); } catch (RentACar.Application.Common.ValidationException) { } });
+        { try { await invoices.CreatePeriodInvoiceAsync(kira, 1); } catch (RentACar.Application.Common.ValidationException) { } });
         await Task.WhenAll(t1, t2, t3);
 
-        var donemler = await sp.GetRequiredService<IFaturaDonemRepository>().ListForRentalAsync(kira);
+        var donemler = await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(kira);
         // İnvaryantlar: Kesildi satırın InvoiceId'si VAR; Atlandi/Planlandi satırın InvoiceId'si YOK;
         // vadesi geçmiş ilk 2 dönem KESİLDİ (sessiz atlama yok); faturalanan = Σ kesilen.
         Assert.All(donemler, d =>
         {
-            if (d.Durum == FaturaDonemDurum.Kesildi) Assert.NotNull(d.InvoiceId);
+            if (d.Durum == InvoicePeriodStatus.Kesildi) Assert.NotNull(d.InvoiceId);
             else Assert.Null(d.InvoiceId);
         });
-        Assert.Equal(FaturaDonemDurum.Kesildi, donemler[0].Durum);
-        Assert.Equal(FaturaDonemDurum.Kesildi, donemler[1].Durum);
-        var (faturalanan, _) = await sp.GetRequiredService<IInvoiceRepository>().GetFarkStateAsync(kira);
-        Assert.Equal(donemler.Where(d => d.Durum == FaturaDonemDurum.Kesildi).Sum(d => d.KesilenTutar ?? 0m), faturalanan);
+        Assert.Equal(InvoicePeriodStatus.Kesildi, donemler[0].Durum);
+        Assert.Equal(InvoicePeriodStatus.Kesildi, donemler[1].Durum);
+        var (faturalanan, _) = await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(kira);
+        Assert.Equal(donemler.Where(d => d.Durum == InvoicePeriodStatus.Kesildi).Sum(d => d.KesilenTutar ?? 0m), faturalanan);
     }
 
     [Fact]
@@ -142,14 +142,14 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         Assert.Equal(2, s1.Tahsilat);
 
         // Cari bakiye 0 (fatura borç == tahsilat alacak); kira Tahsilat alanı işledi.
-        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari));
-        var (faturalanan, _) = await sp.GetRequiredService<IInvoiceRepository>().GetFarkStateAsync(kira);
+        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
+        var (faturalanan, _) = await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(kira);
         Assert.Equal(faturalanan, (await sp.GetRequiredService<RentalService>().GetAsync(kira))!.Tahsilat);
 
         // İkinci koşu: kesim yok + tahsilat çift yazılmaz (deterministik anahtar).
         var s2 = await KosAsync(sp, tenant);
         Assert.Equal(0, s2.Kesilen);
-        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
 
         // KİLİTLİ muhasebe dönemi: yeni tenant, kilit bugünü kapsar → tenant atlanır (log), kesim yok.
         var tenant2 = Guid.NewGuid();
@@ -157,7 +157,7 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         var sp2 = scope2.ServiceProvider;
         await sp2.GetRequiredService<ITenantSettingsRepository>().UpsertAsync(s => s.DonemselFaturalamaJob = true);
         await JobluKiraAsync(sp2, "34 JB 05");
-        await sp2.GetRequiredService<RentACar.Application.Periods.DonemKilidiService>()
+        await sp2.GetRequiredService<RentACar.Application.Periods.PeriodLockService>()
             .LockAsync(DateTimeOffset.UtcNow.AddDays(1));
         var s3 = await KosAsync(sp2, tenant2);
         Assert.Equal(0, s3.Kesilen);

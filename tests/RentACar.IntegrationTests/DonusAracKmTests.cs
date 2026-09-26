@@ -25,7 +25,7 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         IServiceProvider sp, string plaka, int aracKm = 0, string? tip = null)
     {
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Km", Soyad = "Musteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Km", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = plaka, Km = aracKm, Tip = tip });
         var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
@@ -46,10 +46,10 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
         var (veh, rental) = await KiraAsync(sp, "34 KM 10", aracKm: 42000);
 
-        await rentals.DeliverAsync(rental, cikisKm: 45000, cikisYakit: 8);
+        await rentals.DeliverAsync(rental, pickupKm: 45000, pickupFuel: 8);
         Assert.Equal(45000, (await AracAsync(sp, veh))!.Km); // çıkışta da güncellenir
 
-        await rentals.ReturnAsync(rental, donusKm: 50000, donusYakit: 8, Bas.AddDays(3));
+        await rentals.ReturnAsync(rental, returnKm: 50000, returnFuel: 8, Bas.AddDays(3));
         Assert.Equal(50000, (await AracAsync(sp, veh))!.Km); // dönüşte odometre = dönüş km
     }
 
@@ -63,8 +63,8 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         // Araç kartında 60.000 yazıyor; kira çıkış/dönüş km'si daha küçük girildi (eski veri) →
         // KİRA kaydolur ama araç odometresi GERİ SARILMAZ (monoton).
         var (veh, rental) = await KiraAsync(sp, "34 KM 11", aracKm: 60000);
-        await rentals.DeliverAsync(rental, cikisKm: 45000, cikisYakit: 8);
-        await rentals.ReturnAsync(rental, donusKm: 50000, donusYakit: 8, Bas.AddDays(3));
+        await rentals.DeliverAsync(rental, pickupKm: 45000, pickupFuel: 8);
+        await rentals.ReturnAsync(rental, returnKm: 50000, returnFuel: 8, Bas.AddDays(3));
 
         var arac = await AracAsync(sp, veh);
         Assert.Equal(60000, arac!.Km); // değişmedi
@@ -81,10 +81,10 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
         var (_, rental) = await KiraAsync(sp, "34 KM 12");
-        await rentals.DeliverAsync(rental, cikisKm: 10000, cikisYakit: 8);
+        await rentals.DeliverAsync(rental, pickupKm: 10000, pickupFuel: 8);
         // Parmak hatası: 10.000 → 500.000 (fark 490.000 > 100.000) — dönüş geri alınamaz, erken red.
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.ReturnAsync(rental, donusKm: 500000, donusYakit: 8, Bas.AddDays(3)));
+            () => rentals.ReturnAsync(rental, returnKm: 500000, returnFuel: 8, Bas.AddDays(3)));
         Assert.Contains("gerçekçi değil", ex.Message);
     }
 
@@ -96,12 +96,12 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         // ServisTanim: Sedan → 15.000 km aralık. Araç: Tip=Sedan, SonBakimKm=40.000, Km=52.000.
-        await sp.GetRequiredService<ServisTanimService>().CreateAsync(new ServisTanimInput
+        await sp.GetRequiredService<ServiceDefinitionService>().CreateAsync(new ServisTanimInput
         { Kod = "PB-SEDAN", AracTipi = "Sedan", BakimKm = 15000, Aktif = true });
         await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 BK 01", Tip = "sedan", Km = 52000, SonBakimKm = 40000 }); // case-insensitive eşleşme
 
-        var rows = await sp.GetRequiredService<ReportService>().GetPeriyodikServisAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetPeriodicServiceAsync();
         var r = Assert.Single(rows, x => x.Plaka == "34BK01");
         Assert.Equal(55000, r.SonrakiBakimKm); // 40.000 + 15.000 (elle oracle)
         Assert.Equal(3000, r.KalanKm);         // 55.000 − 52.000
@@ -114,7 +114,7 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await sp.GetRequiredService<ServisTanimService>().CreateAsync(new ServisTanimInput
+        await sp.GetRequiredService<ServiceDefinitionService>().CreateAsync(new ServisTanimInput
         { Kod = "PB-SUV", AracTipi = "SUV", BakimKm = 20000, Aktif = true });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 BK 02", Tip = "SUV", Km = 50000, SonBakimKm = 45000, Durum = VehicleStatus.Musait });
@@ -122,10 +122,10 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         var servis = sp.GetRequiredService<RentACar.Application.ServiceRecords.ServiceRecordService>();
         var sId = await servis.CreateAsync(new RentACar.Application.ServiceRecords.ServiceRecordInput
         { VehicleId = veh, GirisKm = 50000, Aciklama = "periyodik" });
-        await servis.BaslatAsync(sId); // Açık → Serviste (durum akışı)
-        await servis.TamamlaAsync(sId, cikisKm: 50000, sonrakiBakimKm: 52000);
+        await servis.StartAsync(sId); // Açık → Serviste (durum akışı)
+        await servis.CompleteAsync(sId, pickupKm: 50000, nextMaintenanceKm: 52000);
 
-        var rows = await sp.GetRequiredService<ReportService>().GetPeriyodikServisAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetPeriodicServiceAsync();
         var r = Assert.Single(rows, x => x.Plaka == "34BK02"); // TEK satır (dedup)
         Assert.Equal(52000, r.SonrakiBakimKm); // MIN(kalan): 2.000 < 15.000
         Assert.Equal(2000, r.KalanKm);
@@ -141,7 +141,7 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 BK 03", Km = 10000 }); // tip yok, SonBakimKm yok, servis kaydı yok
 
-        var rows = await sp.GetRequiredService<ReportService>().GetPeriyodikServisAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetPeriodicServiceAsync();
         var r = Assert.Single(rows, x => x.Plaka == "34BK03");
         Assert.Null(r.SonrakiBakimKm); // "tanım yok" satırı — sessiz gizleme YOK
         Assert.Null(r.KalanKm);

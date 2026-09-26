@@ -103,7 +103,7 @@
         _hesaplar = await Hesaplar.ListAsync();
         _adlar = _hesaplar.ToDictionary(h => h.Id, h => h.Ad);
 
-        _satirlar = await Cash.ListKasaVirmanlarAsync(new KasaVirmanFilter
+        _satirlar = await Cash.ListCashTransfersAsync(new KasaVirmanFilter
         {
             Bas = ParseGun(Bas),
             // Bitiş günü DAHİL.

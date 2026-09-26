@@ -40,7 +40,7 @@ public sealed partial class UiFinanceDocumentTests
         {
             var x = await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
             {
-                Tip = ExpenseType.Genel, NetTutar = 50m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit, Doviz = "tl",
+                Tip = ExpenseType.Genel, NetTutar = 50m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit, Doviz = "tl",
             });
             var v = await VehicleAsync(sp, "SubeA");
             var y = await sp.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput

@@ -28,23 +28,23 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
 
         var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         {
-            Tip = CariType.Bireysel, Ad = "Deneme", Soyad = "Musteri", CepTel = "05320000000",
+            Tip = CustomerType.Bireysel, Ad = "Deneme", Soyad = "Musteri", CepTel = "05320000000",
             EhliyetNo = "35030", EhliyetSinifi = "B", EhliyetYeri = "BURDUR",
             DogumTarihi = new DateTimeOffset(1975, 4, 15, 0, 0, 0, TimeSpan.Zero)
         });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "07 BOP 605", Marka = "Fiat", Tip = "Egea", Km = 10000 });
-        var pid = await sp.GetRequiredService<PersonelService>().CreateAsync(new PersonelInput
+        var pid = await sp.GetRequiredService<PersonnelService>().CreateAsync(new PersonelInput
         { Kod = "P-SZ", Ad = "Onur", Soyad = "Yuce" });
 
         var rentals = sp.GetRequiredService<RentalService>();
         var rental = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 2m });
-        await rentals.DeliverAsync(rental, cikisKm: 10000, cikisYakit: 8);
-        await rentals.ReturnAsync(rental, donusKm: 10400, donusYakit: 6, Bas.AddDays(3),
-            kmHediye: 50, bitisSebebi: "Normal", teslimAlanPersonelId: pid);
+        await rentals.DeliverAsync(rental, pickupKm: 10000, pickupFuel: 8);
+        await rentals.ReturnAsync(rental, returnKm: 10400, returnFuel: 6, Bas.AddDays(3),
+            freeKm: 50, endReason: "Normal", receivingStaffId: pid);
 
-        var s = await sp.GetRequiredService<SozlesmeService>().GetAsync(rental);
+        var s = await sp.GetRequiredService<ContractService>().GetAsync(rental);
 
         Assert.NotNull(s);
         Assert.Equal("Deneme Musteri", s!.MusteriAd);
@@ -70,14 +70,14 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         // Bağımsız oracle: metinleri BURADA kuruyoruz; SozlesmeView aynen taşımalı.
-        var sablonId = await sp.GetRequiredService<BelgeSablonService>().CreateAsync(new BelgeSablonInput
+        var sablonId = await sp.GetRequiredService<DocumentTemplateService>().CreateAsync(new BelgeSablonInput
         {
             BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Test",
             BelgeBasligi = "TEST-BASLIK", HukukiMetinSol = "TEST-SOL", EkKosullarVarsayilan = "SABLON-EK-KOSUL"
         });
 
         var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "A", Soyad = "B", CepTel = "05320000001" });
+        { Tip = CustomerType.Bireysel, Ad = "A", Soyad = "B", CepTel = "05320000001" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "07 AA 001", Marka = "Fiat", Tip = "Egea", Km = 100 });
 
@@ -85,7 +85,7 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
         var rental = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m, BelgeSablonId = sablonId });
 
-        var s = await sp.GetRequiredService<SozlesmeService>().GetAsync(rental);
+        var s = await sp.GetRequiredService<ContractService>().GetAsync(rental);
         Assert.NotNull(s);
         Assert.Equal("TEST-BASLIK", s!.SablonBaslik);
         Assert.Equal("TEST-SOL", s.SablonHukukiSol);
@@ -98,6 +98,6 @@ public sealed class SozlesmeViewTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        Assert.Null(await scope.ServiceProvider.GetRequiredService<SozlesmeService>().GetAsync(Guid.NewGuid()));
+        Assert.Null(await scope.ServiceProvider.GetRequiredService<ContractService>().GetAsync(Guid.NewGuid()));
     }
 }

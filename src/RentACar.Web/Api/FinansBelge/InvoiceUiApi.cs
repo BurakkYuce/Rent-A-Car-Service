@@ -49,8 +49,8 @@ public static partial class InvoiceUiApi
 
     // ================================================================== okuma
 
-    private static readonly SiralamaHaritasi<InvoiceListRow> ListSort = SiralamaHaritasi<InvoiceListRow>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<InvoiceListRow> ListSort = SortFieldMap<InvoiceListRow>
+        .Create(r => r.Id)
         .Alan("no", r => r.No).Alan("tarih", r => r.Tarih).Alan("vadeTarihi", r => r.VadeTarihi)
         .Alan("cariAd", r => r.CariAd).Alan("genelToplam", r => r.GenelToplam).Alan("durum", r => r.Durum)
         .Alan("doviz", r => r.Doviz);
@@ -138,8 +138,8 @@ public static partial class InvoiceUiApi
                 l.SatirNet, l.SatirKdv, l.SatirToplam)).ToList()));
     }
 
-    private static readonly SiralamaHaritasi<InvoiceLineListRow> LineSort = SiralamaHaritasi<InvoiceLineListRow>
-        .Olustur(r => r.FaturaId)
+    private static readonly SortFieldMap<InvoiceLineListRow> LineSort = SortFieldMap<InvoiceLineListRow>
+        .Create(r => r.FaturaId)
         .Alan("faturaNo", r => r.FaturaNo).Alan("tarih", r => r.Tarih).Alan("cariAd", r => r.CariAd)
         .Alan("satirToplam", r => r.SatirToplam).Alan("kdvOrani", r => r.KdvOrani);
 

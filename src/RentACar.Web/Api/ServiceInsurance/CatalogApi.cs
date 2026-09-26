@@ -69,7 +69,7 @@ internal static partial class CatalogApi
             S.Text(r.Doviz, 3, "doviz");
         },
         Matches = (d, q) => Has(d.Kod, q) || Has(d.Ad, q) || Has(d.Grup, q),
-        Sort = SiralamaHaritasi<RateCardDto>.Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
+        Sort = SortFieldMap<RateCardDto>.Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
             .Alan("grup", x => x.Grup).Alan("minGun", x => x.MinGun).Alan("gunlukUcret", x => x.GunlukUcret).Alan("aktif", x => x.Aktif),
         FieldRules =
         [
@@ -84,7 +84,7 @@ internal static partial class CatalogApi
     private static TarifeGrubuInput RateGroupInput(RateGroupRequest r) => new()
     { Kod = r.Kod ?? "", Ad = r.Ad ?? "", Oran = r.Oran ?? 0m, KullaniciAdi = r.KullaniciAdi, Sifre = r.Sifre, Aktif = r.Aktif };
 
-    private static readonly CatalogSpec<TarifeGrubuService, TarifeGrubu, RateGroupRequest, RateGroupDto> RateGroups = new()
+    private static readonly CatalogSpec<TariffGroupService, TarifeGrubu, RateGroupRequest, RateGroupDto> RateGroups = new()
     {
         Path = "/tarife-gruplari", Tag = "Fiyat & Tarife", NotFoundText = "Tarife grubu bulunamadı.",
         ReadPermissions = OpsOnly, WritePermission = Permission.OperationsWrite,
@@ -101,7 +101,7 @@ internal static partial class CatalogApi
             S.Ratio(r.Oran, old?.Oran, "oran");
         },
         Matches = (d, q) => Has(d.Kod, q) || Has(d.Ad, q),
-        Sort = SiralamaHaritasi<RateGroupDto>.Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
+        Sort = SortFieldMap<RateGroupDto>.Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
             .Alan("oran", x => x.Oran).Alan("aktif", x => x.Aktif),
         FieldRules = [("Tarife grubu kodu", "kod"), ("'", "kod"), ("Tarife grubu adı", "ad"), ("Oran", "oran"), ("Şifre", "sifre")],
     };
@@ -136,7 +136,7 @@ internal static partial class CatalogApi
             F5Ortak.EnumAdi<CoverageProductType>(r.Tur, "tur");
         },
         Matches = (d, q) => Has(d.Kod, q) || Has(d.Ad, q) || Has(d.AdEn, q),
-        Sort = SiralamaHaritasi<CoverageProductDto>.Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
+        Sort = SortFieldMap<CoverageProductDto>.Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
             .Alan("tur", x => x.Tur).Alan("gunlukUcret", x => x.GunlukUcret).Alan("aktif", x => x.Aktif),
         FieldRules =
         [
@@ -153,7 +153,7 @@ internal static partial class CatalogApi
         Aciklama = r.Aciklama, MaxGun = r.MaxGun, Aktif = r.Aktif,
     };
 
-    private static readonly CatalogSpec<EkHizmetTanimService, EkHizmetTanim, ExtraServiceRequest, ExtraServiceDto> ExtraServices = new()
+    private static readonly CatalogSpec<AddOnDefinitionService, EkHizmetTanim, ExtraServiceRequest, ExtraServiceDto> ExtraServices = new()
     {
         Path = "/ek-hizmetler", Tag = "Fiyat & Tarife", NotFoundText = "Ek hizmet bulunamadı.",
         ReadPermissions = OpsOnly, WritePermission = Permission.OperationsWrite,
@@ -170,7 +170,7 @@ internal static partial class CatalogApi
             S.Ratio(r.KdvOrani, old?.KdvOrani, "kdvOrani");
         },
         Matches = (d, q) => Has(d.Kod, q) || Has(d.Ad, q),
-        Sort = SiralamaHaritasi<ExtraServiceDto>.Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
+        Sort = SortFieldMap<ExtraServiceDto>.Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
             .Alan("birimUcret", x => x.BirimUcret).Alan("aktif", x => x.Aktif),
         FieldRules =
         [

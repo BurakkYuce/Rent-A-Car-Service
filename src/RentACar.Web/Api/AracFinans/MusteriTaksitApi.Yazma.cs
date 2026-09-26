@@ -23,31 +23,31 @@ public static partial class MusteriTaksitApi
 
     /// <summary>Ortak giriş kuralları (oluştur + PUT): varlık, kapsam, sınırlar, TRY'de kur = 1.</summary>
     private static async Task<MusteriTaksitInput> GirdiAsync(MusteriTaksitIstegi i, IDbContextFactory<AppDbContext> dbf,
-        ICurrentUser kullanici, KurCozucu kurCozucu, CancellationToken ct)
+        ICurrentUser kullanici, ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         AracFinansOrtak.Tutar(i.TaksitTutari, "taksitTutari", scale: 2); // servis 2 haneye yuvarlar — sessiz yuvarlama yerine red (L1)
         if (i.Vade is null) throw new ValidationException("Vade zorunludur.", "vade");
         AracFinansOrtak.Metin(i.Aciklama, 512, "aciklama");
-        var durum = F5Ortak.EnumAdi<TaksitDurum>(i.Durum, "durum") ?? TaksitDurum.Bekliyor;
+        var durum = F5Ortak.EnumAdi<InstallmentStatus>(i.Durum, "durum") ?? InstallmentStatus.Bekliyor;
         var odeme = F5Ortak.Utc(i.OdemeTarihi);
-        if (durum == TaksitDurum.Odendi) Alanli("odemeTarihi", () => TarihPolitikasi.ParaTarihi(odeme, "Taksit ödeme"));
+        if (durum == InstallmentStatus.Odendi) Alanli("odemeTarihi", () => DatePolicy.MoneyDate(odeme, "Taksit ödeme"));
         var (doviz, kur) = await DovizKurAsync(i.Doviz, i.Kur, F5Ortak.Utc(i.Vade), kurCozucu, ct);
         await VarlikAsync(dbf, kullanici, i.CariId, i.VehicleId, i.VehicleSaleId, ct);
         return new MusteriTaksitInput
         {
             CariId = i.CariId, VehicleId = BosIse(i.VehicleId), VehicleSaleId = BosIse(i.VehicleSaleId),
             Vade = F5Ortak.Utc(i.Vade), TaksitTutari = i.TaksitTutari, Currency = doviz, Kur = kur, Durum = durum,
-            OdemeTarihi = durum == TaksitDurum.Odendi ? odeme : null, Aciklama = AracFinansOrtak.Nz(i.Aciklama),
+            OdemeTarihi = durum == InstallmentStatus.Odendi ? odeme : null, Aciklama = AracFinansOrtak.Nz(i.Aciklama),
         };
     }
 
     private static async Task<(string Doviz, decimal Kur)> DovizKurAsync(string? dovizGirdi, decimal? kurGirdi,
-        DateTimeOffset? tarih, KurCozucu kurCozucu, CancellationToken ct)
+        DateTimeOffset? tarih, ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         var doviz = AracFinansOrtak.Doviz(dovizGirdi);
         AracFinansOrtak.Kur(kurGirdi, doviz, scale: 4); // sınır + TRY'de kur = 1; kolon numeric(19,4)
         decimal kur = 1m;
-        try { kur = await kurCozucu.CozAsync(doviz, kurGirdi, tarih, ct); }
+        try { kur = await kurCozucu.ResolveAsync(doviz, kurGirdi, tarih, ct); }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException) && ex.Alan is null)
         { throw new ValidationException(ex.Message, "kur"); }
         return (doviz, kur);
@@ -69,15 +69,15 @@ public static partial class MusteriTaksitApi
     private static Guid? BosIse(Guid? g) => g is { } x && x != Guid.Empty ? x : null;
 
     private static async Task<Created<MusteriTaksitOlusturYaniti>> Olustur(
-        MusteriTaksitIstegi i, HttpContext http, MusteriTaksitService svc, IDbContextFactory<AppDbContext> dbf,
-        ICurrentUser kullanici, KurCozucu kurCozucu, CancellationToken ct)
+        MusteriTaksitIstegi i, HttpContext http, CustomerInstallmentService svc, IDbContextFactory<AppDbContext> dbf,
+        ICurrentUser kullanici, ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         if (await svc.GetAsync(anahtar, ct) is { } m) throw TekilMevcut(m, i); // (1) ÖNCE mevcut kayıt
         var girdi = await GirdiAsync(i, dbf, kullanici, kurCozucu, ct);
         girdi.IslemAnahtari = anahtar;
         try { await svc.CreateAsync(girdi, ct); }
-        catch (MukerrerIslemException ex) when (ex.Mevcut is null)
+        catch (DuplicateOperationException ex) when (ex.Existing is null)
         {
             if (await svc.GetAsync(anahtar, ct) is { } y) throw TekilMevcut(y, i);
             throw;
@@ -85,7 +85,7 @@ public static partial class MusteriTaksitApi
         return TypedResults.Created($"{Kok}/{anahtar}", new MusteriTaksitOlusturYaniti(anahtar));
     }
 
-    private static MukerrerIslemException TekilMevcut(MusteriTaksit m, MusteriTaksitIstegi i)
+    private static DuplicateOperationException TekilMevcut(MusteriTaksit m, MusteriTaksitIstegi i)
     {
         var doviz = AracFinansOrtak.Doviz(i.Doviz); // yazımla AYNI normalizasyon (L1)
         var ayni = m.CariId == i.CariId && m.VehicleId == BosIse(i.VehicleId)
@@ -94,7 +94,7 @@ public static partial class MusteriTaksitApi
         return Mevcut(m.Id, m.Sira, m.TaksitTutari, m.Currency, ayni);
     }
 
-    private static MukerrerIslemException Mevcut(Guid id, int sira, decimal tutar, string doviz, bool ayni)
+    private static DuplicateOperationException Mevcut(Guid id, int sira, decimal tutar, string doviz, bool ayni)
         => new(string.Format(Tr, ayni ? ZatenKaydedildi : AnahtarFarkliIcerik, $"#{sira}", tutar.ToString("N2", Tr), doviz),
             new MevcutIslem(id, $"#{sira}", tutar, doviz, ayni));
 

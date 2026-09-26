@@ -8,10 +8,10 @@ public sealed class FleetStatusFilter
     /// <summary>Plaka/marka içeren arama (case-insensitive).</summary>
     public string? Query { get; set; }
     public VehicleStatus? Durum { get; set; }
-    public FiloStatus? FiloDurum { get; set; }
+    public FleetLifecycleStatus? FiloDurum { get; set; }
     public string? Grup { get; set; }
     public string? Marka { get; set; }
-    public Vites? Vites { get; set; }
+    public Transmission? Vites { get; set; }
     public FuelType? Yakit { get; set; }
     public string? Sube { get; set; }         // UI şube filtresi (kullanıcı seçimi)
     /// <summary>Rol bazlı şube KAPSAMI (C3; servis ayarlar) — UI filtresinden bağımsız zorlanır.</summary>

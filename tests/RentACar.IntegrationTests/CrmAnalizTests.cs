@@ -26,7 +26,7 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var custId = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Segment Müşteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Segment Müşteri" });
         var vehicles = sp.GetRequiredService<VehicleService>();
         var rentals = sp.GetRequiredService<RentalService>();
         var bas = new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero);
@@ -38,7 +38,7 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
             { MusteriId = custId, VehicleId = vId, BasTar = bas, BitTar = bas.AddDays(3), GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m });
         }
 
-        var rows = await sp.GetRequiredService<ReportService>().GetMusteriSegmentAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetCustomerSegmentAsync();
         var r = Assert.Single(rows, x => x.CariId == custId);
         Assert.Equal(2, r.KiraSayisi);
         Assert.Equal(600m, r.ToplamCiro);   // 2 × (3 gün × 100)
@@ -63,11 +63,11 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
 
         var a = await cust.CreateAsync(new CustomerInput
         {
-            Tip = CariType.Bireysel, Ad = "Ahmet", Soyad = "Segment",
+            Tip = CustomerType.Bireysel, Ad = "Ahmet", Soyad = "Segment",
             Email = "ahmet@ornek.com", CepTel = "0555 111 22 33",
             DogumTarihi = new DateTimeOffset(1990, 6, 15, 0, 0, 0, TimeSpan.Zero)
         });
-        var b = await cust.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Berk", Soyad = "Segment" });
+        var b = await cust.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Berk", Soyad = "Segment" });
 
         var bas = new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero);
         var v1 = await vehicles.CreateAsync(new VehicleInput { Plaka = "34 SG 01", Durum = VehicleStatus.Musait });
@@ -85,7 +85,7 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
         { MusteriId = b, VehicleId = v3, BasTar = bas, BitTar = bas.AddDays(5), GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m, Kaynak = "Web" });
 
         var reports = sp.GetRequiredService<ReportService>();
-        var rows = await reports.GetMusteriSegmentAsync();
+        var rows = await reports.GetCustomerSegmentAsync();
 
         var ra = Assert.Single(rows, x => x.CariId == a);
         Assert.Equal(2, ra.KiraSayisi);
@@ -119,8 +119,8 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
         var vehicles = sp.GetRequiredService<VehicleService>();
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var a = await cust.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Filtre", Soyad = "A" });
-        var b = await cust.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Filtre", Soyad = "B" });
+        var a = await cust.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Filtre", Soyad = "A" });
+        var b = await cust.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Filtre", Soyad = "B" });
         var nisan = new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero);
         var mayis = new DateTimeOffset(2026, 5, 20, 9, 0, 0, TimeSpan.Zero);
 
@@ -138,32 +138,32 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
         var reports = sp.GetRequiredService<ReportService>();
 
         // Süzgeçsiz: 2 müşteri.
-        Assert.Equal(2, (await reports.GetMusteriSegmentAsync()).Count);
+        Assert.Equal(2, (await reports.GetCustomerSegmentAsync()).Count);
 
         // MinKiraSayisi=2 → yalnız A (B'nin 1 kirası var).
-        var enAz2 = Assert.Single(await reports.GetMusteriSegmentAsync(new MusteriSegmentFilter { MinKiraSayisi = 2 }));
+        var enAz2 = Assert.Single(await reports.GetCustomerSegmentAsync(new MusteriSegmentFilter { MinKiraSayisi = 2 }));
         Assert.Equal(a, enAz2.CariId);
 
         // Yalnız Mayıs penceresi → A'nın tek kirası (200 TL); B hiç görünmez.
-        var mayisSatir = Assert.Single(await reports.GetMusteriSegmentAsync(new MusteriSegmentFilter
+        var mayisSatir = Assert.Single(await reports.GetCustomerSegmentAsync(new MusteriSegmentFilter
         { Bas = new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero), Bit = new DateTimeOffset(2026, 5, 31, 23, 59, 59, TimeSpan.Zero) }));
         Assert.Equal(a, mayisSatir.CariId);
         Assert.Equal(1, mayisSatir.KiraSayisi);
         Assert.Equal(200m, mayisSatir.ToplamCiro);   // 2 gün × 100
 
         // Kaynak = Acente → yalnız A'nın Mayıs kirası.
-        var acente = Assert.Single(await reports.GetMusteriSegmentAsync(new MusteriSegmentFilter { RezKaynak = "acente" }));
+        var acente = Assert.Single(await reports.GetCustomerSegmentAsync(new MusteriSegmentFilter { RezKaynak = "acente" }));
         Assert.Equal(a, acente.CariId);
         Assert.Equal(200m, acente.ToplamCiro);
 
         // Çıkış ofisi = Merkez Ofis → A (300) ve B (500), her biri 1 kira.
-        var merkez = await reports.GetMusteriSegmentAsync(new MusteriSegmentFilter { CikisOfis = "Merkez Ofis" });
+        var merkez = await reports.GetCustomerSegmentAsync(new MusteriSegmentFilter { CikisOfis = "Merkez Ofis" });
         Assert.Equal(2, merkez.Count);
         Assert.Equal(300m, merkez.Single(x => x.CariId == a).ToplamCiro);
         Assert.Equal(500m, merkez.Single(x => x.CariId == b).ToplamCiro);
 
         // Seçenek listesi FİLTRESİZ kümeden türer: her iki kaynak ve her iki ofis de görünür.
-        var sec = await reports.GetMusteriSegmentSecenekleriAsync();
+        var sec = await reports.GetCustomerSegmentOptionsAsync();
         Assert.Contains("Web", sec.Kaynaklar);
         Assert.Contains("Acente", sec.Kaynaklar);
         Assert.Contains("Merkez Ofis", sec.Ofisler);
@@ -189,7 +189,7 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
         {
             var veh = new Vehicle { Plaka = "34KM01", Durum = VehicleStatus.Musait };
             db.Vehicles.Add(veh);
-            var c = new Customer { Tip = CariType.Bireysel, Ad = "Km", Soyad = "Müşterisi" };
+            var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Km", Soyad = "Müşterisi" };
             db.Customers.Add(c);
             cariId = c.Id;
 
@@ -219,7 +219,7 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
             await db.SaveChangesAsync();
         }
 
-        var rows = await scope.ServiceProvider.GetRequiredService<ReportService>().GetMusteriSegmentAsync();
+        var rows = await scope.ServiceProvider.GetRequiredService<ReportService>().GetCustomerSegmentAsync();
         var r = Assert.Single(rows, x => x.CariId == cariId);
         Assert.Equal(3, r.KiraSayisi);
         Assert.Equal(350m, r.OrtalamaKm);      // (300 + 400) / 2 — km'siz kira paydaya girmez
@@ -235,7 +235,7 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
         {
             var sp1 = s1.ServiceProvider;
             var c = await sp1.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "İzole", Soyad = "Müşteri" });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "İzole", Soyad = "Müşteri" });
             var v = await sp1.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 IZ 01" });
             var bas = new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero);
             await sp1.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
@@ -244,8 +244,8 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var reports = s2.ServiceProvider.GetRequiredService<ReportService>();
-        Assert.Empty(await reports.GetMusteriSegmentAsync(new MusteriSegmentFilter { RezKaynak = "Web" }));
-        Assert.Empty((await reports.GetMusteriSegmentSecenekleriAsync()).Kaynaklar);
+        Assert.Empty(await reports.GetCustomerSegmentAsync(new MusteriSegmentFilter { RezKaynak = "Web" }));
+        Assert.Empty((await reports.GetCustomerSegmentOptionsAsync()).Kaynaklar);
     }
 
     private static DateTimeOffset D(int y, int m, int d) => new(y, m, d, 0, 0, 0, TimeSpan.Zero);
@@ -262,7 +262,7 @@ public sealed class CrmAnalizTests(PostgresFixture fx)
         await baf.CreateAsync(new BafInput { PersonelId = personelId, VehicleId = Guid.NewGuid(), CikisKm = 100 });
         await baf.CreateAsync(new BafInput { PersonelId = personelId, VehicleId = Guid.NewGuid(), CikisKm = 200 });
 
-        var rows = await sp.GetRequiredService<ReportService>().GetPersonelCalismaAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetPersonnelWorkAsync();
         var r = Assert.Single(rows, x => x.PersonelId == personelId);
         Assert.Equal(2, r.TahsisSayisi);
     }

@@ -9,7 +9,7 @@ namespace RentACar.IntegrationTests;
 /// <summary>
 /// Bildirim omurgası — tenant SMTP/SMS ayarının gönderime çözülmesi.
 ///
-/// <para>BAĞIMSIZ ORACLE: beklenen değerler <see cref="BildirimKanaliService"/>'ten değil, elle kurulan
+/// <para>BAĞIMSIZ ORACLE: beklenen değerler <see cref="NotificationChannelService"/>'ten değil, elle kurulan
 /// senaryodan gelir — "port yazılmadıysa 587", "gönderen adres yoksa kullanıcı adı e-posta biçimindeyse
 /// o", "host yoksa hiç gönderme". Kurallar burada sabitlenir; servis onlara uymak zorundadır.</para>
 ///
@@ -37,11 +37,11 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var kanal = scope.ServiceProvider.GetRequiredService<BildirimKanaliService>();
+        var kanal = scope.ServiceProvider.GetRequiredService<NotificationChannelService>();
 
-        Assert.Null(await kanal.SmtpAyarAsync());
+        Assert.Null(await kanal.SmtpSettingAsync());
 
-        var sonuc = await kanal.EpostaGonderAsync("musteri@ornek.com", "konu", "<p>gövde</p>");
+        var sonuc = await kanal.SendEmailAsync("musteri@ornek.com", "konu", "<p>gövde</p>");
         Assert.False(sonuc.Ok);
         Assert.False(string.IsNullOrWhiteSpace(sonuc.Hata)); // sessiz başarı YOK
     }
@@ -64,7 +64,7 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         });
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var ayar = await scope.ServiceProvider.GetRequiredService<BildirimKanaliService>().SmtpAyarAsync();
+        var ayar = await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmtpSettingAsync();
 
         Assert.NotNull(ayar);
         Assert.Equal("mail.yucerent.com", ayar!.Host);
@@ -92,7 +92,7 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         });
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var ayar = await scope.ServiceProvider.GetRequiredService<BildirimKanaliService>().SmtpAyarAsync();
+        var ayar = await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmtpSettingAsync();
 
         Assert.NotNull(ayar);
         Assert.Equal("bilgi@demo.com", ayar!.GonderenAdres);
@@ -115,7 +115,7 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         });
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        Assert.Null(await scope.ServiceProvider.GetRequiredService<BildirimKanaliService>().SmtpAyarAsync());
+        Assert.Null(await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmtpSettingAsync());
     }
 
     [Fact]
@@ -126,13 +126,13 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         var basliksiz = Guid.NewGuid();
         await AyarYazAsync(host, basliksiz, new TenantSettingsModel { FirmaUnvan = "Başlıksız" });
         using (var scope = host.ScopeFor(basliksiz, role: UserRole.Operator))
-            Assert.Null(await scope.ServiceProvider.GetRequiredService<BildirimKanaliService>().SmsBaslikAsync());
+            Assert.Null(await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmsHeaderAsync());
 
         var baslikli = Guid.NewGuid();
         await AyarYazAsync(host, baslikli, new TenantSettingsModel { SmsBaslik = "YUCERENT" });
         using (var scope = host.ScopeFor(baslikli, role: UserRole.Operator))
             Assert.Equal("YUCERENT",
-                await scope.ServiceProvider.GetRequiredService<BildirimKanaliService>().SmsBaslikAsync());
+                await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmsHeaderAsync());
     }
 
     [Fact]
@@ -147,6 +147,6 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         });
 
         using var scope = host.ScopeFor(b, role: UserRole.Operator);
-        Assert.Null(await scope.ServiceProvider.GetRequiredService<BildirimKanaliService>().SmtpAyarAsync());
+        Assert.Null(await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmtpSettingAsync());
     }
 }

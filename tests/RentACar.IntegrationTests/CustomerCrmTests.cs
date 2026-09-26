@@ -27,9 +27,9 @@ public sealed class CustomerCrmTests(PostgresFixture fx)
 
         // Ali: bireysel, İYS izinli, uyarılı. İki kira: 300 (Tamamlandı, 06-01) + 200 (Kirada, 06-10) → ciro 500, adet 2, son 06-10.
         // + bir İPTAL kira 999 → sayılmamalı.
-        var ali = new Customer { Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli", IysIzinli = true, Uyari = true };
+        var ali = new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli", IysIzinli = true, Uyari = true };
         // Beta A.Ş.: kurumsal, kara liste, kira yok → adet 0, ciro 0, son null.
-        var beta = new Customer { Tip = CariType.Kurumsal, Unvan = "Beta A.Ş.", KaraListe = true };
+        var beta = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Beta A.Ş.", KaraListe = true };
         db.Customers.Add(ali);
         db.Customers.Add(beta);
 
@@ -58,7 +58,7 @@ public sealed class CustomerCrmTests(PostgresFixture fx)
         Assert.Equal(500m, ali.Ciro);              // 300 + 200
         Assert.Equal(D(2026, 6, 10), ali.SonKira); // en geç (İptal 06-20 sayılmaz)
 
-        var beta = rows.Items.Single(r => r.Tip == CariType.Kurumsal);
+        var beta = rows.Items.Single(r => r.Tip == CustomerType.Kurumsal);
         Assert.Equal(0, beta.KiraAdet);
         Assert.Equal(0m, beta.Ciro);
         Assert.Null(beta.SonKira);
@@ -72,7 +72,7 @@ public sealed class CustomerCrmTests(PostgresFixture fx)
         await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
 
-        Assert.Single((await svc.SearchRowsAsync(new CustomerFilter { Tip = CariType.Kurumsal })).Items);
+        Assert.Single((await svc.SearchRowsAsync(new CustomerFilter { Tip = CustomerType.Kurumsal })).Items);
         Assert.Single((await svc.SearchRowsAsync(new CustomerFilter { IysIzinli = true })).Items);
         Assert.Single((await svc.SearchRowsAsync(new CustomerFilter { Uyari = true })).Items);
         var kara = (await svc.SearchRowsAsync(new CustomerFilter { KaraListe = true })).Items;

@@ -161,7 +161,7 @@ public class RentalContract : ITenantOwned, IAuditable, IOfficeScoped
     /// <summary>Manuel provizyon yaşam döngüsü (FAZ 4.1): Yok→Alindi→(Kapandi|IadeEdildi).
     /// POS'suz kayıt (IPosService çağrılmaz; kart alanları PCI gereği kalıcı disabled);
     /// deftere YAZMAZ — bilgi/iz (gerçek tahsilat ayrı akış).</summary>
-    public ProvizyonDurum ProvizyonDurum { get; set; } = ProvizyonDurum.Yok;
+    public PreAuthStatus ProvizyonDurum { get; set; } = PreAuthStatus.Yok;
     public DateTimeOffset? ProvizyonKapamaTarih { get; set; }
     /// <summary>Kapamada çekilen tutar (iade edilmişse 0; bilgi).</summary>
     public decimal? ProvizyonKapamaTutar { get; set; }

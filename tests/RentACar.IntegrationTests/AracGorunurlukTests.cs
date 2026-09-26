@@ -47,21 +47,21 @@ public sealed class AracGorunurlukTests(PostgresFixture fx)
             new Vehicle { Plaka = "34GRP04", Grup = "C", Sipp = "CDMD" });
         var svc = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        var grupA = await svc.SearchAsync(new VehicleFilter { Grup = "A", GrupTuru = AracGrupTuru.Grup, PageSize = 50 });
+        var grupA = await svc.SearchAsync(new VehicleFilter { Grup = "A", GrupTuru = VehicleGroupType.Grup, PageSize = 50 });
         Assert.Equal(2, grupA.Total);
         Assert.Equal(["34GRP01", "34GRP02"], grupA.Items.Select(v => v.Plaka).Order().ToArray());
 
-        var sippCdmd = await svc.SearchAsync(new VehicleFilter { Grup = "CDMD", GrupTuru = AracGrupTuru.Sipp, PageSize = 50 });
+        var sippCdmd = await svc.SearchAsync(new VehicleFilter { Grup = "CDMD", GrupTuru = VehicleGroupType.Sipp, PageSize = 50 });
         Assert.Equal(2, sippCdmd.Total);
         Assert.Equal(["34GRP03", "34GRP04"], sippCdmd.Items.Select(v => v.Plaka).Order().ToArray());
 
         // Küçük harf yazan kullanıcı da bulmalı (SIPP kayıtta büyük harf normalize edilir).
         Assert.Equal(2, (await svc.SearchAsync(
-            new VehicleFilter { Grup = "cdmd", GrupTuru = AracGrupTuru.Sipp, PageSize = 50 })).Total);
+            new VehicleFilter { Grup = "cdmd", GrupTuru = VehicleGroupType.Sipp, PageSize = 50 })).Total);
 
         // Anahtar Grup'tayken "CDMD" bir GRUP adı olarak aranır → hiçbir araç eşleşmez.
         Assert.Equal(0, (await svc.SearchAsync(
-            new VehicleFilter { Grup = "CDMD", GrupTuru = AracGrupTuru.Grup, PageSize = 50 })).Total);
+            new VehicleFilter { Grup = "CDMD", GrupTuru = VehicleGroupType.Grup, PageSize = 50 })).Total);
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ public sealed class AracGorunurlukTests(PostgresFixture fx)
 
         var girisAralik = await svc.SearchAsync(new VehicleFilter
         {
-            TarihTuru = AracTarihTuru.FiloGiris,
+            TarihTuru = VehicleDateType.FiloGiris,
             TarihBas = Oca,
             TarihBit = Oca.AddMonths(1).AddDays(9),   // 10 Şubat — DAHİL olmalı
             PageSize = 50
@@ -93,14 +93,14 @@ public sealed class AracGorunurlukTests(PostgresFixture fx)
         // Aynı aralık TESCİL'e uygulanınca bambaşka bir araç gelir (tip anahtarı gerçekten çalışıyor).
         var tescilAralik = await svc.SearchAsync(new VehicleFilter
         {
-            TarihTuru = AracTarihTuru.Tescil, TarihBas = Oca, TarihBit = Oca.AddMonths(1), PageSize = 50
+            TarihTuru = VehicleDateType.Tescil, TarihBas = Oca, TarihBit = Oca.AddMonths(1), PageSize = 50
         });
         Assert.Equal("34TAR03", Assert.Single(tescilAralik.Items).Plaka);
 
         // Tip seçilmemişse aralık HİÇ uygulanmaz — üçü de gelir.
         Assert.Equal(3, (await svc.SearchAsync(new VehicleFilter
         {
-            TarihTuru = AracTarihTuru.Yok, TarihBas = Oca, TarihBit = Oca.AddDays(1), PageSize = 50
+            TarihTuru = VehicleDateType.Yok, TarihBas = Oca, TarihBit = Oca.AddDays(1), PageSize = 50
         })).Total);
     }
 
@@ -123,15 +123,15 @@ public sealed class AracGorunurlukTests(PostgresFixture fx)
         var secili = await svc.SearchAsync(new VehicleFilter { AracSahibi = "Yatırım Filo A.Ş.", PageSize = 50 });
         Assert.Equal(2, secili.Total);
 
-        var bos = await svc.SearchAsync(new VehicleFilter { Sahiplik = AracSahiplik.Girilmemis, PageSize = 50 });
+        var bos = await svc.SearchAsync(new VehicleFilter { Sahiplik = VehicleOwnership.Girilmemis, PageSize = 50 });
         Assert.Equal(2, bos.Total);   // sahipsiz + yalnız-boşluk
 
-        Assert.Equal(4, (await svc.SearchAsync(new VehicleFilter { Sahiplik = AracSahiplik.Hepsi, PageSize = 50 })).Total);
+        Assert.Equal(4, (await svc.SearchAsync(new VehicleFilter { Sahiplik = VehicleOwnership.Hepsi, PageSize = 50 })).Total);
 
         // "Girilmemiş" kovası seçiliyken sahip adı yok sayılır (iki kova aynı anda anlamsız).
         Assert.Equal(2, (await svc.SearchAsync(new VehicleFilter
         {
-            Sahiplik = AracSahiplik.Girilmemis, AracSahibi = "Yatırım Filo A.Ş.", PageSize = 50
+            Sahiplik = VehicleOwnership.Girilmemis, AracSahibi = "Yatırım Filo A.Ş.", PageSize = 50
         })).Total);
     }
 
@@ -178,7 +178,7 @@ public sealed class AracGorunurlukTests(PostgresFixture fx)
         Guid a, b, c, d, e, f;
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var cari = new Customer { Tip = CariType.Bireysel, Ad = "Ek", Soyad = "Test" };
+            var cari = new Customer { Tip = CustomerType.Bireysel, Ad = "Ek", Soyad = "Test" };
             db.Customers.Add(cari);
             var va = new Vehicle { Plaka = "34EKB01", Durum = VehicleStatus.Kirada };
             var vb = new Vehicle { Plaka = "34EKB02" };
@@ -195,17 +195,17 @@ public sealed class AracGorunurlukTests(PostgresFixture fx)
                 SozlesmeNo = "K-EK1", VehicleId = va.Id, MusteriId = cari.Id, Durum = RentalStatus.Kirada,
                 BasTar = DateTimeOffset.UtcNow.AddDays(-1), BitTar = DateTimeOffset.UtcNow.AddDays(2)
             });
-            db.ServiceRecords.Add(new ServiceRecord { No = "SV-EK1", VehicleId = vb.Id, Durum = ServisDurum.Acik });
-            db.Baflar.Add(new Baf { No = "BAF-EK1", VehicleId = vc.Id, PersonelId = pers.Id, Durum = BafDurum.Acik });
+            db.ServiceRecords.Add(new ServiceRecord { No = "SV-EK1", VehicleId = vb.Id, Durum = ServiceStatus.Acik });
+            db.Baflar.Add(new Baf { No = "BAF-EK1", VehicleId = vc.Id, PersonelId = pers.Id, Durum = BafStatus.Acik });
             db.VehicleSales.Add(new VehicleSale
             {
-                No = "SAT-EK1", VehicleId = vd.Id, AliciCariId = cari.Id, Durum = SatisDurum.Tamamlandi,
+                No = "SAT-EK1", VehicleId = vd.Id, AliciCariId = cari.Id, Durum = SaleStatus.Tamamlandi,
                 SatisNet = 100m, GenelToplam = 100m
             });
             // İPTAL satış bayrağı YAKMAZ (vf).
             db.VehicleSales.Add(new VehicleSale
             {
-                No = "SAT-EK2", VehicleId = vf.Id, AliciCariId = cari.Id, Durum = SatisDurum.Iptal,
+                No = "SAT-EK2", VehicleId = vf.Id, AliciCariId = cari.Id, Durum = SaleStatus.Iptal,
                 SatisNet = 100m, GenelToplam = 100m
             });
             db.InsurancePolicies.Add(new InsurancePolicy
@@ -229,7 +229,7 @@ public sealed class AracGorunurlukTests(PostgresFixture fx)
         }
 
         var ek = await scope.ServiceProvider.GetRequiredService<VehicleService>()
-            .ListeEkAsync([a, b, c, d, e, f]);
+            .ListExtrasAsync([a, b, c, d, e, f]);
 
         Assert.Equal("K-EK1", ek[a].AktifKiraSozlesmeNo);
         Assert.True(ek[b].AcikServis);
@@ -256,7 +256,7 @@ public sealed class AracGorunurlukTests(PostgresFixture fx)
         {
             var factory = s1.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             await using var db = await factory.CreateDbContextAsync();
-            var cari = new Customer { Tip = CariType.Bireysel, Ad = "İzo", Soyad = "Lasyon" };
+            var cari = new Customer { Tip = CustomerType.Bireysel, Ad = "İzo", Soyad = "Lasyon" };
             var v = new Vehicle { Plaka = "34IZO01", Durum = VehicleStatus.Kirada };
             db.Customers.Add(cari); db.Vehicles.Add(v);
             db.Rentals.Add(new RentalContract
@@ -269,7 +269,7 @@ public sealed class AracGorunurlukTests(PostgresFixture fx)
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        var ek = await s2.ServiceProvider.GetRequiredService<VehicleService>().ListeEkAsync([aracId]);
+        var ek = await s2.ServiceProvider.GetRequiredService<VehicleService>().ListExtrasAsync([aracId]);
         // Anahtar var (istenen kimlik) ama İÇERİK boş — başka tenant'ın kirası sızmaz.
         Assert.Null(ek[aracId].AktifKiraSozlesmeNo);
         Assert.False(ek[aracId].AcikServis);

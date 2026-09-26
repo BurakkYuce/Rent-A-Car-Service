@@ -26,7 +26,7 @@ public sealed class DropUcretiTests(PostgresFixture fx)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Drop", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "Drop", Soyad = "M" });
         return (m, v);
     }
 
@@ -43,7 +43,7 @@ public sealed class DropUcretiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp, "34 DR 01");
-        await sp.GetRequiredService<DropTanimService>().CreateAsync(new DropTanimInput
+        await sp.GetRequiredService<DropDefinitionService>().CreateAsync(new DropTanimInput
         { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 500m });
         var rentals = sp.GetRequiredService<RentalService>();
 
@@ -68,7 +68,7 @@ public sealed class DropUcretiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp, "34 DR 03");
-        await sp.GetRequiredService<DropTanimService>().CreateAsync(new DropTanimInput
+        await sp.GetRequiredService<DropDefinitionService>().CreateAsync(new DropTanimInput
         { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 500m });
         var rentals = sp.GetRequiredService<RentalService>();
 
@@ -89,7 +89,7 @@ public sealed class DropUcretiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp, "34 DR 05");
-        var drops = sp.GetRequiredService<DropTanimService>();
+        var drops = sp.GetRequiredService<DropDefinitionService>();
         await drops.CreateAsync(new DropTanimInput { Lokasyon = "IZMIR", Sube = "ANKARA", Ucret = 400m });
         await drops.CreateAsync(new DropTanimInput { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 500m });
         var rentals = sp.GetRequiredService<RentalService>();
@@ -111,7 +111,7 @@ public sealed class DropUcretiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp, "34 DR 08");
-        var drops = sp.GetRequiredService<DropTanimService>();
+        var drops = sp.GetRequiredService<DropDefinitionService>();
         // İstanbul çıkışı için AÇIKÇA ÜCRETSİZ (0) satır + Ankara için 400 — düzeltme öncesi 0'lık satır
         // elenip Ankara'nın 400'ü SESSİZCE tahsil ediliyordu; şube-özel satır artık SON SÖZ.
         await drops.CreateAsync(new DropTanimInput { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 0m });
@@ -134,7 +134,7 @@ public sealed class DropUcretiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp, "34 DR 10");
-        await sp.GetRequiredService<DropTanimService>().CreateAsync(new DropTanimInput
+        await sp.GetRequiredService<DropDefinitionService>().CreateAsync(new DropTanimInput
         { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 500m });
         var rentals = sp.GetRequiredService<RentalService>();
 
@@ -171,11 +171,11 @@ public sealed class DropUcretiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp, "34 DR 07");
-        await sp.GetRequiredService<DropTanimService>().CreateAsync(new DropTanimInput
+        await sp.GetRequiredService<DropDefinitionService>().CreateAsync(new DropTanimInput
         { Lokasyon = "IZMIR", Sube = "ISTANBUL", Ucret = 500m });
 
         // Önizleme == kayıt: 3600.
-        var onizleme = await sp.GetRequiredService<KiraHesapService>().HesaplaAsync(new KiraHesapIstek(
+        var onizleme = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(new KiraHesapIstek(
             VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: 1000m,
             FiyatTuru: null, Doviz: null, CikisOfisi: "ISTANBUL", EkHizmetler: [],
             MusteriId: m, DonusOfisi: "IZMIR"));

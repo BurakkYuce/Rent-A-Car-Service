@@ -74,10 +74,10 @@ public sealed class TestUiUclari : IUiApiUcKaydi
         var t = v1.MapGroup("/test").RequirePermission(Permission.OperationsWrite).ExcludeFromDescription();
         t.MapGet("/tamam", () => TypedResults.Ok(new { tamam = true }));
         t.MapPost("/yaz", () => TypedResults.Ok(new { yazildi = true }));
-        t.MapGet("/yetki-yok", NoContent () => throw new YetkiYokException("Bu kayıt şube kapsamınız dışında."));
+        t.MapGet("/yetki-yok", NoContent () => throw new NoPermissionException("Bu kayıt şube kapsamınız dışında."));
         t.MapPost("/dogrulama", NoContent () => throw new ValidationException("Plaka zorunludur.", "Plaka"));
         t.MapPost("/cakisma", NoContent () => throw new DuplicatePlakaException("34 ABC 123"));
-        t.MapPost("/mukerrer", NoContent () => throw new MukerrerIslemException("Bu işlem zaten kaydedildi."));
+        t.MapPost("/mukerrer", NoContent () => throw new DuplicateOperationException("Bu işlem zaten kaydedildi."));
         t.MapGet("/patla", NoContent () => throw new InvalidOperationException(GizliAyrinti));
         t.MapGet("/finans", () => TypedResults.Ok(new { finans = true })).RequirePermission(Permission.FinanceWrite);
     }

@@ -15,7 +15,7 @@ namespace RentACar.Web.Api.Rezervasyon;
 
 /// <summary>
 /// <c>/api/ui/v1/rez-sartlari/*</c> — rez şartı (müşteri özel talebi) JSON uçları (F5.1). İş mantığı
-/// <see cref="RezSartService"/>'te. İzin: OperationsWrite (menü kaydı + Blazor grubu). Para yok, defter yok.
+/// <see cref="ReservationTermService"/>'te. İzin: OperationsWrite (menü kaydı + Blazor grubu). Para yok, defter yok.
 /// <para><b>Üst kayıt kapsamı:</b> şart bir rezervasyona/teklife bağlıysa (<c>reservationId</c>/<c>quotationId</c>,
 /// gevşek bağ — FK yok) o kaydın şube kapsamından geçer: kimlikli uçlarda ÖNCE bağlı kaydın kapsamı (başka şube →
 /// 403), sonra işlem; listede kapsam dışı kayda bağlı şartlar görünmez; oluştur/güncellemede bağlanan kayıt kapsamda
@@ -49,7 +49,7 @@ public static class RezSartApi
 
     /// <summary>
     /// Bağlı üst kaydın kapsamı. Rezervasyon/teklif servislerinin <c>GetAsync</c>'i kapsam dışında
-    /// <see cref="YetkiYokException"/> atar (403). Bağlı kayıt artık yoksa (gevşek bağ) kapı açıktır — kayıt silinmez,
+    /// <see cref="NoPermissionException"/> atar (403). Bağlı kayıt artık yoksa (gevşek bağ) kapı açıktır — kayıt silinmez,
     /// yalnız iptal edilir; kaybolmuş bağ başka şubenin verisini sızdırmaz.
     /// </summary>
     private static async Task UstKayitKapsamiAsync(
@@ -61,7 +61,7 @@ public static class RezSartApi
 
     /// <summary>Kimlikli uçların ortak kapısı: yok/başka kiracı → null (404); bağlı kayıt kapsam dışı → 403.</summary>
     private static async Task<RezSart?> KapsamliAsync(
-        Guid id, RezSartService sartlar, ReservationService rezervasyonlar, QuotationService teklifler, CancellationToken ct)
+        Guid id, ReservationTermService sartlar, ReservationService rezervasyonlar, QuotationService teklifler, CancellationToken ct)
     {
         var s = await sartlar.GetAsync(id, ct);
         if (s is not null) await UstKayitKapsamiAsync(s, rezervasyonlar, teklifler, ct);
@@ -70,8 +70,8 @@ public static class RezSartApi
 
     // ================================================================== okumalar
 
-    private static readonly SiralamaHaritasi<RezSartDto> Harita = SiralamaHaritasi<RezSartDto>
-        .Olustur(s => s.Id)
+    private static readonly SortFieldMap<RezSartDto> Harita = SortFieldMap<RezSartDto>
+        .Create(s => s.Id)
         .Alan("talepTarihi", s => s.TalepTarihi)
         .Alan("musteri", s => s.MusteriAd)
         .Alan("grup", s => s.Grup)
@@ -107,7 +107,7 @@ public static class RezSartApi
     }
 
     private static async Task<Ok<Sayfa<RezSartDto>>> Liste(
-        [AsParameters] RezSartListeFiltresi f, RezSartService sartlar, ReservationService rezervasyonlar,
+        [AsParameters] RezSartListeFiltresi f, ReservationTermService sartlar, ReservationService rezervasyonlar,
         QuotationService teklifler, ICurrentUser kullanici, IDbContextFactory<AppDbContext> dbf,
         int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
@@ -143,22 +143,22 @@ public static class RezSartApi
     }
 
     /// <summary>Grup önerileri (serbest metin; mevcut şartlarda geçen gruplar — Blazor datalist'iyle aynı kaynak).</summary>
-    private static async Task<Ok<IReadOnlyList<string>>> Gruplar(RezSartService sartlar, CancellationToken ct)
+    private static async Task<Ok<IReadOnlyList<string>>> Gruplar(ReservationTermService sartlar, CancellationToken ct)
         => TypedResults.Ok<IReadOnlyList<string>>((await sartlar.ListAsync(null, ct))
             .Select(r => r.Grup).Where(g => !string.IsNullOrWhiteSpace(g)).Select(g => g!)
             .Distinct(StringComparer.Ordinal).OrderBy(g => g, StringComparer.Ordinal).ToList());
 
     private static async Task<Results<Ok<RezSartDto>, ProblemHttpResult>> Detay(
-        Guid id, RezSartService sartlar, IRezSartRepository depo, ReservationService rezervasyonlar, QuotationService teklifler,
+        Guid id, ReservationTermService sartlar, IReservationTermRepository depo, ReservationService rezervasyonlar, QuotationService teklifler,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
         => await DtoAsync(id, sartlar, depo, rezervasyonlar, teklifler, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
 
     /// <summary>Sürüm alanlardan ÖNCE okunur (bkz. kira detay).</summary>
     private static async Task<RezSartDto?> DtoAsync(
-        Guid id, RezSartService sartlar, IRezSartRepository depo, ReservationService rezervasyonlar, QuotationService teklifler,
+        Guid id, ReservationTermService sartlar, IReservationTermRepository depo, ReservationService rezervasyonlar, QuotationService teklifler,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var surum = await depo.SurumAsync(id, ct);
+        var surum = await depo.VersionAsync(id, ct);
         var s = await KapsamliAsync(id, sartlar, rezervasyonlar, teklifler, ct);
         if (s is null) return null;
         var cariler = await F5Ortak.CarilerAsync(dbf, [s.MusteriId], ct);
@@ -205,7 +205,7 @@ public static class RezSartApi
     }
 
     private static async Task<Created<RezSartDto>> Olustur(
-        RezSartIstegi istek, RezSartService sartlar, IRezSartRepository depo, ReservationService rezervasyonlar,
+        RezSartIstegi istek, ReservationTermService sartlar, IReservationTermRepository depo, ReservationService rezervasyonlar,
         QuotationService teklifler, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var id = await sartlar.CreateAsync(await GirdiAsync(istek, rezervasyonlar, teklifler, ct), ct);
@@ -214,7 +214,7 @@ public static class RezSartApi
     }
 
     private static async Task<Results<Ok<RezSartDto>, ProblemHttpResult>> Guncelle(
-        Guid id, RezSartGuncelleIstegi istek, RezSartService sartlar, IRezSartRepository depo,
+        Guid id, RezSartGuncelleIstegi istek, ReservationTermService sartlar, IReservationTermRepository depo,
         ReservationService rezervasyonlar, QuotationService teklifler, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         if (await KapsamliAsync(id, sartlar, rezervasyonlar, teklifler, ct) is null) return Bulunamadi();
@@ -227,27 +227,27 @@ public static class RezSartApi
 
     /// <summary>Karşılandı işaretle. Zaten karşılanmışsa tarih DEĞİŞMEZ (servis kuralı) → çift tık zararsız.</summary>
     private static async Task<Results<Ok<RezSartDto>, ProblemHttpResult>> Karsilandi(
-        Guid id, RezSartKarsilandiIstegi? istek, RezSartService sartlar, IRezSartRepository depo,
+        Guid id, RezSartKarsilandiIstegi? istek, ReservationTermService sartlar, IReservationTermRepository depo,
         ReservationService rezervasyonlar, QuotationService teklifler, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         if (await KapsamliAsync(id, sartlar, rezervasyonlar, teklifler, ct) is null) return Bulunamadi();
         Sinirlar.Metin(istek?.TeslimEden, 128, "teslimEden", "Teslim eden");
-        if (!await sartlar.KarsilandiIsaretleAsync(id, F5Ortak.Nz(istek?.TeslimEden), ct)) return Bulunamadi();
+        if (!await sartlar.MarkFulfilledAsync(id, F5Ortak.Nz(istek?.TeslimEden), ct)) return Bulunamadi();
         return await DtoAsync(id, sartlar, depo, rezervasyonlar, teklifler, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
     private static async Task<Results<Ok<RezSartDto>, ProblemHttpResult>> GeriAl(
-        Guid id, RezSartService sartlar, IRezSartRepository depo, ReservationService rezervasyonlar,
+        Guid id, ReservationTermService sartlar, IReservationTermRepository depo, ReservationService rezervasyonlar,
         QuotationService teklifler, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         if (await KapsamliAsync(id, sartlar, rezervasyonlar, teklifler, ct) is null) return Bulunamadi();
-        if (!await sartlar.KarsilamaGeriAlAsync(id, ct)) return Bulunamadi();
+        if (!await sartlar.UndoFulfillmentAsync(id, ct)) return Bulunamadi();
         return await DtoAsync(id, sartlar, depo, rezervasyonlar, teklifler, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
     /// <summary>Silme (Blazor ile aynı izin: OperationsWrite — operasyonel not, mali belge değil).</summary>
     private static async Task<Results<NoContent, ProblemHttpResult>> Sil(
-        Guid id, RezSartService sartlar, ReservationService rezervasyonlar, QuotationService teklifler, CancellationToken ct)
+        Guid id, ReservationTermService sartlar, ReservationService rezervasyonlar, QuotationService teklifler, CancellationToken ct)
     {
         if (await KapsamliAsync(id, sartlar, rezervasyonlar, teklifler, ct) is null) return Bulunamadi();
         return await sartlar.DeleteAsync(id, ct) ? TypedResults.NoContent() : Bulunamadi();

@@ -17,19 +17,19 @@ public static class RezSartEndpoints
     {
         var grp = app.MapGroup("/rez-sartlari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (RezSartService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (ReservationTermService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (RezSartService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (ReservationTermService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/karsilandi", async (RezSartService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.KarsilandiIsaretleAsync(id, FormParse.Str(req.Form, "teslimEden")), "İşlem tamamlandı."));
+        grp.MapPost("/karsilandi", async (ReservationTermService svc, HttpRequest req, [FromForm] Guid id) =>
+            await Run(() => svc.MarkFulfilledAsync(id, FormParse.Str(req.Form, "teslimEden")), "İşlem tamamlandı."));
 
-        grp.MapPost("/geri-al", async (RezSartService svc, [FromForm] Guid id) =>
-            await Run(() => svc.KarsilamaGeriAlAsync(id), "İşlem tamamlandı."));
+        grp.MapPost("/geri-al", async (ReservationTermService svc, [FromForm] Guid id) =>
+            await Run(() => svc.UndoFulfillmentAsync(id), "İşlem tamamlandı."));
 
-        grp.MapPost("/delete", async (RezSartService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (ReservationTermService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;

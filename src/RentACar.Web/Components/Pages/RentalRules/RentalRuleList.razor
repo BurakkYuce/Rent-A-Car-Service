@@ -23,7 +23,7 @@
     <label>Durum
         <select name="durum">
             <option value="">(tümü)</option>
-            @foreach (var d in Enum.GetValues<KampanyaDurum>())
+            @foreach (var d in Enum.GetValues<CampaignStatus>())
             {
                 <option value="@d" selected="@(Durum == d.ToString())">@DurumAd(d)</option>
             }
@@ -32,7 +32,7 @@
     <label>Tarih Tipi
         <select name="tarihTipi">
             <option value="">(tümü)</option>
-            @foreach (var t in Enum.GetValues<KuralTarihTipi>())
+            @foreach (var t in Enum.GetValues<RuleDateType>())
             {
                 <option value="@t" selected="@(TarihTipi == t.ToString())">@t</option>
             }
@@ -77,14 +77,14 @@
         <label>Geçerlilik Bit<input name="gecerlilikBit" type="date" /></label>
         <label>Tarih Tipi
             <select name="tarihTipi">
-                @foreach (var t in Enum.GetValues<KuralTarihTipi>()) { <option value="@t">@t</option> }
+                @foreach (var t in Enum.GetValues<RuleDateType>()) { <option value="@t">@t</option> }
             </select>
         </label>
         <label>Durum
             <select name="kampanyaDurum">
-                @foreach (var d in Enum.GetValues<KampanyaDurum>())
+                @foreach (var d in Enum.GetValues<CampaignStatus>())
                 {
-                    <option value="@d" selected="@(d == KampanyaDurum.Aktif)">@DurumAd(d)</option>
+                    <option value="@d" selected="@(d == CampaignStatus.Aktif)">@DurumAd(d)</option>
                 }
             </select>
         </label>
@@ -172,22 +172,22 @@
                             <label>Promosyon Türü
                                 <select name="promosyonTuru">
                                     <option value="" selected="@(r.PromosyonTuru is null)">—</option>
-                                    <option value="Coklu" selected="@(r.PromosyonTuru == PromosyonTuru.Coklu)">Çoklu</option>
-                                    <option value="Tek" selected="@(r.PromosyonTuru == PromosyonTuru.Tek)">Tek</option>
+                                    <option value="Coklu" selected="@(r.PromosyonTuru == PromotionType.Coklu)">Çoklu</option>
+                                    <option value="Tek" selected="@(r.PromosyonTuru == PromotionType.Tek)">Tek</option>
                                 </select>
                             </label>
                             <label>Kupon Geçerliliği
                                 <select name="kuponGecerlilik">
                                     <option value="" selected="@(r.KuponGecerlilik is null)">—</option>
-                                    <option value="Hepsi" selected="@(r.KuponGecerlilik == KuponGecerlilik.Hepsi)">Hepsi</option>
-                                    <option value="SadeceIlkBedel" selected="@(r.KuponGecerlilik == KuponGecerlilik.SadeceIlkBedel)">Sadece ilk bedel</option>
+                                    <option value="Hepsi" selected="@(r.KuponGecerlilik == CouponValidity.Hepsi)">Hepsi</option>
+                                    <option value="SadeceIlkBedel" selected="@(r.KuponGecerlilik == CouponValidity.SadeceIlkBedel)">Sadece ilk bedel</option>
                                 </select>
                             </label>
                             <label>Hesaplama Tipi
                                 <select name="hesaplamaTipi">
                                     <option value="" selected="@(r.HesaplamaTipi is null)">—</option>
-                                    <option value="Oran" selected="@(r.HesaplamaTipi == HesaplamaTipi.Oran)">Oran</option>
-                                    <option value="Serbest" selected="@(r.HesaplamaTipi == HesaplamaTipi.Serbest)">Serbest</option>
+                                    <option value="Oran" selected="@(r.HesaplamaTipi == CalculationType.Oran)">Oran</option>
+                                    <option value="Serbest" selected="@(r.HesaplamaTipi == CalculationType.Serbest)">Serbest</option>
                                 </select>
                             </label>
                             <label class="check"><input type="checkbox" name="hizliIslem" value="true" checked="@r.HizliIslem" /> Hızlı işlemde göster</label>
@@ -200,7 +200,7 @@
                             </fieldset>
                             <label>Tarih Tipi
                                 <select name="tarihTipi">
-                                    @foreach (var t in Enum.GetValues<KuralTarihTipi>())
+                                    @foreach (var t in Enum.GetValues<RuleDateType>())
                                     {
                                         <option value="@t" selected="@(t == r.TarihTipi)">@t</option>
                                     }
@@ -208,7 +208,7 @@
                             </label>
                             <label>Durum
                                 <select name="kampanyaDurum">
-                                    @foreach (var d in Enum.GetValues<KampanyaDurum>())
+                                    @foreach (var d in Enum.GetValues<CampaignStatus>())
                                     {
                                         <option value="@d" selected="@(d == r.KampanyaDurum)">@DurumAd(d)</option>
                                     }
@@ -253,13 +253,13 @@
     private bool _filtreli;
 
     /// <summary>Durum etiketi (enum adları Türkçe aksan taşımaz; ekranda düzgün yazılır).</summary>
-    private static string DurumAd(KampanyaDurum d) => d switch
+    private static string DurumAd(CampaignStatus d) => d switch
     {
-        KampanyaDurum.Taslak => "Taslak",
-        KampanyaDurum.Planlandi => "Planlandı",
-        KampanyaDurum.Aktif => "Aktif",
-        KampanyaDurum.Pasif => "Pasif",
-        KampanyaDurum.Iptal => "İptal",
+        CampaignStatus.Taslak => "Taslak",
+        CampaignStatus.Planlandi => "Planlandı",
+        CampaignStatus.Aktif => "Aktif",
+        CampaignStatus.Pasif => "Pasif",
+        CampaignStatus.Iptal => "İptal",
         _ => d.ToString()
     };
 
@@ -291,8 +291,8 @@
         var filtre = new RentalRuleFilter
         {
             Terim = Bos(Q),
-            Durum = Enum.TryParse<KampanyaDurum>(Bos(Durum), out var d) ? d : null,
-            TarihTipi = Enum.TryParse<KuralTarihTipi>(Bos(TarihTipi), out var t) ? t : null,
+            Durum = Enum.TryParse<CampaignStatus>(Bos(Durum), out var d) ? d : null,
+            TarihTipi = Enum.TryParse<RuleDateType>(Bos(TarihTipi), out var t) ? t : null,
             KampanyaMi = Bos(KampanyaMi) is "true" ? true : Bos(KampanyaMi) is "false" ? false : null,
             Kanal = Bos(Kanal),
             GecerliBas = FormParse.Date(Bos(GBas)),

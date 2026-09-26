@@ -260,16 +260,16 @@ else
         _ins = await Reg.ListInsuranceAsync();
         _insMap = _ins.ToDictionary(p => p.Id);
         // FAZ-15: zeyiller TEK sorguda (poliçe başına sorgu atmamak için — MTV ödeme geçmişi deseni).
-        _zeyil = await Reg.ListZeyilHepsiAsync();
+        _zeyil = await Reg.ListAllEndorsementsAsync();
         _mtv = await Reg.ListMtvAsync();
         _insp = await Reg.ListInspectionAsync();
 
         // Ödeme geçmişi TEK sorguda ve KAYIT KAPANSA DA gösterilir. Önceki hâli "kısmen ödenmiş"
         // filtresi kullanıyordu; kayıt kapanınca (Kalan=0) geçmiş ekrandan KAYBOLUYORDU — oysa
         // evrak numaraları ve kasa/banka dağılımı yalnız burada görünüyor ve ödemeler değişmez.
-        _mtvOdeme = (await Reg.ListMtvOdemeHepsiAsync())
+        _mtvOdeme = (await Reg.ListAllMtvPaymentsAsync())
             .GroupBy(x => x.MtvId).ToDictionary(g => g.Key, g => (IReadOnlyList<MtvOdeme>)g.OrderBy(x => x.Sira).ToList());
-        _muayeneOdeme = (await Reg.ListMuayeneOdemeHepsiAsync())
+        _muayeneOdeme = (await Reg.ListAllInspectionPaymentsAsync())
             .GroupBy(x => x.InspectionId).ToDictionary(g => g.Key, g => (IReadOnlyList<MuayeneOdeme>)g.OrderBy(x => x.Sira).ToList());
         _vehicles = await Vehicles.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);

@@ -3,7 +3,7 @@
 @using System.Globalization
 @using RentACar.Application.Pricing
 @using RentACar.Domain.Enums
-@inject MaliyetTeklifiService Teklifler
+@inject CostQuotationService Teklifler
 @inject CustomerService Cariler
 
 <PageTitle>Kayıtlı Maliyet Teklifleri — RentPro</PageTitle>
@@ -87,7 +87,7 @@
                             <table class="grid tr-grid">
                                 <thead><tr><th>Kalem</th><th>Periyot</th><th class="num">Birim</th><th class="num">Dönem</th></tr></thead>
                                 <tbody>
-                                    @foreach (var k in MaliyetTeklifiService.Kalemler(t))
+                                    @foreach (var k in CostQuotationService.Items(t))
                                     {
                                         <tr><td>@k.Ad</td><td>@k.Periyot</td>
                                             <td class="num">@k.Birim.ToString("N2")</td>
@@ -151,7 +151,7 @@
     /// </summary>
     private static string FormaYukle(MaliyetTeklifi t)
     {
-        var g = MaliyetTeklifiService.GirdiyeCevir(t);
+        var g = CostQuotationService.ToInput(t);
         string D(decimal v) => Uri.EscapeDataString(v.ToString(CultureInfo.InvariantCulture));
         var q = new List<string>
         {
@@ -184,7 +184,7 @@
             FiyatMin = decimal.TryParse(FMin, NumberStyles.Number, CultureInfo.InvariantCulture, out var f1) ? f1 : null,
             FiyatMax = decimal.TryParse(FMax, NumberStyles.Number, CultureInfo.InvariantCulture, out var f2) ? f2 : null
         });
-        _ozet = MaliyetTeklifiService.Ozet(_list);
+        _ozet = CostQuotationService.Summary(_list);
         _cariler = await Cariler.ListAsync();
         _cariAd = _cariler.ToDictionary(x => x.Id, x => x.DisplayName);
     }

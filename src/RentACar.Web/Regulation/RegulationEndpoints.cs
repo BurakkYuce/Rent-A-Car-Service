@@ -38,7 +38,7 @@ public static class RegulationEndpoints
         {
             try
             {
-                await svc.AddZeyilAsync(new ZeyilInput
+                await svc.AddEndorsementAsync(new ZeyilInput
                 {
                     PolicyId = policyId,
                     ZeyilNo = FormParse.Str(req.Form, "zeyilNo"),
@@ -58,7 +58,7 @@ public static class RegulationEndpoints
 
         grp.MapPost("/zeyil/sil", async (RegulationService svc, [FromForm] Guid id) =>
         {
-            try { await svc.DeleteZeyilAsync(id); return Sonuc.Tamam("/regulasyon#zeyil", "Kayıt silindi."); }
+            try { await svc.DeleteEndorsementAsync(id); return Sonuc.Tamam("/regulasyon#zeyil", "Kayıt silindi."); }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}#zeyil"); }
         });
 
@@ -91,8 +91,8 @@ public static class RegulationEndpoints
             var h = string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
             try
             {
-                await svc.MtvOdeAsync(id, h, odemeTarih: FormParse.Date(FormParse.Str(req.Form, "odemeTarihi")),
-                    odeme: OdemeGirdisi(req.Form));
+                await svc.PayMtvAsync(id, h, paymentDate: FormParse.Date(FormParse.Str(req.Form, "odemeTarihi")),
+                    payment: OdemeGirdisi(req.Form));
                 return Results.Redirect("/regulasyon?ok=1");
             }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
@@ -104,8 +104,8 @@ public static class RegulationEndpoints
             var c = FormParse.Dec(ceza) ?? 0m;
             try
             {
-                await svc.MuayeneOdeAsync(id, h, c, odemeTarih: FormParse.Date(FormParse.Str(req.Form, "odemeTarihi")),
-                    odeme: OdemeGirdisi(req.Form));
+                await svc.PayInspectionAsync(id, h, c, paymentDate: FormParse.Date(FormParse.Str(req.Form, "odemeTarihi")),
+                    payment: OdemeGirdisi(req.Form));
                 return Results.Redirect("/regulasyon?ok=1");
             }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
@@ -117,7 +117,7 @@ public static class RegulationEndpoints
             var h = string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
             var z = FormParse.Dec(zeyil) ?? 0m;
             var k = FormParse.Dec(kur); // boş → otomatik çözüm (TRY=1; döviz KurService — 1.1)
-            try { await svc.SigortaOdeAsync(id, h, z, kur: k, hesapId: FormParse.Id(hesapId)); return Results.Redirect("/regulasyon?ok=1"); }
+            try { await svc.PayInsuranceAsync(id, h, z, exchangeRate: k, accountId: FormParse.Id(hesapId)); return Results.Redirect("/regulasyon?ok=1"); }
             catch (ValidationException ex) { return Results.Redirect($"/regulasyon?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 

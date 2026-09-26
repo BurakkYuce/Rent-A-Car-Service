@@ -43,7 +43,7 @@ internal static class CrmScope
 
         Dictionary<string, bool> officeInScope = new(StringComparer.Ordinal);
         foreach (var office in list.Select(r => r.Office?.Trim()).Where(o => !string.IsNullOrEmpty(o)).Distinct())
-            officeInScope[office!] = BranchScope.InScope(filter, (await locations.FindByAdAsync(office!, ct))?.SubeId, office);
+            officeInScope[office!] = BranchScope.InScope(filter, (await locations.FindByNameAsync(office!, ct))?.SubeId, office);
 
         // Görünürlük kuralı TEK yerde (CrmScopeGuard.Visible; yazma yolları servis katmanında aynı kuralla korunur).
         return (rentalId, office) =>
@@ -62,7 +62,7 @@ internal static class CrmScope
         Guid? rentalId, string? office, CancellationToken ct)
     {
         var inScope = await BuildAsync(user, dbf, locations, [(rentalId, office)], ct);
-        if (!inScope(rentalId, office)) throw new YetkiYokException(CrmScopeGuard.OutOfScopeMessage);
+        if (!inScope(rentalId, office)) throw new NoPermissionException(CrmScopeGuard.OutOfScopeMessage);
     }
 
     /// <summary>Bağlanan cari bu kiracıda olmalı (RLS kapsamlı okuma; başka kiracının kimliği "yok"tur).</summary>

@@ -23,7 +23,7 @@
     // Fallback zinciri PublicSite/BlogYaziDetay.razor ile BİREBİR aynı sırada tutulur:
     // yazarın meta açıklaması > kart özeti > gövdeden türetilen özet.
     var onizBaslik = Bos(Post?.SeoBaslik) ?? Bos(Post?.Baslik) ?? "(başlık yok)";
-    var onizAciklama = Bos(Post?.MetaAciklama) ?? Bos(Post?.Ozet) ?? IcerikMetni.Ozet(Post?.Icerik)
+    var onizAciklama = Bos(Post?.MetaAciklama) ?? Bos(Post?.Ozet) ?? ContentText.Summary(Post?.Icerik)
         ?? "(açıklama yok — arama motoru sayfadan rastgele bir cümle seçer)";
     var onizAdres = "siteniz.com/blog/" + (Bos(Post?.Slug) ?? "yazi-adresi");
 }
@@ -45,8 +45,8 @@
         <input name="seoBaslik" value="@Post?.SeoBaslik" maxlength="300"
                data-seo-alan="seoBaslik" placeholder="Aramada görünecek başlık" />
         <span class="seo-yardim">Arama sonucunda görünen başlık. Boşsa yazının başlığı kullanılır.
-            <span data-seo-sayac="seoBaslik" data-seo-limit="@BlogService.SeoBaslikMax"
-                  class="@(seoBaslikUz > BlogService.SeoBaslikMax ? "seo-sayac uyari" : "seo-sayac")">@seoBaslikUz / @BlogService.SeoBaslikMax</span>
+            <span data-seo-sayac="seoBaslik" data-seo-limit="@BlogService.MaxSeoTitle"
+                  class="@(seoBaslikUz > BlogService.MaxSeoTitle ? "seo-sayac uyari" : "seo-sayac")">@seoBaslikUz / @BlogService.MaxSeoTitle</span>
         </span>
     </label>
 
@@ -55,8 +55,8 @@
                   data-seo-alan="metaAciklama" placeholder="Aramada başlığın altında görünecek açıklama">@Post?.MetaAciklama</textarea>
         <span class="seo-yardim">Arama sonucunda başlığın altındaki açıklama. Boşsa özet, o da yoksa yazının
             ilk cümleleri kullanılır.
-            <span data-seo-sayac="metaAciklama" data-seo-limit="@BlogService.MetaAciklamaMax"
-                  class="@(metaUz > BlogService.MetaAciklamaMax ? "seo-sayac uyari" : "seo-sayac")">@metaUz / @BlogService.MetaAciklamaMax</span>
+            <span data-seo-sayac="metaAciklama" data-seo-limit="@BlogService.MaxMetaDescription"
+                  class="@(metaUz > BlogService.MaxMetaDescription ? "seo-sayac uyari" : "seo-sayac")">@metaUz / @BlogService.MaxMetaDescription</span>
         </span>
     </label>
 

@@ -15,9 +15,9 @@
 <form method="get" class="filter-bar">
     <label>Tür
         <select name="tur">
-            @foreach (var t in Enum.GetValues<SigortaMuayeneTur>())
+            @foreach (var t in Enum.GetValues<InsuranceInspectionType>())
             {
-                <option value="@t" selected="@(t.ToString() == Tur)">@(t == SigortaMuayeneTur.Hepsi ? "— hepsi —" : t.ToString())</option>
+                <option value="@t" selected="@(t.ToString() == Tur)">@(t == InsuranceInspectionType.Hepsi ? "— hepsi —" : t.ToString())</option>
             }
         </select>
     </label>
@@ -95,7 +95,7 @@
     private IReadOnlyList<SigortaMuayeneRow> _rows = [];
     private string[] _sahipOpts = [];
 
-    private bool FiltreVar => (!string.IsNullOrWhiteSpace(Tur) && Tur != nameof(SigortaMuayeneTur.Hepsi))
+    private bool FiltreVar => (!string.IsNullOrWhiteSpace(Tur) && Tur != nameof(InsuranceInspectionType.Hepsi))
         || !string.IsNullOrWhiteSpace(EnGec) || !string.IsNullOrWhiteSpace(Sahip) || !string.IsNullOrWhiteSpace(Plaka);
 
     private static string Tarih(DateTimeOffset? d) => d?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—";
@@ -110,9 +110,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _rows = await Reports.GetSigortaMuayeneAsync(new SigortaMuayeneFilter
+        _rows = await Reports.GetInsuranceInspectionAsync(new SigortaMuayeneFilter
         {
-            Tur = Enum.TryParse<SigortaMuayeneTur>(Tur, out var t) ? t : SigortaMuayeneTur.Hepsi,
+            Tur = Enum.TryParse<InsuranceInspectionType>(Tur, out var t) ? t : InsuranceInspectionType.Hepsi,
             AracSahibi = Sahip,
             Plaka = Plaka,
             BitisEnGec = DateTimeOffset.TryParse(EnGec, out var e)
@@ -121,7 +121,7 @@
 
         // Sahip seçenekleri FİLTRESİZ listeden; filtrelenmişten türetilseydi bir seçim sonrası
         // diğer sahipler kaybolur ve filtre kendini kilitlerdi.
-        _sahipOpts = (await Reports.GetSigortaMuayeneAsync()).Select(r => r.AracSahibi)
+        _sahipOpts = (await Reports.GetInsuranceInspectionAsync()).Select(r => r.AracSahibi)
             .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
             .Distinct(StringComparer.CurrentCultureIgnoreCase)
             .OrderBy(x => x, StringComparer.CurrentCulture).ToArray();

@@ -63,11 +63,11 @@ public sealed class IyzicoPosTests
     public async Task Provizyon_preauth_ucuna_gider_tahsilat_auth_ucuna()
     {
         var (svc, h) = Kur(BasariliBaslat);
-        await svc.BaslatAsync(Istek(provizyon: true));
+        await svc.StartAsync(Istek(provizyon: true));
         Assert.EndsWith("/payment/iyzipos/checkoutform/initialize/preauth/ecom", h.Istek!.RequestUri!.AbsolutePath);
 
         var (svc2, h2) = Kur(BasariliBaslat);
-        await svc2.BaslatAsync(Istek(provizyon: false));
+        await svc2.StartAsync(Istek(provizyon: false));
         Assert.EndsWith("/payment/iyzipos/checkoutform/initialize/auth/ecom", h2.Istek!.RequestUri!.AbsolutePath);
     }
 
@@ -75,7 +75,7 @@ public sealed class IyzicoPosTests
     public async Task Imza_basliklari_gonderilir()
     {
         var (svc, h) = Kur(BasariliBaslat);
-        await svc.BaslatAsync(Istek());
+        await svc.StartAsync(Istek());
 
         var auth = Assert.Single(h.Istek!.Headers.GetValues("Authorization"));
         Assert.StartsWith("IYZWSv2 ", auth);
@@ -94,7 +94,7 @@ public sealed class IyzicoPosTests
     {
         // Barındırılan sayfa modelinin tek sebebi bu: kart bize uğramaz (PCI kapsamı dışı).
         var (svc, h) = Kur(BasariliBaslat);
-        await svc.BaslatAsync(Istek());
+        await svc.StartAsync(Istek());
 
         foreach (var alan in new[] { "cardNumber", "cvc", "expireYear", "expireMonth", "paymentCard" })
             Assert.DoesNotContain(alan, h.Govde, StringComparison.OrdinalIgnoreCase);
@@ -104,7 +104,7 @@ public sealed class IyzicoPosTests
     public async Task Sepet_toplami_tutara_esit_ve_taksit_kapali()
     {
         var (svc, h) = Kur(BasariliBaslat);
-        await svc.BaslatAsync(Istek(tutar: 1500m));
+        await svc.StartAsync(Istek(tutar: 1500m));
 
         using var doc = JsonDocument.Parse(h.Govde!);
         var kok = doc.RootElement;
@@ -136,7 +136,7 @@ public sealed class IyzicoPosTests
     public async Task Saglayici_reddederse_hata_mesaji_ve_kodu_tasinir()
     {
         var (svc, _) = Kur("""{"status":"failure","errorCode":"5057","errorMessage":"basketItemType geçersizdir"}""");
-        var sonuc = await svc.BaslatAsync(Istek());
+        var sonuc = await svc.StartAsync(Istek());
 
         Assert.False(sonuc.Ok);
         Assert.Null(sonuc.Token);
@@ -151,7 +151,7 @@ public sealed class IyzicoPosTests
         // ödeme tamamlanmamıştır — ikisini karıştırmak ödenmemiş kiralamayı ödenmiş saymak olurdu.
         var (svc, _) = Kur(
             """{"status":"success","paymentStatus":"FAILURE","paymentId":"99","errorMessage":"Kart limiti yetersiz"}""");
-        var sonuc = await svc.SonucAsync("tok-1");
+        var sonuc = await svc.ResultAsync("tok-1");
 
         Assert.False(sonuc.Ok);
         Assert.Equal("FAILURE", sonuc.Durum);
@@ -167,7 +167,7 @@ public sealed class IyzicoPosTests
          "conversationId":"RZ-000123","lastFourDigits":"0008","cardAssociation":"MASTER_CARD",
          "itemTransactions":[{"paymentTransactionId":"77777"}]}
         """);
-        var sonuc = await svc.SonucAsync("tok-1");
+        var sonuc = await svc.ResultAsync("tok-1");
 
         Assert.True(sonuc.Ok);
         Assert.Equal("12345", sonuc.OdemeId);
@@ -182,16 +182,16 @@ public sealed class IyzicoPosTests
     public async Task Kapatma_iptal_iade_dogru_uclara_ve_alanlarla_gider()
     {
         var (k, hk) = Kur("""{"status":"success","paymentId":"12345"}""");
-        await k.KapatAsync("12345", 1200m, "85.34.78.112");
+        await k.CloseAsync("12345", 1200m, "85.34.78.112");
         Assert.EndsWith("/payment/postauth", hk.Istek!.RequestUri!.AbsolutePath);
         Assert.Contains("\"paidPrice\":\"1200.0\"", hk.Govde);
 
         var (i, hi) = Kur("""{"status":"success","paymentId":"12345"}""");
-        await i.IptalAsync("12345", "85.34.78.112");
+        await i.CancelAsync("12345", "85.34.78.112");
         Assert.EndsWith("/payment/cancel", hi.Istek!.RequestUri!.AbsolutePath);
 
         var (d, hd) = Kur("""{"status":"success","paymentId":"12345"}""");
-        await d.IadeAsync("77777", 500m, "85.34.78.112");
+        await d.RefundAsync("77777", 500m, "85.34.78.112");
         Assert.EndsWith("/payment/refund", hd.Istek!.RequestUri!.AbsolutePath);
         // İade KALEM işlem kimliğini ister; paymentId göndermek "kırılım kaydı bulunamadı" verirdi.
         Assert.Contains("\"paymentTransactionId\":\"77777\"", hd.Govde);
@@ -201,12 +201,12 @@ public sealed class IyzicoPosTests
     public async Task Http_hatasi_ve_bozuk_yanit_istisna_sizdirmaz()
     {
         var (svc, _) = Kur("{}", HttpStatusCode.BadGateway);
-        var sonuc = await svc.BaslatAsync(Istek());
+        var sonuc = await svc.StartAsync(Istek());
         Assert.False(sonuc.Ok);
         Assert.Contains("502", sonuc.Hata);
 
         var (svc2, _) = Kur("bu json değil");
-        var sonuc2 = await svc2.BaslatAsync(Istek());
+        var sonuc2 = await svc2.StartAsync(Istek());
         Assert.False(sonuc2.Ok);
         Assert.False(string.IsNullOrWhiteSpace(sonuc2.Hata));
     }
@@ -217,7 +217,7 @@ public sealed class IyzicoPosTests
         var (svc, h) = Kur(BasariliBaslat);
         foreach (var tutar in new[] { 0m, -5m })
         {
-            var sonuc = await svc.BaslatAsync(Istek(tutar: tutar));
+            var sonuc = await svc.StartAsync(Istek(tutar: tutar));
             Assert.False(sonuc.Ok);
         }
         Assert.Null(h.Istek); // hiç istek gitmedi
@@ -230,9 +230,9 @@ public sealed class IyzicoPosTests
         var svc = new IyzicoPosService(new TekHandlerFactory(h),
             new IyzicoAyar { ApiKey = "", SecretKey = "" }, NullLogger<IyzicoPosService>.Instance);
 
-        Assert.False((await svc.BaslatAsync(Istek())).Ok);
-        Assert.False((await svc.SonucAsync("t")).Ok);
-        Assert.False((await svc.KapatAsync("1", 1m, "1.2.3.4")).Success);
+        Assert.False((await svc.StartAsync(Istek())).Ok);
+        Assert.False((await svc.ResultAsync("t")).Ok);
+        Assert.False((await svc.CloseAsync("1", 1m, "1.2.3.4")).Success);
         Assert.Null(h.Istek);
     }
 }

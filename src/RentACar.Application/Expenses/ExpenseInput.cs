@@ -16,7 +16,7 @@ public sealed class ExpenseInput
     public string Doviz { get; set; } = "TRY";
     /// <summary>Boş → otomatik çözüm (TRY=1; döviz KurService). Açık değer aynen kullanılır (1.1b).</summary>
     public decimal? Kur { get; set; }
-    public OdemeYontemi OdemeYontemi { get; set; } = OdemeYontemi.Nakit;
+    public PaymentMethod OdemeYontemi { get; set; } = PaymentMethod.Nakit;
     public LedgerAccountType KasaBankaHesap { get; set; } = LedgerAccountType.Kasa;
     public string? Aciklama { get; set; }
 

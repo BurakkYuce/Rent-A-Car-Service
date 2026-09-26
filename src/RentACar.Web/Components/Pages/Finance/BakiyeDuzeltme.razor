@@ -103,13 +103,13 @@
             var sonuc = await Customers.SearchAsync(new CustomerFilter { Query = Q, PageSize = 25 });
             _bulunanlar = sonuc.Items;
             foreach (var c in _bulunanlar)
-                _bakiyeler[c.Id] = await Cash.GetCariBalanceAsync(c.Id);
+                _bakiyeler[c.Id] = await Cash.GetAccountBalanceAsync(c.Id);
         }
 
         if (Guid.TryParse(CariId, out var id))
         {
             _secili = _bulunanlar.FirstOrDefault(c => c.Id == id) ?? await Customers.GetAsync(id);
-            if (_secili is not null) _seciliBakiye = await Cash.GetCariBalanceAsync(_secili.Id);
+            if (_secili is not null) _seciliBakiye = await Cash.GetAccountBalanceAsync(_secili.Id);
         }
     }
 }

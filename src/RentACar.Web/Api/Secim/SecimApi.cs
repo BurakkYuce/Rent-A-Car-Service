@@ -11,7 +11,7 @@ namespace RentACar.Web.Api.Secim;
 /// hepsi <c>q</c> (isteğe bağlı) + <c>limit</c> (varsayılan ve en çok 20) alır; yalnız kimlik + etiket
 /// (+ formun ihtiyacı olan operasyonel alan) döner — PII YOK. İzin kapısı <see cref="Permission.OperationsWrite"/>
 /// (kira/rezervasyon/teklif formlarının yazma izni); servis katmanı aynı izni ikinci kez doğrular
-/// (<see cref="SecimService"/>). Şube kapsamı servis katmanında.
+/// (<see cref="SelectionService"/>). Şube kapsamı servis katmanında.
 /// <para><b>F4.4 istisnası — <c>musteri</c> ve <c>kur</c>: OperationsWrite VEYA FinanceWrite</b>
 /// (<see cref="AuthExtensions.RequireAnyPermission{TBuilder}"/>; servis de aynı "herhangi biri" kuralını uygular).
 /// Kira formunun sabit finans panelinde Muhasebe (FinanceWrite, OperationsWrite yok) dış hizmet tedarikçi
@@ -26,48 +26,48 @@ public static class SecimApi
     {
         var kok = v1.MapGroup("/secim").WithTags("Seçim");
         // F4.4: finans paneli (Muhasebe) — OperationsWrite VEYA FinanceWrite; PII yok.
-        kok.MapGet("/musteri", async Task<Ok<IReadOnlyList<MusteriSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.MusteriAsync(q, limit, ct)))
+        kok.MapGet("/musteri", async Task<Ok<IReadOnlyList<MusteriSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.CustomerAsync(q, limit, ct)))
             .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
-        kok.MapGet("/kur", async Task<Ok<IReadOnlyList<KurSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.KurAsync(q, limit, ct)))
+        kok.MapGet("/kur", async Task<Ok<IReadOnlyList<KurSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.ExchangeRateAsync(q, limit, ct)))
             .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
         // #300: gelen e-faturadan gider (Muhasebe) — yalnız aktif gider türleri; tanım ekranının yazması değişmedi.
-        kok.MapGet("/gider-kategorisi", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
+        kok.MapGet("/gider-kategorisi", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
             => TypedResults.Ok(await s.ExpenseCategoryAsync(q, limit, ct)))
             .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
         // #300: araç satış formu — satılmamış araçlar, şube kapsamlı; satışla aynı izin (FinanceWrite).
-        kok.MapGet("/satilabilir-arac", async Task<Ok<IReadOnlyList<AracSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
+        kok.MapGet("/satilabilir-arac", async Task<Ok<IReadOnlyList<AracSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
             => TypedResults.Ok(await s.SellableVehicleAsync(q, limit, ct)))
             .RequirePermission(Permission.FinanceWrite);
 
         var g = kok.MapGroup("").RequirePermission(Permission.OperationsWrite);
-        g.MapGet("/arac", async Task<Ok<IReadOnlyList<AracSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.AracAsync(q, limit, ct)));
+        g.MapGet("/arac", async Task<Ok<IReadOnlyList<AracSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.VehicleAsync(q, limit, ct)));
         // F4.3b — kimlikle tek öğe (bağlantıdaki ?musteriId= / ?varac= etiketi). Aynı izin + PII kuralı;
         // araçta şube kapsamı (kapsam dışı 403), yok/başka kiracı 404.
-        g.MapGet("/musteri/{id:guid}", async Task<Results<Ok<MusteriSecimOgesi>, ProblemHttpResult>> (Guid id, SecimService s, CancellationToken ct)
-            => await s.MusteriGetirAsync(id, ct) is { } m ? TypedResults.Ok(m) : Bulunamadi("Müşteri bulunamadı."));
-        g.MapGet("/arac/{id:guid}", async Task<Results<Ok<AracSecimOgesi>, ProblemHttpResult>> (Guid id, SecimService s, CancellationToken ct)
-            => await s.AracGetirAsync(id, ct) is { } a ? TypedResults.Ok(a) : Bulunamadi("Araç bulunamadı."));
-        g.MapGet("/lokasyon", async Task<Ok<IReadOnlyList<LokasyonSecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.LokasyonAsync(q, limit, ct)));
-        g.MapGet("/ek-hizmet", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.EkHizmetAsync(q, limit, ct)));
-        g.MapGet("/sigorta-urunu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.SigortaUrunuAsync(q, limit, ct)));
-        g.MapGet("/rezervasyon-kaynagi", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.RezervasyonKaynagiAsync(q, limit, ct)));
-        g.MapGet("/ozel-kod", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.OzelKodAsync(q, limit, ct)));
-        g.MapGet("/belge-sablonu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, BelgeTuru? tur, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.BelgeSablonuAsync(q, limit, tur, ct)));
-        g.MapGet("/personel", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.PersonelAsync(q, limit, ct)));
-        g.MapGet("/sube", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.SubeAsync(q, limit, ct)));
-        g.MapGet("/arac-grubu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SecimService s, CancellationToken ct)
-            => TypedResults.Ok(await s.AracGrubuAsync(q, limit, ct)));
+        g.MapGet("/musteri/{id:guid}", async Task<Results<Ok<MusteriSecimOgesi>, ProblemHttpResult>> (Guid id, SelectionService s, CancellationToken ct)
+            => await s.GetCustomerAsync(id, ct) is { } m ? TypedResults.Ok(m) : Bulunamadi("Müşteri bulunamadı."));
+        g.MapGet("/arac/{id:guid}", async Task<Results<Ok<AracSecimOgesi>, ProblemHttpResult>> (Guid id, SelectionService s, CancellationToken ct)
+            => await s.GetVehicleAsync(id, ct) is { } a ? TypedResults.Ok(a) : Bulunamadi("Araç bulunamadı."));
+        g.MapGet("/lokasyon", async Task<Ok<IReadOnlyList<LokasyonSecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.LocationAsync(q, limit, ct)));
+        g.MapGet("/ek-hizmet", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.AddOnAsync(q, limit, ct)));
+        g.MapGet("/sigorta-urunu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.InsuranceProductAsync(q, limit, ct)));
+        g.MapGet("/rezervasyon-kaynagi", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.ReservationSourceAsync(q, limit, ct)));
+        g.MapGet("/ozel-kod", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.CustomCodeAsync(q, limit, ct)));
+        g.MapGet("/belge-sablonu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, BelgeTuru? tur, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.DocumentTemplateAsync(q, limit, tur, ct)));
+        g.MapGet("/personel", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.StaffAsync(q, limit, ct)));
+        g.MapGet("/sube", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.BranchAsync(q, limit, ct)));
+        g.MapGet("/arac-grubu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, SelectionService s, CancellationToken ct)
+            => TypedResults.Ok(await s.VehicleGroupAsync(q, limit, ct)));
         return kok;
     }
 

@@ -50,8 +50,8 @@ public sealed record AracKrediDetayYaniti(
 {
     public static AracKrediDetayYaniti From(AracKredi k, string? plaka, string? cariAd, AracKrediYetkileri y)
     {
-        var oz = AracKrediService.Hesapla(k);
-        var sonraki = k.Durum == Domain.Enums.KrediDurum.Aktif && k.OdenenTaksit < k.TaksitSayisi && oz.Taksitler.Count > 0
+        var oz = VehicleLoanService.Calculate(k);
+        var sonraki = k.Durum == Domain.Enums.LoanStatus.Aktif && k.OdenenTaksit < k.TaksitSayisi && oz.Taksitler.Count > 0
             ? oz.Taksitler[k.OdenenTaksit] is var t ? new SonrakiTaksit(t.Sira, t.Vade, t.Tutar) : null
             : null;
         return new(k.Id, k.No, k.BankaAdi, k.VehicleId, plaka, k.CariId, cariAd, k.DosyaNo, k.KrediTutari, k.FaizOran,

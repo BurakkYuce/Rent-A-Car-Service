@@ -5,7 +5,7 @@ namespace RentACar.Domain.Enums;
 /// (canlı <c>kira_listesi.aspx</c> "Tarih Listesi" seçicisi). Varsayılan <see cref="Baslangic"/>
 /// = bu fazdan önceki davranış.
 /// </summary>
-public enum TarihListesiTuru
+public enum DateListType
 {
     Baslangic = 0,
     Bitis = 1,
@@ -18,28 +18,28 @@ public enum TarihListesiTuru
 /// FAZ-46 — ofis filtresinin çıkış mı dönüş ofisine mi uygulanacağı. Seçilmezse (null) eski
 /// davranış korunur: ofis metni ÇIKIŞ ya da DÖNÜŞ ofisinden herhangi biriyle eşleşir.
 /// </summary>
-public enum OfisDurumu
+public enum OfficeStatus
 {
     Cikis = 0,
     Donus = 1
 }
 
 /// <summary>FAZ-46 — kural promosyonunun birden çok kez mi yoksa tek kez mi uygulanacağı (BİLGİ).</summary>
-public enum PromosyonTuru
+public enum PromotionType
 {
     Coklu = 0,
     Tek = 1
 }
 
 /// <summary>FAZ-46 — kuponun neyi kapsadığı (BİLGİ).</summary>
-public enum KuponGecerlilik
+public enum CouponValidity
 {
     Hepsi = 0,
     SadeceIlkBedel = 1
 }
 
 /// <summary>FAZ-46 — kural tutarının oran mı serbest tutar mı olduğu (BİLGİ).</summary>
-public enum HesaplamaTipi
+public enum CalculationType
 {
     Oran = 0,
     Serbest = 1

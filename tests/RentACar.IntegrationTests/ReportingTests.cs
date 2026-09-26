@@ -38,7 +38,7 @@ public sealed class ReportingTests(PostgresFixture fx)
 
         // Nakit gider: net 1000 @0.20 → Gider(D 1000) + Kdv(D 200) / Kasa(C 1200).
         await expenses.CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.Nakit });
 
         // Araç satış: net 5000 @0.20 → Cari(D 6000) / Gelir(C 5000) + Kdv(C 1000).
         await sales.CreateAsync(new VehicleSaleInput
@@ -56,7 +56,7 @@ public sealed class ReportingTests(PostgresFixture fx)
         await SeedKnownLedgerAsync(scope, await TestCari.YeniAsync(scope.ServiceProvider));
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
-        var s = await reports.GetKasaBankaSummaryAsync();
+        var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(3000m, s.KasaGiris);   // tahsilat
         Assert.Equal(1200m, s.KasaCikis);   // nakit gider brüt
         Assert.Equal(1800m, s.KasaBakiye);  // 3000 − 1200
@@ -88,7 +88,7 @@ public sealed class ReportingTests(PostgresFixture fx)
         await SeedKnownLedgerAsync(scope, await TestCari.YeniAsync(scope.ServiceProvider));
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
-        var gg = await reports.GetGelirGiderAsync();
+        var gg = await reports.GetRevenueExpenseAsync();
         Assert.Equal(5000m, gg.GelirToplam);      // satış net
         Assert.Equal(1000m, gg.GiderToplam);      // gider net
         Assert.Equal(1000m, gg.KdvTahsil);        // satış kdv (alacak)
@@ -116,12 +116,12 @@ public sealed class ReportingTests(PostgresFixture fx)
         { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 500m, Tarih = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero) });
 
         // Şubat'tan itibaren sorgu → Ocak işlemi sayılmaz.
-        var feb = await reports.GetKasaBankaSummaryAsync(
+        var feb = await reports.GetCashBankSummaryAsync(
             from: new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero), to: null);
         Assert.Equal(0m, feb.KasaGiris);
 
         // Ocak'ı kapsayan aralık → görünür.
-        var jan = await reports.GetKasaBankaSummaryAsync(
+        var jan = await reports.GetCashBankSummaryAsync(
             from: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             to: new DateTimeOffset(2026, 1, 31, 23, 59, 59, TimeSpan.Zero));
         Assert.Equal(500m, jan.KasaGiris);
@@ -139,8 +139,8 @@ public sealed class ReportingTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(t2);
         var reports = s2.ServiceProvider.GetRequiredService<ReportService>();
-        var s = await reports.GetKasaBankaSummaryAsync();
-        var gg = await reports.GetGelirGiderAsync();
+        var s = await reports.GetCashBankSummaryAsync();
+        var gg = await reports.GetRevenueExpenseAsync();
         Assert.Equal(0m, s.KasaGiris);
         Assert.Equal(0m, s.KasaCikis);
         Assert.Equal(0m, gg.GelirToplam);

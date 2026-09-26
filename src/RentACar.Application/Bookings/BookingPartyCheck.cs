@@ -17,12 +17,12 @@ public static class BookingPartyCheck
 {
     /// <summary>Önce müşteri, sonra araç denetlenir; bulunan müşteri döner (risk limiti gibi sonraki kurallar için).</summary>
     public static async Task<Customer> RequireAsync(
-        ICustomerRepository customers, IVehicleRepository vehicles, Guid musteriId, Guid vehicleId, CancellationToken ct)
+        ICustomerRepository customers, IVehicleRepository vehicles, Guid customerId, Guid vehicleId, CancellationToken ct)
     {
-        var musteri = (musteriId == Guid.Empty ? null : await customers.FindAsync(musteriId, ct))
+        var customer = (customerId == Guid.Empty ? null : await customers.FindAsync(customerId, ct))
             ?? throw new ValidationException("Müşteri bulunamadı.", "musteriId");
         if (vehicleId == Guid.Empty || await vehicles.FindAsync(vehicleId, ct) is null)
             throw new ValidationException("Araç bulunamadı.", "vehicleId");
-        return musteri;
+        return customer;
     }
 }

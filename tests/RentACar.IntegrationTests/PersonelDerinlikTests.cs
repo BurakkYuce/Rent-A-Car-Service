@@ -39,7 +39,7 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<PersonelService>();
+        var svc = s.ServiceProvider.GetRequiredService<PersonnelService>();
 
         var id = await svc.CreateAsync(Dolu("p1"));
         var d = await svc.GetDetailAsync(id);
@@ -80,7 +80,7 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<PersonelService>();
+        var svc = s.ServiceProvider.GetRequiredService<PersonnelService>();
         var id = await svc.CreateAsync(Dolu("P2"));
 
         // PII BOŞ bırakılıyor (mevcut korunmalı), derinlik alanları değişiyor.
@@ -105,16 +105,16 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
         using (var admin = host.ScopeFor(t1))
-            await admin.ServiceProvider.GetRequiredService<PersonelService>()
+            await admin.ServiceProvider.GetRequiredService<PersonnelService>()
                 .CreateAsync(new PersonelInput { Kod = "YON", Ad = "Veli", Soyad = "Yön", GorevTanimi = "Yönetici" });
 
         // Operatör rolü personel listesini HÂLÂ göremez (ManageUsers gerekiyor) — kayıttaki
         // "Yönetici" etiketi hiçbir kapı açmaz.
         using var op = host.ScopeFor(t1, Guid.NewGuid(), "op", UserRole.Operator);
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
-            op.ServiceProvider.GetRequiredService<PersonelService>().ListAsync());
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
-            op.ServiceProvider.GetRequiredService<PersonelService>().SearchAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
+            op.ServiceProvider.GetRequiredService<PersonnelService>().ListAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
+            op.ServiceProvider.GetRequiredService<PersonnelService>().SearchAsync());
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<PersonelService>();
+        var svc = s.ServiceProvider.GetRequiredService<PersonnelService>();
 
         var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new PersonelInput
         { Kod = "GT", Ad = "A", Soyad = "B", DogumTarihi = DateTimeOffset.UtcNow.AddYears(1) }));
@@ -135,7 +135,7 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<PersonelService>();
+        var svc = s.ServiceProvider.GetRequiredService<PersonnelService>();
 
         // ELLE: 3 personel.
         await svc.CreateAsync(new PersonelInput
@@ -173,10 +173,10 @@ public sealed class PersonelDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
-            await s1.ServiceProvider.GetRequiredService<PersonelService>().CreateAsync(Dolu("GIZLI"));
+            await s1.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(Dolu("GIZLI"));
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        var svc = s2.ServiceProvider.GetRequiredService<PersonelService>();
+        var svc = s2.ServiceProvider.GetRequiredService<PersonnelService>();
         Assert.Empty(await svc.SearchAsync());
         Assert.Empty(await svc.SearchAsync(new PersonelFilter { Ara = "Ali" }));
         // Aynı sicil başka tenant'ta serbest.

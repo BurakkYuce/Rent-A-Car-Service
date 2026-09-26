@@ -36,7 +36,7 @@ public sealed partial class UiRezervasyonTests
         await ProblemBekle(await Gonder(b, HttpMethod.Put, $"{Filo}/{id}/kunye", new { surum, sozlesmeNo = "B-EZER" }),
             HttpStatusCode.Forbidden, "yetki_yok");
         var k = await OkuAsync(o.TenantId, db => db.FiloKiralamalar.AsNoTracking().FirstAsync(x => x.Id == id));
-        Assert.Equal(FiloKiraDurum.Aktif, k.Durum);
+        Assert.Equal(FleetRentalStatus.Aktif, k.Durum);
         Assert.Null(k.SozlesmeNo);
     }
 
@@ -75,8 +75,8 @@ public sealed partial class UiRezervasyonTests
         var arac = await AracAsync(o);
         var s = await GirisAsync(o, Kim.OperatorA);
         var soyad = "Gizli" + Guid.NewGuid().ToString("N")[..6];
-        var anonim = new Customer { Tip = CariType.Bireysel, Ad = "Zeynep", Soyad = soyad, CepTel = "05320000001", AnonimAd = true, AnonimTelefon = true };
-        var acik = new Customer { Tip = CariType.Bireysel, Ad = "Zeynep", Soyad = soyad + "x", CepTel = "05320000002" };
+        var anonim = new Customer { Tip = CustomerType.Bireysel, Ad = "Zeynep", Soyad = soyad, CepTel = "05320000001", AnonimAd = true, AnonimTelefon = true };
+        var acik = new Customer { Tip = CustomerType.Bireysel, Ad = "Zeynep", Soyad = soyad + "x", CepTel = "05320000002" };
         await VeriYazAsync(o.TenantId, db => db.Customers.AddRange(anonim, acik));
         var g1 = RezGovde(o, arac, Yarin(2)); g1["musteriId"] = anonim.Id;
         var rezNo = (await Json(await Gonder(s, HttpMethod.Post, Rez, g1), HttpStatusCode.Created)).GetProperty("no").GetString();

@@ -12,11 +12,11 @@ namespace RentACar.Application.Authorization;
 /// (mevcut floor) DEĞİŞMEZ — bu additive bir katman.
 /// </summary>
 public sealed class ScreenPermissionService(
-    IScreenPermissionRepository repository, ICurrentUser currentUser, IYetkiGrupRepository grupRepository)
+    IScreenPermissionRepository repository, ICurrentUser currentUser, IPermissionGroupRepository groupRepository)
 {
     private readonly IScreenPermissionRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
-    private readonly IYetkiGrupRepository _grup = grupRepository;
+    private readonly IPermissionGroupRepository _group = groupRepository;
 
     // ---- Yönetim (ManageUsers) ----
     public async Task<IReadOnlyList<Domain.Entities.ScreenPermission>> ListAsync(CancellationToken ct = default)
@@ -25,80 +25,80 @@ public sealed class ScreenPermissionService(
         return await _repository.ListAsync(ct);
     }
 
-    public async Task SetAsync(string ekranKodu, IEnumerable<UserRole> roller, bool aktif = true, CancellationToken ct = default)
+    public async Task SetAsync(string screenCode, IEnumerable<UserRole> roller, bool active = true, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        var kod = Normalize(ekranKodu);
-        if (kod.Length == 0) throw new ValidationException("Ekran kodu zorunludur.");
+        var code = Normalize(screenCode);
+        if (code.Length == 0) throw new ValidationException("Ekran kodu zorunludur.");
         var roles = roller.Distinct().ToArray();
-        await RequireAdminIfAdminAccessChangesAsync(kod, roles, ct, active: aktif);
+        await RequireAdminIfAdminAccessChangesAsync(code, roles, ct, active: active);
         var csv = string.Join(",", roles.Select(r => r.ToString()));
-        await _repository.UpsertAsync(kod, s =>
+        await _repository.UpsertAsync(code, s =>
         {
-            s.EkranKodu = kod;
+            s.EkranKodu = code;
             s.AllowedRolesCsv = csv;
-            s.Aktif = aktif;
+            s.Aktif = active;
             s.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
 
-    public async Task<bool> RemoveAsync(string ekranKodu, CancellationToken ct = default)
+    public async Task<bool> RemoveAsync(string screenCode, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        await RequireAdminIfAdminAccessChangesAsync(Normalize(ekranKodu), null, ct);
-        return await _repository.DeleteAsync(Normalize(ekranKodu), ct);
+        await RequireAdminIfAdminAccessChangesAsync(Normalize(screenCode), null, ct);
+        return await _repository.DeleteAsync(Normalize(screenCode), ct);
     }
 
     /// <summary>
-    /// Yetki şablonu/kopyala (roadmap M2): <paramref name="kaynak"/> rolünün ekran erişimini <paramref name="hedef"/>
+    /// Yetki şablonu/kopyala (roadmap M2): <paramref name="source"/> rolünün ekran erişimini <paramref name="target"/>
     /// role klonlar — kaynağın bulunduğu (ve hedefin henüz olmadığı) her ekran override'ına hedef rol EKLENİR
     /// (mevcut roller korunur; SADECE ekleme — kimsenin erişimi kaldırılmaz). Güncellenen ekran sayısını döner.
     /// </summary>
-    public async Task<int> KopyalaRolAsync(UserRole kaynak, UserRole hedef, CancellationToken ct = default)
+    public async Task<int> CopyRoleAsync(UserRole source, UserRole target, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        if (kaynak == hedef) throw new ValidationException("Kaynak ve hedef rol farklı olmalıdır.");
+        if (source == target) throw new ValidationException("Kaynak ve hedef rol farklı olmalıdır.");
         // Admin'e ekran eklemek Admin'in erişimine dokunmaktır → yalnız Admin rolü (#304 L3).
-        if (hedef == UserRole.Admin) RequireAdminRole();
+        if (target == UserRole.Admin) RequireAdminRole();
 
-        var sayac = 0;
+        var counter = 0;
         foreach (var s in await _repository.ListAsync(ct))
         {
             var roller = ParseRoles(s.AllowedRolesCsv);
-            if (!roller.Contains(kaynak) || roller.Contains(hedef)) continue; // kaynakta yok / hedefte zaten var
-            var csv = string.Join(",", roller.Append(hedef).Distinct().Select(r => r.ToString()));
+            if (!roller.Contains(source) || roller.Contains(target)) continue; // kaynakta yok / hedefte zaten var
+            var csv = string.Join(",", roller.Append(target).Distinct().Select(r => r.ToString()));
             await _repository.UpsertAsync(s.EkranKodu, x =>
             {
                 x.AllowedRolesCsv = csv;
                 x.UpdatedAtUtc = DateTimeOffset.UtcNow;
             }, ct);
-            sayac++;
+            counter++;
         }
-        return sayac;
+        return counter;
     }
 
     // ---- Yetki grubu / şablon (PR-D, ManageUsers): ekran-izni profillerini kaydet/uygula/sil ----
 
     /// <summary>Tenant'ın kayıtlı yetki-grubu şablonları.</summary>
-    public async Task<IReadOnlyList<Domain.Entities.YetkiGrup>> ListGruplarAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<Domain.Entities.YetkiGrup>> ListGroupsAsync(CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        return await _grup.ListAsync(ct);
+        return await _group.ListAsync(ct);
     }
 
     /// <summary>Mevcut ekran-izni yapılandırmasını (tüm ScreenPermission'lar) isimli bir şablon olarak kaydet
-    /// (anlık görüntü). Aynı adla varsa üzerine yazılır. Sonra <see cref="UygulaGrupAsync"/> ile geri yüklenir.</summary>
-    public async Task SnapshotGrupAsync(string ad, CancellationToken ct = default)
+    /// (anlık görüntü). Aynı adla varsa üzerine yazılır. Sonra <see cref="ApplyGroupAsync"/> ile geri yüklenir.</summary>
+    public async Task SnapshotGroupAsync(string name, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        if (Normalize(ad).Length == 0) throw new ValidationException("Şablon adı zorunludur.");
-        var kalemler = (await _repository.ListAsync(ct))
+        if (Normalize(name).Length == 0) throw new ValidationException("Şablon adı zorunludur.");
+        var items = (await _repository.ListAsync(ct))
             .Select(s => new YetkiGrupKalem(s.EkranKodu, ParseRoles(s.AllowedRolesCsv).Select(r => r.ToString()).ToArray()))
             .ToList();
-        var json = JsonSerializer.Serialize(kalemler);
-        await _grup.UpsertAsync(ad.Trim(), g =>
+        var json = JsonSerializer.Serialize(items);
+        await _group.UpsertAsync(name.Trim(), g =>
         {
-            g.Ad = ad.Trim();
+            g.Ad = name.Trim();
             g.KalemlerJson = json;
             g.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
@@ -107,47 +107,47 @@ public sealed class ScreenPermissionService(
     /// <summary>Şablonu UYGULA: kalemlerini ScreenPermission override'larına yazar (bulk SetAsync). GÜVENLİK:
     /// yalnız ekran-override'ı yazar — rol-matrisi floor'u DEĞİŞMEZ; uygulanan kısıt PermissionResolver'da yine
     /// floor'la kesişir (grant floor'u AŞAMAZ). Uygulanan kalem sayısını döner.</summary>
-    public async Task<int> UygulaGrupAsync(string ad, CancellationToken ct = default)
+    public async Task<int> ApplyGroupAsync(string name, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        var g = await _grup.FindByAdAsync(ad.Trim(), ct)
-            ?? throw new ValidationException($"Şablon bulunamadı: {ad}.");
-        var kalemler = (JsonSerializer.Deserialize<List<YetkiGrupKalem>>(g.KalemlerJson) ?? [])
+        var g = await _group.FindByNameAsync(name.Trim(), ct)
+            ?? throw new ValidationException($"Şablon bulunamadı: {name}.");
+        var items = (JsonSerializer.Deserialize<List<YetkiGrupKalem>>(g.KalemlerJson) ?? [])
             .Select(k => (k.Ekran, Roller: k.Roller
                 .Select(r => Enum.TryParse<UserRole>(r, ignoreCase: true, out var ur) && Enum.IsDefined(ur) ? (UserRole?)ur : null)
                 .Where(r => r is not null).Select(r => r!.Value).Distinct().ToArray()))
             .ToList();
         // #304 L3: Admin erişimini değiştiren kalem varsa HİÇBİR kalem yazılmadan reddedilir (yarım uygulama yok).
-        foreach (var k in kalemler)
+        foreach (var k in items)
             await RequireAdminIfAdminAccessChangesAsync(Normalize(k.Ekran), k.Roller, ct);
-        var sayac = 0;
-        foreach (var k in kalemler)
+        var counter = 0;
+        foreach (var k in items)
         {
             await SetAsync(k.Ekran, k.Roller, ct: ct); // ManageUsers guard + Normalize; override yazar (floor'u değiştirmez)
-            sayac++;
+            counter++;
         }
-        return sayac;
+        return counter;
     }
 
-    public async Task<bool> SilGrupAsync(string ad, CancellationToken ct = default)
+    public async Task<bool> DeleteGroupAsync(string name, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        return await _grup.DeleteAsync(ad.Trim(), ct);
+        return await _group.DeleteAsync(name.Trim(), ct);
     }
 
     // ---- Çözüm (opt-in ekran gating; yetki gerektirmez — çağıran ekranın guard'ı) ----
-    public async Task<bool> IsScreenAllowedAsync(string ekranKodu, Permission permission, CancellationToken ct = default)
+    public async Task<bool> IsScreenAllowedAsync(string screenCode, Permission permission, CancellationToken ct = default)
     {
-        var ov = await _repository.FindByKodAsync(Normalize(ekranKodu), ct);
+        var ov = await _repository.FindByCodeAsync(Normalize(screenCode), ct);
         var roller = ov is { Aktif: true } ? ParseRoles(ov.AllowedRolesCsv) : null;
         return PermissionResolver.IsAllowed(_currentUser.Role, permission, roller);
     }
 
     /// <summary>Erişim yoksa YetkiYokException (PermissionGuard deseni). Opt-in ekranlar çağırır.</summary>
-    public async Task EnsureScreenAccessAsync(string ekranKodu, Permission permission, CancellationToken ct = default)
+    public async Task EnsureScreenAccessAsync(string screenCode, Permission permission, CancellationToken ct = default)
     {
-        if (!await IsScreenAllowedAsync(ekranKodu, permission, ct))
-            throw new YetkiYokException($"Bu ekran için yetkiniz yok ({Normalize(ekranKodu)}).");
+        if (!await IsScreenAllowedAsync(screenCode, permission, ct))
+            throw new NoPermissionException($"Bu ekran için yetkiniz yok ({Normalize(screenCode)}).");
     }
 
     /// <summary>
@@ -163,7 +163,7 @@ public sealed class ScreenPermissionService(
         CancellationToken ct, bool active = true)
     {
         if (_currentUser.Role == UserRole.Admin) return;
-        var current = await _repository.FindByKodAsync(code, ct);
+        var current = await _repository.FindByCodeAsync(code, ct);
         var storedBefore = current is null || ParseRoles(current.AllowedRolesCsv).Contains(UserRole.Admin);
         var storedAfter = newRoles is null || newRoles.Contains(UserRole.Admin);
         var effectiveBefore = current is not { Aktif: true } || storedBefore;
@@ -174,7 +174,7 @@ public sealed class ScreenPermissionService(
     private void RequireAdminRole()
     {
         if (_currentUser.Role != UserRole.Admin)
-            throw new YetkiYokException("Admin rolünün ekran erişimini yalnız Admin değiştirebilir.");
+            throw new NoPermissionException("Admin rolünün ekran erişimini yalnız Admin değiştirebilir.");
     }
 
     private static string Normalize(string? s) => (s ?? string.Empty).Trim().ToLowerInvariant();

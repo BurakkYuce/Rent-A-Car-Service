@@ -10,7 +10,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// IDonemKilidiRepository (roadmap D2): tenant başına TEK kilit satırı. Tenant izolasyonu RLS + query
 /// filter. Eşzamanlı çift insert unique index (TenantId) ile engellenir (23505 → ValidationException).
 /// </summary>
-public sealed class DonemKilidiRepository(IDbContextFactory<AppDbContext> factory) : IDonemKilidiRepository
+public sealed class DonemKilidiRepository(IDbContextFactory<AppDbContext> factory) : IPeriodLockRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 

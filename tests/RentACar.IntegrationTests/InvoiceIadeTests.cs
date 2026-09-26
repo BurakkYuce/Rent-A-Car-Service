@@ -20,7 +20,7 @@ namespace RentACar.IntegrationTests;
 public sealed class InvoiceIadeTests(PostgresFixture fx)
 {
     private static Task<Guid> Cari(IServiceProvider sp)
-        => sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "İade Cari" });
+        => sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "İade Cari" });
 
     private static async Task<(decimal debit, decimal credit)> LedgerBalanceAsync(IServiceProvider sp)
     {
@@ -42,9 +42,9 @@ public sealed class InvoiceIadeTests(PostgresFixture fx)
         var rep = sp.GetRequiredService<ReportService>();
 
         var srcId = await inv.CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m, Aciklama = "Kira" });
-        Assert.Equal(1200m, await cash.GetCariBalanceAsync(cariId)); // önce: cari borçlu 1200
+        Assert.Equal(1200m, await cash.GetAccountBalanceAsync(cariId)); // önce: cari borçlu 1200
 
-        var iadeId = await inv.CreateIadeAsync(srcId);
+        var iadeId = await inv.CreateRefundAsync(srcId);
 
         // İade faturası doğru kuruldu (kaynak yansıması + RentalId null)
         var iade = await inv.GetAsync(iadeId);
@@ -56,18 +56,18 @@ public sealed class InvoiceIadeTests(PostgresFixture fx)
         Assert.Equal(1200m, iade.GenelToplam);
 
         // ORACLE: iade sonrası her şey net 0
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cariId)); // 1200 borç − 1200 alacak
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cariId)); // 1200 borç − 1200 alacak
 
-        var gg = await rep.GetGelirGiderAsync();
+        var gg = await rep.GetRevenueExpenseAsync();
         Assert.Equal(0m, gg.GelirToplam);      // 1000 − 1000
         Assert.Equal(0m, gg.KdvTahsil);        // 200 − 200
         Assert.Equal(0m, gg.KdvIndirilecek);   // iade Borç KDV, indirime YAZILMADI
 
-        var kdv = await rep.GetKdvListesiAsync();
+        var kdv = await rep.GetVatListAsync();
         Assert.Equal(0m, kdv.ToplamKdv);       // fatura +200, iade −200
         Assert.Equal(0m, kdv.ToplamNet);
 
-        var tf = await rep.GetTahsilatFaturaAsync();
+        var tf = await rep.GetCollectionInvoiceAsync();
         Assert.Equal(0m, tf.FaturaToplam);     // 1200 − 1200
 
         // Defter global dengeli (6 satır: 3 fatura + 3 iade), Σ borç == Σ alacak.
@@ -95,11 +95,11 @@ public sealed class InvoiceIadeTests(PostgresFixture fx)
         var inv = sp.GetRequiredService<InvoiceService>();
 
         var srcId = await inv.CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 500m, KdvOrani = 0.20m });
-        var iadeId = await inv.CreateIadeAsync(srcId);
+        var iadeId = await inv.CreateRefundAsync(srcId);
 
-        await Assert.ThrowsAsync<ValidationException>(() => inv.CreateIadeAsync(srcId));   // aynı fatura ikinci kez
-        await Assert.ThrowsAsync<ValidationException>(() => inv.CreateIadeAsync(iadeId));  // iadenin iadesi
-        await Assert.ThrowsAsync<ValidationException>(() => inv.CreateIadeAsync(Guid.NewGuid())); // olmayan fatura
+        await Assert.ThrowsAsync<ValidationException>(() => inv.CreateRefundAsync(srcId));   // aynı fatura ikinci kez
+        await Assert.ThrowsAsync<ValidationException>(() => inv.CreateRefundAsync(iadeId));  // iadenin iadesi
+        await Assert.ThrowsAsync<ValidationException>(() => inv.CreateRefundAsync(Guid.NewGuid())); // olmayan fatura
     }
 
     [Fact]
@@ -117,11 +117,11 @@ public sealed class InvoiceIadeTests(PostgresFixture fx)
         }
         // Kilit "o tarihe kadar (dahil) her şey kapalı" (bkz. InvoiceManualTests) → 2099 bugünü de kapatır.
         using (var s2 = host.ScopeFor(tenant))
-            await s2.ServiceProvider.GetRequiredService<RentACar.Application.Periods.DonemKilidiService>()
+            await s2.ServiceProvider.GetRequiredService<RentACar.Application.Periods.PeriodLockService>()
                 .LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
         using var s3 = host.ScopeFor(tenant); // taze scope = üretimde ayrı istek → kilidi okur
         await Assert.ThrowsAsync<ValidationException>(() =>
-            s3.ServiceProvider.GetRequiredService<InvoiceService>().CreateIadeAsync(srcId));
+            s3.ServiceProvider.GetRequiredService<InvoiceService>().CreateRefundAsync(srcId));
     }
 }

@@ -135,7 +135,7 @@ public static partial class PlatformApi
     {
         if (!await svc.TenantExistsAsync(id, ct)) return TenantNotFound();
         if (logo is null || logo.Length == 0) throw new ValidationException("Logo dosyası seçilmedi.", "logo");
-        if (logo.Length > LogoKurallari.MaxBayt) throw new ValidationException("Logo en fazla 1 MB olabilir.", "logo");
+        if (logo.Length > LogoValidationRules.MaxBytes) throw new ValidationException("Logo en fazla 1 MB olabilir.", "logo");
         using var ms = new MemoryStream();
         await logo.CopyToAsync(ms, ct);
         await svc.SetTenantLogoAsync(id, ms.ToArray(), OperatorName(http), ct); // type/size/width: LogoKurallari

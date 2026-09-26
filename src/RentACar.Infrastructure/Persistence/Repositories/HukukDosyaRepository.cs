@@ -11,7 +11,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// IHukukDosyaRepository: kısa-ömürlü context (factory). Tenant izolasyonu RLS + query filter. DosyaNo
 /// benzersizliği DB unique index; ihlal (23505) ValidationException.
 /// </summary>
-public sealed class HukukDosyaRepository(IDbContextFactory<AppDbContext> factory) : IHukukDosyaRepository
+public sealed class HukukDosyaRepository(IDbContextFactory<AppDbContext> factory) : ILegalCaseRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -67,7 +67,7 @@ public sealed class HukukDosyaRepository(IDbContextFactory<AppDbContext> factory
             .Select(x => new
             {
                 x.h,
-                MusteriAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                MusteriAd = x.c == null ? null : (x.c.Tip == CustomerType.Bireysel
                     ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan),
                 MusteriTel = x.c == null ? null : x.c.CepTel
             })
@@ -83,7 +83,7 @@ public sealed class HukukDosyaRepository(IDbContextFactory<AppDbContext> factory
         return await db.HukukDosyalari.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<bool> DosyaNoExistsAsync(string dosyaNo, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> FileNoExistsAsync(string dosyaNo, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = dosyaNo.Trim().ToUpperInvariant();

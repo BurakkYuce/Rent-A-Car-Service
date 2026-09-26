@@ -12,7 +12,7 @@ namespace RentACar.Web.Api.Rapor;
 /// <summary>
 /// <c>/api/ui/v1/vardiyalar</c> — F10.3 personel çalışma (vardiya) yazma uçları; Blazor
 /// <c>/raporlar/personel-calisma/create|update|delete</c> form uçlarının karşılığı (EKLEMELİ; Blazor uçları kesişe
-/// kadar kalır). İş kuralları <see cref="PersonelVardiyaService"/>'te (Blazor ile AYNI yol): personel ve tarih zorunlu,
+/// kadar kalır). İş kuralları <see cref="StaffShiftService"/>'te (Blazor ile AYNI yol): personel ve tarih zorunlu,
 /// sıfır uzunluk reddedilir, gece vardiyası (bitiş ≤ başlangıç) geçerlidir, aynı personelde kesişen aralık reddedilir,
 /// şube tanımlı olmalı.
 /// <list type="bullet">
@@ -47,14 +47,14 @@ public static class ShiftApi
         var g = v1.MapGroup("/vardiyalar").WithTags("Rapor").AlanlariEsle(FieldRules);
 
         g.MapGet("/{id:guid}", async Task<Results<Ok<ShiftDto>, ProblemHttpResult>> (
-                Guid id, PersonelVardiyaService s, CancellationToken ct)
+                Guid id, StaffShiftService s, CancellationToken ct)
             => await DtoAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : NotFound())
             .RequireAnyPermission(Permission.OperationsWrite, Permission.ViewReports);
 
         var w = g.MapGroup("").RequirePermission(Permission.OperationsWrite);
 
         w.MapPost("", async Task<Results<Created<ShiftDto>, ProblemHttpResult>> (
-            ShiftRequest i, PersonelVardiyaService s, CancellationToken ct) =>
+            ShiftRequest i, StaffShiftService s, CancellationToken ct) =>
         {
             var id = await s.CreateAsync(Input(i), ct);
             return await DtoAsync(id, s, ct) is { } d
@@ -63,7 +63,7 @@ public static class ShiftApi
         });
 
         w.MapPut("/{id:guid}", async Task<Results<Ok<ShiftDto>, ProblemHttpResult>> (
-            Guid id, ShiftRequest i, PersonelVardiyaService s, CancellationToken ct) =>
+            Guid id, ShiftRequest i, StaffShiftService s, CancellationToken ct) =>
         {
             // Scope (403) / existence (404) first: another branch's row must not reveal version or field errors.
             if (await s.GetAsync(id, ct) is null) return NotFound();
@@ -73,7 +73,7 @@ public static class ShiftApi
         });
 
         w.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
-                Guid id, PersonelVardiyaService s, CancellationToken ct)
+                Guid id, StaffShiftService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : NotFound());
 
         return g;
@@ -111,7 +111,7 @@ public static class ShiftApi
         return t;
     }
 
-    private static async Task<ShiftDto?> DtoAsync(Guid id, PersonelVardiyaService s, CancellationToken ct)
+    private static async Task<ShiftDto?> DtoAsync(Guid id, StaffShiftService s, CancellationToken ct)
     {
         // #302 L2: row and version as one consistent pair (see GetWithStaffAndVersionAsync).
         if (await s.GetWithStaffAndVersionAsync(id, ct) is not { } pair) return null;
@@ -120,6 +120,6 @@ public static class ShiftApi
         return new ShiftDto(v.Id, v.PersonelId, row.PersonelAd, v.Tarih,
             v.BaslangicSaat.ToString("HH:mm", CultureInfo.InvariantCulture),
             v.BitisSaat.ToString("HH:mm", CultureInfo.InvariantCulture),
-            v.SureDk, VardiyaBicim.Aralik(v), v.Sube, v.Aciklama, version);
+            v.SureDk, ShiftFormat.Range(v), v.Sube, v.Aciklama, version);
     }
 }

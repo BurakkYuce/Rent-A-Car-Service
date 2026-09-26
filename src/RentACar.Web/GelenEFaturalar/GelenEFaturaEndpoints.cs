@@ -16,19 +16,19 @@ public static class GelenEFaturaEndpoints
     {
         var grp = app.MapGroup("/gelen-efatura").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (GelenEFaturaService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (IncomingEInvoiceService svc, HttpRequest req) =>
             await Run(() => svc.CreateManualAsync(Build(req.Form)), "Kayıt eklendi."));
 
-        grp.MapPost("/onayla", async (GelenEFaturaService svc, [FromForm] Guid id) =>
-            await Run(() => svc.OnaylaAsync(id), "İşlem tamamlandı."));
+        grp.MapPost("/onayla", async (IncomingEInvoiceService svc, [FromForm] Guid id) =>
+            await Run(() => svc.ApproveAsync(id), "İşlem tamamlandı."));
 
-        grp.MapPost("/reddet", async (GelenEFaturaService svc, [FromForm] Guid id, [FromForm] string? neden) =>
-            await Run(() => svc.ReddetAsync(id, neden), "Reddedildi."));
+        grp.MapPost("/reddet", async (IncomingEInvoiceService svc, [FromForm] Guid id, [FromForm] string? neden) =>
+            await Run(() => svc.RejectAsync(id, neden), "Reddedildi."));
 
-        grp.MapPost("/isle", async (GelenEFaturaService svc, [FromForm] Guid id) =>
+        grp.MapPost("/isle", async (IncomingEInvoiceService svc, [FromForm] Guid id) =>
             await Run(() => svc.IsleAsync(id), "İşlem tamamlandı."));
 
-        grp.MapPost("/sync", async (GelenEFaturaService svc, HttpRequest req) =>
+        grp.MapPost("/sync", async (IncomingEInvoiceService svc, HttpRequest req) =>
         {
             var from = FormParse.Date(FormParse.Str(req.Form, "from")) ?? DateTimeOffset.Now.Date.AddMonths(-1);
             var to = FormParse.Date(FormParse.Str(req.Form, "to")) ?? DateTimeOffset.Now.Date;
@@ -37,10 +37,10 @@ public static class GelenEFaturaEndpoints
 
         // FAZ-55 (a): KDV oran kırılımı + araç/kategori/cari bağlama. Tüm sayısal alanlar OPSİYONEL →
         // string? + FormParse (boş string doğrudan [FromForm] decimal?'a bağlanırsa 400 üretir).
-        grp.MapPost("/bagla", async (GelenEFaturaService svc, HttpRequest req) =>
+        grp.MapPost("/bagla", async (IncomingEInvoiceService svc, HttpRequest req) =>
         {
             var f = req.Form;
-            return await Run(() => svc.BaglaAsync(new GelenEFaturaBaglamaInput
+            return await Run(() => svc.LinkAsync(new GelenEFaturaBaglamaInput
             {
                 Id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty,
                 Kdv20Matrah = FormParse.Dec(FormParse.Str(f, "kdv20Matrah")),
@@ -58,14 +58,14 @@ public static class GelenEFaturaEndpoints
         });
 
         // FAZ-55 (b): giderleştirme — TEK para yolu. Deftere yazılan küme mevcut gider kümesidir.
-        grp.MapPost("/giderlestir", async (GelenEFaturaService svc, HttpRequest req) =>
+        grp.MapPost("/giderlestir", async (IncomingEInvoiceService svc, HttpRequest req) =>
         {
             var f = req.Form;
-            return await Run(() => svc.GiderlestirAsync(new GelenEFaturaGiderInput
+            return await Run(() => svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput
             {
                 Id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty,
-                OdemeYontemi = Enum.TryParse<OdemeYontemi>(FormParse.Str(f, "odemeYontemi"), out var oy)
-                    ? oy : OdemeYontemi.AcikHesap,
+                OdemeYontemi = Enum.TryParse<PaymentMethod>(FormParse.Str(f, "odemeYontemi"), out var oy)
+                    ? oy : PaymentMethod.AcikHesap,
                 CariId = FormParse.Id(FormParse.Str(f, "cariId")),
                 Sube = FormParse.Str(f, "sube")
             }), "Gidere dönüştürüldü.");

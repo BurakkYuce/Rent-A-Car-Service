@@ -27,7 +27,7 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Vergi", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Vergi", Soyad = "Cari" });
         var r = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
             MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m,
@@ -64,7 +64,7 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
         var (rental, _) = await KiraAsync(sp, "34 VG 02", ozelKdv: 0.10m, damga: 50m);
 
         var invId = await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rental,
-            kdvRate: 0m, vergi: new InvoiceTaxInfo(null, null, null, 75m, false, false));
+            vatRate: 0m, tax: new InvoiceTaxInfo(null, null, null, 75m, false, false));
         var inv = (await sp.GetRequiredService<IInvoiceRepository>().FindAsync(invId))!;
         Assert.Equal(300m, inv.NetTutar);          // %0: net = brüt (elle)
         Assert.Equal(0m, inv.KdvTutar);
@@ -105,8 +105,8 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
         var repo = sp.GetRequiredService<IInvoiceRepository>();
 
         var baseId = await invoices.CreateFromRentalAsync(rental);
-        await rentals.DeliverAsync(rental, cikisKm: 1000, cikisYakit: 8);
-        await rentals.ReturnAsync(rental, donusKm: 1600, donusYakit: 8, Bas.AddDays(3));
+        await rentals.DeliverAsync(rental, pickupKm: 1000, pickupFuel: 8);
+        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Bas.AddDays(3));
         var farkId = await invoices.CreateFromRentalAsync(rental);
 
         Assert.Equal(50m, (await repo.FindAsync(baseId))!.DamgaVergisi);   // base'de pul VAR
@@ -124,8 +124,8 @@ public sealed class KiraDamgaOzelKdvTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
 
         await invoices.CreateFromRentalAsync(rental);                                   // base 300 → 272,73/27,27
-        await rentals.DeliverAsync(rental, cikisKm: 1000, cikisYakit: 8);
-        await rentals.ReturnAsync(rental, donusKm: 1600, donusYakit: 8, Bas.AddDays(3)); // 300 aşım×2=600 fark
+        await rentals.DeliverAsync(rental, pickupKm: 1000, pickupFuel: 8);
+        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Bas.AddDays(3)); // 300 aşım×2=600 fark
         var farkId = await invoices.CreateFromRentalAsync(rental);                       // fark da 0.10 (zincir)
 
         var fark = (await sp.GetRequiredService<IInvoiceRepository>().FindAsync(farkId))!;

@@ -11,7 +11,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// Kur sabitleme CRUD (SabitKurlar — tenant-owned; izolasyon RLS + query filter ile otomatik). Kod
 /// benzersizliği DB unique index; ihlal (23505) ValidationException.
 /// </summary>
-public sealed class SabitKurRepository(IDbContextFactory<AppDbContext> factory) : ISabitKurRepository
+public sealed class SabitKurRepository(IDbContextFactory<AppDbContext> factory) : IPinnedRateRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -39,7 +39,7 @@ public sealed class SabitKurRepository(IDbContextFactory<AppDbContext> factory) 
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId, CancellationToken ct = default)
     {
         var k = kod.Trim().ToUpperInvariant();
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -96,7 +96,7 @@ public sealed class SabitKurRepository(IDbContextFactory<AppDbContext> factory) 
             var current = await ReadVersionAsync(db, id, ct);
             if (current is null) return false;
             if (!string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
-                throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+                throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
             var row = await db.SabitKurlar.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (row is null) return false;
             apply(row);

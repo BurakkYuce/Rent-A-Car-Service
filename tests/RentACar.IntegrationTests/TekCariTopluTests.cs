@@ -28,7 +28,7 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
 {
     private static async Task<Guid> CariAsync(IServiceProvider sp, string ad = "Toplu") =>
         await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Cari" });
 
     /// <summary>Cariye borç yazan en yalın yol: AÇIK HESAP gideri (Alacak Cari) tersi olduğundan
     /// borç için ÖDEME (tediye) kullanılır — Borç Cari / Alacak Kasa.</summary>
@@ -85,7 +85,7 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
     /// ADVERSARIAL M4 — plaka çözümlemesinin sözleşmesi. Eskiden bu kural web ucunda KOPYA olarak
     /// duruyordu ve hiç test edilmiyordu; kopya olduğu sürece iki kural zamanla ayrışır ve kullanıcı
     /// listede gördüğü plakayı yazdığında "araç bulunamadı" alırdı. Kural artık
-    /// <see cref="VehicleService.PlakaAnahtar"/> — tek kaynak.
+    /// <see cref="VehicleService.PlateKey"/> — tek kaynak.
     /// </summary>
     [Theory]
     [InlineData("34 ABC 34", "34ABC34")]
@@ -94,7 +94,7 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
     [InlineData("06 XYZ 06", "06XYZ06")]
     [InlineData(null, "")]
     public void Plaka_anahtari_bosluk_ve_harf_duyarsizdir(string? girdi, string beklenen)
-        => Assert.Equal(beklenen, VehicleService.PlakaAnahtar(girdi));
+        => Assert.Equal(beklenen, VehicleService.PlateKey(girdi));
 
     [Fact]
     public async Task Plaka_anahtari_KAYIT_ile_ARAMA_yolunda_ayni_araci_bulur()
@@ -108,11 +108,11 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 TG 09" });
 
         var index = (await sp.GetRequiredService<VehicleService>().ListAsync())
-            .ToDictionary(v => VehicleService.PlakaAnahtar(v.Plaka), v => v.Id);
+            .ToDictionary(v => VehicleService.PlateKey(v.Plaka), v => v.Id);
 
-        Assert.Equal(id, index[VehicleService.PlakaAnahtar("34tg09")]);
-        Assert.Equal(id, index[VehicleService.PlakaAnahtar(" 34 TG 09 ")]);
-        Assert.False(index.ContainsKey(VehicleService.PlakaAnahtar("34 TG 99")));  // yok → uç red verir
+        Assert.Equal(id, index[VehicleService.PlateKey("34tg09")]);
+        Assert.Equal(id, index[VehicleService.PlateKey(" 34 TG 09 ")]);
+        Assert.False(index.ContainsKey(VehicleService.PlateKey("34 TG 99")));  // yok → uç red verir
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
             new ExpenseInput
             {
                 Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m,
-                OdemeYontemi = OdemeYontemi.AcikHesap, CariId = cari,
+                OdemeYontemi = PaymentMethod.AcikHesap, CariId = cari,
                 Vade = vade, FinansalHesapId = hesap, Aciklama = "Vadeli alım"
             }
         ]);
@@ -216,7 +216,7 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
         // ELLE: 4 borç kalemi — 100, 250, 400, 750 → toplam 1500 borç.
         foreach (var (tutar, ad) in new[] { (100m, "K1"), (250m, "K2"), (400m, "K3"), (750m, "K4") })
             await BorclandirAsync(sp, cari, tutar, ad);
-        Assert.Equal(1500m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(1500m, await kasa.GetAccountBalanceAsync(cari));
 
         var borclar = (await kasa.GetStatementAsync(cari)).Satirlar
             .Where(x => x.Direction == LedgerDirection.Debit && x.AccountType == LedgerAccountType.Cari)
@@ -225,11 +225,11 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
 
         // 3 kalem seç: 100 + 250 + 400 = 750 (elle).
         var secilen = borclar.Take(3).Select(x => x.Id).ToList();
-        var tahsil = await kasa.TekCariTopluKapatAsync(cari, secilen, LedgerAccountType.Kasa);
+        var tahsil = await kasa.CloseSingleAccountBulkAsync(cari, secilen, LedgerAccountType.Kasa);
         Assert.Equal(750m, tahsil);
 
         // Bakiye 1500 − 750 = 750 (elle).
-        Assert.Equal(750m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(750m, await kasa.GetAccountBalanceAsync(cari));
 
         var (borc, alacak) = await DefterAsync(sp);
         Assert.Equal(borc, alacak);                     // DENGE korunur
@@ -257,17 +257,17 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
         var k1 = (await kasa.GetStatementAsync(cari)).Satirlar
             .First(x => x.Direction == LedgerDirection.Debit && x.Amount.Amount == 100m).Id;
 
-        Assert.Equal(100m, await kasa.TekCariTopluKapatAsync(cari, [k1], LedgerAccountType.Kasa));
-        Assert.Equal(900m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(100m, await kasa.CloseSingleAccountBulkAsync(cari, [k1], LedgerAccountType.Kasa));
+        Assert.Equal(900m, await kasa.GetAccountBalanceAsync(cari));
 
         // AYNI kalem ikinci kez: tahsis çiti reddeder (bakiye hâlâ 900, eski çit geçirirdi).
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => kasa.TekCariTopluKapatAsync(cari, [k1], LedgerAccountType.Kasa));
+            () => kasa.CloseSingleAccountBulkAsync(cari, [k1], LedgerAccountType.Kasa));
         Assert.Contains("kapatılmış", ex.Message);
-        Assert.Equal(900m, await kasa.GetCariBalanceAsync(cari));   // alınmamış tahsilat YAZILMADI
+        Assert.Equal(900m, await kasa.GetAccountBalanceAsync(cari));   // alınmamış tahsilat YAZILMADI
 
         // Kapanan kalem "kapalı" olarak raporlanır (ekran bunu gösterir).
-        Assert.Equal(100m, (await kasa.KapatilanTutarlarAsync([k1]))[k1]);
+        Assert.Equal(100m, (await kasa.SettledAmountsAsync([k1]))[k1]);
     }
 
     [Fact]
@@ -284,22 +284,22 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
         var k = (await kasa.GetStatementAsync(cari)).Satirlar
             .First(x => x.Direction == LedgerDirection.Debit && x.AccountType == LedgerAccountType.Cari).Id;
 
-        Assert.Equal(400m, await kasa.TekCariTopluKapatAsync(
+        Assert.Equal(400m, await kasa.CloseSingleAccountBulkAsync(
             cari, new Dictionary<Guid, decimal?> { [k] = 400m }, LedgerAccountType.Kasa));
-        Assert.Equal(600m, await kasa.GetCariBalanceAsync(cari));
-        Assert.Equal(400m, (await kasa.KapatilanTutarlarAsync([k]))[k]);
+        Assert.Equal(600m, await kasa.GetAccountBalanceAsync(cari));
+        Assert.Equal(400m, (await kasa.SettledAmountsAsync([k]))[k]);
 
         // Kalanı aşan istek reddedilir (601 > 600).
-        await Assert.ThrowsAsync<ValidationException>(() => kasa.TekCariTopluKapatAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => kasa.CloseSingleAccountBulkAsync(
             cari, new Dictionary<Guid, decimal?> { [k] = 601m }, LedgerAccountType.Kasa));
 
         // Tutar verilmezse KALAN kapatılır → 600.
-        Assert.Equal(600m, await kasa.TekCariTopluKapatAsync(cari, [k], LedgerAccountType.Kasa));
-        Assert.Equal(0m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(600m, await kasa.CloseSingleAccountBulkAsync(cari, [k], LedgerAccountType.Kasa));
+        Assert.Equal(0m, await kasa.GetAccountBalanceAsync(cari));
 
         // Artık tamamen kapalı: üçüncü deneme reddedilir.
         await Assert.ThrowsAsync<ValidationException>(
-            () => kasa.TekCariTopluKapatAsync(cari, [k], LedgerAccountType.Kasa));
+            () => kasa.CloseSingleAccountBulkAsync(cari, [k], LedgerAccountType.Kasa));
     }
 
     /// <summary>ADVERSARIAL M3 — dövizli kalemde yuvarlama bakiyeyi EKSİYE düşürüyordu
@@ -321,9 +321,9 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
         var k = (await kasa.GetStatementAsync(cari)).Satirlar
             .First(x => x.Direction == LedgerDirection.Debit && x.AccountType == LedgerAccountType.Cari).Id;
 
-        var tahsil = await kasa.TekCariTopluKapatAsync(cari, [k], LedgerAccountType.Kasa);
+        var tahsil = await kasa.CloseSingleAccountBulkAsync(cari, [k], LedgerAccountType.Kasa);
         Assert.Equal(3512.34m, tahsil);                              // AŞAĞI yuvarlandı (3512,35 değil)
-        Assert.True(await kasa.GetCariBalanceAsync(cari) >= 0m);     // bakiye EKSİYE düşmedi
+        Assert.True(await kasa.GetAccountBalanceAsync(cari) >= 0m);     // bakiye EKSİYE düşmedi
     }
 
     [Fact]
@@ -338,15 +338,15 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
         // ELLE: 1000 borç, sonra 800 normal tahsilat → bakiye 200.
         await BorclandirAsync(sp, cari, 1000m, "Borç");
         await kasa.CollectAsync(new CashInput { CariId = cari, Tutar = 800m, Hesap = LedgerAccountType.Kasa });
-        Assert.Equal(200m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(200m, await kasa.GetAccountBalanceAsync(cari));
 
         // 1000'lik kalemi kapatmaya çalışmak bakiyeyi aşar → red (kalem kısmen ödenmiş).
         var kalem = (await kasa.GetStatementAsync(cari)).Satirlar
             .Single(x => x.Direction == LedgerDirection.Debit && x.AccountType == LedgerAccountType.Cari).Id;
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => kasa.TekCariTopluKapatAsync(cari, [kalem], LedgerAccountType.Kasa));
+            () => kasa.CloseSingleAccountBulkAsync(cari, [kalem], LedgerAccountType.Kasa));
         Assert.Contains("aşıyor", ex.Message);
-        Assert.Equal(200m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(200m, await kasa.GetAccountBalanceAsync(cari));
     }
 
     [Fact]
@@ -370,15 +370,15 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
 
         // BAŞKA carinin kalemi: sessizce atlamak, kullanıcının seçtiğinden farklı tutar tahsil ederdi.
         await Assert.ThrowsAsync<ValidationException>(
-            () => kasa.TekCariTopluKapatAsync(a, [bBorc], LedgerAccountType.Kasa));
+            () => kasa.CloseSingleAccountBulkAsync(a, [bBorc], LedgerAccountType.Kasa));
         // ALACAK kalemi kapatılamaz (o zaten ödemedir).
         await Assert.ThrowsAsync<ValidationException>(
-            () => kasa.TekCariTopluKapatAsync(a, [aAlacak], LedgerAccountType.Kasa));
+            () => kasa.CloseSingleAccountBulkAsync(a, [aAlacak], LedgerAccountType.Kasa));
         // Boş seçim.
         await Assert.ThrowsAsync<ValidationException>(
-            () => kasa.TekCariTopluKapatAsync(a, [], LedgerAccountType.Kasa));
+            () => kasa.CloseSingleAccountBulkAsync(a, [], LedgerAccountType.Kasa));
 
-        Assert.Equal(200m, await kasa.GetCariBalanceAsync(a));   // ELLE: 300 − 100, hiçbir şey yazılmadı
+        Assert.Equal(200m, await kasa.GetAccountBalanceAsync(a));   // ELLE: 300 − 100, hiçbir şey yazılmadı
     }
 
     [Fact]
@@ -397,12 +397,12 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
             .First(x => x.Direction == LedgerDirection.Debit && x.Amount.Amount == 400m).Id;
 
         var token = Guid.NewGuid();
-        Assert.Equal(400m, await kasa.TekCariTopluKapatAsync(cari, [k1], LedgerAccountType.Kasa, islemAnahtari: token));
+        Assert.Equal(400m, await kasa.CloseSingleAccountBulkAsync(cari, [k1], LedgerAccountType.Kasa, operationKey: token));
         // ÇİFT SUBMIT (aynı token) → ikinci kayıt yazılmaz.
         await Assert.ThrowsAnyAsync<Exception>(
-            () => kasa.TekCariTopluKapatAsync(cari, [k1], LedgerAccountType.Kasa, islemAnahtari: token));
+            () => kasa.CloseSingleAccountBulkAsync(cari, [k1], LedgerAccountType.Kasa, operationKey: token));
 
-        Assert.Equal(600m, await kasa.GetCariBalanceAsync(cari));   // 1000 − 400, İKİ KEZ düşmedi
+        Assert.Equal(600m, await kasa.GetAccountBalanceAsync(cari));   // 1000 − 400, İKİ KEZ düşmedi
         var (borc, alacak) = await DefterAsync(sp);
         Assert.Equal(borc, alacak);
     }
@@ -426,16 +426,16 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
 
         // Operatör FinanceWrite taşımaz.
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
-            await Assert.ThrowsAsync<YetkiYokException>(() => op.ServiceProvider
-                .GetRequiredService<CashService>().TekCariTopluKapatAsync(cari, secilen, LedgerAccountType.Kasa));
+            await Assert.ThrowsAsync<NoPermissionException>(() => op.ServiceProvider
+                .GetRequiredService<CashService>().CloseSingleAccountBulkAsync(cari, secilen, LedgerAccountType.Kasa));
 
         // BAŞKA tenant: cari de kalemler de görünmez → "bulunamadı" (RLS + query filter).
         using (var baska = host.ScopeFor(Guid.NewGuid()))
             await Assert.ThrowsAsync<ValidationException>(() => baska.ServiceProvider
-                .GetRequiredService<CashService>().TekCariTopluKapatAsync(cari, secilen, LedgerAccountType.Kasa));
+                .GetRequiredService<CashService>().CloseSingleAccountBulkAsync(cari, secilen, LedgerAccountType.Kasa));
 
         using var geri = host.ScopeFor(tenant);
-        Assert.Equal(500m, await geri.ServiceProvider.GetRequiredService<CashService>().GetCariBalanceAsync(cari));
+        Assert.Equal(500m, await geri.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
     }
 
     [Fact]
@@ -458,8 +458,8 @@ public sealed class TekCariTopluTests(PostgresFixture fx)
             new CashInput { CariId = b, Tutar = 500m, Hesap = LedgerAccountType.Banka }
         ], Guid.NewGuid());
 
-        Assert.Equal(600m, await kasa.GetCariBalanceAsync(a));    // ELLE: 1000 − 400
-        Assert.Equal(1500m, await kasa.GetCariBalanceAsync(b));   // ELLE: 2000 − 500
+        Assert.Equal(600m, await kasa.GetAccountBalanceAsync(a));    // ELLE: 1000 − 400
+        Assert.Equal(1500m, await kasa.GetAccountBalanceAsync(b));   // ELLE: 2000 − 500
         var (borc, alacak) = await DefterAsync(sp);
         Assert.Equal(borc, alacak);
     }

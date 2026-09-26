@@ -6,7 +6,7 @@ namespace RentACar.Web.Documents;
 /// <summary>
 /// PR-B — tenant tarafı belge indirme. <b>SALT-OKUR</b>; yazma uçları platform tarafında.
 ///
-/// <para><b>Dört koşulun tamamı sağlanmadan içerik dönmez</b> (bkz. <see cref="IPlatformBelgeRepository"/>):
+/// <para><b>Dört koşulun tamamı sağlanmadan içerik dönmez</b> (bkz. <see cref="IPlatformDocumentRepository"/>):
 /// (1) oturum açık — bu grubun <c>RequireAuthorization()</c>'ı, (2) belge yayında, (3) global ya da bu
 /// tenant'a hedefli, (4) herkese açık ya da kullanıcı yönetici. (2)-(4) servis/repo yüklemi.
 /// <see cref="PlatformBelge"/> bir PLATFORM tablosu olduğu için RLS burada KORUMAZ — kontrol tamamen
@@ -23,10 +23,10 @@ public static class FirmaBelgeEndpoints
     {
         var grp = app.MapGroup("/firma-belgeleri").RequireAuthorization();
 
-        grp.MapGet("/{id:guid}/indir", async (Guid id, PlatformBelgeService svc, HttpRequest req,
+        grp.MapGet("/{id:guid}/indir", async (Guid id, PlatformDocumentService svc, HttpRequest req,
             HttpResponse res, CancellationToken ct) =>
         {
-            var icerik = await svc.IndirAsync(id, ct);
+            var icerik = await svc.DownloadAsync(id, ct);
             if (icerik is null) return Results.NotFound(); // yok VEYA yetkisiz — ayırt edilmez
 
             // ETag = belge + SÜRÜM: platform yeni sürüm yükleyince değişir → tarayıcı tazeler.

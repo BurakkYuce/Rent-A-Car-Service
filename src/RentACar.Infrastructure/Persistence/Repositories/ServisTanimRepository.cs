@@ -7,7 +7,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Servis tanım kalıcılığı (roadmap N1). Kod benzersizliği DB unique index; 23505→ValidationException.</summary>
-public sealed class ServisTanimRepository(IDbContextFactory<AppDbContext> factory) : IServisTanimRepository
+public sealed class ServisTanimRepository(IDbContextFactory<AppDbContext> factory) : IServiceDefinitionRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -50,7 +50,7 @@ public sealed class ServisTanimRepository(IDbContextFactory<AppDbContext> factor
         return true;
     }
 
-    public async Task<IReadOnlyList<FiloKombinasyon>> FiloKombinasyonlariAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<FiloKombinasyon>> FleetCombinationsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Yalnız KİRALANABİLİR filo: satılmış/pasif araca bakım tanımı önermek gürültüdür.
@@ -63,7 +63,7 @@ public sealed class ServisTanimRepository(IDbContextFactory<AppDbContext> factor
         // Gruplama BELLEKTE ve normalize anahtarla: "BMW" ile "bmw " tek kombinasyon sayılır
         // (DB tarafında yapsaydık collation'a bağımlı olurdu).
         return ham
-            .GroupBy(v => ServisTanimKombinasyon.Anahtar(v.Marka, v.Tip, v.Yakit?.ToString(), v.Vites?.ToString()),
+            .GroupBy(v => ServiceDefinitionCombination.Key(v.Marka, v.Tip, v.Yakit?.ToString(), v.Vites?.ToString()),
                 StringComparer.Ordinal)
             .Select(g => new FiloKombinasyon(
                 Temsilci(g.Select(x => x.Marka)),

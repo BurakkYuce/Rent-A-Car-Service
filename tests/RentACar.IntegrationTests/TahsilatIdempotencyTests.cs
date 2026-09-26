@@ -16,7 +16,7 @@ namespace RentACar.IntegrationTests;
 public sealed class TahsilatIdempotencyTests(PostgresFixture fx)
 {
     private static async Task<Guid> CariAsync(IServiceProvider sp)
-        => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "A", Soyad = "B" });
+        => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "A", Soyad = "B" });
 
     [Fact]
     public async Task Ayni_islemanahtari_cift_submit_tek_yazar()
@@ -42,7 +42,7 @@ public sealed class TahsilatIdempotencyTests(PostgresFixture fx)
 
         using var check = host.ScopeFor(tenant);
         Assert.Equal(1, basari);  // yalnız 1 tahsilat başardı (5 DEĞİL)
-        Assert.Equal(-100m, await check.ServiceProvider.GetRequiredService<CashService>().GetCariBalanceAsync(cari)); // −500 DEĞİL
+        Assert.Equal(-100m, await check.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cari)); // −500 DEĞİL
     }
 
     [Fact]
@@ -56,6 +56,6 @@ public sealed class TahsilatIdempotencyTests(PostgresFixture fx)
         var cash = sp.GetRequiredService<CashService>();
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, IslemAnahtari = Guid.NewGuid() });
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, IslemAnahtari = Guid.NewGuid() });
-        Assert.Equal(-200m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(-200m, await cash.GetAccountBalanceAsync(cari));
     }
 }

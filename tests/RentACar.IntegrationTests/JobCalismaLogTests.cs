@@ -65,11 +65,11 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
                 () => VadeBildirimUretici.RunAsync(db, tenant, Now), n => n);
             await JobCalismaKaydedici.CalistirAsync(db, tenant,
                 JobCalismaKaydedici.FiloBildirim,
-                () => FiloBildirimUretici.RunAsync(db, tenant, Now, TutSatEsikleri.Varsayilan), n => n);
+                () => FiloBildirimUretici.RunAsync(db, tenant, Now, TutSatEsikleri.Default), n => n);
         }
 
         // Elle beklenen: 2 üretici çağrıldı → 2 satır.
-        var loglar = await scope.ServiceProvider.GetRequiredService<JobCalismaLogService>().ListAsync();
+        var loglar = await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync();
         Assert.Equal(2, loglar.Count);
         Assert.All(loglar, l => Assert.True(l.Basarili));
         Assert.All(loglar, l => Assert.Null(l.Detay));
@@ -100,7 +100,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
             Assert.Equal("kasten patlatildi", ex.Message);   // hata yutulmadı, çağırana geçti
         }
 
-        var log = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobCalismaLogService>().ListAsync());
+        var log = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
         Assert.False(log.Basarili);
         Assert.Equal("test-hatali", log.JobAdi);
         Assert.Equal("kasten patlatildi", log.Detay);
@@ -120,7 +120,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
                 JobCalismaKaydedici.CalistirAsync<int>(db, tenant, "uzun-hata",
                     () => throw new InvalidOperationException(uzun)));
 
-        var log = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobCalismaLogService>().ListAsync());
+        var log = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
         Assert.False(log.Basarili);
         Assert.Equal(512, log.Detay!.Length);
         Assert.EndsWith("...", log.Detay);
@@ -141,7 +141,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
             await JobCalismaKaydedici.YazAsync(db, tenant, "b", Now.AddDays(-1), false, null, "patladi");
         }
 
-        var svc = scope.ServiceProvider.GetRequiredService<JobCalismaLogService>();
+        var svc = scope.ServiceProvider.GetRequiredService<JobRunLogService>();
         Assert.Equal(3, (await svc.ListAsync()).Count);
         Assert.Equal(2, (await svc.ListAsync(new JobCalismaLogFilter { JobAdi = "a" })).Count);
         Assert.Single(await svc.ListAsync(new JobCalismaLogFilter { YalnizHatali = true }));
@@ -151,7 +151,7 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
         Assert.Single(await svc.ListAsync(new JobCalismaLogFilter { Bit = Now.AddDays(-3) }));
 
         // Son koşular: iş adı başına EN YENİ satır → 2 iş = 2 satır, "a" için -1 günlük olan.
-        var son = await svc.SonKosularAsync();
+        var son = await svc.LastRunsAsync();
         Assert.Equal(2, son.Count);
         Assert.Equal(Now.AddDays(-1), son.Single(x => x.JobAdi == "a").BaslangicUtc);
         Assert.Equal(0, son.Single(x => x.JobAdi == "a").SonucSayisi);
@@ -168,10 +168,10 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
             await JobCalismaKaydedici.YazAsync(db, t1, "gizli", Now, true, 1, null);
 
         using var s2 = host.ScopeFor(t2);
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<JobCalismaLogService>().ListAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
 
         using var s1 = host.ScopeFor(t1);
-        Assert.Single(await s1.ServiceProvider.GetRequiredService<JobCalismaLogService>().ListAsync());
+        Assert.Single(await s1.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
     }
 
     [Fact]
@@ -183,8 +183,8 @@ public sealed class JobCalismaLogTests(PostgresFixture fx)
             await JobCalismaKaydedici.YazAsync(db, tenant, "a", Now, true, 1, null);
 
         using var s = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
-        var svc = s.ServiceProvider.GetRequiredService<JobCalismaLogService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAsync());
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SonKosularAsync());
+        var svc = s.ServiceProvider.GetRequiredService<JobRunLogService>();
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.ListAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.LastRunsAsync());
     }
 }

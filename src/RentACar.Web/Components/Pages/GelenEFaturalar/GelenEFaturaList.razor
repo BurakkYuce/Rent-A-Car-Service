@@ -1,6 +1,6 @@
 @page "/gelen-efatura"
 @attribute [Authorize(Policy = "izin:FinanceWrite")]
-@inject GelenEFaturaService GelenFaturalar
+@inject IncomingEInvoiceService GelenFaturalar
 @inject VehicleService Vehicles
 @inject CustomerService Customers
 @inject RentACar.Application.ExpenseCategories.ExpenseCategoryService Kategoriler
@@ -29,7 +29,7 @@
     <label>İşlem Türü
         <select name="durum">
             <option value="">(hepsi)</option>
-            @foreach (var d in Enum.GetValues<GelenEFaturaDurum>())
+            @foreach (var d in Enum.GetValues<IncomingEInvoiceStatus>())
             {
                 <option value="@d" selected="@(Durum == d.ToString())">@DurumEtiket(d)</option>
             }
@@ -114,7 +114,7 @@
                 <td>@(r.VehicleId is { } vid && _vehMap.TryGetValue(vid, out var pl) ? pl : "—")</td>
                 <td>@(r.ExpenseCategoryId is { } kid && _katMap.TryGetValue(kid, out var ka) ? ka : "—")</td>
                 <td>@(r.CariId is { } cid && _custMap.TryGetValue(cid, out var cn) ? cn : "—")</td>
-                <td>@DurumEtiket(r.Durum)@(r.Durum == GelenEFaturaDurum.Reddedildi && !string.IsNullOrEmpty(r.RedNedeni) ? $" ({r.RedNedeni})" : "")</td>
+                <td>@DurumEtiket(r.Durum)@(r.Durum == IncomingEInvoiceStatus.Reddedildi && !string.IsNullOrEmpty(r.RedNedeni) ? $" ({r.RedNedeni})" : "")</td>
                 <td>
                     @if (r.GiderlestirilmeUtc is { } g)
                     {
@@ -126,7 +126,7 @@
                     }
                 </td>
                 <td>
-                    @if (r.Durum == GelenEFaturaDurum.Beklemede)
+                    @if (r.Durum == IncomingEInvoiceStatus.Beklemede)
                     {
                         <form method="post" action="/gelen-efatura/onayla" style="display:inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@r.Id" />
@@ -141,7 +141,7 @@
                             </form>
                         </details>
                     }
-                    @if (r.GiderlestirilmeUtc is null && r.Durum != GelenEFaturaDurum.Reddedildi)
+                    @if (r.GiderlestirilmeUtc is null && r.Durum != IncomingEInvoiceStatus.Reddedildi)
                     {
                         <details style="display:inline">
                             <summary class="link">KDV Kırılımı / Bağla</summary>
@@ -196,7 +196,7 @@
                                 matrah × oran (kuruşa yuvarlı) olmalıdır. Tutmazsa kaydedilmez.</p>
                         </details>
                     }
-                    @if (r.Durum == GelenEFaturaDurum.Onaylandi && r.GiderlestirilmeUtc is null)
+                    @if (r.Durum == IncomingEInvoiceStatus.Onaylandi && r.GiderlestirilmeUtc is null)
                     {
                         <details style="display:inline">
                             <summary class="link">Giderleştir</summary>
@@ -205,9 +205,9 @@
                                 <input type="hidden" name="id" value="@r.Id" />
                                 <label>Ödeme
                                     <select name="odemeYontemi">
-                                        @foreach (var o in Enum.GetValues<OdemeYontemi>())
+                                        @foreach (var o in Enum.GetValues<PaymentMethod>())
                                         {
-                                            <option value="@o" selected="@(o == OdemeYontemi.AcikHesap)">@o</option>
+                                            <option value="@o" selected="@(o == PaymentMethod.AcikHesap)">@o</option>
                                         }
                                     </select>
                                 </label>
@@ -227,7 +227,7 @@
                                 transaction'da yazılır. Aynı fatura ikinci kez giderleştirilemez.</p>
                         </details>
                     }
-                    @if (r.Durum == GelenEFaturaDurum.Onaylandi && r.GiderlestirilmeUtc is null)
+                    @if (r.Durum == IncomingEInvoiceStatus.Onaylandi && r.GiderlestirilmeUtc is null)
                     {
                         <form method="post" action="/gelen-efatura/isle" data-confirm="Fatura defter kaydı OLMADAN 'işlendi' işaretlensin mi?" style="display:inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@r.Id" />
@@ -277,7 +277,7 @@
             EttnBas = EttnBas,
             EttnBit = EttnBit,
             Plaka = Plaka,
-            Durum = Enum.TryParse<GelenEFaturaDurum>(Durum, out var d) ? d : null,
+            Durum = Enum.TryParse<IncomingEInvoiceStatus>(Durum, out var d) ? d : null,
             Bas = Tarih(Bas),
             // Üst sınır GÜN SONUNA genişletilir: date girişi 00:00'a düşer, aksi hâlde "bit"
             // günündeki faturalar dışarıda kalırdı (giderler ekranıyla aynı desen).
@@ -297,12 +297,12 @@
     private static string Val(decimal? v)
         => v is { } d ? d.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "";
 
-    private static string DurumEtiket(GelenEFaturaDurum d) => d switch
+    private static string DurumEtiket(IncomingEInvoiceStatus d) => d switch
     {
-        GelenEFaturaDurum.Beklemede => "Beklemede",
-        GelenEFaturaDurum.Onaylandi => "Onaylandı",
-        GelenEFaturaDurum.Reddedildi => "Reddedildi",
-        GelenEFaturaDurum.Islendi => "İşlendi",
+        IncomingEInvoiceStatus.Beklemede => "Beklemede",
+        IncomingEInvoiceStatus.Onaylandi => "Onaylandı",
+        IncomingEInvoiceStatus.Reddedildi => "Reddedildi",
+        IncomingEInvoiceStatus.Islendi => "İşlendi",
         _ => d.ToString()
     };
 }

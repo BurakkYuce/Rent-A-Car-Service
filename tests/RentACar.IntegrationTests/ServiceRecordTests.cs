@@ -39,13 +39,13 @@ public sealed class ServiceRecordTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = vid, Tip = ServisTipi.Periyodik, GirisKm = 50000,
+            VehicleId = vid, Tip = ServiceType.Periyodik, GirisKm = 50000,
             Lines = [new ServiceLineInput { Aciklama = "Yağ", Tutar = 800m }, new ServiceLineInput { Aciklama = "Filtre", Tutar = 200m }]
         });
 
         var rec = await svc.GetAsync(id);
         BelgeNoOracle.BeklenenlerdenBiri(9, 1, rec!.No);
-        Assert.Equal(ServisDurum.Acik, rec.Durum);
+        Assert.Equal(ServiceStatus.Acik, rec.Durum);
         Assert.Equal(1000m, rec.ToplamIscilik);
         Assert.Equal(2, rec.Lines.Count);
         // Kayıt açılınca araç henüz Serviste DEĞİL (Açık = bekliyor).
@@ -62,15 +62,15 @@ public sealed class ServiceRecordTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(new ServiceRecordInput { VehicleId = vid, GirisKm = 50000 });
 
-        Assert.True(await svc.BaslatAsync(id));
+        Assert.True(await svc.StartAsync(id));
         Assert.Equal(VehicleStatus.Serviste, await VehicleStatusAsync(scope, vid));
 
-        Assert.True(await svc.KalemEkleAsync(id, "İşçilik", 1500m));
+        Assert.True(await svc.AddItemAsync(id, "İşçilik", 1500m));
         Assert.Equal(1500m, (await svc.GetAsync(id))!.ToplamIscilik);
 
-        Assert.True(await svc.TamamlaAsync(id, cikisKm: 50050, sonrakiBakimKm: 60000));
+        Assert.True(await svc.CompleteAsync(id, pickupKm: 50050, nextMaintenanceKm: 60000));
         var done = await svc.GetAsync(id);
-        Assert.Equal(ServisDurum.Tamamlandi, done!.Durum);
+        Assert.Equal(ServiceStatus.Tamamlandi, done!.Durum);
         Assert.Equal(50050, done.CikisKm);
         Assert.Equal(60000, done.SonrakiBakimKm);
         Assert.NotNull(done.CikisTarihi);
@@ -88,19 +88,19 @@ public sealed class ServiceRecordTests(PostgresFixture fx)
         var id = await svc.CreateAsync(new ServiceRecordInput { VehicleId = vid, GirisKm = 50000 });
 
         // Açık'tan doğrudan tamamlanamaz.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TamamlaAsync(id, 50100));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CompleteAsync(id, 50100));
 
-        await svc.BaslatAsync(id);
+        await svc.StartAsync(id);
         // Çıkış KM < giriş KM reddedilir.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TamamlaAsync(id, 49000));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CompleteAsync(id, 49000));
         // İki kez başlatılamaz.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.BaslatAsync(id));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.StartAsync(id));
 
-        await svc.TamamlaAsync(id, 50100);
+        await svc.CompleteAsync(id, 50100);
         // Kapanmış servise kalem eklenemez.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.KalemEkleAsync(id, "geç", 10m));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.AddItemAsync(id, "geç", 10m));
         // Kapanmış servis iptal edilemez.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.IptalAsync(id));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CancelAsync(id));
     }
 
     [Fact]
@@ -112,10 +112,10 @@ public sealed class ServiceRecordTests(PostgresFixture fx)
         var vid = await SeedVehicleAsync(scope);
         var id = await svc.CreateAsync(new ServiceRecordInput { VehicleId = vid, GirisKm = 1000 });
 
-        await svc.BaslatAsync(id);
+        await svc.StartAsync(id);
         Assert.Equal(VehicleStatus.Serviste, await VehicleStatusAsync(scope, vid));
-        Assert.True(await svc.IptalAsync(id));
-        Assert.Equal(ServisDurum.Iptal, (await svc.GetAsync(id))!.Durum);
+        Assert.True(await svc.CancelAsync(id));
+        Assert.Equal(ServiceStatus.Iptal, (await svc.GetAsync(id))!.Durum);
         Assert.Equal(VehicleStatus.Musait, await VehicleStatusAsync(scope, vid));
     }
 

@@ -35,32 +35,32 @@ public sealed class AracKmLogTests(PostgresFixture fx)
 
         var v = await veh.CreateAsync(new VehicleInput { Plaka = "34 KM 01" });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Km", Soyad = "C" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Km", Soyad = "C" });
 
         // Kira: teslim 1000 → dönüş 1300 (gerçek dönüş T-10). Dönüş logu AYNI transaction'da düşer.
         var rentals = sp.GetRequiredService<RentalService>();
         var r = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = v, BasTar = simdi.AddDays(-12), BitTar = simdi.AddDays(-10), GunlukUcret = 100m });
-        await rentals.DeliverAsync(r, cikisKm: 1000, cikisYakit: 8);
-        await rentals.ReturnAsync(r, donusKm: 1300, donusYakit: 8, simdi.AddDays(-10));
+        await rentals.DeliverAsync(r, pickupKm: 1000, pickupFuel: 8);
+        await rentals.ReturnAsync(r, returnKm: 1300, returnFuel: 8, simdi.AddDays(-10));
 
-        var seri1 = await veh.KmLoglariAsync(v);
+        var seri1 = await veh.KmLogsAsync(v);
         var donus = Assert.Single(seri1);
         Assert.Equal(1300, donus.Km);
-        Assert.Equal(KmLogKaynak.Donus, donus.Kaynak);
+        Assert.Equal(KmLogSource.Donus, donus.Kaynak);
         Assert.Equal(simdi.AddDays(-10), donus.Tarih);   // log tarihi = gerçek dönüş tarihi
 
         // Manuel 1350: log + Vehicle.Km birlikte.
-        await veh.ManuelKmGirAsync(v, 1350);
+        await veh.EnterManualKmAsync(v, 1350);
         Assert.Equal(1350, (await veh.GetAsync(v))!.Km);
-        var seri2 = await veh.KmLoglariAsync(v);
+        var seri2 = await veh.KmLogsAsync(v);
         Assert.Equal(2, seri2.Count);
         Assert.Equal(1350, seri2[0].Km);                 // en yeni önce
-        Assert.Equal(KmLogKaynak.Manuel, seri2[0].Kaynak);
+        Assert.Equal(KmLogSource.Manuel, seri2[0].Kaynak);
 
         // Geriye 1200: red — seri ve odometre DEĞİŞMEZ (odometre monoton).
-        await Assert.ThrowsAsync<ValidationException>(() => veh.ManuelKmGirAsync(v, 1200));
-        Assert.Equal(2, (await veh.KmLoglariAsync(v)).Count);
+        await Assert.ThrowsAsync<ValidationException>(() => veh.EnterManualKmAsync(v, 1200));
+        Assert.Equal(2, (await veh.KmLogsAsync(v)).Count);
         Assert.Equal(1350, (await veh.GetAsync(v))!.Km);
 
         // Dönem km (karne, from=T-7): son log 1350 (bugün) − pencere-öncesi son 1300 (T-10) = 50 (elle).
@@ -68,10 +68,10 @@ public sealed class AracKmLogTests(PostgresFixture fx)
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m,
-            Tarih = simdi.AddDays(-3), OdemeYontemi = OdemeYontemi.Nakit
+            Tarih = simdi.AddDays(-3), OdemeYontemi = PaymentMethod.Nakit
         });
         var karne = (await sp.GetRequiredService<ReportService>()
-            .GetAracKarneAsync(v, from: simdi.AddDays(-7)))!;
+            .GetVehicleScorecardAsync(v, from: simdi.AddDays(-7)))!;
         Assert.Equal(50, karne.DonemKm);
         Assert.Equal(2.00m, karne.DonemKmMaliyet);
     }
@@ -87,12 +87,12 @@ public sealed class AracKmLogTests(PostgresFixture fx)
         var v = await veh.CreateAsync(new VehicleInput { Plaka = "34 KM 02" });
         var servis = sp.GetRequiredService<ServiceRecordService>();
         var sid = await servis.CreateAsync(new ServiceRecordInput { VehicleId = v, GirisKm = 500 });
-        await servis.BaslatAsync(sid);
-        await servis.TamamlaAsync(sid, cikisKm: 800);
+        await servis.StartAsync(sid);
+        await servis.CompleteAsync(sid, pickupKm: 800);
 
-        var log = Assert.Single(await veh.KmLoglariAsync(v));
+        var log = Assert.Single(await veh.KmLogsAsync(v));
         Assert.Equal(800, log.Km);
-        Assert.Equal(KmLogKaynak.Servis, log.Kaynak);
+        Assert.Equal(KmLogSource.Servis, log.Kaynak);
     }
 
     [Fact]
@@ -105,10 +105,10 @@ public sealed class AracKmLogTests(PostgresFixture fx)
         {
             var vehA = scopeA.ServiceProvider.GetRequiredService<VehicleService>();
             vehId = await vehA.CreateAsync(new VehicleInput { Plaka = "34 KM 03" });
-            await vehA.ManuelKmGirAsync(vehId, 100);
-            Assert.Single(await vehA.KmLoglariAsync(vehId));
+            await vehA.EnterManualKmAsync(vehId, 100);
+            Assert.Single(await vehA.KmLogsAsync(vehId));
         }
         using var scopeB = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await scopeB.ServiceProvider.GetRequiredService<VehicleService>().KmLoglariAsync(vehId));
+        Assert.Empty(await scopeB.ServiceProvider.GetRequiredService<VehicleService>().KmLogsAsync(vehId));
     }
 }

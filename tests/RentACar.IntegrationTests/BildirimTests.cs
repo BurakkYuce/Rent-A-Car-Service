@@ -51,7 +51,7 @@ public sealed class BildirimTests(PostgresFixture fx)
 
         Assert.Equal(3, await UretAsync(sp, tenant)); // Kasko + MTV + Muayene (Trafik İLERİ değil)
 
-        var svc = sp.GetRequiredService<BildirimService>();
+        var svc = sp.GetRequiredService<InAppNotificationService>();
         var bildirimler = await svc.ListPersistedAsync();
         Assert.Equal(3, bildirimler.Count);
         Assert.Contains(bildirimler, b => b.Tur == "Kasko");
@@ -73,7 +73,7 @@ public sealed class BildirimTests(PostgresFixture fx)
 
         Assert.Equal(3, await UretAsync(sp, tenant)); // ilk tarama
         Assert.Equal(0, await UretAsync(sp, tenant)); // ikinci tarama: çift-yazma YOK
-        Assert.Equal(3, (await sp.GetRequiredService<BildirimService>().ListPersistedAsync()).Count);
+        Assert.Equal(3, (await sp.GetRequiredService<InAppNotificationService>().ListPersistedAsync()).Count);
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public sealed class BildirimTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         await SeedVadelerAsync(sp);
         await UretAsync(sp, tenant);
-        var svc = sp.GetRequiredService<BildirimService>();
+        var svc = sp.GetRequiredService<InAppNotificationService>();
 
         var ilk = (await svc.ListPersistedAsync()).First();
         Assert.True(await svc.MarkReadAsync(ilk.Id));
@@ -104,7 +104,7 @@ public sealed class BildirimTests(PostgresFixture fx)
         await UretAsync(sA.ServiceProvider, tA);
 
         using var sB = host.ScopeFor(Guid.NewGuid()); // farklı tenant → A'nınkiler sızmaz
-        Assert.Equal(0, await sB.ServiceProvider.GetRequiredService<BildirimService>().UnreadCountAsync());
+        Assert.Equal(0, await sB.ServiceProvider.GetRequiredService<InAppNotificationService>().UnreadCountAsync());
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class BildirimTests(PostgresFixture fx)
             Assert.Equal(3, await VadeBildirimUretici.RunAsync(db, tenant, Now));
         }
         // Açık damga + RLS ile doğru tenant'ta görünür.
-        Assert.Equal(3, await scope.ServiceProvider.GetRequiredService<BildirimService>().UnreadCountAsync());
+        Assert.Equal(3, await scope.ServiceProvider.GetRequiredService<InAppNotificationService>().UnreadCountAsync());
     }
 
     [Fact]
@@ -137,14 +137,14 @@ public sealed class BildirimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var sikayet = sp.GetRequiredService<SikayetService>();
+        var sikayet = sp.GetRequiredService<ComplaintService>();
 
-        await sikayet.CreateAsync(new SikayetInput { Konu = "Araç kirli", Durum = SikayetDurum.Acik });
-        await sikayet.CreateAsync(new SikayetInput { Konu = "Çözüldü", Durum = SikayetDurum.Kapali });
+        await sikayet.CreateAsync(new SikayetInput { Konu = "Araç kirli", Durum = ComplaintStatus.Acik });
+        await sikayet.CreateAsync(new SikayetInput { Konu = "Çözüldü", Durum = ComplaintStatus.Kapali });
         var kapanis = new DateTimeOffset(2026, 3, 31, 0, 0, 0, TimeSpan.Zero);
-        await sp.GetRequiredService<DonemKilidiService>().LockAsync(kapanis);
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(kapanis);
 
-        var d = await sp.GetRequiredService<BildirimService>().GetAsync();
+        var d = await sp.GetRequiredService<InAppNotificationService>().GetAsync();
 
         Assert.Equal(1, d.AcikSikayet);              // yalnız açık (elle oracle)
         Assert.Single(d.Sikayetler);

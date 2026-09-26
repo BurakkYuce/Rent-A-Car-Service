@@ -13,7 +13,7 @@ public interface IRateMatrixRepository
     Task<RateMatrix?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Tenant içinde aynı kod (büyük/küçük harf duyarsız) başka kayıtta var mı?</summary>
-    Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default);
+    Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default);
 
     Task CreateAsync(RateMatrix row, CancellationToken ct = default);
 

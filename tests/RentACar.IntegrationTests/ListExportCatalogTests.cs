@@ -22,7 +22,7 @@ public sealed class ListExportCatalogTests
         var v = new Vehicle
         {
             Plaka = "34ABC01", Marka = "Fiat", Tip = "Egea", DetayTipi = "Sedan", Grup = "B", Sube = "Merkez",
-            ModelYili = 2023, Renk = "Beyaz", Yakit = FuelType.Dizel, Vites = Vites.Manuel, Sipp = "CDMR",
+            ModelYili = 2023, Renk = "Beyaz", Yakit = FuelType.Dizel, Vites = Transmission.Manuel, Sipp = "CDMR",
             Km = 45000, Durum = VehicleStatus.Musait, OzelKod1 = "K1", KasaTipi = "Sedan",
             Segment = "Ekonomik", SasiNo = "SASI123", IkinciElDeger = 550000m,
             TescilTarihi = new(2023, 3, 10, 0, 0, 0, TimeSpan.Zero), LastikDurumu = "Yazlık"
@@ -56,7 +56,7 @@ public sealed class ListExportCatalogTests
         // (Bir önceki sürümde 'TC Kimlik' kolonu vardı ama ölü düz-kolonu okuyordu; kaldırıldı. H1.)
         var c = new Customer
         {
-            Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli", TcKimlik = "12345678901", VergiNo = "V123",
+            Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli", TcKimlik = "12345678901", VergiNo = "V123",
             CepTel = "5551112233", Email = "a@b.c", Il = "İstanbul", Ilce = "Kadıköy", Kaynak = "Web", VadeGun = 30,
             Sinif = "VIP", IysIzinli = true, RiskLimiti = 25000m, HgsYansitmaTuru = "Faturalı", OzelCariTip = "Grup İçi"
         };
@@ -325,7 +325,7 @@ public sealed class ListExportCatalogTests
             No = "FK-000001", MusteriId = mid, VehicleId = vid,
             BasTar = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), SureAy = 12, AylikUcret = 15000m, KdvOrani = 0.20m,
             Currency = "TRY", Kur = 1m, ToplamKmLimiti = 30000, DamgaVergisi = 500m,
-            Durum = FiloKiraDurum.Aktif, Aciklama = "kurumsal"
+            Durum = FleetRentalStatus.Aktif, Aciklama = "kurumsal"
         };
         // Bağımsız oracle: sahte resolver → FK Guid'leri doğru ada çözülür.
         var t = ListExportCatalog.FiloKiralamalar([f],
@@ -348,7 +348,7 @@ public sealed class ListExportCatalogTests
     public void Vadeler_birlesik_plaka_resolver_ile_projeksiyon()
     {
         var vid = Guid.NewGuid();
-        var item = new VadeItem(vid, "Kasko", new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero), 25, VadeBucket.OtuzGun);
+        var item = new VadeItem(vid, "Kasko", new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero), 25, DueBucket.OtuzGun);
         var t = ListExportCatalog.Vadeler([item], plaka: id => id == vid ? "06VD100" : null);
 
         Assert.Equal(5, t.Headers.Count);
@@ -387,10 +387,10 @@ public sealed class ListExportCatalogTests
     {
         var h = new HukukDosya
         {
-            DosyaNo = "2026/41", FaturaNoTemp = "FTR-77", Tur = HukukTuru.Icra, Avukat = "Av. Demir",
+            DosyaNo = "2026/41", FaturaNoTemp = "FTR-77", Tur = LegalType.Icra, Avukat = "Av. Demir",
             AvukatTel = "0212 111 22 33", AvukatMail = "demir@ornek.com", Avukat2Ad = "Av. Yılmaz",
             Avukat2Tel = "0532 444 55 66", Avukat2Mail = "yilmaz@ornek.com",
-            Tutar = 1000m, Tahsilat = 300m, Durum = HukukDurum.Acik, Aktif = true,
+            Tutar = 1000m, Tahsilat = 300m, Durum = LegalStatus.Acik, Aktif = true,
             // Öğle UTC: yerel gün her makine saat diliminde 2026-03-01 kalır (test TZ'den bağımsız).
             Tarih = new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero), Aciklama = "İcra takibi"
         };

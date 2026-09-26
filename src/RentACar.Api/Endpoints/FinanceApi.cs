@@ -40,8 +40,8 @@ public static class FinanceApi
         grp.MapPost("/cash/transfer", async (TransferRequest req, CashService svc, CancellationToken ct) =>
         {
             await svc.TransferAsync(req.Kaynak, req.Hedef, req.Tutar, req.Doviz, req.Kur, req.Aciklama,
-                kaynakHesapId: req.KaynakHesapId, hedefHesapId: req.HedefHesapId,
-                makbuzNo: req.MakbuzNo, sube: req.Sube, ct: ct);   // FAZ-50
+                sourceAccountId: req.KaynakHesapId, targetAccountId: req.HedefHesapId,
+                receiptNo: req.MakbuzNo, branch: req.Sube, ct: ct);   // FAZ-50
             return Results.Ok(new { transferred = true });
         });
 
@@ -53,7 +53,7 @@ public static class FinanceApi
 
         // ---- Cari bakiye / ekstre ----
         grp.MapGet("/customers/{cariId:guid}/balance", async (Guid cariId, CashService svc, CancellationToken ct) =>
-            Results.Ok(new { cariId, bakiye = await svc.GetCariBalanceAsync(cariId, ct) }));
+            Results.Ok(new { cariId, bakiye = await svc.GetAccountBalanceAsync(cariId, ct) }));
 
         grp.MapGet("/customers/{cariId:guid}/statement", async (Guid cariId, CashService svc, CancellationToken ct) =>
             Results.Ok((await svc.GetStatementAsync(cariId, ct: ct)).Satirlar.Select(LedgerEntryResponse.From)));

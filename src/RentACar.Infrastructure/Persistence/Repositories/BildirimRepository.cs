@@ -5,7 +5,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>IBildirimRepository: kısa-ömürlü context (factory). Tenant izolasyonu RLS + query filter.</summary>
-public sealed class BildirimRepository(IDbContextFactory<AppDbContext> factory) : IBildirimRepository
+public sealed class BildirimRepository(IDbContextFactory<AppDbContext> factory) : INotificationRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 

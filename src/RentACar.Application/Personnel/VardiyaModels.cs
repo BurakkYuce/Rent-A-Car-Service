@@ -44,16 +44,16 @@ public sealed record VardiyaMatrisSatir(
     int ToplamDk)
 {
     /// <summary>Toplam süre "s sa d dk" biçiminde (rapor sunumu tek yerde).</summary>
-    public string ToplamSaatMetni => VardiyaBicim.SaatMetni(ToplamDk);
+    public string ToplamSaatMetni => ShiftFormat.HourText(ToplamDk);
 }
 
 /// <summary>Vardiya sunum biçimleri — sayfa ve export AYNI metni üretsin diye tek yerde.</summary>
-public static class VardiyaBicim
+public static class ShiftFormat
 {
-    public static string SaatMetni(int dk) => dk <= 0 ? "—" : $"{dk / 60} sa {dk % 60:00} dk";
+    public static string HourText(int dk) => dk <= 0 ? "—" : $"{dk / 60} sa {dk % 60:00} dk";
 
     /// <summary>"08:00-18:00" ya da gece vardiyasında "22:00-06:00 (+1)".</summary>
-    public static string Aralik(PersonelVardiya v)
+    public static string Range(PersonelVardiya v)
         => v.BitisSaat <= v.BaslangicSaat
             ? $"{v.BaslangicSaat:HH\\:mm}-{v.BitisSaat:HH\\:mm} (+1)"
             : $"{v.BaslangicSaat:HH\\:mm}-{v.BitisSaat:HH\\:mm}";

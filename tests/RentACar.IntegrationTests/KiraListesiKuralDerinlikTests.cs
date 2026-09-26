@@ -34,7 +34,7 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
 
     private static Task<Guid> CariAsync(IServiceScope s, string ad)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
 
     private static Task<Guid> AracAsync(IServiceScope s, string plaka, string? grup = null, string? sahip = null)
         => s.ServiceProvider.GetRequiredService<VehicleService>()
@@ -132,13 +132,13 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
 
         // Vade penceresi [5, 20] → yalnız BİRİ.
         var vadeli = await svc.SearchAsync(new RentalFilter
-        { TarihTuru = TarihListesiTuru.Vade, BaslangicMin = Taban(5), BaslangicMax = Taban(20) });
+        { TarihTuru = DateListType.Vade, BaslangicMin = Taban(5), BaslangicMax = Taban(20) });
         Assert.Single(vadeli);
 
         // AYNI pencere Başlangıç'a uygulanınca HİÇBİRİ (ikisi de bugün başlıyor) — aralık
         // gerçekten seçilen kolona uygulanıyor, sessizce BasTar'a düşmüyor.
         var baslangicli = await svc.SearchAsync(new RentalFilter
-        { TarihTuru = TarihListesiTuru.Baslangic, BaslangicMin = Taban(5), BaslangicMax = Taban(20) });
+        { TarihTuru = DateListType.Baslangic, BaslangicMin = Taban(5), BaslangicMax = Taban(20) });
         Assert.Empty(baslangicli);
 
         // Tür verilmezse eski davranış = Başlangıç.
@@ -149,7 +149,7 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
         using (var s = host.ScopeFor(tenant)) a3 = await AracAsync(s, "34 TR 03");
         await KiraAsync(host, tenant, cari, a3, Taban(0), Taban(3)); // vade null
         Assert.Single(await svc.SearchAsync(new RentalFilter
-        { TarihTuru = TarihListesiTuru.Vade, BaslangicMin = Taban(5), BaslangicMax = Taban(20) }));
+        { TarihTuru = DateListType.Vade, BaslangicMin = Taban(5), BaslangicMax = Taban(20) }));
     }
 
     [Fact]
@@ -170,8 +170,8 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
 
         var svc = host.ScopeFor(tenant).ServiceProvider.GetRequiredService<RentalService>();
 
-        Assert.Single(await svc.SearchAsync(new RentalFilter { Ofis = "A Ofis", OfisDurum = OfisDurumu.Cikis }));
-        Assert.Single(await svc.SearchAsync(new RentalFilter { Ofis = "A Ofis", OfisDurum = OfisDurumu.Donus }));
+        Assert.Single(await svc.SearchAsync(new RentalFilter { Ofis = "A Ofis", OfisDurum = OfficeStatus.Cikis }));
+        Assert.Single(await svc.SearchAsync(new RentalFilter { Ofis = "A Ofis", OfisDurum = OfficeStatus.Donus }));
         // Seçim yoksa eski davranış: çıkış VEYA dönüş → ikisi de.
         Assert.Equal(2, (await svc.SearchAsync(new RentalFilter { Ofis = "A Ofis" })).Count);
     }
@@ -245,9 +245,9 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
             Sube = "Merkez", AracGrupKod = "eko",
             Iskonto = 12.5m,
             TalepBas = talepBas, TalepBit = talepBit,
-            PromosyonTuru = PromosyonTuru.Tek,
-            KuponGecerlilik = KuponGecerlilik.SadeceIlkBedel,
-            HesaplamaTipi = HesaplamaTipi.Serbest,
+            PromosyonTuru = PromotionType.Tek,
+            KuponGecerlilik = CouponValidity.SadeceIlkBedel,
+            HesaplamaTipi = CalculationType.Serbest,
             HizliIslem = true,
             HaftaGunKisiti = "6,0,6"   // tekrar + sırasız → normalize edilmeli
         };
@@ -256,9 +256,9 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
         var kural = Assert.Single((await svc.ListAsync()).Where(x => x.Id == id));
         Assert.Equal(talepBas, kural.TalepBas);
         Assert.Equal(talepBit, kural.TalepBit);
-        Assert.Equal(PromosyonTuru.Tek, kural.PromosyonTuru);
-        Assert.Equal(KuponGecerlilik.SadeceIlkBedel, kural.KuponGecerlilik);
-        Assert.Equal(HesaplamaTipi.Serbest, kural.HesaplamaTipi);
+        Assert.Equal(PromotionType.Tek, kural.PromosyonTuru);
+        Assert.Equal(CouponValidity.SadeceIlkBedel, kural.KuponGecerlilik);
+        Assert.Equal(CalculationType.Serbest, kural.HesaplamaTipi);
         Assert.True(kural.HizliIslem);
         Assert.Equal("0,6", kural.HaftaGunKisiti);   // tekilleştirildi + sıralandı
         Assert.Equal("Merkez", kural.Sube);
@@ -283,12 +283,12 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
     public void HaftaGun_gecersiz_deger_gurultulu_reddedilir()
     {
         // Sessizce atmak, kullanıcının kurduğunu sandığı kısıtı yok ederdi.
-        Assert.Throws<ValidationException>(() => RentalRuleService.HaftaGunNormalize("7"));
-        Assert.Throws<ValidationException>(() => RentalRuleService.HaftaGunNormalize("-1"));
-        Assert.Throws<ValidationException>(() => RentalRuleService.HaftaGunNormalize("Pzt"));
-        Assert.Null(RentalRuleService.HaftaGunNormalize(null));
-        Assert.Null(RentalRuleService.HaftaGunNormalize("   "));
-        Assert.Equal("1,3,5", RentalRuleService.HaftaGunNormalize(" 5, 1 ,3, 5 "));
+        Assert.Throws<ValidationException>(() => RentalRuleService.NormalizeWeekday("7"));
+        Assert.Throws<ValidationException>(() => RentalRuleService.NormalizeWeekday("-1"));
+        Assert.Throws<ValidationException>(() => RentalRuleService.NormalizeWeekday("Pzt"));
+        Assert.Null(RentalRuleService.NormalizeWeekday(null));
+        Assert.Null(RentalRuleService.NormalizeWeekday("   "));
+        Assert.Equal("1,3,5", RentalRuleService.NormalizeWeekday(" 5, 1 ,3, 5 "));
     }
 
     [Fact]
@@ -329,9 +329,9 @@ public sealed class KiraListesiKuralDerinlikTests(PostgresFixture fx)
         await svc.UpdateAsync(id, new RentalRuleInput
         {
             Kod = "SADE", Ad = "Sade", Iskonto = 10m,
-            PromosyonTuru = PromosyonTuru.Coklu,
-            KuponGecerlilik = KuponGecerlilik.Hepsi,
-            HesaplamaTipi = HesaplamaTipi.Serbest,
+            PromosyonTuru = PromotionType.Coklu,
+            KuponGecerlilik = CouponValidity.Hepsi,
+            HesaplamaTipi = CalculationType.Serbest,
             HizliIslem = true,
             HaftaGunKisiti = "0,1,2,3,4,5,6",
             TalepBas = Taban(1), TalepBit = Taban(2)

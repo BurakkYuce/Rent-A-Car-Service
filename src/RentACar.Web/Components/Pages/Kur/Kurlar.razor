@@ -3,8 +3,8 @@
 @using System.Globalization
 @using RentACar.Application.Kur
 @using RentACar.Application.Currencies
-@inject KurService Kur
-@inject SabitKurService Sabit
+@inject ExchangeRateService Kur
+@inject FixedExchangeRateService Sabit
 @inject CurrencyService Currencies
 
 <PageTitle>Döviz Kurları — RentPro</PageTitle>
@@ -137,7 +137,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _kurlar = await Kur.BugunKurlarAsync();
+        _kurlar = await Kur.TodayRatesAsync();
         _sabitler = await Sabit.ListAsync();
         _sabitMap = _sabitler.ToDictionary(s => s.Kod);
         _tarih = _kurlar.Count > 0 ? _kurlar[0].Tarih : null;
@@ -151,7 +151,7 @@
         if (!string.IsNullOrWhiteSpace(Tutar) && !string.IsNullOrWhiteSpace(From) && !string.IsNullOrWhiteSpace(To)
             && decimal.TryParse(Tutar, NumberStyles.Number, CultureInfo.InvariantCulture, out var tutar))
         {
-            try { _cevrim = await Kur.CevirAsync(tutar, From!, To!); }
+            try { _cevrim = await Kur.ConvertAsync(tutar, From!, To!); }
             catch (RentACar.Application.Common.ValidationException ex) { _cevrimHata = ex.Message; }
         }
     }

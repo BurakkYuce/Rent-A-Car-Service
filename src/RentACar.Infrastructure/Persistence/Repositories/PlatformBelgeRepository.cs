@@ -13,7 +13,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// ayrı yazılsaydı listede görünmeyen bir belge indirilebilir hale gelebilirdi — bu PR'ın en kritik
 /// hata sınıfı tam olarak budur.</para>
 /// </summary>
-public sealed class PlatformBelgeRepository(IDbContextFactory<AppDbContext> factory) : IPlatformBelgeRepository
+public sealed class PlatformBelgeRepository(IDbContextFactory<AppDbContext> factory) : IPlatformDocumentRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -32,7 +32,7 @@ public sealed class PlatformBelgeRepository(IDbContextFactory<AppDbContext> fact
                      || db.PlatformBelgeHedefler.Any(h => h.BelgeId == b.Id && h.TenantId == tenantId))
             .Where(b => !b.YalnizYoneticiler || yoneticiMi);
 
-    public async Task<IReadOnlyList<FirmaBelgeSatiri>> ListeleAsync(
+    public async Task<IReadOnlyList<FirmaBelgeSatiri>> ListAsync(
         Guid tenantId, bool yoneticiMi, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -45,7 +45,7 @@ public sealed class PlatformBelgeRepository(IDbContextFactory<AppDbContext> fact
             .ToListAsync(ct);
     }
 
-    public async Task<BelgeIcerik?> IndirAsync(
+    public async Task<BelgeIcerik?> DownloadAsync(
         Guid belgeId, Guid tenantId, bool yoneticiMi, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

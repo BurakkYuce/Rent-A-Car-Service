@@ -83,8 +83,8 @@ public sealed partial class UiFinanceHubApiTests(WebFixture fx)
         using var s = host.ScopeFor(tenantId, role: UserRole.Admin);
         var sp = s.ServiceProvider;
         var customers = sp.GetRequiredService<CustomerService>();
-        var a = await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Hub", Soyad = "Alfa" });
-        var b = await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Hub", Soyad = "Beta" });
+        var a = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Hub", Soyad = "Alfa" });
+        var b = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Hub", Soyad = "Beta" });
         var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 FH " + Random.Shared.Next(1000, 9999) });
         var start = TestZaman.GunSonra(1);
         var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
@@ -108,7 +108,7 @@ public sealed partial class UiFinanceHubApiTests(WebFixture fx)
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var s = host.ScopeFor(other, role: UserRole.Admin);
         return await s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Yabanci", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Yabanci", Soyad = "Cari" });
     }
 
     private async Task<T> ReadAsync<T>(Env e, Func<IServiceProvider, Task<T>> read)
@@ -126,5 +126,5 @@ public sealed partial class UiFinanceHubApiTests(WebFixture fx)
         });
 
     private Task<decimal> BalanceAsync(Env e, Guid customer)
-        => ReadAsync(e, sp => sp.GetRequiredService<CashService>().GetCariBalanceAsync(customer));
+        => ReadAsync(e, sp => sp.GetRequiredService<CashService>().GetAccountBalanceAsync(customer));
 }

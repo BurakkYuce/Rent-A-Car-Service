@@ -20,7 +20,7 @@ public sealed class TutSatSinyaliTests(PostgresFixture fx)
 {
     private static Task GiderAsync(IServiceProvider sp, Guid veh, decimal net, DateTimeOffset tarih)
         => sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = veh, NetTutar = net, KdvOrani = 0m, Tarih = tarih, OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Arac, VehicleId = veh, NetTutar = net, KdvOrani = 0m, Tarih = tarih, OdemeYontemi = PaymentMethod.Nakit });
 
     [Fact]
     public async Task Uc_kural_elle_oracle()
@@ -38,14 +38,14 @@ public sealed class TutSatSinyaliTests(PostgresFixture fx)
         await GiderAsync(sp, v1, 150m, simdi.AddMonths(-18));           // önceki-12 penceresi
         // km: kiralar — önceki pencere dönüşlü 300 km; son pencere dönüşlü 250 km.
         var cari = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
-            .CreateAsync(new RentACar.Application.Customers.CustomerInput { Tip = CariType.Bireysel, Ad = "TS", Soyad = "C" });
+            .CreateAsync(new RentACar.Application.Customers.CustomerInput { Tip = CustomerType.Bireysel, Ad = "TS", Soyad = "C" });
         var rentals = sp.GetRequiredService<RentACar.Application.Bookings.RentalService>();
         async Task KiraKmAsync(Guid v, DateTimeOffset bas, int km)
         {
             var r = await rentals.CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
             { MusteriId = cari, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(2), GunlukUcret = 10m });
-            await rentals.DeliverAsync(r, cikisKm: 0, cikisYakit: 8);
-            await rentals.ReturnAsync(r, donusKm: km, donusYakit: 8, bas.AddDays(2));
+            await rentals.DeliverAsync(r, pickupKm: 0, pickupFuel: 8);
+            await rentals.ReturnAsync(r, returnKm: km, returnFuel: 8, bas.AddDays(2));
         }
         await KiraKmAsync(v1, simdi.AddMonths(-18), 300);               // önceki pencere
         await KiraKmAsync(v1, simdi.AddMonths(-2), 250);                // son pencere
@@ -56,14 +56,14 @@ public sealed class TutSatSinyaliTests(PostgresFixture fx)
         await GiderAsync(sp, v2, 100m, simdi.AddMonths(-2));
 
         var rs = sp.GetRequiredService<ReportService>();
-        var karneV1 = await rs.GetAracKarneAsync(v1);
+        var karneV1 = await rs.GetVehicleScorecardAsync(v1);
         Assert.Equal(3, karneV1!.TutSat.Sinyal);                        // a + b + c (elle)
         Assert.Equal(3, karneV1.TutSat.Gerekceler.Count);
-        var karneV2 = await rs.GetAracKarneAsync(v2);
+        var karneV2 = await rs.GetVehicleScorecardAsync(v2);
         Assert.Equal(0, karneV2!.TutSat.Sinyal);
 
         // Filo kolonu aynı hesap + tutsat sıralaması V1'i öne alır.
-        var filo = await rs.GetFiloAnalizAsync(siralama: "tutsat");
+        var filo = await rs.GetFleetAnalysisAsync(sort: "tutsat");
         Assert.Equal(v1, filo.Satirlar[0].VehicleId);
         Assert.Equal(3, filo.Satirlar[0].TutSatSinyal);
         Assert.Equal(0, filo.Satirlar.Single(x => x.VehicleId == v2).TutSatSinyal);
@@ -82,12 +82,12 @@ public sealed class TutSatSinyaliTests(PostgresFixture fx)
         var v1 = await veh.CreateAsync(new VehicleInput { Plaka = "34 TS 03", Grup = "LUX" });
         await GiderAsync(sp, v1, 9999m, simdi.AddMonths(-1));
         var rs = sp.GetRequiredService<ReportService>();
-        Assert.Equal(0, (await rs.GetAracKarneAsync(v1))!.TutSat.Sinyal);
+        Assert.Equal(0, (await rs.GetVehicleScorecardAsync(v1))!.TutSat.Sinyal);
 
         // TEK-araç sınıf: oran 0.50 > 0.45 → yalnız kural-a; kural-b tetiklenmez (ort = kendisi).
         var v2 = await veh.CreateAsync(new VehicleInput { Plaka = "34 TS 04", Grup = "TEK", IkinciElDeger = 1000m });
         await GiderAsync(sp, v2, 500m, simdi.AddMonths(-1));
-        var karne = await rs.GetAracKarneAsync(v2);
+        var karne = await rs.GetVehicleScorecardAsync(v2);
         Assert.Equal(1, karne!.TutSat.Sinyal);
         Assert.Contains("ikinci el değerin", karne.TutSat.Gerekceler.Single());
     }

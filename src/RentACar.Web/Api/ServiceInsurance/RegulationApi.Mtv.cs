@@ -17,8 +17,8 @@ internal static partial class RegulationApi
 {
     // ------------------------------------------------------------------ MTV
 
-    private static readonly SiralamaHaritasi<MtvRow> MtvSort = SiralamaHaritasi<MtvRow>
-        .Olustur(x => x.Id).Alan("plaka", x => x.Plaka).Alan("donem", x => x.Donem).Alan("vade", x => x.Vade)
+    private static readonly SortFieldMap<MtvRow> MtvSort = SortFieldMap<MtvRow>
+        .Create(x => x.Id).Alan("plaka", x => x.Plaka).Alan("donem", x => x.Donem).Alan("vade", x => x.Vade)
         .Alan("tutar", x => x.Tutar).Alan("kalan", x => x.Kalan).Alan("odendi", x => x.Odendi);
 
     private static async Task<Ok<Sayfa<MtvRow>>> ListMtv(
@@ -52,7 +52,7 @@ internal static partial class RegulationApi
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         if (await ScopedMtvAsync(id, dbf, user, ct) is not { } m) return null;
-        var payments = await reg.ListMtvOdemeAsync(id, ct);
+        var payments = await reg.ListMtvPaymentsAsync(id, ct);
         var accounts = await CashRefsAsync(dbf, "MtvOdeme", payments.Select(p => p.Id), ct);
         var rows = payments.Select(p => new InstallmentPaymentDto(p.Id, p.Sira, p.Tarih, p.Tutar, 0m, p.KalanSonrasi,
             p.Hesap.ToString(), accounts.GetValueOrDefault(p.Id), p.KasaKodu, p.HesapNo, p.EvrakNo, p.IslemYapan, p.Aciklama)).ToList();
@@ -92,21 +92,21 @@ internal static partial class RegulationApi
         catch (DbUpdateException ex) when (key is { } k2 && S.IsPrimaryKeyViolation(ex))
         {
             if (await ScopedMtvAsync(k2, dbf, user, ct) is { } won) throw MtvDuplicate(won, r);
-            throw new MukerrerIslemException(AnahtarBaskaIslemde);
+            throw new DuplicateOperationException(AnahtarBaskaIslemde);
         }
         var d = await MtvDetailAsync(id, http, reg, dbf, user, ct);
         return TypedResults.Created($"{Root}/mtv/{id}", d!);
     }
 
-    private static MukerrerIslemException MtvDuplicate(MtvRecord m, MtvRequest r)
+    private static DuplicateOperationException MtvDuplicate(MtvRecord m, MtvRequest r)
         => new($"Bu MTV kaydı zaten eklendi ({m.Donem}); yeni kayıt yazılmadı.",
             new MevcutIslem(m.Id, m.Donem, m.Tutar, "TRY",
                 m.VehicleId == r.VehicleId && m.Tutar == (r.Tutar ?? 0m) && m.Donem == (r.Donem ?? "").Trim()));
 
     // ------------------------------------------------------------------ muayene
 
-    private static readonly SiralamaHaritasi<InspectionRow> InspectionSort = SiralamaHaritasi<InspectionRow>
-        .Olustur(x => x.Id).Alan("plaka", x => x.Plaka).Alan("muayeneTarihi", x => x.MuayeneTarihi).Alan("bitis", x => x.Bitis)
+    private static readonly SortFieldMap<InspectionRow> InspectionSort = SortFieldMap<InspectionRow>
+        .Create(x => x.Id).Alan("plaka", x => x.Plaka).Alan("muayeneTarihi", x => x.MuayeneTarihi).Alan("bitis", x => x.Bitis)
         .Alan("ucret", x => x.Ucret).Alan("kalan", x => x.Kalan).Alan("odendi", x => x.Odendi);
 
     private static async Task<Ok<Sayfa<InspectionRow>>> ListInspections(
@@ -141,7 +141,7 @@ internal static partial class RegulationApi
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         if (await ScopedInspectionAsync(id, dbf, user, ct) is not { } m) return null;
-        var payments = await reg.ListMuayeneOdemeAsync(id, ct);
+        var payments = await reg.ListInspectionPaymentsAsync(id, ct);
         var accounts = await CashRefsAsync(dbf, "MuayeneOdeme", payments.Select(p => p.Id), ct);
         var rows = payments.Select(p => new InstallmentPaymentDto(p.Id, p.Sira, p.Tarih, p.Tutar, p.Ceza, p.KalanSonrasi,
             p.Hesap.ToString(), accounts.GetValueOrDefault(p.Id), p.KasaKodu, p.HesapNo, p.EvrakNo, p.IslemYapan, p.Aciklama)).ToList();
@@ -168,13 +168,13 @@ internal static partial class RegulationApi
         catch (DbUpdateException ex) when (key is { } k2 && S.IsPrimaryKeyViolation(ex))
         {
             if (await ScopedInspectionAsync(k2, dbf, user, ct) is { } won) throw InspectionDuplicate(won, r);
-            throw new MukerrerIslemException(AnahtarBaskaIslemde);
+            throw new DuplicateOperationException(AnahtarBaskaIslemde);
         }
         var d = await InspectionDetailAsync(id, http, reg, dbf, user, ct);
         return TypedResults.Created($"{Root}/muayeneler/{id}", d!);
     }
 
-    private static MukerrerIslemException InspectionDuplicate(InspectionRecord m, InspectionRequest r)
+    private static DuplicateOperationException InspectionDuplicate(InspectionRecord m, InspectionRequest r)
         => new("Bu muayene kaydı zaten eklendi; yeni kayıt yazılmadı.",
             new MevcutIslem(m.Id, m.MuayeneTarihi.ToString("yyyy-MM-dd"), m.Ucret, "TRY",
                 m.VehicleId == r.VehicleId && m.Ucret == (r.Ucret ?? 0m)));

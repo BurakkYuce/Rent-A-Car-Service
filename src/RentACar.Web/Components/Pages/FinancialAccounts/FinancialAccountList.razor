@@ -106,7 +106,7 @@
 
 @code {
     /// <summary>Serbest metin türü Kasa/Banka'ya çözer (servisle AYNI kural — HesapCozucu.TuruCoz).</summary>
-    private static LedgerAccountType? Tur(string? t) => HesapCozucu.TuruCoz(t);
+    private static LedgerAccountType? Tur(string? t) => AccountResolver.ResolveType(t);
 
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 

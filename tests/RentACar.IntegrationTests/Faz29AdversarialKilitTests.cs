@@ -30,7 +30,7 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
 {
     private static async Task<Guid> CariAsync(IServiceProvider sp, string ad = "Probe") =>
         await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Cari" });
 
     /// <summary>Cariye borç yazar (Borç Cari / Alacak Kasa).</summary>
     private static Task BorclandirAsync(IServiceProvider sp, Guid cariId, decimal tutar,
@@ -85,19 +85,19 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
         // ELLE: iki borç kalemi — 100 ve 900 → bakiye 1000.
         await BorclandirAsync(sp, cari, 100m, "K1");
         await BorclandirAsync(sp, cari, 900m, "K2");
-        Assert.Equal(1000m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(1000m, await kasa.GetAccountBalanceAsync(cari));
 
         var k1 = await BorcSatirlariAsync(sp, cari, 100m);
         Assert.Single(k1);
 
         // 1. kapatma: 100 tahsil → bakiye 900 (ELLE).
-        Assert.Equal(100m, await kasa.TekCariTopluKapatAsync(cari, k1, LedgerAccountType.Kasa));
-        Assert.Equal(900m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(100m, await kasa.CloseSingleAccountBulkAsync(cari, k1, LedgerAccountType.Kasa));
+        Assert.Equal(900m, await kasa.GetAccountBalanceAsync(cari));
 
         // 2. kapatma AYNI KALEM (yeni idempotency token'ı = ayrı form render'ı, gerçek senaryo:
         // kalem listede hâlâ "borç" göründüğü için ikinci operatör yeniden işaretler).
-        var ikinci = await Wrap(kasa.TekCariTopluKapatAsync(cari, k1, LedgerAccountType.Kasa));
-        var son = await kasa.GetCariBalanceAsync(cari);
+        var ikinci = await Wrap(kasa.CloseSingleAccountBulkAsync(cari, k1, LedgerAccountType.Kasa));
+        var son = await kasa.GetAccountBalanceAsync(cari);
 
         // İDDİA: gürültülü red → bakiye 900'de kalmalı. GERÇEK: kabul → 100'lük kalem İKİ kez
         // tahsil edildi, bakiye 800'e düştü (100 TL alacak sessizce silindi).
@@ -140,7 +140,7 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
         var scopes = Enumerable.Range(0, N).Select(_ => host.ScopeFor(tenant)).ToList();
         var isler = scopes.Select(s => Wrap(Task.Run(() => s.ServiceProvider
             .GetRequiredService<CashService>()
-            .TekCariTopluKapatAsync(cari, secilen, LedgerAccountType.Kasa)))).ToList();
+            .CloseSingleAccountBulkAsync(cari, secilen, LedgerAccountType.Kasa)))).ToList();
 
         // Hepsi No-kilidinde bekleyene kadar bekle (bakiye çitini çoktan geçtiler).
         var sinir = DateTime.UtcNow.AddSeconds(30);
@@ -152,7 +152,7 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
         foreach (var s in scopes) s.Dispose();
 
         using var son = host.ScopeFor(tenant);
-        var bakiye = await son.ServiceProvider.GetRequiredService<CashService>().GetCariBalanceAsync(cari);
+        var bakiye = await son.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cari);
 
         // ELLE: 1000 borç, 1000'lik tek kalem → EN FAZLA bir kapatma geçmeli; bakiye 0'ın altına inemez.
         Assert.True(sonuc.Count(r => r.ok) == 1 && bakiye == 0m,
@@ -208,7 +208,7 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
         [
             // FAZ-50: hesap türü ile ödeme yöntemi ARTIK çelişemez (banka hesabı → Banka ödeme).
             new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m,
-                OdemeYontemi = OdemeYontemi.Banka, FinansalHesapId = hesap }
+                OdemeYontemi = PaymentMethod.Banka, FinansalHesapId = hesap }
         ]);
 
         var sil = await Wrap(hesaplar.DeleteAsync(hesap));
@@ -230,11 +230,11 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
 
         // ELLE: 100 EUR × 35,123456 = 3.512,3456 baz borç.
         await BorclandirAsync(sp, cari, 100m, "EUR borç", "EUR", 35.123456m);
-        Assert.Equal(3512.3456m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(3512.3456m, await kasa.GetAccountBalanceAsync(cari));
 
         var secilen = await BorcSatirlariAsync(sp, cari);
-        var tahsil = await kasa.TekCariTopluKapatAsync(cari, secilen, LedgerAccountType.Kasa);
-        var bakiye = await kasa.GetCariBalanceAsync(cari);
+        var tahsil = await kasa.CloseSingleAccountBulkAsync(cari, secilen, LedgerAccountType.Kasa);
+        var bakiye = await kasa.GetAccountBalanceAsync(cari);
 
         Assert.True(bakiye >= 0m,
             $"BULGU-5: kapatma sonrası bakiye {bakiye} (< 0 → fazla tahsilat). Tahsil edilen {tahsil}.");
@@ -256,17 +256,17 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
         { CariId = cari, Tutar = 500m, Hesap = LedgerAccountType.Kasa, Tarih = gecmis, Aciklama = "Eski borç" });
         var secilen = await BorcSatirlariAsync(sp, cari);
 
-        await sp.GetRequiredService<RentACar.Application.Periods.DonemKilidiService>()
+        await sp.GetRequiredService<RentACar.Application.Periods.PeriodLockService>()
             .LockAsync(DateTimeOffset.UtcNow.AddDays(-1));
 
         // Kapalı döneme geri-tarihli kapatma → red.
-        await Assert.ThrowsAsync<ValidationException>(() => kasa.TekCariTopluKapatAsync(
-            cari, secilen, LedgerAccountType.Kasa, tarih: gecmis));
+        await Assert.ThrowsAsync<ValidationException>(() => kasa.CloseSingleAccountBulkAsync(
+            cari, secilen, LedgerAccountType.Kasa, date: gecmis));
         // Gelecek tarih → red (TarihPolitikasi).
-        await Assert.ThrowsAsync<ValidationException>(() => kasa.TekCariTopluKapatAsync(
-            cari, secilen, LedgerAccountType.Kasa, tarih: DateTimeOffset.UtcNow.AddDays(5)));
+        await Assert.ThrowsAsync<ValidationException>(() => kasa.CloseSingleAccountBulkAsync(
+            cari, secilen, LedgerAccountType.Kasa, date: DateTimeOffset.UtcNow.AddDays(5)));
 
-        Assert.Equal(500m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(500m, await kasa.GetAccountBalanceAsync(cari));
     }
 
     // ------------------------------------------------------------------------------------
@@ -283,13 +283,13 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
 
         await BorclandirAsync(sp, cari, 500m, "Borç");
         var secilen = await BorcSatirlariAsync(sp, cari);
-        Assert.Equal(500m, await kasa.TekCariTopluKapatAsync(cari, secilen, LedgerAccountType.Kasa));
-        Assert.Equal(0m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(500m, await kasa.CloseSingleAccountBulkAsync(cari, secilen, LedgerAccountType.Kasa));
+        Assert.Equal(0m, await kasa.GetAccountBalanceAsync(cari));
 
         // Kapatma tahsilatını bul (TH- ile başlayan, ters olmayan son kayıt) ve ters çevir.
         var tx = (await kasa.ListAsync()).First(t => t.Tip == CashTransactionType.Tahsilat && !t.TersKayitMi);
         await kasa.ReverseAsync(tx.Id);
-        Assert.Equal(500m, await kasa.GetCariBalanceAsync(cari)); // borç geri geldi
+        Assert.Equal(500m, await kasa.GetAccountBalanceAsync(cari)); // borç geri geldi
 
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
@@ -301,6 +301,6 @@ public sealed class Faz29AdversarialKilitTests(PostgresFixture fx)
         var hepsi = await BorcSatirlariAsync(sp, cari);
         Assert.Equal(2, hepsi.Count); // orijinal borç + ters kayıt borcu
         await Assert.ThrowsAsync<ValidationException>(
-            () => kasa.TekCariTopluKapatAsync(cari, hepsi, LedgerAccountType.Kasa)); // 1000 > 500
+            () => kasa.CloseSingleAccountBulkAsync(cari, hepsi, LedgerAccountType.Kasa)); // 1000 > 500
     }
 }

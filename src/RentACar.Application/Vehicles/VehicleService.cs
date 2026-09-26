@@ -13,7 +13,7 @@ namespace RentACar.Application.Vehicles;
 /// </summary>
 public sealed class VehicleService(
     IVehicleRepository repository, ICurrentUser currentUser, IBranchRepository branches, ITenantCache cache,
-    VehicleGroups.VarsayilanGrupCozucu varsayilanGrup)
+    VehicleGroups.DefaultGroupResolver defaultGroup)
 {
     private readonly IVehicleRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -28,17 +28,17 @@ public sealed class VehicleService(
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
 
     /// <summary>Serbest-metin şubeyi tenant içi Branch FK'sine çözer (roadmap F1); eşleşmezse null (metin korunur).</summary>
-    private async Task<Guid?> ResolveSubeAsync(string? sube, CancellationToken ct)
-        => string.IsNullOrWhiteSpace(sube) ? null : (await _branches.FindByAdAsync(sube.Trim(), ct))?.Id;
+    private async Task<Guid?> ResolveBranchAsync(string? branch, CancellationToken ct)
+        => string.IsNullOrWhiteSpace(branch) ? null : (await _branches.FindByNameAsync(branch.Trim(), ct))?.Id;
 
     /// <summary>Dropdown kaynağı: TAM tenant listesi cache'lenir, şube kapsamı bellek-içi filtrelenir
     /// (operatör kendi şubesini görür). Yazımda invalidate. Durum diğer yollarca değişirse TTL (10dk) tazeler.</summary>
     public async Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken ct = default)
     {
         var all = await _cache.GetOrCreateAsync(CacheKey, () => _repository.ListAsync(null, ct), ct, CacheTtl);
-        var kapsam = BranchScope.EffectiveFilter(_currentUser); // C3: FK-farkındalı (rename kurtarması)
-        return kapsam.Unrestricted ? all
-            : all.Where(v => BranchScope.InScope(kapsam, v.SubeId, v.Sube)).ToList();
+        var scope = BranchScope.EffectiveFilter(_currentUser); // C3: FK-farkındalı (rename kurtarması)
+        return scope.Unrestricted ? all
+            : all.Where(v => BranchScope.InScope(scope, v.SubeId, v.Sube)).ToList();
     }
 
     /// <summary>Liste ekranı: arama/filtre + sayfalama. Rol bazlı şube kapsamı zorlanır.</summary>
@@ -57,9 +57,9 @@ public sealed class VehicleService(
     /// Şube kapsamı burada UYGULANMAZ: liste zaten `ListAsync` gibi tüm filoyu gösteren bir
     /// yönetim görünümü ve sayfa Admin/Yönetici kapılı.
     /// </summary>
-    public Task<IReadOnlyList<VehicleDetayRow>> ListDetayAsync(
+    public Task<IReadOnlyList<VehicleDetayRow>> ListDetailAsync(
         VehicleDetayFilter? filter = null, CancellationToken ct = default)
-        => _repository.ListDetayAsync(filter, ct);
+        => _repository.ListDetailAsync(filter, ct);
 
     /// <summary>
     /// FAZ-11 — araç listesinde gösterilen sayfanın ek bilgisi (aktif kira sözleşme no, açık
@@ -69,9 +69,9 @@ public sealed class VehicleService(
     /// <para>Şube kapsamı burada ayrıca zorlanmaz: çağıran zaten kapsamlı bir listeden gelen
     /// araç kimliklerini verir; RLS + tenant filtresi çapraz-tenant sızıntıyı kapatır.</para>
     /// </summary>
-    public Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListeEkAsync(
+    public Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListExtrasAsync(
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
-        => _repository.ListeEkAsync(vehicleIds, ct);
+        => _repository.ListExtrasAsync(vehicleIds, ct);
 
     public async Task<Vehicle?> GetAsync(Guid id, CancellationToken ct = default)
     {
@@ -83,25 +83,25 @@ public sealed class VehicleService(
     public async Task<Guid> CreateAsync(VehicleInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
-        var plaka = Normalize(input.Plaka);
-        Validate(plaka, input);
+        var plate = Normalize(input.Plaka);
+        Validate(plate, input);
 
-        if (await _repository.PlakaExistsAsync(plaka, excludeId: null, ct))
-            throw new DuplicatePlakaException(plaka);
+        if (await _repository.PlateExistsAsync(plate, excludeId: null, ct))
+            throw new DuplicatePlakaException(plate);
 
-        var subeId = await ResolveSubeAsync(input.Sube, ct);
+        var branchId = await ResolveBranchAsync(input.Sube, ct);
         // PR-10: grup BELİRTİLMEMİŞSE varsayılana düşer. Web formu grubu <select> ile önseçili
         // getirdiği için bu dal fiilen yalnız REST API + Excel import yollarında çalışır.
         // "(Grupsuz)" boş DEĞİLDİR (GrupBilincliBos) — bilinçli seçimi varsayılana snap'lemek
         // kullanıcının kararını sessizce geri alırdı.
-        var grup = Trim(input.Grup);
-        if (grup is null && !input.GrupBilincliBos) grup = await varsayilanGrup.AdAsync(ct);
+        var group = Trim(input.Grup);
+        if (group is null && !input.GrupBilincliBos) group = await defaultGroup.NameAsync(ct);
         var vehicle = new Vehicle
         {
-            Plaka = plaka,
+            Plaka = plate,
             Marka = Trim(input.Marka),
             Tip = Trim(input.Tip),
-            Grup = grup,
+            Grup = group,
             Segment = Trim(input.Segment),
             Sipp = NormalizeSipp(input.Sipp),
             Renk = Trim(input.Renk),
@@ -110,7 +110,7 @@ public sealed class VehicleService(
             SasiNo = Trim(input.SasiNo),
             MotorNo = Trim(input.MotorNo),
             Sube = Trim(input.Sube),
-            SubeId = subeId,
+            SubeId = branchId,
             Durum = input.Durum,
             FiloDurum = input.FiloDurum,
             Km = input.Km,
@@ -125,33 +125,33 @@ public sealed class VehicleService(
     }
 
     public Task<bool> UpdateAsync(Guid id, VehicleInput input, CancellationToken ct = default)
-        => UpdateAsync(id, input, beklenenSurum: null, ct);
+        => UpdateAsync(id, input, expectedVersion: null, ct);
 
     /// <summary>F6.1a — satır sürümü (Postgres <c>xmin</c>, opak); yoksa <c>null</c>. Kapsam kontrolü ÇAĞIRANDA
     /// (<see cref="GetAsync"/>) — sürüm tek başına veri sızdırmaz.</summary>
-    public Task<string?> SurumAsync(Guid id, CancellationToken ct = default) => _repository.SurumAsync(id, ct);
+    public Task<string?> VersionAsync(Guid id, CancellationToken ct = default) => _repository.VersionAsync(id, ct);
 
     /// <summary>
-    /// F6.1a — <paramref name="beklenenSurum"/> doluysa satır kilidi altında sürüm karşılaştırmalı tam değiştirme
-    /// (uyuşmazlık → <see cref="EszamanliDegisiklikException"/>, hiçbir şey yazılmaz). Null → eski davranış (Blazor).
+    /// F6.1a — <paramref name="expectedVersion"/> doluysa satır kilidi altında sürüm karşılaştırmalı tam değiştirme
+    /// (uyuşmazlık → <see cref="ConcurrentModificationException"/>, hiçbir şey yazılmaz). Null → eski davranış (Blazor).
     /// </summary>
-    public async Task<bool> UpdateAsync(Guid id, VehicleInput input, string? beklenenSurum, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, VehicleInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
-        var plaka = Normalize(input.Plaka);
+        var plate = Normalize(input.Plaka);
         // #285: yeni tarih/tutar kuralları YALNIZ değişen alana uygulanır — aralık dışı ESKİ verisi olan araç,
         // başka bir alanı düzenlenirken kilitlenmez (FiloKiralamaService.UpdateMetaAsync #271 Low-1 dersi).
         var existing = await _repository.FindAsync(id, ct);
-        Validate(plaka, input, existing);
+        Validate(plate, input, existing);
 
-        if (await _repository.PlakaExistsAsync(plaka, excludeId: id, ct))
-            throw new DuplicatePlakaException(plaka);
+        if (await _repository.PlateExistsAsync(plate, excludeId: id, ct))
+            throw new DuplicatePlakaException(plate);
 
-        var subeId = await ResolveSubeAsync(input.Sube, ct);
-        void Uygula(Vehicle v)
+        var branchId = await ResolveBranchAsync(input.Sube, ct);
+        void Apply(Vehicle v)
         {
             BranchScope.RequireInScope(_currentUser, v.SubeId, v.Sube); // adversarial M3 + C3 FK (reassign ÖNCESİ)
-            v.Plaka = plaka;
+            v.Plaka = plate;
             v.Marka = Trim(input.Marka);
             v.Tip = Trim(input.Tip);
             v.Grup = Trim(input.Grup);
@@ -163,7 +163,7 @@ public sealed class VehicleService(
             v.SasiNo = Trim(input.SasiNo);
             v.MotorNo = Trim(input.MotorNo);
             v.Sube = Trim(input.Sube);
-            v.SubeId = subeId;
+            v.SubeId = branchId;
             v.Durum = input.Durum;
             v.FiloDurum = input.FiloDurum;
             v.Km = input.Km;
@@ -171,9 +171,9 @@ public sealed class VehicleService(
             ApplyExtended(v, input);
             v.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }
-        var ok = beklenenSurum is null
-            ? await _repository.UpdateAsync(id, Uygula, ct)
-            : await _repository.UpdateAsync(id, beklenenSurum, Uygula, ct);
+        var ok = expectedVersion is null
+            ? await _repository.UpdateAsync(id, Apply, ct)
+            : await _repository.UpdateAsync(id, expectedVersion, Apply, ct);
         _cache.Invalidate(CacheKey);
         return ok;
     }
@@ -190,37 +190,37 @@ public sealed class VehicleService(
 
     /// <summary>FAZ 2.5 — araç kartından manuel odometre girişi: km log + Vehicle.Km AYNI transaction'da.
     /// Geriye-gitme reddi repo TX'inde (odometre monoton); tarih geleceğe kapalı.</summary>
-    public async Task ManuelKmGirAsync(Guid id, int km, DateTimeOffset? tarih = null, CancellationToken ct = default)
+    public async Task EnterManualKmAsync(Guid id, int km, DateTimeOffset? date = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var vTek = await _repository.FindAsync(id, ct);
         BranchScope.RequireInScope(_currentUser, vTek?.SubeId, vTek?.Sube); // C3 FK
         if (km < 0) throw new ValidationException("KM negatif olamaz.");
-        var t = tarih ?? DateTimeOffset.UtcNow;
+        var t = date ?? DateTimeOffset.UtcNow;
         if (t > DateTimeOffset.UtcNow.AddMinutes(5))
             throw new ValidationException("KM tarihi gelecekte olamaz.");
         if (t < MinReasonableDate)
             throw new ValidationException("KM tarihi 01.01.1950'den önce olamaz.");
-        if (!await _repository.ManuelKmEkleAsync(id, km, t, ct))
+        if (!await _repository.AddManualKmAsync(id, km, t, ct))
             throw new ValidationException("Araç bulunamadı.");
         _cache.Invalidate(CacheKey); // Km listede görünür — bayat kalmasın
     }
 
     /// <summary>FAZ 2.5 — km zaman serisi (araç kartı; en yeni önce).</summary>
-    public Task<IReadOnlyList<VehicleKmLog>> KmLoglariAsync(Guid vehicleId, int limit = 10, CancellationToken ct = default)
-        => _repository.KmLoglariAsync(vehicleId, limit, ct);
+    public Task<IReadOnlyList<VehicleKmLog>> KmLogsAsync(Guid vehicleId, int limit = 10, CancellationToken ct = default)
+        => _repository.KmLogsAsync(vehicleId, limit, ct);
 
     /// <param name="existing">Güncellemede mevcut kayıt: #278 tarih aralığı ve negatif tutar kuralları yalnız DEĞİŞEN
     /// alana uygulanır (aynı an ya da aynı takvim günü = değişmedi). Oluşturmada <c>null</c> → her alan denetlenir.</param>
-    private static void Validate(string plaka, VehicleInput input, Vehicle? existing = null)
+    private static void Validate(string plate, VehicleInput input, Vehicle? existing = null)
     {
-        if (string.IsNullOrWhiteSpace(plaka))
+        if (string.IsNullOrWhiteSpace(plate))
             throw new ValidationException("Plaka zorunludur.");
         if (input.Km < 0)
             throw new ValidationException("KM negatif olamaz.");
-        var maxModelYili = DateTimeOffset.UtcNow.Year + 1; // yeni model araç en fazla gelecek yıl olabilir
-        if (input.ModelYili is < 1950 || input.ModelYili > maxModelYili)
-            throw new ValidationException($"Model yılı 1950 ile {maxModelYili} arasında olmalıdır.");
+        var maxModelYear = DateTimeOffset.UtcNow.Year + 1; // yeni model araç en fazla gelecek yıl olabilir
+        if (input.ModelYili is < 1950 || input.ModelYili > maxModelYear)
+            throw new ValidationException($"Model yılı 1950 ile {maxModelYear} arasında olmalıdır.");
         var sipp = input.Sipp?.Trim();
         if (!string.IsNullOrEmpty(sipp) && sipp.Length != 4)
             throw new ValidationException("SIPP kodu 4 harf olmalıdır (ör. CDMD).");
@@ -235,7 +235,7 @@ public sealed class VehicleService(
                 throw new ValidationException($"{label} negatif olamaz.");
         // #278 L4 — tarihler makul aralıkta: 1950-01-01 … bugün + 30 yıl (typo'lu yıl 0026/20266 kayda girmesin).
         foreach (var (get, getExisting, label) in DateFields)
-            if (existing is null || FiloKiralamalar.FiloKiralamaService.TarihDegisti(getExisting(existing), get(input)))
+            if (existing is null || FiloKiralamalar.FleetRentalService.IsDateChanged(getExisting(existing), get(input)))
                 EnsureReasonableDate(get(input), label);
         // PR-11: üst sınır, "12" yerine "1200" yazan bir typo'nun vitrinde "1200 araç" basmasını önler.
         if (input.VitrinAdet is < 1 or > 999)
@@ -277,7 +277,7 @@ public sealed class VehicleService(
             throw new ValidationException($"{label} 01.01.1950 ile {max.ToString("dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture)} arasında olmalıdır.");
     }
 
-    private static string Normalize(string? plaka) => PlakaAnahtar(plaka);
+    private static string Normalize(string? plate) => PlateKey(plate);
 
     /// <summary>
     /// Plaka eşleştirme/benzersizlik anahtarı: trim + büyük harf + boşluksuz.
@@ -287,8 +287,8 @@ public sealed class VehicleService(
     /// kural zamanla ayrışır ve kullanıcı listede gördüğü plakayı yazdığında "araç bulunamadı"
     /// alırdı.</para>
     /// </summary>
-    public static string PlakaAnahtar(string? plaka)
-        => (plaka ?? string.Empty).Trim().ToUpperInvariant().Replace(" ", string.Empty);
+    public static string PlateKey(string? plate)
+        => (plate ?? string.Empty).Trim().ToUpperInvariant().Replace(" ", string.Empty);
 
     /// <summary>Parite zenginleştirme alanlarını uygular (Create + Update ortak). Hepsi opsiyonel.</summary>
     private static void ApplyExtended(Vehicle v, VehicleInput input)

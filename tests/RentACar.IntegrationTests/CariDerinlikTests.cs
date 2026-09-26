@@ -24,7 +24,7 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
 
     private static CustomerInput Dolu(string unvan) => new()
     {
-        Tip = CariType.Kurumsal, Unvan = unvan, VergiNo = "1234567890",
+        Tip = CustomerType.Kurumsal, Unvan = unvan, VergiNo = "1234567890",
         Adres = " Bağdat Cad. 1 ", Il = "İstanbul", Ilce = "Kadıköy",
         TcDogrulama = true, Ulke = " Türkiye ", Tel2 = " 02161112233 ", OzelKod = " VIP ",
         EntegrasyonKodu = " ENT-1 ", Aciklama = " Kurumsal müşteri ", FaturaAdresFarkli = true,
@@ -161,9 +161,9 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
         // ELLE: 3 cari — 1 aktif+araç verilmez, 1 aktif, 1 pasif.
         await svc.CreateAsync(Dolu("Alfa A.Ş."));
         await svc.CreateAsync(new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = "Beta A.Ş.", MusteriTemsilcisi = "Ali", VadeGun = 30,
+        { Tip = CustomerType.Kurumsal, Unvan = "Beta A.Ş.", MusteriTemsilcisi = "Ali", VadeGun = 30,
           Gsm2 = "05551112233", Ilce = "Beşiktaş", Sinif = "A", UyariNedeni = "Gecikme" });
-        await svc.CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "Gama A.Ş.", Pasif = true });
+        await svc.CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Gama A.Ş.", Pasif = true });
 
         var hepsi = await svc.SearchRowsAsync(new CustomerFilter { PageSize = 50 });
         Assert.Equal(3, hepsi.Items.Count);

@@ -153,7 +153,7 @@ public static class OrtakSorgular
         // FAZ-16: Rezerve de hariç — henüz bakıma GİRMEMİŞ bir randevu "son servis" olamaz
         // (ileri tarihli randevu, gerçekleşmiş son bakımı ekranda gizlerdi).
         var sonServis = (await db.ServiceRecords.AsNoTracking()
-                .Where(r => r.Durum != ServisDurum.Iptal && r.Durum != ServisDurum.Rezerve)
+                .Where(r => r.Durum != ServiceStatus.Iptal && r.Durum != ServiceStatus.Rezerve)
                 .Select(r => new { r.VehicleId, r.GirisTarihi, r.GirisKm })
                 .ToListAsync(ct))
             .GroupBy(r => r.VehicleId)

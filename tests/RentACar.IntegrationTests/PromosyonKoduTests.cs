@@ -33,7 +33,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         {
             Kod = "EKO-STD", Ad = "Eko", AracGrupKod = "EKO", ParaBirimi = "TRY",
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m,
-            OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+            OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
         var rr = sp.GetRequiredService<RentalRuleService>();
         await rr.CreateAsync(new RentalRuleInput { Kod = "GENEL", Ad = "Genel", Iskonto = 10m });
@@ -43,7 +43,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 PK 01", Grup = "EKO" });
         var m = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "PK", Soyad = "M" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "PK", Soyad = "M" });
         return (m, v);
     }
 
@@ -153,7 +153,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 PK 10", Grup = "EKO" });
         var m = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "PK", Soyad = "R" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "PK", Soyad = "R" });
 
         var ex = await Assert.ThrowsAsync<ValidationException>(
             () => sp.GetRequiredService<RentalService>().CreateDirectAsync(Girdi(m, v, "YAZ50")));
@@ -212,9 +212,9 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp);
-        var hesap = sp.GetRequiredService<KiraHesapService>();
+        var hesap = sp.GetRequiredService<RentalCalculationService>();
 
-        var onizleme = await hesap.HesaplaAsync(new KiraHesapIstek(
+        var onizleme = await hesap.CalculateAsync(new KiraHesapIstek(
             VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: null,
             FiyatTuru: "Otomatik", Doviz: null, CikisOfisi: null, EkHizmetler: [],
             MusteriId: m, KampanyaKodu: "YAZ50"));
@@ -225,7 +225,7 @@ public sealed class PromosyonKoduTests(PostgresFixture fx)
         Assert.Equal(1500.00m, (await sp.GetRequiredService<RentalService>().GetAsync(id))!.Tutar);
 
         // Geçersiz kod canlı hesapta NAZİK hata (ok:false) — exception değil (kullanıcı yazarken).
-        var bozuk = await hesap.HesaplaAsync(new KiraHesapIstek(
+        var bozuk = await hesap.CalculateAsync(new KiraHesapIstek(
             VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: null,
             FiyatTuru: "Otomatik", Doviz: null, CikisOfisi: null, EkHizmetler: [],
             MusteriId: m, KampanyaKodu: "YANLIS"));

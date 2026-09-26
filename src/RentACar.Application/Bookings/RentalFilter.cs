@@ -20,10 +20,10 @@ public sealed class RentalFilter
 
     // ---- FAZ-46: canlı kira_listesi.aspx süzgeçleri ----
     /// <summary><see cref="BaslangicMin"/>/<see cref="BaslangicMax"/> aralığının HANGİ tarihe
-    /// uygulanacağı. null → <see cref="Domain.Enums.TarihListesiTuru.Baslangic"/> (eski davranış).</summary>
-    public TarihListesiTuru? TarihTuru { get; set; }
+    /// uygulanacağı. null → <see cref="Domain.Enums.DateListType.Baslangic"/> (eski davranış).</summary>
+    public DateListType? TarihTuru { get; set; }
     /// <summary><see cref="Ofis"/> hangi ofise uygulansın. null → eski davranış (çıkış VEYA dönüş).</summary>
-    public OfisDurumu? OfisDurum { get; set; }
+    public OfficeStatus? OfisDurum { get; set; }
     /// <summary>Araç sahibi (Vehicle.AracSahibi) — araç üzerinden süzer.</summary>
     public string? SahipGrup { get; set; }
     /// <summary>Araç grubu (Vehicle.Grup) — araç üzerinden süzer.</summary>

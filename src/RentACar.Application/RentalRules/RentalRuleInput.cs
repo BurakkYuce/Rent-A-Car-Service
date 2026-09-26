@@ -35,14 +35,14 @@ public sealed class RentalRuleInput
     /// <summary>Talebin YAPILDIĞI tarih aralığı (Gecerlilik* kiralama tarihine bakar — farklı kavram).</summary>
     public DateTimeOffset? TalepBas { get; set; }
     public DateTimeOffset? TalepBit { get; set; }
-    public PromosyonTuru? PromosyonTuru { get; set; }
-    public KuponGecerlilik? KuponGecerlilik { get; set; }
-    public HesaplamaTipi? HesaplamaTipi { get; set; }
+    public PromotionType? PromosyonTuru { get; set; }
+    public CouponValidity? KuponGecerlilik { get; set; }
+    public CalculationType? HesaplamaTipi { get; set; }
     public bool HizliIslem { get; set; }
     /// <summary>Virgülle ayrılmış 0-6 gün listesi (0=Pazar). Servis normalize eder.</summary>
     public string? HaftaGunKisiti { get; set; }
     /// <summary>FAZ-73 — kampanya arama sınıflandırması. BİLGİ ALANI: fiyat motoruna girmez.</summary>
-    public KuralTarihTipi TarihTipi { get; set; } = KuralTarihTipi.Rezervasyon;
+    public RuleDateType TarihTipi { get; set; } = RuleDateType.Rezervasyon;
 
     /// <summary>
     /// FAZ-73 — 5 durumlu yaşam döngüsü. <c>null</c> → <see cref="Aktif"/> bayrağından TÜRETİLİR
@@ -50,7 +50,7 @@ public sealed class RentalRuleInput
     /// değişmeden çalışır. Dolu geldiğinde tam tersi geçerlidir — <see cref="Aktif"/> bu değerden
     /// türetilir (<c>Aktif == (KampanyaDurum == Aktif)</c>). İki alan tek noktada senkronlanır.
     /// </summary>
-    public KampanyaDurum? KampanyaDurum { get; set; }
+    public CampaignStatus? KampanyaDurum { get; set; }
 
     public bool Aktif { get; set; } = true;
 }
@@ -64,8 +64,8 @@ public sealed class RentalRuleFilter
 {
     /// <summary>Kod/ad içinde geçen metin (harf duyarsız).</summary>
     public string? Terim { get; set; }
-    public KampanyaDurum? Durum { get; set; }
-    public KuralTarihTipi? TarihTipi { get; set; }
+    public CampaignStatus? Durum { get; set; }
+    public RuleDateType? TarihTipi { get; set; }
     public bool? KampanyaMi { get; set; }
     public string? Kanal { get; set; }
     /// <summary>Geçerlilik aralığı ÇAKIŞMASI: kuralın [Bas,Bit] aralığı verilen aralıkla kesişiyorsa

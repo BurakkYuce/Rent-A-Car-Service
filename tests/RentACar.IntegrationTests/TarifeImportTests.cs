@@ -45,7 +45,7 @@ public sealed class TarifeImportTests(PostgresFixture fx)
         var matrisler = sp.GetRequiredService<RateMatrixService>();
         var liste = await matrisler.ListAsync();
         Assert.Equal(3, liste.Count);
-        Assert.All(liste, m => Assert.Equal(TarifeOnayDurumu.Bekliyor, m.OnayDurumu)); // enjeksiyon yok sayıldı
+        Assert.All(liste, m => Assert.Equal(TariffApprovalStatus.Bekliyor, m.OnayDurumu)); // enjeksiyon yok sayıldı
         Assert.All(liste, m => Assert.Null(m.Onaylayan));
 
         var dlx = Assert.Single(liste, m => m.Kod == "DLX");                 // kod büyük harfe normalize
@@ -62,7 +62,7 @@ public sealed class TarifeImportTests(PostgresFixture fx)
         // ÇİT: çözümleyici (Onaylı+Aktif filtresi — motorla aynı kural) Beklemede'yi SEÇMEZ.
         var sorgu = new RateMatrisSorgu(Kanal: "WEB", Sube: null, AracGrupKod: "SUV",
             Tarih: new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), GunSayisi: 1);
-        Assert.Null(await matrisler.CozumleAsync(sorgu));
+        Assert.Null(await matrisler.ResolveAsync(sorgu));
     }
 
     [Fact]

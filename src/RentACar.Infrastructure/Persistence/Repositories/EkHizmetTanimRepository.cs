@@ -10,7 +10,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// IEkHizmetTanimRepository: kısa-ömürlü context'ler (factory). Tenant izolasyonu RLS + query
 /// filter ile otomatik. Kod benzersizliği DB unique index ile; ihlal (23505) ValidationException.
 /// </summary>
-public sealed class EkHizmetTanimRepository(IDbContextFactory<AppDbContext> factory) : IEkHizmetTanimRepository
+public sealed class EkHizmetTanimRepository(IDbContextFactory<AppDbContext> factory) : IAddOnDefinitionRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -32,7 +32,7 @@ public sealed class EkHizmetTanimRepository(IDbContextFactory<AppDbContext> fact
         return await db.EkHizmetTanimlari.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();

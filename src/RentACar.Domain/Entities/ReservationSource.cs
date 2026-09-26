@@ -8,7 +8,7 @@ namespace RentACar.Domain.Entities;
 /// listesi (ör. "Web", "Telefon", "Bayi", "Tavsiye"). Tenant-owned + auditable. Rezervasyon ve
 /// cari formlarındaki Kaynak açılır listesini besler (additive).
 /// </summary>
-public class ReservationSource : ITenantOwned, IAuditable, IMasterTanim
+public class ReservationSource : ITenantOwned, IAuditable, IMasterDefinition
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -49,7 +49,7 @@ public class ReservationSource : ITenantOwned, IAuditable, IMasterTanim
     // =====================================================================================
 
     /// <summary>Kaynağın üst grubu (bilgi/raporlama). null = belirtilmemiş (geçmiş kayıtlar).</summary>
-    public RezKaynakGrubu? KaynakGrubu { get; set; }
+    public ReservationSourceGroup? KaynakGrubu { get; set; }
 
     // ---- (1) KURAL BAYRAKLARI — UYGULANIR ------------------------------------------------
 

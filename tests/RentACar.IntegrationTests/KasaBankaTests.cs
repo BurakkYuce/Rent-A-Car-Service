@@ -22,7 +22,7 @@ public sealed class KasaBankaTests(PostgresFixture fx)
     private static async Task<Guid> SeedCariAsync(IServiceScope scope, string ad)
     {
         var customers = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        return await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+        return await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
     }
 
     [Fact]
@@ -37,8 +37,8 @@ public sealed class KasaBankaTests(PostgresFixture fx)
         // Ödeme 1000: Borç Cari (+1000) / Alacak Kasa (−1000).
         await cash.PayAsync(new CashInput { CariId = cari, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
 
-        Assert.Equal(1000m, await cash.GetCariBalanceAsync(cari));
-        var s = await reports.GetKasaBankaSummaryAsync();
+        Assert.Equal(1000m, await cash.GetAccountBalanceAsync(cari));
+        var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(0m, s.KasaGiris);
         Assert.Equal(1000m, s.KasaCikis);
         Assert.Equal(-1000m, s.KasaBakiye);
@@ -55,7 +55,7 @@ public sealed class KasaBankaTests(PostgresFixture fx)
 
         await cash.PayAsync(new CashInput { CariId = cari, Tutar = 800m, Hesap = LedgerAccountType.Banka });
 
-        var s = await reports.GetKasaBankaSummaryAsync();
+        var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(0m, s.KasaCikis);
         Assert.Equal(0m, s.KasaBakiye);
         Assert.Equal(800m, s.BankaCikis);
@@ -75,7 +75,7 @@ public sealed class KasaBankaTests(PostgresFixture fx)
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 2000m, Hesap = LedgerAccountType.Kasa });
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 500m);
 
-        var s = await reports.GetKasaBankaSummaryAsync();
+        var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(2000m, s.KasaGiris);
         Assert.Equal(500m, s.KasaCikis);
         Assert.Equal(1500m, s.KasaBakiye);
@@ -85,7 +85,7 @@ public sealed class KasaBankaTests(PostgresFixture fx)
         // Toplam kasa+banka korunur (virman değer yaratmaz/yok etmez).
         Assert.Equal(2000m, s.KasaBakiye + s.BankaBakiye);
         // Virman cari'ye dokunmaz: bakiye yalnız tahsilattan (−2000).
-        Assert.Equal(-2000m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(-2000m, await cash.GetAccountBalanceAsync(cari));
     }
 
     [Fact]
@@ -98,13 +98,13 @@ public sealed class KasaBankaTests(PostgresFixture fx)
         var cari = await SeedCariAsync(scope, "TersOdeme");
 
         var id = await cash.PayAsync(new CashInput { CariId = cari, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
-        Assert.Equal(1000m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(1000m, await cash.GetAccountBalanceAsync(cari));
 
         await cash.ReverseAsync(id);
 
         // Ters kayıt orijinali sıfırlar: cari 0, kasa 0 (giriş=çıkış=1000).
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
-        var s = await reports.GetKasaBankaSummaryAsync();
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+        var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(1000m, s.KasaGiris);
         Assert.Equal(1000m, s.KasaCikis);
         Assert.Equal(0m, s.KasaBakiye);
@@ -152,7 +152,7 @@ public sealed class KasaBankaTests(PostgresFixture fx)
 
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => cash.PayAsync(new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa }));
     }
 }

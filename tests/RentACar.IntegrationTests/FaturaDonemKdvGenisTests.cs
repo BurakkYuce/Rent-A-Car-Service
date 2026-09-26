@@ -47,7 +47,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput
             {
-                Tip = CariType.Kurumsal, Unvan = ad,
+                Tip = CustomerType.Kurumsal, Unvan = ad,
                 VergiNo = Interlocked.Increment(ref _vergiSayac).ToString(), VergiDairesi = "Kadıköy"
             });
 
@@ -117,7 +117,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         }
 
         var rapor = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var yok = await rapor.GetKiraFaturaDurumAsync(Gun(-15), Gun(0),
+        var yok = await rapor.GetRentalInvoiceStatusAsync(Gun(-15), Gun(0),
             new KiraFaturaDurumFilter { Faturalanan = false });
 
         Assert.Single(yok);                               // elle: 3 kiradan 1'i faturasız
@@ -126,7 +126,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         Assert.Equal(0, yok[0].FaturaAdet);
         Assert.Equal(0m, yok[0].FaturalananTutar);
 
-        var var_ = await rapor.GetKiraFaturaDurumAsync(Gun(-15), Gun(0),
+        var var_ = await rapor.GetRentalInvoiceStatusAsync(Gun(-15), Gun(0),
             new KiraFaturaDurumFilter { Faturalanan = true });
         Assert.Equal(2, var_.Count);                      // base'li + fark'lı
         Assert.Contains(var_, r => r.RentalId == kBase);
@@ -146,7 +146,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         await scope.ServiceProvider.GetRequiredService<InvoiceService>().CreateFromRentalAsync(k1);
 
         var hepsi = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetKiraFaturaDurumAsync(Gun(-15), Gun(0));
+            .GetRentalInvoiceStatusAsync(Gun(-15), Gun(0));
 
         Assert.Equal(2, hepsi.Count);
         Assert.False(hepsi[0].Faturalanan);   // faturalanmamış önce
@@ -167,12 +167,12 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         var k = await KiraAsync(scope, cari, "34 SK 01", -20, -3);
 
         var rapor = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var icinde = await rapor.GetKiraFaturaDurumAsync(Gun(-10), Gun(0));
+        var icinde = await rapor.GetRentalInvoiceStatusAsync(Gun(-10), Gun(0));
         Assert.Single(icinde);
         Assert.Equal(k, icinde[0].RentalId);
 
         // Kirayla HİÇ kesişmeyen dönem (-40 .. -30) → boş.
-        var disinda = await rapor.GetKiraFaturaDurumAsync(Gun(-40), Gun(-30));
+        var disinda = await rapor.GetRentalInvoiceStatusAsync(Gun(-40), Gun(-30));
         Assert.Empty(disinda);
     }
 
@@ -198,7 +198,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         }
 
         var yok = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetKiraFaturaDurumAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { Faturalanan = false });
+            .GetRentalInvoiceStatusAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { Faturalanan = false });
         Assert.Single(yok);
         Assert.Equal(k, yok[0].RentalId);
     }
@@ -228,7 +228,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         }
 
         var satir = (await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetKiraFaturaDurumAsync(Gun(-15), Gun(0))).Single();
+            .GetRentalInvoiceStatusAsync(Gun(-15), Gun(0))).Single();
         Assert.True(satir.Faturalanan);
         Assert.Equal(1, satir.FaturaAdet);        // iade AYRI belge, kesilen adedi değiştirmez
         Assert.Equal(180m, satir.FaturalananTutar); // elle: 300 − 120
@@ -259,11 +259,11 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         await KiraAsync(scope, cari, "34 SB 03", -10, -7, "İzmir Ofis");
 
         var rapor = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var a = await rapor.GetKiraFaturaDurumAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { SubeId = subeA });
+        var a = await rapor.GetRentalInvoiceStatusAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { SubeId = subeA });
         Assert.Equal(2, a.Count);   // elle: A şubesinin iki ofisi
         Assert.All(a, r => Assert.Contains(r.Ofis, new[] { "Atatürk Havalimanı", "Kadıköy Ofis" }));
 
-        var b = await rapor.GetKiraFaturaDurumAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { SubeId = subeB });
+        var b = await rapor.GetRentalInvoiceStatusAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { SubeId = subeB });
         Assert.Single(b);
         Assert.Equal("İzmir Ofis", b[0].Ofis);
     }
@@ -280,9 +280,9 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         await KiraAsync(scope, cariY, "06 PP 11", -10, -7);
 
         var rapor = scope.ServiceProvider.GetRequiredService<ReportService>();
-        Assert.Single(await rapor.GetKiraFaturaDurumAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { Q = "zebra" }));
-        Assert.Single(await rapor.GetKiraFaturaDurumAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { Q = "06 PP" }));
-        Assert.Empty(await rapor.GetKiraFaturaDurumAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { Q = "yokboyle" }));
+        Assert.Single(await rapor.GetRentalInvoiceStatusAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { Q = "zebra" }));
+        Assert.Single(await rapor.GetRentalInvoiceStatusAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { Q = "06 PP" }));
+        Assert.Empty(await rapor.GetRentalInvoiceStatusAsync(Gun(-15), Gun(0), new KiraFaturaDurumFilter { Q = "yokboyle" }));
     }
 
     // ================================================================ (2) KDV geniş format
@@ -299,7 +299,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var c = new Customer { Tip = CariType.Kurumsal, Unvan = "Geniş A.Ş." };
+            var c = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Geniş A.Ş." };
             db.Customers.Add(c);
             db.Invoices.Add(Inv(c.Id, "FT-G01", D(2026, 6, 10), InvoiceStatus.Kesildi, 1m, false, (0.20m, 100m, 20m)));
             db.Invoices.Add(Inv(c.Id, "FT-G02", D(2026, 6, 11), InvoiceStatus.Kesildi, 1m, false, (0.10m, 50m, 5m)));
@@ -308,7 +308,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         }
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetKdvGenisAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
+            .GetVatExtendedAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
 
         Assert.Equal(2, g.Satirlar.Count);   // İptal HARİÇ
         var a = g.Satirlar.Single(r => r.No == "FT-G01");
@@ -338,7 +338,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var c = new Customer { Tip = CariType.Kurumsal, Unvan = "Eski Oran A.Ş." };
+            var c = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Eski Oran A.Ş." };
             db.Customers.Add(c);
             // %20 (100/20) + %18 (200/36) + %0 (30/0) tek belgede.
             db.Invoices.Add(Inv(c.Id, "FT-D01", D(2026, 6, 10), InvoiceStatus.Kesildi, 1m, false,
@@ -347,7 +347,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         }
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetKdvGenisAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
+            .GetVatExtendedAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
 
         var r = Assert.Single(g.Satirlar);
         Assert.Equal(100m, r.Net20); Assert.Equal(20m, r.Kdv20);
@@ -373,7 +373,7 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var c = new Customer { Tip = CariType.Kurumsal, Unvan = "Parite A.Ş." };
+            var c = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Parite A.Ş." };
             db.Customers.Add(c);
             db.Invoices.Add(Inv(c.Id, "FT-P01", D(2026, 6, 10), InvoiceStatus.Kesildi, 1m, false, (0.20m, 100m, 20m)));
             db.Invoices.Add(Inv(c.Id, "FT-P02", D(2026, 6, 11), InvoiceStatus.Kesildi, 30m, false, (0.20m, 10m, 2m)));
@@ -383,8 +383,8 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
         var from = D(2026, 6, 1); var to = D(2026, 6, 30).AddDays(1).AddTicks(-1);
-        var pivot = await svc.GetKdvListesiAsync(from, to);
-        var genis = await svc.GetKdvGenisAsync(from, to, dahilAlis: true);
+        var pivot = await svc.GetVatListAsync(from, to);
+        var genis = await svc.GetVatExtendedAsync(from, to, includePurchases: true);
 
         Assert.Equal(pivot.ToplamNet, genis.SatisNet);
         Assert.Equal(pivot.ToplamKdv, genis.SatisKdv);
@@ -416,24 +416,24 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var c = new Customer { Tip = CariType.Kurumsal, Unvan = "Alış A.Ş." };
+            var c = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Alış A.Ş." };
             db.Customers.Add(c);
             db.Invoices.Add(Inv(c.Id, "FT-A01", D(2026, 6, 10), InvoiceStatus.Kesildi, 1m, false, (0.20m, 100m, 20m)));
             await db.SaveChangesAsync();
         }
 
-        var gelen = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var gelen = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var gid = await gelen.CreateManualAsync(Gelen("ETTN-A1", 1000m, 200m, tarih));
-        Assert.True(await gelen.BaglaAsync(new GelenEFaturaBaglamaInput { Id = gid, Kdv20Matrah = 1000m, Kdv20 = 200m }));
+        Assert.True(await gelen.LinkAsync(new GelenEFaturaBaglamaInput { Id = gid, Kdv20Matrah = 1000m, Kdv20 = 200m }));
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
         var from = D(2026, 6, 1); var to = D(2026, 6, 30).AddDays(1).AddTicks(-1);
 
-        var alissiz = await svc.GetKdvGenisAsync(from, to, dahilAlis: false);
+        var alissiz = await svc.GetVatExtendedAsync(from, to, includePurchases: false);
         Assert.Single(alissiz.Satirlar);
         Assert.Equal(0m, alissiz.AlisKdv);
 
-        var alisli = await svc.GetKdvGenisAsync(from, to, dahilAlis: true);
+        var alisli = await svc.GetVatExtendedAsync(from, to, includePurchases: true);
         Assert.Equal(2, alisli.Satirlar.Count);
         Assert.Equal(20m, alisli.SatisKdv);      // elle
         Assert.Equal(200m, alisli.AlisKdv);      // elle
@@ -457,20 +457,20 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var tarih = D(2026, 6, 15);
-        var gelen = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var gelen = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         // A: kırılımlı + Beklemede → GİRER
         var a = await gelen.CreateManualAsync(Gelen("ETTN-R1", 100m, 20m, tarih));
-        await gelen.BaglaAsync(new GelenEFaturaBaglamaInput { Id = a, Kdv20Matrah = 100m, Kdv20 = 20m });
+        await gelen.LinkAsync(new GelenEFaturaBaglamaInput { Id = a, Kdv20Matrah = 100m, Kdv20 = 20m });
         // B: kırılımlı ama REDDEDİLDİ → GİRMEZ
         var b = await gelen.CreateManualAsync(Gelen("ETTN-R2", 500m, 100m, tarih));
-        await gelen.BaglaAsync(new GelenEFaturaBaglamaInput { Id = b, Kdv20Matrah = 500m, Kdv20 = 100m });
-        await gelen.ReddetAsync(b, "Yanlış firma");
+        await gelen.LinkAsync(new GelenEFaturaBaglamaInput { Id = b, Kdv20Matrah = 500m, Kdv20 = 100m });
+        await gelen.RejectAsync(b, "Yanlış firma");
         // C: kırılım GİRİLMEMİŞ → GİRMEZ
         await gelen.CreateManualAsync(Gelen("ETTN-R3", 900m, 180m, tarih));
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetKdvGenisAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1), dahilAlis: true);
+            .GetVatExtendedAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1), includePurchases: true);
 
         var alis = g.Satirlar.Where(r => r.AlisMi).ToList();
         Assert.Single(alis);                 // elle: 3 belgeden yalnız A
@@ -488,15 +488,15 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var tarih = D(2026, 6, 15);
-        var gelen = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var gelen = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         var tl = await gelen.CreateManualAsync(Gelen("ETTN-D1", 100m, 20m, tarih));
-        await gelen.BaglaAsync(new GelenEFaturaBaglamaInput { Id = tl, Kdv20Matrah = 100m, Kdv20 = 20m });
+        await gelen.LinkAsync(new GelenEFaturaBaglamaInput { Id = tl, Kdv20Matrah = 100m, Kdv20 = 20m });
         var usd = await gelen.CreateManualAsync(Gelen("ETTN-D2", 1000m, 200m, tarih, "USD"));
-        await gelen.BaglaAsync(new GelenEFaturaBaglamaInput { Id = usd, Kdv20Matrah = 1000m, Kdv20 = 200m });
+        await gelen.LinkAsync(new GelenEFaturaBaglamaInput { Id = usd, Kdv20Matrah = 1000m, Kdv20 = 200m });
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetKdvGenisAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1), dahilAlis: true);
+            .GetVatExtendedAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1), includePurchases: true);
 
         Assert.Equal(1, g.AtlananDovizliAlis);
         Assert.Equal(20m, g.AlisKdv);        // yalnız TL belge; 200 USD KDV toplama KARIŞMADI
@@ -524,8 +524,8 @@ public sealed class FaturaDonemKdvGenisTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(t2);
         var rapor = s2.ServiceProvider.GetRequiredService<ReportService>();
-        Assert.Empty(await rapor.GetKiraFaturaDurumAsync(Gun(-15), Gun(0)));
-        var g = await rapor.GetKdvGenisAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1), dahilAlis: true);
+        Assert.Empty(await rapor.GetRentalInvoiceStatusAsync(Gun(-15), Gun(0)));
+        var g = await rapor.GetVatExtendedAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1), includePurchases: true);
         Assert.Empty(g.Satirlar);
         Assert.Equal(0m, g.SatisKdv);
     }

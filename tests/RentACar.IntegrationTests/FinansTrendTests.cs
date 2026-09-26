@@ -53,7 +53,7 @@ public sealed class FinansTrendTests(PostgresFixture fx)
             await db.SaveChangesAsync();
         }
 
-        var trend = await reports.GetAylikGelirGiderTrendAsync(3, simdi);
+        var trend = await reports.GetMonthlyRevenueExpenseTrendAsync(3, simdi);
 
         Assert.Equal(3, trend.Count);
         // Çıpalar: Nisan, Mayıs, Haziran 1'i (UTC) — sırayla.
@@ -93,8 +93,8 @@ public sealed class FinansTrendTests(PostgresFixture fx)
         }
 
         // Delege doğrulaması: eski Home metodu = yeni metodun Gelir izdüşümü.
-        var eski = await reports.GetAylikGelirTrendAsync(2, simdi);
-        var yeni = await reports.GetAylikGelirGiderTrendAsync(2, simdi);
+        var eski = await reports.GetMonthlyRevenueTrendAsync(2, simdi);
+        var yeni = await reports.GetMonthlyRevenueExpenseTrendAsync(2, simdi);
         Assert.Equal(yeni.Select(n => (n.AyBas, n.Gelir)), eski.Select(n => (n.AyBas, n.Gelir)));
         Assert.Equal(750m, eski[0].Gelir); // Mayıs (elle)
         Assert.Equal(0m, eski[1].Gelir);   // Haziran boş

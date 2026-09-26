@@ -49,7 +49,7 @@
         <label>KDV Oranı<input name="kdvOrani" type="number" step="0.01" value="0.20" /></label>
         <label>Ödeme
             <select name="odemeYontemi">
-                @foreach (var o in Enum.GetValues<OdemeYontemi>())
+                @foreach (var o in Enum.GetValues<PaymentMethod>())
                 {
                     <option value="@o">@o</option>
                 }
@@ -237,7 +237,7 @@
         });
 
         // FAZ-64: ödeme durumları TEK sorguda (satır başına sorgu değil).
-        _durumlar = await Expenses.OdemeDurumlariAsync(_list);
+        _durumlar = await Expenses.PaymentStatusesAsync(_list);
         _kiralar = await Rentals.SearchAsync(new RentalFilter());
         _kiraMap = _kiralar.ToDictionary(r => r.Id, r => r.SozlesmeNo);
 

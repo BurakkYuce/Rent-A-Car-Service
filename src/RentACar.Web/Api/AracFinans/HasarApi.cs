@@ -31,13 +31,13 @@ public static class HasarApi
         g.MapGet("/{id:guid}", Detay);
         g.MapPost("", Olustur);
         g.MapPost("/{id:guid}/onaya-gonder", (Guid id, DamageFileService s, IDbContextFactory<AppDbContext> d, ICurrentUser u, CancellationToken ct)
-            => Gecis(id, s, d, u, x => s.OnayaGonderAsync(id, ct), ct));
+            => Gecis(id, s, d, u, x => s.SendForApprovalAsync(id, ct), ct));
         g.MapPost("/{id:guid}/onayla", (Guid id, HasarNotIstegi? i, DamageFileService s, IDbContextFactory<AppDbContext> d, ICurrentUser u, CancellationToken ct)
-            => Gecis(id, s, d, u, x => s.OnaylaAsync(id, Not(i), ct), ct));
+            => Gecis(id, s, d, u, x => s.ApproveAsync(id, Not(i), ct), ct));
         g.MapPost("/{id:guid}/reddet", (Guid id, HasarNotIstegi? i, DamageFileService s, IDbContextFactory<AppDbContext> d, ICurrentUser u, CancellationToken ct)
-            => Gecis(id, s, d, u, x => s.ReddetAsync(id, Not(i), ct), ct));
+            => Gecis(id, s, d, u, x => s.RejectAsync(id, Not(i), ct), ct));
         g.MapPost("/{id:guid}/kapat", (Guid id, DamageFileService s, IDbContextFactory<AppDbContext> d, ICurrentUser u, CancellationToken ct)
-            => Gecis(id, s, d, u, x => s.KapatAsync(id, ct), ct));
+            => Gecis(id, s, d, u, x => s.CloseAsync(id, ct), ct));
         return g;
     }
 
@@ -49,8 +49,8 @@ public static class HasarApi
         return AracFinansOrtak.Nz(i?.Not);
     }
 
-    private static readonly SiralamaHaritasi<HasarDto> Harita = SiralamaHaritasi<HasarDto>
-        .Olustur(f => f.Id)
+    private static readonly SortFieldMap<HasarDto> Harita = SortFieldMap<HasarDto>
+        .Create(f => f.Id)
         .Alan("no", f => f.No).Alan("plaka", f => f.Plaka).Alan("acilisTarihi", f => f.AcilisTarihi)
         .Alan("tahminiTutar", f => f.TahminiTutar).Alan("durum", f => f.Durum);
 
@@ -58,7 +58,7 @@ public static class HasarApi
         DamageFileService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, string? durum,
         Guid? vehicleId, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
-        var d = F5Ortak.EnumAdi<HasarDurum>(durum, "durum");
+        var d = F5Ortak.EnumAdi<DamageStatus>(durum, "durum");
         var liste = (await svc.ListAsync(ct)).Where(f => (d is null || f.Durum == d) && (vehicleId is null || f.VehicleId == vehicleId)).ToList();
         var fl = BranchScope.EffectiveFilter(kullanici);
         if (!fl.Unrestricted)
@@ -97,7 +97,7 @@ public static class HasarApi
     {
         var anahtar = IdempotencyBasligi.Anahtar(http);
         if (anahtar is { } a && await svc.GetAsync(a, ct) is { } m) // (1) ÖNCE mevcut kayıt
-            throw new MukerrerIslemException($"Bu hasar dosyası zaten kaydedildi (No {m.No}); yeni kayıt yazılmadı.",
+            throw new DuplicateOperationException($"Bu hasar dosyası zaten kaydedildi (No {m.No}); yeni kayıt yazılmadı.",
                 new MevcutIslem(m.Id, m.No, m.TahminiTutar ?? 0m, AracFinansOrtak.TemelDoviz,
                     m.VehicleId == i.VehicleId && m.TahminiTutar == i.TahminiTutar));
         AracFinansOrtak.BilgiTutari(i.TahminiTutar, "tahminiTutar");

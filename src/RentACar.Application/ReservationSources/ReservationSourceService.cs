@@ -6,7 +6,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.ReservationSources;
 
 /// <summary>
-/// Rezervasyon kaynağı master tanımı — <see cref="MasterTanimService{T}"/> ince alt sınıfı (O12d): doğrulama,
+/// Rezervasyon kaynağı master tanımı — <see cref="MasterDefinitionService{T}"/> ince alt sınıfı (O12d): doğrulama,
 /// kod benzersizliği, CRUD, OperationsWrite guard ve liste cache ("reservation-sources") tabandan gelir;
 /// burada <see cref="ReservationSourceInput"/> (kod, ad, aktif) üçlüsüne + FAZ-24 tedarikçi/oran
 /// alanlarına açılır.
@@ -19,12 +19,12 @@ namespace RentACar.Application.ReservationSources;
 ///
 /// <para><b>FAZ-49 kural matrisi:</b> alanlar iki sınıfa ayrılır — KURAL bayrakları (Uzatamaz,
 /// RezTarihleriDegisemez, ProvizyonYok, KmSinirsiz, AyniYonDrop, MaxGun) rezervasyon/kira
-/// akışında <see cref="RezKaynakKural"/> ile GERÇEKTEN uygulanır; geri kalan tutar/oran/işaret
+/// akışında <see cref="ReservationSourceRule"/> ile GERÇEKTEN uygulanır; geri kalan tutar/oran/işaret
 /// alanları BİLGİdir ve hiçbir hesaba girmez (KARARLAR.md FAZ-49). Ayrım entity'de alan alan
 /// yazılıdır; oranların fiyata dokunmadığı kırılgan regresyon testiyle kilitlidir.</para>
 /// </summary>
 public sealed class ReservationSourceService(IReservationSourceRepository repository, ICurrentUser currentUser, ITenantCache cache)
-    : MasterTanimService<ReservationSource>(repository, currentUser, cache, "reservation-sources", "rezervasyon kaynağı")
+    : MasterDefinitionService<ReservationSource>(repository, currentUser, cache, "reservation-sources", "rezervasyon kaynağı")
 {
     private readonly IReservationSourceRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
@@ -32,18 +32,18 @@ public sealed class ReservationSourceService(IReservationSourceRepository reposi
 
     /// <summary>Oran alanı üst sınırı — yüzde alanı numeric(5,2); 100'ün üstü tedarikçi oranı iş
     /// olarak anlamsız, negatif ise işaret hatası. DB kısıtından ÖNCE anlaşılır mesajla reddedilir.</summary>
-    private const decimal OranMax = 100m;
+    private const decimal RateMax = 100m;
 
     public Task<Guid> CreateAsync(ReservationSourceInput input, CancellationToken ct = default)
-        => CreateCoreAsync(input.Kod, input.Ad, input.Aktif, ct, e => Ek(e, input));
+        => CreateCoreAsync(input.Kod, input.Ad, input.Aktif, ct, e => Extra(e, input));
 
     public Task<bool> UpdateAsync(Guid id, ReservationSourceInput input, CancellationToken ct = default)
-        => UpdateCoreAsync(id, input.Kod, input.Ad, input.Aktif, ct, e => Ek(e, input));
+        => UpdateCoreAsync(id, input.Kod, input.Ad, input.Aktif, ct, e => Extra(e, input));
 
     /// <summary>F11.1a — full replacement with optimistic concurrency (409 <c>cakisma</c> on a stale version).
     /// The same extra-field hook as the create path (copy-constructor trap).</summary>
     public Task<bool> UpdateAsync(Guid id, ReservationSourceInput input, string expectedVersion, CancellationToken ct = default)
-        => UpdateCoreAsync(id, input.Kod, input.Ad, input.Aktif, expectedVersion, ct, e => Ek(e, input));
+        => UpdateCoreAsync(id, input.Kod, input.Ad, input.Aktif, expectedVersion, ct, e => Extra(e, input));
 
     /// <summary>
     /// "Aşağıya Yansıt": seçili kaynağın 3 oranını diğer <b>AKTİF</b> kaynaklara kopyalar.
@@ -58,26 +58,26 @@ public sealed class ReservationSourceService(IReservationSourceRepository reposi
     /// sonuç verirdi.</para>
     /// </summary>
     /// <returns>Güncellenen satır sayısı.</returns>
-    public async Task<int> OranlariYansitAsync(Guid kaynakId, CancellationToken ct = default)
+    public async Task<int> ReflectRatesAsync(Guid sourceId, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        var kaynak = await _repository.FindAsync(kaynakId, ct)
+        var source = await _repository.FindAsync(sourceId, ct)
             ?? throw new ValidationException("Kaynak bulunamadı.");
 
-        var adet = await _repository.OranlariYansitAsync(
-            kaynakId, kaynak.KiraOrani, kaynak.HizmetOrani, kaynak.DropOrani, ct);
+        var count = await _repository.ReflectRatesAsync(
+            sourceId, source.KiraOrani, source.HizmetOrani, source.DropOrani, ct);
         _cache.Invalidate("reservation-sources");
-        return adet;
+        return count;
     }
 
     /// <summary>Kod/Ad/Aktif dışındaki alanlar — create ve update yollarının İKİSİNDE de aynı
     /// kanca kullanılır (yalnız birine yazmak alanı sessizce düşürürdü).</summary>
-    private static void Ek(ReservationSource e, ReservationSourceInput input)
+    private static void Extra(ReservationSource e, ReservationSourceInput input)
     {
-        e.Tedarikci = Metin(input.Tedarikci, 128, "Tedarikçi");
-        e.KiraOrani = Oran(input.KiraOrani, "Kira oranı");
-        e.HizmetOrani = Oran(input.HizmetOrani, "Hizmet oranı");
-        e.DropOrani = Oran(input.DropOrani, "Drop oranı");
+        e.Tedarikci = Text(input.Tedarikci, 128, "Tedarikçi");
+        e.KiraOrani = Rate(input.KiraOrani, "Kira oranı");
+        e.HizmetOrani = Rate(input.HizmetOrani, "Hizmet oranı");
+        e.DropOrani = Rate(input.DropOrani, "Drop oranı");
 
         // ---- FAZ-49 kural matrisi ----------------------------------------------------------
         e.KaynakGrubu = input.KaynakGrubu;
@@ -88,7 +88,7 @@ public sealed class ReservationSourceService(IReservationSourceRepository reposi
         e.ProvizyonYok = input.ProvizyonYok;
         e.KmSinirsiz = input.KmSinirsiz;
         e.AyniYonDrop = input.AyniYonDrop;
-        e.MaxGun = MaxGun(input.MaxGun);
+        e.MaxGun = MaxDays(input.MaxGun);
 
         // BİLGİ alanları — hiçbir fiyat/komisyon/defter hesabına girmez (KARARLAR.md FAZ-49).
         e.MaliyetYansitma = input.MaliyetYansitma;
@@ -98,27 +98,27 @@ public sealed class ReservationSourceService(IReservationSourceRepository reposi
         e.MatrisNoShow = input.MatrisNoShow;
         e.MatrisUzatma = input.MatrisUzatma;
 
-        e.SigortaKaynakNo = Metin(input.SigortaKaynakNo, 64, "Sigorta kaynak no");
-        e.DropKaynakNo = Metin(input.DropKaynakNo, 64, "Drop kaynak no");
-        e.ProvizyonSecenek = Metin(input.ProvizyonSecenek, 64, "Provizyon seçeneği");
-        e.MuafiyatSecenek = Metin(input.MuafiyatSecenek, 64, "Muafiyet seçeneği");
+        e.SigortaKaynakNo = Text(input.SigortaKaynakNo, 64, "Sigorta kaynak no");
+        e.DropKaynakNo = Text(input.DropKaynakNo, 64, "Drop kaynak no");
+        e.ProvizyonSecenek = Text(input.ProvizyonSecenek, 64, "Provizyon seçeneği");
+        e.MuafiyatSecenek = Text(input.MuafiyatSecenek, 64, "Muafiyet seçeneği");
 
         e.ScdwDahil = input.ScdwDahil;
         e.CdwDahil = input.CdwDahil;
         e.LcfDahil = input.LcfDahil;
         e.PaiDahil = input.PaiDahil;
 
-        e.BebekKoltugu = Tutar(input.BebekKoltugu, "Bebek koltuğu tutarı");
-        e.Navigasyon = Tutar(input.Navigasyon, "Navigasyon tutarı");
-        e.EkSurucu = Tutar(input.EkSurucu, "Ek sürücü tutarı");
-        e.Wifi = Tutar(input.Wifi, "Wifi tutarı");
+        e.BebekKoltugu = Amount(input.BebekKoltugu, "Bebek koltuğu tutarı");
+        e.Navigasyon = Amount(input.Navigasyon, "Navigasyon tutarı");
+        e.EkSurucu = Amount(input.EkSurucu, "Ek sürücü tutarı");
+        e.Wifi = Amount(input.Wifi, "Wifi tutarı");
 
-        e.KomisyonOrani = Oran(input.KomisyonOrani, "Komisyon oranı");
-        e.OnOdemeOrani = Oran(input.OnOdemeOrani, "Ön ödeme oranı");
-        e.IndirimOrani = Oran(input.IndirimOrani, "İndirim oranı");
-        e.PuanOrani = Oran(input.PuanOrani, "Puan oranı");
+        e.KomisyonOrani = Rate(input.KomisyonOrani, "Komisyon oranı");
+        e.OnOdemeOrani = Rate(input.OnOdemeOrani, "Ön ödeme oranı");
+        e.IndirimOrani = Rate(input.IndirimOrani, "İndirim oranı");
+        e.PuanOrani = Rate(input.PuanOrani, "Puan oranı");
 
-        e.MailAdres = Metin(input.MailAdres, 256, "Mail adresi");
+        e.MailAdres = Text(input.MailAdres, 256, "Mail adresi");
         e.OtomatikMailGitme = input.OtomatikMailGitme;
         e.RiskAnalizYapma = input.RiskAnalizYapma;
         e.SubeGor = input.SubeGor;
@@ -127,19 +127,19 @@ public sealed class ReservationSourceService(IReservationSourceRepository reposi
         e.SadeceMusteriOdeme = input.SadeceMusteriOdeme;
     }
 
-    private static decimal? Oran(decimal? deger, string alan)
+    private static decimal? Rate(decimal? value, string alan)
     {
-        if (deger is not { } o) return null;
+        if (value is not { } o) return null;
         if (o < 0m) throw new ValidationException($"{alan} negatif olamaz.");
-        if (o > OranMax) throw new ValidationException($"{alan} en çok %{OranMax:0} olabilir.");
+        if (o > RateMax) throw new ValidationException($"{alan} en çok %{RateMax:0} olabilir.");
         return decimal.Round(o, 2, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>Ek hizmet varsayılan TUTARI (bilgi): negatif reddedilir, 4 haneye yuvarlanır
     /// (kolon numeric(19,4) — DB kısıtı yerine anlaşılır mesaj).</summary>
-    private static decimal? Tutar(decimal? deger, string alan)
+    private static decimal? Amount(decimal? value, string alan)
     {
-        if (deger is not { } t) return null;
+        if (value is not { } t) return null;
         if (t < 0m) throw new ValidationException($"{alan} negatif olamaz.");
         if (t > 9_999_999m) throw new ValidationException($"{alan} gerçekçi değil.");
         return decimal.Round(t, 4, MidpointRounding.AwayFromZero);
@@ -147,16 +147,16 @@ public sealed class ReservationSourceService(IReservationSourceRepository reposi
 
     /// <summary>KURAL alanı: 0 "sınır yok" DEĞİL, "hiç kiralanamaz" olurdu → 0 ve negatif reddedilir;
     /// sınır yoksa alan BOŞ bırakılır (null). Üst sınır 3650 gün (anti-typo).</summary>
-    private static int? MaxGun(int? deger)
+    private static int? MaxDays(int? value)
     {
-        if (deger is not { } g) return null;
+        if (value is not { } g) return null;
         if (g <= 0) throw new ValidationException("En fazla gün 0 veya negatif olamaz; sınır yoksa alanı boş bırakın.");
         if (g > 3650) throw new ValidationException("En fazla gün 3650'yi aşamaz.");
         return g;
     }
 
     /// <summary>Serbest metin: trim + boş→null + aşımda temiz red (DB varchar taşması 500 yerine).</summary>
-    private static string? Metin(string? s, int max, string alan)
+    private static string? Text(string? s, int max, string alan)
     {
         if (string.IsNullOrWhiteSpace(s)) return null;
         var t = s.Trim();

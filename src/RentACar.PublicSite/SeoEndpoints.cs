@@ -28,7 +28,7 @@ public static class SeoEndpoints
         });
 
         app.MapGet("/sitemap.xml", async (FleetShowcaseService showcase, BlogService blog,
-            RentACar.Application.SiteIcerik.SiteIcerikService icerik, CancellationToken ct) =>
+            RentACar.Application.SiteIcerik.SiteContentService icerik, CancellationToken ct) =>
         {
             var host = await showcase.GetCanonicalHostAsync(ct);
             if (host is null) return Results.NotFound(); // site hiç yayında değil
@@ -47,8 +47,8 @@ public static class SeoEndpoints
             // ve tamamen indekslenebilir statik SSR. Ana sayfadan link var ama sitemap'te
             // olmaması onu ikinci sınıf bir sayfa gibi gösteriyordu.
             urls.Add(Url(ns, kok + "/musaitlik"));
-            if ((await icerik.YayindakiSssAsync(ct)).Count > 0) urls.Add(Url(ns, kok + "/sss"));
-            foreach (var sf in await icerik.YayindakiSayfalarAsync(ct))
+            if ((await icerik.PublishedFaqAsync(ct)).Count > 0) urls.Add(Url(ns, kok + "/sss"));
+            foreach (var sf in await icerik.PublishedPagesAsync(ct))
                 urls.Add(Url(ns, $"{kok}/{sf.Slug}"));
 
             var yazilar = await blog.ListPublishedAsync(ct);
@@ -70,7 +70,7 @@ public static class SeoEndpoints
         // Host `GetCanonicalHostAsync`'ten: robots/sitemap ile AYNI kural (bkz. sınıf özeti) —
         // ajanın alıntıladığı adres, sayfalardaki `canonical` etiketiyle çelişmemeli.
         app.MapGet("/llms.txt", async (FleetShowcaseService showcase, BlogService blog,
-            BranchService subeler, RentACar.Application.SiteIcerik.SiteIcerikService icerik,
+            BranchService subeler, RentACar.Application.SiteIcerik.SiteContentService icerik,
             CancellationToken ct) =>
         {
             var host = await showcase.GetCanonicalHostAsync(ct);
@@ -152,8 +152,8 @@ public static class SeoEndpoints
             if (yazilar.Count > 0) sb.AppendLine($"- Blog: {kok}/blog");
             sb.AppendLine($"- İletişim: {kok}/iletisim");
             // SSS ve serbest içerik sayfaları YAYINDAYSA listelenir — sitemap ile aynı kapı.
-            if ((await icerik.YayindakiSssAsync(ct)).Count > 0) sb.AppendLine($"- Sık sorulan sorular: {kok}/sss");
-            foreach (var sf in await icerik.YayindakiSayfalarAsync(ct))
+            if ((await icerik.PublishedFaqAsync(ct)).Count > 0) sb.AppendLine($"- Sık sorulan sorular: {kok}/sss");
+            foreach (var sf in await icerik.PublishedPagesAsync(ct))
                 sb.AppendLine($"- {sf.Baslik}: {kok}/{sf.Slug}");
 
             return Results.Text(sb.ToString(), "text/plain; charset=utf-8");

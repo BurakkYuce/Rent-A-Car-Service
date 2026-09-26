@@ -1,7 +1,7 @@
 @page "/depozito"
 @attribute [Authorize(Policy = "izin:FinanceWrite")]
 @inject CustomerService Customers
-@inject RentACar.Application.Finance.DepozitoService Depozitolar
+@inject RentACar.Application.Finance.DepositService Depozitolar
 
 <PageTitle>Depozito — RentPro</PageTitle>
 
@@ -64,7 +64,7 @@
         _custMap = custs.ToDictionary(c => c.Id, c => c.DisplayName);
         foreach (var c in custs)
         {
-            var b = await Depozitolar.GetBakiyeAsync(c.Id);
+            var b = await Depozitolar.GetBalanceAsync(c.Id);
             if (b != 0m) _bakiyeler[c.Id] = b;
         }
     }

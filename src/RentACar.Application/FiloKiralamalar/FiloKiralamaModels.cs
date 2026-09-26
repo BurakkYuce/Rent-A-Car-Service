@@ -66,9 +66,9 @@ public sealed class FiloKiralamaFilter
     public string? Ara { get; set; }
     public DateTimeOffset? Bas { get; set; }
     public DateTimeOffset? Bit { get; set; }
-    public RentACar.Domain.Enums.FiloKiraDurum? Durum { get; set; }
+    public RentACar.Domain.Enums.FleetRentalStatus? Durum { get; set; }
     /// <summary>F5.1 adversarial M3 — aracın şubesine göre kapsam (varsayılan: sınırsız → eski davranış).
-    /// <see cref="FiloKiralamaService.ListKapsamliAsync"/> çağıranın kapsamıyla doldurur.</summary>
+    /// <see cref="FleetRentalService.ListScopedAsync"/> çağıranın kapsamıyla doldurur.</summary>
     public RentACar.Application.Authorization.BranchScope.BranchFilter Kapsam { get; set; }
 }
 

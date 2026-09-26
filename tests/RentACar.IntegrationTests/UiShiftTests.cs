@@ -79,7 +79,7 @@ public sealed class UiShiftTests(WebFixture fx)
         var branches = sp.GetRequiredService<BranchService>();
         await branches.CreateAsync(new BranchInput { Kod = "SA", Ad = "SubeA" });
         await branches.CreateAsync(new BranchInput { Kod = "SB", Ad = "SubeB" });
-        var staff = sp.GetRequiredService<PersonelService>();
+        var staff = sp.GetRequiredService<PersonnelService>();
         e.StaffA = await staff.CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ali", Soyad = "Veli", Sube = "SubeA" });
         e.StaffB = await staff.CreateAsync(new PersonelInput { Kod = "P2", Ad = "Ayşe", Soyad = "Kara", Sube = "SubeB" });
         return e;

@@ -24,7 +24,7 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
     private static async Task<Guid> KurKiraAsync(IServiceProvider sp, string plaka)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
-        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Fark", Soyad = "M" });
+        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Fark", Soyad = "M" });
         return await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 2m });
     }
@@ -43,16 +43,16 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
 
         // 1) Dönüşten ÖNCE faturala → baz 300; cari borç 300.
         await invoices.CreateFromRentalAsync(id);
-        Assert.Equal(300m, await cash.GetCariBalanceAsync(cariId));
+        Assert.Equal(300m, await cash.GetAccountBalanceAsync(cariId));
 
         // 2) Teslim + dönüş: 300 km aşım × 2 = 600 fazla km bedeli → sözleşme GenelToplam 900.
-        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
-        await rentals.ReturnAsync(id, donusKm: 1600, donusYakit: 8, Bas.AddDays(3));
+        await rentals.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8);
+        await rentals.ReturnAsync(id, returnKm: 1600, returnFuel: 8, Bas.AddDays(3));
         Assert.Equal(900m, (await rentals.GetAsync(id))!.GenelToplam);
 
         // 3) Tekrar faturala → FARK faturası 600 (900 − 300); cari borç ARTIK 900 (defter = sözleşme).
         await invoices.CreateFromRentalAsync(id);
-        Assert.Equal(900m, await cash.GetCariBalanceAsync(cariId));
+        Assert.Equal(900m, await cash.GetAccountBalanceAsync(cariId));
 
         // 4) Üçüncü faturalama → yeni ek bedel yok → temiz red.
         var ex = await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateFromRentalAsync(id));
@@ -70,8 +70,8 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
         var id = await KurKiraAsync(sp, "34 FK 02");
 
         await invoices.CreateFromRentalAsync(id);
-        await rentals.DeliverAsync(id, cikisKm: 0, cikisYakit: 8);
-        await rentals.ReturnAsync(id, donusKm: 500, donusYakit: 8, Bas.AddDays(3)); // 200 aşım × 2 = 400
+        await rentals.DeliverAsync(id, pickupKm: 0, pickupFuel: 8);
+        await rentals.ReturnAsync(id, returnKm: 500, returnFuel: 8, Bas.AddDays(3)); // 200 aşım × 2 = 400
         var farkId = await invoices.CreateFromRentalAsync(id);
 
         var fark = await sp.GetRequiredService<IInvoiceRepository>().FindAsync(farkId);
@@ -93,8 +93,8 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
             id = await KurKiraAsync(sp, "34 FK 04");
             cariId = (await sp.GetRequiredService<RentalService>().GetAsync(id))!.MusteriId;
             await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(id);
-            await sp.GetRequiredService<RentalService>().DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
-            await sp.GetRequiredService<RentalService>().ReturnAsync(id, donusKm: 1600, donusYakit: 8, Bas.AddDays(3));
+            await sp.GetRequiredService<RentalService>().DeliverAsync(id, pickupKm: 1000, pickupFuel: 8);
+            await sp.GetRequiredService<RentalService>().ReturnAsync(id, returnKm: 1600, returnFuel: 8, Bas.AddDays(3));
         }
 
         // 10 eşzamanlı fark denemesi — her biri kendi scope'unda (kendi DbContext'i).
@@ -108,7 +108,7 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
 
         using var check = host.ScopeFor(tenant);
         Assert.Equal(1, basari);                                                            // yalnız 1 fark başardı
-        Assert.Equal(900m, await check.ServiceProvider.GetRequiredService<CashService>().GetCariBalanceAsync(cariId)); // 12× değil
+        Assert.Equal(900m, await check.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cariId)); // 12× değil
     }
 
     [Fact]
@@ -125,12 +125,12 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
         var cariId = (await rentals.GetAsync(id))!.MusteriId;
 
         var bazId = await invoices.CreateFromRentalAsync(id);        // base 300
-        await invoices.CreateIadeAsync(bazId);                        // iade → cari 0
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cariId));
-        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
-        await rentals.ReturnAsync(id, donusKm: 1600, donusYakit: 8, Bas.AddDays(3)); // sözleşme 900
+        await invoices.CreateRefundAsync(bazId);                        // iade → cari 0
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cariId));
+        await rentals.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8);
+        await rentals.ReturnAsync(id, returnKm: 1600, returnFuel: 8, Bas.AddDays(3)); // sözleşme 900
         await invoices.CreateFromRentalAsync(id);                     // fark = 900 − 0 (iade netlendi)
-        Assert.Equal(900m, await cash.GetCariBalanceAsync(cariId));   // defter = sözleşme
+        Assert.Equal(900m, await cash.GetAccountBalanceAsync(cariId));   // defter = sözleşme
     }
 
     [Fact]
@@ -146,9 +146,9 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
         var cariId = (await sp.GetRequiredService<RentalService>().GetAsync(id))!.MusteriId;
 
         var bazId = await invoices.CreateFromRentalAsync(id);        // 300
-        await invoices.CreateIadeAsync(bazId);                        // iade → 0
+        await invoices.CreateRefundAsync(bazId);                        // iade → 0
         await invoices.CreateFromRentalAsync(id);                     // yeniden → 300 (fark yolu, iade netlendi)
-        Assert.Equal(300m, await cash.GetCariBalanceAsync(cariId));
+        Assert.Equal(300m, await cash.GetAccountBalanceAsync(cariId));
     }
 
     [Fact]
@@ -166,16 +166,16 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
         var cariId = (await rentals.GetAsync(id))!.MusteriId;
 
         await invoices.CreateFromRentalAsync(id);                    // base 300
-        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
-        await rentals.ReturnAsync(id, donusKm: 1600, donusYakit: 8, Bas.AddDays(3)); // sözleşme 900
+        await rentals.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8);
+        await rentals.ReturnAsync(id, returnKm: 1600, returnFuel: 8, Bas.AddDays(3)); // sözleşme 900
         var fark1 = await invoices.CreateFromRentalAsync(id);        // fark 600 (sıra 1) → cari 900
-        Assert.Equal(900m, await cash.GetCariBalanceAsync(cariId));
+        Assert.Equal(900m, await cash.GetAccountBalanceAsync(cariId));
 
-        await invoices.CreateIadeAsync(fark1);                        // fark'ı iade et → cari 300
-        Assert.Equal(300m, await cash.GetCariBalanceAsync(cariId));
+        await invoices.CreateRefundAsync(fark1);                        // fark'ı iade et → cari 300
+        Assert.Equal(300m, await cash.GetAccountBalanceAsync(cariId));
 
         await invoices.CreateFromRentalAsync(id);                     // yeniden fark 600 (sıra 2) → cari 900
-        Assert.Equal(900m, await cash.GetCariBalanceAsync(cariId));   // defter = sözleşme (kilitlenmedi)
+        Assert.Equal(900m, await cash.GetAccountBalanceAsync(cariId));   // defter = sözleşme (kilitlenmedi)
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public sealed class FarkFaturasiTests(PostgresFixture fx)
         var cariId = (await sp.GetRequiredService<RentalService>().GetAsync(id))!.MusteriId;
 
         await invoices.CreateFromRentalAsync(id);
-        Assert.Equal(300m, await cash.GetCariBalanceAsync(cariId));
+        Assert.Equal(300m, await cash.GetAccountBalanceAsync(cariId));
         // İkinci kez (değişiklik yok) → temiz red.
         await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateFromRentalAsync(id));
     }

@@ -89,7 +89,7 @@ public static class PanelApi
 
     private static async Task<Ok<PanelOzetiYaniti>> Ozet(
         HttpContext http, RentalService kiralar, ReservationService rezervasyonlar, CashService kasa,
-        ReportService raporlar, DashboardService pano, VadeService vade, SikayetService sikayet,
+        ReportService raporlar, DashboardService pano, DueService vade, ComplaintService sikayet,
         PublicBookingRequestService talepler, TenantStatusCache kiraciDurum, ITenantContext kiraci,
         CancellationToken ct)
     {
@@ -101,7 +101,7 @@ public static class PanelApi
         // Dönüşler: açık kiralar (Kirada ⇒ gerçek dönüş yok: ReturnAsync ikisini AYNI anda yazar), şube kapsamlı.
         var acikKira = await kiralar.SearchAsync(new RentalFilter { Durum = RentalStatus.Kirada }, ct);
         var islemSayilari = finansYazma && acikKira.Count > 0
-            ? await kasa.GetRentalIslemSayilariAsync(acikKira.Select(r => r.Id).ToList(), ct)
+            ? await kasa.GetRentalTransactionCountsAsync(acikKira.Select(r => r.Id).ToList(), ct)
             : new Dictionary<Guid, int>();
         List<PanelDonusSatiri> Donus(Func<DateOnly, bool> kosul) => acikKira
             .Where(r => kosul(TenantGun.Gun(r.BitTar)))
@@ -137,29 +137,29 @@ public static class PanelApi
         {
             try
             {
-                var o = await talepler.OzetAsync(ct);
+                var o = await talepler.SummaryAsync(ct);
                 siteTalebi = new SiteTalebiOzeti(o.Yeni, o.EnEskiGun);
             }
             catch (ValidationException) { siteTalebi = null; }
         }
 
         var filo = await raporlar.GetFleetUtilizationAsync(ct);
-        var kmGecen = (await raporlar.GetPeriyodikServisAsync(ct: ct)).Count(s => s.KalanKm < 0);
+        var kmGecen = (await raporlar.GetPeriodicServiceAsync(ct: ct)).Count(s => s.KalanKm < 0);
 
         var vadeler = await vade.GetAllAsync(ct: ct);
         VadeKademesi Kademe(string tur) => new(
-            vadeler.Count(v => v.Tur == tur && v.Bucket == VadeBucket.YediGun),
-            vadeler.Count(v => v.Tur == tur && v.Bucket == VadeBucket.OtuzGun),
-            vadeler.Count(v => v.Tur == tur && v.Bucket == VadeBucket.Gecmis));
+            vadeler.Count(v => v.Tur == tur && v.Bucket == DueBucket.YediGun),
+            vadeler.Count(v => v.Tur == tur && v.Bucket == DueBucket.OtuzGun),
+            vadeler.Count(v => v.Tur == tur && v.Bucket == DueBucket.Gecmis));
         var uyarilar = await vade.GetWarningsAsync(ct: ct);
-        var acikSikayet = (await sikayet.ListAsync(ct)).Count(s => s.Durum == SikayetDurum.Acik);
+        var acikSikayet = (await sikayet.ListAsync(ct)).Count(s => s.Durum == ComplaintStatus.Acik);
 
         PanelFinans? finans = null;
         if (raporOkuma)
         {
             var d = await pano.GetAsync(simdi, ct);
-            var havuz = (await raporlar.GetFiloAnalizAsync(ct: ct)).HavuzKpi;
-            var trend = await raporlar.GetAylikGelirTrendAsync(6, ct: ct);
+            var havuz = (await raporlar.GetFleetAnalysisAsync(ct: ct)).HavuzKpi;
+            var trend = await raporlar.GetMonthlyRevenueTrendAsync(6, ct: ct);
             finans = new PanelFinans(d.KasaBakiye, d.BankaBakiye, d.AcikBakiye, d.BugunTahsilatTutar, d.BugunTahsilatAdet,
                 havuz?.DolulukYuzde, havuz?.RevPacd, havuz?.Adr,
                 trend.Select(t => new AylikGelir(t.AyBas, t.Gelir)).ToList());
@@ -169,7 +169,7 @@ public static class PanelApi
             bugun,
             new PanelKpi(filo.Toplam, filo.Kirada, filo.Musait, filo.Serviste, acikRez.Count, kmGecen, cikisGec.Count, siteTalebi),
             new PanelVade(Kademe("Trafik"), Kademe("Kasko"), Kademe("Muayene"),
-                uyarilar.Count(w => w.Bucket == VadeBucket.Gecmis), uyarilar.Count(w => w.Bucket != VadeBucket.Gecmis), acikSikayet),
+                uyarilar.Count(w => w.Bucket == DueBucket.Gecmis), uyarilar.Count(w => w.Bucket != DueBucket.Gecmis), acikSikayet),
             new PanelDonusKovalari(donusGec, donusBugun, donusYarin, PanelSekme.Etkin(null, donusGec.Count)),
             new PanelCikisKovalari(cikisGec, cikisBugun, cikisYarin, PanelSekme.CikisEtkin(null)),
             finans));

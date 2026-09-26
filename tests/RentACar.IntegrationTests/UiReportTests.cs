@@ -80,8 +80,8 @@ public sealed partial class UiReportTests(WebFixture fx)
         }
         await fx.PilotYapAsync(e.TenantId, true);
 
-        var a = new Customer { Tip = CariType.Bireysel, Ad = MusteriA, Soyad = "Deniz", CepTel = "05320000001" };
-        var b = new Customer { Tip = CariType.Bireysel, Ad = AnonimGercekAd, Soyad = "Kisi", CepTel = "05329999999", AnonimAd = true, AnonimTelefon = true };
+        var a = new Customer { Tip = CustomerType.Bireysel, Ad = MusteriA, Soyad = "Deniz", CepTel = "05320000001" };
+        var b = new Customer { Tip = CustomerType.Bireysel, Ad = AnonimGercekAd, Soyad = "Kisi", CepTel = "05329999999", AnonimAd = true, AnonimTelefon = true };
         var va = new Vehicle { Plaka = "34RPA" + Guid.NewGuid().ToString("N")[..3].ToUpperInvariant(), Durum = VehicleStatus.Musait, Sube = "SubeA", Grup = "C" };
         var vb = new Vehicle { Plaka = "34RPB" + Guid.NewGuid().ToString("N")[..3].ToUpperInvariant(), Durum = VehicleStatus.Musait, Sube = "SubeB", Grup = "D" };
         await WriteAsync(e.TenantId, db => { db.Customers.AddRange(a, b); db.Vehicles.AddRange(va, vb); });
@@ -92,7 +92,7 @@ public sealed partial class UiReportTests(WebFixture fx)
         using var scope = host.ScopeFor(e.TenantId);
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Genel, NetTutar = 1000m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.Nakit });
         var sales = sp.GetRequiredService<VehicleSaleService>();
         await sales.CreateAsync(new VehicleSaleInput { VehicleId = va.Id, AliciCariId = a.Id, SatisNet = 5000m, KdvOrani = 0.20m });
         await sales.CreateAsync(new VehicleSaleInput { VehicleId = vb.Id, AliciCariId = b.Id, SatisNet = 1000m, KdvOrani = 0.20m });

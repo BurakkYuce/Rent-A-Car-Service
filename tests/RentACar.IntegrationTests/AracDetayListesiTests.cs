@@ -77,7 +77,7 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<VehicleService>();
         var arac = await svc.CreateAsync(new VehicleInput { Plaka = "34 DT 10" });
 
-        await sp.GetRequiredService<AracKrediService>().CreateAsync(new AracKrediInput
+        await sp.GetRequiredService<VehicleLoanService>().CreateAsync(new AracKrediInput
         { VehicleId = arac, BankaAdi = "X Bankası", KrediTutari = 100000m, TaksitSayisi = 12 });
 
         var reg = sp.GetRequiredService<RegulationService>();
@@ -88,7 +88,7 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
         await reg.AddInsuranceAsync(arac, InsuranceType.Kasko, T0.AddDays(-10), T0.AddDays(355), 9000m, "K1", "Sig", null);
         await reg.AddInsuranceAsync(arac, InsuranceType.Trafik, T0.AddDays(-10), T0.AddDays(200), 3000m, "T1", "Sig", null);
 
-        var row = Assert.Single(await svc.ListDetayAsync());
+        var row = Assert.Single(await svc.ListDetailAsync());
         Assert.Equal("X Bankası", row.KrediBanka);
         Assert.Equal(T0.AddDays(330), row.MuayeneBitis);   // en geç biten
         Assert.Equal(T0.AddDays(355), row.KaskoBitis);
@@ -108,14 +108,14 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
         { Plaka = "34 DT 20", Kiralayan = "Eski Kiracı (not)", KiraBitTar = T0.AddDays(99) });
 
         var gercekMusteri = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "Gerçek Kiracı A.Ş." });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Gerçek Kiracı A.Ş." });
         var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
             MusteriId = gercekMusteri, VehicleId = arac,
             BasTar = T0.AddDays(-2), BitTar = T0.AddDays(3), GunlukUcret = 1000m
         });
 
-        var row = Assert.Single(await svc.ListDetayAsync());
+        var row = Assert.Single(await svc.ListDetailAsync());
         // Liste GERÇEK kirayı göstermeli — nottaki değeri değil.
         Assert.Equal("Gerçek Kiracı A.Ş.", row.AktifKiraMusteri);
         Assert.Equal(T0.AddDays(3), row.AktifKiraBitis);
@@ -126,7 +126,7 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
 
         // Kira kapanınca aktif kira alanları BOŞALMALI (depolanmadığının kanıtı).
         await sp.GetRequiredService<RentalService>().CancelAsync(kira);
-        var sonra = Assert.Single(await svc.ListDetayAsync());
+        var sonra = Assert.Single(await svc.ListDetailAsync());
         Assert.Null(sonra.AktifKiraMusteri);
         Assert.Null(sonra.AktifKiraBitis);
         Assert.Equal("Eski Kiracı (not)", sonra.Arac.Kiralayan);   // not hâlâ duruyor
@@ -141,7 +141,7 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<VehicleService>();
         var arac = await svc.CreateAsync(new VehicleInput { Plaka = "34 DT 30" });
         var alici = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "Alıcı A.Ş." });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Alıcı A.Ş." });
 
         await sp.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput
         {
@@ -150,7 +150,7 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
             IhaleTarihi = T0.AddDays(-5), IhaleFirmasi = "Oto İhale A.Ş.", NoterSatisTarihi = T0.AddDays(-1)
         });
 
-        var row = Assert.Single(await svc.ListDetayAsync());
+        var row = Assert.Single(await svc.ListDetailAsync());
         Assert.Equal(550000m, row.SatisHedefFiyat);
         Assert.Equal(T0.AddDays(-5), row.IhaleTarihi);
         Assert.Equal("Oto İhale A.Ş.", row.IhaleFirmasi);
@@ -171,20 +171,20 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
         await svc.CreateAsync(new VehicleInput
         { Plaka = "35 CC 03", Marka = "Fiat", Sube = "Merkez", Durum = VehicleStatus.Musait });
 
-        Assert.Equal(3, (await svc.ListDetayAsync()).Count);
-        Assert.Equal(3, (await svc.ListDetayAsync(new VehicleDetayFilter())).Count);
+        Assert.Equal(3, (await svc.ListDetailAsync()).Count);
+        Assert.Equal(3, (await svc.ListDetailAsync(new VehicleDetayFilter())).Count);
 
         // Plaka BOŞLUKLU girişle de bulunmalı (DB'de normalize).
-        Assert.Equal("34AL01", Assert.Single(await svc.ListDetayAsync(
+        Assert.Equal("34AL01", Assert.Single(await svc.ListDetailAsync(
             new VehicleDetayFilter { Ara = "34 AL" })).Arac.Plaka);
         // Marka / belge no
-        Assert.Equal(2, (await svc.ListDetayAsync(new VehicleDetayFilter { Ara = "fiat" })).Count);
-        Assert.Single(await svc.ListDetayAsync(new VehicleDetayFilter { Ara = "BLG-B" }));
+        Assert.Equal(2, (await svc.ListDetailAsync(new VehicleDetayFilter { Ara = "fiat" })).Count);
+        Assert.Single(await svc.ListDetailAsync(new VehicleDetayFilter { Ara = "BLG-B" }));
 
         // Şube + durum
-        Assert.Equal(2, (await svc.ListDetayAsync(new VehicleDetayFilter { Sube = "Merkez" })).Count);
-        Assert.Single(await svc.ListDetayAsync(new VehicleDetayFilter { Durum = VehicleStatus.Serviste }));
-        Assert.Empty(await svc.ListDetayAsync(new VehicleDetayFilter { Sube = "YokBoyle" }));
+        Assert.Equal(2, (await svc.ListDetailAsync(new VehicleDetayFilter { Sube = "Merkez" })).Count);
+        Assert.Single(await svc.ListDetailAsync(new VehicleDetayFilter { Durum = VehicleStatus.Serviste }));
+        Assert.Empty(await svc.ListDetailAsync(new VehicleDetayFilter { Sube = "YokBoyle" }));
     }
 
     [Fact]
@@ -197,7 +197,7 @@ public sealed class AracDetayListesiTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var svc = s2.ServiceProvider.GetRequiredService<VehicleService>();
-        Assert.Empty(await svc.ListDetayAsync());
-        Assert.Empty(await svc.ListDetayAsync(new VehicleDetayFilter { Ara = "GIZLI" }));
+        Assert.Empty(await svc.ListDetailAsync());
+        Assert.Empty(await svc.ListDetailAsync(new VehicleDetayFilter { Ara = "GIZLI" }));
     }
 }

@@ -93,12 +93,12 @@ public sealed class ListSearchTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
         // KVKK/F2: TC'li kayıt SERVİS üzerinden açılır (düz metin DB'ye yazılmaz; arama blind-index ile).
-        await svc.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ahmet", Soyad = "Yılmaz", TcKimlik = "10000000146" });
+        await svc.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ahmet", Soyad = "Yılmaz", TcKimlik = "10000000146" });
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Customers.Add(new Customer { Tip = CariType.Kurumsal, Unvan = "Yılmaz Ltd", VergiNo = "1234567890" });
-            db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = "Mehmet", Soyad = "Demir" });
+            db.Customers.Add(new Customer { Tip = CustomerType.Kurumsal, Unvan = "Yılmaz Ltd", VergiNo = "1234567890" });
+            db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "Mehmet", Soyad = "Demir" });
             await db.SaveChangesAsync();
         }
 

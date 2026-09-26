@@ -27,7 +27,7 @@ public sealed class RezSartTests(PostgresFixture fx)
 
     private static async Task<Guid> MusteriAsync(IServiceProvider sp, string ad = "Talep", string soyad = "Sahibi")
         => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = ad, Soyad = soyad });
+        { Tip = CustomerType.Bireysel, Ad = ad, Soyad = soyad });
 
     [Fact]
     public async Task Create_roundtrips_ve_bekleyen_olarak_baslar()
@@ -36,7 +36,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var m = await MusteriAsync(sp);
-        var svc = sp.GetRequiredService<RezSartService>();
+        var svc = sp.GetRequiredService<ReservationTermService>();
 
         var bas = DateTimeOffset.UtcNow.Date.AddDays(3);
         var id = await svc.CreateAsync(new RezSartInput
@@ -63,7 +63,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var m = await MusteriAsync(sp);
-        var svc = sp.GetRequiredService<RezSartService>();
+        var svc = sp.GetRequiredService<ReservationTermService>();
 
         await Assert.ThrowsAsync<ValidationException>(
             () => svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "   " }));
@@ -83,7 +83,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var m = await MusteriAsync(sp);
-        var svc = sp.GetRequiredService<RezSartService>();
+        var svc = sp.GetRequiredService<ReservationTermService>();
 
         var g = DateTimeOffset.UtcNow;
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new RezSartInput
@@ -101,14 +101,14 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var m = await MusteriAsync(sp);
-        var svc = sp.GetRequiredService<RezSartService>();
+        var svc = sp.GetRequiredService<ReservationTermService>();
 
         // Senaryo elle: 3 talep, 2'si karşılandı, 1'i bekliyor.
         var a = await svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "A" });
         var b = await svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "B" });
         await svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "C" });
-        await svc.KarsilandiIsaretleAsync(a, "Ayşe");
-        await svc.KarsilandiIsaretleAsync(b);
+        await svc.MarkFulfilledAsync(a, "Ayşe");
+        await svc.MarkFulfilledAsync(b);
 
         Assert.Equal(3, (await svc.ListAsync()).Count);
         Assert.Equal(2, (await svc.ListAsync(new RezSartFilter { Karsilandi = true })).Count);
@@ -129,7 +129,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var m1 = await MusteriAsync(sp, "Bir", "Musteri");
         var m2 = await MusteriAsync(sp, "Iki", "Musteri");
-        var svc = sp.GetRequiredService<RezSartService>();
+        var svc = sp.GetRequiredService<ReservationTermService>();
 
         var dun = Simdi().AddDays(-1);
         var geven = Simdi().AddDays(-10);
@@ -153,18 +153,18 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var m = await MusteriAsync(sp);
-        var svc = sp.GetRequiredService<RezSartService>();
+        var svc = sp.GetRequiredService<ReservationTermService>();
 
         var id = await svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "Tek sefer" });
-        await svc.KarsilandiIsaretleAsync(id);
+        await svc.MarkFulfilledAsync(id);
         var ilk = (await svc.GetAsync(id))!.KarsilamaTarihi;
         Assert.NotNull(ilk);
 
         await Task.Delay(30);
-        await svc.KarsilandiIsaretleAsync(id);
+        await svc.MarkFulfilledAsync(id);
         Assert.Equal(ilk, (await svc.GetAsync(id))!.KarsilamaTarihi);   // idempotent
 
-        await svc.KarsilamaGeriAlAsync(id);
+        await svc.UndoFulfillmentAsync(id);
         Assert.Null((await svc.GetAsync(id))!.KarsilamaTarihi);
     }
 
@@ -175,7 +175,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var m = await MusteriAsync(sp);
-        var svc = sp.GetRequiredService<RezSartService>();
+        var svc = sp.GetRequiredService<ReservationTermService>();
 
         var eski = Simdi().AddDays(-20);
         var id = await svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "Eski talep", TalepTarihi = eski });
@@ -196,8 +196,8 @@ public sealed class RezSartTests(PostgresFixture fx)
 
         // Muhasebe: FinanceWrite var, OperationsWrite YOK.
         using var s = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        var svc = s.ServiceProvider.GetRequiredService<RezSartService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        var svc = s.ServiceProvider.GetRequiredService<ReservationTermService>();
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "Yetkisiz" }));
     }
 
@@ -211,12 +211,12 @@ public sealed class RezSartTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var m = await MusteriAsync(s1.ServiceProvider);
-            await s1.ServiceProvider.GetRequiredService<RezSartService>()
+            await s1.ServiceProvider.GetRequiredService<ReservationTermService>()
                 .CreateAsync(new RezSartInput { MusteriId = m, Sart = "T1 gizli talep" });
         }
 
         using var s2 = host.ScopeFor(t2);
-        var svc2 = s2.ServiceProvider.GetRequiredService<RezSartService>();
+        var svc2 = s2.ServiceProvider.GetRequiredService<ReservationTermService>();
         Assert.Empty(await svc2.ListAsync());
 
         var m2 = await MusteriAsync(s2.ServiceProvider);
@@ -236,7 +236,7 @@ public sealed class RezSartTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(t2);
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-            s2.ServiceProvider.GetRequiredService<RezSartService>()
+            s2.ServiceProvider.GetRequiredService<ReservationTermService>()
                 .CreateAsync(new RezSartInput { MusteriId = yabanciMusteri, Sart = "Sızıntı denemesi" }));
         Assert.Contains("müşteri bulunamadı", ex.Message);
     }

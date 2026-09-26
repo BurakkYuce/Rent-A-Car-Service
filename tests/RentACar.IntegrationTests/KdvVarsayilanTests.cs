@@ -32,7 +32,7 @@ public sealed class KdvVarsayilanTests(PostgresFixture fx)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Kdv", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "Kdv", Soyad = "M" });
         return (m, v);
     }
 
@@ -126,7 +126,7 @@ public sealed class KdvVarsayilanTests(PostgresFixture fx)
         var (m, v) = await SeedAsync(sp, "34 KV 06");
 
         // Önizleme: "Günlük" NET 100 × 3g → 330 (gross-up %10) — kayıtla bit-eş; Net/Kdv %10'dan.
-        var oniz = await sp.GetRequiredService<KiraHesapService>().HesaplaAsync(new KiraHesapIstek(
+        var oniz = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(new KiraHesapIstek(
             VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: 100m,
             FiyatTuru: "Günlük", Doviz: null, CikisOfisi: null, EkHizmetler: [], MusteriId: m));
         Assert.Equal(330m, oniz.GenelToplam);
@@ -140,7 +140,7 @@ public sealed class KdvVarsayilanTests(PostgresFixture fx)
         var vg = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 KV 07", Grup = "EKO" });
         var genc = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Genc", Soyad = "K", DogumTarihi = Bas.AddYears(-22).AddDays(-1) });
+        { Tip = CustomerType.Bireysel, Ad = "Genc", Soyad = "K", DogumTarihi = Bas.AddYears(-22).AddDays(-1) });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = genc, VehicleId = vg, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 1000m });
         var satir = (await sp.GetRequiredService<RentACar.Application.RentalAddOns.RentalAddOnService>()
@@ -217,9 +217,9 @@ public sealed class KdvVarsayilanTests(PostgresFixture fx)
 
         // Bozuk kayıt (aralık-dışı; eski/elle veri) fiyatı saptırmaz — 0.20'ye düşer.
         await TenantKdvAsync(sp, 5m);
-        Assert.Equal(0.20m, await sp.GetRequiredService<KdvVarsayilan>().OranAsync());
+        Assert.Equal(0.20m, await sp.GetRequiredService<VatDefault>().RateAsync());
 
         await TenantKdvAsync(sp, 0.10m);
-        Assert.Equal(0.10m, await sp.GetRequiredService<KdvVarsayilan>().OranAsync());
+        Assert.Equal(0.10m, await sp.GetRequiredService<VatDefault>().RateAsync());
     }
 }

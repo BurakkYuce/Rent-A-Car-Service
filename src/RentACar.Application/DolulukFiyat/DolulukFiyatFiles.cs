@@ -5,12 +5,12 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.DolulukFiyat;
 
-public interface IDolulukFiyatKuralRepository : IVersionedRepository<DolulukFiyatKural>
+public interface IOccupancyPriceRuleRepository : IVersionedRepository<DolulukFiyatKural>
 {
     Task<IReadOnlyList<DolulukFiyatKural>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<DolulukFiyatKural>> ListActiveAsync(CancellationToken ct = default);
     Task<DolulukFiyatKural?> FindAsync(Guid id, CancellationToken ct = default);
-    Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default);
+    Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default);
     Task CreateAsync(DolulukFiyatKural row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<DolulukFiyatKural> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
@@ -21,8 +21,8 @@ public interface IDolulukFiyatKuralRepository : IVersionedRepository<DolulukFiya
 /// (0 araçlı grupta %0/%100 anlamsız — surge tetiklenmez).</summary>
 public interface IOccupancyProvider
 {
-    Task<decimal?> GetGrupDolulukYuzdeAsync(
-        string grupKod, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+    Task<decimal?> GetGroupOccupancyPercentAsync(
+        string groupCode, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 }
 
 /// <summary>Doluluk fiyat kuralı giriş modeli.</summary>
@@ -69,7 +69,7 @@ public sealed record DolulukKademeSatiri(int EsikYuzde, decimal CarpanYuzde);
 
 /// <summary>Doluluk fiyat kuralı master iş mantığı (FAZ 3.A7). Yazma OperationsWrite; Esik 1..100,
 /// Carpan 0..50 (DB CHECK ile çift savunma).</summary>
-public sealed class DolulukFiyatKuralService(IDolulukFiyatKuralRepository repository, ICurrentUser currentUser)
+public sealed class OccupancyPriceRuleService(IOccupancyPriceRuleRepository repository, ICurrentUser currentUser)
 {
     public Task<IReadOnlyList<DolulukFiyatKural>> ListAsync(CancellationToken ct = default)
         => repository.ListAsync(ct);
@@ -79,7 +79,7 @@ public sealed class DolulukFiyatKuralService(IDolulukFiyatKuralRepository reposi
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await repository.KodExistsAsync(n.Kod, null, ct))
+        if (await repository.CodeExistsAsync(n.Kod, null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu doluluk kuralı zaten var.");
         var row = new DolulukFiyatKural();
         Apply(row, n);
@@ -108,7 +108,7 @@ public sealed class DolulukFiyatKuralService(IDolulukFiyatKuralRepository reposi
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await repository.KodExistsAsync(n.Kod, id, ct))
+        if (await repository.CodeExistsAsync(n.Kod, id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu doluluk kuralı zaten var.");
         void Update(DolulukFiyatKural r)
         {
@@ -136,27 +136,27 @@ public sealed class DolulukFiyatKuralService(IDolulukFiyatKuralRepository reposi
     /// <para>Yazma tekil <see cref="CreateAsync"/>'in aynı yolundan geçer (aynı normalize, aynı
     /// benzersizlik, aynı guard) — ikinci bir yazma semantiği doğmaz.</para>
     /// </summary>
-    public async Task<IReadOnlyList<Guid>> TopluCreateAsync(DolulukTopluInput input, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Guid>> BulkCreateAsync(DolulukTopluInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
 
-        var onEk = (input.KodOnEk ?? string.Empty).Trim().ToUpperInvariant();
-        if (onEk.Length == 0) throw new ValidationException("Kod ön eki zorunludur.");
-        var adOnEk = (input.AdOnEk ?? string.Empty).Trim();
-        if (adOnEk.Length == 0) throw new ValidationException("Ad ön eki zorunludur.");
+        var prefix = (input.KodOnEk ?? string.Empty).Trim().ToUpperInvariant();
+        if (prefix.Length == 0) throw new ValidationException("Kod ön eki zorunludur.");
+        var namePrefix = (input.AdOnEk ?? string.Empty).Trim();
+        if (namePrefix.Length == 0) throw new ValidationException("Ad ön eki zorunludur.");
         if (input.Kademeler.Count == 0) throw new ValidationException("En az bir kademe (eşik + çarpan) girilmelidir.");
 
-        var girdiler = new List<DolulukFiyatKuralInput>();
-        var gorulenEsik = new HashSet<int>();
+        var inputs = new List<DolulukFiyatKuralInput>();
+        var seenThreshold = new HashSet<int>();
         foreach (var k in input.Kademeler)
         {
-            if (!gorulenEsik.Add(k.EsikYuzde))
+            if (!seenThreshold.Add(k.EsikYuzde))
                 throw new ValidationException($"%{k.EsikYuzde} eşiği formda birden çok kez girilmiş; her kademe tek olmalı.");
 
-            var girdi = Normalize(new DolulukFiyatKuralInput
+            var inputItem = Normalize(new DolulukFiyatKuralInput
             {
-                Kod = $"{onEk}-{k.EsikYuzde}",
-                Ad = $"{adOnEk} %{k.EsikYuzde}",
+                Kod = $"{prefix}-{k.EsikYuzde}",
+                Ad = $"{namePrefix} %{k.EsikYuzde}",
                 AracGrupKod = input.AracGrupKod,
                 EsikYuzde = k.EsikYuzde,
                 CarpanYuzde = k.CarpanYuzde,
@@ -166,23 +166,23 @@ public sealed class DolulukFiyatKuralService(IDolulukFiyatKuralRepository reposi
                 GecerlilikBit = input.GecerlilikBit,
                 Aktif = input.Aktif
             });
-            Validate(girdi);
-            if (girdi.Kod.Length > 32)
-                throw new ValidationException($"'{girdi.Kod}' kodu 32 karakteri aşıyor; ön eki kısaltın.");
-            if (await repository.KodExistsAsync(girdi.Kod, null, ct))
-                throw new ValidationException($"'{girdi.Kod}' kodlu doluluk kuralı zaten var; hiçbir kademe yazılmadı.");
-            girdiler.Add(girdi);
+            Validate(inputItem);
+            if (inputItem.Kod.Length > 32)
+                throw new ValidationException($"'{inputItem.Kod}' kodu 32 karakteri aşıyor; ön eki kısaltın.");
+            if (await repository.CodeExistsAsync(inputItem.Kod, null, ct))
+                throw new ValidationException($"'{inputItem.Kod}' kodlu doluluk kuralı zaten var; hiçbir kademe yazılmadı.");
+            inputs.Add(inputItem);
         }
 
-        var idler = new List<Guid>(girdiler.Count);
-        foreach (var girdi in girdiler)
+        var ids = new List<Guid>(inputs.Count);
+        foreach (var inputItem in inputs)
         {
             var row = new DolulukFiyatKural();
-            Apply(row, girdi);
+            Apply(row, inputItem);
             await repository.CreateAsync(row, ct);   // DB unique index son savunma (yarış durumu)
-            idler.Add(row.Id);
+            ids.Add(row.Id);
         }
-        return idler;
+        return ids;
     }
 
     private static void Validate(DolulukFiyatKuralInput n)

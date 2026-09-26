@@ -27,12 +27,12 @@ public static class SiteIcerikEndpoints
             .AntiforgeryByEnv();
 
         // ---- Sayfalar ----
-        grp.MapPost("/kaydet", async (SiteIcerikService svc, HttpRequest req) =>
+        grp.MapPost("/kaydet", async (SiteContentService svc, HttpRequest req) =>
         {
             var f = req.Form;
             try
             {
-                var id = await svc.KaydetAsync(new SayfaIcerikInput(
+                var id = await svc.SaveAsync(new SayfaIcerikInput(
                     FormParse.Id(FormParse.Str(f, "id")),
                     f["baslik"].ToString(),
                     f["govde"].ToString(),
@@ -45,29 +45,29 @@ public static class SiteIcerikEndpoints
             catch (ValidationException ex) { return Geri(ex); }
         });
 
-        grp.MapPost("/{id:guid}/durum", async (SiteIcerikService svc, Guid id, [FromForm] string durum) =>
+        grp.MapPost("/{id:guid}/durum", async (SiteContentService svc, Guid id, [FromForm] string durum) =>
         {
             try
             {
-                await svc.YayinDurumuAsync(id, durum == "yayinda");
+                await svc.PublishStatusAsync(id, durum == "yayinda");
                 return Results.Redirect("/site-icerik?ok=1");
             }
             catch (ValidationException ex) { return Geri(ex); }
         });
 
-        grp.MapPost("/{id:guid}/sil", async (SiteIcerikService svc, Guid id) =>
+        grp.MapPost("/{id:guid}/sil", async (SiteContentService svc, Guid id) =>
         {
-            try { await svc.SilAsync(id); return Results.Redirect("/site-icerik?ok=1"); }
+            try { await svc.DeleteAsync(id); return Results.Redirect("/site-icerik?ok=1"); }
             catch (ValidationException ex) { return Geri(ex); }
         });
 
         // ---- SSS ----
-        grp.MapPost("/sss/kaydet", async (SiteIcerikService svc, HttpRequest req) =>
+        grp.MapPost("/sss/kaydet", async (SiteContentService svc, HttpRequest req) =>
         {
             var f = req.Form;
             try
             {
-                await svc.SssKaydetAsync(new SssInput(
+                await svc.SaveFaqAsync(new SssInput(
                     FormParse.Id(FormParse.Str(f, "id")),
                     f["soru"].ToString(),
                     f["cevap"].ToString(),
@@ -78,9 +78,9 @@ public static class SiteIcerikEndpoints
             catch (ValidationException ex) { return Geri(ex, "&sekme=sss"); }
         });
 
-        grp.MapPost("/sss/{id:guid}/sil", async (SiteIcerikService svc, Guid id) =>
+        grp.MapPost("/sss/{id:guid}/sil", async (SiteContentService svc, Guid id) =>
         {
-            try { await svc.SssSilAsync(id); return Results.Redirect("/site-icerik?ok=1&sekme=sss"); }
+            try { await svc.DeleteFaqAsync(id); return Results.Redirect("/site-icerik?ok=1&sekme=sss"); }
             catch (ValidationException ex) { return Geri(ex, "&sekme=sss"); }
         });
 

@@ -10,7 +10,7 @@ namespace RentACar.IntegrationTests;
 public sealed class GunKalibrasyonTests
 {
     private static readonly DateTimeOffset T0 = new(2026, 8, 1, 10, 0, 0, TimeSpan.Zero);
-    private static int Gun(double saat) => BookingMath.ComputeGun(T0, T0.AddHours(saat));
+    private static int Gun(double saat) => BookingMath.ComputeDays(T0, T0.AddHours(saat));
 
     [Theory]
     [InlineData(24, 1)]    // tam 1 gün
@@ -30,6 +30,6 @@ public sealed class GunKalibrasyonTests
     {
         // Tüm mevcut testler tam-gün aralığı kullanır → floor+eşik ceil ile AYNI (regresyon güvencesi).
         for (var g = 1; g <= 30; g++)
-            Assert.Equal(g, BookingMath.ComputeGun(T0, T0.AddDays(g)));
+            Assert.Equal(g, BookingMath.ComputeDays(T0, T0.AddDays(g)));
     }
 }

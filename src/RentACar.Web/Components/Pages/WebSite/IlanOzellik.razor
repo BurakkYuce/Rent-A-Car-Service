@@ -3,7 +3,7 @@
 @using RentACar.Application.WebSite
 @using RentACar.Domain.Common
 @using RentACar.Infrastructure.Persistence
-@inject WebIlanService Ilanlar
+@inject WebListingService Ilanlar
 @inject ITenantContext Tenant
 @inject TenantStatusCache Durum
 
@@ -81,7 +81,7 @@ else
 
     <p class="muted small">Aşağıdaki özellikler araç kayıtlarınızdan getirildi. <strong>İşaretli
         olanlar sitede görünür.</strong> Değerleri düzenleyebilir, sağ üstteki <strong>+</strong> ile
-        yeni satır ekleyebilirsiniz (en fazla @OzellikSnapshot.MaxSatir satır).
+        yeni satır ekleyebilirsiniz (en fazla @FeatureSnapshot.MaxRows satır).
         @if (_detay.Araclar.Count > 1)
         {
             <text> Bu ilan @_detay.Araclar.Count araç içerdiği için <strong>araçlar arasında farklı
@@ -94,7 +94,7 @@ else
        yeniden basar, silme ise satırı boşaltmakla olur (sunucu boş satırları ayıklar). *@
     <form method="post" action="/web-sitesi/ilan/@Id/ozellikler/kaydet"><AntiforgeryToken />
         <div class="table-scroll">
-        <table class="grid tr-grid" data-ozellik-tablo data-max-satir="@OzellikSnapshot.MaxSatir">
+        <table class="grid tr-grid" data-ozellik-tablo data-max-satir="@FeatureSnapshot.MaxRows">
             <thead>
                 <tr>
                     <th style="width:5rem">Sitede</th>
@@ -111,8 +111,8 @@ else
                         @* Checkbox değeri satır İNDEKSİDİR — sunucu paralel dizilerle eşler.
                            JS satır silince bu değerleri YENİDEN NUMARALANDIRIR (yoksa görünürlük kayar). *@
                         <td><input type="checkbox" name="gorunur" value="@i" checked="@s.Gorunur" /></td>
-                        <td><input name="etiket" value="@s.Etiket" maxlength="@OzellikSnapshot.MaxEtiket" /></td>
-                        <td><input name="deger" value="@s.Deger" maxlength="@OzellikSnapshot.MaxDeger" /></td>
+                        <td><input name="etiket" value="@s.Etiket" maxlength="@FeatureSnapshot.MaxLabel" /></td>
+                        <td><input name="deger" value="@s.Deger" maxlength="@FeatureSnapshot.MaxValue" /></td>
                         <td class="row-actions">
                             <button type="button" class="link danger" data-ozellik-sil
                                     title="Satırı sil" aria-label="Satırı sil">✕</button>
@@ -123,8 +123,8 @@ else
                 {
                     <tr>
                         <td><input type="checkbox" name="gorunur" value="@i" checked /></td>
-                        <td><input name="etiket" placeholder="Özellik adı" maxlength="@OzellikSnapshot.MaxEtiket" /></td>
-                        <td><input name="deger" placeholder="Değer" maxlength="@OzellikSnapshot.MaxDeger" /></td>
+                        <td><input name="etiket" placeholder="Özellik adı" maxlength="@FeatureSnapshot.MaxLabel" /></td>
+                        <td><input name="deger" placeholder="Değer" maxlength="@FeatureSnapshot.MaxValue" /></td>
                         <td class="row-actions">
                             <button type="button" class="link danger" data-ozellik-sil
                                     title="Satırı sil" aria-label="Satırı sil">✕</button>
@@ -167,8 +167,8 @@ else
         if (!_modul) return;
         _detay = await Ilanlar.GetAsync(Id);
         if (_detay is null) return;
-        _satirlar = await Ilanlar.OnerilenOzelliklerAsync(Id);
-        _fotolar = await Ilanlar.FotolarAsync(Id);
-        _bosSatir = Math.Clamp(Bos ?? 1, 1, OzellikSnapshot.MaxSatir);
+        _satirlar = await Ilanlar.SuggestedFeaturesAsync(Id);
+        _fotolar = await Ilanlar.PhotosAsync(Id);
+        _bosSatir = Math.Clamp(Bos ?? 1, 1, FeatureSnapshot.MaxRows);
     }
 }

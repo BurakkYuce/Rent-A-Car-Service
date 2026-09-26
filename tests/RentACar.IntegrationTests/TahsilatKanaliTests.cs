@@ -25,7 +25,7 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
 {
     private static async Task<Guid> SeedCariAsync(IServiceProvider sp, string ad)
         => await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
 
     private static IDbContextFactory<AppDbContext> Factory(IServiceProvider sp)
         => sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -92,7 +92,7 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
             () => cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Kanal = "Drone" }));
 
         // Reddedilen giriş HİÇ yazılmamalı (yarım/hatalı kayıt kalmaz).
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
     }
 
     // ---- 5. ZORUNLU kırılgan regresyon: kanal doldurulunca defter/bakiye/özet BİT-BİREBİR aynı ----
@@ -117,8 +117,8 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
             var rows = await db.AccountLedgerEntries.AsNoTracking().ToListAsync();
             debitKontrol = rows.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Amount.AmountInBase);
             creditKontrol = rows.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Amount.AmountInBase);
-            bakiyeKontrol = await cash.GetCariBalanceAsync(cari);
-            ozetKontrol = await reports.GetKasaBankaSummaryAsync();
+            bakiyeKontrol = await cash.GetAccountBalanceAsync(cari);
+            ozetKontrol = await reports.GetCashBankSummaryAsync();
         }
 
         decimal debitMobil, creditMobil, bakiyeMobil;
@@ -135,8 +135,8 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
             var rows = await db.AccountLedgerEntries.AsNoTracking().ToListAsync();
             debitMobil = rows.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Amount.AmountInBase);
             creditMobil = rows.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Amount.AmountInBase);
-            bakiyeMobil = await cash.GetCariBalanceAsync(cari);
-            ozetMobil = await reports.GetKasaBankaSummaryAsync();
+            bakiyeMobil = await cash.GetAccountBalanceAsync(cari);
+            ozetMobil = await reports.GetCashBankSummaryAsync();
         }
 
         // Ayrı tenant'lar (izole) — mutlak değerler değil, ŞEKİL bit-birebir aynı olmalı.
@@ -188,7 +188,7 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
             new CashInput { CariId = cari, Tutar = 100m, IslemAnahtari = token, Kanal = "Masaüstü" });
 
         using var s2 = host.ScopeFor(tenant);
-        await Assert.ThrowsAsync<MukerrerIslemException>(() =>
+        await Assert.ThrowsAsync<DuplicateOperationException>(() =>
             s2.ServiceProvider.GetRequiredService<CashService>().CollectAsync(
                 new CashInput { CariId = cari, Tutar = 100m, IslemAnahtari = token, Kanal = "Mobil" }));
 
@@ -196,7 +196,7 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         var sp = check.ServiceProvider;
         var tx = await sp.GetRequiredService<CashService>().GetAsync(id);
         Assert.Equal("Masaüstü", tx!.Kanal); // ikinci (Mobil) denemesi hiç yazılmadı
-        Assert.Equal(-100m, await sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari)); // tek kayıt
+        Assert.Equal(-100m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari)); // tek kayıt
     }
 
     // ---- 8. Toplu tahsilat: satır-bazlı kanal doğru satıra yazılır ----
@@ -237,8 +237,8 @@ public sealed class TahsilatKanaliTests(PostgresFixture fx)
         var ekstre = await cash.GetStatementAsync(cari);
         var borc = ekstre.Satirlar.Single(s => s.Direction == LedgerDirection.Debit);
 
-        var tutar = await cash.TekCariTopluKapatAsync(
-            cari, [borc.Id], LedgerAccountType.Kasa, kanal: "Tablet");
+        var tutar = await cash.CloseSingleAccountBulkAsync(
+            cari, [borc.Id], LedgerAccountType.Kasa, channel: "Tablet");
         Assert.Equal(1000m, tutar);
 
         var all = await cash.ListAsync();

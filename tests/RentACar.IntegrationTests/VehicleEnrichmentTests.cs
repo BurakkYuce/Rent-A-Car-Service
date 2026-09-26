@@ -23,9 +23,9 @@ public sealed class VehicleEnrichmentTests(PostgresFixture fx)
         var id = await svc.CreateAsync(new VehicleInput
         {
             Plaka = "34 ABC 01", Marka = "Fiat", Tip = "Egea", Segment = "Ekonomik",
-            Sipp = "cdmd", Renk = "Beyaz", ModelYili = 2022, Vites = Vites.Manuel,
+            Sipp = "cdmd", Renk = "Beyaz", ModelYili = 2022, Vites = Transmission.Manuel,
             SasiNo = "NM4", MotorNo = "M55", Durum = VehicleStatus.Musait,
-            FiloDurum = FiloStatus.Havuz, Km = 100, Yakit = FuelType.Dizel
+            FiloDurum = FleetLifecycleStatus.Havuz, Km = 100, Yakit = FuelType.Dizel
         });
 
         var v = await svc.GetAsync(id);
@@ -35,10 +35,10 @@ public sealed class VehicleEnrichmentTests(PostgresFixture fx)
         Assert.Equal("CDMD", v.Sipp);           // SIPP büyük harfe normalize
         Assert.Equal("Beyaz", v.Renk);
         Assert.Equal(2022, v.ModelYili);
-        Assert.Equal(Vites.Manuel, v.Vites);
+        Assert.Equal(Transmission.Manuel, v.Vites);
         Assert.Equal("NM4", v.SasiNo);
         Assert.Equal("M55", v.MotorNo);
-        Assert.Equal(FiloStatus.Havuz, v.FiloDurum);
+        Assert.Equal(FleetLifecycleStatus.Havuz, v.FiloDurum);
         Assert.Equal(VehicleStatus.Musait, v.Durum); // filo status operasyonel durumdan AYRI
     }
 
@@ -127,12 +127,12 @@ public sealed class VehicleEnrichmentTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
         var id = await svc.CreateAsync(new VehicleInput
-        { Plaka = "35 FLO 01", Durum = VehicleStatus.Musait, FiloDurum = FiloStatus.SifirKmStok });
+        { Plaka = "35 FLO 01", Durum = VehicleStatus.Musait, FiloDurum = FleetLifecycleStatus.SifirKmStok });
         await svc.UpdateAsync(id, new VehicleInput
-        { Plaka = "35 FLO 01", Durum = VehicleStatus.Musait, FiloDurum = FiloStatus.IkinciElSatis });
+        { Plaka = "35 FLO 01", Durum = VehicleStatus.Musait, FiloDurum = FleetLifecycleStatus.IkinciElSatis });
 
         var v = await svc.GetAsync(id);
-        Assert.Equal(FiloStatus.IkinciElSatis, v!.FiloDurum);
+        Assert.Equal(FleetLifecycleStatus.IkinciElSatis, v!.FiloDurum);
         Assert.Equal(VehicleStatus.Musait, v.Durum); // operasyonel durum değişmedi
     }
 

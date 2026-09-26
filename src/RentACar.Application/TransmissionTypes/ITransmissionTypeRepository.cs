@@ -3,5 +3,5 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.TransmissionTypes;
 
-/// <summary>Vites türü repo sözleşmesi — üye seti <see cref="IMasterTanimRepository{T}"/>'den gelir (boş gövde; DI/tüketici yüzeyi değişmedi).</summary>
-public interface ITransmissionTypeRepository : IMasterTanimRepository<TransmissionType>;
+/// <summary>Vites türü repo sözleşmesi — üye seti <see cref="IMasterDefinitionRepository{T}"/>'den gelir (boş gövde; DI/tüketici yüzeyi değişmedi).</summary>
+public interface ITransmissionTypeRepository : IMasterDefinitionRepository<TransmissionType>;

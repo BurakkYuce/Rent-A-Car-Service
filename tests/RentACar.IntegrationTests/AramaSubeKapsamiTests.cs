@@ -60,7 +60,7 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
             db.Invoices.Add(Fatura("F16ARA-FFB", null, kiraB, null));     // B kirasının FARK faturası (RentalId null)
             db.Invoices.Add(Fatura("F16ARA-FMA", null, null, "SubeA"));   // kirasız manuel, A işlem şubesi
             db.Invoices.Add(Fatura("F16ARA-FMB", null, null, "SubeB"));   // kirasız manuel, B işlem şubesi
-            db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = "F16ARA", Soyad = "Cari" }); // cari kiracı geneli (şube alanı yok)
+            db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "F16ARA", Soyad = "Cari" }); // cari kiracı geneli (şube alanı yok)
         });
     }
 
@@ -113,16 +113,16 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var muh = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        var s = muh.ServiceProvider.GetRequiredService<SecimService>();
+        var s = muh.ServiceProvider.GetRequiredService<SelectionService>();
 
         // Operasyonel seçimler Muhasebe'ye kapalı.
-        await Assert.ThrowsAsync<YetkiYokException>(() => s.AracAsync(null, null));
-        await Assert.ThrowsAsync<YetkiYokException>(() => s.LokasyonAsync(null, null));
-        await Assert.ThrowsAsync<YetkiYokException>(() => s.PersonelAsync(null, null));
+        await Assert.ThrowsAsync<NoPermissionException>(() => s.VehicleAsync(null, null));
+        await Assert.ThrowsAsync<NoPermissionException>(() => s.LocationAsync(null, null));
+        await Assert.ThrowsAsync<NoPermissionException>(() => s.StaffAsync(null, null));
         // F4.4: müşteri ve kur seçimi FinanceWrite ile de açık (sabit finans paneli; PII'sız alanlar).
-        Assert.NotNull(await s.MusteriAsync(null, null));
-        Assert.NotNull(await s.KurAsync(null, null));
-        Assert.NotNull(await muh.ServiceProvider.GetRequiredService<CustomerService>().SecimAraAsync(null, 20));
+        Assert.NotNull(await s.CustomerAsync(null, null));
+        Assert.NotNull(await s.ExchangeRateAsync(null, null));
+        Assert.NotNull(await muh.ServiceProvider.GetRequiredService<CustomerService>().SearchSelectionAsync(null, 20));
     }
 
     [Fact]
@@ -133,24 +133,24 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
         using (var seed = host.ScopeFor(tenant))
             await YazAsync(seed, db =>
             {
-                db.Customers.Add(new Customer { Tip = CariType.Kurumsal, Unvan = "ÇİĞDEM Şirketi" });
-                db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = "Çiğdem", Soyad = "Öztürk" });
-                db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = "Yüzde%", Soyad = "Alt_Çizgi" });
-                for (var i = 0; i < 30; i++) db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = $"Dolgu{i:00}" });
+                db.Customers.Add(new Customer { Tip = CustomerType.Kurumsal, Unvan = "ÇİĞDEM Şirketi" });
+                db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "Çiğdem", Soyad = "Öztürk" });
+                db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "Yüzde%", Soyad = "Alt_Çizgi" });
+                for (var i = 0; i < 30; i++) db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = $"Dolgu{i:00}" });
             });
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
-        var s = op.ServiceProvider.GetRequiredService<SecimService>();
+        var s = op.ServiceProvider.GetRequiredService<SelectionService>();
 
         foreach (var q in new[] { "çiğdem", "ÇİĞDEM", "cigdem", "CIGDEM" })
             Assert.Equal(new[] { "Çiğdem Öztürk", "ÇİĞDEM Şirketi" },
-                (await s.MusteriAsync(q, null)).Select(x => x.Etiket).Order(StringComparer.Ordinal).ToArray());
-        Assert.Equal(new[] { "Çiğdem Öztürk" }, (await s.MusteriAsync("ÖZTÜRK", null)).Select(x => x.Etiket).ToArray());
+                (await s.CustomerAsync(q, null)).Select(x => x.Etiket).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(new[] { "Çiğdem Öztürk" }, (await s.CustomerAsync("ÖZTÜRK", null)).Select(x => x.Etiket).ToArray());
         // % ve _ joker DEĞİL, düz metin.
-        Assert.Equal(new[] { "Yüzde% Alt_Çizgi" }, (await s.MusteriAsync("%", null)).Select(x => x.Etiket).ToArray());
-        Assert.Equal(new[] { "Yüzde% Alt_Çizgi" }, (await s.MusteriAsync("t_c", null)).Select(x => x.Etiket).ToArray());
-        Assert.Equal(20, (await s.MusteriAsync(null, 500)).Count);
-        Assert.Equal(3, (await s.MusteriAsync("dolgu", 3)).Count);
+        Assert.Equal(new[] { "Yüzde% Alt_Çizgi" }, (await s.CustomerAsync("%", null)).Select(x => x.Etiket).ToArray());
+        Assert.Equal(new[] { "Yüzde% Alt_Çizgi" }, (await s.CustomerAsync("t_c", null)).Select(x => x.Etiket).ToArray());
+        Assert.Equal(20, (await s.CustomerAsync(null, 500)).Count);
+        Assert.Equal(3, (await s.CustomerAsync("dolgu", 3)).Count);
     }
 
     [Theory]
@@ -161,5 +161,5 @@ public sealed class AramaSubeKapsamiTests(PostgresFixture fx)
     [InlineData(20, 20)]
     [InlineData(21, 20)]
     [InlineData(500, 20)]
-    public void Limit_normalizasyonu(int? limit, int beklenen) => Assert.Equal(beklenen, SecimService.Sinir(limit));
+    public void Limit_normalizasyonu(int? limit, int beklenen) => Assert.Equal(beklenen, SelectionService.Limit(limit));
 }

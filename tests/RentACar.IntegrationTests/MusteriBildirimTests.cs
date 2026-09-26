@@ -54,16 +54,16 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         });
     }
 
-    private static async Task SablonYazAsync(TestHost host, Guid tenant, MesajTuru tur, MesajKanal kanal,
+    private static async Task SablonYazAsync(TestHost host, Guid tenant, MessageType tur, MessageChannel kanal,
         string konu, string govde, bool aktif = true)
     {
         using var scope = host.ScopeFor(tenant);
-        await scope.ServiceProvider.GetRequiredService<MusteriBildirimService>()
-            .SablonKaydetAsync(new MesajSablonInput { Tur = tur, Kanal = kanal, Konu = konu, Govde = govde, Aktif = aktif });
+        await scope.ServiceProvider.GetRequiredService<CustomerNotificationService>()
+            .SaveTemplateAsync(new MesajSablonInput { Tur = tur, Kanal = kanal, Konu = konu, Govde = govde, Aktif = aktif });
     }
 
     private static MesajIstegi Istek(string anahtar = "rez-onay:1") => new(
-        MesajTuru.RezervasyonOnay, MesajKanal.Eposta, "musteri@ornek.com", anahtar,
+        MessageType.RezervasyonOnay, MessageChannel.Eposta, "musteri@ornek.com", anahtar,
         new Dictionary<string, string?> { ["MusteriAd"] = "Ahmet Yılmaz", ["Plaka"] = "34ABC123" },
         "Rezervasyon", Guid.NewGuid());
 
@@ -74,12 +74,12 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         using var _ = host;
         var tenant = Guid.NewGuid();
         await AyarYazAsync(host, tenant);
-        await SablonYazAsync(host, tenant, MesajTuru.RezervasyonOnay, MesajKanal.Eposta,
+        await SablonYazAsync(host, tenant, MessageType.RezervasyonOnay, MessageChannel.Eposta,
             "Rezervasyonunuz alındı", "<p>Sayın {MusteriAd}, {Plaka} plakalı aracınız ayrıldı.</p>");
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var sonuc = await scope.ServiceProvider.GetRequiredService<MusteriBildirimService>()
-            .GonderAsync(Istek(), izinVar: true);
+        var sonuc = await scope.ServiceProvider.GetRequiredService<CustomerNotificationService>()
+            .GonderAsync(Istek(), hasPermission: true);
 
         Assert.True(sonuc.Gonderildi);
         var gonderilen = Assert.Single(posta.Gonderilenler);
@@ -100,14 +100,14 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         using var _ = host;
         var tenant = Guid.NewGuid();
         await AyarYazAsync(host, tenant);
-        await SablonYazAsync(host, tenant, MesajTuru.RezervasyonOnay, MesajKanal.Eposta, "Konu", "<p>Gövde</p>");
+        await SablonYazAsync(host, tenant, MessageType.RezervasyonOnay, MessageChannel.Eposta, "Konu", "<p>Gövde</p>");
 
         using (var s1 = host.ScopeFor(tenant, role: UserRole.Operator))
-            await s1.ServiceProvider.GetRequiredService<MusteriBildirimService>()
-                .GonderAsync(Istek("rez-onay:tekrar"), izinVar: true);
+            await s1.ServiceProvider.GetRequiredService<CustomerNotificationService>()
+                .GonderAsync(Istek("rez-onay:tekrar"), hasPermission: true);
         using (var s2 = host.ScopeFor(tenant, role: UserRole.Operator))
-            await s2.ServiceProvider.GetRequiredService<MusteriBildirimService>()
-                .GonderAsync(Istek("rez-onay:tekrar"), izinVar: true);
+            await s2.ServiceProvider.GetRequiredService<CustomerNotificationService>()
+                .GonderAsync(Istek("rez-onay:tekrar"), hasPermission: true);
 
         Assert.Single(posta.Gonderilenler); // müşteri AYNI mesajı iki kez almadı
 
@@ -124,18 +124,18 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         using var _ = host;
         var tenant = Guid.NewGuid();
         await AyarYazAsync(host, tenant);
-        await SablonYazAsync(host, tenant, MesajTuru.RezervasyonOnay, MesajKanal.Eposta, "Konu", "<p>Gövde</p>");
+        await SablonYazAsync(host, tenant, MessageType.RezervasyonOnay, MessageChannel.Eposta, "Konu", "<p>Gövde</p>");
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var svc = scope.ServiceProvider.GetRequiredService<MusteriBildirimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerNotificationService>();
 
-        var ilk = await svc.GonderAsync(Istek("rez-onay:izinsiz"), izinVar: false);
-        Assert.Equal(GidenMesajDurum.IzinYok, ilk.Durum);
+        var ilk = await svc.GonderAsync(Istek("rez-onay:izinsiz"), hasPermission: false);
+        Assert.Equal(OutgoingMessageStatus.IzinYok, ilk.Durum);
         Assert.Empty(posta.Gonderilenler);
 
         // Terminal: izin sonradan verilse bile AYNI olay için tekrar denenmez (yeni olay yeni anahtar alır).
-        var ikinci = await svc.GonderAsync(Istek("rez-onay:izinsiz"), izinVar: true);
-        Assert.Equal(GidenMesajDurum.IzinYok, ikinci.Durum);
+        var ikinci = await svc.GonderAsync(Istek("rez-onay:izinsiz"), hasPermission: true);
+        Assert.Equal(OutgoingMessageStatus.IzinYok, ikinci.Durum);
         Assert.Empty(posta.Gonderilenler);
     }
 
@@ -151,15 +151,15 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
 
         using (var scope = host.ScopeFor(tenant, role: UserRole.Operator))
         {
-            var sonuc = await scope.ServiceProvider.GetRequiredService<MusteriBildirimService>()
-                .GonderAsync(Istek("rez-onay:sablonsuz"), izinVar: true);
-            Assert.Equal(GidenMesajDurum.Kuyrukta, sonuc.Durum);
+            var sonuc = await scope.ServiceProvider.GetRequiredService<CustomerNotificationService>()
+                .GonderAsync(Istek("rez-onay:sablonsuz"), hasPermission: true);
+            Assert.Equal(OutgoingMessageStatus.Kuyrukta, sonuc.Durum);
             Assert.Contains("şablonu tanımlı değil", sonuc.Hata);
         }
         Assert.Empty(posta.Gonderilenler);
 
         // Firma şablonu şimdi yazıyor.
-        await SablonYazAsync(host, tenant, MesajTuru.RezervasyonOnay, MesajKanal.Eposta,
+        await SablonYazAsync(host, tenant, MessageType.RezervasyonOnay, MessageChannel.Eposta,
             "Rezervasyon {Plaka}", "<p>Sayın {MusteriAd}, hazır.</p>");
 
         // Yeniden deneme: gövde DEĞERLERDEN yeniden üretilmeli — yer tutucular dolu gitmeli.
@@ -168,7 +168,7 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
             await using var db = await scope.ServiceProvider
                 .GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
             var kayit = await db.GidenMesajlar.FirstAsync(x => x.Anahtar == "rez-onay:sablonsuz");
-            var sonuc = await scope.ServiceProvider.GetRequiredService<MusteriBildirimService>().DeneAsync(kayit);
+            var sonuc = await scope.ServiceProvider.GetRequiredService<CustomerNotificationService>().TryAsync(kayit);
             Assert.True(sonuc.Gonderildi);
         }
 
@@ -186,13 +186,13 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         posta.Hata = "SMTP sunucusu yanıt vermedi.";
         var tenant = Guid.NewGuid();
         await AyarYazAsync(host, tenant);
-        await SablonYazAsync(host, tenant, MesajTuru.RezervasyonOnay, MesajKanal.Eposta, "Konu", "<p>Gövde</p>");
+        await SablonYazAsync(host, tenant, MessageType.RezervasyonOnay, MessageChannel.Eposta, "Konu", "<p>Gövde</p>");
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var sonuc = await scope.ServiceProvider.GetRequiredService<MusteriBildirimService>()
-            .GonderAsync(Istek("rez-onay:hatali"), izinVar: true);
+        var sonuc = await scope.ServiceProvider.GetRequiredService<CustomerNotificationService>()
+            .GonderAsync(Istek("rez-onay:hatali"), hasPermission: true);
 
-        Assert.Equal(GidenMesajDurum.Kuyrukta, sonuc.Durum);
+        Assert.Equal(OutgoingMessageStatus.Kuyrukta, sonuc.Durum);
         Assert.Equal("SMTP sunucusu yanıt vermedi.", sonuc.Hata);
 
         await using var db = await scope.ServiceProvider
@@ -210,21 +210,21 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         posta.Basarili = false;
         var tenant = Guid.NewGuid();
         await AyarYazAsync(host, tenant);
-        await SablonYazAsync(host, tenant, MesajTuru.RezervasyonOnay, MesajKanal.Eposta, "Konu", "<p>Gövde</p>");
+        await SablonYazAsync(host, tenant, MessageType.RezervasyonOnay, MessageChannel.Eposta, "Konu", "<p>Gövde</p>");
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var svc = scope.ServiceProvider.GetRequiredService<MusteriBildirimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerNotificationService>();
 
         MesajSonuc son = null!;
-        for (var i = 0; i < MusteriBildirimService.MaxDeneme; i++)
-            son = await svc.GonderAsync(Istek("rez-onay:hep-hatali"), izinVar: true);
+        for (var i = 0; i < CustomerNotificationService.MaxAttempts; i++)
+            son = await svc.GonderAsync(Istek("rez-onay:hep-hatali"), hasPermission: true);
 
-        Assert.Equal(GidenMesajDurum.Basarisiz, son.Durum);
-        Assert.Equal(MusteriBildirimService.MaxDeneme, posta.Gonderilenler.Count);
+        Assert.Equal(OutgoingMessageStatus.Basarisiz, son.Durum);
+        Assert.Equal(CustomerNotificationService.MaxAttempts, posta.Gonderilenler.Count);
 
         // Bir kez daha çağrılırsa artık DENENMEZ (sonsuz yeniden deneme yok).
-        await svc.GonderAsync(Istek("rez-onay:hep-hatali"), izinVar: true);
-        Assert.Equal(MusteriBildirimService.MaxDeneme, posta.Gonderilenler.Count);
+        await svc.GonderAsync(Istek("rez-onay:hep-hatali"), hasPermission: true);
+        Assert.Equal(CustomerNotificationService.MaxAttempts, posta.Gonderilenler.Count);
     }
 
     [Fact]
@@ -234,17 +234,17 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         using var _ = host;
         var tenant = Guid.NewGuid();
         await AyarYazAsync(host, tenant);
-        await SablonYazAsync(host, tenant, MesajTuru.RezervasyonOnay, MesajKanal.Eposta, "Konu", "<p>Gövde</p>");
+        await SablonYazAsync(host, tenant, MessageType.RezervasyonOnay, MessageChannel.Eposta, "Konu", "<p>Gövde</p>");
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var svc = scope.ServiceProvider.GetRequiredService<MusteriBildirimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerNotificationService>();
 
         // Operatör şablon YAZAMAZ...
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SablonKaydetAsync(
-            new MesajSablonInput { Tur = MesajTuru.RezervasyonOnay, Kanal = MesajKanal.Sms, Govde = "x" }));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.SaveTemplateAsync(
+            new MesajSablonInput { Tur = MessageType.RezervasyonOnay, Kanal = MessageChannel.Sms, Govde = "x" }));
 
         // ...ama bildirim GÖNDEREBİLİR (gönderim bir operasyon yan etkisidir, ayrı izin kapısı yok).
-        var sonuc = await svc.GonderAsync(Istek("rez-onay:operator"), izinVar: true);
+        var sonuc = await svc.GonderAsync(Istek("rez-onay:operator"), hasPermission: true);
         Assert.True(sonuc.Gonderildi);
     }
 
@@ -255,15 +255,15 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         using var __ = host;
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
-        var svc = scope.ServiceProvider.GetRequiredService<MusteriBildirimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<CustomerNotificationService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.SablonKaydetAsync(
-            new MesajSablonInput { Tur = MesajTuru.TalepAlindi, Kanal = MesajKanal.Eposta, Govde = "gövde" }));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.SaveTemplateAsync(
+            new MesajSablonInput { Tur = MessageType.TalepAlindi, Kanal = MessageChannel.Eposta, Govde = "gövde" }));
 
-        await svc.SablonKaydetAsync(
-            new MesajSablonInput { Tur = MesajTuru.TalepAlindi, Kanal = MesajKanal.Sms, Govde = "kısa mesaj" });
+        await svc.SaveTemplateAsync(
+            new MesajSablonInput { Tur = MessageType.TalepAlindi, Kanal = MessageChannel.Sms, Govde = "kısa mesaj" });
 
-        var sablonlar = await svc.SablonListAsync();
+        var sablonlar = await svc.ListTemplatesAsync();
         Assert.Single(sablonlar);
     }
 
@@ -276,22 +276,22 @@ public sealed class MusteriBildirimTests(PostgresFixture fx)
         var b = Guid.NewGuid();
 
         await AyarYazAsync(host, a);
-        await SablonYazAsync(host, a, MesajTuru.RezervasyonOnay, MesajKanal.Eposta, "A konusu", "<p>A gövdesi</p>");
+        await SablonYazAsync(host, a, MessageType.RezervasyonOnay, MessageChannel.Eposta, "A konusu", "<p>A gövdesi</p>");
         using (var scope = host.ScopeFor(a, role: UserRole.Operator))
-            await scope.ServiceProvider.GetRequiredService<MusteriBildirimService>()
-                .GonderAsync(Istek("rez-onay:izolasyon"), izinVar: true);
+            await scope.ServiceProvider.GetRequiredService<CustomerNotificationService>()
+                .GonderAsync(Istek("rez-onay:izolasyon"), hasPermission: true);
 
         using var bScope = host.ScopeFor(b);
-        var bSvc = bScope.ServiceProvider.GetRequiredService<MusteriBildirimService>();
-        Assert.Empty(await bSvc.SablonListAsync());
-        Assert.Empty(await bSvc.GidenListAsync());
+        var bSvc = bScope.ServiceProvider.GetRequiredService<CustomerNotificationService>();
+        Assert.Empty(await bSvc.ListTemplatesAsync());
+        Assert.Empty(await bSvc.OutgoingListAsync());
 
         // B tenant'ı A'nın anahtarını kullanabilir — anahtar TENANT İÇİNDE benzersizdir.
         await AyarYazAsync(host, b);
-        await SablonYazAsync(host, b, MesajTuru.RezervasyonOnay, MesajKanal.Eposta, "B konusu", "<p>B gövdesi</p>");
+        await SablonYazAsync(host, b, MessageType.RezervasyonOnay, MessageChannel.Eposta, "B konusu", "<p>B gövdesi</p>");
         using var bScope2 = host.ScopeFor(b, role: UserRole.Operator);
-        var sonuc = await bScope2.ServiceProvider.GetRequiredService<MusteriBildirimService>()
-            .GonderAsync(Istek("rez-onay:izolasyon"), izinVar: true);
+        var sonuc = await bScope2.ServiceProvider.GetRequiredService<CustomerNotificationService>()
+            .GonderAsync(Istek("rez-onay:izolasyon"), hasPermission: true);
         Assert.True(sonuc.Gonderildi);
     }
 }

@@ -31,7 +31,7 @@ public static partial class CrmApi
     {
         var s = g.MapGroup("/anketler").WithTags("CRM");
         s.MapGet("", ListSurveys).AlanlariEsle(F5Ortak.SiralamaKurallari);
-        s.MapGet("/varsayilan-sorular", () => TypedResults.Ok<IReadOnlyList<string>>(AnketService.VarsayilanSorular));
+        s.MapGet("/varsayilan-sorular", () => TypedResults.Ok<IReadOnlyList<string>>(SurveyService.DefaultQuestions));
         s.MapGet("/{id:guid}", GetSurvey);
         s.MapPost("", CreateSurvey).AlanlariEsle(SurveyFieldRules);
         s.MapPut("/{id:guid}", UpdateSurvey).AlanlariEsle(SurveyFieldRules);
@@ -40,8 +40,8 @@ public static partial class CrmApi
 
     private static ProblemHttpResult SurveyNotFound() => F5Ortak.Bulunamadi("Anket bulunamadı.");
 
-    private static readonly SiralamaHaritasi<SurveyRow> SurveySort = SiralamaHaritasi<SurveyRow>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<SurveyRow> SurveySort = SortFieldMap<SurveyRow>
+        .Create(r => r.Id)
         .Alan("tarih", r => r.Tarih).Alan("puan", r => r.Puan).Alan("durum", r => r.Durum)
         .Alan("anketTuru", r => r.AnketTuru).Alan("cikisOfisi", r => r.CikisOfisi).Alan("sozlesmeNo", r => r.SozlesmeNo);
 
@@ -56,14 +56,14 @@ public static partial class CrmApi
     }
 
     private static async Task<Ok<Sayfa<SurveyRow>>> ListSurveys(
-        [AsParameters] SurveyListFilter f, AnketService surveys, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
+        [AsParameters] SurveyListFilter f, SurveyService surveys, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
         ILocationRepository locations, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         var (min, max) = F5Ortak.GunAraligi(f.TarihBas, f.TarihBit);
         var items = await surveys.SearchAsync(new AnketFilter
         {
-            CariId = f.CariId, AnketTuru = F5Ortak.EnumAdi<AnketTuru>(f.AnketTuru, "anketTuru"),
-            Durum = F5Ortak.EnumAdi<AnketDurum>(f.Durum, "durum"), TarihMin = min, TarihMax = max,
+            CariId = f.CariId, AnketTuru = F5Ortak.EnumAdi<SurveyType>(f.AnketTuru, "anketTuru"),
+            Durum = F5Ortak.EnumAdi<SurveyStatus>(f.Durum, "durum"), TarihMin = min, TarihMax = max,
             CikisOfisi = F5Ortak.Nz(f.CikisOfisi),
         }, ct);
         var inScope = await CrmScope.BuildAsync(user, dbf, locations, items.Select(a => (a.RentalId, a.CikisOfisi)), ct);
@@ -93,17 +93,17 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Ok<SurveyCardDto>, ProblemHttpResult>> GetSurvey(
-        Guid id, AnketService surveys, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
+        Guid id, SurveyService surveys, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
         CancellationToken ct)
         => await SurveyCardAsync(id, surveys, user, dbf, locations, ct) is { } c ? TypedResults.Ok(c) : SurveyNotFound();
 
     /// <summary>Kart: sürüm ÖNCE; kapsam dışı → 403 (kapsam kontrolü içerik dönmeden).</summary>
     private static async Task<SurveyCardDto?> SurveyCardAsync(
-        Guid id, AnketService surveys, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
+        Guid id, SurveyService surveys, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
         CancellationToken ct)
     {
         var version = await surveys.GetVersionAsync(id, ct);
-        var d = await surveys.GetDetayAsync(id, ct);
+        var d = await surveys.GetDetailAsync(id, ct);
         if (d is null) return null;
         await CrmScope.RequireAsync(user, dbf, locations, d.Anket.RentalId, d.Anket.CikisOfisi, ct);
         var row = (await SurveyRowsAsync(dbf, [d.Anket], ct))[0];
@@ -128,15 +128,15 @@ public static partial class CrmApi
         {
             CariId = r.CariId, RentalId = r.RentalId == Guid.Empty ? null : r.RentalId, Puan = r.Puan, Yorum = r.Yorum,
             Tarih = F5Ortak.Utc(r.Tarih), Kaynak = r.Kaynak,
-            AnketTuru = F5Ortak.EnumAdi<AnketTuru>(r.AnketTuru, "anketTuru"),
-            Durum = F5Ortak.EnumAdi<AnketDurum>(r.Durum, "durum") ?? AnketDurum.Yapildi,
+            AnketTuru = F5Ortak.EnumAdi<SurveyType>(r.AnketTuru, "anketTuru"),
+            Durum = F5Ortak.EnumAdi<SurveyStatus>(r.Durum, "durum") ?? SurveyStatus.Yapildi,
             CikisOfisi = r.CikisOfisi,
             Cevaplar = answers.Select(a => new AnketCevapInput { SoruNo = a.SoruNo, Soru = a.Soru, Cevap = a.Cevap, Aciklama = a.Aciklama }).ToList(),
         };
     }
 
     private static async Task<Results<Created<SurveyCardDto>, ProblemHttpResult>> CreateSurvey(
-        SurveyRequest request, AnketService surveys, RentalService rentals, ICurrentUser user,
+        SurveyRequest request, SurveyService surveys, RentalService rentals, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, ILocationRepository locations, CancellationToken ct)
     {
         var input = SurveyInput(request);
@@ -148,7 +148,7 @@ public static partial class CrmApi
 
     /// <summary>Tam değiştirme. Sıra: varlık (404) → mevcut kaydın kapsamı (403) → surum → girdi/hedef → kilit altında sürüm (409).</summary>
     private static async Task<Results<Ok<SurveyCardDto>, ProblemHttpResult>> UpdateSurvey(
-        Guid id, SurveyUpdateRequest request, AnketService surveys, RentalService rentals, ICurrentUser user,
+        Guid id, SurveyUpdateRequest request, SurveyService surveys, RentalService rentals, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, ILocationRepository locations, CancellationToken ct)
     {
         var current = await surveys.GetAsync(id, ct);
@@ -164,7 +164,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteSurvey(
-        Guid id, AnketService surveys, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
+        Guid id, SurveyService surveys, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
         CancellationToken ct)
     {
         var current = await surveys.GetAsync(id, ct);

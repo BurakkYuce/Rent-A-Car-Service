@@ -30,7 +30,7 @@ public sealed class KampanyaCitiTests(PostgresFixture fx)
         {
             Kod = "EKO-WEB", Ad = "Eko Web", Kanal = "WEB", AracGrupKod = "EKO",
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m, Gun6 = 1000m, Gun7 = 1000m,
-            OnayDurumu = TarifeOnayDurumu.Onayli
+            OnayDurumu = TariffApprovalStatus.Onayli
         });
     }
 

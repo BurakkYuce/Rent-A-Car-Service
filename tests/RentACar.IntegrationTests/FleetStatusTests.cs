@@ -20,15 +20,15 @@ public sealed class FleetStatusTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
 
-        var musteri = new Customer { Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli" };
+        var musteri = new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli" };
         db.Customers.Add(musteri);
 
         // Araç A: kirada (Havuz, EKO) → aktif kira müşteri Ali Veli, bakiye 150.
         var a = new Vehicle { Plaka = "34AAA01", Marka = "Fiat", Grup = "EKO",
-            Durum = VehicleStatus.Kirada, FiloDurum = FiloStatus.Havuz, Km = 1000 };
+            Durum = VehicleStatus.Kirada, FiloDurum = FleetLifecycleStatus.Havuz, Km = 1000 };
         // Araç B: boşta (SifirKmStok, SUV) → aktif kira yok.
         var b = new Vehicle { Plaka = "34BBB02", Marka = "Renault", Grup = "SUV",
-            Durum = VehicleStatus.Musait, FiloDurum = FiloStatus.SifirKmStok, Km = 5 };
+            Durum = VehicleStatus.Musait, FiloDurum = FleetLifecycleStatus.SifirKmStok, Km = 5 };
         db.Vehicles.Add(a);
         db.Vehicles.Add(b);
 
@@ -76,7 +76,7 @@ public sealed class FleetStatusTests(PostgresFixture fx)
         await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<FleetStatusService>();
 
-        var havuz = await svc.QueryAsync(new FleetStatusFilter { FiloDurum = FiloStatus.Havuz });
+        var havuz = await svc.QueryAsync(new FleetStatusFilter { FiloDurum = FleetLifecycleStatus.Havuz });
         Assert.Single(havuz);
         Assert.Equal("34AAA01", havuz[0].Plaka);
 
@@ -172,8 +172,8 @@ public sealed class FleetStatusTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var kiraci = new Customer { Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli", CepTel = "0555 111 22 33" };
-            var rezci = new Customer { Tip = CariType.Bireysel, Ad = "Ayşe", Soyad = "Kaya" };
+            var kiraci = new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli", CepTel = "0555 111 22 33" };
+            var rezci = new Customer { Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Kaya" };
             db.Customers.AddRange(kiraci, rezci);
 
             var a = new Vehicle { Plaka = "34OZT01", Durum = VehicleStatus.Kirada };
@@ -204,12 +204,12 @@ public sealed class FleetStatusTests(PostgresFixture fx)
             });
             db.ServiceRecords.Add(new ServiceRecord
             {
-                No = "SV-77", VehicleId = c.Id, Durum = ServisDurum.Serviste, AtolyeAdi = "Merkez Atölye"
+                No = "SV-77", VehicleId = c.Id, Durum = ServiceStatus.Serviste, AtolyeAdi = "Merkez Atölye"
             });
-            db.Baflar.Add(new Baf { No = "BAF-77", VehicleId = d.Id, PersonelId = pers.Id, Durum = BafDurum.Acik });
+            db.Baflar.Add(new Baf { No = "BAF-77", VehicleId = d.Id, PersonelId = pers.Id, Durum = BafStatus.Acik });
             db.FiloKiralamalar.Add(new FiloKiralama
             {
-                No = "FK-77", VehicleId = e.Id, MusteriId = kiraci.Id, Durum = FiloKiraDurum.Aktif,
+                No = "FK-77", VehicleId = e.Id, MusteriId = kiraci.Id, Durum = FleetRentalStatus.Aktif,
                 DosyaNo = "DSY-2026-9", SureAy = 12, AylikUcret = 1000m
             });
             await db.SaveChangesAsync();
@@ -251,7 +251,7 @@ public sealed class FleetStatusTests(PostgresFixture fx)
     [InlineData("2026-01-10T08:00:00Z", "2026-01-10T20:00:00Z", 0)]
     [InlineData("2026-01-12T08:00:00Z", "2026-01-10T20:00:00Z", -2)]
     public void KalanGun_takvim_gunu_farkidir(string simdi, string bitis, int beklenen)
-        => Assert.Equal(beklenen, FleetStatusRow.KalanGun(
+        => Assert.Equal(beklenen, FleetStatusRow.RemainingDays(
             DateTimeOffset.Parse(bitis, System.Globalization.CultureInfo.InvariantCulture),
             DateTimeOffset.Parse(simdi, System.Globalization.CultureInfo.InvariantCulture)));
 

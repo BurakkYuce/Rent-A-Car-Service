@@ -54,9 +54,9 @@ public sealed class PublicBookingRequestService(
     IPublicBookingRequestRepository repository,
     CustomerService customers,
     ReservationService reservations,
-    WebSite.IWebIlanRepository ilanlar, // PR-14: fiyat/başlık snapshot'ı SUNUCUDAN çözülür
-    Finance.KdvVarsayilan kdv,          // PR-14: ilan fiyatı KDV dahilse ERP'nin beklediği NET'e çevrilir
-    Notifications.MusteriBildirimService bildirim, // talep alındı bildirimi (anonim yol — guard'sız)
+    WebSite.IWebListingRepository listings, // PR-14: fiyat/başlık snapshot'ı SUNUCUDAN çözülür
+    Finance.VatDefault vat,          // PR-14: ilan fiyatı KDV dahilse ERP'nin beklediği NET'e çevrilir
+    Notifications.CustomerNotificationService notification, // talep alındı bildirimi (anonim yol — guard'sız)
     ICurrentUser currentUser)
 {
     // ---- Public (GUARD'SIZ — anonim ziyaretçi) ----
@@ -66,36 +66,36 @@ public sealed class PublicBookingRequestService(
     {
         if (!string.IsNullOrWhiteSpace(input.Website)) return; // honeypot: bot — sessiz yut
 
-        var adSoyad = (input.AdSoyad ?? string.Empty).Trim();
-        var telefon = (input.Telefon ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(adSoyad)) throw new ValidationException("Ad soyad zorunludur.");
-        if (string.IsNullOrWhiteSpace(telefon)) throw new ValidationException("Telefon zorunludur.");
+        var fullName = (input.AdSoyad ?? string.Empty).Trim();
+        var phone = (input.Telefon ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(fullName)) throw new ValidationException("Ad soyad zorunludur.");
+        if (string.IsNullOrWhiteSpace(phone)) throw new ValidationException("Telefon zorunludur.");
         if (input.BitTar <= input.BasTar) throw new ValidationException("İade tarihi alış tarihinden sonra olmalıdır.");
 
         // PR-14: ilanı SUNUCUDAN çöz. Başlık ve fiyat snapshot'ı buradan alınır — ziyaretçinin
         // gönderdiği değerlere GÜVENİLMEZ (artık sözleşme fiyatına akıyorlar). İlan yayından
         // kalkmışsa null döner: talep yine oluşur (müşteri kaybedilmez), yalnız fiyat taşınmaz
         // ve personel dönüştürürken fiyatı kendi girer.
-        var ilan = input.IlanId is { } ilanId ? await ilanlar.FindAsync(ilanId, ct) : null;
+        var listing = input.IlanId is { } listingId ? await listings.FindAsync(listingId, ct) : null;
 
-        var talep = new PublicBookingRequest
+        var request = new PublicBookingRequest
         {
-            AdSoyad = adSoyad,
-            Telefon = telefon,
+            AdSoyad = fullName,
+            Telefon = phone,
             Email = TrimOrNull(input.Email),
-            IlanId = ilan?.Ilan.Id,
+            IlanId = listing?.Ilan.Id,
             // Başlık/fiyat SUNUCUDAN — ziyaretçinin gönderdiği değere güvenilmez (bu snapshot
             // artık sözleşme fiyatına akıyor).
-            IlanBaslik = ilan?.Ilan.Baslik,
+            IlanBaslik = listing?.Ilan.Baslik,
             BasTar = input.BasTar,
             BitTar = input.BitTar,
             Sube = TrimOrNull(input.Sube),
             Not = TrimOrNull(input.Not),
-            GosterilenGunlukUcretKdvDahil = ilan?.Ilan.GunlukFiyat,
-            GosterilenKdvDahil = ilan?.Ilan.KdvDahil,
+            GosterilenGunlukUcretKdvDahil = listing?.Ilan.GunlukFiyat,
+            GosterilenKdvDahil = listing?.Ilan.KdvDahil,
             Durum = PublicBookingRequestDurum.Yeni,
         };
-        await repository.AddAsync(talep, ct);
+        await repository.AddAsync(request, ct);
 
         // Talebi bırakan ziyaretçiye ALINDI bildirimi. Ayrı bir pazarlama izni ARANMAZ: kişi
         // hizmet talebini kendisi başlattı ve bu mesaj o talebin cevabıdır (sözleşme öncesi
@@ -104,26 +104,26 @@ public sealed class PublicBookingRequestService(
         // Bildirim HİÇBİR KOŞULDA talebin kaydını düşürmez: gönderim hatası müşterinin formunu
         // reddetmek için sebep değildir. Bu yüzden sonuç yutulmaz ama istisna yukarı sızmaz —
         // durum GidenMesajlar tablosuna yazılır, operatör oradan görür.
-        if (!string.IsNullOrWhiteSpace(talep.Email))
+        if (!string.IsNullOrWhiteSpace(request.Email))
         {
             try
             {
-                await bildirim.GonderAsync(new Notifications.MesajIstegi(
-                    Tur: MesajTuru.TalepAlindi,
-                    Kanal: MesajKanal.Eposta,
-                    Alici: talep.Email!,
-                    Anahtar: $"talep-alindi:{talep.Id:N}",
+                await notification.GonderAsync(new Notifications.MesajIstegi(
+                    Tur: MessageType.TalepAlindi,
+                    Kanal: MessageChannel.Eposta,
+                    Alici: request.Email!,
+                    Anahtar: $"talep-alindi:{request.Id:N}",
                     Degerler: new Dictionary<string, string?>
                     {
-                        ["MusteriAd"] = talep.AdSoyad,
-                        ["Arac"] = talep.IlanBaslik,
-                        ["CikisTarih"] = talep.BasTar.ToString("dd.MM.yyyy HH:mm"),
-                        ["DonusTarih"] = talep.BitTar.ToString("dd.MM.yyyy HH:mm"),
-                        ["CikisOfis"] = talep.Sube,
-                        ["No"] = talep.Id.ToString("N")[..8].ToUpperInvariant(),
+                        ["MusteriAd"] = request.AdSoyad,
+                        ["Arac"] = request.IlanBaslik,
+                        ["CikisTarih"] = request.BasTar.ToString("dd.MM.yyyy HH:mm"),
+                        ["DonusTarih"] = request.BitTar.ToString("dd.MM.yyyy HH:mm"),
+                        ["CikisOfis"] = request.Sube,
+                        ["No"] = request.Id.ToString("N")[..8].ToUpperInvariant(),
                     },
                     KaynakTur: "Talep",
-                    KaynakId: talep.Id), izinVar: true, ct);
+                    KaynakId: request.Id), hasPermission: true, ct);
             }
             catch (Exception)
             {
@@ -145,34 +145,34 @@ public sealed class PublicBookingRequestService(
     /// PR-17: ekranın kullandığı filtreli/sayfalı liste. Not sayıları TEK sorguyla getirilir
     /// (satır başına COUNT N+1 üretirdi), yaşlanma gün cinsinden hesaplanır.
     /// </summary>
-    public async Task<(IReadOnlyList<TalepSatiri> Satirlar, int Toplam)> ListeleAsync(
-        TalepFiltre filtre, CancellationToken ct = default)
+    public async Task<(IReadOnlyList<TalepSatiri> Satirlar, int Toplam)> ListRequestsAsync(
+        TalepFiltre filter, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
-        var boyut = Math.Clamp(filtre.Boyut, 1, 200);
-        var (satirlar, toplam) = await repository.SayfaliAsync(
-            filtre.Durum, filtre.Ara, filtre.Sayfa, boyut, ct);
+        var size = Math.Clamp(filter.Boyut, 1, 200);
+        var (rows, total) = await repository.PagedAsync(
+            filter.Durum, filter.Ara, filter.Sayfa, size, ct);
 
-        var notSayilari = await repository.NotSayilariAsync([.. satirlar.Select(t => t.Id)], ct);
+        var noteCounts = await repository.NoteCountsAsync([.. rows.Select(t => t.Id)], ct);
         var now = DateTimeOffset.UtcNow;
-        return ([.. satirlar.Select(t => new TalepSatiri(
+        return ([.. rows.Select(t => new TalepSatiri(
             t,
-            notSayilari.GetValueOrDefault(t.Id),
+            noteCounts.GetValueOrDefault(t.Id),
             // Yaşlanma YALNIZ açık taleplerde anlamlı: kapanmış bir lead'in "12 gündür bekliyor"
             // yazması yanıltıcı olurdu.
-            TalepDurumu.Aktif(t.Durum) ? (int)(now - t.CreatedAtUtc).TotalDays : 0))], toplam);
+            TalepDurumu.IsActive(t.Durum) ? (int)(now - t.CreatedAtUtc).TotalDays : 0))], total);
     }
 
     /// <summary>PR-17: nav sayacı + Home KPI. Yetki KONTROL EDİLİR (rakam da bilgidir).</summary>
-    public async Task<TalepOzet> OzetAsync(CancellationToken ct = default)
+    public async Task<TalepOzet> SummaryAsync(CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
-        var yeni = await repository.YeniSayisiAsync(ct);
-        var enEski = yeni == 0 ? null : await repository.EnEskiYeniAsync(ct);
-        return new TalepOzet(yeni, enEski is { } e ? (int)(DateTimeOffset.UtcNow - e).TotalDays : null);
+        var newItem = await repository.NewCountAsync(ct);
+        var oldest = newItem == 0 ? null : await repository.OldestNewAsync(ct);
+        return new TalepOzet(newItem, oldest is { } e ? (int)(DateTimeOffset.UtcNow - e).TotalDays : null);
     }
 
-    public async Task ReddetAsync(Guid id, CancellationToken ct = default)
+    public async Task RejectAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
         if (!await repository.TryClaimAsync(id, PublicBookingRequestDurum.Reddedildi, ct))
@@ -186,24 +186,24 @@ public sealed class PublicBookingRequestService(
     /// rezervasyon varken lead'i "Kayıp" göstermek defterle çelişirdi. Kontrol hem burada (anlaşılır
     /// mesaj) hem repository'nin atomik yükleminde (yarış) var.</para>
     /// </summary>
-    public async Task DurumAtaAsync(Guid id, PublicBookingRequestDurum hedef, CancellationToken ct = default)
+    public async Task AssignStatusAsync(Guid id, PublicBookingRequestDurum target, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
-        if (hedef == PublicBookingRequestDurum.Donustu)
+        if (target == PublicBookingRequestDurum.Donustu)
             throw new ValidationException("\"Dönüştü\" durumu elle atanamaz — talebi Dönüştür ile işleyin.");
 
-        var talep = await repository.FindAsync(id, ct) ?? throw new ValidationException("Talep bulunamadı.");
+        var request = await repository.FindAsync(id, ct) ?? throw new ValidationException("Talep bulunamadı.");
         // TEK kontrol yeter: `DonusenReservationId` YALNIZ başarılı bir `Donustu` claim'inden sonra
         // yazılıyor (`SetDonusenReservationAsync`) ve iptalde null'lanıyor → "rezervasyonu var ama
         // durumu terminal değil" hali oluşamaz. Ayrı bir `DonusenReservationId is not null` kontrolü
         // yazılmıştı; testte ULAŞILAMAZ olduğu görüldü (terminal kontrolü her zaman önce tetikliyor)
         // ve ölü kod olarak kaldırıldı.
-        if (TalepDurumu.Terminal(talep.Durum))
+        if (TalepDurumu.Terminal(request.Durum))
             throw new ValidationException(
-                $"Bu talep \"{TalepDurumu.Etiket(talep.Durum)}\" durumunda kapanmış; durumu değiştirilemez."
-                + (talep.DonusenReservationId is not null ? " (Rezervasyona dönüşmüş.)" : ""));
+                $"Bu talep \"{TalepDurumu.Label(request.Durum)}\" durumunda kapanmış; durumu değiştirilemez."
+                + (request.DonusenReservationId is not null ? " (Rezervasyona dönüşmüş.)" : ""));
 
-        if (!await repository.DurumDegistirAsync(id, hedef, ct))
+        if (!await repository.ChangeStatusAsync(id, target, ct))
             throw new ValidationException("Bu talep zaten kapanmış.");
     }
 
@@ -212,34 +212,34 @@ public sealed class PublicBookingRequestService(
     /// listesini (ManageUsers kilidi ardında) bu ekrana taşımayı gerektirirdi ve Operatör rolünde
     /// patlardı (Personel dropdown tuzağının aynısı).
     /// </summary>
-    public async Task UstlenAsync(Guid id, bool ustlen, CancellationToken ct = default)
+    public async Task ClaimAsync(Guid id, bool claim, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
-        var ok = ustlen
-            ? await repository.AtaAsync(id, currentUser.UserId, currentUser.UserName, ct)
-            : await repository.AtaAsync(id, null, null, ct);
+        var ok = claim
+            ? await repository.AssignAsync(id, currentUser.UserId, currentUser.UserName, ct)
+            : await repository.AssignAsync(id, null, null, ct);
         if (!ok) throw new ValidationException("Talep bulunamadı.");
     }
 
     /// <summary>PR-17: takip notu ekler. Notlar SİLİNMEZ (geçmiş kanıttır) → silme metodu yok.</summary>
-    public async Task NotEkleAsync(Guid id, string metin, CancellationToken ct = default)
+    public async Task AddNoteAsync(Guid id, string text, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
-        var m = (metin ?? "").Trim();
+        var m = (text ?? "").Trim();
         if (m.Length == 0) throw new ValidationException("Not boş olamaz.");
         if (m.Length > MaxNot) throw new ValidationException($"Not en çok {MaxNot} karakter olabilir.");
         _ = await repository.FindAsync(id, ct) ?? throw new ValidationException("Talep bulunamadı.");
 
-        await repository.NotEkleAsync(new TalepNotu
+        await repository.AddNoteAsync(new TalepNotu
         {
             TalepId = id, Metin = m, Kullanici = currentUser.UserName,
         }, ct);
     }
 
-    public Task<IReadOnlyList<TalepNotu>> NotlarAsync(Guid id, CancellationToken ct = default)
+    public Task<IReadOnlyList<TalepNotu>> NotesAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
-        return repository.NotlarAsync(id, ct);
+        return repository.NotesAsync(id, ct);
     }
 
     /// <summary>Not uzunluk sınırı (kolon 2.000).</summary>
@@ -250,13 +250,13 @@ public sealed class PublicBookingRequestService(
     /// GRUP taşır, `BookingMath.Validate` somut araç ister — personel dönüştürürken aracı seçer.
     /// Telefonu eşleşen Cari varsa YENİDEN YARATILMAZ (mükerrer müşteri kaydı olmasın).
     /// </summary>
-    public async Task<Guid> DonusturAsync(Guid id, Guid vehicleId, CancellationToken ct = default)
+    public async Task<Guid> ConvertAsync(Guid id, Guid vehicleId, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
 
-        var talep = await repository.FindAsync(id, ct)
+        var request = await repository.FindAsync(id, ct)
             ?? throw new ValidationException("Talep bulunamadı.");
-        var oncekiDurum = talep.Durum; // PR-17: claim geri alınırsa BU duruma dönülür (Yeni'ye değil)
+        var previousStatus = request.Durum; // PR-17: claim geri alınırsa BU duruma dönülür (Yeni'ye değil)
 
         // (1) ATOMİK CLAIM — iki personel aynı anda tıklarsa yalnız biri geçer.
         if (!await repository.TryClaimAsync(id, PublicBookingRequestDurum.Donustu, ct))
@@ -265,49 +265,49 @@ public sealed class PublicBookingRequestService(
         try
         {
             // (2) Cari: telefonla bul, yoksa yarat.
-            var cariId = await repository.FindCustomerIdByPhoneAsync(talep.Telefon, ct)
+            var customerId = await repository.FindCustomerIdByPhoneAsync(request.Telefon, ct)
                 ?? await customers.CreateAsync(new CustomerInput
                 {
-                    Tip = CariType.Bireysel,
-                    Ad = talep.AdSoyad,
-                    CepTel = talep.Telefon,
-                    Email = talep.Email,
-                    Kaynak = KaynakWeb,
+                    Tip = CustomerType.Bireysel,
+                    Ad = request.AdSoyad,
+                    CepTel = request.Telefon,
+                    Email = request.Email,
+                    Kaynak = WebSource,
                 }, ct);
 
             var reservationId = await reservations.CreateAsync(new BookingInput
             {
-                MusteriId = cariId,
+                MusteriId = customerId,
                 VehicleId = vehicleId,
-                BasTar = talep.BasTar,
-                BitTar = talep.BitTar,
-                CikisOfisi = talep.Sube,
-                DonusOfisi = talep.Sube,
-                Kaynak = KaynakWeb, // MasterDataSeeder'da ZATEN var — yeni seed gerekmez
-                Aciklama = TalepNotu(talep),
+                BasTar = request.BasTar,
+                BitTar = request.BitTar,
+                CikisOfisi = request.Sube,
+                DonusOfisi = request.Sube,
+                Kaynak = WebSource, // MasterDataSeeder'da ZATEN var — yeni seed gerekmez
+                Aciklama = RequestNote(request),
                 // PR-14 — MÜŞTERİNİN GÖRDÜĞÜ FİYAT SÖZLEŞMEYE GEÇER.
                 // Vitrin fiyatı artık motordan DEĞİL ilandan geliyor; bu satır olmasaydı
                 // `PricingService` GunlukUcret=0 görüp tarifeden çözmeye çalışır, tenant tarife
                 // girmediği için 0 kalırdı → müşteri sitede 1.500 ₺ görür, sözleşmede 0 yazardı.
-                GunlukUcret = await NetGunlukAsync(talep, ct),
+                GunlukUcret = await NetDailyAsync(request, ct),
                 // `FiyatTuru` KESİNLİKLE "Otomatik" GÖNDERİLMEZ: PricingService o değerde manuel
                 // fiyatı ZORLA SIFIRLAR (`if (otomatik) input.GunlukUcret = 0m`) ve yukarıdaki
                 // fiyat sessizce çöpe giderdi.
             }, ct);
 
-            await repository.SetDonusenReservationAsync(id, reservationId, ct);
+            await repository.SetConvertedReservationAsync(id, reservationId, ct);
             return reservationId;
         }
         catch
         {
             // (3) Cari/Rezervasyon aşaması patladı → claim'i GERİ AL; personel tekrar deneyebilsin.
-            await repository.ReleaseClaimAsync(id, oncekiDurum, ct);
+            await repository.ReleaseClaimAsync(id, previousStatus, ct);
             throw;
         }
     }
 
     /// <summary>`ReservationSource` seed'inde ZATEN var (MasterDataSeeder) — raporlamada kaynak atfı.</summary>
-    private const string KaynakWeb = "Web";
+    private const string WebSource = "Web";
 
     /// <summary>
     /// PR-14: müşterinin sitede gördüğü fiyatı ERP'nin beklediği NET'e çevirir.
@@ -316,23 +316,23 @@ public sealed class PublicBookingRequestService(
     /// DAHİL olabilir. Brüt rakamı olduğu gibi geçirmek sözleşmeyi KDV oranı kadar şişirirdi.
     /// Fiyat yoksa (doğrudan forma gelen talep) 0 döner → mevcut davranış korunur, motor devreye girer.
     /// </summary>
-    private async Task<decimal> NetGunlukAsync(PublicBookingRequest t, CancellationToken ct)
+    private async Task<decimal> NetDailyAsync(PublicBookingRequest t, CancellationToken ct)
     {
-        if (t.GosterilenGunlukUcretKdvDahil is not { } gosterilen || gosterilen <= 0m) return 0m;
-        if (t.GosterilenKdvDahil == false) return gosterilen; // zaten net
-        var oran = await kdv.OranAsync(ct);
-        return oran > 0m ? Math.Round(gosterilen / (1m + oran), 2, MidpointRounding.AwayFromZero) : gosterilen;
+        if (t.GosterilenGunlukUcretKdvDahil is not { } shown || shown <= 0m) return 0m;
+        if (t.GosterilenKdvDahil == false) return shown; // zaten net
+        var rate = await vat.RateAsync(ct);
+        return rate > 0m ? Math.Round(shown / (1m + rate), 2, MidpointRounding.AwayFromZero) : shown;
     }
 
-    private static string TalepNotu(PublicBookingRequest t)
+    private static string RequestNote(PublicBookingRequest t)
     {
-        var parcalar = new List<string> { "Site talebinden dönüştürüldü." };
-        if (!string.IsNullOrWhiteSpace(t.IlanBaslik)) parcalar.Add($"Talep edilen araç: {t.IlanBaslik}.");
-        else if (!string.IsNullOrWhiteSpace(t.AracGrupKod)) parcalar.Add($"Talep edilen grup: {t.AracGrupKod}."); // PR-14 öncesi eski talepler
+        var parts = new List<string> { "Site talebinden dönüştürüldü." };
+        if (!string.IsNullOrWhiteSpace(t.IlanBaslik)) parts.Add($"Talep edilen araç: {t.IlanBaslik}.");
+        else if (!string.IsNullOrWhiteSpace(t.AracGrupKod)) parts.Add($"Talep edilen grup: {t.AracGrupKod}."); // PR-14 öncesi eski talepler
         if (t.GosterilenGunlukUcretKdvDahil is { } f)
-            parcalar.Add($"Sitede gösterilen günlük fiyat ({(t.GosterilenKdvDahil == false ? "KDV hariç" : "KDV dahil")}): {f:N2}.");
-        if (!string.IsNullOrWhiteSpace(t.Not)) parcalar.Add($"Müşteri notu: {t.Not}");
-        return string.Join(" ", parcalar);
+            parts.Add($"Sitede gösterilen günlük fiyat ({(t.GosterilenKdvDahil == false ? "KDV hariç" : "KDV dahil")}): {f:N2}.");
+        if (!string.IsNullOrWhiteSpace(t.Not)) parts.Add($"Müşteri notu: {t.Not}");
+        return string.Join(" ", parts);
     }
 
     private static string? TrimOrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

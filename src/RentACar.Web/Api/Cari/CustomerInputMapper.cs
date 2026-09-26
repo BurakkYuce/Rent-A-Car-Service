@@ -81,8 +81,8 @@ internal static class CustomerInputMapper
     /// #295 H1: vergi no yanıtta DÜZ gösterilmez — bireysel caride (şahıs vergi no = TC olabilir) ya da tipten bağımsız
     /// 11 rakam taşıyan değerde (eski kayıtta VergiNo alanına yazılmış TC). Böyle bir değer yalnız maskeli döner.
     /// </summary>
-    public static bool TaxNumberHidden(CariType type, string? taxNumber)
-        => type == CariType.Bireysel || LooksLikeTc(taxNumber);
+    public static bool TaxNumberHidden(CustomerType type, string? taxNumber)
+        => type == CustomerType.Bireysel || LooksLikeTc(taxNumber);
 
     public static bool TaxNumberHidden(Customer c) => TaxNumberHidden(c.Tip, c.VergiNo);
 
@@ -98,8 +98,8 @@ internal static class CustomerInputMapper
     /// </summary>
     public static void RequireTaxNumberOnTypeChange(Customer stored, CustomerRequest r)
     {
-        var newType = F5Ortak.EnumAdi<CariType>(r.Tip, "tip") ?? CariType.Bireysel;
-        if (stored.Tip == CariType.Bireysel && newType != CariType.Bireysel && !string.IsNullOrEmpty(stored.VergiNo)
+        var newType = F5Ortak.EnumAdi<CustomerType>(r.Tip, "tip") ?? CustomerType.Bireysel;
+        if (stored.Tip == CustomerType.Bireysel && newType != CustomerType.Bireysel && !string.IsNullOrEmpty(stored.VergiNo)
             && r.VergiNo is null)
             throw new ValidationException("Tür değişikliğinde vergi no yeniden girilmeli.", "vergiNo");
     }
@@ -118,7 +118,7 @@ internal static class CustomerInputMapper
             address = s?.AnonimAdres == true, document = s?.AnonimBelge == true;
         return new CustomerInput
         {
-            Tip = F5Ortak.EnumAdi<CariType>(r.Tip, "tip") ?? CariType.Bireysel,
+            Tip = F5Ortak.EnumAdi<CustomerType>(r.Tip, "tip") ?? CustomerType.Bireysel,
             Ad = Keep(r.Ad, name, s?.Ad), Soyad = Keep(r.Soyad, name, s?.Soyad), Unvan = Keep(r.Unvan, name, s?.Unvan),
             // Gizli numaralar: null = değiştirme (kart göstermez); "" servis normalizasyonunda null'a (temizle) döner.
             TcKimlik = r.TcKimlik ?? s?.TcKimlik,

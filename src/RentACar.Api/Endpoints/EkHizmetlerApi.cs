@@ -13,24 +13,24 @@ public static class EkHizmetlerApi
     {
         var grp = app.MapGroup("/api/v1/ek-hizmetler").WithTags("EkHizmetler").RequireAuthorization();
 
-        grp.MapGet("/", async (EkHizmetTanimService svc, CancellationToken ct, bool aktif = false) =>
+        grp.MapGet("/", async (AddOnDefinitionService svc, CancellationToken ct, bool aktif = false) =>
             Results.Ok((aktif ? await svc.ListActiveAsync(ct) : await svc.ListAsync(ct)).Select(EkHizmetTanimResponse.From)));
 
-        grp.MapGet("/{id:guid}", async (Guid id, EkHizmetTanimService svc, CancellationToken ct) =>
+        grp.MapGet("/{id:guid}", async (Guid id, AddOnDefinitionService svc, CancellationToken ct) =>
             await svc.GetAsync(id, ct) is { } t ? Results.Ok(EkHizmetTanimResponse.From(t)) : NotFound());
 
-        grp.MapPost("/", async (EkHizmetTanimRequest req, EkHizmetTanimService svc, CancellationToken ct) =>
+        grp.MapPost("/", async (EkHizmetTanimRequest req, AddOnDefinitionService svc, CancellationToken ct) =>
         {
             var id = await svc.CreateAsync(req.ToInput(), ct);
             return Results.Created($"/api/v1/ek-hizmetler/{id}", EkHizmetTanimResponse.From((await svc.GetAsync(id, ct))!));
         }).RequirePermission(Permission.OperationsWrite);
 
-        grp.MapPut("/{id:guid}", async (Guid id, EkHizmetTanimRequest req, EkHizmetTanimService svc, CancellationToken ct) =>
+        grp.MapPut("/{id:guid}", async (Guid id, EkHizmetTanimRequest req, AddOnDefinitionService svc, CancellationToken ct) =>
             await svc.UpdateAsync(id, req.ToInput(), ct)
                 ? Results.Ok(EkHizmetTanimResponse.From((await svc.GetAsync(id, ct))!)) : NotFound())
             .RequirePermission(Permission.OperationsWrite);
 
-        grp.MapDelete("/{id:guid}", async (Guid id, EkHizmetTanimService svc, CancellationToken ct) =>
+        grp.MapDelete("/{id:guid}", async (Guid id, AddOnDefinitionService svc, CancellationToken ct) =>
             await svc.DeleteAsync(id, ct) ? Results.NoContent() : NotFound())
             .RequirePermission(Permission.OperationsWrite);
 

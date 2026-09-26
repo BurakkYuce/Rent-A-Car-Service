@@ -23,7 +23,7 @@ public sealed class ExpenseTests(PostgresFixture fx)
         var id = await expenses.CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Arac, VehicleId = Guid.NewGuid(),
-            NetTutar = 100m, KdvOrani = 0.20m, OdemeYontemi = OdemeYontemi.Nakit
+            NetTutar = 100m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.Nakit
         });
 
         var exp = await expenses.GetAsync(id);
@@ -55,11 +55,11 @@ public sealed class ExpenseTests(PostgresFixture fx)
         await expenses.CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Genel, CariId = tedarikci,
-            NetTutar = 200m, KdvOrani = 0.20m, OdemeYontemi = OdemeYontemi.AcikHesap
+            NetTutar = 200m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.AcikHesap
         });
 
         // Alacak Cari (gross 240) → bakiye -240 (tedarikçiye borçluyuz / alacaklı).
-        Assert.Equal(-240m, await cash.GetCariBalanceAsync(tedarikci));
+        Assert.Equal(-240m, await cash.GetAccountBalanceAsync(tedarikci));
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class ExpenseTests(PostgresFixture fx)
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new ExpenseInput { NetTutar = 0m }));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
-            new ExpenseInput { NetTutar = 10m, OdemeYontemi = OdemeYontemi.AcikHesap })); // cari yok
+            new ExpenseInput { NetTutar = 10m, OdemeYontemi = PaymentMethod.AcikHesap })); // cari yok
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
             new ExpenseInput { NetTutar = 10m, Tip = ExpenseType.Arac })); // araç yok
     }
@@ -85,7 +85,7 @@ public sealed class ExpenseTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<ExpenseService>()
-                .CreateAsync(new ExpenseInput { NetTutar = 50m, OdemeYontemi = OdemeYontemi.Nakit });
+                .CreateAsync(new ExpenseInput { NetTutar = 50m, OdemeYontemi = PaymentMethod.Nakit });
 
         using var s2 = host.ScopeFor(t2);
         Assert.Empty(await s2.ServiceProvider.GetRequiredService<ExpenseService>().ListAsync());
@@ -97,7 +97,7 @@ public sealed class ExpenseTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "auditor");
         await scope.ServiceProvider.GetRequiredService<ExpenseService>()
-            .CreateAsync(new ExpenseInput { NetTutar = 75m, OdemeYontemi = OdemeYontemi.Nakit });
+            .CreateAsync(new ExpenseInput { NetTutar = 75m, OdemeYontemi = PaymentMethod.Nakit });
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();

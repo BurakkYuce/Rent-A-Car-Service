@@ -50,7 +50,7 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<SonKullanimRow>> GetSonKullanimAsync(
+    public async Task<IReadOnlyList<SonKullanimRow>> GetLastUsageAsync(
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
     {
         if (vehicleIds.Count == 0) return [];
@@ -79,7 +79,7 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
         var anonim = cariler.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet(); // F5.1 (KVKK bayrağı)
         var adlar = cariler.ToDictionary(
             c => c.Id,
-            c => c.Tip == RentACar.Domain.Enums.CariType.Kurumsal
+            c => c.Tip == RentACar.Domain.Enums.CustomerType.Kurumsal
                 ? c.Unvan
                 : $"{c.Ad} {c.Soyad}".Trim());
 

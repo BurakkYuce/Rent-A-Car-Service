@@ -29,7 +29,7 @@ public static class ReservationSourceEndpoints
         // FAZ-24 "Aşağıya Yansıt" — seçili kaynağın oranlarını diğer AKTİF kaynaklara kopyalar.
         // Yalnız bu tabloya yazar; kayıtlı rezervasyon/fatura/defter DEĞİŞMEZ.
         grp.MapPost("/yansit", async (ReservationSourceService svc, [FromForm] Guid id) =>
-            await Run(() => svc.OranlariYansitAsync(id), "Yansıtma yapıldı."));
+            await Run(() => svc.ReflectRatesAsync(id), "Yansıtma yapıldı."));
 
         return app;
     }
@@ -101,8 +101,8 @@ public static class ReservationSourceEndpoints
     }
 
     /// <summary>Boş seçim → null ("belirtilmemiş"); tanınmayan değer de null (enjeksiyon sessizce yok sayılır).</summary>
-    private static RezKaynakGrubu? Grup(string? s)
-        => Enum.TryParse<RezKaynakGrubu>((s ?? "").Trim(), ignoreCase: true, out var g)
+    private static ReservationSourceGroup? Grup(string? s)
+        => Enum.TryParse<ReservationSourceGroup>((s ?? "").Trim(), ignoreCase: true, out var g)
            && Enum.IsDefined(g) ? g : null;
 
     private static async Task<IResult> Run(Func<Task> action, string mesaj)

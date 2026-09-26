@@ -14,7 +14,7 @@ public class Sikayet : ITenantOwned, IAuditable
     public Guid? CariId { get; set; }
     public string Konu { get; set; } = string.Empty;
     public string? Detay { get; set; }
-    public SikayetDurum Durum { get; set; } = SikayetDurum.Acik;
+    public ComplaintStatus Durum { get; set; } = ComplaintStatus.Acik;
     public DateTimeOffset Tarih { get; set; } = DateTimeOffset.UtcNow;
     public string? Cozum { get; set; }
 
@@ -36,7 +36,7 @@ public class Sikayet : ITenantOwned, IAuditable
     /// <summary>Şikayetin geldiği kanal (Telefon/Web/Yüz Yüze… serbest metin + öneri listesi).</summary>
     public string? SikayetKanali { get; set; }
     /// <summary>Şikayet hangi sürece ait. Boş → belirtilmemiş (eski kayıtlar).</summary>
-    public SikayetYeri? SikayetYeri { get; set; }
+    public ComplaintLocation? SikayetYeri { get; set; }
     /// <summary>Çıkış ofisi — sözleşmeden ANLIK GÖRÜNTÜ olarak kopyalanır. Sözleşme bağı olmayan
     /// şikayette elle girilebilir.</summary>
     public string? CikisOfisi { get; set; }

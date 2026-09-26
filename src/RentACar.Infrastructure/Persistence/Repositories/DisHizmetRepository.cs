@@ -10,7 +10,7 @@ using RentACar.Domain.Common;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>IDisHizmetRepository implementasyonu (FAZ 4.3) — posting CashRepository deseni.</summary>
-public sealed class DisHizmetRepository(IDbContextFactory<AppDbContext> factory) : IDisHizmetRepository
+public sealed class DisHizmetRepository(IDbContextFactory<AppDbContext> factory) : IOutsourcedServiceRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -36,7 +36,7 @@ public sealed class DisHizmetRepository(IDbContextFactory<AppDbContext> factory)
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            kayit.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.DisHizmet, ct);
+            kayit.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.DisHizmet, ct);
             foreach (var e in entries) e.Description = $"Dış hizmet {kayit.No} — {kayit.AlinanHizmet}";
 
             db.DisHizmetAlimlari.Add(kayit);
@@ -55,7 +55,7 @@ public sealed class DisHizmetRepository(IDbContextFactory<AppDbContext> factory)
         }, ct);
     }
 
-    public async Task IptalAsync(Guid id, IReadOnlyList<AccountLedgerEntry> tersEntries, CancellationToken ct = default)
+    public async Task CancelAsync(Guid id, IReadOnlyList<AccountLedgerEntry> tersEntries, CancellationToken ct = default)
     {
         Dengeli(tersEntries);
         await PgRetry.RunAsync(async () =>

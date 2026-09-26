@@ -17,7 +17,7 @@ public sealed class MasterEksikN1Tests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<HesapKoduService>();
+        var svc = scope.ServiceProvider.GetRequiredService<AccountCodeService>();
 
         await svc.CreateAsync(new HesapKoduInput { Kod = "600", Ad = "Yurtiçi Satışlar" });
         var list = await svc.ListAsync();
@@ -32,7 +32,7 @@ public sealed class MasterEksikN1Tests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<ServisTanimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<ServiceDefinitionService>();
 
         var id = await svc.CreateAsync(new ServisTanimInput { Kod = "EKO-PER", AracTipi = "Ekonomik", BakimKm = 15000 });
         var s = await svc.GetAsync(id);
@@ -46,11 +46,11 @@ public sealed class MasterEksikN1Tests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using (var a = host.ScopeFor(Guid.NewGuid()))
         {
-            await a.ServiceProvider.GetRequiredService<HesapKoduService>().CreateAsync(new HesapKoduInput { Kod = "X", Ad = "Gizli" });
-            await a.ServiceProvider.GetRequiredService<ServisTanimService>().CreateAsync(new ServisTanimInput { Kod = "X", AracTipi = "Gizli", BakimKm = 100 });
+            await a.ServiceProvider.GetRequiredService<AccountCodeService>().CreateAsync(new HesapKoduInput { Kod = "X", Ad = "Gizli" });
+            await a.ServiceProvider.GetRequiredService<ServiceDefinitionService>().CreateAsync(new ServisTanimInput { Kod = "X", AracTipi = "Gizli", BakimKm = 100 });
         }
         using var b = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await b.ServiceProvider.GetRequiredService<HesapKoduService>().ListAsync());
-        Assert.Empty(await b.ServiceProvider.GetRequiredService<ServisTanimService>().ListAsync());
+        Assert.Empty(await b.ServiceProvider.GetRequiredService<AccountCodeService>().ListAsync());
+        Assert.Empty(await b.ServiceProvider.GetRequiredService<ServiceDefinitionService>().ListAsync());
     }
 }

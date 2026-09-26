@@ -7,7 +7,7 @@ namespace RentACar.Application.Baflar;
 /// karşılaştırması. Şubelerden biri boşsa kayıt HİÇBİR kovaya girmez (bilinmeyeni "aynı" saymak
 /// yanlış bilgi olurdu).
 /// </summary>
-public enum BafLokasyon
+public enum BafLocation
 {
     /// <summary>Çıkış şubesi == dönüş şubesi (ikisi de dolu).</summary>
     AyniOfis = 1,
@@ -29,12 +29,12 @@ public sealed class BafFilter
     /// <summary>Plaka PARÇA eşleşmesi (araç kolonu Baf'ta VehicleId'dir → Vehicles alt-sorgusu).</summary>
     public string? Plaka { get; set; }
 
-    public BafDurum? Durum { get; set; }
+    public BafStatus? Durum { get; set; }
 
-    public BafKullanimAmaci? KullanimAmaci { get; set; }
+    public BafUsagePurpose? KullanimAmaci { get; set; }
 
     /// <summary>Aynı ofis / farklı ofis (çıkış-dönüş şube karşılaştırması).</summary>
-    public BafLokasyon? Lokasyon { get; set; }
+    public BafLocation? Lokasyon { get; set; }
 
     /// <summary>Çıkış şubesi (tam ad eşleşmesi).</summary>
     public string? Ofis { get; set; }

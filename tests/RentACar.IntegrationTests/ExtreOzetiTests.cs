@@ -27,7 +27,7 @@ public sealed class ExtreOzetiTests(PostgresFixture fx)
 
     private static async Task<Guid> CariAsync(IServiceProvider sp, string unvan)
         => await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = unvan });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = unvan });
 
     private static Task<Guid> FaturaAsync(
         IServiceProvider sp, Guid cari, decimal net, DateTimeOffset? tarih = null, DateTimeOffset? vade = null)
@@ -48,7 +48,7 @@ public sealed class ExtreOzetiTests(PostgresFixture fx)
         await FaturaAsync(sp, b, 2000m, T0.AddDays(-10), T0.AddDays(10));   // vadesi GELECEK
         await FaturaAsync(sp, a, 500m, T0.AddDays(-2));                      // VADESİZ
 
-        var rows = await sp.GetRequiredService<ReportService>().GetExtreOzetiAsync(asOf: T0);
+        var rows = await sp.GetRequiredService<ReportService>().GetStatementSummaryAsync(asOf: T0);
         Assert.Equal(3, rows.Count);
 
         // Sıralama: vadesi olanlar önce (en erken vade üstte), vadesizler sonda.
@@ -61,9 +61,9 @@ public sealed class ExtreOzetiTests(PostgresFixture fx)
         Assert.Equal(600m, rows[2].Tutar);
 
         // Kalan gün: −5 (gecikmiş), +10, vadesiz → null.
-        Assert.Equal(-5, rows[0].KalanGun(T0));
-        Assert.Equal(10, rows[1].KalanGun(T0));
-        Assert.Null(rows[2].KalanGun(T0));
+        Assert.Equal(-5, rows[0].RemainingDays(T0));
+        Assert.Equal(10, rows[1].RemainingDays(T0));
+        Assert.Null(rows[2].RemainingDays(T0));
 
         // Brüt toplam: 1200 + 2400 + 600 = 4200.
         Assert.Equal(4200m, rows.Sum(r => r.IsaretliTutarTl));
@@ -80,18 +80,18 @@ public sealed class ExtreOzetiTests(PostgresFixture fx)
         var cash = sp.GetRequiredService<CashService>();
 
         await FaturaAsync(sp, cari, 1000m, T0.AddDays(-10), T0.AddDays(-1));   // brüt 1200
-        Assert.Equal(1200m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(1200m, await cash.GetAccountBalanceAsync(cari));
 
         // Faturayı TAM tahsil et.
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 1200m });
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
 
         // Extre özeti hâlâ 1.200 brüt gösterir — fatura-bazlı mahsup YOK.
-        var row = Assert.Single(await sp.GetRequiredService<ReportService>().GetExtreOzetiAsync(asOf: T0));
+        var row = Assert.Single(await sp.GetRequiredService<ReportService>().GetStatementSummaryAsync(asOf: T0));
         Assert.Equal(1200m, row.Tutar);
 
         // Cari bakiye raporu ise carinin kapandığını gösterir (sıfır bakiyeli cari listelenmez).
-        Assert.Empty(await sp.GetRequiredService<ReportService>().GetCariBalancesAsync());
+        Assert.Empty(await sp.GetRequiredService<ReportService>().GetAccountBalancesAsync());
     }
 
     [Fact]
@@ -104,9 +104,9 @@ public sealed class ExtreOzetiTests(PostgresFixture fx)
         var cari = await CariAsync(sp, "Delta");
 
         var f1 = await FaturaAsync(sp, cari, 1000m, T0.AddDays(-10), T0.AddDays(5));   // brüt 1200
-        await inv.CreateIadeAsync(f1);                                                  // iade: brüt 1200
+        await inv.CreateRefundAsync(f1);                                                  // iade: brüt 1200
 
-        var rows = await sp.GetRequiredService<ReportService>().GetExtreOzetiAsync(asOf: T0);
+        var rows = await sp.GetRequiredService<ReportService>().GetStatementSummaryAsync(asOf: T0);
         Assert.Equal(2, rows.Count);
 
         var iade = Assert.Single(rows, r => r.IadeMi);
@@ -135,7 +135,7 @@ public sealed class ExtreOzetiTests(PostgresFixture fx)
         await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(kira);
         await FaturaAsync(sp, cari, 100m);   // kirasız manuel fatura
 
-        var rows = await sp.GetRequiredService<ReportService>().GetExtreOzetiAsync(asOf: T0);
+        var rows = await sp.GetRequiredService<ReportService>().GetStatementSummaryAsync(asOf: T0);
         Assert.Equal(2, rows.Count);   // manuel fatura JOIN'de DÜŞMEDİ (LEFT JOIN)
 
         var kiraSatiri = Assert.Single(rows, r => r.Plaka is not null);
@@ -162,23 +162,23 @@ public sealed class ExtreOzetiTests(PostgresFixture fx)
         await FaturaAsync(sp, b, 2000m, T0.AddDays(-5), T0.AddDays(20));    // gelecek vadeli
         await FaturaAsync(sp, a, 300m, T0.AddDays(-1));                      // vadesiz
 
-        Assert.Equal(3, (await rapor.GetExtreOzetiAsync(asOf: T0)).Count);
-        Assert.Equal(3, (await rapor.GetExtreOzetiAsync(new ExtreOzetiFilter(), T0)).Count);
+        Assert.Equal(3, (await rapor.GetStatementSummaryAsync(asOf: T0)).Count);
+        Assert.Equal(3, (await rapor.GetStatementSummaryAsync(new ExtreOzetiFilter(), T0)).Count);
 
         // Cari
-        Assert.Equal(2, (await rapor.GetExtreOzetiAsync(new ExtreOzetiFilter { CariId = a }, T0)).Count);
-        Assert.Single(await rapor.GetExtreOzetiAsync(new ExtreOzetiFilter { CariId = b }, T0));
+        Assert.Equal(2, (await rapor.GetStatementSummaryAsync(new ExtreOzetiFilter { CariId = a }, T0)).Count);
+        Assert.Single(await rapor.GetStatementSummaryAsync(new ExtreOzetiFilter { CariId = b }, T0));
 
         // Yalnız gecikmiş: VADESİZ kayıtlar da düşer (vade yoksa gecikme kavramı yok).
-        var gecikmis = await rapor.GetExtreOzetiAsync(new ExtreOzetiFilter { YalnizGecikmis = true }, T0);
+        var gecikmis = await rapor.GetStatementSummaryAsync(new ExtreOzetiFilter { YalnizGecikmis = true }, T0);
         Assert.Equal(T0.AddDays(-15), Assert.Single(gecikmis).VadeTarihi);
 
         // Fatura tarihi aralığı: son 10 gün → 2 kayıt.
-        Assert.Equal(2, (await rapor.GetExtreOzetiAsync(new ExtreOzetiFilter { Bas = T0.AddDays(-10) }, T0)).Count);
+        Assert.Equal(2, (await rapor.GetStatementSummaryAsync(new ExtreOzetiFilter { Bas = T0.AddDays(-10) }, T0)).Count);
 
         // Kirasız faturalar plaka/ofis filtresinde elenir.
-        Assert.Empty(await rapor.GetExtreOzetiAsync(new ExtreOzetiFilter { Plaka = "34" }, T0));
-        Assert.Empty(await rapor.GetExtreOzetiAsync(new ExtreOzetiFilter { Ofis = "Merkez Ofis" }, T0));
+        Assert.Empty(await rapor.GetStatementSummaryAsync(new ExtreOzetiFilter { Plaka = "34" }, T0));
+        Assert.Empty(await rapor.GetStatementSummaryAsync(new ExtreOzetiFilter { Ofis = "Merkez Ofis" }, T0));
     }
 
     [Fact]
@@ -189,6 +189,6 @@ public sealed class ExtreOzetiTests(PostgresFixture fx)
             await FaturaAsync(s1.ServiceProvider, await CariAsync(s1.ServiceProvider, "Gizli"), 999m);
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ReportService>().GetExtreOzetiAsync(asOf: T0));
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ReportService>().GetStatementSummaryAsync(asOf: T0));
     }
 }

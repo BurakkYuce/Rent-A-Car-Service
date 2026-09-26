@@ -71,15 +71,15 @@ public sealed class VadeBildirimJobSaatDilimiTests(PostgresFixture fx)
             FirmaUnvan = "Yüce Rent A.Ş.", SmtpHost = "smtp.test.local", SmtpPort = 587,
             SmtpGonderenAdres = "rezervasyon@yucerent.com",
         });
-        var svc = sp.GetRequiredService<MusteriBildirimService>();
-        await svc.SablonKaydetAsync(new MesajSablonInput
+        var svc = sp.GetRequiredService<CustomerNotificationService>();
+        await svc.SaveTemplateAsync(new MesajSablonInput
         {
-            Tur = MesajTuru.TeslimHatirlatma, Kanal = MesajKanal.Eposta,
+            Tur = MessageType.TeslimHatirlatma, Kanal = MessageChannel.Eposta,
             Konu = "Yarın teslim", Govde = "<p>{MusteriAd}, {No} yarın.</p>", Aktif = true,
         });
-        await svc.SablonKaydetAsync(new MesajSablonInput
+        await svc.SaveTemplateAsync(new MesajSablonInput
         {
-            Tur = MesajTuru.IadeHatirlatma, Kanal = MesajKanal.Eposta,
+            Tur = MessageType.IadeHatirlatma, Kanal = MessageChannel.Eposta,
             Konu = "Bugün iade", Govde = "<p>{MusteriAd}, {No} bugün.</p>", Aktif = true,
         });
     }
@@ -182,11 +182,11 @@ public sealed class VadeBildirimJobSaatDilimiTests(PostgresFixture fx)
                     $"teslim-hatirlatma:{rYarinGece:N}:{GunEtiketi}",
                 }.Order().ToArray(),
                 kayitlar.Select(k => k.Anahtar).Order().ToArray());
-            Assert.All(kayitlar, k => Assert.Equal(GidenMesajDurum.Gonderildi, k.Durum));
+            Assert.All(kayitlar, k => Assert.Equal(OutgoingMessageStatus.Gonderildi, k.Durum));
         }
 
         // Koşu günlüğü: başarı satırı yazıldı (eski kodda bu iş için HİÇ satır oluşmuyordu).
-        var log = Assert.Single(await sp.GetRequiredService<JobCalismaLogService>().ListAsync(),
+        var log = Assert.Single(await sp.GetRequiredService<JobRunLogService>().ListAsync(),
             l => l.JobAdi == JobCalismaKaydedici.MusteriBildirim);
         Assert.True(log.Basarili);
         Assert.Equal(3, log.SonucSayisi);
@@ -216,8 +216,8 @@ public sealed class VadeBildirimJobSaatDilimiTests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 TZ 902", Km = 9_500 });
         var servis = sp.GetRequiredService<ServiceRecordService>();
         var sid = await servis.CreateAsync(new ServiceRecordInput { VehicleId = aracF, GirisKm = 9_000 });
-        Assert.True(await servis.BaslatAsync(sid));
-        Assert.True(await servis.TamamlaAsync(sid, 9_500, sonrakiBakimKm: 10_000));
+        Assert.True(await servis.StartAsync(sid));
+        Assert.True(await servis.CompleteAsync(sid, 9_500, nextMaintenanceKm: 10_000));
 
         // Müşteri: İstanbul yarını başlayan 1 rezervasyon → 1 teslim hatırlatması.
         await using (var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync())
@@ -230,7 +230,7 @@ public sealed class VadeBildirimJobSaatDilimiTests(PostgresFixture fx)
             vade = await JobCalismaKaydedici.CalistirAsync(db, tenant, JobCalismaKaydedici.VadeBildirim,
                 () => VadeBildirimUretici.RunAsync(db, tenant, nowIst), n => n);
             filo = await JobCalismaKaydedici.CalistirAsync(db, tenant, JobCalismaKaydedici.FiloBildirim,
-                () => FiloBildirimUretici.RunAsync(db, tenant, nowIst, TutSatEsikleri.Varsayilan), n => n);
+                () => FiloBildirimUretici.RunAsync(db, tenant, nowIst, TutSatEsikleri.Default), n => n);
             musteri = await MusteriKosAsync(db, tenant, nowIst, sp, posta);
         }
 
@@ -249,7 +249,7 @@ public sealed class VadeBildirimJobSaatDilimiTests(PostgresFixture fx)
             Assert.EndsWith(":" + GunEtiketi, anahtar); // gün etiketi İstanbul günü (07.07), UTC günü (06.07) değil
         }
 
-        var loglar = await sp.GetRequiredService<JobCalismaLogService>().ListAsync();
+        var loglar = await sp.GetRequiredService<JobRunLogService>().ListAsync();
         Assert.Equal(3, loglar.Count);
         Assert.All(loglar, l => Assert.True(l.Basarili, $"{l.JobAdi}: {l.Detay}"));
     }

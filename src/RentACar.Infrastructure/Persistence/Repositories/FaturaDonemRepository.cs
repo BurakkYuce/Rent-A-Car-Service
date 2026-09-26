@@ -6,7 +6,7 @@ using RentACar.Domain.Enums;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>IFaturaDonemRepository implementasyonu (FAZ 4.2-B1).</summary>
-public sealed class FaturaDonemRepository(IDbContextFactory<AppDbContext> factory) : IFaturaDonemRepository
+public sealed class FaturaDonemRepository(IDbContextFactory<AppDbContext> factory) : IInvoicePeriodRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -18,7 +18,7 @@ public sealed class FaturaDonemRepository(IDbContextFactory<AppDbContext> factor
             .OrderBy(d => d.DonemSira).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<OtomatikTahsilatAdayi>> AdaylarAsync(
+    public async Task<IReadOnlyList<OtomatikTahsilatAdayi>> CandidatesAsync(
         OtomatikTahsilatFiltre filtre, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -29,7 +29,7 @@ public sealed class FaturaDonemRepository(IDbContextFactory<AppDbContext> factor
         var q = from d in db.FaturaDonemleri.AsNoTracking()
                 join r in db.Rentals.AsNoTracking() on d.RentalId equals r.Id
                 join c in db.Customers.AsNoTracking() on r.MusteriId equals c.Id
-                where d.Durum == FaturaDonemDurum.Planlandi && d.DonemBit <= simdi
+                where d.Durum == InvoicePeriodStatus.Planlandi && d.DonemBit <= simdi
                       && r.Durum == RentalStatus.Kirada && r.DonemselFaturalama
                 select new { d, r, c };
 
@@ -83,7 +83,7 @@ public sealed class FaturaDonemRepository(IDbContextFactory<AppDbContext> factor
 
         var sonuc = ham.Select(x => new OtomatikTahsilatAdayi(
             x.Id, x.SozlesmeNo, x.DonemSira, x.DonemBas, x.DonemBit, x.CariId,
-            x.Tip == CariType.Bireysel ? $"{x.Ad} {x.Soyad}".Trim() : (x.Unvan ?? string.Empty),
+            x.Tip == CustomerType.Bireysel ? $"{x.Ad} {x.Soyad}".Trim() : (x.Unvan ?? string.Empty),
             x.CikisOfisi, x.CikisSubeId,
             // TRY kiralarda Rental.Doviz NULL gelir; boş etiket ekranda "· " gibi görünür ve
             // döviz kırılımını bozardı → baz para koduna normalize edilir.
@@ -96,12 +96,12 @@ public sealed class FaturaDonemRepository(IDbContextFactory<AppDbContext> factor
         return filtre.SadeceBakiyeli ? sonuc.Where(x => x.CariBakiye > 0m).ToList() : sonuc;
     }
 
-    public async Task<bool> AtlandiIsaretleAsync(Guid donemId, CancellationToken ct = default)
+    public async Task<bool> MarkSkippedAsync(Guid donemId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var d = await db.FaturaDonemleri.FirstOrDefaultAsync(x => x.Id == donemId, ct);
-        if (d is null || d.Durum != FaturaDonemDurum.Planlandi) return false;
-        d.Durum = FaturaDonemDurum.Atlandi;
+        if (d is null || d.Durum != InvoicePeriodStatus.Planlandi) return false;
+        d.Durum = InvoicePeriodStatus.Atlandi;
         d.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return true;
@@ -116,7 +116,7 @@ public sealed class FaturaDonemRepository(IDbContextFactory<AppDbContext> factor
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
             var eskiler = await db.FaturaDonemleri
-                .Where(d => d.RentalId == rentalId && d.Durum == FaturaDonemDurum.Planlandi)
+                .Where(d => d.RentalId == rentalId && d.Durum == InvoicePeriodStatus.Planlandi)
                 .ToListAsync(ct);
             db.FaturaDonemleri.RemoveRange(eskiler);
             db.FaturaDonemleri.AddRange(yeniPlanlar);

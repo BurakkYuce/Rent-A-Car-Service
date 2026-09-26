@@ -35,12 +35,12 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var trend = await reports.GetAylikGelirGiderTrendAsync(12, ct: ct);
-        var gg = await reports.GetGelirGiderAsync(p.FromUtc, p.ToUtc, ct);
+        var trend = await reports.GetMonthlyRevenueExpenseTrendAsync(12, ct: ct);
+        var gg = await reports.GetRevenueExpenseAsync(p.FromUtc, p.ToUtc, ct);
         var aging = await reports.GetAgingAsync(p.Bit is { } b ? ReportPeriod.Anchor(b) : DateTimeOffset.UtcNow, ct);
-        var tf = await reports.GetTahsilatFaturaAsync(p.FromUtc, p.ToUtc, ct);
+        var tf = await reports.GetCollectionInvoiceAsync(p.FromUtc, p.ToUtc, ct);
         var bugun = ReportPeriod.Anchor(ReportPeriod.Today);
-        var takip = await reports.GetAracDurumTakipAsync(new AracDurumTakipFilter(), bugun.AddDays(-29), bugun, ct);
+        var takip = await reports.GetVehicleStatusTrackingAsync(new AracDurumTakipFilter(), bugun.AddDays(-29), bugun, ct);
         var kova = new ReportAgingBuckets(aging.Sum(a => a.B0_30), aging.Sum(a => a.B31_60), aging.Sum(a => a.B61_90),
             aging.Sum(a => a.B90Plus));
         return TypedResults.Ok(new ReportSummaryResult<FinanceDashboard>(p.ToDto(),
@@ -63,7 +63,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var satirlar = await cash.ListKasaVirmanlarAsync(new KasaVirmanFilter
+        var satirlar = await cash.ListCashTransfersAsync(new KasaVirmanFilter
         {
             Bas = p.FromUtc, Bit = p.ToUtc, HesapId = hesapId, Ara = F(ara),
         }, ct);
@@ -78,8 +78,8 @@ public static partial class ReportApi
             p.ToDto(), toplam, page.Apply(rows, TransferMap), null));
     }
 
-    private static readonly SiralamaHaritasi<ReportTransferRow> TransferMap = SiralamaHaritasi<ReportTransferRow>
-        .Olustur(r => r.Id).Alan("tarih", r => r.Tarih).Alan("tutar", r => r.Tutar).Alan("tutarTl", r => r.TutarTl)
+    private static readonly SortFieldMap<ReportTransferRow> TransferMap = SortFieldMap<ReportTransferRow>
+        .Create(r => r.Id).Alan("tarih", r => r.Tarih).Alan("tutar", r => r.Tutar).Alan("tutarTl", r => r.TutarTl)
         .Alan("doviz", r => r.Doviz).Alan("sube", r => r.Sube);
 
     // ------------------------------------------------------------------ KDV
@@ -89,7 +89,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var data = await reports.GetKdvListesiAsync(p.FromUtc, p.ToUtc, ct);
+        var data = await reports.GetVatListAsync(p.FromUtc, p.ToUtc, ct);
         return TypedResults.Ok(new ReportSummaryResult<KdvListesiDto>(p.ToDto(), data,
             ReportExport.Links(http, user, "kdv-listesi", ReportExport.Period(p))));
     }
@@ -107,7 +107,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var d = await reports.GetKdvGenisAsync(p.FromUtc, p.ToUtc, alis == true, ct);
+        var d = await reports.GetVatExtendedAsync(p.FromUtc, p.ToUtc, alis == true, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
         var rows = d.Satirlar.Select(r => r.AlisMi ? r : r with { Cari = mask.Name(r.Cari) }).ToList();
         var ozet = new VatWideSummary(d.SatisNet, d.SatisKdv, d.AlisNet, d.AlisKdv, d.NetKdv,
@@ -117,7 +117,7 @@ public static partial class ReportApi
             ReportExport.Links(http, user, "kdv-genis", [.. ReportExport.Period(p), ("alis", alis == true ? "1" : null)])));
     }
 
-    private static readonly SiralamaHaritasi<KdvGenisSatirDto> VatWideMap = SiralamaHaritasi<KdvGenisSatirDto>
-        .Olustur(r => r.BelgeId).Alan("tarih", r => r.Tarih).Alan("no", r => r.No).Alan("tur", r => r.Tur)
+    private static readonly SortFieldMap<KdvGenisSatirDto> VatWideMap = SortFieldMap<KdvGenisSatirDto>
+        .Create(r => r.BelgeId).Alan("tarih", r => r.Tarih).Alan("no", r => r.No).Alan("tur", r => r.Tur)
         .Alan("cari", r => r.Cari).Alan("toplamNet", r => r.ToplamNet).Alan("toplamKdv", r => r.ToplamKdv);
 }

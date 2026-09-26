@@ -19,13 +19,13 @@ public static class VardiyaEndpoints
         var grp = app.MapGroup("/raporlar/personel-calisma")
             .RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (PersonelVardiyaService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (StaffShiftService svc, HttpRequest req) =>
             await Run(req, () => svc.CreateAsync(Build(req.Form))));
 
-        grp.MapPost("/update", async (PersonelVardiyaService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (StaffShiftService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(req, () => svc.UpdateAsync(id, Build(req.Form))));
 
-        grp.MapPost("/delete", async (PersonelVardiyaService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (StaffShiftService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(req, () => svc.DeleteAsync(id)));
 
         return app;

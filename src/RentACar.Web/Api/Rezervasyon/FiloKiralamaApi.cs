@@ -15,7 +15,7 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Api.Rezervasyon;
 
 /// <summary>
-/// <c>/api/ui/v1/filo-kiralama/*</c> — uzun dönem filo kiralama (F5.1). İş mantığı <see cref="FiloKiralamaService"/>'te;
+/// <c>/api/ui/v1/filo-kiralama/*</c> — uzun dönem filo kiralama (F5.1). İş mantığı <see cref="FleetRentalService"/>'te;
 /// DEFTER YAZMAZ (taksit planı salt-hesap). İzin OperationsWrite; iptal ayrıca OperationsDelete (Blazor dar izni).
 /// <para><b>Şube kapsamı ARACIN şubesinden</b> (F5.1 adversarial M3): sözleşmenin kendi şube alanı yok; liste aracın
 /// şubesiyle süzülür, tekil uçlar (detay/künye/tamamla/iptal) başka şubenin sözleşmesinde durumdan ÖNCE 403
@@ -41,46 +41,46 @@ public static class FiloKiralamaApi
 
     private static ProblemHttpResult Bulunamadi() => F5Ortak.Bulunamadi("Sözleşme bulunamadı.");
 
-    private static readonly SiralamaHaritasi<FiloListeSatiri> Harita = SiralamaHaritasi<FiloListeSatiri>
-        .Olustur(k => k.Id)
+    private static readonly SortFieldMap<FiloListeSatiri> Harita = SortFieldMap<FiloListeSatiri>
+        .Create(k => k.Id)
         .Alan("no", k => k.No).Alan("musteri", k => k.MusteriAd).Alan("plaka", k => k.Plaka)
         .Alan("basTar", k => k.BasTar).Alan("sureAy", k => k.SureAy).Alan("aylikUcret", k => k.AylikUcret)
         .Alan("genelToplam", k => k.GenelToplam).Alan("durum", k => k.Durum);
 
     private static async Task<Ok<Sayfa<FiloListeSatiri>>> Liste(
-        FiloKiralamaService filo, IDbContextFactory<AppDbContext> dbf, Guid? musteriId, string? plaka, string? ara,
+        FleetRentalService filo, IDbContextFactory<AppDbContext> dbf, Guid? musteriId, string? plaka, string? ara,
         string? durum, DateOnly? bas, DateOnly? bit, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
-        var liste = await filo.ListKapsamliAsync(new FiloKiralamaFilter
+        var liste = await filo.ListScopedAsync(new FiloKiralamaFilter
         {
             MusteriId = musteriId, Plaka = F5Ortak.Nz(plaka), Ara = F5Ortak.Nz(ara),
-            Durum = F5Ortak.EnumAdi<FiloKiraDurum>(durum, "durum"), Bas = min, Bit = max,
+            Durum = F5Ortak.EnumAdi<FleetRentalStatus>(durum, "durum"), Bas = min, Bit = max,
         }, ct);
         var cariler = await F5Ortak.CarilerAsync(dbf, liste.Select(k => k.MusteriId), ct);
         var plakalar = await F5Ortak.PlakalarAsync(dbf, liste.Select(k => k.VehicleId), ct);
         var satirlar = liste.Select(k => new FiloListeSatiri(k.Id, k.No, k.SozlesmeNo, k.MusteriId,
             F5Ortak.CariAdi(cariler, k.MusteriId), k.VehicleId, F5Ortak.Plaka(plakalar, k.VehicleId), k.BasTar, k.SureAy,
-            k.AylikUcret, FiloKiralamaService.TaksitPlani(k).GenelToplam, k.Currency, k.SatisTemsilcisi, k.Kaynak,
+            k.AylikUcret, FleetRentalService.InstallmentPlan(k).GenelToplam, k.Currency, k.SatisTemsilcisi, k.Kaynak,
             k.VadeGun, k.Durum.ToString())).ToList();
         return TypedResults.Ok(F5Ortak.Sayfala(satirlar, Harita, sayfa, boyut, sirala));
     }
 
     private static async Task<Results<Ok<FiloKiralamaDto>, ProblemHttpResult>> Detay(
-        Guid id, HttpContext http, FiloKiralamaService filo, IFiloKiralamaRepository depo, IDbContextFactory<AppDbContext> dbf,
+        Guid id, HttpContext http, FleetRentalService filo, IFleetRentalRepository depo, IDbContextFactory<AppDbContext> dbf,
         CancellationToken ct)
         => await DtoAsync(id, http, filo, depo, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
 
     private static async Task<FiloKiralamaDto?> DtoAsync(
-        Guid id, HttpContext http, FiloKiralamaService filo, IFiloKiralamaRepository depo, IDbContextFactory<AppDbContext> dbf,
+        Guid id, HttpContext http, FleetRentalService filo, IFleetRentalRepository depo, IDbContextFactory<AppDbContext> dbf,
         CancellationToken ct)
     {
-        var surum = await depo.SurumAsync(id, ct); // alanlardan ÖNCE
-        var k = await filo.GetKapsamliAsync(id, ct); // kapsam dışı → 403 (içerik sızmaz)
+        var surum = await depo.VersionAsync(id, ct); // alanlardan ÖNCE
+        var k = await filo.GetComprehensiveAsync(id, ct); // kapsam dışı → 403 (içerik sızmaz)
         if (k is null) return null;
         var cariler = await F5Ortak.CarilerAsync(dbf, [k.MusteriId], ct);
         var plakalar = await F5Ortak.PlakalarAsync(dbf, [k.VehicleId], ct);
-        var aktif = k.Durum == FiloKiraDurum.Aktif;
+        var aktif = k.Durum == FleetRentalStatus.Aktif;
         var y = new FiloYetkileri(aktif, aktif, aktif && AuthExtensions.HasPermission(http.User, Permission.OperationsDelete));
         return FiloKiralamaDto.From(k, surum, F5Ortak.CariAdi(cariler, k.MusteriId), F5Ortak.Plaka(plakalar, k.VehicleId), y);
     }
@@ -111,7 +111,7 @@ public static class FiloKiralamaApi
     public const decimal EnFazlaKur = 1_000_000m;
 
     private static async Task<Created<FiloOlusturYaniti>> Olustur(
-        FiloKiralamaIstegi i, FiloKiralamaService filo, ICustomerRepository musteriler, IVehicleRepository araclar,
+        FiloKiralamaIstegi i, FleetRentalService filo, ICustomerRepository musteriler, IVehicleRepository araclar,
         CancellationToken ct)
     {
         Sinirlar.Tutar(i.AylikUcret, "aylikUcret", "Aylık ücret");
@@ -123,7 +123,7 @@ public static class FiloKiralamaApi
             throw new ValidationException("Döviz 3 harfli ISO kodu olmalıdır (ör. TRY, EUR).", "doviz");
         Metinler(i.SatisTemsilcisi, i.FaturaTuru, i.MakbuzNo, i.DosyaNo, i.SozlesmeNo, i.FiyatTuru, i.Kaynak, i.Aciklama);
         await BookingPartyCheck.RequireAsync(musteriler, araclar, i.MusteriId, i.VehicleId, ct);
-        var id = await filo.CreateKapsamliAsync(new FiloKiralamaInput
+        var id = await filo.CreateComprehensiveAsync(new FiloKiralamaInput
         {
             MusteriId = i.MusteriId, VehicleId = i.VehicleId, BasTar = F5Ortak.Utc(i.BasTar), SureAy = i.SureAy ?? 0,
             AylikUcret = i.AylikUcret ?? 0m, KdvOrani = i.KdvOrani ?? 0.20m, Doviz = doviz, Kur = i.Kur ?? 1m,
@@ -139,10 +139,10 @@ public static class FiloKiralamaApi
     }
 
     private static async Task<Results<Ok<FiloKiralamaDto>, ProblemHttpResult>> Kunye(
-        Guid id, FiloKunyeIstegi i, HttpContext http, FiloKiralamaService filo, IFiloKiralamaRepository depo,
+        Guid id, FiloKunyeIstegi i, HttpContext http, FleetRentalService filo, IFleetRentalRepository depo,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        if (await filo.GetKapsamliAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
+        if (await filo.GetComprehensiveAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
         if (string.IsNullOrWhiteSpace(i.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
         Metinler(i.SatisTemsilcisi, i.FaturaTuru, i.MakbuzNo, i.DosyaNo, i.SozlesmeNo, i.FiyatTuru, i.Kaynak, i.Aciklama);
@@ -157,20 +157,20 @@ public static class FiloKiralamaApi
     }
 
     private static async Task<Results<Ok<FiloKiralamaDto>, ProblemHttpResult>> Tamamla(
-        Guid id, HttpContext http, FiloKiralamaService filo, IFiloKiralamaRepository depo, IDbContextFactory<AppDbContext> dbf,
+        Guid id, HttpContext http, FleetRentalService filo, IFleetRentalRepository depo, IDbContextFactory<AppDbContext> dbf,
         CancellationToken ct)
     {
-        if (await filo.GetKapsamliAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
-        if (!await filo.TamamlaAsync(id, ct)) return Bulunamadi();
+        if (await filo.GetComprehensiveAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
+        if (!await filo.CompleteAsync(id, ct)) return Bulunamadi();
         return await DtoAsync(id, http, filo, depo, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
     private static async Task<Results<Ok<FiloKiralamaDto>, ProblemHttpResult>> Iptal(
-        Guid id, HttpContext http, FiloKiralamaService filo, IFiloKiralamaRepository depo, IDbContextFactory<AppDbContext> dbf,
+        Guid id, HttpContext http, FleetRentalService filo, IFleetRentalRepository depo, IDbContextFactory<AppDbContext> dbf,
         CancellationToken ct)
     {
-        if (await filo.GetKapsamliAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
-        if (!await filo.IptalAsync(id, ct)) return Bulunamadi();
+        if (await filo.GetComprehensiveAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
+        if (!await filo.CancelAsync(id, ct)) return Bulunamadi();
         return await DtoAsync(id, http, filo, depo, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 }

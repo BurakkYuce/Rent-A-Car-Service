@@ -22,7 +22,7 @@ public sealed class AracDurumYasamDongusuTests(PostgresFixture fx)
     private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plaka)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
-        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "AD", Soyad = "M" });
+        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "AD", Soyad = "M" });
         return (m, v);
     }
 
@@ -49,10 +49,10 @@ public sealed class AracDurumYasamDongusuTests(PostgresFixture fx)
         var id = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
 
-        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
+        await rentals.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8);
         Assert.Equal(VehicleStatus.Kirada, (await vehicles.GetAsync(v))!.Durum);   // çıktı → Kirada
 
-        await rentals.ReturnAsync(id, donusKm: 1200, donusYakit: 8, Bas.AddDays(2));
+        await rentals.ReturnAsync(id, returnKm: 1200, returnFuel: 8, Bas.AddDays(2));
         Assert.Equal(VehicleStatus.Musait, (await vehicles.GetAsync(v))!.Durum);   // döndü → Musait (boşta)
     }
 
@@ -67,7 +67,7 @@ public sealed class AracDurumYasamDongusuTests(PostgresFixture fx)
         var (m, v) = await SeedAsync(sp, "34 DR 03");
         var id = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
-        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8); // Kirada
+        await rentals.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8); // Kirada
         await rentals.CancelAsync(id);
         Assert.Equal(VehicleStatus.Musait, (await vehicles.GetAsync(v))!.Durum); // iptal → serbest
     }
@@ -84,7 +84,7 @@ public sealed class AracDurumYasamDongusuTests(PostgresFixture fx)
         var (m, v) = await SeedAsync(sp, "34 DR 04");
         var id = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
-        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8); // araç Kirada, kira [Bas, Bas+2)
+        await rentals.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8); // araç Kirada, kira [Bas, Bas+2)
 
         // Çakışan aralık (kira dönemi) → müsait DEĞİL.
         var cakisan = await avail.FindAvailableAsync(Bas, Bas.AddDays(2));
@@ -112,12 +112,12 @@ public sealed class AracDurumYasamDongusuTests(PostgresFixture fx)
 
         var id = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
-        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8); // araç Kirada + cache invalidate
+        await rentals.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8); // araç Kirada + cache invalidate
 
         // Cache'li liste artık TAZE Durum'u yansıtmalı (bayat Musait DEĞİL).
         Assert.Equal(VehicleStatus.Kirada, (await vehicles.ListAsync()).Single(x => x.Id == v).Durum);
 
-        await rentals.ReturnAsync(id, donusKm: 1200, donusYakit: 8, Bas.AddDays(2)); // Musait + cache invalidate
+        await rentals.ReturnAsync(id, returnKm: 1200, returnFuel: 8, Bas.AddDays(2)); // Musait + cache invalidate
         Assert.Equal(VehicleStatus.Musait, (await vehicles.ListAsync()).Single(x => x.Id == v).Durum);
     }
 }

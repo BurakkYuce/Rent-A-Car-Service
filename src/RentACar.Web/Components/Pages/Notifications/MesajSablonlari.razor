@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy = "izin:ManageUsers")]
 @using RentACar.Application.Notifications
 @using RentACar.Domain.Enums
-@inject MusteriBildirimService Bildirim
+@inject CustomerNotificationService Bildirim
 
 <PageTitle>Mesaj Şablonları — RentPro</PageTitle>
 
@@ -14,7 +14,7 @@
 </p>
 <p class="muted small">
     Kullanabileceğiniz yer tutucular:
-    @foreach (var a in SablonDoldur.Anahtarlar)
+    @foreach (var a in TemplateFiller.Keys)
     {
         <code class="chip-kod">@("{" + a + "}")</code>
     }
@@ -42,7 +42,7 @@
                 var mevcut = _sablonlar.FirstOrDefault(x => x.Tur == tur && x.Kanal == kanal);
                 <tr>
                     <td>@Aciklama(tur)</td>
-                    <td>@(kanal == MesajKanal.Eposta ? "E-posta" : "SMS")</td>
+                    <td>@(kanal == MessageChannel.Eposta ? "E-posta" : "SMS")</td>
                     <td>@(mevcut?.Konu ?? "—")</td>
                     <td>
                         @if (mevcut is null)
@@ -60,7 +60,7 @@
                             <form method="post" action="/mesaj-sablonlari/kaydet" class="grid-form"><AntiforgeryToken />
                                 <input type="hidden" name="tur" value="@tur" />
                                 <input type="hidden" name="kanal" value="@kanal" />
-                                @if (kanal == MesajKanal.Eposta)
+                                @if (kanal == MessageChannel.Eposta)
                                 {
                                     <label class="u-col-full">Konu
                                         <input name="konu" value="@mevcut?.Konu" required
@@ -68,7 +68,7 @@
                                     </label>
                                 }
                                 <label class="u-col-full">Gövde
-                                    <textarea name="govde" rows="@(kanal == MesajKanal.Eposta ? 8 : 4)" required
+                                    <textarea name="govde" rows="@(kanal == MessageChannel.Eposta ? 8 : 4)" required
                                               placeholder="@GovdeOnerisi(tur, kanal)">@mevcut?.Govde</textarea>
                                 </label>
                                 <label class="kf-inline">
@@ -92,51 +92,51 @@
 
     private IReadOnlyList<MesajSablonRow> _sablonlar = [];
 
-    private static readonly MesajTuru[] Turler = Enum.GetValues<MesajTuru>();
-    private static readonly MesajKanal[] Kanallar = Enum.GetValues<MesajKanal>();
+    private static readonly MessageType[] Turler = Enum.GetValues<MessageType>();
+    private static readonly MessageChannel[] Kanallar = Enum.GetValues<MessageChannel>();
 
-    protected override async Task OnInitializedAsync() => _sablonlar = await Bildirim.SablonListAsync();
+    protected override async Task OnInitializedAsync() => _sablonlar = await Bildirim.ListTemplatesAsync();
 
-    private static string Aciklama(MesajTuru t) => t switch
+    private static string Aciklama(MessageType t) => t switch
     {
-        MesajTuru.TalepAlindi => "Web sitesinden talep alındı",
-        MesajTuru.RezervasyonOnay => "Rezervasyon oluşturuldu",
-        MesajTuru.RezervasyonIptal => "Rezervasyon iptal edildi",
-        MesajTuru.TeslimHatirlatma => "Yarın araç teslim edilecek",
-        MesajTuru.IadeHatirlatma => "Bugün araç iade edilecek",
-        MesajTuru.OdemeHatirlatma => "Ödeme vadesi hatırlatması",
+        MessageType.TalepAlindi => "Web sitesinden talep alındı",
+        MessageType.RezervasyonOnay => "Rezervasyon oluşturuldu",
+        MessageType.RezervasyonIptal => "Rezervasyon iptal edildi",
+        MessageType.TeslimHatirlatma => "Yarın araç teslim edilecek",
+        MessageType.IadeHatirlatma => "Bugün araç iade edilecek",
+        MessageType.OdemeHatirlatma => "Ödeme vadesi hatırlatması",
         _ => t.ToString(),
     };
 
-    private static string KonuOnerisi(MesajTuru t) => t switch
+    private static string KonuOnerisi(MessageType t) => t switch
     {
-        MesajTuru.TalepAlindi => "Talebiniz alındı — {Firma}",
-        MesajTuru.RezervasyonOnay => "Rezervasyonunuz onaylandı ({No})",
-        MesajTuru.RezervasyonIptal => "Rezervasyonunuz iptal edildi ({No})",
-        MesajTuru.TeslimHatirlatma => "Yarın aracınızı teslim alıyorsunuz",
-        MesajTuru.IadeHatirlatma => "Aracınızın iade günü bugün",
-        MesajTuru.OdemeHatirlatma => "Ödeme hatırlatması",
+        MessageType.TalepAlindi => "Talebiniz alındı — {Firma}",
+        MessageType.RezervasyonOnay => "Rezervasyonunuz onaylandı ({No})",
+        MessageType.RezervasyonIptal => "Rezervasyonunuz iptal edildi ({No})",
+        MessageType.TeslimHatirlatma => "Yarın aracınızı teslim alıyorsunuz",
+        MessageType.IadeHatirlatma => "Aracınızın iade günü bugün",
+        MessageType.OdemeHatirlatma => "Ödeme hatırlatması",
         _ => "",
     };
 
-    private static string GovdeOnerisi(MesajTuru t, MesajKanal k)
+    private static string GovdeOnerisi(MessageType t, MessageChannel k)
     {
-        if (k == MesajKanal.Sms)
+        if (k == MessageChannel.Sms)
             return t switch
             {
-                MesajTuru.TeslimHatirlatma => "Sayin {MusteriAd}, {CikisTarih} tarihinde {Plaka} plakali aracinizi teslim alacaksiniz.",
-                MesajTuru.IadeHatirlatma => "Sayin {MusteriAd}, {Plaka} plakali aracin iade saati {DonusTarih}.",
+                MessageType.TeslimHatirlatma => "Sayin {MusteriAd}, {CikisTarih} tarihinde {Plaka} plakali aracinizi teslim alacaksiniz.",
+                MessageType.IadeHatirlatma => "Sayin {MusteriAd}, {Plaka} plakali aracin iade saati {DonusTarih}.",
                 _ => "Sayin {MusteriAd}, ...",
             };
 
         return t switch
         {
-            MesajTuru.TalepAlindi =>
+            MessageType.TalepAlindi =>
                 "<p>Sayın {MusteriAd},</p><p>{CikisTarih} — {DonusTarih} tarihleri için talebinizi aldık. "
                 + "En kısa sürede size dönüş yapacağız.</p><p>Talep no: {No}</p>",
-            MesajTuru.TeslimHatirlatma =>
+            MessageType.TeslimHatirlatma =>
                 "<p>Sayın {MusteriAd},</p><p>{CikisTarih} tarihinde {Arac} ({Plaka}) aracınızı teslim alacaksınız.</p>",
-            MesajTuru.IadeHatirlatma =>
+            MessageType.IadeHatirlatma =>
                 "<p>Sayın {MusteriAd},</p><p>{Plaka} plakalı aracınızın iade saati {DonusTarih}.</p>",
             _ => "<p>Sayın {MusteriAd},</p><p>...</p>",
         };

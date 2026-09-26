@@ -4,7 +4,7 @@
 @using RentACar.Application.Customers
 @using RentACar.Application.Vehicles
 @using RentACar.Domain.Enums
-@inject AracKrediService Krediler
+@inject VehicleLoanService Krediler
 @inject VehicleService Vehicles
 @inject CustomerService Cariler
 
@@ -40,7 +40,7 @@
     <label>Durum
         <select name="durumF">
             <option value="">— tümü —</option>
-            @foreach (var d in Enum.GetValues<KrediDurum>())
+            @foreach (var d in Enum.GetValues<LoanStatus>())
             {
                 <option value="@d" selected="@(d.ToString() == DurumF)">@d</option>
             }
@@ -125,10 +125,10 @@
         }
         @foreach (var k in _list)
         {
-            var o = AracKrediService.Hesapla(k, _simdi);
+            var o = VehicleLoanService.Calculate(k, _simdi);
             <tr>
                 <td>
-                    @if (k.Durum == KrediDurum.Aktif)
+                    @if (k.Durum == LoanStatus.Aktif)
                     {
                         <input type="checkbox" name="id" value="@k.Id" form="topluIptal" aria-label="Kredi seç" />
                     }
@@ -145,7 +145,7 @@
                 <td>@(o.SonVadeGunu?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
                 <td>@k.Durum</td>
                 <td>
-                    @if (k.Durum == KrediDurum.Aktif)
+                    @if (k.Durum == LoanStatus.Aktif)
                     {
                         <AuthorizeView Roles="Admin,Yonetici,Muhasebe" Context="finCtx">
                             <form method="post" action="/arac-kredi/taksit-ode" style="display:inline"><AntiforgeryToken />
@@ -222,7 +222,7 @@
             CariId = Guid.TryParse(CariF, out var c) ? c : null,
             Plaka = string.IsNullOrWhiteSpace(PlakaF) ? null : PlakaF,
             DosyaNo = string.IsNullOrWhiteSpace(DosyaF) ? null : DosyaF,
-            Durum = Enum.TryParse<KrediDurum>(DurumF, out var d) ? d : null,
+            Durum = Enum.TryParse<LoanStatus>(DurumF, out var d) ? d : null,
             Bas = DateTimeOffset.TryParse(Bas, System.Globalization.CultureInfo.InvariantCulture, out var b1)
                 ? b1.ToUniversalTime() : null,
             // Bitiş günü DAHİL: gün sonuna taşınır, yoksa o günün kredileri düşerdi.
@@ -231,11 +231,11 @@
         };
         _filtreVar = !filtre.Bos;
         _list = await Krediler.SearchAsync(filtre);
-        _pano = AracKrediService.Pano(_list, _simdi);
+        _pano = VehicleLoanService.Dashboard(_list, _simdi);
 
         _vehicles = await Vehicles.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
-        _cariler = await Cariler.ListSecimAsync();
+        _cariler = await Cariler.ListForSelectAsync();
         _cariMap = _cariler.ToDictionary(x => x.Id, x => x.Ad);
     }
 

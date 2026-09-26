@@ -17,7 +17,7 @@ public static class PublicBookingRequestEndpoints
         {
             try
             {
-                var reservationId = await svc.DonusturAsync(id, vehicleId);
+                var reservationId = await svc.ConvertAsync(id, vehicleId);
                 return Results.Redirect($"/rezervasyonlar?vurgu={reservationId}");
             }
             // AvailabilityConflictException ZATEN ValidationException'dan türüyor (araç çakışması dahil).
@@ -26,7 +26,7 @@ public static class PublicBookingRequestEndpoints
 
         grp.MapPost("/reddet", async (PublicBookingRequestService svc, [FromForm] Guid id) =>
         {
-            try { await svc.ReddetAsync(id); return Results.Redirect("/gelen-talepler?ok=1"); }
+            try { await svc.RejectAsync(id); return Results.Redirect("/gelen-talepler?ok=1"); }
             catch (ValidationException ex) { return Geri(ex); }
         });
 
@@ -37,7 +37,7 @@ public static class PublicBookingRequestEndpoints
             {
                 if (!Enum.IsDefined(typeof(Domain.Entities.PublicBookingRequestDurum), durum))
                     throw new ValidationException("Geçersiz durum.");
-                await svc.DurumAtaAsync(id, (Domain.Entities.PublicBookingRequestDurum)durum);
+                await svc.AssignStatusAsync(id, (Domain.Entities.PublicBookingRequestDurum)durum);
                 return Results.Redirect("/gelen-talepler?ok=1");
             }
             catch (ValidationException ex) { return Geri(ex); }
@@ -45,13 +45,13 @@ public static class PublicBookingRequestEndpoints
 
         grp.MapPost("/ustlen", async (PublicBookingRequestService svc, [FromForm] Guid id, [FromForm] string ustlen) =>
         {
-            try { await svc.UstlenAsync(id, ustlen == "true"); return Results.Redirect("/gelen-talepler?ok=1"); }
+            try { await svc.ClaimAsync(id, ustlen == "true"); return Results.Redirect("/gelen-talepler?ok=1"); }
             catch (ValidationException ex) { return Geri(ex); }
         });
 
         grp.MapPost("/not", async (PublicBookingRequestService svc, [FromForm] Guid id, [FromForm] string metin) =>
         {
-            try { await svc.NotEkleAsync(id, metin); return Results.Redirect("/gelen-talepler?ok=1"); }
+            try { await svc.AddNoteAsync(id, metin); return Results.Redirect("/gelen-talepler?ok=1"); }
             catch (ValidationException ex) { return Geri(ex); }
         });
 

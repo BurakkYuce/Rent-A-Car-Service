@@ -29,13 +29,13 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = vehicle, Tip = ServisTipi.Ariza, GirisKm = 0,
-            HasarSorumlu = HasarSorumlu.Musteri, KusurOrani = 0.5m,
+            VehicleId = vehicle, Tip = ServiceType.Ariza, GirisKm = 0,
+            HasarSorumlu = DamageResponsible.Musteri, KusurOrani = 0.5m,
             Lines = [new ServiceLineInput { Aciklama = "Onarım", Tutar = maliyet }]
         });
-        await svc.BaslatAsync(id);
-        await svc.TamamlaAsync(id, cikisKm: 10);
-        await svc.YansitAsync(id, cari);
+        await svc.StartAsync(id);
+        await svc.CompleteAsync(id, pickupKm: 10);
+        await svc.ReflectAsync(id, cari);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var veh = sp.GetRequiredService<VehicleService>();
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Filo", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Filo", Soyad = "Cari" });
         var simdi = DateTimeOffset.UtcNow;
 
         // V1: 1000 alım (6 ay önce → "0-1 yıl"), Oca-2025 penceresi (31 gün), 3 gün kira + 300 km, rücu 310.
@@ -58,22 +58,22 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
         var r1 = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = v1, BasTar = KiraBas, BitTar = KiraBas.AddDays(2), GunlukUcret = 100m });
-        await rentals.DeliverAsync(r1, cikisKm: 1000, cikisYakit: 8);
-        await rentals.ReturnAsync(r1, donusKm: 1300, donusYakit: 8, KiraBas.AddDays(2));
+        await rentals.DeliverAsync(r1, pickupKm: 1000, pickupFuel: 8);
+        await rentals.ReturnAsync(r1, returnKm: 1300, returnFuel: 8, KiraBas.AddDays(2));
         await RucuAsync(sp, v1, cari, 620m);   // 310 gelir
 
         // V2: alımsız; rücu 100 − gider 150 = NET −50 (en zararlı).
         var v2 = await veh.CreateAsync(new VehicleInput { Plaka = "34 FA 02" });
         await RucuAsync(sp, v2, cari, 200m);   // 100 gelir
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v2, NetTutar = 150m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Arac, VehicleId = v2, NetTutar = 150m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
 
         // V3: alım tarihi 15 ay önce ("1-2 yıl"); rücu 500 (en kârlı).
         var v3 = await veh.CreateAsync(new VehicleInput { Plaka = "34 FA 03", AlimTarihi = simdi.AddMonths(-15) });
         await RucuAsync(sp, v3, cari, 1000m);  // 500 gelir
 
         var rs = sp.GetRequiredService<ReportService>();
-        var d = await rs.GetFiloAnalizAsync();
+        var d = await rs.GetFleetAnalysisAsync();
 
         // Varsayılan sıralama: en kârlı önce (elle: 500 > 310 > −50).
         Assert.Equal(3, d.Satirlar.Count);
@@ -101,7 +101,7 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
         Assert.Equal(150m, d.ToplamGider);
         Assert.Equal(760m, d.ToplamNetKar);
         Assert.Equal(0m, d.AtanmamisGelir);
-        var gg = await rs.GetGelirGiderAsync();
+        var gg = await rs.GetRevenueExpenseAsync();
         Assert.Equal(gg.GelirToplam, d.ToplamGelir);
         Assert.Equal(gg.GiderToplam, d.ToplamGider);
 
@@ -112,7 +112,7 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
         Assert.Equal(9.68m, d.YasKohortu[0].OrtDoluluk);
 
         // "zarar" sıralaması: en zararlı önce.
-        var zarar = await rs.GetFiloAnalizAsync(siralama: "zarar");
+        var zarar = await rs.GetFleetAnalysisAsync(sort: "zarar");
         Assert.Equal(v2, zarar.Satirlar[0].VehicleId);
     }
 
@@ -125,10 +125,10 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 FA 04" });
         var exp = sp.GetRequiredService<ExpenseService>();
         // Araç gideri 100 (satıra) + genel gider 40 (Atanmamış'a — satır DEĞİL, ayrı gösterim).
-        await exp.CreateAsync(new ExpenseInput { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
-        await exp.CreateAsync(new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 40m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+        await exp.CreateAsync(new ExpenseInput { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
+        await exp.CreateAsync(new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 40m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
 
-        var d = await sp.GetRequiredService<ReportService>().GetFiloAnalizAsync();
+        var d = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
         var satir = Assert.Single(d.Satirlar);
         Assert.Equal(100m, satir.Gider);
         Assert.Equal(40m, d.AtanmamisGider);
@@ -145,10 +145,10 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
             var sp = scopeA.ServiceProvider;
             var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 FA 05" });
             await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-            { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 99m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+            { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 99m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
         }
         using var scopeB = host.ScopeFor(Guid.NewGuid());
-        var d = await scopeB.ServiceProvider.GetRequiredService<ReportService>().GetFiloAnalizAsync();
+        var d = await scopeB.ServiceProvider.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
         Assert.Empty(d.Satirlar);
         Assert.Equal(0m, d.ToplamGider);
     }

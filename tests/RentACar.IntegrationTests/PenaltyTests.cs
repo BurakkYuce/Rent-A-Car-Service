@@ -40,7 +40,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
         var p = await svc.GetAsync(id);
         BelgeNoOracle.BeklenenlerdenBiri(8, 1, p!.No);
         Assert.Equal(teblig.AddDays(15), p.VadeTarihi);
-        Assert.Equal(CezaDurum.Yeni, p.Durum);
+        Assert.Equal(PenaltyStatus.Yeni, p.Durum);
 
         // İkinci ceza boşluksuz devam eder.
         var id2 = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Park", Tutar = 100m });
@@ -57,11 +57,11 @@ public sealed class PenaltyTests(PostgresFixture fx)
         var cari = Guid.NewGuid();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = cari, Tutar = 750m });
-        Assert.True(await svc.YansitAsync(id));
+        Assert.True(await svc.ReflectAsync(id));
 
-        Assert.Equal(CezaDurum.Yansitildi, (await svc.GetAsync(id))!.Durum);
+        Assert.Equal(PenaltyStatus.Yansitildi, (await svc.GetAsync(id))!.Durum);
         // Borç Cari 750 → müşteri borçlu (+750).
-        Assert.Equal(750m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(750m, await cash.GetAccountBalanceAsync(cari));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -84,12 +84,12 @@ public sealed class PenaltyTests(PostgresFixture fx)
         var cari = Guid.NewGuid();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = cari, Tutar = 300m });
-        Assert.True(await svc.YansitAsync(id));
+        Assert.True(await svc.ReflectAsync(id));
         // İkinci yansıtma → zaten Yansitildi → ValidationException (servis guard'ı).
-        await Assert.ThrowsAsync<ValidationException>(() => svc.YansitAsync(id));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(id));
 
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        Assert.Equal(300m, await cash.GetCariBalanceAsync(cari)); // çift borçlanma yok
+        Assert.Equal(300m, await cash.GetAccountBalanceAsync(cari)); // çift borçlanma yok
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -104,11 +104,11 @@ public sealed class PenaltyTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<PenaltyService>();
 
         var noCari = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 100m });
-        await Assert.ThrowsAsync<ValidationException>(() => svc.YansitAsync(noCari));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(noCari));
 
         var paid = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = Guid.NewGuid(), Tutar = 100m });
-        await svc.OdeAsync(paid);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.YansitAsync(paid)); // Odendi → yansıtılamaz
+        await svc.PayAsync(paid);
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectAsync(paid)); // Odendi → yansıtılamaz
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
         Assert.Equal(2, result.GecisSayisi);
         Assert.Equal(150m, result.ToplamGecis);
         Assert.Equal(154.50m, result.YansitilanTutar);
-        Assert.Equal(154.50m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(154.50m, await cash.GetAccountBalanceAsync(cari));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -161,7 +161,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
         await hgs.ReflectAsync(cari, "34ABC34", t, t.AddDays(1));
 
         // 103.00 yalnız BİR kez borçlanmalı (çift faturalama yok).
-        Assert.Equal(103m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(103m, await cash.GetAccountBalanceAsync(cari));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -184,7 +184,7 @@ public sealed class PenaltyTests(PostgresFixture fx)
         await hgs.ReflectAsync(cari, "34ABC34", t1, t1.AddDays(1)); // Şubat dönemi
         await hgs.ReflectAsync(cari, "34ABC34", t2, t2.AddDays(1)); // Mart dönemi → ayrı
 
-        Assert.Equal(206m, await cash.GetCariBalanceAsync(cari)); // 103 + 103, meşru iki dönem
+        Assert.Equal(206m, await cash.GetAccountBalanceAsync(cari)); // 103 + 103, meşru iki dönem
     }
 
     [Fact]
@@ -228,8 +228,8 @@ public sealed class PenaltyTests(PostgresFixture fx)
         var cari = Guid.NewGuid();
 
         var id = await svc.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = cari, Tutar = 200m });
-        await svc.YansitAsync(id);          // başlık güncellenir (Yeni → Yansitildi)
-        Assert.True(await svc.OdeAsync(id)); // başlık tekrar güncellenir (→ Odendi)
+        await svc.ReflectAsync(id);          // başlık güncellenir (Yeni → Yansitildi)
+        Assert.True(await svc.PayAsync(id)); // başlık tekrar güncellenir (→ Odendi)
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();

@@ -19,7 +19,7 @@ public sealed class CustomerTests(PostgresFixture fx)
     {
         var svc = Svc(out _);
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "  " }));
+            () => svc.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "  " }));
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public sealed class CustomerTests(PostgresFixture fx)
     {
         var svc = Svc(out _);
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ali", TcKimlik = "11111111111" }));
+            () => svc.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ali", TcKimlik = "11111111111" }));
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class CustomerTests(PostgresFixture fx)
     {
         var svc = Svc(out _);
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "" }));
+            () => svc.CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "" }));
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class CustomerTests(PostgresFixture fx)
     {
         var svc = Svc(out _);
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "ACME A.Ş.", VergiNo = "123" }));
+            () => svc.CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "ACME A.Ş.", VergiNo = "123" }));
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class CustomerTests(PostgresFixture fx)
         var svc = Svc(out _);
         var id = await svc.CreateAsync(new CustomerInput
         {
-            Tip = CariType.Bireysel, Ad = "Ayşe", Soyad = "Yılmaz", TcKimlik = ValidTc, Email = "ayse@example.com"
+            Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Yılmaz", TcKimlik = ValidTc, Email = "ayse@example.com"
         });
         var c = await svc.GetAsync(id);
         Assert.NotNull(c);
@@ -67,9 +67,9 @@ public sealed class CustomerTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
 
-        await svc.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "A", TcKimlik = ValidTc });
+        await svc.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "A", TcKimlik = ValidTc });
         await Assert.ThrowsAsync<DuplicateCariException>(
-            () => svc.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "B", TcKimlik = ValidTc }));
+            () => svc.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "B", TcKimlik = ValidTc }));
     }
 
     [Fact]
@@ -81,12 +81,12 @@ public sealed class CustomerTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "A", TcKimlik = ValidTc });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "A", TcKimlik = ValidTc });
 
         using (var s2 = host.ScopeFor(t2))
         {
             var id = await s2.ServiceProvider.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "B", TcKimlik = ValidTc });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "B", TcKimlik = ValidTc });
             Assert.NotEqual(Guid.Empty, id);
         }
     }
@@ -100,10 +100,10 @@ public sealed class CustomerTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "T1", TcKimlik = ValidTc });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "T1", TcKimlik = ValidTc });
         using (var s2 = host.ScopeFor(t2))
             await s2.ServiceProvider.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "T2", TcKimlik = ValidTc2 });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "T2", TcKimlik = ValidTc2 });
 
         using var scope = host.ScopeFor(t2);
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -127,7 +127,7 @@ public sealed class CustomerTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "auditor");
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        var id = await svc.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Denetim", TcKimlik = ValidTc });
+        var id = await svc.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Denetim", TcKimlik = ValidTc });
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();

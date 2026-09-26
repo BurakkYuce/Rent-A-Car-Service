@@ -3,7 +3,7 @@ using RentACar.Application.Common;
 namespace RentACar.IntegrationTests;
 
 /// <summary>
-/// PR-15 — <see cref="TelefonLink"/>. Kural TEK yerde: aynı normalizasyon bugün
+/// PR-15 — <see cref="PhoneLink"/>. Kural TEK yerde: aynı normalizasyon bugün
 /// <c>rc-kira-tabs.js</c> içinde JS olarak da yaşıyor; yeni yüzeyler (site kabuğu, PR-17 talep
 /// listesi) o JS'i klonlamak yerine bu sınıfı kullanıyor.
 ///
@@ -24,7 +24,7 @@ public sealed class TelefonLinkTests
     // Zaten ülke kodlu yabancı numara BOZULMAZ (yurt dışı müşteri)
     [InlineData("0049 151 12345678", "4915112345678")]
     public void Normalize_beklenen_rakam_dizisini_uretir(string girdi, string beklenen)
-        => Assert.Equal(beklenen, TelefonLink.Normalize(girdi));
+        => Assert.Equal(beklenen, PhoneLink.Normalize(girdi));
 
     [Theory]
     [InlineData(null)]
@@ -35,22 +35,22 @@ public sealed class TelefonLinkTests
     [InlineData("1234567890123456789")]  // çok uzun
     public void Gecersiz_girdi_null_doner(string? girdi)
     {
-        Assert.Null(TelefonLink.Normalize(girdi));
-        Assert.Null(TelefonLink.Tel(girdi));
-        Assert.Null(TelefonLink.Wa(girdi));
+        Assert.Null(PhoneLink.Normalize(girdi));
+        Assert.Null(PhoneLink.Tel(girdi));
+        Assert.Null(PhoneLink.Wa(girdi));
     }
 
     [Fact]
     public void Tel_ve_Wa_dogru_semayi_uretir()
     {
-        Assert.Equal("tel:+905321234567", TelefonLink.Tel("0532 123 45 67"));
-        Assert.Equal("https://wa.me/905321234567", TelefonLink.Wa("0532 123 45 67"));
+        Assert.Equal("tel:+905321234567", PhoneLink.Tel("0532 123 45 67"));
+        Assert.Equal("https://wa.me/905321234567", PhoneLink.Wa("0532 123 45 67"));
     }
 
     [Fact]
     public void Wa_mesaji_URL_kodlar()
     {
-        var url = TelefonLink.Wa("0532 123 45 67", "Merhaba, sözleşmeniz hazır & bekliyor");
+        var url = PhoneLink.Wa("0532 123 45 67", "Merhaba, sözleşmeniz hazır & bekliyor");
         Assert.StartsWith("https://wa.me/905321234567?text=", url);
         Assert.DoesNotContain(" ", url);      // boşluk kodlandı
         Assert.DoesNotContain("&bekliyor", url);  // & kodlandı → query kırılmadı

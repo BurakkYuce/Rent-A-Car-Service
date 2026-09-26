@@ -47,7 +47,7 @@ public sealed class TenantSettingsService(
 
     /// <summary>
     /// F11.1b — tam değiştirme kaydı, iyimser eşzamanlılıkla (satır kilidi altında sürüm karşılaştırması; uyuşmazlık
-    /// <see cref="EszamanliDegisiklikException"/>). Doğrulama ve sır kuralı <see cref="SaveAsync(TenantSettingsModel, CancellationToken)"/>
+    /// <see cref="ConcurrentModificationException"/>). Doğrulama ve sır kuralı <see cref="SaveAsync(TenantSettingsModel, CancellationToken)"/>
     /// ile AYNI (<see cref="Apply"/>).
     /// </summary>
     public async Task SaveAsync(TenantSettingsModel m, string? expectedVersion, CancellationToken ct = default)
@@ -125,7 +125,7 @@ public sealed class TenantSettingsService(
             PublicSiteHost = await domains.GetActiveHostAsync(TenantId, ct),
             // PR-5: tüm domain kayıtları (durum rozeti için)
             CustomDomains = (await domains.ListAsync(TenantId, ct))
-                .Select(d => new TenantDomainRow(d.Host, d.Kind.ToString(), DurumMetni(d.Status),
+                .Select(d => new TenantDomainRow(d.Host, d.Kind.ToString(), StatusText(d.Status),
                     // F11.1b M6: bekleyen özel alan adında kiracının KENDİ TXT talimatı (başka kiracınınki asla listelenmez).
                     d.Status == RentACar.Domain.Entities.TenantDomainStatus.PendingVerification ? DomainVerification.RecordName(d.Host) : null,
                     d.Status == RentACar.Domain.Entities.TenantDomainStatus.PendingVerification ? d.VerificationToken : null))
@@ -153,7 +153,7 @@ public sealed class TenantSettingsService(
         await domains.AddCustomAsync(TenantId, DomainVerification.NormalizeCustomHost(host), ct);
     }
 
-    private static string DurumMetni(RentACar.Domain.Entities.TenantDomainStatus status) => status switch
+    private static string StatusText(RentACar.Domain.Entities.TenantDomainStatus status) => status switch
     {
         RentACar.Domain.Entities.TenantDomainStatus.Active => "Aktif",
         RentACar.Domain.Entities.TenantDomainStatus.PendingVerification => "Doğrulama Bekliyor",
@@ -169,10 +169,10 @@ public sealed class TenantSettingsService(
     /// <c>#rrggbb</c>: bu değer doğrudan bir CSS özel değişkenine yazılıyor, doğrulanmadan
     /// geçirilirse hem stil bozulur hem de CSS'e serbest metin enjekte edilmiş olur.
     /// </summary>
-    private static string? Renk(string? deger, string alan)
+    private static string? Renk(string? value, string alan)
     {
-        if (string.IsNullOrWhiteSpace(deger)) return null;
-        var v = deger.Trim();
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var v = value.Trim();
         if (!System.Text.RegularExpressions.Regex.IsMatch(v, "^#[0-9A-Fa-f]{6}$"))
             throw new ValidationException($"{alan} geçerli bir renk kodu olmalı (#rrggbb).");
         return v.ToLowerInvariant();
@@ -180,17 +180,17 @@ public sealed class TenantSettingsService(
 
     /// <summary>
     /// FAZ-82 — fiyat türü doğrulama. Boş/whitespace → null ("seçilmemiş"; bugünkü davranış).
-    /// Dolu ise <see cref="Pricing.FiyatTuruSecenek.Hepsi"/> içinde OLMAK ZORUNDA ve KANONİK yazımıyla
+    /// Dolu ise <see cref="Pricing.PriceTypeOption.All"/> içinde OLMAK ZORUNDA ve KANONİK yazımıyla
     /// saklanır: motor bu metni karşılaştırıyor, tanımadığı bir değer sessizce başka bir fiyat/KDV
     /// davranışına düşerdi.
     /// </summary>
-    private static string? FiyatTuruDogrula(string? deger)
+    private static string? ValidatePriceType(string? value)
     {
-        if (string.IsNullOrWhiteSpace(deger)) return null;
-        return Pricing.FiyatTuruSecenek.Normalize(deger)
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return Pricing.PriceTypeOption.Normalize(value)
             ?? throw new ValidationException(
                 "Varsayılan fiyat türü geçersiz. Geçerli değerler: "
-                + string.Join(", ", Pricing.FiyatTuruSecenek.Hepsi) + ".");
+                + string.Join(", ", Pricing.PriceTypeOption.All) + ".");
     }
 
     public async Task SaveAsync(TenantSettingsModel m, CancellationToken ct = default)
@@ -258,7 +258,7 @@ public sealed class TenantSettingsService(
             // Fiyat türü: serbest metin DEĞİL — motor bu değeri string karşılaştırmasıyla okuyor
             // (Otomatik → manuel ücret yok sayılır; Günlük/Toplam → fatura NET modu). Yazım hatalı bir
             // varsayılan formda ön-seçili görünüp motorda BAŞKA davranış üretirdi.
-            s.VarsayilanFiyatTuru = FiyatTuruDogrula(m.VarsayilanFiyatTuru);
+            s.VarsayilanFiyatTuru = ValidatePriceType(m.VarsayilanFiyatTuru);
             // Yakıt skalası kirada 0-12 (RentalContract.CikisYakit ile aynı skala). Aralık dışı bir
             // varsayılan teslim formunu HTML doğrulamasıyla çakıştırır (min/max 0-12) → form gönderilemez.
             if (m.VarsayilanYakitSeviyesi is < 0 or > 12)
@@ -300,12 +300,12 @@ public sealed class TenantSettingsService(
             // GİB fatura seri kodu: boş bırakılabilir (o zaman fatura kesilemez, gürültülü red gelir),
             // ama DOLU ise mevzuat biçimine uymalı — yanlış seri kesilen faturaya kalıcı yazılır ve
             // fatura numarası sonradan DEĞİŞTİRİLEMEZ (rc_prevent_mutation).
-            var seri = Trim(m.FaturaSeriKodu)?.ToUpperInvariant();
-            if (seri is not null && !RentACar.Domain.Common.BelgeNo.SeriGecerliMi(seri))
+            var series = Trim(m.FaturaSeriKodu)?.ToUpperInvariant();
+            if (series is not null && !RentACar.Domain.Common.DocumentNo.IsSeriesValid(series))
                 throw new ValidationException(
                     "Fatura seri kodu tam 3 karakter olmalı ve yalnız büyük harf (A-Z) veya rakam " +
                     "içermelidir (Türkçe karakter kabul edilmez). Örnek: RNT");
-            s.FaturaSeriKodu = seri;
+            s.FaturaSeriKodu = series;
             s.WhatsAppNumarasi = Trim(m.WhatsAppNumarasi);
             s.WhatsAppGunlukOzet = m.WhatsAppGunlukOzet ?? false;
         }
@@ -314,7 +314,7 @@ public sealed class TenantSettingsService(
     /// <summary>
     /// PR-C: PDF firma logosunu ayarla/kaldır (Ayarlar upload). null/boş → logoyu sil.
     ///
-    /// <para>PR-A: doğrulama ARTIK BURADA (<see cref="LogoKurallari.Reddet"/>) — tür/boyut/ölçü.
+    /// <para>PR-A: doğrulama ARTIK BURADA (<see cref="LogoValidationRules.Reject"/>) — tür/boyut/ölçü.
     /// Önceden yalnız web ucunda (`TenantSettingsEndpoints`) yapılıyordu; uç kontrolü kalıyor
     /// (iki katman) ama servis public API olduğu için tek başına yeterli değildi: yeni bir çağıran
     /// (REST API, içe aktarım, platform yolu) doğrulamayı sessizce atlardı ve bozuk bayt PDF üretimini
@@ -324,13 +324,13 @@ public sealed class TenantSettingsService(
     {
         PermissionGuard.Require(currentUser, Permission.ManageUsers);
         await screens.EnsureScreenAccessAsync("ayarlar", Permission.ManageUsers, ct);
-        if (bytes is { Length: > 0 } dolu && LogoKurallari.Reddet(dolu) is { } hata)
-            throw new ValidationException(hata);
+        if (bytes is { Length: > 0 } filled && LogoValidationRules.Reject(filled) is { } error)
+            throw new ValidationException(error);
         await repository.UpsertAsync(s => s.LogoBytes = bytes is { Length: > 0 } ? bytes : null, ct);
     }
 
-    public Task<IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim>> ListWhatsAppGonderimAsync(int n = 7, CancellationToken ct = default)
-        => repository.ListWhatsAppGonderimAsync(n, ct);
+    public Task<IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim>> ListWhatsAppDispatchesAsync(int n = 7, CancellationToken ct = default)
+        => repository.ListWhatsAppDispatchesAsync(n, ct);
 
     /// <summary>
     /// Sır kuralı: dolu değer → şifrelenip yazılır (bayraktan üstün); boş + <paramref name="clear"/> → silinir (null);

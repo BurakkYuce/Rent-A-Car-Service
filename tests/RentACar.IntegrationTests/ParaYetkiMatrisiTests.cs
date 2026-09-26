@@ -31,7 +31,7 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
-        var ex = await Assert.ThrowsAsync<YetkiYokException>(() => islem(scope));
+        var ex = await Assert.ThrowsAsync<NoPermissionException>(() => islem(scope));
         // Mesaj kanıtı: red YETKİDEN geliyor (PermissionGuard), girdi/veri hatasından değil.
         Assert.Contains("yetkiniz yok", ex.Message);
     }
@@ -51,7 +51,7 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
 
     [Fact]
     public Task Operator_iade_faturasi_kesemez()
-        => OperatorReddiAsync(s => Svc<InvoiceService>(s).CreateIadeAsync(Guid.NewGuid()));
+        => OperatorReddiAsync(s => Svc<InvoiceService>(s).CreateRefundAsync(Guid.NewGuid()));
 
     // ---- Gider (ExpenseService) ----
     [Fact]
@@ -65,20 +65,20 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
     // ---- Depozito (DepozitoService: Al / İade / Mahsup) ----
     [Fact]
     public Task Operator_depozito_alamaz()
-        => OperatorReddiAsync(s => Svc<DepozitoService>(s).AlAsync(Guid.NewGuid(), 100m, LedgerAccountType.Kasa));
+        => OperatorReddiAsync(s => Svc<DepositService>(s).GetAsync(Guid.NewGuid(), 100m, LedgerAccountType.Kasa));
 
     [Fact]
     public Task Operator_depozito_iade_edemez()
-        => OperatorReddiAsync(s => Svc<DepozitoService>(s).IadeAsync(Guid.NewGuid(), 100m, LedgerAccountType.Kasa));
+        => OperatorReddiAsync(s => Svc<DepositService>(s).RefundAsync(Guid.NewGuid(), 100m, LedgerAccountType.Kasa));
 
     [Fact]
     public Task Operator_depozito_mahsup_edemez()
-        => OperatorReddiAsync(s => Svc<DepozitoService>(s).MahsupAsync(Guid.NewGuid(), 100m));
+        => OperatorReddiAsync(s => Svc<DepositService>(s).OffsetAsync(Guid.NewGuid(), 100m));
 
     // ---- Ceza yansıtma (PenaltyService.YansitAsync) ----
     [Fact]
     public Task Operator_ceza_yansitamaz()
-        => OperatorReddiAsync(s => Svc<PenaltyService>(s).YansitAsync(Guid.NewGuid()));
+        => OperatorReddiAsync(s => Svc<PenaltyService>(s).ReflectAsync(Guid.NewGuid()));
 
     // ---- Araç satışı (VehicleSaleService.CreateAsync) ----
     [Fact]
@@ -89,30 +89,30 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
     // ---- Regülasyon ÖDEMELERİ (RegulationService: MTV / muayene / sigorta → defter yazar) ----
     [Fact]
     public Task Operator_mtv_odeyemez()
-        => OperatorReddiAsync(s => Svc<RegulationService>(s).MtvOdeAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
+        => OperatorReddiAsync(s => Svc<RegulationService>(s).PayMtvAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
 
     [Fact]
     public Task Operator_muayene_odeyemez()
-        => OperatorReddiAsync(s => Svc<RegulationService>(s).MuayeneOdeAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
+        => OperatorReddiAsync(s => Svc<RegulationService>(s).PayInspectionAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
 
     [Fact]
     public Task Operator_sigorta_odeyemez()
-        => OperatorReddiAsync(s => Svc<RegulationService>(s).SigortaOdeAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
+        => OperatorReddiAsync(s => Svc<RegulationService>(s).PayInsuranceAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
 
     // ---- Servis rücu yansıtma (ServiceRecordService.YansitAsync) ----
     [Fact]
     public Task Operator_servis_maliyeti_yansitamaz()
-        => OperatorReddiAsync(s => Svc<ServiceRecordService>(s).YansitAsync(Guid.NewGuid(), Guid.NewGuid()));
+        => OperatorReddiAsync(s => Svc<ServiceRecordService>(s).ReflectAsync(Guid.NewGuid(), Guid.NewGuid()));
 
     // ---- Dönem kilidi (DonemKilidiService: Lock / Unlock) ----
     [Fact]
     public Task Operator_donem_kilitleyemez()
-        => OperatorReddiAsync(s => Svc<DonemKilidiService>(s).LockAsync(
+        => OperatorReddiAsync(s => Svc<PeriodLockService>(s).LockAsync(
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
 
     [Fact]
     public Task Operator_donem_kilidini_acamaz()
-        => OperatorReddiAsync(s => Svc<DonemKilidiService>(s).UnlockAsync());
+        => OperatorReddiAsync(s => Svc<PeriodLockService>(s).UnlockAsync());
 
     // ---- Kasa/Banka (CashService: tahsilat / ödeme / virman / cari-virman / ters) ----
     [Fact]
@@ -132,7 +132,7 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
 
     [Fact]
     public Task Operator_cari_virman_yapamaz()
-        => OperatorReddiAsync(s => Svc<CashService>(s).TransferBetweenCariAsync(
+        => OperatorReddiAsync(s => Svc<CashService>(s).TransferBetweenAccountsAsync(
             Guid.NewGuid(), Guid.NewGuid(), 100m));
 
     [Fact]
@@ -184,10 +184,10 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
             sp.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
         var cari = Guid.NewGuid();
 
-        var ex = await Assert.ThrowsAsync<YetkiYokException>(
+        var ex = await Assert.ThrowsAsync<NoPermissionException>(
             () => hgs.ReflectAsync(cari, "34 OP 01", t, t.AddDays(1)));
         Assert.Contains("yetkiniz yok", ex.Message);
-        Assert.Equal(0m, await Svc<CashService>(scope).GetCariBalanceAsync(cari)); // defter BOŞ kaldı
+        Assert.Equal(0m, await Svc<CashService>(scope).GetAccountBalanceAsync(cari)); // defter BOŞ kaldı
     }
 
     /// <summary>Sabit geçiş listesi döndüren HGS test double'ı.</summary>

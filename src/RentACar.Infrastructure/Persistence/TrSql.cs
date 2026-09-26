@@ -6,7 +6,7 @@ namespace RentACar.Infrastructure.Persistence;
 
 /// <summary>
 /// <see cref="TurkishText.Normalize"/>'ın SQL karşılığı (F1.6): <c>lower(replace(replace(alan,'İ','i'),…))</c> içinde
-/// katlanmış terimi arar. Çevrim tablosu <see cref="TurkishText.Esleme"/>'den üretilir — C# ve SQL kuralı ayrışamaz.
+/// katlanmış terimi arar. Çevrim tablosu <see cref="TurkishText.Mapping"/>'den üretilir — C# ve SQL kuralı ayrışamaz.
 /// <para>Terim SQL PARAMETRESİ olarak gider (sabit değil): her farklı arama metni EF sorgu önbelleğine
 /// yeni bir giriş eklemesin ve metin SQL'e gömülmesin. <c>Contains</c> parametreyle <c>strpos</c>/kaçışlı
 /// LIKE'a çevrilir; kullanıcının yazdığı <c>%</c>/<c>_</c> joker olarak yorumlanmaz.</para>
@@ -28,7 +28,7 @@ internal static class TrSql
     public static Expression<Func<T, bool>> Icerir<T>(Expression<Func<T, string>> alan, string katlanmisTerim)
     {
         Expression govde = alan.Body;
-        foreach (var (k, h) in TurkishText.Esleme)
+        foreach (var (k, h) in TurkishText.Mapping)
             govde = Expression.Call(govde, Replace, Expression.Constant(k.ToString()), Expression.Constant(h.ToString()));
         govde = Expression.Call(govde, ToLower);
         var terim = Expression.Property(Expression.Constant(new Kutu(katlanmisTerim)), nameof(Kutu.Deger));

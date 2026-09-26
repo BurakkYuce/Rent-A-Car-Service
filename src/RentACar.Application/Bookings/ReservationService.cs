@@ -16,13 +16,13 @@ namespace RentACar.Application.Bookings;
 /// </summary>
 public sealed class ReservationService(
     IBookingRepository repository, ICurrentUser currentUser, PricingService pricing, FeeLineService feeLines,
-    RezKaynakKuralService kaynakKural, ICustomerRepository customers, IVehicleRepository vehicles)
+    ReservationSourceRuleService sourceRule, ICustomerRepository customers, IVehicleRepository vehicles)
 {
     private readonly IBookingRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly PricingService _pricing = pricing;
     private readonly FeeLineService _feeLines = feeLines;
-    private readonly RezKaynakKuralService _kaynakKural = kaynakKural; // FAZ-49
+    private readonly ReservationSourceRuleService _sourceRule = sourceRule; // FAZ-49
 
     public Task<IReadOnlyList<Reservation>> ListAsync(CancellationToken ct = default)
         => _repository.ListReservationsAsync(BranchScope.EffectiveFilter(_currentUser), ct); // C4
@@ -46,13 +46,13 @@ public sealed class ReservationService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         BookingMath.Validate(input);
-        TarihPolitikasi.RezervasyonBaslangic(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
+        DatePolicy.ReservationStart(input.BasTar); // geçmişe kapalı; gelecek ≤ +1yıl
         // FAZ-49 KURAL MATRİSİ — GİRİŞ NOKTASINDA (fiyatlamadan/kabulden ÖNCE): kaynağın gün sınırı
         // ve drop yasağı burada reddedilir, km sınırsızlığı burada sabitlenir.
-        var kaynak = await _kaynakKural.CozAsync(input.Kaynak, ct);
-        RezKaynakKural.MaxGunGuard(kaynak, BookingMath.ComputeGun(input.BasTar, input.BitTar));
-        RezKaynakKural.DropGuard(kaynak, input.CikisOfisi, input.DonusOfisi);
-        var kmLimit = RezKaynakKural.KmLimitUygula(kaynak, input.KmLimit);
+        var source = await _sourceRule.ResolveAsync(input.Kaynak, ct);
+        ReservationSourceRule.MaxDaysGuard(source, BookingMath.ComputeDays(input.BasTar, input.BitTar));
+        ReservationSourceRule.DropGuard(source, input.CikisOfisi, input.DonusOfisi);
+        var kmLimit = ReservationSourceRule.ApplyKmLimit(source, input.KmLimit);
         // Varlık kontrolü (DEVIR §6 Low): müşteri/araç bu kiracıda var olmalı — kiraya çevrilince aynı kimlikler
         // kiraya taşınır. Harici API, /api/ui ve Blazor aynı kuraldan geçer (uç kopyaları kaldırıldı).
         await BookingPartyCheck.RequireAsync(customers, vehicles, input.MusteriId, input.VehicleId, ct);
@@ -95,10 +95,10 @@ public sealed class ReservationService(
             OtaLcf = input.OtaLcf, OtaCdw = input.OtaCdw, OtaScdw = input.OtaScdw,
             OtaEkSurucu = input.OtaEkSurucu,
             // FAZ-48 — talep/organizasyon bilgisi (deftere/fiyata GİRMEZ; dönüşümde kiraya taşınır).
-            TalepTuru = BookingMath.Kirp(input.TalepTuru, 64, "Talep türü"),
-            GeldigiBirim = BookingMath.Kirp(input.GeldigiBirim, 64, "Geldiği birim"),
-            OnayKodu = BookingMath.Kirp(input.OnayKodu, 64, "Onay kodu"),
-            ProjeAdi = BookingMath.Kirp(input.ProjeAdi, 128, "Proje adı")
+            TalepTuru = BookingMath.Clamp(input.TalepTuru, 64, "Talep türü"),
+            GeldigiBirim = BookingMath.Clamp(input.GeldigiBirim, 64, "Geldiği birim"),
+            OnayKodu = BookingMath.Clamp(input.OnayKodu, 64, "Onay kodu"),
+            ProjeAdi = BookingMath.Clamp(input.ProjeAdi, 128, "Proje adı")
         };
         await _repository.CreateReservationAsync(reservation, ct);
         return reservation.Id;
@@ -109,15 +109,15 @@ public sealed class ReservationService(
     /// güncellenir, fiyat yeniden hesaplanır, aktif kira çakışması yeniden kontrol edilir. Defter etkilemez.
     /// </summary>
     public Task<bool> UpdateAsync(Guid id, BookingInput input, CancellationToken ct = default)
-        => UpdateAsync(id, input, beklenenSurum: null, ct);
+        => UpdateAsync(id, input, expectedVersion: null, ct);
 
     /// <summary>
-    /// F5.1 — yukarıdakiyle aynı iş kuralları; <paramref name="beklenenSurum"/> doluysa (yeni arayüzün tam
+    /// F5.1 — yukarıdakiyle aynı iş kuralları; <paramref name="expectedVersion"/> doluysa (yeni arayüzün tam
     /// değiştirme PUT'u) yazma satır kilidi ALTINDA sürüm karşılaştırmasıyla yapılır — bayat form başka oturumun
-    /// değişikliğini (fiyat, tarih) sessizce ezemez (<see cref="EszamanliDegisiklikException"/>). null → Blazor yolu
+    /// değişikliğini (fiyat, tarih) sessizce ezemez (<see cref="ConcurrentModificationException"/>). null → Blazor yolu
     /// (davranış DEĞİŞMEDİ).
     /// </summary>
-    public async Task<bool> UpdateAsync(Guid id, BookingInput input, string? beklenenSurum, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, BookingInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite); // adversarial M4
         BookingMath.Validate(input);
@@ -129,7 +129,7 @@ public sealed class ReservationService(
         // (başlangıcı doğal olarak geçmişte kalmış, hâlâ Rezerv/Onaylı) not/araç/fiyat düzenlemesini KİLİTLEME
         // (adversarial H5). Yeni bir geçmiş/aşırı-ileri tarihe taşıma hâlâ reddedilir.
         if (input.BasTar != existing.BasTar)
-            TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
+            DatePolicy.ReservationStart(input.BasTar);
 
         // FAZ-49 KURAL MATRİSİ — GİRİŞ NOKTASINDA. Kaynak bu istekte DEĞİŞEBİLDİĞİ için İKİ kaynak
         // da çözülür: yasak kural (tarih kilidi/uzatma yasağı) hangisinden gelirse gelsin geçerlidir
@@ -140,28 +140,28 @@ public sealed class ReservationService(
         // kaynağa SONRADAN konabilir. Kural konmadan önce açılmış bir rezervasyonun (ör. 10 günlük
         // ya da drop'lu) not/araç düzenlemesini de reddetseydik, kayıt hiç düzenlenemez hale gelir
         // ve tüm yaşlanmış-kayıt akışı kilitlenirdi. Yeni bir ihlal YARATMAK hâlâ reddedilir.
-        var mevcutKaynak = await _kaynakKural.CozAsync(existing.Kaynak, ct);
-        var yeniKaynak = await _kaynakKural.CozAsync(input.Kaynak, ct);
-        var tarihDegisti = input.BasTar != existing.BasTar || input.BitTar != existing.BitTar;
-        var kaynakDegisti = !string.Equals(input.Kaynak?.Trim() ?? "", existing.Kaynak ?? "",
+        var existingSource = await _sourceRule.ResolveAsync(existing.Kaynak, ct);
+        var newSource = await _sourceRule.ResolveAsync(input.Kaynak, ct);
+        var dateChanged = input.BasTar != existing.BasTar || input.BitTar != existing.BitTar;
+        var sourceChanged = !string.Equals(input.Kaynak?.Trim() ?? "", existing.Kaynak ?? "",
             StringComparison.OrdinalIgnoreCase);
-        var ofisDegisti =
+        var officeChanged =
             !string.Equals(input.CikisOfisi ?? "", existing.CikisOfisi ?? "", StringComparison.Ordinal)
             || !string.Equals(input.DonusOfisi ?? "", existing.DonusOfisi ?? "", StringComparison.Ordinal);
 
-        if (tarihDegisti)
-            RezKaynakKural.TarihDegisiklikGuard(mevcutKaynak, yeniKaynak);
+        if (dateChanged)
+            ReservationSourceRule.DateChangeGuard(existingSource, newSource);
         if (input.BitTar > existing.BitTar) // bitişi ileri almak = uzatma
         {
-            RezKaynakKural.UzatmaGuard(mevcutKaynak);
-            RezKaynakKural.UzatmaGuard(yeniKaynak);
+            ReservationSourceRule.ExtensionGuard(existingSource);
+            ReservationSourceRule.ExtensionGuard(newSource);
         }
-        if (tarihDegisti || kaynakDegisti)
-            RezKaynakKural.MaxGunGuard(yeniKaynak, BookingMath.ComputeGun(input.BasTar, input.BitTar));
-        if (ofisDegisti || kaynakDegisti)
-            RezKaynakKural.DropGuard(yeniKaynak, input.CikisOfisi, input.DonusOfisi);
+        if (dateChanged || sourceChanged)
+            ReservationSourceRule.MaxDaysGuard(newSource, BookingMath.ComputeDays(input.BasTar, input.BitTar));
+        if (officeChanged || sourceChanged)
+            ReservationSourceRule.DropGuard(newSource, input.CikisOfisi, input.DonusOfisi);
         // Km sabitlemesi bir RED değil, sonucu yazma biçimidir → koşulsuz (kilitleme riski yok).
-        var kmLimit = RezKaynakKural.KmLimitUygula(yeniKaynak, input.KmLimit);
+        var kmLimit = ReservationSourceRule.ApplyKmLimit(newSource, input.KmLimit);
         // Varlık kontrolü KOŞULSUZ (yalnız değişende değil): tam değiştirme yazımı kimlikleri yeniden yazar ve
         // kiraya çevrilince taşınır — önceden (kontrol yokken) yazılmış yabancı kimlik düzenlemeyle "aklanmasın".
         // Maliyet iki birincil anahtar okuması. Önceki /api/ui davranışıyla aynı (orada da her PUT'ta denetleniyordu).
@@ -173,7 +173,7 @@ public sealed class ReservationService(
         // ama DOLULUK ÇARPANI (surge) UYGULANMAZ (kullanıcı kararı 2026-09-25, DEVIR Karar (4)):
         // rezervasyon müşteriye verilmiş bir taahhüttür; düzenleme anındaki doluluk ona zam bindiremez.
         // Surge yalnız YENİ rezervasyon/kira/teklif fiyatlamasında (CreateAsync) uygulanır.
-        var fiyatDegisti =
+        var priceChanged =
             existing.BasTar != input.BasTar || existing.BitTar != input.BitTar
             || existing.VehicleId != input.VehicleId || existing.MusteriId != input.MusteriId
             || existing.GunlukUcret != input.GunlukUcret
@@ -185,23 +185,23 @@ public sealed class ReservationService(
         // normalize edilmiş) değerle doldurup fiyat türünü aynen geri gönderiyor; net modda ("Günlük"/
         // "Toplam") dönüşümü tekrar uygulamak her kayıtta sessiz %20 zam üretiyordu (1.000 → 1.200 →
         // 1.440 …). Kullanıcı ücrete de moda da dokunmadıysa saklanan değer zaten brüttür.
-        var ucretVeyaModDegisti =
+        var feeOrModeChanged =
             existing.GunlukUcret != input.GunlukUcret
             || !string.Equals(existing.FiyatTuru ?? "", input.FiyatTuru?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
-        var pr = fiyatDegisti
-            ? await _pricing.PriceAsync(input, dolulukUygula: false, kdvModuUygula: ucretVeyaModDegisti, ct: ct)
+        var pr = priceChanged
+            ? await _pricing.PriceAsync(input, applyOccupancy: false, applyVatMode: feeOrModeChanged, ct: ct)
             : null;
 
         if (await _repository.HasOverlappingActiveRentalAsync(input.VehicleId, input.BasTar, input.BitTar, null, ct))
             throw new AvailabilityConflictException();
 
         // FAZ-48 — uzunluk çitleri YAZMADAN ÖNCE (delege içinde patlamak yarım iş bırakma riski taşır).
-        var talepTuru = BookingMath.Kirp(input.TalepTuru, 64, "Talep türü");
-        var geldigiBirim = BookingMath.Kirp(input.GeldigiBirim, 64, "Geldiği birim");
-        var onayKodu = BookingMath.Kirp(input.OnayKodu, 64, "Onay kodu");
-        var projeAdi = BookingMath.Kirp(input.ProjeAdi, 128, "Proje adı");
+        var requestType = BookingMath.Clamp(input.TalepTuru, 64, "Talep türü");
+        var sourceUnit = BookingMath.Clamp(input.GeldigiBirim, 64, "Geldiği birim");
+        var confirmationCode = BookingMath.Clamp(input.OnayKodu, 64, "Onay kodu");
+        var projectName = BookingMath.Clamp(input.ProjeAdi, 128, "Proje adı");
 
-        void Uygula(Reservation r)
+        void Apply(Reservation r)
         {
             BranchScope.RequireInScope(_currentUser, r.CikisSubeId, r.CikisOfisi); // adversarial M3
             if (r.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
@@ -220,7 +220,7 @@ public sealed class ReservationService(
                 r.HediyeGun = pr.HediyeGun; r.FaturalananGun = pr.FaturalananGun; r.IskontoTutar = pr.IskontoTutar; r.HaftaSonuFark = pr.HaftaSonuFark;
                 // KDV modu atlandıysa yeni fiyatlama snapshot ÜRETMEZ; mevcut snapshot korunur —
                 // aksi halde tarih düzenlemesi faturanın ayrıştırma oranını sessizce sıfırlardı.
-                r.KdvOranSnapshot = ucretVeyaModDegisti ? pr.KdvOranSnapshot : r.KdvOranSnapshot;
+                r.KdvOranSnapshot = feeOrModeChanged ? pr.KdvOranSnapshot : r.KdvOranSnapshot;
             }
             r.KmLimit = kmLimit;               // FAZ-49: KmSinirsiz kaynakta 0'a sabitlenir
             r.FazlaKmUcret = input.FazlaKmUcret;
@@ -241,16 +241,16 @@ public sealed class ReservationService(
             r.KampanyaKodu = string.IsNullOrWhiteSpace(input.KampanyaKodu) ? null : input.KampanyaKodu.Trim();
             r.FiyatTuru = string.IsNullOrWhiteSpace(input.FiyatTuru) ? null : input.FiyatTuru.Trim(); // A6-B2
             // FAZ-48 — talep/organizasyon bilgisi (fiyat-etkisiz; reprice'tan bağımsız güncellenir).
-            r.TalepTuru = talepTuru;
-            r.GeldigiBirim = geldigiBirim;
-            r.OnayKodu = onayKodu;
-            r.ProjeAdi = projeAdi;
+            r.TalepTuru = requestType;
+            r.GeldigiBirim = sourceUnit;
+            r.OnayKodu = confirmationCode;
+            r.ProjeAdi = projectName;
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }
 
-        return beklenenSurum is null
-            ? await _repository.UpdateReservationAsync(id, Uygula, ct)
-            : await _repository.UpdateReservationAsync(id, beklenenSurum, Uygula, ct);
+        return expectedVersion is null
+            ? await _repository.UpdateReservationAsync(id, Apply, ct)
+            : await _repository.UpdateReservationAsync(id, expectedVersion, Apply, ct);
     }
 
     public Task<bool> ConfirmAsync(Guid id, CancellationToken ct = default)
@@ -277,7 +277,7 @@ public sealed class ReservationService(
         if (reservation.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
             throw new ValidationException("Yalnız Rezerv/Onaylı rezervasyon kiraya çevrilebilir.");
 
-        var kiraId = await _repository.ConvertToRentalAsync(id, res => new RentalContract
+        var rentalId = await _repository.ConvertToRentalAsync(id, res => new RentalContract
         {
             Durum = RentalStatus.Kirada,
             ReservationId = res.Id,
@@ -320,8 +320,8 @@ public sealed class ReservationService(
             OnayKodu = res.OnayKodu,
             ProjeAdi = res.ProjeAdi
         }, ct);
-        await _feeLines.ApplyContractFeesAsync(kiraId, ct);
-        return kiraId;
+        await _feeLines.ApplyContractFeesAsync(rentalId, ct);
+        return rentalId;
     }
 
     private async Task<bool> Transition(

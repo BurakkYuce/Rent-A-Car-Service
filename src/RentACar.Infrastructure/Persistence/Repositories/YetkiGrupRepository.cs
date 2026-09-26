@@ -10,7 +10,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// IYetkiGrupRepository (PR-D): ekran-izni şablonu deposu. Tenant izolasyonu RLS + query filter.
 /// Ad benzersiz (TenantId, Ad); upsert ada göre. 23505 → ValidationException.
 /// </summary>
-public sealed class YetkiGrupRepository(IDbContextFactory<AppDbContext> factory) : IYetkiGrupRepository
+public sealed class YetkiGrupRepository(IDbContextFactory<AppDbContext> factory) : IPermissionGroupRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -20,7 +20,7 @@ public sealed class YetkiGrupRepository(IDbContextFactory<AppDbContext> factory)
         return await db.YetkiGruplari.AsNoTracking().OrderBy(r => r.Ad).ToListAsync(ct);
     }
 
-    public async Task<YetkiGrup?> FindByAdAsync(string ad, CancellationToken ct = default)
+    public async Task<YetkiGrup?> FindByNameAsync(string ad, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.YetkiGruplari.AsNoTracking().FirstOrDefaultAsync(r => r.Ad == ad, ct);

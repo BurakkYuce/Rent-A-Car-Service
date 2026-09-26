@@ -24,7 +24,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
     private static async Task<Guid> SeedCariAsync(IServiceScope scope, string ad)
     {
         var customers = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        return await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+        return await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
     }
 
     private static IDbContextFactory<AppDbContext> Factory(IServiceScope scope)
@@ -94,7 +94,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
 
         await cash.CollectAsync(Input());
         // İkinci gönderim: DB kısmi-unique-index → ValidationException (zarif; endpoint ?hata= redirect'ler).
-        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.CollectAsync(Input()));
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.CollectAsync(Input()));
 
         await using var db = await Factory(scope).CreateDbContextAsync();
         Assert.Equal(1, await db.CashTransactions.AsNoTracking().CountAsync(t => t.RentalId == rentalId));
@@ -130,7 +130,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
         }
 
         // Pano yeniden render: bakiye 5000 AMA işlem sayısı artık 1 → K2 ≠ K1 (eski tasarım burada kilitleniyordu).
-        var sayilar = await cash.GetRentalIslemSayilariAsync([rentalId]);
+        var sayilar = await cash.GetRentalTransactionCountsAsync([rentalId]);
         Assert.Equal(1, sayilar[rentalId]);
         var k2 = TahsilatAnahtar.Uret(rentalId, 5000m, sayilar[rentalId]);
         Assert.NotEqual(k1, k2);
@@ -142,7 +142,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
         });
 
         // K2'nin çift-submit'i hâlâ bloklanır.
-        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.CollectAsync(new CashInput
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.CollectAsync(new CashInput
         {
             CariId = cari, RentalId = rentalId, Tutar = 5000m,
             Hesap = LedgerAccountType.Kasa, IslemAnahtari = k2
@@ -176,7 +176,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
         var r = await db.Rentals.AsNoTracking().FirstAsync(x => x.Id == rentalId);
         Assert.Equal(250m, r.Tahsilat);
         Assert.Equal(-50m, r.Bakiye);              // 200 − 250 (elle; ön-ödeme/alacak)
-        Assert.Equal(-250m, await cash.GetCariBalanceAsync(cari)); // cari 250 alacaklı (elle)
+        Assert.Equal(-250m, await cash.GetAccountBalanceAsync(cari)); // cari 250 alacaklı (elle)
     }
 
     // ---- 5. Çok-döviz: EUR kira + sabit kur 40; kur BOŞ → KurCozucu; base 4000. TRY denemesi → red (K2) ----
@@ -187,14 +187,14 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        await sp.GetRequiredService<SabitKurService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var cari = await SeedCariAsync(scope, "EuroKira");
         var rentalId = await SeedRentalAsync(scope, cari, genelToplam: 100m, tahsilat: 0m, doviz: "EURO");
 
         // Panonun göndereceği biçim: doviz = NormalizeKod("EURO") = EUR, kur yok.
         var txId = await cash.CollectAsync(new CashInput
         {
-            CariId = cari, RentalId = rentalId, Tutar = 100m, Doviz = KurService.NormalizeKod("EURO"),
+            CariId = cari, RentalId = rentalId, Tutar = 100m, Doviz = ExchangeRateService.NormalizeCode("EURO"),
             Hesap = LedgerAccountType.Banka, IslemAnahtari = TahsilatAnahtar.Uret(rentalId, 100m, 0)
         });
 
@@ -229,7 +229,7 @@ public sealed class DashboardTahsilatTests(PostgresFixture fx)
 
         using var op = host.ScopeFor(tenant, role: UserRole.Operator);
         var cash = op.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => cash.CollectAsync(new CashInput
+        await Assert.ThrowsAsync<NoPermissionException>(() => cash.CollectAsync(new CashInput
         {
             CariId = cari, RentalId = rentalId, Tutar = 100m,
             Hesap = LedgerAccountType.Kasa, IslemAnahtari = TahsilatAnahtar.Uret(rentalId, 100m, 0)

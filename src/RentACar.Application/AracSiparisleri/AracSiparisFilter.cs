@@ -30,7 +30,7 @@ public sealed class AracSiparisFilter
     /// <summary>Dosya numarası parça eşleşmesi.</summary>
     public string? DosyaNo { get; set; }
 
-    public SiparisDurum? Durum { get; set; }
+    public OrderStatus? Durum { get; set; }
 
     /// <summary>Sipariş tarihi ≥ (dahil).</summary>
     public DateTimeOffset? Bas { get; set; }

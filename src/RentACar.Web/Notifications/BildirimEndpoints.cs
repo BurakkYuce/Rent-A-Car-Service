@@ -12,13 +12,13 @@ public static class BildirimEndpoints
     {
         var grp = app.MapGroup("/bildirim").RequireAuthorization().AntiforgeryByEnv();
 
-        grp.MapPost("/oku", async (BildirimService svc, [FromForm] Guid id) =>
+        grp.MapPost("/oku", async (InAppNotificationService svc, [FromForm] Guid id) =>
         {
             await svc.MarkReadAsync(id);
             return Results.Redirect("/bildirimler?ok=1");
         });
 
-        grp.MapPost("/hepsini-oku", async (BildirimService svc) =>
+        grp.MapPost("/hepsini-oku", async (InAppNotificationService svc) =>
         {
             await svc.MarkAllReadAsync();
             return Results.Redirect("/bildirimler?ok=1");

@@ -213,7 +213,7 @@ public sealed class PlatformAdminService(
     /// <summary>Bilgi alanlarını günceller. Code DEĞİŞMEZ (login anahtarı). Kolon sınırları burada
     /// doğrulanır (L1 deseni: DbUpdateException→500 yerine anlamlı red). <paramref name="expectedVersion"/> verilirse
     /// (UI API tam değiştirme) satırın güncel <see cref="TenantVersion"/>'ı ile eşleşmeli; aksi halde
-    /// <see cref="EszamanliDegisiklikException"/> (409 <c>cakisma</c>).</summary>
+    /// <see cref="ConcurrentModificationException"/> (409 <c>cakisma</c>).</summary>
     public async Task UpdateTenantAsync(Guid tenantId, string name, string? yetkiliAd, string? eposta,
         string? telefon, string? notlar, string? plan, string operatorName, CancellationToken ct = default,
         string? expectedVersion = null)
@@ -233,7 +233,7 @@ public sealed class PlatformAdminService(
             var t = await LockTenantAsync(db, tenantId, ct);
             // Checked under the row lock: two operators saving the same version cannot both win.
             if (expectedVersion is not null && expectedVersion != TenantVersion(t.CreatedAtUtc, t.UpdatedAtUtc))
-                throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+                throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
             var before = new { t.Name, t.YetkiliAd, t.Eposta, t.Telefon, t.Notlar, t.Plan };
             t.Name = name;
             t.YetkiliAd = Bosalt(yetkiliAd);
@@ -305,14 +305,14 @@ public sealed class PlatformAdminService(
         baslik = (baslik ?? "").Trim();
         if (string.IsNullOrWhiteSpace(baslik)) throw new ValidationException("Belge başlığı zorunludur.");
         if (baslik.Length > 200) throw new ValidationException("Başlık en çok 200 karakter olabilir.");
-        if (PdfValidation.Reddet(bytes) is { } hata) throw new ValidationException(hata);
+        if (PdfValidation.Reject(bytes) is { } hata) throw new ValidationException(hata);
 
         await using var db = OwnerDb();
         var belge = new PlatformBelge
         {
             Baslik = baslik,
             Aciklama = string.IsNullOrWhiteSpace(aciklama) ? null : aciklama.Trim(),
-            DosyaAdi = PdfValidation.GuvenliDosyaAdi(dosyaAdi),
+            DosyaAdi = PdfValidation.SafeFileName(dosyaAdi),
             Bytes = bytes,
             Boyut = bytes.Length,
             Durum = PlatformBelgeDurum.Taslak,
@@ -336,14 +336,14 @@ public sealed class PlatformAdminService(
     public async Task BelgeSurumGuncelleAsync(Guid belgeId, string dosyaAdi, byte[] bytes,
         string operatorName, CancellationToken ct = default)
     {
-        if (PdfValidation.Reddet(bytes) is { } hata) throw new ValidationException(hata);
+        if (PdfValidation.Reject(bytes) is { } hata) throw new ValidationException(hata);
 
         await using var db = OwnerDb();
         var belge = await db.PlatformBelgeler.FirstOrDefaultAsync(b => b.Id == belgeId, ct)
             ?? throw new ValidationException("Belge bulunamadı.");
         belge.Bytes = bytes;
         belge.Boyut = bytes.Length;
-        belge.DosyaAdi = PdfValidation.GuvenliDosyaAdi(dosyaAdi);
+        belge.DosyaAdi = PdfValidation.SafeFileName(dosyaAdi);
         belge.Surum++;
         belge.GuncellemeUtc = DateTimeOffset.UtcNow;
         belge.YukleyenOperator = operatorName;
@@ -396,12 +396,12 @@ public sealed class PlatformAdminService(
     /// <see cref="TenantKapsaminda"/> helper'ı (tx-yerel <c>set_config</c>) kullanılır. Bu helper bugüne
     /// kadar yalnız OKUMA için kullanılıyordu; yazma da aynı tx içinde güvenli.</para>
     ///
-    /// <para>Doğrulama <see cref="LogoKurallari.Reddet"/> ile — tenant yoluyla AYNI kural (iki panel
+    /// <para>Doğrulama <see cref="LogoValidationRules.Reject"/> ile — tenant yoluyla AYNI kural (iki panel
     /// farklı davranmasın).</para>
     /// </summary>
     public async Task SetTenantLogoAsync(Guid tenantId, byte[]? png, string operatorName, CancellationToken ct = default)
     {
-        if (png is { Length: > 0 } dolu && LogoKurallari.Reddet(dolu) is { } hata)
+        if (png is { Length: > 0 } dolu && LogoValidationRules.Reject(dolu) is { } hata)
             throw new ValidationException(hata);
 
         await using var db = OwnerDb();
@@ -440,7 +440,7 @@ public sealed class PlatformAdminService(
             await db.TenantSettings.AsNoTracking().IgnoreQueryFilters()
                 .Where(s => s.TenantId == tenantId).Select(s => s.LogoBytes).FirstOrDefaultAsync(ct), ct);
         return bytes is { Length: > 0 }
-            ? (bytes, LogoKurallari.Degerlendir(bytes))
+            ? (bytes, LogoValidationRules.Evaluate(bytes))
             : (null, null);
     }
 

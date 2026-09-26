@@ -7,5 +7,5 @@ public interface ICalendarRepository
     /// aktif kiralar (Kirada). Şube (çıkış ofisi) ile sınırlanabilir.
     /// </summary>
     Task<IReadOnlyList<OccupancySpanDto>> GetOccupancyAsync(
-        DateTimeOffset from, DateTimeOffset to, string? sube = null, CancellationToken ct = default);
+        DateTimeOffset from, DateTimeOffset to, string? branch = null, CancellationToken ct = default);
 }

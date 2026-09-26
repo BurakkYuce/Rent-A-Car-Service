@@ -38,7 +38,7 @@ public sealed class BranchScopeFkTests
     {
         var op = new Kimlik { AssignedBranch = "Merkez", AssignedBranchId = B1 };
         BranchScope.RequireInScope(op, null, "Merkez");                       // metin eşit → geç
-        Assert.Throws<YetkiYokException>(
+        Assert.Throws<NoPermissionException>(
             () => BranchScope.RequireInScope(op, null, "Ankara"));            // metin farklı → red
     }
 
@@ -47,7 +47,7 @@ public sealed class BranchScopeFkTests
     {
         var op = new Kimlik { AssignedBranch = "Merkez", AssignedBranchId = null }; // deploy öncesi oturum
         BranchScope.RequireInScope(op, B1, "Merkez");                          // metin eşit → geç
-        Assert.Throws<YetkiYokException>(
+        Assert.Throws<NoPermissionException>(
             () => BranchScope.RequireInScope(op, B1, "Ankara"));               // FK tek taraflı → kurtarmaz
     }
 
@@ -58,14 +58,14 @@ public sealed class BranchScopeFkTests
         // (B2'ye B1'in eski adı verilir) artık çapraz-şube sızdırmaz. C2'de bilinçli genişletmeyle
         // GEÇİYORDU (dokümante F2); ön koşul (FK-uyuşmaz∧metin-eşleşir sayacı 0) doğrulanıp kapatıldı.
         var op = new Kimlik { AssignedBranch = "Merkez", AssignedBranchId = B1 };
-        Assert.Throws<YetkiYokException>(() => BranchScope.RequireInScope(op, B2, "Merkez"));
+        Assert.Throws<NoPermissionException>(() => BranchScope.RequireInScope(op, B2, "Merkez"));
     }
 
     [Fact]
     public void Ikisi_de_uyusmazsa_red_unrestricted_serbest()
     {
         var op = new Kimlik { AssignedBranch = "Merkez", AssignedBranchId = B1 };
-        Assert.Throws<YetkiYokException>(() => BranchScope.RequireInScope(op, B2, "Ankara"));
+        Assert.Throws<NoPermissionException>(() => BranchScope.RequireInScope(op, B2, "Ankara"));
 
         var admin = new Kimlik { Role = UserRole.Admin, AssignedBranch = "Merkez", AssignedBranchId = B1 };
         BranchScope.RequireInScope(admin, B2, "Ankara");                       // Admin → Unrestricted
@@ -81,7 +81,7 @@ public sealed class BranchScopeFkTests
         var op = new Kimlik { AssignedBranch = " Merkez ", AssignedBranchId = B1 };
         Assert.Equal("Merkez", BranchScope.Effective(op));
         BranchScope.RequireInScope(op, "Merkez");
-        Assert.Throws<YetkiYokException>(() => BranchScope.RequireInScope(op, "Ankara"));
+        Assert.Throws<NoPermissionException>(() => BranchScope.RequireInScope(op, "Ankara"));
         Assert.Null(BranchScope.Effective(new Kimlik { Role = UserRole.Muhasebe, AssignedBranch = "Merkez" }));
     }
 }

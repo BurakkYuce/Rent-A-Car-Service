@@ -52,13 +52,13 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
             // ELLE: v1 GERÇEKTEN serviste (10-12 Haziran), v2'nin servisi İPTAL.
             // ServiceRecord.No tenant içinde BENZERSİZ — ham insert'te elle verilmeli.
             db.ServiceRecords.Add(new ServiceRecord
-            { No = "SRV-A1", VehicleId = v1, GirisTarihi = T0, CikisTarihi = T0.AddDays(2), Durum = ServisDurum.Tamamlandi });
+            { No = "SRV-A1", VehicleId = v1, GirisTarihi = T0, CikisTarihi = T0.AddDays(2), Durum = ServiceStatus.Tamamlandi });
             db.ServiceRecords.Add(new ServiceRecord
-            { No = "SRV-A2", VehicleId = v2, GirisTarihi = T0, CikisTarihi = T0.AddDays(2), Durum = ServisDurum.Iptal });
+            { No = "SRV-A2", VehicleId = v2, GirisTarihi = T0, CikisTarihi = T0.AddDays(2), Durum = ServiceStatus.Iptal });
             await db.SaveChangesAsync();
         }
 
-        var rows = await sp.GetRequiredService<ReportService>().GetAracDurumTakipAsync(T0, T0.AddDays(1));
+        var rows = await sp.GetRequiredService<ReportService>().GetVehicleStatusTrackingAsync(T0, T0.AddDays(1));
         var gun = rows.Single(r => r.Gun.Date == T0.Date);
 
         Assert.Equal(2, gun.ToplamArac);
@@ -79,24 +79,24 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await f.CreateDbContextAsync())
         {
-            db.Baflar.Add(new Baf { No = "BAF-000001", VehicleId = a1, Durum = BafDurum.Acik, CreatedAtUtc = T0 });
-            db.Baflar.Add(new Baf { No = "BAF-000002", VehicleId = a1, Durum = BafDurum.Kapandi, CreatedAtUtc = T0 });
+            db.Baflar.Add(new Baf { No = "BAF-000001", VehicleId = a1, Durum = BafStatus.Acik, CreatedAtUtc = T0 });
+            db.Baflar.Add(new Baf { No = "BAF-000002", VehicleId = a1, Durum = BafStatus.Kapandi, CreatedAtUtc = T0 });
             await db.SaveChangesAsync();
         }
 
         var svc = sp.GetRequiredService<ReportService>();
-        Assert.Equal(3, (await svc.GetAracDurumTakipAsync(T0, T0)).Single().ToplamArac);
+        Assert.Equal(3, (await svc.GetVehicleStatusTrackingAsync(T0, T0)).Single().ToplamArac);
 
-        var a = (await svc.GetAracDurumTakipAsync(T0, T0, "Sube A")).Single();
+        var a = (await svc.GetVehicleStatusTrackingAsync(T0, T0, "Sube A")).Single();
         Assert.Equal(2, a.ToplamArac);       // ELLE: yalnız A şubesi
         Assert.Equal(1, a.ToplamBaf);        // ELLE: 2 BAF'tan yalnız 1'i Açık
 
-        var b = (await svc.GetAracDurumTakipAsync(T0, T0, "Sube B")).Single();
+        var b = (await svc.GetVehicleStatusTrackingAsync(T0, T0, "Sube B")).Single();
         Assert.Equal(1, b.ToplamArac);
         Assert.Equal(0, b.ToplamBaf);
 
         // Aracı olmayan şube → boş liste (yanıltıcı "0 araçlı gün" satırı üretilmez).
-        Assert.Empty(await svc.GetAracDurumTakipAsync(T0, T0, "Yok Şube"));
+        Assert.Empty(await svc.GetVehicleStatusTrackingAsync(T0, T0, "Yok Şube"));
     }
 
     // ---------------- Düzeltme 2: iptal rezervasyon ciroya girmiyor ----------------
@@ -109,7 +109,7 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var arac = await AracAsync(sp, "34 RK 01", "Merkez");
         var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = "Rez A.Ş." });
+        { Tip = CustomerType.Kurumsal, Unvan = "Rez A.Ş." });
 
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await f.CreateDbContextAsync())
@@ -127,7 +127,7 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         }
 
         var svc = sp.GetRequiredService<ReportService>();
-        var web = Assert.Single(await svc.GetRezervasyonKaynakAsync());
+        var web = Assert.Single(await svc.GetReservationSourceAsync());
         Assert.Equal("Web", web.Kaynak);
         Assert.Equal(2, web.Adet);              // ELLE: iptal HARİÇ
         Assert.Equal(5, web.ToplamGun);         // ELLE: 3 + 2
@@ -135,7 +135,7 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         Assert.Equal(1, web.IptalAdet);         // görünür kalıyor
 
         // İstenirse dahil edilebilir (eski davranış).
-        var dahil = Assert.Single(await svc.GetRezervasyonKaynakAsync(
+        var dahil = Assert.Single(await svc.GetReservationSourceAsync(
             new RezervasyonKaynakFilter { IptalleriDahilEt = true }));
         Assert.Equal(3, dahil.Adet);
         Assert.Equal(10500m, dahil.ToplamCiro);
@@ -150,7 +150,7 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         var ekoArac = await AracAsync(sp, "34 RK 10", marka: "Fiat");
         var luxArac = await AracAsync(sp, "34 RK 11", marka: "BMW");
         var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = "Rez A.Ş." });
+        { Tip = CustomerType.Kurumsal, Unvan = "Rez A.Ş." });
 
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await f.CreateDbContextAsync())
@@ -170,19 +170,19 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         }
 
         var svc = sp.GetRequiredService<ReportService>();
-        Assert.Equal(2, (await svc.GetRezervasyonKaynakAsync()).Count);
-        Assert.Equal("Web", Assert.Single(await svc.GetRezervasyonKaynakAsync(
+        Assert.Equal(2, (await svc.GetReservationSourceAsync()).Count);
+        Assert.Equal("Web", Assert.Single(await svc.GetReservationSourceAsync(
             new RezervasyonKaynakFilter { Ofis = "Ofis A" })).Kaynak);
-        Assert.Equal("Acenta", Assert.Single(await svc.GetRezervasyonKaynakAsync(
+        Assert.Equal("Acenta", Assert.Single(await svc.GetReservationSourceAsync(
             new RezervasyonKaynakFilter { Grup = "LUX" })).Kaynak);
 
         // TARİH ALANI: 12 Haziran'a kadar ÇIKIŞ → yalnız 1.; aynı tarihe kadar DÖNÜŞ → yine 1.
         // ama 13 Haziran'a kadar dönüş → 1. dahil (bitişi 13'ünde).
-        var cikis = await svc.GetRezervasyonKaynakAsync(
+        var cikis = await svc.GetReservationSourceAsync(
             new RezervasyonKaynakFilter { Bit = T0.AddDays(5), TarihTipi = "Cikis" });
         Assert.Equal("Web", Assert.Single(cikis).Kaynak);
 
-        var donus = await svc.GetRezervasyonKaynakAsync(
+        var donus = await svc.GetReservationSourceAsync(
             new RezervasyonKaynakFilter { Bas = T0.AddDays(11), TarihTipi = "Donus" });
         Assert.Equal("Acenta", Assert.Single(donus).Kaynak);   // ELLE: yalnız 12 Haz'da dönen
     }
@@ -202,16 +202,16 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<ReportService>();
 
         // Parametresiz: TÜM araçlar (hedefi olmayan da) — FiloBildirimUretici bu yolu kullanıyor.
-        var hepsi = await svc.GetPeriyodikServisAsync();
+        var hepsi = await svc.GetPeriodicServiceAsync();
         Assert.Equal(3, hepsi.Count);
         Assert.All(hepsi, r => Assert.Null(r.SonrakiBakimKm));   // tanım yok → gizlenmiyor
 
         // Filtreler YALNIZ daraltır.
-        Assert.Equal(2, (await svc.GetPeriyodikServisAsync(new PeriyodikServisFilter { Sube = "sube a" })).Count);
-        Assert.Equal(2, (await svc.GetPeriyodikServisAsync(new PeriyodikServisFilter { Aktif = true })).Count);
-        Assert.Single(await svc.GetPeriyodikServisAsync(new PeriyodikServisFilter { Aktif = false }));
+        Assert.Equal(2, (await svc.GetPeriodicServiceAsync(new PeriyodikServisFilter { Sube = "sube a" })).Count);
+        Assert.Equal(2, (await svc.GetPeriodicServiceAsync(new PeriyodikServisFilter { Aktif = true })).Count);
+        Assert.Single(await svc.GetPeriodicServiceAsync(new PeriyodikServisFilter { Aktif = false }));
         // Plaka boşluklu girilebilir.
-        Assert.Single(await svc.GetPeriyodikServisAsync(new PeriyodikServisFilter { Plaka = "34 PS 02" }));
+        Assert.Single(await svc.GetPeriodicServiceAsync(new PeriyodikServisFilter { Plaka = "34 PS 02" }));
 
         // Rapor kolonları dolu.
         var fiat = hepsi.Single(r => r.Plaka == "34PS01");
@@ -234,13 +234,13 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         {
             // ELLE: hedef 30.000 → kalan 20.000 (eşiğin çok üstünde).
             db.ServiceRecords.Add(new ServiceRecord
-            { No = "SRV-B1", VehicleId = v, GirisTarihi = T0, Durum = ServisDurum.Tamamlandi,
+            { No = "SRV-B1", VehicleId = v, GirisTarihi = T0, Durum = ServiceStatus.Tamamlandi,
               SonrakiBakimKm = 30_000, GirisKm = 9_000 });
             await db.SaveChangesAsync();
         }
 
         var rows = await sp.GetRequiredService<ReportService>()
-            .GetPeriyodikServisAsync(new PeriyodikServisFilter { UyariEsigi = 1000 });
+            .GetPeriodicServiceAsync(new PeriyodikServisFilter { UyariEsigi = 1000 });
 
         // ELLE: hedefi olan araç elendi (20.000 > 1.000); hedefi OLMAYAN araç KALDI — eksik tanım
         // da bir uyarıdır ve sessizce gizlenmemeli.
@@ -257,7 +257,7 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var arac = await AracAsync(sp, "34 GF 01");
         var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = "Gün A.Ş." });
+        { Tip = CustomerType.Kurumsal, Unvan = "Gün A.Ş." });
         var bugun = TestZaman.Simdi();
 
         var kiralar = sp.GetRequiredService<RentalService>();
@@ -270,10 +270,10 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
           GunlukUcret = 1000m, CikisOfisi = "Ofis B" });
 
         var svc = sp.GetRequiredService<ReportService>();
-        Assert.Equal(2, (await svc.GetGunlukFaaliyetAsync(bugun)).Cikis);
-        Assert.Equal(1, (await svc.GetGunlukFaaliyetAsync(bugun, "Ofis A")).Cikis);   // ELLE
-        Assert.Equal(1, (await svc.GetGunlukFaaliyetAsync(bugun, "Ofis A")).YeniKira);
-        Assert.Equal(0, (await svc.GetGunlukFaaliyetAsync(bugun, "Ofis C")).Cikis);
+        Assert.Equal(2, (await svc.GetDailyActivityAsync(bugun)).Cikis);
+        Assert.Equal(1, (await svc.GetDailyActivityAsync(bugun, "Ofis A")).Cikis);   // ELLE
+        Assert.Equal(1, (await svc.GetDailyActivityAsync(bugun, "Ofis A")).YeniKira);
+        Assert.Equal(0, (await svc.GetDailyActivityAsync(bugun, "Ofis C")).Cikis);
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var arac = await AracAsync(sp, "34 KM 01", marka: "Fiat");
         var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = "Km A.Ş." });
+        { Tip = CustomerType.Kurumsal, Unvan = "Km A.Ş." });
 
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await f.CreateDbContextAsync())
@@ -298,7 +298,7 @@ public sealed class RaporFiltreDerinlikTests(PostgresFixture fx)
             await db.SaveChangesAsync();
         }
 
-        var r = Assert.Single(await sp.GetRequiredService<ReportService>().GetKmDetayAsync(T0, T0.AddDays(1)));
+        var r = Assert.Single(await sp.GetRequiredService<ReportService>().GetKmDetailAsync(T0, T0.AddDays(1)));
         Assert.Equal("34KM01", r.Plaka);
         Assert.Equal("Fiat", r.Marka);          // FAZ-76: araç JOIN'i genişledi
         Assert.Equal(T0, r.BasTar);             // FAZ-76: sözleşme tarihleri

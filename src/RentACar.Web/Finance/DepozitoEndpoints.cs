@@ -15,19 +15,19 @@ public static class DepozitoEndpoints
 
         // FAZ-50: hesapId (spesifik kasa/banka) Run() tarafından okunur ve nakit bacağına yazılır.
         // Mahsup NAKİT DEĞİL (depozito → cari borcu) → hesap seçimi yok sayılır, doğru.
-        grp.MapPost("/al", async (DepozitoService svc, HttpRequest req) =>
+        grp.MapPost("/al", async (DepositService svc, HttpRequest req) =>
             await Run(req, (cari, tutar, hesap, doviz, kur, anahtar, hesapId) =>
-                svc.AlAsync(cari, tutar, hesap, doviz, kur, null, anahtar, hesapId)));
+                svc.GetAsync(cari, tutar, hesap, doviz, kur, null, anahtar, hesapId)));
 
-        grp.MapPost("/iade", async (DepozitoService svc, HttpRequest req) =>
+        grp.MapPost("/iade", async (DepositService svc, HttpRequest req) =>
             await Run(req, (cari, tutar, hesap, doviz, kur, anahtar, hesapId) =>
-                svc.IadeAsync(cari, tutar, hesap, doviz, kur, null, anahtar, hesapId)));
+                svc.RefundAsync(cari, tutar, hesap, doviz, kur, null, anahtar, hesapId)));
 
-        grp.MapPost("/mahsup", async (DepozitoService svc, HttpRequest req) =>
-            await Run(req, (cari, tutar, _, doviz, kur, anahtar, _) => svc.MahsupAsync(cari, tutar, doviz, kur, null, anahtar)));
+        grp.MapPost("/mahsup", async (DepositService svc, HttpRequest req) =>
+            await Run(req, (cari, tutar, _, doviz, kur, anahtar, _) => svc.OffsetAsync(cari, tutar, doviz, kur, null, anahtar)));
 
         // İRAT (FAZ 1.2): iade edilmeyen depozito GELİR olur; rentalId verilirse araca atfedilir.
-        grp.MapPost("/irat", async (DepozitoService svc, HttpRequest req) =>
+        grp.MapPost("/irat", async (DepositService svc, HttpRequest req) =>
         {
             var f = req.Form;
             string? S(string k) { var v = f[k].ToString(); return string.IsNullOrWhiteSpace(v) ? null : v; }
@@ -41,7 +41,7 @@ public static class DepozitoEndpoints
             var donus = S("donus");
             try
             {
-                await svc.IratAsync(cari, tutar, doviz, kur, rentalId, null, anahtar, aciklama);
+                await svc.ForfeitAsync(cari, tutar, doviz, kur, rentalId, null, anahtar, aciklama);
                 return Results.Redirect(FinanceEndpoints.SafeDonus(donus, "/depozito?ok=1"));
             }
             catch (ValidationException ex)

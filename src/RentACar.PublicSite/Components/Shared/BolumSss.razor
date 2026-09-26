@@ -13,7 +13,7 @@
                 {
                     <details class="sss">
                         <summary>@k.Soru</summary>
-                        @foreach (var p in IcerikMetni.Paragraflar(k.Cevap))
+                        @foreach (var p in ContentText.Paragraphs(k.Cevap))
                         {
                             <p>@p</p>
                         }

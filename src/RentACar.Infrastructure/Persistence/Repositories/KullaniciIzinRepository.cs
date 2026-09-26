@@ -9,7 +9,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// filter YOK, login bootstrap GUC'suz okur) → tenant filtresi BURADA db.TenantId ile açıkça
 /// uygulanır; DB tarafında komut-bazlı RLS ikinci savunma katmanı.
 /// </summary>
-public sealed class KullaniciIzinRepository(IDbContextFactory<AppDbContext> factory) : IKullaniciIzinRepository
+public sealed class KullaniciIzinRepository(IDbContextFactory<AppDbContext> factory) : IUserPermissionRepository
 {
     public async Task<IReadOnlyList<KullaniciIzinSatiri>> ListAsync(CancellationToken ct = default)
     {

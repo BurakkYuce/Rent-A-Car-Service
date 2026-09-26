@@ -4,7 +4,7 @@
 @using RentACar.Application.SiteIcerik
 @using RentACar.PublicSite.Components.Shared
 @inject FleetShowcaseService Showcase
-@inject SiteIcerikService Icerik
+@inject SiteContentService Icerik
 @inject BranchService Subeler
 
 @* PR-19 — ana sayfa artık bölümleri DİZEN ince bir sayfa. Her bölüm kendi bileşeninde
@@ -126,7 +126,7 @@
     {
         _branding = await Showcase.GetBrandingAsync();
         _cards = await Showcase.ListShowcaseGroupsAsync();
-        _sss = await Icerik.YayindakiSssAsync();
+        _sss = await Icerik.PublishedFaqAsync();
 
         // Şube listesi Hero'daki arama kutusu için; boşsa AramaFormu seçim kutusunu hiç basmaz.
         try { _subeler = [.. (await Subeler.ListAsync()).Select(b => b.Ad)]; }
@@ -137,7 +137,7 @@
         // og:image mutlak adres ister; kanonik KÖK (sondaki eğik çizgisiz) ondan türer.
         _kanonikKok = host is null ? null : $"https://{host}";
 
-        var sayfalar = await Icerik.YayindakiSayfalarAsync();
+        var sayfalar = await Icerik.PublishedPagesAsync();
         _kosulSayfasi = sayfalar.FirstOrDefault(s => KosulSluglari.Contains(s.Slug)) is { } k
             ? $"/{k.Slug}" : null;
     }

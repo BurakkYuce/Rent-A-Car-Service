@@ -157,8 +157,8 @@
             .OrderBy(x => x.EntryDateUtc).ToList();
         // Kapanan tutarlar SERVİSİN kullandığı kaynaktan okunur — ekran ayrı bir hesap yapsaydı
         // "kapalı" göstergesi ile çit ayrışabilirdi.
-        _kapanan = await Kasa.KapatilanTutarlarAsync([.. _borclar.Select(x => x.Id)]);
+        _kapanan = await Kasa.SettledAmountsAsync([.. _borclar.Select(x => x.Id)]);
         _borcToplam = _borclar.Sum(x => x.Amount.AmountInBase - _kapanan.GetValueOrDefault(x.Id));
-        _bakiye = await Kasa.GetCariBalanceAsync(id);
+        _bakiye = await Kasa.GetAccountBalanceAsync(id);
     }
 }

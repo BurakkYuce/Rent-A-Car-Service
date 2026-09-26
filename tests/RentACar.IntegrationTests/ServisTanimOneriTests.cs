@@ -19,7 +19,7 @@ namespace RentACar.IntegrationTests;
 public sealed class ServisTanimOneriTests(PostgresFixture fx)
 {
     private static Task<Guid> AracAsync(IServiceProvider sp, string plaka, string? marka, string? tip,
-        FuelType? yakit = null, Vites? vites = null, VehicleStatus durum = VehicleStatus.Musait)
+        FuelType? yakit = null, Transmission? vites = null, VehicleStatus durum = VehicleStatus.Musait)
         => sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = plaka, Marka = marka, Tip = tip, Yakit = yakit, Vites = vites, Durum = durum });
 
@@ -31,12 +31,12 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
 
         // ELLE: 3 araçtan 2'si AYNI kombinasyon (Renault/Clio/Benzin/Manuel), 1'i farklı.
-        await AracAsync(sp, "34 SO 01", "Renault", "Clio", FuelType.Benzin, Vites.Manuel);
-        await AracAsync(sp, "34 SO 02", " renault ", " clio ", FuelType.Benzin, Vites.Manuel);  // harf/boşluk farkı
-        await AracAsync(sp, "34 SO 03", "Fiat", "Egea", FuelType.Dizel, Vites.Otomatik);
+        await AracAsync(sp, "34 SO 01", "Renault", "Clio", FuelType.Benzin, Transmission.Manuel);
+        await AracAsync(sp, "34 SO 02", " renault ", " clio ", FuelType.Benzin, Transmission.Manuel);  // harf/boşluk farkı
+        await AracAsync(sp, "34 SO 03", "Fiat", "Egea", FuelType.Dizel, Transmission.Otomatik);
 
-        var svc = sp.GetRequiredService<ServisTanimService>();
-        var oneri = await svc.OneriAsync();
+        var svc = sp.GetRequiredService<ServiceDefinitionService>();
+        var oneri = await svc.SuggestionAsync();
 
         Assert.Equal(2, oneri.Count);                                  // ELLE: 2 farklı kombinasyon
         // TEMSİLCİ YAZIM DETERMİNİSTİK: "Renault" 1 kez, " renault " 1 kez → eşitlik → alfabetik
@@ -61,12 +61,12 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
 
         // ELLE: "renault" 2 kez, "Renault" 1 kez → çoğunluk "renault" kazanmalı (alfabetik değil).
-        await AracAsync(sp, "34 TM 01", "renault", "clio", FuelType.Benzin, Vites.Manuel);
-        await AracAsync(sp, "34 TM 02", "renault", "clio", FuelType.Benzin, Vites.Manuel);
-        await AracAsync(sp, "34 TM 03", "Renault", "Clio", FuelType.Benzin, Vites.Manuel);
+        await AracAsync(sp, "34 TM 01", "renault", "clio", FuelType.Benzin, Transmission.Manuel);
+        await AracAsync(sp, "34 TM 02", "renault", "clio", FuelType.Benzin, Transmission.Manuel);
+        await AracAsync(sp, "34 TM 03", "Renault", "Clio", FuelType.Benzin, Transmission.Manuel);
 
-        var svc = sp.GetRequiredService<ServisTanimService>();
-        var ilk = Assert.Single(await svc.OneriAsync());
+        var svc = sp.GetRequiredService<ServiceDefinitionService>();
+        var ilk = Assert.Single(await svc.SuggestionAsync());
         Assert.Equal("renault", ilk.Kombinasyon.Marka);
         Assert.Equal("clio", ilk.Kombinasyon.Tip);
         Assert.Equal(3, ilk.Kombinasyon.AracSayisi);
@@ -74,7 +74,7 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         // Aynı sorgu tekrar çağrıldığında AYNI sonucu vermeli (sıra bağımlılığı yok).
         for (var i = 0; i < 3; i++)
         {
-            var tekrar = Assert.Single(await svc.OneriAsync());
+            var tekrar = Assert.Single(await svc.SuggestionAsync());
             Assert.Equal(ilk.Kombinasyon.Marka, tekrar.Kombinasyon.Marka);
             Assert.Equal(ilk.OnerilenKod, tekrar.OnerilenKod);
         }
@@ -86,11 +86,11 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        await AracAsync(sp, "34 SO 04", "Opel", "Corsa", FuelType.Benzin, Vites.Manuel);
-        await AracAsync(sp, "34 SO 05", "Volvo", "XC40", FuelType.Dizel, Vites.Otomatik, VehicleStatus.Satildi);
-        await AracAsync(sp, "34 SO 06", "Skoda", "Fabia", FuelType.Benzin, Vites.Manuel, VehicleStatus.Pasif);
+        await AracAsync(sp, "34 SO 04", "Opel", "Corsa", FuelType.Benzin, Transmission.Manuel);
+        await AracAsync(sp, "34 SO 05", "Volvo", "XC40", FuelType.Dizel, Transmission.Otomatik, VehicleStatus.Satildi);
+        await AracAsync(sp, "34 SO 06", "Skoda", "Fabia", FuelType.Benzin, Transmission.Manuel, VehicleStatus.Pasif);
 
-        var oneri = await sp.GetRequiredService<ServisTanimService>().OneriAsync();
+        var oneri = await sp.GetRequiredService<ServiceDefinitionService>().SuggestionAsync();
         Assert.Equal("Opel", Assert.Single(oneri).Kombinasyon.Marka);   // ELLE: yalnız kiralanabilir olan
     }
 
@@ -100,13 +100,13 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        await AracAsync(sp, "34 SO 07", "Renault", "Clio", FuelType.Benzin, Vites.Manuel);
-        await AracAsync(sp, "34 SO 08", "Fiat", "Egea", FuelType.Dizel, Vites.Otomatik);
-        var svc = sp.GetRequiredService<ServisTanimService>();
+        await AracAsync(sp, "34 SO 07", "Renault", "Clio", FuelType.Benzin, Transmission.Manuel);
+        await AracAsync(sp, "34 SO 08", "Fiat", "Egea", FuelType.Dizel, Transmission.Otomatik);
+        var svc = sp.GetRequiredService<ServiceDefinitionService>();
 
         // Kombinasyonu OLMAYAN eski tanım hiçbir öneriyi susturmamalı.
         await svc.CreateAsync(new ServisTanimInput { Kod = "ESKI", AracTipi = "Ekonomik", BakimKm = 15000 });
-        Assert.Equal(2, (await svc.OneriAsync()).Count);
+        Assert.Equal(2, (await svc.SuggestionAsync()).Count);
 
         // Kombinasyona bağlı tanım YALNIZ o kombinasyonu düşürür.
         await svc.CreateAsync(new ServisTanimInput
@@ -114,7 +114,7 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
             Kod = "RENCLIO", AracTipi = "Ekonomik", BakimKm = 15000,
             Marka = "renault", Tip = "CLIO", Yakit = "benzin", Vites = "manuel"   // harf duyarsız eşleşme
         });
-        Assert.Equal("Fiat", Assert.Single(await svc.OneriAsync()).Kombinasyon.Marka);
+        Assert.Equal("Fiat", Assert.Single(await svc.SuggestionAsync()).Kombinasyon.Marka);
     }
 
     [Fact]
@@ -123,14 +123,14 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<ServisTanimService>();
+        var svc = sp.GetRequiredService<ServiceDefinitionService>();
 
         // İki kombinasyon AYNI kod tabanına düşecek şekilde kuruluyor (ilk 4 harf aynı).
-        await AracAsync(sp, "34 SO 09", "Renault", "Clio", FuelType.Benzin, Vites.Manuel);
-        await AracAsync(sp, "34 SO 10", "Renault", "Clio", FuelType.Benzin, Vites.Otomatik);
-        await AracAsync(sp, "34 SO 11", "Renault", "Clio", FuelType.Dizel, Vites.Manuel);
+        await AracAsync(sp, "34 SO 09", "Renault", "Clio", FuelType.Benzin, Transmission.Manuel);
+        await AracAsync(sp, "34 SO 10", "Renault", "Clio", FuelType.Benzin, Transmission.Otomatik);
+        await AracAsync(sp, "34 SO 11", "Renault", "Clio", FuelType.Dizel, Transmission.Manuel);
 
-        var oneri = await svc.OneriAsync();
+        var oneri = await svc.SuggestionAsync();
         Assert.Equal(3, oneri.Count);
         var kodlar = oneri.Select(o => o.OnerilenKod).ToArray();
         Assert.Equal(3, kodlar.Distinct(StringComparer.OrdinalIgnoreCase).Count());   // hepsi tekil
@@ -145,7 +145,7 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
                 Yakit = o.Kombinasyon.Yakit, Vites = o.Kombinasyon.Vites
             });
         Assert.Equal(3, (await svc.ListAsync()).Count);
-        Assert.Empty(await svc.OneriAsync());          // hepsi kapsandı
+        Assert.Empty(await svc.SuggestionAsync());          // hepsi kapsandı
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<ServisTanimService>();
+        var svc = s.ServiceProvider.GetRequiredService<ServiceDefinitionService>();
 
         var id = await svc.CreateAsync(new ServisTanimInput
         {
@@ -185,15 +185,15 @@ public sealed class ServisTanimOneriTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
         using (var s1 = host.ScopeFor(t1))
-            await AracAsync(s1.ServiceProvider, "34 SO 12", "Gizli", "Model", FuelType.Benzin, Vites.Manuel);
+            await AracAsync(s1.ServiceProvider, "34 SO 12", "Gizli", "Model", FuelType.Benzin, Transmission.Manuel);
 
         // Başka tenant kombinasyonu GÖRMEZ.
         using (var s2 = host.ScopeFor(Guid.NewGuid()))
-            Assert.Empty(await s2.ServiceProvider.GetRequiredService<ServisTanimService>().OneriAsync());
+            Assert.Empty(await s2.ServiceProvider.GetRequiredService<ServiceDefinitionService>().SuggestionAsync());
 
         // Muhasebe rolünde OperationsWrite yok → öneri de kapalı (yazma yolunun ön adımı).
         using var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
-            muh.ServiceProvider.GetRequiredService<ServisTanimService>().OneriAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
+            muh.ServiceProvider.GetRequiredService<ServiceDefinitionService>().SuggestionAsync());
     }
 }

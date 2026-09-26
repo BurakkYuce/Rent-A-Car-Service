@@ -16,7 +16,7 @@ public sealed class DropTanimTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<DropTanimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<DropDefinitionService>();
 
         var id = await svc.CreateAsync(new DropTanimInput
         { Lokasyon = "Havalimanı", Sube = "Merkez", KarsilamaSekli = "Karşılama", CalismaSekli = "7/24" });
@@ -39,10 +39,10 @@ public sealed class DropTanimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using (var a = host.ScopeFor(Guid.NewGuid()))
         {
-            await a.ServiceProvider.GetRequiredService<DropTanimService>()
+            await a.ServiceProvider.GetRequiredService<DropDefinitionService>()
                 .CreateAsync(new DropTanimInput { Lokasyon = "Gizli", Sube = "Gizli" });
         }
         using var b = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await b.ServiceProvider.GetRequiredService<DropTanimService>().ListAsync());
+        Assert.Empty(await b.ServiceProvider.GetRequiredService<DropDefinitionService>().ListAsync());
     }
 }

@@ -9,7 +9,7 @@
 @inject VehicleService Vehicles
 @inject CustomerService Customers
 @inject BranchService Subeler
-@inject AracKrediService Krediler
+@inject VehicleLoanService Krediler
 @inject RegulationService Regulasyon
 
 <PageTitle>Araç Satışları — RentPro</PageTitle>
@@ -36,7 +36,7 @@
     <label>Durum
         <select name="durumF">
             <option value="">— tümü —</option>
-            @foreach (var d in Enum.GetValues<SatisDurum>())
+            @foreach (var d in Enum.GetValues<SaleStatus>())
             {
                 <option value="@d" selected="@(d.ToString() == DurumF)">@d</option>
             }
@@ -149,7 +149,7 @@
                 <td>@s.No</td>
                 <td>@s.Tarih.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 @* Geçen Süre: yeni alan GEREKTİRMEZ — Tarih'ten hesaplanır (SatisHesap.GecenGun, test edilebilir). *@
-                <td class="num">@SatisHesap.GecenGun(s.Tarih, _simdi) gün</td>
+                <td class="num">@SaleCalculation.ElapsedDays(s.Tarih, _simdi) gün</td>
                 <td>@VehLabel(s.VehicleId)</td>
                 <td>@CustLabel(s.AliciCariId)</td>
                 <td>@s.SatisNet.ToString("N2")</td>
@@ -224,7 +224,7 @@
         {
             Plaka = PlakaF,
             AliciCariId = Guid.TryParse(CariF, out var c) ? c : null,
-            Durum = Enum.TryParse<SatisDurum>(DurumF, out var d) ? d : null,
+            Durum = Enum.TryParse<SaleStatus>(DurumF, out var d) ? d : null,
             SatisiVerildi = DevirF switch { "1" => true, "0" => false, _ => (bool?)null },
             Ofis = OfisF
         };

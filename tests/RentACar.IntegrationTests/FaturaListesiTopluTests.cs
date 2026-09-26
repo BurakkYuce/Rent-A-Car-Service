@@ -42,7 +42,7 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput
             {
-                Tip = CariType.Kurumsal, Unvan = ad, OzelKod = ozelKod,
+                Tip = CustomerType.Kurumsal, Unvan = ad, OzelKod = ozelKod,
                 VergiNo = vergiNo ?? Interlocked.Increment(ref _vergiSayac).ToString(),
                 VergiDairesi = "Kadıköy"
             });
@@ -160,7 +160,7 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => invoices.BatchCreateFromRentalsAsync([]));
-        var cok = Enumerable.Range(0, InvoiceService.TopluMaxSecim + 1).Select(_ => Guid.NewGuid()).ToList();
+        var cok = Enumerable.Range(0, InvoiceService.MaxBulkSelection + 1).Select(_ => Guid.NewGuid()).ToList();
         await Assert.ThrowsAsync<ValidationException>(() => invoices.BatchCreateFromRentalsAsync(cok));
     }
 
@@ -204,7 +204,7 @@ public sealed class FaturaListesiTopluTests(PostgresFixture fx)
 
         // Operatör toplu fatura kesemez (FinanceWrite yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
-        await Assert.ThrowsAsync<YetkiYokException>(() => op.ServiceProvider
+        await Assert.ThrowsAsync<NoPermissionException>(() => op.ServiceProvider
             .GetRequiredService<InvoiceService>().BatchCreateFromRentalsAsync([kira]));
     }
 

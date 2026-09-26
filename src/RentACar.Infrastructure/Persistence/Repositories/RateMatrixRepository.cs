@@ -33,7 +33,7 @@ public sealed class RateMatrixRepository(IDbContextFactory<AppDbContext> factory
         return await db.RateMatrices.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();
@@ -102,7 +102,7 @@ public sealed class RateMatrixRepository(IDbContextFactory<AppDbContext> factory
         // ExecuteDeleteAsync ile çözülmedi: o yol SaveChanges'i atlar, AuditSaveChangesInterceptor
         // çalışmaz ve toplu silme İZSİZ kalırdı.
         var idListe = ids as Guid[] ?? [.. ids];
-        var bekliyor = (int)TarifeOnayDurumu.Bekliyor;
+        var bekliyor = (int)TariffApprovalStatus.Bekliyor;
         var kilitli = await db.Database.SqlQuery<Guid>(
             $"""SELECT "Id" AS "Value" FROM "TarifeMatris" WHERE "Id" = ANY({idListe}) AND "OnayDurumu" = {bekliyor} FOR UPDATE""")
             .ToListAsync(ct);

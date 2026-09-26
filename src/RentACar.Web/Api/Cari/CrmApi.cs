@@ -38,7 +38,7 @@ public static partial class CrmApi
         reports.MapGet("/secenekler", async (ReportService r, ICurrentUser user, CancellationToken ct) =>
         {
             RequireCompanyWide(user);
-            var o = await r.GetMusteriSegmentSecenekleriAsync(ct);
+            var o = await r.GetCustomerSegmentOptionsAsync(ct);
             return TypedResults.Ok(new CrmFilterOptions(o.Kaynaklar, o.Ofisler));
         });
         return v1;
@@ -58,13 +58,13 @@ public static partial class CrmApi
     private static void RequireCompanyWide(ICurrentUser user)
     {
         if (!BranchScope.EffectiveFilter(user).Unrestricted)
-            throw new YetkiYokException("CRM analizi firma geneli rapordur; şube kapsamlı kullanıcı göremez.");
+            throw new NoPermissionException("CRM analizi firma geneli rapordur; şube kapsamlı kullanıcı göremez.");
     }
 
     // ================================================================== CRM analiz
 
-    private static readonly SiralamaHaritasi<CrmSegmentRow> SegmentSort = SiralamaHaritasi<CrmSegmentRow>
-        .Olustur(r => r.CariId)
+    private static readonly SortFieldMap<CrmSegmentRow> SegmentSort = SortFieldMap<CrmSegmentRow>
+        .Create(r => r.CariId)
         .Alan("ad", r => r.Ad).Alan("kiraSayisi", r => r.KiraSayisi).Alan("toplamCiro", r => r.ToplamCiro)
         .Alan("ortalamaKiraBedeli", r => r.OrtalamaKiraBedeli).Alan("ortalamaKm", r => r.OrtalamaKm)
         .Alan("hizmetBedeli", r => r.HizmetBedeli).Alan("ilkKiraZamani", r => r.IlkKiraZamani)
@@ -87,7 +87,7 @@ public static partial class CrmApi
         RequireCompanyWide(user);
         if (f.MinKira is < 0 or > 100_000) throw new ValidationException("Kiralama adedi 0 ile 100.000 arasında olmalıdır.", "minKira");
         var (min, max) = F5Ortak.GunAraligi(f.TarihBas, f.TarihBit);
-        var segment = await reports.GetMusteriSegmentAsync(new MusteriSegmentFilter
+        var segment = await reports.GetCustomerSegmentAsync(new MusteriSegmentFilter
         {
             Bas = min, Bit = max, MinKiraSayisi = f.MinKira, RezKaynak = F5Ortak.Nz(f.Kaynak), CikisOfis = F5Ortak.Nz(f.Ofis),
         }, ct);
@@ -101,7 +101,7 @@ public static partial class CrmApi
                 // #295 bilgi: doğum tarihi kimlik belgesi bilgisidir — AnonimBelge işaretli müşteride dönmez.
                 p?.AnonimBelge == true ? null : s.DogumTarihi, s.IlkKiraZamani, s.SonIslem, s.Segment);
         }).ToList();
-        var staff = (await reports.GetPersonelCalismaAsync(ct)).Select(p => new CrmStaffRow(p.PersonelId, p.Ad, p.TahsisSayisi)).ToList();
+        var staff = (await reports.GetPersonnelWorkAsync(ct)).Select(p => new CrmStaffRow(p.PersonelId, p.Ad, p.TahsisSayisi)).ToList();
         return TypedResults.Ok(new CrmAnalysisDto(rows.Count, rows.Sum(r => r.ToplamCiro), rows.Sum(r => r.HizmetBedeli),
             F5Ortak.Sayfala(rows, SegmentSort, sayfa, boyut, sirala), staff));
     }

@@ -71,7 +71,7 @@ public sealed record FiloKiralamaDto(
 {
     public static FiloKiralamaDto From(FiloKiralama k, string? surum, string musteriAd, string plaka, FiloYetkileri y)
     {
-        var o = FiloKiralamaService.TaksitPlani(k); // salt-hesap SUNUCUDA (UI formül taşımaz)
+        var o = FleetRentalService.InstallmentPlan(k); // salt-hesap SUNUCUDA (UI formül taşımaz)
         return new(k.Id, k.No, k.Durum.ToString(), surum, k.MusteriId, musteriAd, k.VehicleId, plaka, k.BasTar, k.SureAy,
             k.AylikUcret, k.KdvOrani, k.Currency, k.Kur, k.ToplamKmLimiti, k.DamgaVergisi, k.Aciklama, k.SatisTemsilcisi,
             k.FaturaTuru, k.SozlesmeTarihi, k.ImzaTarih, k.MakbuzNo, k.DosyaNo, k.SozlesmeNo, k.VadeGun, k.FiyatTuru,

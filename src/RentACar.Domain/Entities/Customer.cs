@@ -16,7 +16,7 @@ public class Customer : ITenantOwned, IAuditable
 
     public Guid TenantId { get; set; }
 
-    public CariType Tip { get; set; } = CariType.Bireysel;
+    public CustomerType Tip { get; set; } = CustomerType.Bireysel;
 
     // Bireysel
     public string? Ad { get; set; }
@@ -204,7 +204,7 @@ public class Customer : ITenantOwned, IAuditable
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 
     /// <summary>Görünen ad: kurumsal → Ünvan; bireysel → "Ad Soyad". (Mapped değil.)</summary>
-    public string DisplayName => Tip == CariType.Bireysel
+    public string DisplayName => Tip == CustomerType.Bireysel
         ? $"{Ad} {Soyad}".Trim()
         : (Unvan ?? string.Empty);
 }

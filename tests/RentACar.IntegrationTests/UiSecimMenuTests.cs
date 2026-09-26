@@ -145,9 +145,9 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         var o = await OrtamKurAsync();
         await VeriYazAsync(o.TenantId, db =>
         {
-            db.Customers.Add(new Customer { Tip = CariType.Kurumsal, Unvan = "IŞIK Lojistik", CepTel = "05321112233", Email = "gizli-f16@ornek.test", Adres = "Gizli Sokak 7" });
-            db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = "Ayşe", Soyad = "Işık", CepTel = "05329998877" });
-            db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli" });
+            db.Customers.Add(new Customer { Tip = CustomerType.Kurumsal, Unvan = "IŞIK Lojistik", CepTel = "05321112233", Email = "gizli-f16@ornek.test", Adres = "Gizli Sokak 7" });
+            db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Işık", CepTel = "05329998877" });
+            db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli" });
         });
         var c = await GirisAsync(o, Kim.Admin);
 
@@ -176,7 +176,7 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         {
             for (var i = 1; i <= 25; i++)
             {
-                db.Customers.Add(new Customer { Tip = CariType.Bireysel, Ad = $"Sınır{i:00}", Soyad = "Müşteri" });
+                db.Customers.Add(new Customer { Tip = CustomerType.Bireysel, Ad = $"Sınır{i:00}", Soyad = "Müşteri" });
                 db.Vehicles.Add(new Vehicle { Plaka = $"34 LMT {i:00}", Sube = "SubeA", Durum = VehicleStatus.Musait });
             }
         });

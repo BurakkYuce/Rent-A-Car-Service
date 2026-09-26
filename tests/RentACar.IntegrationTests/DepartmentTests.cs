@@ -73,7 +73,7 @@ public sealed class DepartmentTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<DepartmentService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(new DepartmentInput { Kod = "X", Ad = "Yetkisiz" }));
     }
 

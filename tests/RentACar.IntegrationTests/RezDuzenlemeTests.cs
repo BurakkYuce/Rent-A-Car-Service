@@ -23,7 +23,7 @@ public sealed class RezDuzenlemeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cust = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Rez" });
+        var cust = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rez" });
         var v1 = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 RD 01", Durum = VehicleStatus.Musait });
         var v2 = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 RD 02", Durum = VehicleStatus.Musait });
         var rez = sp.GetRequiredService<ReservationService>();
@@ -45,7 +45,7 @@ public sealed class RezDuzenlemeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cust = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Rez" });
+        var cust = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rez" });
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 RD 03", Durum = VehicleStatus.Musait });
         var rez = sp.GetRequiredService<ReservationService>();
         var id = await rez.CreateAsync(new BookingInput { MusteriId = cust, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });

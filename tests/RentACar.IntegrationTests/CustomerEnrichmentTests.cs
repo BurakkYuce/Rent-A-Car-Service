@@ -23,7 +23,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         var dogum = new DateTimeOffset(1985, 7, 20, 0, 0, 0, TimeSpan.Zero);
         var id = await svc.CreateAsync(new CustomerInput
         {
-            Tip = CariType.Kurumsal, Unvan = "Yüce Turizm A.Ş.", VergiNo = "1234567890",
+            Tip = CustomerType.Kurumsal, Unvan = "Yüce Turizm A.Ş.", VergiNo = "1234567890",
             Sinif = "VIP", MailIzin = true, SmsIzin = false, TelefonIzin = true,
             DogumTarihi = dogum, BabaAdi = "Ahmet", AnaAdi = "Fatma", PasaportNo = "U1234567",
             FaturaDonemi = "Aylık", TevkifatOrani = 20.00m,
@@ -62,7 +62,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(new CustomerInput
         {
-            Tip = CariType.Kurumsal, Unvan = "Kişi A.Ş.",
+            Tip = CustomerType.Kurumsal, Unvan = "Kişi A.Ş.",
             Kisiler =
             [
                 new CustomerContactInput { AdSoyad = "Boş Satır Test", Gorev = "Müdür" },
@@ -77,7 +77,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
 
         await svc.UpdateAsync(id, new CustomerInput
         {
-            Tip = CariType.Kurumsal, Unvan = "Kişi A.Ş.",
+            Tip = CustomerType.Kurumsal, Unvan = "Kişi A.Ş.",
             Kisiler = [new CustomerContactInput { AdSoyad = "Yeni Kişi", Telefon = "5001112233" }]
         });
 
@@ -96,7 +96,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
 
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
             () => svc.CreateAsync(new CustomerInput
-            { Tip = CariType.Kurumsal, Unvan = "X A.Ş.", TevkifatOrani = 120m }));
+            { Tip = CustomerType.Kurumsal, Unvan = "X A.Ş.", TevkifatOrani = 120m }));
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(new CustomerInput
         {
-            Tip = CariType.Bireysel, Ad = "Ayşe", Soyad = "Yıldız",
+            Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Yıldız",
             CepTel = "5551112233", Gsm2 = "5324445566", Kaynak = "Web",
             MusteriTemsilcisi = "Mehmet", IysIzinli = true, Uyari = true, UyariNedeni = "Geç ödeme",
             EhliyetNo = "ABC123", EhliyetSinifi = "B", EhliyetTarihi = ehliyetTar, EhliyetYeri = "İstanbul",
@@ -142,7 +142,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
 
-        var id = await svc.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Boş" });
+        var id = await svc.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Boş" });
         var c = await svc.GetAsync(id);
         Assert.Null(c!.Gsm2);
         Assert.Null(c.Kaynak);
@@ -161,10 +161,10 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
 
         var id = await svc.CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Can", Uyari = true, UyariNedeni = "x", Kaynak = "Telefon" });
+        { Tip = CustomerType.Bireysel, Ad = "Can", Uyari = true, UyariNedeni = "x", Kaynak = "Telefon" });
 
         await svc.UpdateAsync(id, new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Can", Uyari = false, UyariNedeni = null, Kaynak = "Bayi" });
+        { Tip = CustomerType.Bireysel, Ad = "Can", Uyari = false, UyariNedeni = null, Kaynak = "Bayi" });
 
         var c = await svc.GetAsync(id);
         Assert.False(c!.Uyari);
@@ -181,7 +181,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(new CustomerInput
         {
-            Tip = CariType.Bireysel, Ad = "Kaan", Soyad = "Demir",
+            Tip = CustomerType.Bireysel, Ad = "Kaan", Soyad = "Demir",
             OzelCariTip = "Grup İçi", MusteriTipi = "Türk-Yabancı Ehliyetli",
             EhliyetUlke = "ALMANYA", Dil = "EN", Doviz = "EURO", TevkifatDurum = "Sadece Tevkifatlı",
         });
@@ -211,10 +211,10 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
 
         await svc.CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Selim", Soyad = "Kaya", TcKimlik = "10000000146" });
-        await svc.CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "Kaya Filo A.Ş." });
+        { Tip = CustomerType.Bireysel, Ad = "Selim", Soyad = "Kaya", TcKimlik = "10000000146" });
+        await svc.CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Kaya Filo A.Ş." });
 
-        var secim = await svc.ListSecimAsync();
+        var secim = await svc.ListForSelectAsync();
         var tam = await svc.ListAsync();
         Assert.Equal(tam.Select(x => x.DisplayName).OrderBy(x => x),
                      secim.Select(x => x.Ad).OrderBy(x => x));
@@ -223,6 +223,6 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
 
         // Tenant izolasyonu (racar_app + RLS): başka tenant hiçbir ad görmez.
         using var digeri = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await digeri.ServiceProvider.GetRequiredService<CustomerService>().ListSecimAsync());
+        Assert.Empty(await digeri.ServiceProvider.GetRequiredService<CustomerService>().ListForSelectAsync());
     }
 }

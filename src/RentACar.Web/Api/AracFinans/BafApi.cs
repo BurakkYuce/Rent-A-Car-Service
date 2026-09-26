@@ -38,8 +38,8 @@ public static class BafApi
 
     private static ProblemHttpResult Bulunamadi() => F5Ortak.Bulunamadi("Tahsis bulunamadı.");
 
-    private static readonly SiralamaHaritasi<BafDto> Harita = SiralamaHaritasi<BafDto>
-        .Olustur(b => b.Id)
+    private static readonly SortFieldMap<BafDto> Harita = SortFieldMap<BafDto>
+        .Create(b => b.Id)
         .Alan("no", b => b.No).Alan("plaka", b => b.Plaka).Alan("personel", b => b.PersonelAd)
         .Alan("cikisTarihi", b => b.CikisTarihi).Alan("donusTarihi", b => b.DonusTarihi).Alan("durum", b => b.Durum);
 
@@ -51,9 +51,9 @@ public static class BafApi
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
         var liste = await svc.SearchAsync(new BafFilter // şube kapsamı serviste (filtre genişletemez)
         {
-            PersonelId = personelId, Plaka = F5Ortak.Nz(plaka), Durum = F5Ortak.EnumAdi<BafDurum>(durum, "durum"),
-            KullanimAmaci = F5Ortak.EnumAdi<BafKullanimAmaci>(kullanimAmaci, "kullanimAmaci"),
-            Lokasyon = F5Ortak.EnumAdi<BafLokasyon>(lokasyon, "lokasyon"), Ofis = F5Ortak.Nz(ofis), Bas = min, Bit = max,
+            PersonelId = personelId, Plaka = F5Ortak.Nz(plaka), Durum = F5Ortak.EnumAdi<BafStatus>(durum, "durum"),
+            KullanimAmaci = F5Ortak.EnumAdi<BafUsagePurpose>(kullanimAmaci, "kullanimAmaci"),
+            Lokasyon = F5Ortak.EnumAdi<BafLocation>(lokasyon, "lokasyon"), Ofis = F5Ortak.Nz(ofis), Bas = min, Bit = max,
         }, ct);
         var satirlar = await DtolarAsync(dbf, liste, ct);
         return TypedResults.Ok(F5Ortak.Sayfala(satirlar, Harita, sayfa, boyut, sirala));
@@ -85,12 +85,12 @@ public static class BafApi
     {
         var anahtar = IdempotencyBasligi.Anahtar(http);
         if (anahtar is { } a && await svc.GetAsync(a, ct) is { } m) // (1) ÖNCE mevcut kayıt
-            throw new MukerrerIslemException($"Bu tahsis zaten kaydedildi (No {m.No}); yeni kayıt yazılmadı.",
+            throw new DuplicateOperationException($"Bu tahsis zaten kaydedildi (No {m.No}); yeni kayıt yazılmadı.",
                 new MevcutIslem(m.Id, m.No, 0m, AracFinansOrtak.TemelDoviz,
                     m.VehicleId == i.VehicleId && m.PersonelId == i.PersonelId && m.CikisKm == i.CikisKm));
         if (i.CikisKm is < 0 or > 10_000_000) throw new ValidationException("Çıkış KM 0 ile 10.000.000 arasında olmalıdır.", "cikisKm");
-        if (i.CikisYakit is { } cy && !YakitOlcegi.Gecerli(cy))
-            throw new ValidationException($"Çıkış yakıtı 0 ile {YakitOlcegi.EnFazla} arasında olmalıdır.", "cikisYakit");
+        if (i.CikisYakit is { } cy && !FuelScale.IsValid(cy))
+            throw new ValidationException($"Çıkış yakıtı 0 ile {FuelScale.Max} arasında olmalıdır.", "cikisYakit");
         AracFinansOrtak.Metin(i.Sube, 100, "sube");
         AracFinansOrtak.Metin(i.Aciklama, 512, "aciklama");
         await AracFinansOrtak.AracYazimAsync(dbf, kullanici, i.VehicleId, "vehicleId", zorunlu: true, ct);
@@ -106,7 +106,7 @@ public static class BafApi
         {
             PersonelId = i.PersonelId, VehicleId = i.VehicleId, CikisTarihi = F5Ortak.Utc(i.CikisTarihi), CikisKm = i.CikisKm,
             CikisYakit = i.CikisYakit, Sube = sube, Aciklama = AracFinansOrtak.Nz(i.Aciklama),
-            KullanimAmaci = F5Ortak.EnumAdi<BafKullanimAmaci>(i.KullanimAmaci, "kullanimAmaci"), Onaylayan = i.Onaylayan,
+            KullanimAmaci = F5Ortak.EnumAdi<BafUsagePurpose>(i.KullanimAmaci, "kullanimAmaci"), Onaylayan = i.Onaylayan,
             KirayaVer = i.KirayaVer, CikisSaat = i.CikisSaat, IslemAnahtari = anahtar,
         };
         var id = await svc.CreateAsync(input, ct);
@@ -127,12 +127,12 @@ public static class BafApi
     {
         if (await svc.GetAsync(id, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE (403)
         if (i.DonusKm is < 0 or > 10_000_000) throw new ValidationException("Dönüş KM 0 ile 10.000.000 arasında olmalıdır.", "donusKm");
-        if (i.DonusYakit is { } dy && !YakitOlcegi.Gecerli(dy))
-            throw new ValidationException($"Dönüş yakıtı 0 ile {YakitOlcegi.EnFazla} arasında olmalıdır.", "donusYakit");
+        if (i.DonusYakit is { } dy && !FuelScale.IsValid(dy))
+            throw new ValidationException($"Dönüş yakıtı 0 ile {FuelScale.Max} arasında olmalıdır.", "donusYakit");
         AracFinansOrtak.Metin(i.DonusSube, 100, "donusSube");
         try
         {
-            if (!await svc.TeslimAlKilitliAsync(id, i.DonusKm, i.DonusYakit, F5Ortak.Utc(i.DonusTarihi), i.DonusSube,
+            if (!await svc.ReceiveLockedAsync(id, i.DonusKm, i.DonusYakit, F5Ortak.Utc(i.DonusTarihi), i.DonusSube,
                     i.DonusSaat, ct)) return Bulunamadi();
         }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException) && ex.Message.StartsWith("Dönüş KM", StringComparison.Ordinal))
@@ -144,7 +144,7 @@ public static class BafApi
         Guid id, BafService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         if (await svc.GetAsync(id, ct) is null) return Bulunamadi();
-        if (!await svc.IptalKilitliAsync(id, ct)) return Bulunamadi();
+        if (!await svc.IsCancelLockedAsync(id, ct)) return Bulunamadi();
         return await DtoAsync(id, svc, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 }

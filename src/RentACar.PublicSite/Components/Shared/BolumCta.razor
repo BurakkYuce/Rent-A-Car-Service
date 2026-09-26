@@ -10,11 +10,11 @@
         </div>
         <div class="cta-butonlar">
             <a class="btn-cta" href="/musaitlik">Müsaitlik sorgula</a>
-            @if (TelefonLink.Tel(Telefon) is { } tel)
+            @if (PhoneLink.Tel(Telefon) is { } tel)
             {
                 <a class="btn-ikincil" href="@tel">@Telefon</a>
             }
-            @if (TelefonLink.Wa(WhatsApp ?? Telefon, "Merhaba, araç kiralama hakkında bilgi almak istiyorum.") is { } wa)
+            @if (PhoneLink.Wa(WhatsApp ?? Telefon, "Merhaba, araç kiralama hakkında bilgi almak istiyorum.") is { } wa)
             {
                 <a class="btn-ikincil" href="@wa" target="_blank" rel="noopener noreferrer">WhatsApp</a>
             }

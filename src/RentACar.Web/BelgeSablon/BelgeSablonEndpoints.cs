@@ -14,13 +14,13 @@ public static class BelgeSablonEndpoints
     {
         var grp = app.MapGroup("/belge-sablonlari").RequirePermission(Permission.ManageUsers).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (BelgeSablonService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (DocumentTemplateService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form))));
 
-        grp.MapPost("/update", async (BelgeSablonService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (DocumentTemplateService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form))));
 
-        grp.MapPost("/delete", async (BelgeSablonService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (DocumentTemplateService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id)));
 
         return app;

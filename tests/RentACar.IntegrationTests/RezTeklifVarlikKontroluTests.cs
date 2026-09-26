@@ -165,7 +165,7 @@ public sealed class RezTeklifVarlikKontroluTests(PostgresFixture fx)
         var (host, a, m, v, ym, yv) = await KurAsync();
         using var _ = host;
         using var scope = host.ScopeFor(a);
-        var svc = scope.ServiceProvider.GetRequiredService<FiloKiralamaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<FleetRentalService>();
         var (mm, vv, alan, mesaj) = Sec(durum, m, v, ym, yv);
 
         var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new FiloKiralamaInput

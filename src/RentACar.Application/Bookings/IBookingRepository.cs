@@ -10,7 +10,7 @@ public interface IBookingRepository
 {
     // Rezervasyon
     /// <summary><paramref name="sube"/> verilirse yalnız o çıkış ofisi (rol bazlı şube kapsamı).</summary>
-    Task<IReadOnlyList<Reservation>> ListReservationsAsync(Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default);
+    Task<IReadOnlyList<Reservation>> ListReservationsAsync(Authorization.BranchScope.BranchFilter scope = default, CancellationToken ct = default);
     /// <summary>Rezervasyon listesi: filtre + müşteri/araç birleşimi (FAZ-48; SearchRentalRowsAsync deseni).
     /// Ayrı bir IReservationRepository AÇILMAZ — rezervasyon kalıcılığı bu arayüzde.</summary>
     Task<IReadOnlyList<ReservationRow>> SearchReservationsAsync(ReservationFilter filter, CancellationToken ct = default);
@@ -19,17 +19,17 @@ public interface IBookingRepository
     Task CreateReservationAsync(Reservation reservation, CancellationToken ct = default);
     Task<bool> UpdateReservationAsync(Guid id, Action<Reservation> apply, CancellationToken ct = default);
     /// <summary>
-    /// F5.1 — yukarıdakiyle aynı; ek olarak satır <c>FOR UPDATE</c> ile kilitlenir ve <paramref name="beklenenSurum"/>
-    /// doluysa kilit ALTINDA okunan sürümle (<see cref="ReservationSurumuAsync"/>) karşılaştırılır; farklıysa
-    /// <see cref="Common.EszamanliDegisiklikException"/> — hiçbir şey yazılmaz.
+    /// F5.1 — yukarıdakiyle aynı; ek olarak satır <c>FOR UPDATE</c> ile kilitlenir ve <paramref name="expectedVersion"/>
+    /// doluysa kilit ALTINDA okunan sürümle (<see cref="ReservationVersionAsync"/>) karşılaştırılır; farklıysa
+    /// <see cref="Common.ConcurrentModificationException"/> — hiçbir şey yazılmaz.
     /// </summary>
-    Task<bool> UpdateReservationAsync(Guid id, string? beklenenSurum, Action<Reservation> apply, CancellationToken ct = default);
+    Task<bool> UpdateReservationAsync(Guid id, string? expectedVersion, Action<Reservation> apply, CancellationToken ct = default);
     /// <summary>F5.1 — rezervasyonun satır sürümü (Postgres <c>xmin</c>, opak). Yoksa / kapsamda değilse <c>null</c>.</summary>
-    Task<string?> ReservationSurumuAsync(Guid id, CancellationToken ct = default);
+    Task<string?> ReservationVersionAsync(Guid id, CancellationToken ct = default);
 
     // Kira
     /// <summary><paramref name="sube"/> verilirse yalnız o çıkış ofisi (rol bazlı şube kapsamı).</summary>
-    Task<IReadOnlyList<RentalContract>> ListRentalsAsync(Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default);
+    Task<IReadOnlyList<RentalContract>> ListRentalsAsync(Authorization.BranchScope.BranchFilter scope = default, CancellationToken ct = default);
     /// <summary>Kira listesi: filtre + müşteri/araç/fatura-durumu birleşimi (salt-okunur projeksiyon).</summary>
     Task<IReadOnlyList<RentalRow>> SearchRentalRowsAsync(RentalFilter filter, CancellationToken ct = default);
     Task<RentalContract?> FindRentalAsync(Guid id, CancellationToken ct = default);
@@ -38,16 +38,16 @@ public interface IBookingRepository
     /// <summary>F4.1 adversarial M2: satır <c>FOR UPDATE</c> ile kilitlenip kilit ALTINDA okunur (aynı TX).</summary>
     Task<bool> UpdateRentalAsync(Guid id, Action<RentalContract> apply, CancellationToken ct = default);
     /// <summary>
-    /// F4.3 adversarial F2: yukarıdakiyle aynı; ek olarak <paramref name="beklenenSurum"/> doluysa satır kilidi
-    /// ALTINDA okunan güncel sürümle (<see cref="RentalSurumuAsync"/>) karşılaştırılır, farklıysa
-    /// <see cref="Common.EszamanliDegisiklikException"/> — hiçbir şey yazılmaz (TOCTOU yok).
+    /// F4.3 adversarial F2: yukarıdakiyle aynı; ek olarak <paramref name="expectedVersion"/> doluysa satır kilidi
+    /// ALTINDA okunan güncel sürümle (<see cref="RentalVersionAsync"/>) karşılaştırılır, farklıysa
+    /// <see cref="Common.ConcurrentModificationException"/> — hiçbir şey yazılmaz (TOCTOU yok).
     /// </summary>
-    Task<bool> UpdateRentalAsync(Guid id, string? beklenenSurum, Action<RentalContract> apply, CancellationToken ct = default);
+    Task<bool> UpdateRentalAsync(Guid id, string? expectedVersion, Action<RentalContract> apply, CancellationToken ct = default);
     /// <summary>
     /// Kiranın satır sürümü (Postgres <c>xmin</c>, opak metin): satıra yapılan HER güncellemede değişir (EF, ham SQL,
     /// toplam senkronu — hangi yoldan olursa olsun). Kira yoksa / kapsamda değilse (RLS) <c>null</c>.
     /// </summary>
-    Task<string?> RentalSurumuAsync(Guid id, CancellationToken ct = default);
+    Task<string?> RentalVersionAsync(Guid id, CancellationToken ct = default);
     /// <summary>Kira + aracı AYNI transaction'da günceller (teslim/dönüş km → araç odometresi;
     /// ServiceRecordRepository.TransitionAsync deseni). Araç TX İÇİNDE okunur (PgRetry'de bayat okuma olmaz).
     /// kmLog (FAZ 2.5): verilirse dönüş odometresi km zaman-serisine AYNI transaction'da yazılır
@@ -67,7 +67,7 @@ public interface IBookingRepository
 
     /// <summary>Verilen araç+aralık için aktif (Kirada) kira çakışması var mı?</summary>
     Task<bool> HasOverlappingActiveRentalAsync(
-        Guid vehicleId, DateTimeOffset basTar, DateTimeOffset bitTar,
+        Guid vehicleId, DateTimeOffset startDate, DateTimeOffset bitTar,
         Guid? excludeRentalId = null, CancellationToken ct = default);
 
     /// <summary>

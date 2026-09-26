@@ -31,7 +31,7 @@ internal sealed class CatalogSpec<TService, TEntity, TRequest, TDto>
     public required Action<TRequest, TEntity?> Validate { get; init; }
     /// <summary>Free-text filter over the DTO (list <c>q</c>); null → no text filter.</summary>
     public required Func<TDto, string, bool> Matches { get; init; }
-    public required SiralamaHaritasi<TDto> Sort { get; init; }
+    public required SortFieldMap<TDto> Sort { get; init; }
     /// <summary>Service message prefix → JSON field (errors[field]).</summary>
     public required (string, string)[] FieldRules { get; init; }
 }

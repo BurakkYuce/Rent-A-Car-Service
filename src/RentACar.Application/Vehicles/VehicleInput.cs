@@ -22,12 +22,12 @@ public sealed class VehicleInput
     public string? Sipp { get; set; }
     public string? Renk { get; set; }
     public int? ModelYili { get; set; }
-    public Vites? Vites { get; set; }
+    public Transmission? Vites { get; set; }
     public string? SasiNo { get; set; }
     public string? MotorNo { get; set; }
     public string? Sube { get; set; }
     public VehicleStatus Durum { get; set; } = VehicleStatus.Musait;
-    public FiloStatus? FiloDurum { get; set; }
+    public FleetLifecycleStatus? FiloDurum { get; set; }
     public int Km { get; set; }
     public FuelType? Yakit { get; set; }   // PR-21: null = "belirtilmedi"
 

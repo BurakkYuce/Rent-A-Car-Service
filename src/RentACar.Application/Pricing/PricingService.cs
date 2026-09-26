@@ -27,15 +27,15 @@ namespace RentACar.Application.Pricing;
 /// </summary>
 public sealed class PricingService(
     IVehicleRepository vehicles, RentalQuoteEngine quoteEngine, RateCardService rateCards,
-    Customers.ICustomerRepository customers, ReservationSources.IReservationSourceRepository kaynaklar,
-    Finance.KdvVarsayilan kdvVarsayilan)
+    Customers.ICustomerRepository customers, ReservationSources.IReservationSourceRepository sources,
+    Finance.VatDefault vatDefault)
 {
     private readonly IVehicleRepository _vehicles = vehicles;
     private readonly RentalQuoteEngine _quoteEngine = quoteEngine;
     private readonly RateCardService _rateCards = rateCards;
     private readonly Customers.ICustomerRepository _customers = customers;
-    private readonly ReservationSources.IReservationSourceRepository _kaynaklar = kaynaklar;
-    private readonly Finance.KdvVarsayilan _kdvVarsayilan = kdvVarsayilan;
+    private readonly ReservationSources.IReservationSourceRepository _sources = sources;
+    private readonly Finance.VatDefault _vatDefault = vatDefault;
 
     /// <summary>
     /// Gün + tutar döner; gerekiyorsa input.GunlukUcret'i tarife matrisinden gelen efektif ücretle
@@ -57,29 +57,29 @@ public sealed class PricingService(
         decimal? KdvOranSnapshot = null);
 
     public async Task<PricedRental> PriceAsync(
-        BookingInput input, bool dolulukUygula = true, bool kdvModuUygula = true, CancellationToken ct = default)
+        BookingInput input, bool applyOccupancy = true, bool applyVatMode = true, CancellationToken ct = default)
     {
-        var gun = BookingMath.ComputeGun(input.BasTar, input.BitTar);
+        var day = BookingMath.ComputeDays(input.BasTar, input.BitTar);
 
         // "Otomatik" fiyat türü: manuel ücret tarifeye KARŞI yok sayılır → daima tarife çözümü.
         // Ama ücret KAYBEDİLMEZ: tarife çözülemezse aşağıda kurtarma değeri olur. Eskiden burada
         // silinip sonra "fiyat yok" diye reddediliyordu — kullanıcı fiyatı yazmışken hata alıyordu.
-        var otomatik = string.Equals(input.FiyatTuru?.Trim(), "Otomatik", StringComparison.OrdinalIgnoreCase);
-        var girilenUcret = input.GunlukUcret;
-        var manuelKurtarma = false;
-        if (otomatik) input.GunlukUcret = 0m;
+        var auto = string.Equals(input.FiyatTuru?.Trim(), "Otomatik", StringComparison.OrdinalIgnoreCase);
+        var enteredFee = input.GunlukUcret;
+        var manualRecovery = false;
+        if (auto) input.GunlukUcret = 0m;
 
         // FAZ 3.A5: kampanya kodu yalnız motor (Otomatik) yolunda uygulanabilir — manuel/legacy fiyat
         // yolunda SESSİZCE yutulması para kaçağı sınıfıdır → gürültülü red (Otomatik seçilir ya da alan
         // temizlenir; kod her fiyatlamada motorca yeniden doğrulanır).
-        if (!string.IsNullOrWhiteSpace(input.KampanyaKodu) && !otomatik)
+        if (!string.IsNullOrWhiteSpace(input.KampanyaKodu) && !auto)
             throw new ValidationException("Kampanya kodu yalnız 'Otomatik' fiyat türünde uygulanır; manuel fiyatla birlikte kullanılamaz.");
 
         if (input.GunlukUcret <= 0)
         {
             var vehicle = await _vehicles.FindAsync(input.VehicleId, ct);
-            var grup = vehicle?.Grup?.Trim();
-            if (!string.IsNullOrWhiteSpace(grup))
+            var group = vehicle?.Grup?.Trim();
+            if (!string.IsNullOrWhiteSpace(group))
             {
                 // TEK motor çağrısı. CikisOfisi (şube) → şube-özel matris (HIGH-2).
                 // FAZ 3.A2: segment cariden ÇÖZÜLÜR (Customer.Sinif) — tetikleyici bu ortak facade'da
@@ -91,14 +91,14 @@ public sealed class PricingService(
                 // eşleşirse geçer; eşleşmezse null (yazım hatası/spoof serbest-metin kanal-özel tarife
                 // SEÇTİREMEZ). Kanal setliyken yabancı-kanal matrisleri elenir; kanalsız istekte
                 // kanal-agnostik (base) matris tercih edilir (SelectMatrix sıralaması — mevcut davranış).
-                var kanal = await KanalCozAsync(input.Kaynak, ct);
+                var channel = await ResolveChannelAsync(input.Kaynak, ct);
                 var q = input.BitTar > input.BasTar
                     ? await _quoteEngine.QuoteAsync(new QuoteRequest
                         {
-                            AracGrupKod = grup, Kanal = kanal, Sube = input.CikisOfisi,
+                            AracGrupKod = group, Kanal = channel, Sube = input.CikisOfisi,
                             BasTar = input.BasTar, BitTar = input.BitTar, MusteriSegment = segment,
                             KampanyaKodu = input.KampanyaKodu,
-                            DolulukUygula = dolulukUygula // FAZ 3.A7 (rez-update reprice'ında false)
+                            DolulukUygula = applyOccupancy // FAZ 3.A7 (rez-update reprice'ında false)
                         }, ct)
                     : null;
                 if (q?.TarifeKodu is not null)
@@ -111,7 +111,7 @@ public sealed class PricingService(
                         // TAM teklif (iskonto/hediye/hafta-sonu → Tutar + döküm) YALNIZ "Otomatik" seçildiğinde
                         // (adversarial M1: aksi halde her boş-ücretli booking sessizce promosyon uygulardı; legacy
                         // blank-rate yolu yalnız günlük ücreti çözer → gün × baz, iskontosuz, döküm null).
-                        if (otomatik)
+                        if (auto)
                             return new PricedRental(q.Gun, q.GenelToplam,
                                 q.HediyeGun > 0 ? q.HediyeGun : null,
                                 q.IskontoTutar > 0 ? q.IskontoTutar : null,
@@ -129,7 +129,7 @@ public sealed class PricingService(
                             "Kampanya kodu yalnız tarife matrisiyle fiyatlanan kirada uygulanır; tarife tanımlayın veya kodu temizleyin.");
                     // Matris YOK → geriye-uyum fallback: eski RateCard (DEPRECATED; bileşen yok).
 #pragma warning disable CS0618
-                    var card = await _rateCards.GetRateAsync(grup, gun, input.BasTar, ct);
+                    var card = await _rateCards.GetRateAsync(group, day, input.BasTar, ct);
 #pragma warning restore CS0618
                     if (card?.GunlukUcret is { } r && r > 0) input.GunlukUcret = r;
                 }
@@ -140,7 +140,7 @@ public sealed class PricingService(
         // olsa bile "Otomatik"e basınca hata alıyordu (tarife tanımlamamış tenant'ta HER kirada).
         // YENİ: kullanıcının girdiği ücret NET kabul edilip üzerine KDV eklenir (aşağıdaki "Günlük"
         // semantiği). Tarife VARSA hâlâ tarife kazanır — bu yalnız tarife YOKKEN devreye giren kurtarma.
-        if (otomatik && input.GunlukUcret <= 0)
+        if (auto && input.GunlukUcret <= 0)
         {
             // Kampanya kodu YALNIZ tarife matrisiyle çözülür (FAZ 3.A5-B1). Manuel kurtarmada kodu
             // sessizce yutmak "kod uygulandı" yanılsaması + para kaçağı olurdu → gürültülü red korunur.
@@ -148,12 +148,12 @@ public sealed class PricingService(
                 throw new ValidationException(
                     "Kampanya kodu yalnız tarife matrisiyle fiyatlanan kirada uygulanır; tarife tanımlayın veya kodu temizleyin.");
             // Ne tarife ne de girilen ücret var → hâlâ temiz red: sessiz 0-TL sözleşme oluşturulamaz.
-            if (girilenUcret <= 0)
+            if (enteredFee <= 0)
                 throw new ValidationException("Otomatik tarife bulunamadı; günlük ücret girin veya tarife tanımlayın.");
 
-            input.GunlukUcret = girilenUcret;
-            otomatik = false;        // bundan sonrası manuel fiyat yolu (KDV modu uygulanır)
-            manuelKurtarma = true;   // mod "Otomatik" olarak KAYDA geçer; yalnız fiyatlama net+KDV yapar
+            input.GunlukUcret = enteredFee;
+            auto = false;        // bundan sonrası manuel fiyat yolu (KDV modu uygulanır)
+            manualRecovery = true;   // mod "Otomatik" olarak KAYDA geçer; yalnız fiyatlama net+KDV yapar
         }
 
         // KDV MODU (yalnız Otomatik DEĞİLKEN — Otomatik motor/RateCard brütü zaten çözdü). GunlukUcret DAİMA
@@ -161,31 +161,31 @@ public sealed class PricingService(
         // BaseGross→FromGross ile net'i ayrıştırır → mod niyeti korunur). KURAL B: 3 create yolu bu facade'dan.
         // FAZ 3.A6: gross-up oranı TENANT VARSAYILANI (?? 0.20); NET modlarda kullanılan oran SNAPSHOT
         // olarak döner (fatura ayrıştırması + net-mod guard'ı aynı orandan — oran sonradan değişse bile).
-        var varsayilanOran = await _kdvVarsayilan.OranAsync(ct);
+        var defaultRate = await _vatDefault.RateAsync(ct);
         // Manuel kurtarmada kayda "Otomatik" geçer (kullanıcı onu seçti) ama fiyatlama "Günlük" (net+KDV)
         // semantiğiyle yapılır → input.FiyatTuru MUTASYONU YOK, mod parametre olarak taşınır.
-        var mod = manuelKurtarma ? "Günlük" : (input.FiyatTuru ?? string.Empty).Trim();
+        var mod = manualRecovery ? "Günlük" : (input.FiyatTuru ?? string.Empty).Trim();
         var netMod = string.Equals(mod, "Günlük", StringComparison.OrdinalIgnoreCase)
                   || string.Equals(mod, "Toplam", StringComparison.OrdinalIgnoreCase);
         // kdvModuUygula=false → çağıran ücretin ZATEN brüte normalize edildiğini biliyor (rezervasyon
         // düzenlemesinde kullanıcı ne ücrete ne moda dokundu). Dönüşümü tekrar uygulamak her kayıtta
         // sessiz %20 zam üretiyordu — bkz. RepriceGrossUpProbeTests.
-        var tutar = otomatik || !kdvModuUygula
-            ? KdvMath.RoundGross(gun * input.GunlukUcret)
-            : KdvModuUygula(input, gun, varsayilanOran, mod);
-        return new PricedRental(gun, tutar, null, null, null, null,
-            KdvOranSnapshot: !otomatik && kdvModuUygula && netMod ? varsayilanOran : null);
+        var amount = auto || !applyVatMode
+            ? VatMath.RoundGross(day * input.GunlukUcret)
+            : ApplyVatMode(input, day, defaultRate, mod);
+        return new PricedRental(day, amount, null, null, null, null,
+            KdvOranSnapshot: !auto && applyVatMode && netMod ? defaultRate : null);
     }
 
     /// <summary>Kaynak metnini doğrulanmış kanala çevirir (FAZ 3.A4): boş → null; aktif
     /// ReservationSource'larda Kod VEYA Ad ile (Trim + case-insensitive) eşleşirse Trim'li metin
     /// döner (matris Kanal alanı aynı metinle eşleşir), eşleşmezse null — tanımsız kaynak kanal-özel
     /// tarife seçtiremez (çit; sessiz yanlış-tarife yerine base matris).</summary>
-    private async Task<string?> KanalCozAsync(string? kaynak, CancellationToken ct)
+    private async Task<string?> ResolveChannelAsync(string? source, CancellationToken ct)
     {
         // FAZ-48: kural KanalCozucu'ya taşındı (müsaitlik ekranı da aynı çiti kullanıyor); davranış AYNI.
-        if (string.IsNullOrWhiteSpace(kaynak)) return null;
-        return KanalCozucu.Coz(kaynak, await _kaynaklar.ListActiveAsync(ct));
+        if (string.IsNullOrWhiteSpace(source)) return null;
+        return ChannelResolver.Resolve(source, await _sources.ListActiveAsync(ct));
     }
 
     /// <summary>FiyatTuru moduna göre brüt Tutar; GunlukUcret'i brüte normalize eder (yan etki). Modlar:
@@ -196,25 +196,25 @@ public sealed class PricingService(
     /// DEFTERE girmez (fatura/cari Tutar'ı okur), yalnız uzatmada türetilen günlük + ekran. Yan etki: GunlukUcret
     /// mutasyonu net modlarda idempotent DEĞİL (aynı input'u iki kez fiyatlarsa çift grossup — adversarial Bulgu-2);
     /// mevcut çağıranlar tek kez fiyatlar (rez/teklif update formu FiyatTuru göndermez → default brüt dalı).</summary>
-    private static decimal KdvModuUygula(BookingInput input, int gun, decimal oran, string mod)
+    private static decimal ApplyVatMode(BookingInput input, int day, decimal rate, string mod)
     {
         bool Es(string x) => string.Equals(mod, x, StringComparison.OrdinalIgnoreCase);
 
         if (Es("Günlük")) // NET günlük ücret → brüt
         {
-            input.GunlukUcret = KdvMath.RoundGross(input.GunlukUcret * (1 + oran));
-            return KdvMath.RoundGross(gun * input.GunlukUcret);
+            input.GunlukUcret = VatMath.RoundGross(input.GunlukUcret * (1 + rate));
+            return VatMath.RoundGross(day * input.GunlukUcret);
         }
         if (Es("KDV Dahil Toplam") || Es("Toplam")) // girilen değer TOPLAM (gün-bağımsız)
         {
-            var tutar = Es("Toplam")
-                ? KdvMath.RoundGross(input.GunlukUcret * (1 + oran)) // NET toplam → brüt
-                : KdvMath.RoundGross(input.GunlukUcret);             // zaten brüt toplam
-            input.GunlukUcret = gun > 0 ? KdvMath.RoundGross(tutar / gun) : tutar; // uzatma için günlük türet
-            return tutar;
+            var amount = Es("Toplam")
+                ? VatMath.RoundGross(input.GunlukUcret * (1 + rate)) // NET toplam → brüt
+                : VatMath.RoundGross(input.GunlukUcret);             // zaten brüt toplam
+            input.GunlukUcret = day > 0 ? VatMath.RoundGross(amount / day) : amount; // uzatma için günlük türet
+            return amount;
         }
         // "KDV Dahil Günlük" / null / bilinmeyen → günlük ücret zaten brüt (mevcut davranış).
-        return KdvMath.RoundGross(gun * input.GunlukUcret);
+        return VatMath.RoundGross(day * input.GunlukUcret);
     }
 
     /// <summary>
@@ -223,16 +223,16 @@ public sealed class PricingService(
     /// Grup yoksa ya da hiçbir tarife yoksa 0.
     /// </summary>
     public async Task<decimal> ResolveDailyRateAsync(
-        Guid vehicleId, DateTimeOffset basTar, DateTimeOffset bitTar, string? sube = null, CancellationToken ct = default)
+        Guid vehicleId, DateTimeOffset startDate, DateTimeOffset bitTar, string? branch = null, CancellationToken ct = default)
     {
         var vehicle = await _vehicles.FindAsync(vehicleId, ct);
-        if (vehicle?.Grup is not { } grup || string.IsNullOrWhiteSpace(grup)) return 0m;
+        if (vehicle?.Grup is not { } group || string.IsNullOrWhiteSpace(group)) return 0m;
 
         // Birincil: tarife matrisi motoru. Kanal=null (booking'de kanal yok) → engine "her kanalı eşle".
-        if (bitTar > basTar)
+        if (bitTar > startDate)
         {
             var q = await _quoteEngine.QuoteAsync(
-                new QuoteRequest { AracGrupKod = grup, Sube = sube, BasTar = basTar, BitTar = bitTar }, ct);
+                new QuoteRequest { AracGrupKod = group, Sube = branch, BasTar = startDate, BitTar = bitTar }, ct);
             // Matris EŞLEŞTİYSE (TarifeKodu dolu) onun sonucu kesin → RateCard fallback'e DÜŞME (MEDIUM-1).
             if (q.TarifeKodu is not null)
             {
@@ -242,9 +242,9 @@ public sealed class PricingService(
         }
 
         // Matris YOK → geriye-uyum fallback: eski RateCard (DEPRECATED).
-        var gun = BookingMath.ComputeGun(basTar, bitTar);
+        var day = BookingMath.ComputeDays(startDate, bitTar);
 #pragma warning disable CS0618 // RateCard fiyat çözümü deprecated; bilinçli geriye-uyum fallback'i.
-        var card = await _rateCards.GetRateAsync(grup, gun, basTar, ct);
+        var card = await _rateCards.GetRateAsync(group, day, startDate, ct);
 #pragma warning restore CS0618
         return card?.GunlukUcret ?? 0m;
     }

@@ -9,7 +9,7 @@ namespace RentACar.Application.Customers;
 public sealed class CustomerRow
 {
     public Guid Id { get; init; }
-    public CariType Tip { get; init; }
+    public CustomerType Tip { get; init; }
     public string DisplayName { get; init; } = string.Empty;
     public string? TcKimlik { get; init; }
     public string? VergiNo { get; init; }

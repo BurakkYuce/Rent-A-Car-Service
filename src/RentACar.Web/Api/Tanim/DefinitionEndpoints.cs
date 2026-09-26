@@ -50,7 +50,7 @@ public sealed class DefinitionRoute<TEntity, TDto, TRequest>
     /// <summary>(entity, version) → DTO. The version is null only where unknown.</summary>
     public required Func<TEntity, string?, TDto> ToDto { get; init; }
     /// <summary>Whitelisted sort fields (<c>sirala</c>); unknown field → 400.</summary>
-    public required SiralamaHaritasi<TDto> Sort { get; init; }
+    public required SortFieldMap<TDto> Sort { get; init; }
     /// <summary>Texts matched by the <c>q</c> list filter (case-insensitive, Turkish culture).</summary>
     public required Func<TDto, IEnumerable<string?>> SearchText { get; init; }
 
@@ -166,5 +166,5 @@ public static class DefinitionEndpoints
     private static IReadOnlyList<TDto> Sort<TEntity, TDto, TRequest>(
         DefinitionRoute<TEntity, TDto, TRequest> d, IReadOnlyList<TDto> rows, string? sort)
         where TEntity : class where TDto : IDefinitionRow where TRequest : IDefinitionRequest
-        => string.IsNullOrWhiteSpace(sort) ? rows : d.Sort.Uygula(rows.AsQueryable(), sort).ToList();
+        => string.IsNullOrWhiteSpace(sort) ? rows : d.Sort.Apply(rows.AsQueryable(), sort).ToList();
 }

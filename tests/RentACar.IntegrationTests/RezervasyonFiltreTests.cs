@@ -39,7 +39,7 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
     public void Pencere_gun_sayisi_bitis_tarihinin_yerine_gecer()
     {
         // Elle kurulan senaryo: 10 Haziran'dan itibaren 3 gün → 13 Haziran'da biter.
-        var p = AvailabilityService.Pencere(new DateOnly(2026, 6, 10), null, 3, null, null);
+        var p = AvailabilityService.Window(new DateOnly(2026, 6, 10), null, 3, null, null);
         Assert.NotNull(p);
         Assert.Equal(new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero), p!.Value.From);
         Assert.Equal(new DateTimeOffset(2026, 6, 13, 0, 0, 0, TimeSpan.Zero), p.Value.To);
@@ -49,7 +49,7 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
     public void Pencere_saatler_uygulanir_ve_gun_sayisi_bitis_tarihini_ezer()
     {
         // Bitiş tarihi 20 Haziran YAZILI olsa bile gün sayısı verildiyse o kazanır: 10 + 3 = 13.
-        var p = AvailabilityService.Pencere(
+        var p = AvailabilityService.Window(
             new DateOnly(2026, 6, 10), new DateOnly(2026, 6, 20), 3,
             new TimeOnly(9, 30), new TimeOnly(18, 0));
         Assert.NotNull(p);
@@ -62,22 +62,22 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
     {
         // REGRESYON ÇİTİ: saat/gün girilmeyen ESKİ form (yalnız iki tarih) tam olarak eski
         // pencereyi üretmeli — 00:00 → 00:00, offset Zero.
-        var p = AvailabilityService.Pencere(new DateOnly(2026, 6, 10), new DateOnly(2026, 6, 15), null, null, null);
+        var p = AvailabilityService.Window(new DateOnly(2026, 6, 10), new DateOnly(2026, 6, 15), null, null, null);
         Assert.NotNull(p);
         Assert.Equal(new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero), p!.Value.From);
         Assert.Equal(new DateTimeOffset(2026, 6, 15, 0, 0, 0, TimeSpan.Zero), p.Value.To);
 
         // Bitiş saati boşken başlangıç saati bitişe de uygulanır (09:00 al → 09:00 bırak).
-        var q = AvailabilityService.Pencere(new DateOnly(2026, 6, 10), new DateOnly(2026, 6, 15), null, new TimeOnly(9, 0), null);
+        var q = AvailabilityService.Window(new DateOnly(2026, 6, 10), new DateOnly(2026, 6, 15), null, new TimeOnly(9, 0), null);
         Assert.Equal(new DateTimeOffset(2026, 6, 15, 9, 0, 0, TimeSpan.Zero), q!.Value.To);
     }
 
     [Fact]
     public void Pencere_eksik_girdide_null()
     {
-        Assert.Null(AvailabilityService.Pencere(null, new DateOnly(2026, 6, 15), 3, null, null)); // başlangıç yok
-        Assert.Null(AvailabilityService.Pencere(new DateOnly(2026, 6, 10), null, null, null, null)); // bitiş de gün de yok
-        Assert.Null(AvailabilityService.Pencere(new DateOnly(2026, 6, 10), null, 0, null, null));    // gün 0 sayılmaz
+        Assert.Null(AvailabilityService.Window(null, new DateOnly(2026, 6, 15), 3, null, null)); // başlangıç yok
+        Assert.Null(AvailabilityService.Window(new DateOnly(2026, 6, 10), null, null, null, null)); // bitiş de gün de yok
+        Assert.Null(AvailabilityService.Window(new DateOnly(2026, 6, 10), null, 0, null, null));    // gün 0 sayılmaz
     }
 
     [Fact]
@@ -88,11 +88,11 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 SA 01" });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Saat", Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Saat", Soyad = "Test" });
 
         // Araç 3 gün sonraki günün 12:00–16:00 arası rezerve.
         var gun = new DateOnly(Bas.Year, Bas.Month, Bas.Day);
-        var dolu = AvailabilityService.Pencere(gun, gun, null, new TimeOnly(12, 0), new TimeOnly(16, 0))!.Value;
+        var dolu = AvailabilityService.Window(gun, gun, null, new TimeOnly(12, 0), new TimeOnly(16, 0))!.Value;
         await sp.GetRequiredService<ReservationService>().CreateAsync(new BookingInput
         {
             MusteriId = cari, VehicleId = arac, BasTar = dolu.From, BitTar = dolu.To, GunlukUcret = 100m
@@ -100,10 +100,10 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
 
         var svc = sp.GetRequiredService<AvailabilityService>();
         // Sabah 09:00–11:00 → çakışma YOK, araç müsait (1 araç).
-        var sabah = AvailabilityService.Pencere(gun, gun, null, new TimeOnly(9, 0), new TimeOnly(11, 0))!.Value;
+        var sabah = AvailabilityService.Window(gun, gun, null, new TimeOnly(9, 0), new TimeOnly(11, 0))!.Value;
         Assert.Single(await svc.FindAvailableAsync(sabah.From, sabah.To));
         // Öğleden sonra 13:00–15:00 → çakışır, araç listede YOK (0 araç).
-        var ogle = AvailabilityService.Pencere(gun, gun, null, new TimeOnly(13, 0), new TimeOnly(15, 0))!.Value;
+        var ogle = AvailabilityService.Window(gun, gun, null, new TimeOnly(13, 0), new TimeOnly(15, 0))!.Value;
         Assert.Empty(await svc.FindAvailableAsync(ogle.From, ogle.To));
     }
 
@@ -117,8 +117,8 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
         var a1 = await vs.CreateAsync(new VehicleInput { Plaka = "34 AA 11" });
         var a2 = await vs.CreateAsync(new VehicleInput { Plaka = "06 BB 22" });
         var cs = sp.GetRequiredService<CustomerService>();
-        var c1 = await cs.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ayşe", Soyad = "Yılmaz", CepTel = "5551112233" });
-        var c2 = await cs.CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "Beta Lojistik A.Ş." });
+        var c1 = await cs.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Yılmaz", CepTel = "5551112233" });
+        var c2 = await cs.CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Beta Lojistik A.Ş." });
 
         var svc = sp.GetRequiredService<ReservationService>();
         var r1 = await svc.CreateAsync(new BookingInput
@@ -228,7 +228,7 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
 
             var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KP 01" });
             var cari = await sp.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Kapsam", Soyad = "Cari" });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kapsam", Soyad = "Cari" });
             var svc = sp.GetRequiredService<ReservationService>();
             // Merkez şubesinin İKİ ofisinde birer, Ankara'da bir rezervasyon.
             var i = 0;
@@ -282,7 +282,7 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 TL 01" });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Talep", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Talep", Soyad = "Cari" });
         var svc = sp.GetRequiredService<ReservationService>();
 
         var girdi = Girdi(cari, arac);
@@ -326,7 +326,7 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 UZ 01" });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Uzun", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Uzun", Soyad = "Cari" });
 
         var girdi = Girdi(cari, arac);
         girdi.ProjeAdi = new string('x', 129);   // kolon 128 — DB hatası yerine anlaşılır red
@@ -342,7 +342,7 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KC 01" });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Cevir", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Cevir", Soyad = "Cari" });
 
         var girdi = Girdi(cari, arac);
         girdi.TalepTuru = "Sigorta İkame";
@@ -372,14 +372,14 @@ public sealed class RezervasyonFiltreTests(PostgresFixture fx)
             arac = await seed.ServiceProvider.GetRequiredService<VehicleService>()
                 .CreateAsync(new VehicleInput { Plaka = "34 YT 01" });
             cari = await seed.ServiceProvider.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Yetki", Soyad = "Cari" });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Yetki", Soyad = "Cari" });
         }
 
         // Muhasebe rolünde OperationsWrite YOK → yeni alanlar guard'ı delmez.
         using var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var girdi = Girdi(cari, arac);
         girdi.TalepTuru = "Kurumsal";
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
             muhasebe.ServiceProvider.GetRequiredService<ReservationService>().CreateAsync(girdi));
     }
 }

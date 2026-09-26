@@ -77,7 +77,7 @@ public sealed class UiKiraPariteTests(WebFixture fx)
         }
         await fx.PilotYapAsync(o.TenantId, true);
 
-        var musteri = new Customer { Tip = CariType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz" };
+        var musteri = new Customer { Tip = CustomerType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz" };
         var gps = new EkHizmetTanim { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m, Aktif = true };
         await VeriYazAsync(o.TenantId, db => { db.Customers.Add(musteri); db.EkHizmetTanimlari.Add(gps); });
         o.MusteriId = musteri.Id;
@@ -428,9 +428,9 @@ public sealed class UiKiraPariteTests(WebFixture fx)
 
         await VeriYazAsync(o.TenantId, db =>
         {
-            db.Penalties.Add(new Penalty { No = "CZ-P1", CezaTuru = "Hız", RentalId = id, Tutar = 250m, Kalan = 250m, Durum = CezaDurum.Yeni });
-            db.Penalties.Add(new Penalty { No = "CZ-P2", CezaTuru = "Park", RentalId = id, Tutar = 90m, Kalan = 90m, Durum = CezaDurum.Iptal });
-            db.Penalties.Add(new Penalty { No = "CZ-P3", CezaTuru = "Park", RentalId = baska, Tutar = 40m, Kalan = 40m, Durum = CezaDurum.Yeni });
+            db.Penalties.Add(new Penalty { No = "CZ-P1", CezaTuru = "Hız", RentalId = id, Tutar = 250m, Kalan = 250m, Durum = PenaltyStatus.Yeni });
+            db.Penalties.Add(new Penalty { No = "CZ-P2", CezaTuru = "Park", RentalId = id, Tutar = 90m, Kalan = 90m, Durum = PenaltyStatus.Iptal });
+            db.Penalties.Add(new Penalty { No = "CZ-P3", CezaTuru = "Park", RentalId = baska, Tutar = 40m, Kalan = 40m, Durum = PenaltyStatus.Yeni });
         });
 
         var d = await Json(await admin.C.GetAsync($"{Kira}/{id}"));

@@ -13,7 +13,7 @@ public sealed class TurkishIdentityTests
     [InlineData("10000000146")]
     [InlineData("12345678950")]
     public void Valid_tckn_passes(string tckn)
-        => Assert.True(TurkishIdentity.IsValidTcKimlik(tckn));
+        => Assert.True(TurkishIdentity.IsValidNationalId(tckn));
 
     [Theory]
     [InlineData("11111111111")]   // checksum tutmaz
@@ -26,13 +26,13 @@ public sealed class TurkishIdentityTests
     [InlineData("")]              // boş
     [InlineData(null)]            // null
     public void Invalid_tckn_fails(string? tckn)
-        => Assert.False(TurkishIdentity.IsValidTcKimlik(tckn));
+        => Assert.False(TurkishIdentity.IsValidNationalId(tckn));
 
     [Theory]
     [InlineData("1234567890")]    // 10 hane
     [InlineData("0000000000")]
     public void Valid_vergino_format_passes(string vkn)
-        => Assert.True(TurkishIdentity.IsValidVergiNoFormat(vkn));
+        => Assert.True(TurkishIdentity.IsValidTaxNoFormat(vkn));
 
     [Theory]
     [InlineData("123456789")]     // 9 hane
@@ -41,5 +41,5 @@ public sealed class TurkishIdentityTests
     [InlineData("")]
     [InlineData(null)]
     public void Invalid_vergino_format_fails(string? vkn)
-        => Assert.False(TurkishIdentity.IsValidVergiNoFormat(vkn));
+        => Assert.False(TurkishIdentity.IsValidTaxNoFormat(vkn));
 }

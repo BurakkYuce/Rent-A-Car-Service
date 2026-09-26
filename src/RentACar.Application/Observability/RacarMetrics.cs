@@ -15,7 +15,7 @@ public static class RacarMetrics
 
     private static readonly Counter<long> LoginTotal =
         Meter.CreateCounter<long>("racar.login.total", description: "Giriş denemeleri (result=success|fail).");
-    private static readonly Counter<long> TahsilatTotal =
+    private static readonly Counter<long> CollectionTotal =
         Meter.CreateCounter<long>("racar.tahsilat.total", description: "Tahsilat işlemleri (result=ok|fail).");
     private static readonly Counter<long> LedgerIdempotentReject =
         Meter.CreateCounter<long>("racar.ledger.idempotent_reject.total", description: "Defter çift-gönderim (idempotent) reddi.");
@@ -26,8 +26,8 @@ public static class RacarMetrics
 
     public static void LoginSuccess() => LoginTotal.Add(1, new KeyValuePair<string, object?>("result", "success"));
     public static void LoginFail() => LoginTotal.Add(1, new KeyValuePair<string, object?>("result", "fail"));
-    public static void TahsilatOk() => TahsilatTotal.Add(1, new KeyValuePair<string, object?>("result", "ok"));
-    public static void TahsilatFail() => TahsilatTotal.Add(1, new KeyValuePair<string, object?>("result", "fail"));
+    public static void CollectionOk() => CollectionTotal.Add(1, new KeyValuePair<string, object?>("result", "ok"));
+    public static void CollectionFail() => CollectionTotal.Add(1, new KeyValuePair<string, object?>("result", "fail"));
     public static void LedgerIdempotentRejected() => LedgerIdempotentReject.Add(1);
     public static void RateLimitRejected(string policy) => RateLimitReject.Add(1, new KeyValuePair<string, object?>("policy", policy));
     public static void JobFailed(string job) => JobFail.Add(1, new KeyValuePair<string, object?>("job", job));

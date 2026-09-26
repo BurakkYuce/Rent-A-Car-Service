@@ -29,7 +29,7 @@ public sealed class InsuranceCompanyService(IInsuranceCompanyRepository reposito
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu sigorta şirketi zaten var.");
 
         var company = new InsuranceCompany();
@@ -50,7 +50,7 @@ public sealed class InsuranceCompanyService(IInsuranceCompanyRepository reposito
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu sigorta şirketi zaten var.");
 
         void ApplyAll(InsuranceCompany company)

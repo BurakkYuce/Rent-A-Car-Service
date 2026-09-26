@@ -31,10 +31,10 @@ public sealed class DeliveryReturnTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
         var id = await svc.CreateDirectAsync(await InputAsync(scope));
-        Assert.True(await svc.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8));
+        Assert.True(await svc.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8));
 
         // 1 gün geç + 100 fazla km + 2 eksik yakıt
-        Assert.True(await svc.ReturnAsync(id, donusKm: 1500, donusYakit: 6, gercekDonus: Bit.AddDays(1)));
+        Assert.True(await svc.ReturnAsync(id, returnKm: 1500, returnFuel: 6, actualReturn: Bit.AddDays(1)));
 
         var c = await svc.GetAsync(id);
         Assert.Equal(RentalStatus.Tamamlandi, c!.Durum);

@@ -26,7 +26,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     /// <para>Evrak no / şube / kanal belge türüne özgüdür ve yalnız KÜNYE taşıyan tablolardan
     /// okunur; hiçbiri para hesabına girmez.</para>
     /// </summary>
-    public async Task<IReadOnlyDictionary<Guid, HareketBelgeDto>> GetHareketBelgeleriAsync(
+    public async Task<IReadOnlyDictionary<Guid, HareketBelgeDto>> GetMovementDocumentsAsync(
         IReadOnlyCollection<Guid> sourceIds, CancellationToken ct = default)
     {
         if (sourceIds.Count == 0) return new Dictionary<Guid, HareketBelgeDto>();
@@ -103,7 +103,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
-    public async Task<IReadOnlyList<CariLedgerRowDto>> GetCariLedgerRowsAsync(
+    public async Task<IReadOnlyList<CariLedgerRowDto>> GetAccountLedgerRowsAsync(
         DateTimeOffset? asOf, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -135,17 +135,17 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     /// çekilmiyor: bakiye raporunun onlara ihtiyacı yok ve çözme maliyeti/riski gereksiz.
     /// Telefon/e-posta şifreli değil (Customer'da düz kolonlar).
     /// </summary>
-    public async Task<IReadOnlyList<CariKartDto>> GetCariKartlariAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<CariKartDto>> GetAccountCardsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Customers.AsNoTracking()
             .Select(c => new CariKartDto(
                 c.Id, c.CepTel, c.Email, c.BankaAdi, c.Doviz,
-                c.OzelCariTip, c.Sinif, c.Tip == CariType.Kurumsal, c.Pasif, c.VergiNo))
+                c.OzelCariTip, c.Sinif, c.Tip == CustomerType.Kurumsal, c.Pasif, c.VergiNo))
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<ExtreOzetiRowDto>> GetExtreOzetiRowsAsync(
+    public async Task<IReadOnlyList<ExtreOzetiRowDto>> GetStatementSummaryRowsAsync(
         ExtreOzetiFilter? filter, DateTimeOffset asOf, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -189,7 +189,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             {
                 x.i.Id, x.i.No, x.i.Tarih, x.i.VadeTarihi, x.i.CariId, x.i.GenelToplam,
                 x.i.Currency, x.i.Kur, x.i.IadeMi,
-                CariAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                CariAd = x.c == null ? null : (x.c.Tip == CustomerType.Bireysel
                     ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan),
                 Plaka = x.v == null ? null : x.v.Plaka,
                 SozlesmeNo = x.r == null ? null : x.r.SozlesmeNo,
@@ -204,7 +204,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             x.GenelToplam, x.Currency, x.Kur, x.IadeMi)).ToList();
     }
 
-    public async Task<IReadOnlyList<TahsilatMutabakatRowDto>> GetTahsilatMutabakatRowsAsync(
+    public async Task<IReadOnlyList<TahsilatMutabakatRowDto>> GetCollectionReconciliationRowsAsync(
         TahsilatMutabakatFilter? filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -247,7 +247,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 x.r.Id, x.r.SozlesmeNo, x.r.MusteriId, x.r.BasTar, x.r.Durum, x.r.Doviz,
                 x.r.Tutar, x.r.DamgaVergisi, x.r.GenelToplam, x.r.Tahsilat,
                 Plaka = x.v == null ? null : x.v.Plaka,
-                MusteriAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                MusteriAd = x.c == null ? null : (x.c.Tip == CustomerType.Bireysel
                     ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan)
             })
             .ToListAsync(ct);
@@ -317,7 +317,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return filter?.YalnizTutarsiz == true ? sonuc.Where(x => x.Tutarsiz).ToList() : sonuc;
     }
 
-    public async Task<IReadOnlyList<EkHizmetDetayRow>> GetEkHizmetDetayRowsAsync(
+    public async Task<IReadOnlyList<EkHizmetDetayRow>> GetAddOnDetailRowsAsync(
         EkHizmetDetayFilter? filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -375,7 +375,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             {
                 AddOnId = x.a.Id, x.a.RentalId, x.r.SozlesmeNo, x.r.BasTar, x.r.BitTar,
                 Plaka = x.v == null ? null : x.v.Plaka,
-                MusteriAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                MusteriAd = x.c == null ? null : (x.c.Tip == CustomerType.Bireysel
                     ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan),
                 RezKaynagi = x.rez == null ? null : x.rez.Kaynak,
                 x.r.CikisOfisi,
@@ -415,7 +415,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             x.SistemKalemi)).ToList();
     }
 
-    public async Task<KarsilastirmaliAnalizDto> GetKarsilastirmaliAnalizAsync(
+    public async Task<KarsilastirmaliAnalizDto> GetComparativeAnalysisAsync(
         KarsilastirmaliAnalizFilter filter, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -533,7 +533,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 
     private static string Etiket(string? s) => string.IsNullOrWhiteSpace(s) ? Atanmamis : s.Trim();
 
-    public async Task<IReadOnlyList<SigortaMuayeneRow>> GetSigortaMuayeneRowsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<SigortaMuayeneRow>> GetInsuranceInspectionRowsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -578,7 +578,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         .ToList();
     }
 
-    public async Task<FiloSubeHamPaket> GetFiloSubeHamAsync(
+    public async Task<FiloSubeHamPaket> GetFleetBranchRawAsync(
         DateTimeOffset pencereBas, DateTimeOffset pencereBit, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -603,7 +603,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToListAsync(ct);
 
         var baflar = await db.Baflar.AsNoTracking()
-            .Where(b => b.Durum == BafDurum.Acik)
+            .Where(b => b.Durum == BafStatus.Acik)
             .Select(b => b.VehicleId)
             .ToListAsync(ct);
 
@@ -617,7 +617,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             baflar.Select(Ara).ToList());
     }
 
-    public async Task<DolulukAtifPaket> GetDolulukAtifAsync(
+    public async Task<DolulukAtifPaket> GetOccupancyAttributionAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -658,7 +658,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             }).ToList());
     }
 
-    public async Task<TahsilatFaturaDto> GetTahsilatFaturaAsync(
+    public async Task<TahsilatFaturaDto> GetCollectionInvoiceAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -697,7 +697,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
-        var q = db.ServiceRecords.AsNoTracking().Where(r => r.Durum == ServisDurum.Tamamlandi);
+        var q = db.ServiceRecords.AsNoTracking().Where(r => r.Durum == ServiceStatus.Tamamlandi);
         if (from is { } f) q = q.Where(r => r.CikisTarihi >= f);
         if (to is { } t) q = q.Where(r => r.CikisTarihi <= t);
 
@@ -714,7 +714,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
-    public async Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisRowsAsync(
+    public async Task<IReadOnlyList<PeriyodikServisRow>> GetPeriodicServiceRowsAsync(
         PeriyodikServisFilter? filtre = null, CancellationToken ct = default)
     {
         // FAZ 6.2: birleşim OrtakSorgular'a taşındı — rapor sayfası ve FiloBildirimUretici (bakım-km
@@ -724,7 +724,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return await OrtakSorgular.PeriyodikServisAsync(db, ct, filtre);
     }
 
-    public async Task<IReadOnlyList<KmDetayRow>> GetKmDetayRowsAsync(
+    public async Task<IReadOnlyList<KmDetayRow>> GetKmDetailRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -756,7 +756,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
-    public async Task<IReadOnlyList<RezervasyonKaynakRow>> GetRezervasyonKaynakRowsAsync(
+    public async Task<IReadOnlyList<RezervasyonKaynakRow>> GetReservationSourceRowsAsync(
         RezervasyonKaynakFilter filtre, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -819,7 +819,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
-    public async Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemRowsAsync(
+    public async Task<IReadOnlyList<FaturaDonemRow>> GetInvoicePeriodRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -857,7 +857,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     /// N sorgu atmamak adına TOPLU (tek IN sorgusu) yazılmıştır; kuralın kendisi kopyalanmadı,
     /// kalıcı parite testiyle kilitli.</para>
     /// </summary>
-    public async Task<IReadOnlyList<KiraFaturaDurumRow>> GetKiraFaturaDurumRowsAsync(
+    public async Task<IReadOnlyList<KiraFaturaDurumRow>> GetRentalInvoiceStatusRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, KiraFaturaDurumFilter? filter,
         CancellationToken ct = default)
     {
@@ -998,7 +998,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return q;
     }
 
-    public async Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
+    public async Task<IReadOnlyList<AracDurumTakipRow>> GetVehicleStatusTrackingRowsAsync(
         DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filtre = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1022,14 +1022,14 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // bakımdaymış gibi gösteriyor ve "Boş" sayısını düşürüyordu.
         // FAZ-16: REZERVE (planlanmış randevu) de aynı sebeple hariç — araç henüz servise girmedi.
         var servisler = await db.ServiceRecords.AsNoTracking()
-            .Where(s => s.Durum != ServisDurum.Iptal && s.Durum != ServisDurum.Rezerve && kume.Contains(s.VehicleId))
+            .Where(s => s.Durum != ServiceStatus.Iptal && s.Durum != ServiceStatus.Rezerve && kume.Contains(s.VehicleId))
             .Select(s => new { s.GirisTarihi, Cikis = s.CikisTarihi })
             .ToListAsync(ct);
 
         // BAF: açık tahsisler — BİLGİ kolonu, Bos hesabına girmez (bir araç hem kirada hem
         // tahsisli olabilir; çıkarsaydık çift düşüm yapardık).
         var baflar = await db.Baflar.AsNoTracking()
-            .Where(b => b.Durum == BafDurum.Acik && kume.Contains(b.VehicleId))
+            .Where(b => b.Durum == BafStatus.Acik && kume.Contains(b.VehicleId))
             .Select(b => b.CreatedAtUtc)
             .ToListAsync(ct);
 
@@ -1045,7 +1045,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return sonuc;
     }
 
-    public async Task<IReadOnlyList<AracDurumTakipAracRow>> GetAracDurumTakipAracBazliRowsAsync(
+    public async Task<IReadOnlyList<AracDurumTakipAracRow>> GetVehicleStatusTrackingByVehicleRowsAsync(
         DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filtre = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1070,7 +1070,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // Servis: İptal (FAZ-76) ve Rezerve (FAZ-16 — henüz gerçekleşmemiş randevu) hariç;
         // çıkışsız servis hâlâ devam ediyor → aralık sonuna dek.
         var servisler = await db.ServiceRecords.AsNoTracking()
-            .Where(s => s.Durum != ServisDurum.Iptal && s.Durum != ServisDurum.Rezerve && kume.Contains(s.VehicleId))
+            .Where(s => s.Durum != ServiceStatus.Iptal && s.Durum != ServiceStatus.Rezerve && kume.Contains(s.VehicleId))
             .Select(s => new { s.VehicleId, s.GirisTarihi, Cikis = s.CikisTarihi })
             .ToListAsync(ct);
 
@@ -1078,7 +1078,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         // NOT: gün kırılımındaki "Açık BAF" kolonu BAŞKA bir ölçüdür (o gün açık olan BAF KAYIT
         // sayısı); burada aracın kaç GÜN zimmette olduğu sayılıyor. İkisi bilerek ayrı.
         var baflar = await db.Baflar.AsNoTracking()
-            .Where(b => b.Durum != BafDurum.Iptal && kume.Contains(b.VehicleId))
+            .Where(b => b.Durum != BafStatus.Iptal && kume.Contains(b.VehicleId))
             .Select(b => new { b.VehicleId, b.CikisTarihi, Donus = b.DonusTarihi })
             .ToListAsync(ct);
 
@@ -1119,7 +1119,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
-    public async Task<IReadOnlyList<AracGunlukDurumRow>> GetAracGunlukDurumRowsAsync(
+    public async Task<IReadOnlyList<AracGunlukDurumRow>> GetVehicleDailyStatusRowsAsync(
         DateTimeOffset gun, AracGunlukDurumFilter? filtre = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1168,7 +1168,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             x.r.Gun, x.r.Tutar, x.r.FazlaKmBedeli, x.r.YakitBedeli, x.r.UzatmaBedeli, x.r.KurSnapshot,
             x.r.CikisOfisi,
             x.v.Plaka, x.v.Sipp, x.v.Grup, x.v.AracSahibi,
-            Musteri = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+            Musteri = x.c == null ? null : (x.c.Tip == CustomerType.Bireysel
                 ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan)
         }).ToListAsync(ct);
 
@@ -1211,7 +1211,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
-    public async Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(
+    public async Task<IReadOnlyList<MusteriSegmentRow>> GetCustomerSegmentRowsAsync(
         MusteriSegmentFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1272,7 +1272,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 // projeksiyonu kullandığımız için burada tekrar yazılı; davranış değişmedi).
                 var ad = c is null
                     ? "(bilinmeyen cari)"
-                    : (c.Tip == CariType.Bireysel ? $"{c.Ad} {c.Soyad}".Trim() : (c.Unvan ?? string.Empty));
+                    : (c.Tip == CustomerType.Bireysel ? $"{c.Ad} {c.Soyad}".Trim() : (c.Unvan ?? string.Empty));
 
                 return new MusteriSegmentRow(
                     g.MusteriId, ad, g.KiraSayisi, g.ToplamCiro, g.SonIslem,
@@ -1292,7 +1292,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         return rows.OrderByDescending(r => r.ToplamCiro).ToList();
     }
 
-    public async Task<MusteriSegmentSecenekleri> GetMusteriSegmentSecenekleriAsync(CancellationToken ct = default)
+    public async Task<MusteriSegmentSecenekleri> GetCustomerSegmentOptionsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -1312,7 +1312,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList());
     }
 
-    public async Task<IReadOnlyList<PersonelCalismaRow>> GetPersonelCalismaRowsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<PersonelCalismaRow>> GetPersonnelWorkRowsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -1331,7 +1331,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList();
     }
 
-    public async Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
+    public async Task<GunlukFaaliyetDto> GetDailyActivityAsync(
         DateTimeOffset from, DateTimeOffset to, string? sube = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1379,7 +1379,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             tahsilatAdet, tahsilatTutar, faturalar.Count, faturaTutar);
     }
 
-    public async Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(
+    public async Task<IReadOnlyList<KdvLineRowDto>> GetVatLineRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1419,12 +1419,12 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     /// çağırana <c>AtlananDovizliAlis</c> olarak bildirilir — sessiz eksik toplam yasak.</item>
     /// </list></para>
     ///
-    /// <para><b>Satış tarafı</b> mevcut <see cref="GetKdvLineRowsAsync"/> ile AYNI işaret/kur
+    /// <para><b>Satış tarafı</b> mevcut <see cref="GetVatLineRowsAsync"/> ile AYNI işaret/kur
     /// sözleşmesini kullanır (İptal hariç; iade satırı NEGATİF; tutarlar × <c>Kur</c> ile base
     /// paraya çevrilir) — pivot ve geniş görünüm ayrışmasın diye. İki görünümün satış toplamlarının
     /// eşitliği kalıcı testle kilitlidir.</para>
     /// </summary>
-    public async Task<(IReadOnlyList<KdvGenisSatirDto> Satirlar, int AtlananDovizliAlis)> GetKdvGenisRowsAsync(
+    public async Task<(IReadOnlyList<KdvGenisSatirDto> Satirlar, int AtlananDovizliAlis)> GetVatExtendedRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, bool dahilAlis, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1471,7 +1471,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                     }
                 }
                 satirlar.Add(new KdvGenisSatirDto(
-                    i.Id, KdvGenisDto.TurSatis,
+                    i.Id, KdvGenisDto.TypeSale,
                     i.IadeMi ? $"{i.No} (iade)" : i.No, i.Tarih,
                     custAd.GetValueOrDefault(i.CariId) ?? "(bilinmeyen cari)", i.Durum.ToString(),
                     n20, k20, n10, k10, n1, k1, n0, nd, kd,
@@ -1483,7 +1483,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
         if (dahilAlis)
         {
             var gq = db.GelenEFaturalar.AsNoTracking()
-                .Where(g => g.Durum != GelenEFaturaDurum.Reddedildi);
+                .Where(g => g.Durum != IncomingEInvoiceStatus.Reddedildi);
             if (from is { } f2) gq = gq.Where(g => g.Tarih >= f2);
             if (to is { } t2) gq = gq.Where(g => g.Tarih <= t2);
 
@@ -1491,7 +1491,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             foreach (var g in gelenler)
             {
                 // Kırılım girilmemişse belge dağıtılamaz (uydurma kademe yasak) — rapora girmez.
-                if (!GelenEFaturaKdvKirilim.KirilimVar(g)) continue;
+                if (!IncomingEInvoiceVatBreakdown.HasBreakdown(g)) continue;
                 if (!string.Equals(g.Currency?.Trim(), "TRY", StringComparison.OrdinalIgnoreCase))
                 {
                     atlanan++;   // kur kolonu yok → base'e çevrilemez
@@ -1500,7 +1500,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
 
                 var n0g = g.Kdv0Matrah ?? 0m;
                 satirlar.Add(new KdvGenisSatirDto(
-                    g.Id, KdvGenisDto.TurAlis, g.Ettn, g.Tarih,
+                    g.Id, KdvGenisDto.TypePurchase, g.Ettn, g.Tarih,
                     string.IsNullOrWhiteSpace(g.GonderenUnvan) ? g.GonderenVkn : g.GonderenUnvan,
                     g.Durum.ToString(),
                     g.Kdv20Matrah ?? 0m, g.Kdv20 ?? 0m,
@@ -1519,7 +1519,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToList(), atlanan);
     }
 
-    public async Task<IReadOnlyList<EkHizmetSalesRowDto>> GetEkHizmetSalesRowsAsync(
+    public async Task<IReadOnlyList<EkHizmetSalesRowDto>> GetAddOnSalesRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1536,7 +1536,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<EkHizmetAracSalesRow>> GetEkHizmetAracSalesRowsAsync(
+    public async Task<IReadOnlyList<EkHizmetAracSalesRow>> GetAddOnVehicleSalesRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1565,7 +1565,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<KarlilikSatirDto>> GetKarlilikRowsAsync(
+    public async Task<IReadOnlyList<KarlilikSatirDto>> GetProfitabilityRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1694,18 +1694,18 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     /// FAZ-79 — Karlılık satırının DEFTER-DIŞI zenginleştirme hamı. Buradan dönen HİÇBİR tutar
     /// Gelir/Gider/NetKar'a eklenmez; servis yalnız ayrı referans kolonlarına yazar.
     /// </summary>
-    public async Task<KarlilikEkRawDto> GetKarlilikEkRawAsync(
+    public async Task<KarlilikEkRawDto> GetProfitabilityExtraRawAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         // Ömür-boyu P&L satırları: KPI (Doluluk/RevPACD/ADR) paydaları sahiplik penceresidir; payı dönem
         // geliriyle karıştırmak KARIŞIK PAYDA olurdu (FiloAnaliz/Karne ile aynı ders). Pencere yoksa
         // ikinci sorgu atılmaz — çağıran zaten aynı listeyi kullanacak.
-        var omur = from is null && to is null ? [] : await GetKarlilikRowsAsync(null, null, ct);
+        var omur = from is null && to is null ? [] : await GetProfitabilityRowsAsync(null, null, ct);
 
         await using var db = await _factory.CreateDbContextAsync(ct);
 
         var sonSatis = (await db.VehicleSales.AsNoTracking()
-                .Where(s => s.Durum == SatisDurum.Tamamlandi)
+                .Where(s => s.Durum == SaleStatus.Tamamlandi)
                 .GroupBy(s => s.VehicleId)
                 .Select(g => new { VehicleId = g.Key, Tarih = g.Max(x => x.Tarih) })
                 .ToListAsync(ct))
@@ -1782,7 +1782,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
     private static readonly HashSet<string> SatisBelgesi =
         new(StringComparer.Ordinal) { "Fatura", "FaturaIade", "AracSatis", "Ceza", "ServisYansitma", "DepozitoIrat", "DisHizmet" };
 
-    public async Task<AracKarneRawDto> GetAracKarneRawAsync(
+    public async Task<AracKarneRawDto> GetVehicleScorecardRawAsync(
         Guid vehicleId, DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -1961,8 +1961,8 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 $"{x.No}{(string.IsNullOrWhiteSpace(x.Aciklama) ? "" : " — " + x.Aciklama)}", x.GenelToplam, true));
         foreach (var s in satislar)
             olaylar.Add(new AracOlayRow(s.Tarih, "Satış",
-                s.No + (s.Durum == SatisDurum.Iptal ? " — İPTAL" : ""), s.GenelToplam,
-                s.Durum == SatisDurum.Tamamlandi));
+                s.No + (s.Durum == SaleStatus.Iptal ? " — İPTAL" : ""), s.GenelToplam,
+                s.Durum == SaleStatus.Tamamlandi));
         foreach (var r in kiralar)
             olaylar.Add(new AracOlayRow(r.BasTar, "Kira",
                 $"{r.SozlesmeNo} — {r.BasTar:dd.MM.yyyy} → {(r.GercekDonusTar ?? r.BitTar):dd.MM.yyyy} ({r.Durum})"
@@ -1979,7 +1979,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             .Select(r => new DolulukKiraRowDto(r.BasTar, r.GercekDonusTar ?? r.BitTar)).ToList();
         // İptal (FAZ-76) ve Rezerve (FAZ-16: gerçekleşmemiş randevu) bakım günü SAYILMAZ.
         var servisAraliklari = servisKayitlari
-            .Where(s => s.Durum is not (ServisDurum.Iptal or ServisDurum.Rezerve))
+            .Where(s => s.Durum is not (ServiceStatus.Iptal or ServiceStatus.Rezerve))
             .Select(s => new AracServisGunRow(s.GirisTarihi, s.CikisTarihi)).ToList();
         var katedilenKm = aktifKiralar.Where(r => r.CikisKm != null && r.DonusKm != null)
             .Sum(r => r.DonusKm!.Value - r.CikisKm!.Value);
@@ -2015,7 +2015,7 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
                 grupOrt = oranlar.Count > 0 ? oranlar.Average() : null;
             }
         }
-        var sonSatis = satislar.Where(s => s.Durum == SatisDurum.Tamamlandi)
+        var sonSatis = satislar.Where(s => s.Durum == SaleStatus.Tamamlandi)
             .Select(s => (DateTimeOffset?)s.Tarih).DefaultIfEmpty(null).Max();
 
         // FAZ 2.5: km zaman serisi (Tarih artan — servis dönem-km farkını bu sıradan alır).
@@ -2031,18 +2031,18 @@ public sealed class ReportRepository(IDbContextFactory<AppDbContext> factory) : 
             new FiloTutSatRow(vehicleId, gider12, giderOnceki12, km12, kmOnceki12), grupOrt, kmLoglari);
     }
 
-    public async Task<FiloAnalizRawDto> GetFiloAnalizRawAsync(
+    public async Task<FiloAnalizRawDto> GetFleetAnalysisRawAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default)
     {
         // P&L: mevcut Karlilik atfı yeniden kullanılır (tek doğruluk kaynağı). Pencere verilmişse KPI
         // payları için ömür-boyu set AYRICA çekilir (karışık-payda dersi); verilmemişse aynı liste.
-        var pencere = await GetKarlilikRowsAsync(from, to, ct);
-        var omur = from is null && to is null ? pencere : await GetKarlilikRowsAsync(null, null, ct);
+        var pencere = await GetProfitabilityRowsAsync(from, to, ct);
+        var omur = from is null && to is null ? pencere : await GetProfitabilityRowsAsync(null, null, ct);
 
         await using var db = await _factory.CreateDbContextAsync(ct);
 
         var sonSatis = (await db.VehicleSales.AsNoTracking()
-                .Where(s => s.Durum == SatisDurum.Tamamlandi)
+                .Where(s => s.Durum == SaleStatus.Tamamlandi)
                 .GroupBy(s => s.VehicleId)
                 .Select(g => new { VehicleId = g.Key, Tarih = g.Max(x => x.Tarih) })
                 .ToListAsync(ct))

@@ -84,7 +84,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         }
         await fx.PilotYapAsync(o.TenantId, pilot);
 
-        var musteri = new Customer { Tip = CariType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz", CepTel = "05320001122", Email = "deniz@ornek.test" };
+        var musteri = new Customer { Tip = CustomerType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz", CepTel = "05320001122", Email = "deniz@ornek.test" };
         var gps = new EkHizmetTanim { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m, Aktif = true };
         await VeriYazAsync(o.TenantId, db => { db.Customers.Add(musteri); db.EkHizmetTanimlari.Add(gps); });
         o.MusteriId = musteri.Id;
@@ -562,7 +562,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
                 await scope.ServiceProvider.GetRequiredService<CashService>()
                     .CollectAsync(new CashInput { CariId = o.MusteriId, RentalId = id, Tutar = 100m, IslemAnahtari = k1 });
             using (var scope = host.ScopeFor(o.TenantId))
-                await Assert.ThrowsAsync<MukerrerIslemException>(() => scope.ServiceProvider.GetRequiredService<CashService>()
+                await Assert.ThrowsAsync<DuplicateOperationException>(() => scope.ServiceProvider.GetRequiredService<CashService>()
                     .CollectAsync(new CashInput { CariId = o.MusteriId, RentalId = id, Tutar = 100m, IslemAnahtari = k1 }));
         }
 
@@ -698,7 +698,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         using (var host = new TestHost(fx.Pg.AppConnectionString))
         using (var scope = host.ScopeFor(o.TenantId))
             await scope.ServiceProvider.GetRequiredService<RentACar.Application.RentalAddOns.RentalAddOnService>()
-                .AddAsync(id, sys.Id, 1m, sistem: true);
+                .AddAsync(id, sys.Id, 1m, system: true);
         var d = await Json(await s.C.GetAsync($"{Kira}/{id}"));
         var genel = Dec(d.GetProperty("kira"), "genelToplam");
         Assert.Equal(120m + 120m, genel); // 1 × 120 brüt + SYS 100 net + 20 KDV
@@ -926,7 +926,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         // Kök serviste: Blazor /kiralar/create ve harici API de aynı RentalService.CreateDirectAsync'ten geçer.
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(o.TenantId, Guid.NewGuid(), "op", UserRole.Operator, "SubeA");
-        await Assert.ThrowsAsync<YetkiYokException>(() => scope.ServiceProvider.GetRequiredService<RentACar.Application.Bookings.RentalService>()
+        await Assert.ThrowsAsync<NoPermissionException>(() => scope.ServiceProvider.GetRequiredService<RentACar.Application.Bookings.RentalService>()
             .CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
             {
                 MusteriId = o.MusteriId, VehicleId = aracB, BasTar = bas.AddDays(20), BitTar = bas.AddDays(21), GunlukUcret = 100m, CikisOfisi = "SubeB",
@@ -1015,7 +1015,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         Assert.Equal("Kirada", (await Json(await s.C.GetAsync($"{Kira}/{id}"))).GetProperty("kira").GetProperty("durum").GetString());
         Assert.Equal(defter, await DefterSatiriAsync(host, o.TenantId));
         using (var sc = host.ScopeFor(o.TenantId))
-            await sc.ServiceProvider.GetRequiredService<InvoiceService>().CreateIadeAsync(faturaId);
+            await sc.ServiceProvider.GetRequiredService<InvoiceService>().CreateRefundAsync(faturaId);
         Assert.Equal("Iptal", (await Json(await Gonder(s, HttpMethod.Post, $"{Kira}/{id}/iptal"))).GetProperty("durum").GetString());
 
         // (b) Tahsilatlı kira: iptal reddedilir; tahsilat iade edilince (ödeme) iptal olur.
@@ -1232,7 +1232,7 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         using (var host = new TestHost(fx.Pg.AppConnectionString))
         {
             using var sc = host.ScopeFor(o.TenantId, Guid.NewGuid(), "op", UserRole.Operator, "SubeA");
-            var svc = sc.ServiceProvider.GetRequiredService<RentACar.Application.EkHizmetler.EkHizmetTanimService>();
+            var svc = sc.ServiceProvider.GetRequiredService<RentACar.Application.EkHizmetler.AddOnDefinitionService>();
             var t = (await svc.GetAsync(tanimId))!;
             RentACar.Application.EkHizmetler.EkHizmetTanimInput Girdi(string kod) =>
                 new() { Kod = kod, Ad = t.Ad, BirimUcret = t.BirimUcret, KdvOrani = t.KdvOrani, Aktif = t.Aktif };

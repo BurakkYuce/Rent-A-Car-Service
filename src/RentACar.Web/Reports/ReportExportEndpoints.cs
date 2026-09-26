@@ -38,23 +38,23 @@ public static class ReportExportEndpoints
             Table? t = rapor switch
             {
                 // FAZ-79: ekrandaki filtre + KDV modu export'a AYNEN taşınır (gördüğün = indirdiğin).
-                "karlilik" => Karlilik(await rs.GetKarlilikAsync(from, to, sube, grup, plaka,
+                "karlilik" => Karlilik(await rs.GetProfitabilityAsync(from, to, sube, grup, plaka,
                     NullIfEmpty(req.Query["kaynak"].ToString()), NullIfEmpty(req.Query["sipp"].ToString()),
                     string.Equals(req.Query["kdv"].ToString(), "dahil", StringComparison.OrdinalIgnoreCase)
-                        ? KdvDurum.KdvDahil : KdvDurum.Kdvsiz)),
-                "karlilik-grup" => KarlilikOzet(await rs.GetKarlilikOzetAsync("grup", from, to)),
-                "karlilik-sube" => KarlilikOzet(await rs.GetKarlilikOzetAsync("sube", from, to)),
-                "karlilik-segment" => KarlilikOzet(await rs.GetKarlilikOzetAsync("segment", from, to)),
-                "karlilik-otopark" => KarlilikOzet(await rs.GetKarlilikOzetAsync("otopark", from, to)),
-                "karlilik-sipp" => KarlilikOzet(await rs.GetKarlilikOzetAsync("sipp", from, to)),
-                "gelir-gider" => GelirGider(await rs.GetGelirGiderAsync(from, to)),
+                        ? VatStatus.KdvDahil : VatStatus.Kdvsiz)),
+                "karlilik-grup" => KarlilikOzet(await rs.GetProfitabilitySummaryAsync("grup", from, to)),
+                "karlilik-sube" => KarlilikOzet(await rs.GetProfitabilitySummaryAsync("sube", from, to)),
+                "karlilik-segment" => KarlilikOzet(await rs.GetProfitabilitySummaryAsync("segment", from, to)),
+                "karlilik-otopark" => KarlilikOzet(await rs.GetProfitabilitySummaryAsync("otopark", from, to)),
+                "karlilik-sipp" => KarlilikOzet(await rs.GetProfitabilitySummaryAsync("sipp", from, to)),
+                "gelir-gider" => GelirGider(await rs.GetRevenueExpenseAsync(from, to)),
                 // ADVERSARIAL L2 — ekranın "Hesap" kolonu export'ta yoktu ("gördüğün = indirdiğin" ihlali).
                 "kasa-banka" => KasaBanka(hesap,
                     await rs.GetAccountLedgerAsync(hesap, from, to, hesapId,
-                        doviz: kbDoviz, islemTuru: kbTur, sube: kbSube, devir: kbDevir),
+                        currency: kbDoviz, transactionType: kbTur, branch: kbSube, carryForward: kbDevir),
                     (await fas.ListAsync()).ToDictionary(h => h.Id, h => h.Ad)),
                 // FAZ-62: ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).
-                "cari-bakiye" => CariBakiye(await rs.GetCariBalancesAsync(new CariBakiyeFilter
+                "cari-bakiye" => CariBakiye(await rs.GetAccountBalancesAsync(new CariBakiyeFilter
                 {
                     Ara = NullIfEmpty(req.Query["ara"].ToString()),
                     OzelKod = NullIfEmpty(req.Query["ozelKod"].ToString()),
@@ -66,7 +66,7 @@ public static class ReportExportEndpoints
                     MinTutar = FormParse.Dec(req.Query["min"].ToString())
                 })),
                 // FAZ-27: hacim pivotu — ekrandaki seçim export'a AYNEN taşınır.
-                "karsilastirmali-analiz" => KarsilastirmaliAnaliz(await rs.GetKarsilastirmaliAnalizAsync(
+                "karsilastirmali-analiz" => KarsilastirmaliAnaliz(await rs.GetComparativeAnalysisAsync(
                     new RentACar.Application.Reporting.KarsilastirmaliAnalizFilter
                     {
                         Tablo = NullIfEmpty(req.Query["tablo"].ToString()) ?? "Kira",
@@ -77,16 +77,16 @@ public static class ReportExportEndpoints
                         Bit = to
                     })),
                 "yaslandirma" => Aging(await rs.GetAgingAsync(asOf)),
-                "doluluk" => Doluluk(await rs.GetDolulukAsync(from ?? gun.AddMonths(-1), to ?? gun)),
+                "doluluk" => Doluluk(await rs.GetOccupancyAsync(from ?? gun.AddMonths(-1), to ?? gun)),
                 "filo" => Filo(await rs.GetFleetUtilizationAsync()),
                 "servis-ozet" => Servis(await rs.GetServiceCostSummaryAsync(from, to)),
-                "periyodik-servis" => PeriyodikServis(await rs.GetPeriyodikServisAsync()),
-                "km-detay" => KmDetay(await rs.GetKmDetayAsync(from, to)),
-                "rezervasyon-kaynak" => RezKaynak(await rs.GetRezervasyonKaynakAsync(
+                "periyodik-servis" => PeriyodikServis(await rs.GetPeriodicServiceAsync()),
+                "km-detay" => KmDetay(await rs.GetKmDetailAsync(from, to)),
+                "rezervasyon-kaynak" => RezKaynak(await rs.GetReservationSourceAsync(
                     new RentACar.Application.Reporting.RezervasyonKaynakFilter { Bas = from, Bit = to })),
-                "fatura-donem" => FaturaDonem(await rs.GetFaturaDonemAsync(from, to)),
+                "fatura-donem" => FaturaDonem(await rs.GetInvoicePeriodAsync(from, to)),
                 // FAZ-53 — ekrandaki "Kira Faturalama Durumu" sekmesi (süzgeç birebir taşınır).
-                "kira-fatura-durum" => KiraFaturaDurum(await rs.GetKiraFaturaDurumAsync(from, to,
+                "kira-fatura-durum" => KiraFaturaDurum(await rs.GetRentalInvoiceStatusAsync(from, to,
                     new KiraFaturaDurumFilter
                     {
                         Q = NullIfEmpty(req.Query["q"].ToString()),
@@ -96,12 +96,12 @@ public static class ReportExportEndpoints
                         },
                         SubeId = Guid.TryParse(req.Query["sube"].ToString(), out var fsid) ? fsid : null
                     })),
-                "arac-durum-takip" => AracDurumTakip(await rs.GetAracDurumTakipAsync(
+                "arac-durum-takip" => AracDurumTakip(await rs.GetVehicleStatusTrackingAsync(
                     AracTakipFiltre(req), from, to)),
                 // FAZ-12 Bölüm A/B — ekrandaki görünüm ve filtre export'a AYNEN taşınır.
-                "arac-durum-takip-arac" => AracDurumTakipArac(await rs.GetAracDurumTakipAracBazliAsync(
+                "arac-durum-takip-arac" => AracDurumTakipArac(await rs.GetVehicleStatusTrackingByVehicleAsync(
                     AracTakipFiltre(req), from, to)),
-                "arac-gunluk-durum" => AracGunlukDurum(await rs.GetAracGunlukDurumAsync(
+                "arac-gunluk-durum" => AracGunlukDurum(await rs.GetVehicleDailyStatusAsync(
                     FormParse.Date(req.Query["gun"].ToString()),
                     new AracGunlukDurumFilter
                     {
@@ -109,19 +109,19 @@ public static class ReportExportEndpoints
                         AracSahibi = NullIfEmpty(req.Query["aracSahibi"].ToString()),
                         Ofis = NullIfEmpty(req.Query["ofis"].ToString())
                     })),
-                "gunluk" => Gunluk(await rs.GetGunlukFaaliyetAsync(gun)),
-                "kdv-listesi" => Kdv(await rs.GetKdvListesiAsync(from, to)),
+                "gunluk" => Gunluk(await rs.GetDailyActivityAsync(gun)),
+                "kdv-listesi" => Kdv(await rs.GetVatListAsync(from, to)),
                 // FAZ-53 — KDV geniş format (satır=belge, sütun=oran); ?alis=1 → gelen e-Fatura dahil.
-                "kdv-genis" => KdvGenis(await rs.GetKdvGenisAsync(from, to,
+                "kdv-genis" => KdvGenis(await rs.GetVatExtendedAsync(from, to,
                     req.Query["alis"].ToString() is "1" or "on" or "true")),
-                "ek-hizmet" => EkHizmet(await rs.GetEkHizmetRaporuAsync(from, to)),
+                "ek-hizmet" => EkHizmet(await rs.GetAddOnReportAsync(from, to)),
                 // FAZ-12 Bölüm C — araç-bazlı pivot (ad-bazlı özet export'u DEĞİŞMEDİ).
-                "ek-hizmet-arac" => EkHizmetAracPivot(await rs.GetEkHizmetAracPivotAsync(from, to)),
-                "tahsilat-fatura" => TahsilatFatura(await rs.GetTahsilatFaturaAsync(from, to)),
+                "ek-hizmet-arac" => EkHizmetAracPivot(await rs.GetAddOnVehiclePivotAsync(from, to)),
+                "tahsilat-fatura" => TahsilatFatura(await rs.GetCollectionInvoiceAsync(from, to)),
                 // Araç karnesi (vehicleId zorunlu; bulunamayan/başka-tenant araç → null → 404) + filo analiz.
-                "arac-karne" => ToTable(KarneExportKatalog.AracKarne(await rs.GetAracKarneAsync(
+                "arac-karne" => ToTable(KarneExportKatalog.AracKarne(await rs.GetVehicleScorecardAsync(
                     Guid.TryParse(req.Query["vehicleId"].ToString(), out var vid) ? vid : Guid.Empty, from, to))),
-                "filo-analiz" => ToTable(KarneExportKatalog.FiloAnaliz(await rs.GetFiloAnalizAsync(
+                "filo-analiz" => ToTable(KarneExportKatalog.FiloAnaliz(await rs.GetFleetAnalysisAsync(
                     from, to, NullIfEmpty(req.Query["siralama"].ToString())))),
                 _ => null
             };
@@ -153,7 +153,7 @@ public static class ReportExportEndpoints
     /// TOPLAM satırında yalnız P&amp;L kolonları toplanır — Excel'de yanlışlıkla Gider'e eklenmesinler.</summary>
     private static Table Karlilik(KarlilikDto d)
     {
-        var kdv = d.KdvDurum == KdvDurum.KdvDahil;
+        var kdv = d.KdvDurum == VatStatus.KdvDahil;
         var rows = d.Satirlar.Select(s => new object?[]
         {
             s.Plaka, s.Sube, s.Grup, s.Segment, s.Gelir, s.Gider, s.NetKar,
@@ -241,7 +241,7 @@ public static class ReportExportEndpoints
         var satirlar = d.Satirlar.Select(s =>
         {
             var h = new List<object?> { s.Kirilim };
-            h.AddRange(d.AyAnahtarlari.Select(a => (object?)s.Ay(a)));
+            h.AddRange(d.AyAnahtarlari.Select(a => (object?)s.Month(a)));
             h.Add(s.Toplam);
             return h.ToArray();
         }).ToList();
@@ -249,7 +249,7 @@ public static class ReportExportEndpoints
         if (d.Satirlar.Count > 0)
         {
             var toplam = new List<object?> { "Toplam" };
-            toplam.AddRange(d.AyAnahtarlari.Select(a => (object?)d.AyToplami(a)));
+            toplam.AddRange(d.AyAnahtarlari.Select(a => (object?)d.MonthTotal(a)));
             toplam.Add(d.GenelToplam);
             satirlar.Add(toplam.ToArray());
         }

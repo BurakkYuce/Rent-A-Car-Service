@@ -29,7 +29,7 @@ public sealed class PersonelTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<PersonelService>();
+        var svc = sp.GetRequiredService<PersonnelService>();
 
         var id = await svc.CreateAsync(Input("P001"));
 
@@ -56,7 +56,7 @@ public sealed class PersonelTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<PersonelService>();
+        var svc = scope.ServiceProvider.GetRequiredService<PersonnelService>();
 
         await svc.CreateAsync(Input("P001"));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Input("p001"))); // normalize→aynı
@@ -67,7 +67,7 @@ public sealed class PersonelTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<PersonelService>();
+        var svc = scope.ServiceProvider.GetRequiredService<PersonnelService>();
 
         var id = await svc.CreateAsync(Input("P001"));
         await svc.UpdateAsync(id, new PersonelInput { Kod = "P001", Ad = "Ali", Soyad = "Yılmaz", TcKimlik = null, Maas = null });
@@ -86,10 +86,10 @@ public sealed class PersonelTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using (var s1 = host.ScopeFor(t1))
-            await s1.ServiceProvider.GetRequiredService<PersonelService>().CreateAsync(Input("P001"));
+            await s1.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(Input("P001"));
 
         using var s2 = host.ScopeFor(t2);
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<PersonelService>().ListAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<PersonnelService>().ListAsync());
     }
 
     [Fact]
@@ -98,12 +98,12 @@ public sealed class PersonelTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
 
         using (var op = host.ScopeFor(Guid.NewGuid(), role: UserRole.Operator))
-            await Assert.ThrowsAsync<YetkiYokException>(
-                () => op.ServiceProvider.GetRequiredService<PersonelService>().CreateAsync(Input("P001")));
+            await Assert.ThrowsAsync<NoPermissionException>(
+                () => op.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(Input("P001")));
 
         // Yönetici de ManageUsers'a sahip değil → liste bile reddedilir.
         using var yon = host.ScopeFor(Guid.NewGuid(), role: UserRole.Yonetici);
-        await Assert.ThrowsAsync<YetkiYokException>(
-            () => yon.ServiceProvider.GetRequiredService<PersonelService>().ListAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(
+            () => yon.ServiceProvider.GetRequiredService<PersonnelService>().ListAsync());
     }
 }

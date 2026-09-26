@@ -22,8 +22,8 @@ public sealed record ReservationSourceDto(
     bool SubeGor, bool AcenteFiyatDegistir, bool Gizle, bool SadeceMusteriOdeme, bool Aktif, string? Surum)
     : IDefinitionRow
 {
-    internal static readonly SiralamaHaritasi<ReservationSourceDto> Sort = SiralamaHaritasi<ReservationSourceDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("tedarikci", x => x.Tedarikci)
+    internal static readonly SortFieldMap<ReservationSourceDto> Sort = SortFieldMap<ReservationSourceDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("tedarikci", x => x.Tedarikci)
         .Alan("kaynakGrubu", x => x.KaynakGrubu).Alan("aktif", x => x.Aktif);
 
     public static ReservationSourceDto From(ReservationSource x, string? version) => new(
@@ -53,8 +53,8 @@ public sealed record ReservationSourceRequest(
 /// <summary>Ledger account code (roadmap N1): Kod (32, upper-case), Ad (200), Açıklama (512).</summary>
 public sealed record AccountCodeDto(Guid Id, string Kod, string Ad, string? Aciklama, bool Aktif, string? Surum) : IDefinitionRow
 {
-    internal static readonly SiralamaHaritasi<AccountCodeDto> Sort = SiralamaHaritasi<AccountCodeDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("aktif", x => x.Aktif);
+    internal static readonly SortFieldMap<AccountCodeDto> Sort = SortFieldMap<AccountCodeDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("aktif", x => x.Aktif);
 }
 
 public sealed record AccountCodeRequest(string? Kod, string? Ad, string? Aciklama, bool Aktif = true, string? Surum = null) : IDefinitionRequest;

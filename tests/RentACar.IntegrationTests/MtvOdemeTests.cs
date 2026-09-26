@@ -32,9 +32,9 @@ public sealed class MtvOdemeTests(PostgresFixture fx)
         var (sp, mtvId) = await Seed(scope, "34 MT 01");
         var reg = sp.GetRequiredService<RegulationService>();
 
-        await reg.MtvOdeAsync(mtvId, LedgerAccountType.Kasa);
+        await reg.PayMtvAsync(mtvId, LedgerAccountType.Kasa);
 
-        var gg = await sp.GetRequiredService<ReportService>().GetGelirGiderAsync();
+        var gg = await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync();
         Assert.Equal(2000m, gg.GiderToplam);   // Borç Gider 2000 (elle oracle)
 
         var rec = (await reg.ListMtvAsync()).Single(m => m.Id == mtvId);
@@ -42,7 +42,7 @@ public sealed class MtvOdemeTests(PostgresFixture fx)
 
         // Çift-ödeme reddedilir
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => reg.MtvOdeAsync(mtvId, LedgerAccountType.Kasa));
+            () => reg.PayMtvAsync(mtvId, LedgerAccountType.Kasa));
     }
 
     [Fact]
@@ -51,8 +51,8 @@ public sealed class MtvOdemeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (sp, mtvId) = await Seed(scope, "34 MT 02");
-        await sp.GetRequiredService<DonemKilidiService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<RegulationService>().MtvOdeAsync(mtvId, LedgerAccountType.Kasa));
+            () => sp.GetRequiredService<RegulationService>().PayMtvAsync(mtvId, LedgerAccountType.Kasa));
     }
 }

@@ -32,7 +32,7 @@ public sealed class SegmentIndirimTests(PostgresFixture fx)
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
         {
             Kod = "EKO-STD", Ad = "Eko", AracGrupKod = "EKO", ParaBirimi = "TRY",
-            Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+            Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
         var rr = sp.GetRequiredService<RentalRuleService>();
         var i = 0;
@@ -84,7 +84,7 @@ public sealed class SegmentIndirimTests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 SG 01", Grup = "EKO" });
         // Kayıtta Trim normalize (" vip " → "vip"); eşleşme case-insensitive → "VIP" kuralı tutar.
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Seg", Soyad = "M", Sinif = " vip " });
+        { Tip = CustomerType.Bireysel, Ad = "Seg", Soyad = "M", Sinif = " vip " });
 
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), FiyatTuru = "Otomatik" });
@@ -102,7 +102,7 @@ public sealed class SegmentIndirimTests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 SG 02", Grup = "EKO" });
         var musteriler = sp.GetRequiredService<CustomerService>();
         var m = await musteriler.CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Seg", Soyad = "R", Sinif = "VIP" });
+        { Tip = CustomerType.Bireysel, Ad = "Seg", Soyad = "R", Sinif = "VIP" });
 
         BookingInput Girdi() => new()
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), FiyatTuru = "Otomatik" };
@@ -112,7 +112,7 @@ public sealed class SegmentIndirimTests(PostgresFixture fx)
 
         // Cari sınıfı düşürülür → rezervasyon güncellemesi GÜNCEL sınıfla yeniden fiyatlar.
         await musteriler.UpdateAsync(m, new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Seg", Soyad = "R", Sinif = null });
+        { Tip = CustomerType.Bireysel, Ad = "Seg", Soyad = "R", Sinif = null });
         await rez.UpdateAsync(id, Girdi());
         Assert.Equal(2700.00m, (await rez.GetAsync(id))!.Tutar);              // genel fiyat
     }

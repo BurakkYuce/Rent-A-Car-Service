@@ -44,7 +44,7 @@ public sealed class TahsilatFaturaTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
         var from = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var to = new DateTimeOffset(2026, 6, 30, 23, 59, 59, TimeSpan.Zero);
-        var g = await svc.GetTahsilatFaturaAsync(from, to);
+        var g = await svc.GetCollectionInvoiceAsync(from, to);
 
         Assert.Equal(2, g.FaturaAdet);
         Assert.Equal(1000m, g.FaturaToplam);
@@ -70,7 +70,7 @@ public sealed class TahsilatFaturaTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
         var from = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var to = new DateTimeOffset(2026, 6, 30, 23, 59, 59, TimeSpan.Zero);
-        var g = await svc.GetTahsilatFaturaAsync(from, to);
+        var g = await svc.GetCollectionInvoiceAsync(from, to);
 
         Assert.Equal(4000m, g.FaturaToplam);   // 100 × 40
         Assert.Equal(2000m, g.TahsilatToplam); // 50 × 40
@@ -90,7 +90,7 @@ public sealed class TahsilatFaturaTests(PostgresFixture fx)
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        var g = await s2.ServiceProvider.GetRequiredService<ReportService>().GetTahsilatFaturaAsync();
+        var g = await s2.ServiceProvider.GetRequiredService<ReportService>().GetCollectionInvoiceAsync();
         Assert.Equal(0, g.FaturaAdet);
         Assert.Equal(0m, g.FaturaToplam);
     }

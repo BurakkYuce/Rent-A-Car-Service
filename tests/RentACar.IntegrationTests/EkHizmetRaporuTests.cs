@@ -51,7 +51,7 @@ public sealed class EkHizmetRaporuTests(PostgresFixture fx)
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var rapor = await svc.GetEkHizmetRaporuAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
+        var rapor = await svc.GetAddOnReportAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
 
         Assert.Equal(2, rapor.Satirlar.Count); // GPS + Bebek Koltuğu
 
@@ -89,7 +89,7 @@ public sealed class EkHizmetRaporuTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var rapor = await s2.ServiceProvider.GetRequiredService<ReportService>()
-            .GetEkHizmetRaporuAsync(D(2026, 6, 1), D(2026, 6, 30));
+            .GetAddOnReportAsync(D(2026, 6, 1), D(2026, 6, 30));
         Assert.Empty(rapor.Satirlar);
         Assert.Equal(0, rapor.KiraAdet);
     }

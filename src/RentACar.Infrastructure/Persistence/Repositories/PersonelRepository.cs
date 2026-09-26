@@ -10,7 +10,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// IPersonelRepository: kısa-ömürlü context (factory). Tenant izolasyonu RLS + query filter. Kod (sicil)
 /// benzersizliği DB unique index; ihlal (23505) ValidationException. PII şifreleme servis katmanında.
 /// </summary>
-public sealed class PersonelRepository(IDbContextFactory<AppDbContext> factory) : IPersonelRepository
+public sealed class PersonelRepository(IDbContextFactory<AppDbContext> factory) : IPersonnelRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -26,7 +26,7 @@ public sealed class PersonelRepository(IDbContextFactory<AppDbContext> factory) 
         return await db.Personeller.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();

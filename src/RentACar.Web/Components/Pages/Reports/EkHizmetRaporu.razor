@@ -1,7 +1,7 @@
 @page "/raporlar/ek-hizmet"
 @attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
-@inject PersonelService Personeller
+@inject PersonnelService Personeller
 @inject LocationService Ofisler
 
 <PageTitle>Ek Hizmet Raporu — RentPro</PageTitle>
@@ -250,7 +250,7 @@ else
     {
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1); // gün sonuna dek dahil
-        _data = await Reports.GetEkHizmetRaporuAsync(from, to);
+        _data = await Reports.GetAddOnReportAsync(from, to);
 
         // Personel listesi PII'sız uç (ListForSelectAsync) — ListAsync ManageUsers ister ve
         // Muhasebe rolünde patlar (kira mega-formunda öğrenilen ders).
@@ -263,11 +263,11 @@ else
             // Pivot BİLEREK yalnız tarih penceresini alır: detay süzgeçleri (ofis/personel/kaynak/
             // sistem-kalemi) uygulansaydı pivot toplamı ad-bazlı özetten kayar ve iki tablo aynı
             // ekranda birbirini yalanlardı.
-            _pivot = await Reports.GetEkHizmetAracPivotAsync(from, to);
+            _pivot = await Reports.GetAddOnVehiclePivotAsync(from, to);
             return;
         }
 
-        _detay = await Reports.GetEkHizmetDetayAsync(new EkHizmetDetayFilter
+        _detay = await Reports.GetAddOnDetailAsync(new EkHizmetDetayFilter
         {
             Bas = from, Bit = to,
             Ara = Ara,

@@ -10,15 +10,15 @@ namespace RentACar.Application.Availability;
 public interface IAvailabilityRepository
 {
     Task<IReadOnlyList<Vehicle>> GetAvailableAsync( // C3: kapsam FK-farkındalı, UI sube ayrı param
-        DateTimeOffset from, DateTimeOffset to, string? grup, string? sube,
-        Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default);
+        DateTimeOffset from, DateTimeOffset to, string? group, string? branch,
+        Authorization.BranchScope.BranchFilter scope = default, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-19 — verilen araçlar için SON tamamlanmış kiranın efektif dönüş tarihi + müşteri adı.
     /// Yalnız GERÇEKTEN dönmüş kiralar (efektif dönüş geçmişte) sayılır; açık kira "boşta" değildir.
     /// Kayıt bulunmayan araç sonuçta YER ALMAZ (çağıran "hiç kiralanmamış" diye yorumlar).
     /// </summary>
-    Task<IReadOnlyList<SonKullanimRow>> GetSonKullanimAsync(
+    Task<IReadOnlyList<SonKullanimRow>> GetLastUsageAsync(
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default);
 }
 

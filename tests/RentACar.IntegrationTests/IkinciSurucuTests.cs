@@ -21,7 +21,7 @@ public sealed class IkinciSurucuTests(PostgresFixture fx)
     private static async Task<(Guid cari, Guid veh)> SeedAsync(IServiceProvider sp, string plaka, string ad)
     {
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "S" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "S" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         return (cari, veh);
     }
@@ -34,12 +34,12 @@ public sealed class IkinciSurucuTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var (cari, veh) = await SeedAsync(sp, "34 IS 01", "Birinci");
         var ikinci = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Ikinci", Soyad = "Surucu", EhliyetNo = "99999", EhliyetYeri = "ANTALYA" });
+        { Tip = CustomerType.Bireysel, Ad = "Ikinci", Soyad = "Surucu", EhliyetNo = "99999", EhliyetYeri = "ANTALYA" });
 
         var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = cari, IkinciSurucuId = ikinci, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
 
-        var s = await sp.GetRequiredService<SozlesmeService>().GetAsync(rental);
+        var s = await sp.GetRequiredService<ContractService>().GetAsync(rental);
         Assert.Equal("Ikinci Surucu", s!.IkinciSurucuAd);
         Assert.Equal("99999", s.IkinciEhliyetNo);   // decrypt'li düz değer
         Assert.Equal("ANTALYA", s.IkinciEhliyetYeri);
@@ -55,7 +55,7 @@ public sealed class IkinciSurucuTests(PostgresFixture fx)
         var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
 
-        var s = await sp.GetRequiredService<SozlesmeService>().GetAsync(rental);
+        var s = await sp.GetRequiredService<ContractService>().GetAsync(rental);
         Assert.Null(s!.IkinciSurucuAd);
         Assert.Null(s.IkinciEhliyetNo);
     }

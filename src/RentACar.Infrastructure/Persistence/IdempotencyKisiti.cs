@@ -34,11 +34,11 @@ public static class IdempotencyKisiti
 
     /// <summary>
     /// Çift-gönderim catch bloklarının fırlatacağı istisna: idempotency kısıtıysa
-    /// <see cref="MukerrerIslemException"/>, değilse (ör. <c>_Sira</c>, <c>_No</c>) AYNI mesajlı düz
+    /// <see cref="DuplicateOperationException"/>, değilse (ör. <c>_Sira</c>, <c>_No</c>) AYNI mesajlı düz
     /// <see cref="ValidationException"/> — o yolların davranışı birebir eskisi gibi kalır.
     /// </summary>
     public static ValidationException Red(DbUpdateException ex, string mesaj) =>
         MukerrerKisitiMi((ex.InnerException as PostgresException)?.ConstraintName)
-            ? new MukerrerIslemException(mesaj)
+            ? new DuplicateOperationException(mesaj)
             : new ValidationException(mesaj);
 }

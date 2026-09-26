@@ -16,7 +16,7 @@ public sealed class GiderSubeKapsamTests(PostgresFixture fx)
 {
     private static Task<System.Guid> GiderAsync(System.IServiceProvider sp, string? sube)
         => sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0.20m, OdemeYontemi = OdemeYontemi.Nakit, Sube = sube });
+        { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0.20m, OdemeYontemi = PaymentMethod.Nakit, Sube = sube });
 
     private static Task<IReadOnlyList<RentACar.Domain.Entities.Expense>> ListAsync(System.IServiceProvider sp)
         => sp.GetRequiredService<ExpenseService>().ListAsync();

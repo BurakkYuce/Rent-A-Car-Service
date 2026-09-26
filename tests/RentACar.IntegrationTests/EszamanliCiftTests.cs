@@ -40,7 +40,7 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
         {
             var sp = s0.ServiceProvider;
             cari = await sp.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Yarış Fatura" });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Yarış Fatura" });
             var veh = await sp.GetRequiredService<VehicleService>()
                 .CreateAsync(new VehicleInput { Plaka = "34 YC 01", Durum = VehicleStatus.Musait });
             rentalId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
@@ -63,7 +63,7 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
             Assert.Equal(1, await db.Invoices.AsNoTracking().CountAsync(i => i.RentalId == rentalId)); // TEK fatura
 
         // Cari borç TEK fatura tutarı: 3 gün × 100 = 300 (çift borç 600 OLMAZ).
-        Assert.Equal(300m, await sp3.GetRequiredService<CashService>().GetCariBalanceAsync(cari));
+        Assert.Equal(300m, await sp3.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
     }
 
     // ---- O9b — aynı araca İKİ PARALEL satış: tek kazanan, alıcı TEK satış borçlanır ----
@@ -77,7 +77,7 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
         {
             var sp = s0.ServiceProvider;
             alici = await sp.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Yarış Alıcı" });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Yarış Alıcı" });
             vehId = await sp.GetRequiredService<VehicleService>()
                 .CreateAsync(new VehicleInput { Plaka = "34 YC 02", Durum = VehicleStatus.Musait });
         }
@@ -105,7 +105,7 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
         }
 
         // Alıcı borcu TEK satış brütü: 100.000 + %20 KDV = 120.000 (çift 240.000 OLMAZ).
-        Assert.Equal(120000m, await sp3.GetRequiredService<CashService>().GetCariBalanceAsync(alici));
+        Assert.Equal(120000m, await sp3.GetRequiredService<CashService>().GetAccountBalanceAsync(alici));
     }
 
     // ---- O10b — SequenceAllocator eşzamanlılık: 8 paralel tahsilat → No'lar BENZERSİZ ve boşluksuz ----
@@ -117,7 +117,7 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
         Guid cari;
         using (var s0 = host.ScopeFor(tenant))
             cari = await s0.ServiceProvider.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Sıra No" });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Sıra No" });
 
         var tasks = Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
         {
@@ -137,6 +137,6 @@ public sealed class EszamanliCiftTests(PostgresFixture fx)
         Assert.Equal(beklenen, gercek);
 
         // Toplam da tutarlı: 8 × 100 tahsilat → cari −800 (alacaklandı).
-        Assert.Equal(-800m, await check.ServiceProvider.GetRequiredService<CashService>().GetCariBalanceAsync(cari));
+        Assert.Equal(-800m, await check.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
     }
 }

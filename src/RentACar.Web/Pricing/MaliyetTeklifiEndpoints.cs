@@ -25,7 +25,7 @@ public static class MaliyetTeklifiEndpoints
         var grp = app.MapGroup("/maliyet-teklifi").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
         // Hesap ekranından "Teklifi Kaydet" → başarıda hesap ekranına kayıt no ile döner.
-        grp.MapPost("/kaydet", async (MaliyetTeklifiService svc, HttpRequest req) =>
+        grp.MapPost("/kaydet", async (CostQuotationService svc, HttpRequest req) =>
         {
             try
             {
@@ -36,10 +36,10 @@ public static class MaliyetTeklifiEndpoints
             catch (ValidationException ex) { return Results.Redirect(HesapYolu(req, hata: ex.Message)); }
         });
 
-        grp.MapPost("/update", async (MaliyetTeklifiService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (CostQuotationService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (MaliyetTeklifiService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (CostQuotationService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;

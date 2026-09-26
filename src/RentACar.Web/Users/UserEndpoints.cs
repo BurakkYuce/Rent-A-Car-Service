@@ -33,11 +33,11 @@ public static class UserEndpoints
             await Run(() => svc.ResetPasswordAsync(id, password), "İşlem tamamlandı."));
 
         // ---- Kullanıcı-bazlı izin istisnaları (2026-08-17) ----
-        grp.MapPost("/istisna/set", async (KullaniciIzinService svc,
+        grp.MapPost("/istisna/set", async (UserPermissionService svc,
             [FromForm] Guid userId, [FromForm] string izin, [FromForm] string tur) =>
-            await Run(() => svc.SetAsync(userId, izin, ver: tur == "ver"), "İşlem tamamlandı."));
+            await Run(() => svc.SetAsync(userId, izin, give: tur == "ver"), "İşlem tamamlandı."));
 
-        grp.MapPost("/istisna/sil", async (KullaniciIzinService svc,
+        grp.MapPost("/istisna/sil", async (UserPermissionService svc,
             [FromForm] Guid userId, [FromForm] string izin) =>
             await Run(() => svc.RemoveAsync(userId, izin), "Kayıt silindi."));
 

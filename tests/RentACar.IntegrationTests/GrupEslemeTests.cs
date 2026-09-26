@@ -38,7 +38,7 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
         await AracAsync(araclar, "34 EGE 002", "fiat-egea");   // Türkçe İ/i farkı — AYNI değer sayılmalı
         await AracAsync(araclar, "34 OTH 003", "OPEL-CORSA");  // kapsam dışı
 
-        var n = await gruplar.GrupDegeriAtaAsync("FİAT-EGEA", bosOlanlar: false, ekoId);
+        var n = await gruplar.AssignGroupValueAsync("FİAT-EGEA", emptyOnes: false, ekoId);
 
         Assert.Equal(2, n); // senaryoda 2 Egea var
         var filo = await araclar.ListAsync();
@@ -60,7 +60,7 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
         // Gerçekten "(boş)" YAZAN bir değer: string sentinel kullanılsaydı bu da taşınırdı.
         await AracAsync(araclar, "34 LIT 003", "(boş)");
 
-        var n = await gruplar.GrupDegeriAtaAsync(kaynakDeger: null, bosOlanlar: true, ekoId);
+        var n = await gruplar.AssignGroupValueAsync(sourceValue: null, emptyOnes: true, ekoId);
 
         Assert.Equal(2, n);
         var filo = await araclar.ListAsync();
@@ -80,7 +80,7 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
 
         // Pasif grup vitrinde okunmaz → atama araçları sessizce görünmez yapardı.
         await Assert.ThrowsAsync<ValidationException>(
-            () => gruplar.GrupDegeriAtaAsync("FİAT-EGEA", false, pasifId));
+            () => gruplar.AssignGroupValueAsync("FİAT-EGEA", false, pasifId));
 
         Assert.Equal("FİAT-EGEA", (await araclar.ListAsync()).Single().Grup); // hiçbir şey taşınmadı
     }
@@ -97,7 +97,7 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
         var aracId = await AracAsync(araclar, "34 AUD 001", "FİAT-EGEA");
         Assert.Null((await araclar.GetAsync(aracId))!.UpdatedAtUtc); // başlangıçta yok
 
-        await gruplar.GrupDegeriAtaAsync("FİAT-EGEA", false, ekoId);
+        await gruplar.AssignGroupValueAsync("FİAT-EGEA", false, ekoId);
 
         // ExecuteUpdateAsync kullanılsaydı bu alan (ve audit) sessizce yazılmazdı.
         Assert.NotNull((await araclar.GetAsync(aracId))!.UpdatedAtUtc);
@@ -176,9 +176,9 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
             ekoId = await admin.ServiceProvider.GetRequiredService<VehicleGroupService>().CreateAsync(Grup("EKO", "Ekonomi"));
 
         using var muhasebe = host.ScopeFor(tenant, role: UserRole.Muhasebe); // OperationsWrite YOK
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => muhasebe.ServiceProvider.GetRequiredService<VehicleGroupService>()
-                .GrupDegeriAtaAsync("FİAT-EGEA", false, ekoId));
+                .AssignGroupValueAsync("FİAT-EGEA", false, ekoId));
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
             await AracAsync(s2.ServiceProvider.GetRequiredService<VehicleService>(), "34 ISO 002", "FİAT-EGEA");
 
         var n = await s1.ServiceProvider.GetRequiredService<VehicleGroupService>()
-            .GrupDegeriAtaAsync("FİAT-EGEA", false, ekoId);
+            .AssignGroupValueAsync("FİAT-EGEA", false, ekoId);
 
         Assert.Equal(1, n); // T2'nin aracı SAYILMADI
         using var s2Kontrol = host.ScopeFor(t2);
@@ -217,7 +217,7 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
         await AracAsync(araclar, "34 TAN 002", null);
         await AracAsync(araclar, "34 TAN 003", "Ekonomi"); // eşleşiyor → listede OLMAMALI
 
-        var liste = await gruplar.ListUnmatchedGrupValuesAsync();
+        var liste = await gruplar.ListUnmatchedGroupValuesAsync();
 
         Assert.Equal(1, liste.Single(x => x.Grup == "FİAT-EGEA").AracSayisi);
         var bos = liste.Single(x => x.Bos);

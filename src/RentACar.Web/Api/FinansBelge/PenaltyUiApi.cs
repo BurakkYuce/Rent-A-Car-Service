@@ -45,8 +45,8 @@ public static class PenaltyUiApi
 
     // ================================================================== okuma
 
-    private static readonly SiralamaHaritasi<PenaltyListRow> Sort = SiralamaHaritasi<PenaltyListRow>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<PenaltyListRow> Sort = SortFieldMap<PenaltyListRow>
+        .Create(r => r.Id)
         .Alan("no", r => r.No).Alan("tebligTarihi", r => r.TebligTarihi).Alan("vadeTarihi", r => r.VadeTarihi)
         .Alan("tutar", r => r.Tutar).Alan("kalan", r => r.Kalan).Alan("durum", r => r.Durum)
         .Alan("plaka", r => r.Plaka).Alan("cariAd", r => r.CariAd);
@@ -78,8 +78,8 @@ public static class PenaltyUiApi
             Musteri = F5Ortak.Nz(f.Musteri), MakbuzNo = F5Ortak.Nz(f.MakbuzNo), Plaka = F5Ortak.Nz(f.Plaka),
             // Repo sözleşmesi: Bit = bitiş gününün başlangıcı (repo +1 gün uygular). İstanbul günü.
             Bas = f.Bas is { } b ? F5Ortak.GunBasi(b) : null, Bit = f.Bit is { } t ? F5Ortak.GunBasi(t) : null,
-            Durum = F5Ortak.EnumAdi<CezaDurum>(f.Durum, "durum"),
-            OdemeDurum = F5Ortak.EnumAdi<CezaOdemeDurum>(f.OdemeDurumu, "odemeDurumu"),
+            Durum = F5Ortak.EnumAdi<PenaltyStatus>(f.Durum, "durum"),
+            OdemeDurum = F5Ortak.EnumAdi<PenaltyPaymentStatus>(f.OdemeDurumu, "odemeDurumu"),
             IslemSube = F5Ortak.Nz(f.IslemSube),
         }, ct);
 
@@ -101,8 +101,8 @@ public static class PenaltyUiApi
         var fatura = p.RentalId is { } r2 ? await db.Invoices.AsNoTracking().Where(i => i.RentalId == r2)
             .OrderBy(i => i.Tarih).Select(i => i.No).FirstOrDefaultAsync(ct) : null;
         var names = await F5Ortak.CarilerAsync(dbf, p.CariId is { } c ? [c] : [], ct);
-        var lines = await penalties.ListSatirAsync(id, ct);
-        var payments = await penalties.ListOdemeAsync(id, ct);
+        var lines = await penalties.ListLinesAsync(id, ct);
+        var payments = await penalties.ListPaymentsAsync(id, ct);
         // #286 Low-7: ihbarname telefonu müşterinin telefonudur — müşteri telefonu anonimleştirildiyse (KVKK,
         // MusteriGorunumu kuralı) bu kopya da dönmez.
         var phoneHidden = p.CariId is { } pc && await db.Customers.AsNoTracking()
@@ -116,7 +116,7 @@ public static class PenaltyUiApi
     private static PenaltyListRow Row(Penalty p, string? plaka, Dictionary<Guid, F5Ortak.CariGorunum> names,
         string? sozlesmeNo, string? faturaNo) => new(
         p.Id, p.No, p.CezaTuru, p.TebligTarihi, p.VadeTarihi, p.Durum.ToString(), p.Tutar, p.OdenenTutar, p.Kalan,
-        (p.OdenenTutar <= 0m ? CezaOdemeDurum.Odenmemis : p.Kalan > 0m ? CezaOdemeDurum.Kismi : CezaOdemeDurum.Odendi).ToString(),
+        (p.OdenenTutar <= 0m ? PenaltyPaymentStatus.Odenmemis : p.Kalan > 0m ? PenaltyPaymentStatus.Kismi : PenaltyPaymentStatus.Odendi).ToString(),
         p.Sebep, p.VehicleId, plaka, p.CariId, p.CariId is { } c ? F5Ortak.CariAdi(names, c) : null,
         p.RentalId, sozlesmeNo, faturaNo, p.MakbuzNo, p.IslemSube, p.Yer, p.Saat, p.OdenmeTarihi);
 

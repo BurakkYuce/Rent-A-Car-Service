@@ -7,7 +7,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Drop matris kalıcılığı (roadmap N2). (Lokasyon,Sube) benzersiz; 23505→ValidationException.</summary>
-public sealed class DropTanimRepository(IDbContextFactory<AppDbContext> factory) : IDropTanimRepository
+public sealed class DropTanimRepository(IDbContextFactory<AppDbContext> factory) : IDropDefinitionRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 

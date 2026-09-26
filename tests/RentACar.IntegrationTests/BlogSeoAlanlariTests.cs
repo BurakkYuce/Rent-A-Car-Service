@@ -143,7 +143,7 @@ public sealed class BlogSeoAlanlariTests(PostgresFixture fx)
 
             var d = await svc.GetPublishedBySlugAsync("uzun-aciklama");
             Assert.Equal(200, d!.MetaAciklama!.Length);
-            Assert.True(uzun.Length > BlogService.MetaAciklamaMax);   // sınır gerçekten aşıldı
+            Assert.True(uzun.Length > BlogService.MaxMetaDescription);   // sınır gerçekten aşıldı
         }
     }
 

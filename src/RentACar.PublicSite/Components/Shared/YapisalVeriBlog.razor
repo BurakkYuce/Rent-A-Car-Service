@@ -46,7 +46,7 @@
             // çelişen iki açıklama görür.
             ["description"] = !string.IsNullOrWhiteSpace(y.MetaAciklama) ? y.MetaAciklama
                 : !string.IsNullOrWhiteSpace(y.Ozet) ? y.Ozet
-                : RentACar.Application.Common.IcerikMetni.Ozet(y.Icerik),
+                : RentACar.Application.Common.ContentText.Summary(y.Icerik),
             ["keywords"] = y.Kelimeler.Count > 0 ? string.Join(", ", y.Kelimeler) : null,
             ["author"] = string.IsNullOrWhiteSpace(y.Yazar) ? null : new Dictionary<string, object?>
             {
@@ -54,7 +54,7 @@
                 ["name"] = y.Yazar,
             },
             // Kelime sayısı: AI arama yüzeyleri içeriğin derinliğini bununla ölçüyor.
-            ["wordCount"] = RentACar.Application.Common.IcerikMetni.KelimeSayisi(y.Icerik),
+            ["wordCount"] = RentACar.Application.Common.ContentText.WordCount(y.Icerik),
             ["datePublished"] = y.YayinTarihi?.ToString("yyyy-MM-dd"),
             ["mainEntityOfPage"] = kok is null ? null : $"{kok}/blog/{y.Slug}",
             ["image"] = kok is not null && y.KapakVar ? $"{kok}/blog-kapak/{y.Id}" : null,

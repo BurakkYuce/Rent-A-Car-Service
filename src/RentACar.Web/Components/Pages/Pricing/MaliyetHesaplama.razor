@@ -5,7 +5,7 @@
 @using RentACar.Domain.Enums
 @using RentACar.Web.Pricing
 @inject CustomerService Cariler
-@inject PersonelService Personeller
+@inject PersonnelService Personeller
 
 <PageTitle>Filo Maliyet Hesaplayıcı — RentPro</PageTitle>
 
@@ -32,9 +32,9 @@
     <label>Araç Sayısı<input name="adet" type="number" min="1" max="1000" value="@(Adet ?? "1")" /></label>
     <label>Kredi Hesap Şekli
         <select name="kredi">
-            @foreach (var k in Enum.GetValues<KrediHesaplamaSekli>())
+            @foreach (var k in Enum.GetValues<LoanCalculationMethod>())
             {
-                <option value="@k" selected="@(k.ToString() == (Kredi ?? nameof(KrediHesaplamaSekli.EsitTaksitli)))">@KrediAd(k)</option>
+                <option value="@k" selected="@(k.ToString() == (Kredi ?? nameof(LoanCalculationMethod.EsitTaksitli)))">@KrediAd(k)</option>
             }
         </select>
     </label>
@@ -196,17 +196,17 @@
     private IReadOnlyList<Customer> _cariler = [];
     private IReadOnlyList<PersonelSecim> _personeller = [];
 
-    private static string KrediAd(KrediHesaplamaSekli k) => k switch
+    private static string KrediAd(LoanCalculationMethod k) => k switch
     {
-        KrediHesaplamaSekli.EsitTaksitli => "Eşit Taksitli",
-        KrediHesaplamaSekli.Rotatif => "Rotatif (yakında)",
+        LoanCalculationMethod.EsitTaksitli => "Eşit Taksitli",
+        LoanCalculationMethod.Rotatif => "Rotatif (yakında)",
         _ => k.ToString()
     };
 
-    private static string PeriyotAd(MaliyetKalemPeriyot p) => p switch
+    private static string PeriyotAd(CostItemPeriod p) => p switch
     {
-        MaliyetKalemPeriyot.Yillik => "Yıllık",
-        MaliyetKalemPeriyot.Aylik => "Aylık",
+        CostItemPeriod.Yillik => "Yıllık",
+        CostItemPeriod.Aylik => "Aylık",
         _ => "Tek seferlik"
     };
 
@@ -242,7 +242,7 @@
         var q = Girdi;
         try
         {
-            _sonuc = MaliyetHesapService.Hesapla(MaliyetHesapGirdi.Kur(ad => q.GetValueOrDefault(ad)));
+            _sonuc = CostCalculationService.Calculate(MaliyetHesapGirdi.Kur(ad => q.GetValueOrDefault(ad)));
         }
         catch (RentACar.Application.Common.ValidationException ex) { Hata = ex.Message; }
 

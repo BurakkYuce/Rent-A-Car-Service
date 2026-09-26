@@ -15,18 +15,18 @@ public static partial class SystemAdminApi
 
     /// <summary>
     /// Test gönderimleri (Blazor <c>/ayarlar/{smtp,sms,whatsapp}-test</c> paritesi) — ÜRETİMDEKİ kod yolu: e-posta
-    /// <see cref="BildirimKanaliService.EpostaGonderAsync"/>, SMS başlığı <see cref="BildirimKanaliService.SmsBaslikAsync"/>
+    /// <see cref="NotificationChannelService.SendEmailAsync"/>, SMS başlığı <see cref="NotificationChannelService.SmsHeaderAsync"/>
     /// + <see cref="TwilioSmsService"/>, WhatsApp <c>operasyon_ozet</c> şablonuyla <see cref="TwilioWhatsAppService"/>.
     /// Dürüst stub kuralı: Twilio yapılandırması yoksa hiçbir şey gönderilmez ve <c>yapilandirma_yok</c> döner;
     /// "kabul edildi" teslim demek değildir → durum yoklanır, belli değilse <c>belirsiz</c> (başarı DEĞİL).
     /// </summary>
     private static void MapSendTests(RouteGroupBuilder g)
     {
-        g.MapPost("/test/eposta", async Task<Ok<SendTestResult>> (EmailTestRequest i, BildirimKanaliService channel, CancellationToken ct) =>
+        g.MapPost("/test/eposta", async Task<Ok<SendTestResult>> (EmailTestRequest i, NotificationChannelService channel, CancellationToken ct) =>
         {
             var to = RequireEmail(i.Alici);
             var time = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
-            var r = await channel.EpostaGonderAsync(to, "RentPro e-posta testi",
+            var r = await channel.SendEmailAsync(to, "RentPro e-posta testi",
                 $"<p>RentPro test mesajı — {time} UTC.</p><p>Bu mesajı aldıysanız e-posta yapılandırmanız çalışıyor.</p>",
                 $"RentPro test mesajı — {time} UTC. Bu mesajı aldıysanız e-posta yapılandırmanız çalışıyor.", ct);
             // SMTP gönderimi senkron: sunucu kabul ettiyse teslim sorumluluğu ona geçmiştir.
@@ -35,7 +35,7 @@ public static partial class SystemAdminApi
                 : new SendTestResult(false, "basarisiz", r.Hata ?? "E-posta gönderilemedi."));
         }).AlanlariEsle([("E-posta adresi", "alici")]).RequireRateLimiting(SendTestRatePolicy);
 
-        g.MapPost("/test/sms", async Task<Ok<SendTestResult>> (PhoneTestRequest i, BildirimKanaliService channel,
+        g.MapPost("/test/sms", async Task<Ok<SendTestResult>> (PhoneTestRequest i, NotificationChannelService channel,
             ISmsService sms, IConfiguration cfg, CancellationToken ct) =>
         {
             var to = RequirePhone(i.Telefon);
@@ -43,7 +43,7 @@ public static partial class SystemAdminApi
                 return TypedResults.Ok(new SendTestResult(false, "yapilandirma_yok",
                     "Twilio yapılandırılmamış — hiçbir SMS gönderilmedi. Twilio:AccountSid / AuthToken ve Twilio:SmsFrom (ya da MessagingServiceSid) ayarlarını verin."));
             var message = $"RentPro test mesaji - {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC. Bu mesajı aldıysanız SMS yapılandırmanız çalışıyor.";
-            var sender = await channel.SmsBaslikAsync(ct);
+            var sender = await channel.SmsHeaderAsync(ct);
             var twilio = sms as TwilioSmsService;
             var (ok, messageSid) = twilio is not null ? await twilio.GonderAsync(to, message, sender, ct) : (await sms.SendAsync(to, message, sender, ct), null);
             if (!ok)

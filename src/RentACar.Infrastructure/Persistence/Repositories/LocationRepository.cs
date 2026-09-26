@@ -21,7 +21,7 @@ public sealed class LocationRepository(IDbContextFactory<AppDbContext> factory) 
         return await db.Locations.AsNoTracking().OrderBy(l => l.Kod).ToListAsync(ct);
     }
 
-    public async Task<Location?> FindByAdAsync(string ad, CancellationToken ct = default)
+    public async Task<Location?> FindByNameAsync(string ad, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // F4.1 adversarial N1: eşleşme OfficeBranchInterceptor ile AYNI anahtarla ve BELLEKTE (SQL lower()
@@ -49,7 +49,7 @@ public sealed class LocationRepository(IDbContextFactory<AppDbContext> factory) 
         return await db.Locations.AsNoTracking().FirstOrDefaultAsync(l => l.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();

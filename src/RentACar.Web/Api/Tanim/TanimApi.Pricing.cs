@@ -22,13 +22,13 @@ public static partial class TanimApi
         v1.MapDefinition(new DefinitionRoute<DropTanim, DropDto, DropRequest>
         {
             Path = "/drop-tanimlari", Tag = Tag, Permission = Permission.OperationsWrite,
-            List = (sp, ct) => S<DropTanimService>(sp).ListAsync(ct),
-            Get = (sp, id, ct) => S<DropTanimService>(sp).GetAsync(id, ct),
-            GetVersion = (sp, id, ct) => S<DropTanimService>(sp).GetVersionAsync(id, ct),
-            GetVersions = (sp, ct) => S<DropTanimService>(sp).GetVersionsAsync(ct),
-            Create = (sp, b, ct) => S<DropTanimService>(sp).CreateAsync(DropInputOf(b), ct),
-            Update = (sp, id, b, v, ct) => S<DropTanimService>(sp).UpdateAsync(id, DropInputOf(b), v, ct),
-            Delete = (sp, id, ct) => S<DropTanimService>(sp).DeleteAsync(id, ct),
+            List = (sp, ct) => S<DropDefinitionService>(sp).ListAsync(ct),
+            Get = (sp, id, ct) => S<DropDefinitionService>(sp).GetAsync(id, ct),
+            GetVersion = (sp, id, ct) => S<DropDefinitionService>(sp).GetVersionAsync(id, ct),
+            GetVersions = (sp, ct) => S<DropDefinitionService>(sp).GetVersionsAsync(ct),
+            Create = (sp, b, ct) => S<DropDefinitionService>(sp).CreateAsync(DropInputOf(b), ct),
+            Update = (sp, id, b, v, ct) => S<DropDefinitionService>(sp).UpdateAsync(id, DropInputOf(b), v, ct),
+            Delete = (sp, id, ct) => S<DropDefinitionService>(sp).DeleteAsync(id, ct),
             IdOf = e => e.Id,
             ToDto = (e, v) => new DropDto(e.Id, e.Lokasyon, e.Sube, e.CikisLokasyon, e.KarsilamaSekli, e.CalismaSekli,
                 e.OzelIletisim, e.Ucret, e.MinGun, e.ManSuresi, e.Drop2, e.Aktif, v),
@@ -60,13 +60,13 @@ public static partial class TanimApi
         var rules = v1.MapDefinition(new DefinitionRoute<DolulukFiyatKural, OccupancyRuleDto, OccupancyRuleRequest>
         {
             Path = "/doluluk-kurallari", Tag = Tag, Permission = Permission.OperationsWrite,
-            List = (sp, ct) => S<DolulukFiyatKuralService>(sp).ListAsync(ct),
-            Get = (sp, id, ct) => S<DolulukFiyatKuralService>(sp).GetAsync(id, ct),
-            GetVersion = (sp, id, ct) => S<DolulukFiyatKuralService>(sp).GetVersionAsync(id, ct),
-            GetVersions = (sp, ct) => S<DolulukFiyatKuralService>(sp).GetVersionsAsync(ct),
-            Create = (sp, b, ct) => S<DolulukFiyatKuralService>(sp).CreateAsync(OccupancyInputOf(b), ct),
-            Update = (sp, id, b, v, ct) => S<DolulukFiyatKuralService>(sp).UpdateAsync(id, OccupancyInputOf(b), v, ct),
-            Delete = (sp, id, ct) => S<DolulukFiyatKuralService>(sp).DeleteAsync(id, ct),
+            List = (sp, ct) => S<OccupancyPriceRuleService>(sp).ListAsync(ct),
+            Get = (sp, id, ct) => S<OccupancyPriceRuleService>(sp).GetAsync(id, ct),
+            GetVersion = (sp, id, ct) => S<OccupancyPriceRuleService>(sp).GetVersionAsync(id, ct),
+            GetVersions = (sp, ct) => S<OccupancyPriceRuleService>(sp).GetVersionsAsync(ct),
+            Create = (sp, b, ct) => S<OccupancyPriceRuleService>(sp).CreateAsync(OccupancyInputOf(b), ct),
+            Update = (sp, id, b, v, ct) => S<OccupancyPriceRuleService>(sp).UpdateAsync(id, OccupancyInputOf(b), v, ct),
+            Delete = (sp, id, ct) => S<OccupancyPriceRuleService>(sp).DeleteAsync(id, ct),
             IdOf = e => e.Id,
             ToDto = (e, v) => new OccupancyRuleDto(e.Id, e.Kod, e.Ad, e.AracGrupKod, e.EsikYuzde, e.CarpanYuzde, e.Sube,
                 e.SadeceKendiSubeleri, Day(e.GecerlilikBas), Day(e.GecerlilikBit), e.Aktif, v),
@@ -78,11 +78,11 @@ public static partial class TanimApi
         });
 
         // Bulk ladder: N rules in one go; the service validates ALL steps before writing any (no half ladder).
-        rules.MapPost("/toplu", async Task<Created<OccupancyBulkResult>> (OccupancyBulkRequest b, DolulukFiyatKuralService s, CancellationToken ct) =>
+        rules.MapPost("/toplu", async Task<Created<OccupancyBulkResult>> (OccupancyBulkRequest b, OccupancyPriceRuleService s, CancellationToken ct) =>
         {
             OccupancyLimits(b.KodOnEk, b.AdOnEk, b.AracGrupKod, b.Sube);
             if ((b.Kademeler?.Count ?? 0) > 20) throw new ValidationException("En fazla 20 kademe girilebilir.", "kademeler");
-            var ids = await s.TopluCreateAsync(new DolulukTopluInput
+            var ids = await s.BulkCreateAsync(new DolulukTopluInput
             {
                 KodOnEk = b.KodOnEk ?? "", AdOnEk = b.AdOnEk ?? "", AracGrupKod = b.AracGrupKod, Sube = b.Sube,
                 SadeceKendiSubeleri = b.SadeceKendiSubeleri, GecerlilikBas = Start(b.GecerlilikBas),

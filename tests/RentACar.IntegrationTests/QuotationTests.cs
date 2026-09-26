@@ -26,7 +26,7 @@ public sealed class QuotationTests(PostgresFixture fx)
     {
         var customers = scope.ServiceProvider.GetRequiredService<CustomerService>();
         var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
-        var m = await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Teklif", Soyad = "Müşteri" });
+        var m = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Teklif", Soyad = "Müşteri" });
         var v = await vehicles.CreateAsync(new VehicleInput { Plaka = "34TKF01" });
         return (m, v);
     }
@@ -112,7 +112,7 @@ public sealed class QuotationTests(PostgresFixture fx)
         await svc.AcceptAsync(id);
         // Kabul edilmiş teklif tekrar kabul edilemez. F5.1 adversarial H1: yanıtı kaybolan tekrar da eşzamanlı ikinci
         // kabulle AYNI sözleşmeyi alır — EszamanliDegisiklikException (409 cakisma; ValidationException'dan türer).
-        await Assert.ThrowsAsync<EszamanliDegisiklikException>(() => svc.AcceptAsync(id));
+        await Assert.ThrowsAsync<ConcurrentModificationException>(() => svc.AcceptAsync(id));
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed class QuotationTests(PostgresFixture fx)
         // Muhasebe: FinanceWrite var, OperationsWrite YOK → teklif oluşturamaz.
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<QuotationService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(Input(m, v)));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(Input(m, v)));
     }
 
     [Fact]

@@ -1,7 +1,7 @@
 namespace RentACar.Application.Notifications;
 
 /// <summary>
-/// F11.1b — mesaj şablonu tam değiştirme PUT'unun iyimser eşzamanlılığı. <see cref="IMesajRepository"/>'ye üye
+/// F11.1b — mesaj şablonu tam değiştirme PUT'unun iyimser eşzamanlılığı. <see cref="IMessageRepository"/>'ye üye
 /// eklemek yerine ayrı sözleşme: job yolu uygulaması (DogrudanMesajRepository) sürüm bilmez.
 /// </summary>
 public interface IMessageTemplateVersionStore
@@ -11,7 +11,7 @@ public interface IMessageTemplateVersionStore
 
     /// <summary>
     /// (tür, kanal) satırını kilit + sürüm karşılaştırmasıyla upsert eder. Satır varsa <paramref name="expectedVersion"/>
-    /// onun sürümüne eşit olmalı; yoksa <c>null</c> olmalı. Aksi halde <see cref="Common.EszamanliDegisiklikException"/>.
+    /// onun sürümüne eşit olmalı; yoksa <c>null</c> olmalı. Aksi halde <see cref="Common.ConcurrentModificationException"/>.
     /// </summary>
     Task UpsertAsync(MesajSablonInput input, string? expectedVersion, CancellationToken ct = default);
 }

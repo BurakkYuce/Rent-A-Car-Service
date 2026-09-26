@@ -5,7 +5,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Müşteri taksiti kalıcılığı (FAZ-66).</summary>
-public sealed class MusteriTaksitRepository(IDbContextFactory<AppDbContext> factory) : IMusteriTaksitRepository
+public sealed class MusteriTaksitRepository(IDbContextFactory<AppDbContext> factory) : ICustomerInstallmentRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -41,7 +41,7 @@ public sealed class MusteriTaksitRepository(IDbContextFactory<AppDbContext> fact
         db.MusteriTaksitleri.Add(row);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException ex) when (PkIhlali.Mi(ex)) // F6.1b: Id = işlem anahtarı → çift gönderim
-        { throw new RentACar.Application.Common.MukerrerIslemException(PkIhlali.Mesaj); }
+        { throw new RentACar.Application.Common.DuplicateOperationException(PkIhlali.Mesaj); }
     }
 
     public async Task CreateManyAsync(IReadOnlyList<MusteriTaksit> rows, CancellationToken ct = default)
@@ -55,7 +55,7 @@ public sealed class MusteriTaksitRepository(IDbContextFactory<AppDbContext> fact
         catch (DbUpdateException ex) when (PkIhlali.Mi(ex)) // F6.1b: aynı anahtarla ikinci plan → tümü geri
         {
             await tx.RollbackAsync(ct);
-            throw new RentACar.Application.Common.MukerrerIslemException(PkIhlali.Mesaj);
+            throw new RentACar.Application.Common.DuplicateOperationException(PkIhlali.Mesaj);
         }
         await tx.CommitAsync(ct);
     }
@@ -80,18 +80,18 @@ public sealed class MusteriTaksitRepository(IDbContextFactory<AppDbContext> fact
         return true;
     }
 
-    public Task<bool> KilitliGuncelleAsync(Guid id, string? beklenenSurum, Action<MusteriTaksit> apply,
+    public Task<bool> UpdateLockedAsync(Guid id, string? beklenenSurum, Action<MusteriTaksit> apply,
         CancellationToken ct = default)
         => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.MusteriTaksitleri, id, beklenenSurum,
             (db, k, c) => db.MusteriTaksitleri.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 
-    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.MusteriTaksitleri, id, ct);
     }
 
-    public async Task<int> SonSiraAsync(Guid cariId, Guid? vehicleId, CancellationToken ct = default)
+    public async Task<int> LastOrderAsync(Guid cariId, Guid? vehicleId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.MusteriTaksitleri.AsNoTracking().Where(x => x.CariId == cariId);

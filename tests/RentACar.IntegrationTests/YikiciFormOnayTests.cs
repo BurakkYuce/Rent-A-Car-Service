@@ -219,7 +219,7 @@ public sealed class YikiciFormOnayTests
         const string razor =
             "<form method=\"post\" action=\"@(_duzenle is null ? \"/x/create\" : \"/x/update\")\"\n" +
             "      class=\"@(a > b ? \"x\" : \"y\")\"\n" +
-            "      data-confirm=\"@($\"{k.Ad} silinsin mi? \\\"{k.Kod}\\\" kalıcı gider.\")\">\n" +
+            "      data-confirm=\"@($\"{k.Name} silinsin mi? \\\"{k.Kod}\\\" kalıcı gider.\")\">\n" +
             "  <input type=\"hidden\" name=\"id\" value=\"@k.Id\" />\n" +
             "</form>\n" +
             "<form method=\"post\" action=\"/cezalar/@c.Id/iptal\"><button>İptal</button></form>";

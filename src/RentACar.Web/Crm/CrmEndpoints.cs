@@ -13,19 +13,19 @@ public static class CrmEndpoints
     public static IEndpointRouteBuilder MapCrmEndpoints(this IEndpointRouteBuilder app)
     {
         var an = app.MapGroup("/anketler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
-        an.MapPost("/create", async (AnketService svc, HttpRequest req) =>
+        an.MapPost("/create", async (SurveyService svc, HttpRequest req) =>
             await Run("/anketler", () => svc.CreateAsync(BuildAnket(req.Form))));
-        an.MapPost("/update", async (AnketService svc, HttpRequest req, [FromForm] Guid id) =>
+        an.MapPost("/update", async (SurveyService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run("/anketler", () => svc.UpdateAsync(id, BuildAnket(req.Form))));
-        an.MapPost("/delete", async (AnketService svc, [FromForm] Guid id) =>
+        an.MapPost("/delete", async (SurveyService svc, [FromForm] Guid id) =>
             await Run("/anketler", () => svc.DeleteAsync(id)));
 
         var sk = app.MapGroup("/sikayetler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
-        sk.MapPost("/create", async (SikayetService svc, HttpRequest req) =>
+        sk.MapPost("/create", async (ComplaintService svc, HttpRequest req) =>
             await Run("/sikayetler", () => svc.CreateAsync(BuildSikayet(req.Form))));
-        sk.MapPost("/update", async (SikayetService svc, HttpRequest req, [FromForm] Guid id) =>
+        sk.MapPost("/update", async (ComplaintService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run("/sikayetler", () => svc.UpdateAsync(id, BuildSikayet(req.Form))));
-        sk.MapPost("/delete", async (SikayetService svc, [FromForm] Guid id) =>
+        sk.MapPost("/delete", async (ComplaintService svc, [FromForm] Guid id) =>
             await Run("/sikayetler", () => svc.DeleteAsync(id)));
 
         return app;
@@ -40,9 +40,9 @@ public static class CrmEndpoints
         Kaynak = FormParse.Str(f, "kaynak"),
         // FAZ-42 — sözleşme bağı + tür/durum + 8 soruluk cevap seti
         RentalId = FormParse.Id(FormParse.Str(f, "rentalId")),
-        AnketTuru = Enum.TryParse<RentACar.Domain.Enums.AnketTuru>(FormParse.Str(f, "anketTuru"), out var at) ? at : null,
-        Durum = Enum.TryParse<RentACar.Domain.Enums.AnketDurum>(FormParse.Str(f, "durum"), out var ad)
-            ? ad : RentACar.Domain.Enums.AnketDurum.Yapildi,
+        AnketTuru = Enum.TryParse<RentACar.Domain.Enums.SurveyType>(FormParse.Str(f, "anketTuru"), out var at) ? at : null,
+        Durum = Enum.TryParse<RentACar.Domain.Enums.SurveyStatus>(FormParse.Str(f, "durum"), out var ad)
+            ? ad : RentACar.Domain.Enums.SurveyStatus.Yapildi,
         CikisOfisi = FormParse.Str(f, "cikisOfisi"),
         Cevaplar = AnketCevaplari(f)
     };
@@ -74,7 +74,7 @@ public static class CrmEndpoints
         CariId = Guid.TryParse(FormParse.Str(f, "cariId"), out var c) ? c : null,
         Konu = f["konu"].ToString(),
         Detay = FormParse.Str(f, "detay"),
-        Durum = ParseEnum<SikayetDurum>(FormParse.Str(f, "durum")) ?? SikayetDurum.Acik,
+        Durum = ParseEnum<ComplaintStatus>(FormParse.Str(f, "durum")) ?? ComplaintStatus.Acik,
         Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
         Cozum = FormParse.Str(f, "cozum"),
         // FAZ-43 teslim/dönüş bağı
@@ -83,7 +83,7 @@ public static class CrmEndpoints
         TeslimEdenPersonelId = FormParse.Id(FormParse.Str(f, "teslimEdenPersonelId")),
         Puan = FormParse.Int(FormParse.Str(f, "puan")),
         SikayetKanali = FormParse.Str(f, "sikayetKanali"),
-        SikayetYeri = Enum.TryParse<RentACar.Domain.Enums.SikayetYeri>(FormParse.Str(f, "sikayetYeri"), out var sy) ? sy : null,
+        SikayetYeri = Enum.TryParse<RentACar.Domain.Enums.ComplaintLocation>(FormParse.Str(f, "sikayetYeri"), out var sy) ? sy : null,
         CikisOfisi = FormParse.Str(f, "cikisOfisi")
     };
 

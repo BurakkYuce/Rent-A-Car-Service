@@ -4,7 +4,7 @@
 @inject CustomerService Customers
 @inject VehicleService Vehicles
 @inject LocationService Locations
-@inject RentACar.Application.TenantSettings.FormVarsayilanCozucu Varsayilanlar
+@inject RentACar.Application.TenantSettings.FormDefaultResolver Varsayilanlar
 
 <PageTitle>Teklifler — RentPro</PageTitle>
 
@@ -42,7 +42,7 @@
            ilki ("Otomatik") seçili kalır — bugünkü davranışın birebir aynısı. *@
         <label>Fiyat Türü
             <select name="fiyatTuru">
-                @foreach (var o in RentACar.Application.Pricing.FiyatTuruSecenek.Hepsi)
+                @foreach (var o in RentACar.Application.Pricing.PriceTypeOption.All)
                 {
                     <option value="@o" selected="@(o == _varsayilanFiyatTuru)">@o</option>
                 }
@@ -131,7 +131,7 @@
         _locations = await Locations.ListActiveAsync();
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
-        _varsayilanFiyatTuru = await Varsayilanlar.FiyatTuruAsync(); // FAZ-82 (ayar yoksa null → ilk seçenek)
+        _varsayilanFiyatTuru = await Varsayilanlar.PriceTypeAsync(); // FAZ-82 (ayar yoksa null → ilk seçenek)
     }
 
     private string Cust(Guid id) => _custMap.GetValueOrDefault(id, "—");

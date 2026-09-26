@@ -27,7 +27,7 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
 {
     private static async Task<Guid> CariAsync(IServiceProvider sp, string unvan)
         => await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = unvan });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = unvan });
 
     [Fact]
     public async Task Kunye_alanlari_round_trip_ve_BAKIYE_ETKISI_AYNI()
@@ -41,15 +41,15 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
 
         var tarih = TestZaman.Simdi().AddDays(-3);
         var vade = tarih.AddDays(30);
-        await cash.TransferBetweenCariAsync(a, b, 2500m,
-            aciklama: "Grup içi mahsup", tarih: tarih, vade: vade,
-            makbuzNo: " MKB-77 ", sube: " Merkez ");
+        await cash.TransferBetweenAccountsAsync(a, b, 2500m,
+            description: "Grup içi mahsup", date: tarih, due: vade,
+            receiptNo: " MKB-77 ", branch: " Merkez ");
 
         // ELLE: kaynak −2500 (alacaklandı), hedef +2500 (borçlandı). Toplam etki 0 (dengeli).
-        Assert.Equal(-2500m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(2500m, await cash.GetCariBalanceAsync(b));
+        Assert.Equal(-2500m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(2500m, await cash.GetAccountBalanceAsync(b));
 
-        var v = Assert.Single(await cash.ListCariVirmanlarAsync());
+        var v = Assert.Single(await cash.ListAccountTransfersAsync());
         Assert.Equal(a, v.KaynakCariId);
         Assert.Equal("Kaynak A.Ş.", v.KaynakCariAd);
         Assert.Equal(b, v.HedefCariId);
@@ -79,12 +79,12 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         var b = await CariAsync(sp, "B");
 
         var gecmis = TestZaman.Simdi().AddDays(-20);
-        await cash.TransferBetweenCariAsync(a, b, 100m, tarih: gecmis);
+        await cash.TransferBetweenAccountsAsync(a, b, 100m, date: gecmis);
 
         // Defter satırının tarihi verilen tarih olmalı — künye ile defter ayrışamaz.
         var satir = Assert.Single((await cash.GetStatementAsync(b)).Satirlar);
         Assert.Equal(gecmis, satir.EntryDateUtc);
-        Assert.Equal(gecmis, Assert.Single(await cash.ListCariVirmanlarAsync()).Tarih);
+        Assert.Equal(gecmis, Assert.Single(await cash.ListAccountTransfersAsync()).Tarih);
     }
 
     [Fact]
@@ -97,18 +97,18 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         var a = await CariAsync(sp, "A");
         var b = await CariAsync(sp, "B");
 
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(
-            a, b, 100m, tarih: TestZaman.Simdi().AddDays(10)));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(
+            a, b, 100m, date: TestZaman.Simdi().AddDays(10)));
 
         var t = TestZaman.Simdi();
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(
-            a, b, 100m, tarih: t, vade: t.AddDays(-5)));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(
+            a, b, 100m, date: t, due: t.AddDays(-5)));
         Assert.Contains("Vade tarihi", ex.Message);
 
         // Reddedilen çağrılar ne deftere ne künyeye yazmış olmalı.
-        Assert.Empty(await cash.ListCariVirmanlarAsync());
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(b));
+        Assert.Empty(await cash.ListAccountTransfersAsync());
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(b));
     }
 
     [Fact]
@@ -122,11 +122,11 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         var a = await CariAsync(sp, "A");
         var b = await CariAsync(sp, "B");
 
-        await cash.TransferBetweenCariAsync(a, b, 750m);
+        await cash.TransferBetweenAccountsAsync(a, b, 750m);
 
-        Assert.Equal(-750m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(750m, await cash.GetCariBalanceAsync(b));
-        var v = Assert.Single(await cash.ListCariVirmanlarAsync());
+        Assert.Equal(-750m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(750m, await cash.GetAccountBalanceAsync(b));
+        var v = Assert.Single(await cash.ListAccountTransfersAsync());
         Assert.Null(v.Vade);
         Assert.Null(v.MakbuzNo);
         Assert.Null(v.Sube);
@@ -144,13 +144,13 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         var b = await CariAsync(sp, "B");
 
         var token = Guid.NewGuid();
-        await cash.TransferBetweenCariAsync(a, b, 300m, islemAnahtari: token, makbuzNo: "MK-1");
-        await cash.TransferBetweenCariAsync(a, b, 300m, islemAnahtari: token, makbuzNo: "MK-1");
+        await cash.TransferBetweenAccountsAsync(a, b, 300m, operationKey: token, receiptNo: "MK-1");
+        await cash.TransferBetweenAccountsAsync(a, b, 300m, operationKey: token, receiptNo: "MK-1");
 
         // Defter TEK kere borçlandırmalı…
-        Assert.Equal(300m, await cash.GetCariBalanceAsync(b));
+        Assert.Equal(300m, await cash.GetAccountBalanceAsync(b));
         // …künye de TEK satır olmalı (defterle aynı transaction'da yazıldığı için ikisi ayrışamaz).
-        Assert.Single(await cash.ListCariVirmanlarAsync());
+        Assert.Single(await cash.ListAccountTransfersAsync());
     }
 
     [Fact]
@@ -165,34 +165,34 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         var c = await CariAsync(sp, "Gama");
 
         var t = TestZaman.Simdi();
-        await cash.TransferBetweenCariAsync(a, b, 100m, tarih: t.AddDays(-30), makbuzNo: "MK-A", sube: "Merkez");
-        await cash.TransferBetweenCariAsync(b, c, 200m, tarih: t.AddDays(-10), makbuzNo: "MK-B", sube: "Şube2");
-        await cash.TransferBetweenCariAsync(c, a, 300m, tarih: t.AddDays(-1), makbuzNo: "MK-C", aciklama: "son virman");
+        await cash.TransferBetweenAccountsAsync(a, b, 100m, date: t.AddDays(-30), receiptNo: "MK-A", branch: "Merkez");
+        await cash.TransferBetweenAccountsAsync(b, c, 200m, date: t.AddDays(-10), receiptNo: "MK-B", branch: "Şube2");
+        await cash.TransferBetweenAccountsAsync(c, a, 300m, date: t.AddDays(-1), receiptNo: "MK-C", description: "son virman");
 
         // ELLE: 3 virman.
-        Assert.Equal(3, (await cash.ListCariVirmanlarAsync()).Count);
-        Assert.Equal(3, (await cash.ListCariVirmanlarAsync(new CariVirmanFilter())).Count);
+        Assert.Equal(3, (await cash.ListAccountTransfersAsync()).Count);
+        Assert.Equal(3, (await cash.ListAccountTransfersAsync(new CariVirmanFilter())).Count);
 
         // Cari filtresi KAYNAK ya da HEDEF olmayı kapsar: a → 1. ve 3. virman.
-        Assert.Equal(2, (await cash.ListCariVirmanlarAsync(new CariVirmanFilter { CariId = a })).Count);
-        Assert.Equal(2, (await cash.ListCariVirmanlarAsync(new CariVirmanFilter { CariId = b })).Count);
+        Assert.Equal(2, (await cash.ListAccountTransfersAsync(new CariVirmanFilter { CariId = a })).Count);
+        Assert.Equal(2, (await cash.ListAccountTransfersAsync(new CariVirmanFilter { CariId = b })).Count);
 
         // Metin: makbuz / açıklama / şube
-        Assert.Equal("MK-B", Assert.Single(await cash.ListCariVirmanlarAsync(
+        Assert.Equal("MK-B", Assert.Single(await cash.ListAccountTransfersAsync(
             new CariVirmanFilter { Ara = "mk-b" })).MakbuzNo);
-        Assert.Equal("Şube2", Assert.Single(await cash.ListCariVirmanlarAsync(
+        Assert.Equal("Şube2", Assert.Single(await cash.ListAccountTransfersAsync(
             new CariVirmanFilter { Ara = "şube2" })).Sube);
-        Assert.Equal("son virman", Assert.Single(await cash.ListCariVirmanlarAsync(
+        Assert.Equal("son virman", Assert.Single(await cash.ListAccountTransfersAsync(
             new CariVirmanFilter { Ara = "son vir" })).Aciklama);
 
         // Tarih: son 15 gün → 2 kayıt
-        Assert.Equal(2, (await cash.ListCariVirmanlarAsync(new CariVirmanFilter { Bas = t.AddDays(-15) })).Count);
+        Assert.Equal(2, (await cash.ListAccountTransfersAsync(new CariVirmanFilter { Bas = t.AddDays(-15) })).Count);
         // Kapalı aralık → yalnız ortadaki
-        Assert.Equal("MK-B", Assert.Single(await cash.ListCariVirmanlarAsync(
+        Assert.Equal("MK-B", Assert.Single(await cash.ListAccountTransfersAsync(
             new CariVirmanFilter { Bas = t.AddDays(-15), Bit = t.AddDays(-5) })).MakbuzNo);
 
         // Sıralama: en yeni önce.
-        var hepsi = await cash.ListCariVirmanlarAsync();
+        var hepsi = await cash.ListAccountTransfersAsync();
         Assert.Equal("MK-C", hepsi[0].MakbuzNo);
     }
 
@@ -208,7 +208,7 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         var a = await CariAsync(sp, "A");
         var b = await CariAsync(sp, "B");
 
-        await cash.TransferBetweenCariAsync(a, b, 500m);
+        await cash.TransferBetweenAccountsAsync(a, b, 500m);
         // Künyeyi sil → "eski kayıt" durumunu taklit et.
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
@@ -217,9 +217,9 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
             await db.SaveChangesAsync();
         }
 
-        Assert.Empty(await cash.ListCariVirmanlarAsync());
+        Assert.Empty(await cash.ListAccountTransfersAsync());
         // Defter DOKUNULMAMIŞ: bakiye ve ekstre yerinde.
-        Assert.Equal(500m, await cash.GetCariBalanceAsync(b));
+        Assert.Equal(500m, await cash.GetAccountBalanceAsync(b));
         Assert.Single((await cash.GetStatementAsync(b)).Satirlar);
     }
 
@@ -231,20 +231,20 @@ public sealed class CariVirmanDerinlikTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var sp = s1.ServiceProvider;
-            await sp.GetRequiredService<CashService>().TransferBetweenCariAsync(
-                await CariAsync(sp, "Gizli A"), await CariAsync(sp, "Gizli B"), 100m, makbuzNo: "GIZLI");
+            await sp.GetRequiredService<CashService>().TransferBetweenAccountsAsync(
+                await CariAsync(sp, "Gizli A"), await CariAsync(sp, "Gizli B"), 100m, receiptNo: "GIZLI");
         }
 
         using (var s2 = host.ScopeFor(Guid.NewGuid()))
         {
             var cash = s2.ServiceProvider.GetRequiredService<CashService>();
-            Assert.Empty(await cash.ListCariVirmanlarAsync());
-            Assert.Empty(await cash.ListCariVirmanlarAsync(new CariVirmanFilter { Ara = "GIZLI" }));
+            Assert.Empty(await cash.ListAccountTransfersAsync());
+            Assert.Empty(await cash.ListAccountTransfersAsync(new CariVirmanFilter { Ara = "GIZLI" }));
         }
 
         // Operatör: ViewReports yok → göremez.
         using var op = host.ScopeFor(t1, Guid.NewGuid(), "op", UserRole.Operator);
-        await Assert.ThrowsAsync<YetkiYokException>(
-            () => op.ServiceProvider.GetRequiredService<CashService>().ListCariVirmanlarAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(
+            () => op.ServiceProvider.GetRequiredService<CashService>().ListAccountTransfersAsync());
     }
 }

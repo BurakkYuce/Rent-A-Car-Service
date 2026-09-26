@@ -27,7 +27,7 @@ public sealed class CariReportTests(PostgresFixture fx)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var c = new Customer { Tip = CariType.Bireysel, Ad = ad, Soyad = soyad };
+        var c = new Customer { Tip = CustomerType.Bireysel, Ad = ad, Soyad = soyad };
         db.Customers.Add(c);
         await db.SaveChangesAsync();
         return c.Id;
@@ -52,7 +52,7 @@ public sealed class CariReportTests(PostgresFixture fx)
         // Veli: yalnız tahsilat 1000 → bakiye −1000 (alacaklı).
         await cash.CollectAsync(new CashInput { CariId = veli, Tutar = 1000m });
 
-        var balances = await reports.GetCariBalancesAsync();
+        var balances = await reports.GetAccountBalancesAsync();
         Assert.Equal(2, balances.Count);
         Assert.Equal(ali, balances[0].CariId);       // en yüksek bakiye önce
         Assert.Equal("Ali Veli", balances[0].Ad);    // DisplayName çözümlendi
@@ -104,7 +104,7 @@ public sealed class CariReportTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(t2);
         var reports = s2.ServiceProvider.GetRequiredService<ReportService>();
-        Assert.Empty(await reports.GetCariBalancesAsync());
+        Assert.Empty(await reports.GetAccountBalancesAsync());
         Assert.Empty(await reports.GetAgingAsync(DateTimeOffset.UtcNow));
     }
 }

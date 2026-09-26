@@ -34,9 +34,9 @@ internal static partial class ServiceRecordApi
         var input = new ServiceRecordInput
         {
             Id = key, VehicleId = r.VehicleId!.Value,
-            Tip = F5Ortak.EnumAdi<ServisTipi>(r.Tip, "tip") ?? ServisTipi.Periyodik, GirisKm = r.GirisKm ?? 0,
+            Tip = F5Ortak.EnumAdi<ServiceType>(r.Tip, "tip") ?? ServiceType.Periyodik, GirisKm = r.GirisKm ?? 0,
             GirisTarihi = S.Date(r.GirisTarihi, "girisTarihi"),
-            HasarSorumlu = F5Ortak.EnumAdi<HasarSorumlu>(r.HasarSorumlu, "hasarSorumlu") ?? HasarSorumlu.Yok,
+            HasarSorumlu = F5Ortak.EnumAdi<DamageResponsible>(r.HasarSorumlu, "hasarSorumlu") ?? DamageResponsible.Yok,
             KusurOrani = r.KusurOrani, Rezervasyon = r.Rezervasyon,
         };
         if (r.Bilgi is { } bi) ApplyInfo(input, bi);
@@ -49,17 +49,17 @@ internal static partial class ServiceRecordApi
         catch (DbUpdateException ex) when (key is { } k2 && S.IsPrimaryKeyViolation(ex))
         {
             if (await ScopedAsync(k2, svc, dbf, user, ct) is { } won) throw Duplicate(won, r);
-            throw new MukerrerIslemException(OtherOperation);
+            throw new DuplicateOperationException(OtherOperation);
         }
         var d = await DetailAsync(id, http, svc, dbf, user, ct);
         return TypedResults.Created($"{Root}/{id}", d!);
     }
 
-    private static MukerrerIslemException Duplicate(ServiceRecord m, ServiceRecordRequest r)
+    private static DuplicateOperationException Duplicate(ServiceRecord m, ServiceRecordRequest r)
         => new($"Bu servis kaydı zaten eklendi (No {m.No}); yeni kayıt yazılmadı.",
             new MevcutIslem(m.Id, m.No, m.ToplamIscilik, "TRY",
                 m.VehicleId == r.VehicleId && m.GirisKm == (r.GirisKm ?? 0)
-                && string.Equals(m.Tip.ToString(), r.Tip ?? nameof(ServisTipi.Periyodik), StringComparison.OrdinalIgnoreCase)));
+                && string.Equals(m.Tip.ToString(), r.Tip ?? nameof(ServiceType.Periyodik), StringComparison.OrdinalIgnoreCase)));
 
     // ------------------------------------------------------------------ bilgi blokları (tam değiştirme)
 
@@ -72,7 +72,7 @@ internal static partial class ServiceRecordApi
         InfoLimits(r, old);
         var input = new ServiceRecordBilgiInput();
         ApplyInfo(input, r);
-        if (!await svc.BilgiGuncelleVersionedAsync(id, input, version, ct)) return NotFound();
+        if (!await svc.UpdateInfoVersionedAsync(id, input, version, ct)) return NotFound();
         return TypedResults.Ok((await DetailAsync(id, http, svc, dbf, user, ct))!);
     }
 
@@ -90,7 +90,7 @@ internal static partial class ServiceRecordApi
             if (k >= 1_000_000m) throw new ValidationException("Kur çok büyük.", "odemeKur");
             AracFinansOrtak.EnsureMaxScale(k, 6, "odemeKur");
         }
-        F5Ortak.EnumAdi<OdemeYontemi>(r.OdemeTuru, "odemeTuru");
+        F5Ortak.EnumAdi<PaymentMethod>(r.OdemeTuru, "odemeTuru");
     }
 
     private static void ApplyInfo(ServiceRecordBilgiInput b, ServiceInfoRequest r)
@@ -100,7 +100,7 @@ internal static partial class ServiceRecordApi
         b.KazaSorumlusu = r.KazaSorumlusu; b.HasarDosyaNo = r.HasarDosyaNo; b.DegerKaybi = r.DegerKaybi;
         b.FaturaTarihi = S.Date(r.FaturaTarihi, "faturaTarihi"); b.FaturaNo = r.FaturaNo; b.FaturaTutar = r.FaturaTutar;
         b.FaturaKdv = r.FaturaKdv; b.OdemeTarihi = S.Date(r.OdemeTarihi, "odemeTarihi"); b.Odeme = r.Odeme;
-        b.OdemeDoviz = r.OdemeDoviz; b.OdemeKur = r.OdemeKur; b.OdemeTuru = F5Ortak.EnumAdi<OdemeYontemi>(r.OdemeTuru, "odemeTuru");
+        b.OdemeDoviz = r.OdemeDoviz; b.OdemeKur = r.OdemeKur; b.OdemeTuru = F5Ortak.EnumAdi<PaymentMethod>(r.OdemeTuru, "odemeTuru");
         b.KasaKodu = r.KasaKodu; b.HesapNo = r.HesapNo; b.CikisYakit = r.CikisYakit; b.DonusYakit = r.DonusYakit;
         b.PlanBasTarihi = S.Date(r.PlanBasTarihi, "planBasTarihi"); b.PlanBitTarihi = S.Date(r.PlanBitTarihi, "planBitTarihi");
     }
@@ -119,12 +119,12 @@ internal static partial class ServiceRecordApi
         ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         S.IntRange(r.GirisKm, 0, 10_000_000, "girisKm");
-        return Transition(id, http, svc, dbf, user, () => svc.ServiseAlAsync(id, r.GirisKm, ct), ct);
+        return Transition(id, http, svc, dbf, user, () => svc.TakeIntoServiceAsync(id, r.GirisKm, ct), ct);
     }
 
     private static Task<Results<Ok<ServiceRecordDetail>, ProblemHttpResult>> Start(Guid id, HttpContext http,
         ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
-        => Transition(id, http, svc, dbf, user, () => svc.BaslatAsync(id, ct), ct);
+        => Transition(id, http, svc, dbf, user, () => svc.StartAsync(id, ct), ct);
 
     private static Task<Results<Ok<ServiceRecordDetail>, ProblemHttpResult>> Complete(Guid id, ServiceCompleteRequest r,
         HttpContext http, ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
@@ -132,10 +132,10 @@ internal static partial class ServiceRecordApi
         if (r.CikisKm is null) throw new ValidationException("Çıkış KM zorunludur.", "cikisKm");
         S.IntRange(r.CikisKm, 0, 10_000_000, "cikisKm");
         S.IntRange(r.SonrakiBakimKm, 0, 10_000_000, "sonrakiBakimKm");
-        return Transition(id, http, svc, dbf, user, () => svc.TamamlaAsync(id, r.CikisKm.Value, r.SonrakiBakimKm, ct), ct);
+        return Transition(id, http, svc, dbf, user, () => svc.CompleteAsync(id, r.CikisKm.Value, r.SonrakiBakimKm, ct), ct);
     }
 
     private static Task<Results<Ok<ServiceRecordDetail>, ProblemHttpResult>> Cancel(Guid id, HttpContext http,
         ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
-        => Transition(id, http, svc, dbf, user, () => svc.IptalAsync(id, ct), ct);
+        => Transition(id, http, svc, dbf, user, () => svc.CancelAsync(id, ct), ct);
 }

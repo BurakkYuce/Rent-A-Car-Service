@@ -6,4 +6,4 @@ namespace RentACar.Application.Regulation;
 public sealed record VadeSource(Guid VehicleId, string Tur, DateTimeOffset Bitis);
 
 /// <summary>Vade panosu satırı (kova + kalan gün hesaplanmış).</summary>
-public sealed record VadeItem(Guid VehicleId, string Tur, DateTimeOffset Bitis, int KalanGun, VadeBucket Bucket);
+public sealed record VadeItem(Guid VehicleId, string Tur, DateTimeOffset Bitis, int KalanGun, DueBucket Bucket);

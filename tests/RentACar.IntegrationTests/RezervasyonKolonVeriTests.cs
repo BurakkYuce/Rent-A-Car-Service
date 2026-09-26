@@ -33,7 +33,7 @@ public sealed class RezervasyonKolonVeriTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
 
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Kolon", Soyad = "Test", CepTel = "05551112233" });
+        { Tip = CustomerType.Bireysel, Ad = "Kolon", Soyad = "Test", CepTel = "05551112233" });
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KL 01" });
 
         var rez = sp.GetRequiredService<ReservationService>();
@@ -61,7 +61,7 @@ public sealed class RezervasyonKolonVeriTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Kanal", Soyad = "Test" });
+        { Tip = CustomerType.Bireysel, Ad = "Kanal", Soyad = "Test" });
         var veh = sp.GetRequiredService<VehicleService>();
         var rez = sp.GetRequiredService<ReservationService>();
 

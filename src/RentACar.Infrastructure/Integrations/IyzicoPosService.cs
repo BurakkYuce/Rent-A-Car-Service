@@ -51,7 +51,7 @@ public sealed class IyzicoPosService(
     private const string UcIptal = "/payment/cancel";
     private const string UcIade = "/payment/refund";
 
-    public async Task<PosBaslatSonuc> BaslatAsync(PosOdemeIstegi istek, CancellationToken ct = default)
+    public async Task<PosBaslatSonuc> StartAsync(PosOdemeIstegi istek, CancellationToken ct = default)
     {
         if (!ayar.Yapilandirildi)
             return new PosBaslatSonuc(false, null, null, "Ödeme sağlayıcısı yapılandırılmadı.");
@@ -111,7 +111,7 @@ public sealed class IyzicoPosService(
         return new PosBaslatSonuc(true, token, url, null);
     }
 
-    public async Task<PosDurumSonuc> SonucAsync(string token, CancellationToken ct = default)
+    public async Task<PosDurumSonuc> ResultAsync(string token, CancellationToken ct = default)
     {
         if (!ayar.Yapilandirildi)
             return new PosDurumSonuc(false, null, null, null, null, null, null, "Ödeme sağlayıcısı yapılandırılmadı.");
@@ -142,7 +142,7 @@ public sealed class IyzicoPosService(
         return new PosDurumSonuc(true, odemeId, islemId, odemeDurum, tutar, kart, referans, null);
     }
 
-    public Task<PosResult> KapatAsync(string odemeId, decimal tutar, string ip, CancellationToken ct = default)
+    public Task<PosResult> CloseAsync(string odemeId, decimal tutar, string ip, CancellationToken ct = default)
         => BasitAsync(UcKapat, new Dictionary<string, object?>
         {
             ["locale"] = "tr",
@@ -152,7 +152,7 @@ public sealed class IyzicoPosService(
             ["ip"] = ip,
         }, "paymentId", ct);
 
-    public Task<PosResult> IptalAsync(string odemeId, string ip, CancellationToken ct = default)
+    public Task<PosResult> CancelAsync(string odemeId, string ip, CancellationToken ct = default)
         => BasitAsync(UcIptal, new Dictionary<string, object?>
         {
             ["locale"] = "tr",
@@ -161,7 +161,7 @@ public sealed class IyzicoPosService(
             ["ip"] = ip,
         }, "paymentId", ct);
 
-    public Task<PosResult> IadeAsync(string islemId, decimal tutar, string ip, CancellationToken ct = default)
+    public Task<PosResult> RefundAsync(string islemId, decimal tutar, string ip, CancellationToken ct = default)
         => BasitAsync(UcIade, new Dictionary<string, object?>
         {
             ["locale"] = "tr",

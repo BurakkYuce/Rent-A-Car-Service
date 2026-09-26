@@ -7,7 +7,7 @@ namespace RentACar.Domain.Entities;
 /// (ör. "Bireysel", "Kurumsal", "Acente", "Filo"). Tenant-owned + auditable. Cari formundaki Grup
 /// açılır listesini besler (additive — serbest metin alan string kalır).
 /// </summary>
-public class CustomerGroup : ITenantOwned, IAuditable, IMasterTanim
+public class CustomerGroup : ITenantOwned, IAuditable, IMasterDefinition
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

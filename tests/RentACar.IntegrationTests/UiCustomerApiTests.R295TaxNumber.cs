@@ -30,7 +30,7 @@ public sealed partial class UiCustomerApiTests
         var raw = await Problem(await Send(opA, HttpMethod.Put, $"{Customers}/{id}", flip), HttpStatusCode.BadRequest,
             "dogrulama", "vergiNo");
         Assert.DoesNotContain(tax, raw);
-        Assert.Equal(CariType.Bireysel, await ReadAsync(e.TenantId, db => db.Customers.Where(c => c.Id == id).Select(c => c.Tip).SingleAsync()));
+        Assert.Equal(CustomerType.Bireysel, await ReadAsync(e.TenantId, db => db.Customers.Where(c => c.Id == id).Select(c => c.Tip).SingleAsync()));
         var (search, rawSearch) = await Json(await Send(opA, HttpMethod.Get, $"{Customers}?q={tax[..8]}"));
         Assert.Empty(Records(search));
         Assert.DoesNotContain(tax, rawSearch);
@@ -48,8 +48,8 @@ public sealed partial class UiCustomerApiTests
         var e = await SetupAsync();
         var opA = await LoginAsync(e, Who.OperatorA);
         var tc = RandomTc();
-        var legacy = new Customer { Tip = CariType.Bireysel, Ad = "Eski", VergiNo = tc };
-        var corporate = new Customer { Tip = CariType.Kurumsal, Unvan = "Eski Kurum " + Marker(), VergiNo = RandomTc() };
+        var legacy = new Customer { Tip = CustomerType.Bireysel, Ad = "Eski", VergiNo = tc };
+        var corporate = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Eski Kurum " + Marker(), VergiNo = RandomTc() };
         await WriteAsync(e.TenantId, db => db.Customers.AddRange(legacy, corporate));
 
         var (card, raw0) = await Json(await Send(opA, HttpMethod.Get, $"{Customers}/{legacy.Id}"));

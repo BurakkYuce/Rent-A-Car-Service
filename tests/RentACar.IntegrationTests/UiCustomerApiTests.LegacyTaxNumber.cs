@@ -23,7 +23,7 @@ public sealed partial class UiCustomerApiTests
     {
         var e = await SetupAsync();
         var legacy = digits == 11 ? RandomTc() : RandomTc()[..9];
-        var c = new Customer { Tip = CariType.Bireysel, Ad = "Eski", Soyad = Marker(), VergiNo = legacy, Gsm2 = "05320000000" };
+        var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Eski", Soyad = Marker(), VergiNo = legacy, Gsm2 = "05320000000" };
         await WriteAsync(e.TenantId, db => db.Customers.Add(c)); // kural öncesi kayıt: doğrulamadan geçmeden yazılır
 
         var admin = await LoginAsync(e, Who.Admin);
@@ -53,7 +53,7 @@ public sealed partial class UiCustomerApiTests
         using var scope = host.ScopeFor(e.TenantId);
         var service = scope.ServiceProvider.GetRequiredService<CustomerService>();
         CustomerInput Form(string? tax) => new()
-        { Tip = CariType.Bireysel, Ad = "Eski", Soyad = c.Soyad, VergiNo = tax, Gsm2 = "05322222222" };
+        { Tip = CustomerType.Bireysel, Ad = "Eski", Soyad = c.Soyad, VergiNo = tax, Gsm2 = "05322222222" };
         Assert.True(await service.UpdateAsync(c.Id, Form(legacy)));
         Assert.Equal(legacy, await ReadAsync(e.TenantId, db => db.Customers.Where(x => x.Id == c.Id).Select(x => x.VergiNo).SingleAsync()));
         await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(c.Id, Form("12345")));

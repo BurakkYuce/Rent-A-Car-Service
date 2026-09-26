@@ -32,7 +32,7 @@ public sealed class BranchService(
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu şube zaten var.");
 
         var branch = new Branch();
@@ -59,7 +59,7 @@ public sealed class BranchService(
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu şube zaten var.");
 
         void Update(Branch b)
@@ -128,10 +128,10 @@ public sealed class BranchService(
 
     // ---- FAZ-23: şubeye özel ücretsiz hizmet ----
 
-    public Task<IReadOnlyList<SubeUcretsizHizmet>> ListHizmetlerAsync(Guid subeId, CancellationToken ct = default)
-        => _repository.ListHizmetlerAsync(subeId, ct);
+    public Task<IReadOnlyList<SubeUcretsizHizmet>> ListServicesAsync(Guid branchId, CancellationToken ct = default)
+        => _repository.ListServicesAsync(branchId, ct);
 
-    public async Task<Guid> AddHizmetAsync(SubeUcretsizHizmetInput input, CancellationToken ct = default)
+    public async Task<Guid> AddServiceAsync(SubeUcretsizHizmetInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         if (input.SubeId == Guid.Empty) throw new ValidationException("Şube seçilmelidir.");
@@ -145,14 +145,14 @@ public sealed class BranchService(
             HizmetAdi = input.HizmetAdi.Trim(),
             Aciklama = string.IsNullOrWhiteSpace(input.Aciklama) ? null : input.Aciklama.Trim()
         };
-        await _repository.AddHizmetAsync(row, ct);
+        await _repository.AddServiceAsync(row, ct);
         return row.Id;
     }
 
-    public Task<bool> RemoveHizmetAsync(Guid id, CancellationToken ct = default)
+    public Task<bool> RemoveServiceAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.RemoveHizmetAsync(id, ct);
+        return _repository.RemoveServiceAsync(id, ct);
     }
 
     // ---- FAZ-23: şube birleştirme ----
@@ -161,14 +161,14 @@ public sealed class BranchService(
     /// Birleştirme ÖNİZLEMESİ — hangi tabloda kaç kayıt taşınacak. YAZMA YAPMAZ.
     /// Toplu UPDATE geri alınamadığı için kullanıcı onaydan önce etkiyi görmeli.
     /// </summary>
-    public async Task<SubeBirlestirOnizleme?> BirlestirOnizleAsync(
-        Guid kaynakId, Guid hedefId, CancellationToken ct = default)
+    public async Task<SubeBirlestirOnizleme?> PreviewMergeAsync(
+        Guid sourceId, Guid targetId, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        var kaynak = await _repository.FindAsync(kaynakId, ct);
-        var hedef = await _repository.FindAsync(hedefId, ct);
-        if (kaynak is null || hedef is null) return null;
-        return new SubeBirlestirOnizleme(kaynak.Ad, hedef.Ad, await _repository.BirlestirSayimAsync(kaynakId, ct));
+        var source = await _repository.FindAsync(sourceId, ct);
+        var target = await _repository.FindAsync(targetId, ct);
+        if (source is null || target is null) return null;
+        return new SubeBirlestirOnizleme(source.Ad, target.Ad, await _repository.MergeCountAsync(sourceId, ct));
     }
 
     /// <summary>
@@ -177,28 +177,28 @@ public sealed class BranchService(
     /// <para>Yetki <see cref="Permission.ManageUsers"/> (Admin): tek çağrıda çok sayıda kaydı
     /// değiştiren, geri alınamayan bir işlem — operasyon yetkisi yetmez.</para>
     /// </summary>
-    public async Task<int> BirlestirAsync(Guid kaynakId, Guid hedefId, CancellationToken ct = default)
+    public async Task<int> MergeAsync(Guid sourceId, Guid targetId, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
-        if (kaynakId == Guid.Empty || hedefId == Guid.Empty)
+        if (sourceId == Guid.Empty || targetId == Guid.Empty)
             throw new ValidationException("Kaynak ve hedef şube seçilmelidir.");
         // Kendine birleştirme: tüm referansları kendine yazıp şubeyi PASİFE çekerdi — sessiz felaket.
-        if (kaynakId == hedefId)
+        if (sourceId == targetId)
             throw new ValidationException("Kaynak ve hedef şube farklı olmalıdır.");
 
-        var kaynak = await _repository.FindAsync(kaynakId, ct)
+        var source = await _repository.FindAsync(sourceId, ct)
             ?? throw new ValidationException("Kaynak şube bulunamadı.");
-        var hedef = await _repository.FindAsync(hedefId, ct)
+        var target = await _repository.FindAsync(targetId, ct)
             ?? throw new ValidationException("Hedef şube bulunamadı.");
-        if (!hedef.Aktif)
+        if (!target.Aktif)
             throw new ValidationException("Hedef şube pasif — önce aktifleştirin (pasif şubeye taşımak kayıtları görünmez yapar).");
 
-        var tasinan = await _repository.BirlestirAsync(kaynakId, hedefId, ct);
+        var moved = await _repository.MergeAsync(sourceId, targetId, ct);
 
         // Birleştirme HAM SQL ile yazıyor (toplu UPDATE) → araç listesi cache'i BAYAT kalır ve
         // kullanıcı 60 saniye boyunca araçları hâlâ eski şubede görür. Cache açıkça temizlenir.
-        if (tasinan > 0) _cache.Invalidate(Vehicles.VehicleService.CacheKey);
-        return tasinan;
+        if (moved > 0) _cache.Invalidate(Vehicles.VehicleService.CacheKey);
+        return moved;
     }
 
     private static void Apply(Branch b, BranchInput n)

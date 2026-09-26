@@ -12,7 +12,7 @@ public static class TurkishIdentity
     ///  - d10 = ((d1+d3+d5+d7+d9)*7 - (d2+d4+d6+d8)) mod 10
     ///  - d11 = (d1+...+d10) mod 10
     /// </summary>
-    public static bool IsValidTcKimlik(string? value)
+    public static bool IsValidNationalId(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return false;
         value = value.Trim();
@@ -44,7 +44,7 @@ public static class TurkishIdentity
     /// kendi testimle "doğrulamak" projenin bağımsız-oracle ilkesini ihlal eder.
     /// Checksum, doğrulanmış vektörlerle birlikte follow-up'ta eklenecek.
     /// </summary>
-    public static bool IsValidVergiNoFormat(string? value)
+    public static bool IsValidTaxNoFormat(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return false;
         value = value.Trim();

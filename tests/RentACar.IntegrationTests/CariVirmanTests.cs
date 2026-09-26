@@ -27,16 +27,16 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         var a = await SeedCariAsync(scope.ServiceProvider, "A"); // kaynak
         var b = await SeedCariAsync(scope.ServiceProvider, "B"); // hedef
 
-        await cash.TransferBetweenCariAsync(a, b, 250.00m);
+        await cash.TransferBetweenAccountsAsync(a, b, 250.00m);
 
         // Kaynak alacaklandı (−250), hedef borçlandı (+250); toplam 0 (dengeli).
-        Assert.Equal(-250.00m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(250.00m, await cash.GetCariBalanceAsync(b));
+        Assert.Equal(-250.00m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(250.00m, await cash.GetAccountBalanceAsync(b));
 
         // İkinci virman birikir.
-        await cash.TransferBetweenCariAsync(a, b, 100.00m);
-        Assert.Equal(-350.00m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(350.00m, await cash.GetCariBalanceAsync(b));
+        await cash.TransferBetweenAccountsAsync(a, b, 100.00m);
+        Assert.Equal(-350.00m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(350.00m, await cash.GetAccountBalanceAsync(b));
 
         // Defter base bazında dengeli: Σ borç(base) == Σ alacak(base) (CariVirman kaynaklı).
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -62,10 +62,10 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         var a = await SeedCariAsync(scope.ServiceProvider, "A");
         var b = await SeedCariAsync(scope.ServiceProvider, "B");
 
-        await cash.TransferBetweenCariAsync(a, b, 500.00m);   // a −500, b +500
-        await cash.TransferBetweenCariAsync(b, a, 500.00m);   // düzeltme: ters yön → sıfırlanır
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(b));
+        await cash.TransferBetweenAccountsAsync(a, b, 500.00m);   // a −500, b +500
+        await cash.TransferBetweenAccountsAsync(b, a, 500.00m);   // düzeltme: ters yön → sıfırlanır
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(b));
     }
 
     [Fact]
@@ -79,11 +79,11 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         var anahtar = Guid.NewGuid();
 
         // Aynı işlem anahtarıyla çift gönderim (çift tıklama/geri-gönder) → TEK virman.
-        await cash.TransferBetweenCariAsync(a, b, 500.00m, islemAnahtari: anahtar);
-        await cash.TransferBetweenCariAsync(a, b, 500.00m, islemAnahtari: anahtar);
+        await cash.TransferBetweenAccountsAsync(a, b, 500.00m, operationKey: anahtar);
+        await cash.TransferBetweenAccountsAsync(a, b, 500.00m, operationKey: anahtar);
 
-        Assert.Equal(-500.00m, await cash.GetCariBalanceAsync(a)); // çift sayılmadı
-        Assert.Equal(500.00m, await cash.GetCariBalanceAsync(b));
+        Assert.Equal(-500.00m, await cash.GetAccountBalanceAsync(a)); // çift sayılmadı
+        Assert.Equal(500.00m, await cash.GetAccountBalanceAsync(b));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -102,8 +102,8 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var anahtar = Guid.NewGuid();
 
-        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, islemAnahtari: anahtar);
-        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, islemAnahtari: anahtar);
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, operationKey: anahtar);
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, operationKey: anahtar);
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -118,8 +118,8 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, islemAnahtari: Guid.NewGuid());
-        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, islemAnahtari: Guid.NewGuid());
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, operationKey: Guid.NewGuid());
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 300m, operationKey: Guid.NewGuid());
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         Assert.Equal(4, await db.AccountLedgerEntries.AsNoTracking().CountAsync(e => e.SourceType == "Virman")); // 2 virman
@@ -135,10 +135,10 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         var b = await SeedCariAsync(scope.ServiceProvider, "B");
 
         // Farklı anahtar (veya anahtarsız) → ayrı virmanlar birikir.
-        await cash.TransferBetweenCariAsync(a, b, 500.00m, islemAnahtari: Guid.NewGuid());
-        await cash.TransferBetweenCariAsync(a, b, 500.00m, islemAnahtari: Guid.NewGuid());
-        Assert.Equal(-1000.00m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(1000.00m, await cash.GetCariBalanceAsync(b));
+        await cash.TransferBetweenAccountsAsync(a, b, 500.00m, operationKey: Guid.NewGuid());
+        await cash.TransferBetweenAccountsAsync(a, b, 500.00m, operationKey: Guid.NewGuid());
+        Assert.Equal(-1000.00m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(1000.00m, await cash.GetAccountBalanceAsync(b));
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var a = Guid.NewGuid();
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(a, a, 100m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(a, a, 100m));
     }
 
     [Fact]
@@ -159,11 +159,11 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var a = Guid.NewGuid();
         var b = Guid.NewGuid();
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(a, b, 0m));
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(a, b, -50m));
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(Guid.Empty, b, 100m));
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(a, Guid.Empty, 100m));
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(a, b, 100m, kur: 0m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(a, b, 0m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(a, b, -50m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(Guid.Empty, b, 100m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(a, Guid.Empty, 100m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(a, b, 100m, exchangeRate: 0m));
     }
 
     [Fact]
@@ -172,8 +172,8 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
-            () => cash.TransferBetweenCariAsync(Guid.NewGuid(), Guid.NewGuid(), 100m));
+        await Assert.ThrowsAsync<NoPermissionException>(
+            () => cash.TransferBetweenAccountsAsync(Guid.NewGuid(), Guid.NewGuid(), 100m));
     }
 
     [Fact]
@@ -188,14 +188,14 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         {
             a = await SeedCariAsync(s1.ServiceProvider, "A");   // cari'ler t1'de gerçekten var
             b = await SeedCariAsync(s1.ServiceProvider, "B");
-            await s1.ServiceProvider.GetRequiredService<CashService>().TransferBetweenCariAsync(a, b, 300m);
+            await s1.ServiceProvider.GetRequiredService<CashService>().TransferBetweenAccountsAsync(a, b, 300m);
         }
 
         // t2 aynı cari id'lerinin bakiyesini GÖRMEZ (RLS).
         using var s2 = host.ScopeFor(t2);
         var cash2 = s2.ServiceProvider.GetRequiredService<CashService>();
-        Assert.Equal(0m, await cash2.GetCariBalanceAsync(a));
-        Assert.Equal(0m, await cash2.GetCariBalanceAsync(b));
+        Assert.Equal(0m, await cash2.GetAccountBalanceAsync(a));
+        Assert.Equal(0m, await cash2.GetAccountBalanceAsync(b));
     }
 
     [Fact]
@@ -208,15 +208,15 @@ public sealed class CariVirmanTests(PostgresFixture fx)
         var hayalet = Guid.NewGuid();                             // tenant'ta YOK
 
         // Hedef yoksa reddedilir.
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(a, hayalet, 100m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(a, hayalet, 100m));
         // Kaynak yoksa reddedilir.
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(hayalet, a, 100m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(hayalet, a, 100m));
         // Post olmadı → gerçek cari bakiyesi 0, hayalet ekstre oluşmadı.
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(hayalet));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(hayalet));
     }
 
     private static Task<Guid> SeedCariAsync(IServiceProvider sp, string ad) =>
         sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
 }

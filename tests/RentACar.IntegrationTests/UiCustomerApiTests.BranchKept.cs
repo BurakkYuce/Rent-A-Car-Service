@@ -90,8 +90,8 @@ public sealed partial class UiCustomerApiTests
     {
         var e = await SetupAsync();
         var birth = new DateTimeOffset(1980, 5, 17, 0, 0, 0, TimeSpan.Zero);
-        var hidden = new Customer { Tip = CariType.Bireysel, Ad = "Belge", Soyad = "Gizli", DogumTarihi = birth, AnonimBelge = true };
-        var shown = new Customer { Tip = CariType.Bireysel, Ad = "Belge", Soyad = "Acik", DogumTarihi = birth };
+        var hidden = new Customer { Tip = CustomerType.Bireysel, Ad = "Belge", Soyad = "Gizli", DogumTarihi = birth, AnonimBelge = true };
+        var shown = new Customer { Tip = CustomerType.Bireysel, Ad = "Belge", Soyad = "Acik", DogumTarihi = birth };
         await WriteAsync(e.TenantId, db => { db.Customers.Add(hidden); db.Customers.Add(shown); });
         await RentalAsync(e, hidden.Id, "SubeA");
         await RentalAsync(e, shown.Id, "SubeA");

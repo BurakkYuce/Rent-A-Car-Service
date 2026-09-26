@@ -20,7 +20,7 @@ public sealed class TestTarihBombasiTests
     /// <summary>Tarihi rezervasyon/teklif politikasından hiç geçirmeyen dosyalar.</summary>
     private static readonly Dictionary<string, string> Istisnalar = new()
     {
-        ["RezervasyonFiltreTests.cs"] = "Sabit tarihler yalnız saf AvailabilityService.Pencere fonksiyonuna gider; politika çalışmaz.",
+        ["RezervasyonFiltreTests.cs"] = "Sabit tarihler yalnız saf AvailabilityService.Window fonksiyonuna gider; politika çalışmaz.",
         ["OperasyonelYetkiTests.cs"] = "Sabit tarih yalnız yetki reddi testlerinde; yetki kontrolü tarih kontrolünden önce reddeder.",
     };
 

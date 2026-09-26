@@ -90,8 +90,8 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
         var sp = s.ServiceProvider;
         if (ek is not null) await ek(sp);
         var cariler = sp.GetRequiredService<CustomerService>();
-        var musteri = await cariler.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Adv", Soyad = "Musteri" });
-        var tedarikci = await cariler.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Adv", Soyad = "Tedarikci" });
+        var musteri = await cariler.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Adv", Soyad = "Musteri" });
+        var tedarikci = await cariler.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Adv", Soyad = "Tedarikci" });
         var (kira, arac) = await KiraAsync(sp, musteri, KiraBas, gun: 3);
         return new Ortam
         {
@@ -136,10 +136,10 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
         => OkuAsync(o, async sp => (await sp.GetRequiredService<RentalService>().GetAsync(kira))!);
 
     private Task<decimal> CariBakiyeAsync(Ortam o, Guid cari)
-        => OkuAsync(o, sp => sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari));
+        => OkuAsync(o, sp => sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
 
     private Task<decimal> DepozitoBakiyeAsync(Ortam o, Guid cari)
-        => OkuAsync(o, sp => sp.GetRequiredService<DepozitoService>().GetBakiyeAsync(cari));
+        => OkuAsync(o, sp => sp.GetRequiredService<DepositService>().GetBalanceAsync(cari));
 
     private async Task<List<string>> DengesizKumelerAsync(Ortam o)
     {
@@ -222,7 +222,7 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
     {
         var o = await OrtamKurAsync();
         var s = await GirisAsync(o, Kim.Muhasebe);
-        var cari2 = await OkuAsync(o, sp => sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Irat", Soyad = "Kur" }));
+        var cari2 = await OkuAsync(o, sp => sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Irat", Soyad = "Kur" }));
         await Id(await PostAsync(s, "/finans/depozito/al", new { cariId = cari2, tutar = 100m, hesap = "Kasa" }, YeniAnahtar()));
         var once = await DefterSayisiAsync(o);
 
@@ -260,8 +260,8 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
         var ex = await Assert.ThrowsAsync<ValidationException>(() => OkuAsync(o, sp => sp.GetRequiredService<CashService>()
             .CollectAsync(new CashInput { CariId = o.Musteri, Tutar = 100m, Doviz = "TRY", Kur = 5m, Hesap = LedgerAccountType.Kasa })));
         Assert.Equal("kur", ex.Alan);
-        var ex2 = await Assert.ThrowsAsync<ValidationException>(() => OkuAsync(o, sp => sp.GetRequiredService<DepozitoService>()
-            .AlAsync(o.Musteri, 100m, LedgerAccountType.Kasa, doviz: null, kur: 5m)));
+        var ex2 = await Assert.ThrowsAsync<ValidationException>(() => OkuAsync(o, sp => sp.GetRequiredService<DepositService>()
+            .GetAsync(o.Musteri, 100m, LedgerAccountType.Kasa, currency: null, exchangeRate: 5m)));
         Assert.Equal("kur", ex2.Alan);
         Assert.Equal(0, await DefterSayisiAsync(o));
     }
@@ -306,7 +306,7 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
     public async Task MEDIUM1_uc_sinirini_gecip_kolonu_tasiran_turetilmis_deger_400_veri_tasmasi()
     {
         // Otomatik kurla (uç çarpımı bilemez) 9e14 USD × 40 = 3,6e16 baz → kira Tahsilat numeric(19,4) taşar (22003).
-        var o = await OrtamKurAsync(sp => sp.GetRequiredService<RentACar.Application.Kur.SabitKurService>()
+        var o = await OrtamKurAsync(sp => sp.GetRequiredService<RentACar.Application.Kur.FixedExchangeRateService>()
             .UpsertAsync(new RentACar.Application.Kur.SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true }));
         var s = await GirisAsync(o, Kim.Muhasebe);
 
@@ -390,7 +390,7 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
     {
         var o = await OrtamKurAsync();
         var (kiraA, _) = await OkuAsync(o, sp => KiraAsync(sp, o.Musteri, new DateTimeOffset(2027, 1, 15, 10, 0, 0, TimeSpan.Zero), gun: 90));
-        var m2 = await OkuAsync(o, sp => sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "SubeB", Soyad = "Musteri" }));
+        var m2 = await OkuAsync(o, sp => sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "SubeB", Soyad = "Musteri" }));
         var (kiraB, _) = await OkuAsync(o, sp => KiraAsync(sp, m2, KiraBas, gun: 2, ofis: "SubeB"));
 
         var b = await GirisAsync(o, Kim.OperatorB);
@@ -648,7 +648,7 @@ public sealed class UiFinansAdversarialTests(WebFixture fx)
     [Fact]
     public async Task USD_kira_TRY_ya_da_EUR_tahsilat_400_USD_tahsilat_ham_tutar()
     {
-        var o = await OrtamKurAsync(sp => sp.GetRequiredService<RentACar.Application.Kur.SabitKurService>()
+        var o = await OrtamKurAsync(sp => sp.GetRequiredService<RentACar.Application.Kur.FixedExchangeRateService>()
             .UpsertAsync(new RentACar.Application.Kur.SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true }));
         var (kiraUsd, _) = await OkuAsync(o, sp => KiraAsync(sp, o.Musteri, KiraBas.AddDays(20), gun: 3, doviz: "USD"));
         var s = await GirisAsync(o, Kim.Muhasebe);

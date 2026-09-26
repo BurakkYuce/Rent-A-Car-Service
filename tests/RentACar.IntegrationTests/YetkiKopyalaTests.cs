@@ -23,7 +23,7 @@ public sealed class YetkiKopyalaTests(PostgresFixture fx)
         await svc.SetAsync("rapor-x", [UserRole.Admin, UserRole.Yonetici]);
         await svc.SetAsync("admin-only", [UserRole.Admin]);
 
-        var guncellenen = await svc.KopyalaRolAsync(UserRole.Yonetici, UserRole.Operator);
+        var guncellenen = await svc.CopyRoleAsync(UserRole.Yonetici, UserRole.Operator);
         Assert.Equal(1, guncellenen); // yalnız rapor-x
 
         var list = await svc.ListAsync();
@@ -35,7 +35,7 @@ public sealed class YetkiKopyalaTests(PostgresFixture fx)
         Assert.DoesNotContain("Operator", adminOnly); // Yonetici yoktu → dokunulmadı
 
         // İdempotent: Operator zaten eklendi → ikinci kopya 0 değiştirir
-        Assert.Equal(0, await svc.KopyalaRolAsync(UserRole.Yonetici, UserRole.Operator));
+        Assert.Equal(0, await svc.CopyRoleAsync(UserRole.Yonetici, UserRole.Operator));
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class YetkiKopyalaTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<ScreenPermissionService>();
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => svc.KopyalaRolAsync(UserRole.Admin, UserRole.Admin));
+            () => svc.CopyRoleAsync(UserRole.Admin, UserRole.Admin));
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class YetkiKopyalaTests(PostgresFixture fx)
         // t2 kopyalama yapsa bile t1'in ekranı etkilenmez (kendi boş seti).
         using var s2 = host.ScopeFor(Guid.NewGuid());
         Assert.Equal(0, await s2.ServiceProvider.GetRequiredService<ScreenPermissionService>()
-            .KopyalaRolAsync(UserRole.Yonetici, UserRole.Operator));
+            .CopyRoleAsync(UserRole.Yonetici, UserRole.Operator));
 
         using var s1b = host.ScopeFor(t1);
         var raporX = (await s1b.ServiceProvider.GetRequiredService<ScreenPermissionService>().ListAsync())

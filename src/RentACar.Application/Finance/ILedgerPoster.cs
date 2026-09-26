@@ -16,6 +16,6 @@ public interface ILedgerPoster
     /// hangisinde çarparsa çarpsın ikisi de geri alınır → "defter var, künye yok" ya da tersi
     /// bir durum oluşamaz.
     /// </summary>
-    Task PostWithAsync<T>(IReadOnlyList<AccountLedgerEntry> entries, T ekKayit,
+    Task PostWithAsync<T>(IReadOnlyList<AccountLedgerEntry> entries, T extraEntry,
         CancellationToken ct = default) where T : class;
 }

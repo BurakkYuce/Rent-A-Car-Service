@@ -31,14 +31,14 @@ public static partial class SystemAdminApi
     {
         var g = v1.MapGroup("/kullanicilar").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
 
-        g.MapGet("", async Task<Ok<IReadOnlyList<UserDto>>> (UserService users, KullaniciIzinService exceptions, CancellationToken ct)
+        g.MapGet("", async Task<Ok<IReadOnlyList<UserDto>>> (UserService users, UserPermissionService exceptions, CancellationToken ct)
             => TypedResults.Ok(await ListUsersAsync(users, exceptions, ct)));
 
-        g.MapGet("/{id:guid}", async Task<Results<Ok<UserDto>, ProblemHttpResult>> (Guid id, UserService users, KullaniciIzinService exceptions, CancellationToken ct)
+        g.MapGet("/{id:guid}", async Task<Results<Ok<UserDto>, ProblemHttpResult>> (Guid id, UserService users, UserPermissionService exceptions, CancellationToken ct)
             => (await ListUsersAsync(users, exceptions, ct)).FirstOrDefault(u => u.Id == id) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Kullanıcı bulunamadı."));
 
         g.MapPost("", async Task<Results<Created<UserDto>, ProblemHttpResult>> (UserCreateRequest i, UserService users,
-            KullaniciIzinService exceptions, BranchService branches, CancellationToken ct) =>
+            UserPermissionService exceptions, BranchService branches, CancellationToken ct) =>
         {
             Sinirlar.Metin(i.KullaniciAdi, 128, "kullaniciAdi", "Kullanıcı adı");
             Sinirlar.Metin(i.GorunenAd, 256, "gorunenAd", "Görünen ad");
@@ -56,7 +56,7 @@ public static partial class SystemAdminApi
         }).AlanlariEsle(UserRules);
 
         g.MapPost("/{id:guid}/aktif", async Task<Results<Ok<UserDto>, ProblemHttpResult>> (Guid id, UserActiveRequest i, UserService users,
-            KullaniciIzinService exceptions, CancellationToken ct) =>
+            UserPermissionService exceptions, CancellationToken ct) =>
         {
             if (!await users.SetActiveAsync(id, i.Aktif, ct)) return SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
             return (await ListUsersAsync(users, exceptions, ct)).FirstOrDefault(u => u.Id == id) is { } d
@@ -71,7 +71,7 @@ public static partial class SystemAdminApi
 
         // ---- kullanıcı-bazlı izin istisnaları (etkinleşme: hedef kullanıcının bir sonraki girişi)
         g.MapPut("/{id:guid}/istisnalar/{izin}", async Task<Results<Ok<UserDto>, ProblemHttpResult>> (Guid id, string izin, PermissionExceptionRequest i,
-            UserService users, KullaniciIzinService exceptions, CancellationToken ct) =>
+            UserService users, UserPermissionService exceptions, CancellationToken ct) =>
         {
             var p = F5Ortak.EnumAdi<Permission>(izin, "izin") ?? throw new ValidationException("İzin zorunludur.", "izin");
             if ((await ListUsersAsync(users, exceptions, ct)).All(u => u.Id != id)) return SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
@@ -81,7 +81,7 @@ public static partial class SystemAdminApi
         }).AlanlariEsle(ExceptionRules);
 
         g.MapDelete("/{id:guid}/istisnalar/{izin}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, string izin,
-            UserService users, KullaniciIzinService exceptions, CancellationToken ct) =>
+            UserService users, UserPermissionService exceptions, CancellationToken ct) =>
         {
             var p = F5Ortak.EnumAdi<Permission>(izin, "izin") ?? throw new ValidationException("İzin zorunludur.", "izin");
             if ((await ListUsersAsync(users, exceptions, ct)).All(u => u.Id != id)) return SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
@@ -132,7 +132,7 @@ public static partial class SystemAdminApi
         return match?.Ad ?? throw new ValidationException("Atanmış şube firmanın aktif şubelerinden biri olmalıdır.", "atanmisSube");
     }
 
-    private static async Task<IReadOnlyList<UserDto>> ListUsersAsync(UserService users, KullaniciIzinService exceptions, CancellationToken ct)
+    private static async Task<IReadOnlyList<UserDto>> ListUsersAsync(UserService users, UserPermissionService exceptions, CancellationToken ct)
     {
         var list = await users.ListAsync(ct);
         var ex = (await exceptions.ListAsync(ct)).ToLookup(x => x.UserId);

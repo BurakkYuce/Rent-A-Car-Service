@@ -26,7 +26,7 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         await using var db = await factory.CreateDbContextAsync();
 
         var v = new Vehicle { Plaka = "34EKO01", Durum = VehicleStatus.Kirada };
-        var c = new Customer { Tip = CariType.Bireysel, Ad = "Ek", Soyad = "Hizmet" };
+        var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Ek", Soyad = "Hizmet" };
         db.Vehicles.Add(v);
         db.Customers.Add(c);
 
@@ -62,7 +62,7 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         var (rentalId, gpsId, _) = await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
 
-        await svc.AddAsync(rentalId, gpsId, miktar: 2m);
+        await svc.AddAsync(rentalId, gpsId, quantity: 2m);
 
         var addons = await svc.ListAsync(rentalId);
         var gps = Assert.Single(addons);
@@ -83,7 +83,7 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         var (rentalId, gpsId, _) = await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
 
-        var addOnId = await svc.AddAsync(rentalId, gpsId, miktar: 2m);
+        var addOnId = await svc.AddAsync(rentalId, gpsId, quantity: 2m);
         Assert.Equal(640m, (await GetRentalAsync(scope, rentalId)).GenelToplam);
 
         Assert.True(await svc.RemoveAsync(addOnId));
@@ -101,8 +101,8 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         var addSvc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
         var invSvc = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
-        await addSvc.AddAsync(rentalId, gpsId, miktar: 2m);     // net 200, kdv 40 (%20)
-        await addSvc.AddAsync(rentalId, koltukId, miktar: 1m);  // net 50, kdv 5 (%10)
+        await addSvc.AddAsync(rentalId, gpsId, quantity: 2m);     // net 200, kdv 40 (%20)
+        await addSvc.AddAsync(rentalId, koltukId, quantity: 1m);  // net 50, kdv 5 (%10)
         // GenelToplam = 400 + 240 + 55 = 695
 
         var invId = await invSvc.CreateFromRentalAsync(rentalId);
@@ -143,7 +143,7 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         var invSvc = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
         await invSvc.CreateFromRentalAsync(rentalId); // faturalandı
-        await Assert.ThrowsAsync<ValidationException>(() => addSvc.AddAsync(rentalId, gpsId, miktar: 1m));
+        await Assert.ThrowsAsync<ValidationException>(() => addSvc.AddAsync(rentalId, gpsId, quantity: 1m));
     }
 
     [Fact]
@@ -155,11 +155,11 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         var addSvc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
         var rentalSvc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        await addSvc.AddAsync(rentalId, gpsId, miktar: 2m); // +240 brüt
+        await addSvc.AddAsync(rentalId, gpsId, quantity: 2m); // +240 brüt
         var bitTar = (await GetRentalAsync(scope, rentalId)).BitTar;
 
         // Limit içinde, yakıt tam, zamanında dönüş → ek bedel yok; yalnız baz 400 + ek hizmet 240.
-        await rentalSvc.ReturnAsync(rentalId, donusKm: 1000, donusYakit: 8, gercekDonus: bitTar);
+        await rentalSvc.ReturnAsync(rentalId, returnKm: 1000, returnFuel: 8, actualReturn: bitTar);
 
         var rental = await GetRentalAsync(scope, rentalId);
         Assert.Equal(RentalStatus.Tamamlandi, rental.Durum);
@@ -174,7 +174,7 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         var (rentalId, gpsId, _) = await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.AddAsync(rentalId, gpsId, miktar: 0m));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.AddAsync(rentalId, gpsId, quantity: 0m));
     }
 
     [Fact]
@@ -187,6 +187,6 @@ public sealed class EkHizmetEkonomisiTests(PostgresFixture fx)
         using var muh = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         // Aynı tenant'ta çalışması için aynı tenant id ile seed gerekir; burada yetki reddi yeterli:
         var svc = muh.ServiceProvider.GetRequiredService<RentalAddOnService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.AddAsync(rentalId, gpsId, miktar: 1m));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.AddAsync(rentalId, gpsId, quantity: 1m));
     }
 }

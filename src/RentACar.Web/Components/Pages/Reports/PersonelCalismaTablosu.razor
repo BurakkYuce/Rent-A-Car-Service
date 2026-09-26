@@ -1,7 +1,7 @@
 @page "/raporlar/personel-calisma"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
-@inject PersonelVardiyaService Vardiyalar
-@inject PersonelService Personeller
+@inject StaffShiftService Vardiyalar
+@inject PersonnelService Personeller
 @inject BranchService Subeler
 
 <PageTitle>Personel Çalışma (Vardiya) — RentPro</PageTitle>
@@ -43,10 +43,10 @@
 <p class="muted small">
     @_bas.ToString("dd.MM.yyyy") - @_bit.ToString("dd.MM.yyyy") · @_matris.Gunler.Count gün ·
     @_matris.Satirlar.Count personel · @_matris.ToplamVardiya vardiya ·
-    toplam @VardiyaBicim.SaatMetni(_matris.ToplamDk)
+    toplam @ShiftFormat.HourText(_matris.ToplamDk)
     @if (_kirpildi)
     {
-        <span class="warn"> · aralık @PersonelVardiyaService.MaxGun güne kırpıldı</span>
+        <span class="warn"> · aralık @StaffShiftService.MaxDays güne kırpıldı</span>
     }
 </p>
 
@@ -80,7 +80,7 @@
                         {
                             @foreach (var v in vardiyalar)
                             {
-                                <div class="mono small" title="@HucreIpucu(v)">@VardiyaBicim.Aralik(v)</div>
+                                <div class="mono small" title="@HucreIpucu(v)">@ShiftFormat.Range(v)</div>
                             }
                         }
                         else
@@ -151,8 +151,8 @@
             <tr>
                 <td>@r.PersonelAd</td>
                 <td>@r.Vardiya.Tarih.ToString("dd.MM.yyyy")</td>
-                <td class="mono">@VardiyaBicim.Aralik(r.Vardiya)</td>
-                <td class="num">@VardiyaBicim.SaatMetni(r.Vardiya.SureDk)</td>
+                <td class="mono">@ShiftFormat.Range(r.Vardiya)</td>
+                <td class="num">@ShiftFormat.HourText(r.Vardiya.SureDk)</td>
                 <td>@(r.Vardiya.Sube ?? "—")</td>
                 @* Kadro şubesi bilgi amaçlı: vardiya şubesinden FARKLI olabilir (rotasyon/destek). *@
                 <td class="muted">@(r.PersonelKadroSube ?? "—")</td>
@@ -230,11 +230,11 @@
             Sube = SubeFiltre
         };
         // Sunucu pencereyi düzeltebilir (ters aralık, tavan) — sayfa GERÇEKTEN gösterileni yazar.
-        (_bas, _bit) = PersonelVardiyaService.Pencere(filtre);
+        (_bas, _bit) = StaffShiftService.Window(filtre);
         _kirpildi = filtre.Bas is { } fb && filtre.Bit is { } fbit
-            && Math.Abs(fbit.DayNumber - fb.DayNumber) + 1 > PersonelVardiyaService.MaxGun;
+            && Math.Abs(fbit.DayNumber - fb.DayNumber) + 1 > StaffShiftService.MaxDays;
 
-        _matris = await Vardiyalar.MatrisAsync(filtre);
+        _matris = await Vardiyalar.MatrixAsync(filtre);
         _liste = await Vardiyalar.ListAsync(filtre);
 
         if (Duzenle is { } id) _edit = await Vardiyalar.GetAsync(id);

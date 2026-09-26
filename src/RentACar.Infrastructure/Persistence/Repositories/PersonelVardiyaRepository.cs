@@ -6,7 +6,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Vardiya kalıcılığı (FAZ-45). Şube kapsamı C4 şablonuyla (FK öncelikli, metin yedek).</summary>
-public sealed class PersonelVardiyaRepository(IDbContextFactory<AppDbContext> factory) : IPersonelVardiyaRepository
+public sealed class PersonelVardiyaRepository(IDbContextFactory<AppDbContext> factory) : IPersonnelShiftRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 

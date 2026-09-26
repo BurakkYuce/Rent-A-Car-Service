@@ -5,12 +5,12 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.PaymentTypes;
 
 /// <summary>
-/// Ödeme tipi master tanımı — <see cref="MasterTanimService{T}"/> ince alt sınıfı (O12d): doğrulama,
+/// Ödeme tipi master tanımı — <see cref="MasterDefinitionService{T}"/> ince alt sınıfı (O12d): doğrulama,
 /// kod benzersizliği, CRUD, OperationsWrite guard ve liste cache ("payment-types") tabandan gelir;
 /// burada yalnız <see cref="PaymentTypeInput"/> (kod, ad, aktif) üçlüsüne açılır. Dış yüzey değişmedi.
 /// </summary>
 public sealed class PaymentTypeService(IPaymentTypeRepository repository, ICurrentUser currentUser, ITenantCache cache)
-    : MasterTanimService<PaymentType>(repository, currentUser, cache, "payment-types", "ödeme tipi")
+    : MasterDefinitionService<PaymentType>(repository, currentUser, cache, "payment-types", "ödeme tipi")
 {
     public Task<Guid> CreateAsync(PaymentTypeInput input, CancellationToken ct = default)
         => CreateCoreAsync(input.Kod, input.Ad, input.Aktif, ct);

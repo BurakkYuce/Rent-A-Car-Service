@@ -7,11 +7,11 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>
-/// <see cref="IFirmaDokumanRepository"/> uygulaması. Tenant izolasyonu iki katmanlı ve ikisi de
+/// <see cref="ICompanyFileRepository"/> uygulaması. Tenant izolasyonu iki katmanlı ve ikisi de
 /// OTOMATİK: EF global query filter (merkezi <c>OnModelCreating</c> döngüsü) + Postgres RLS.
 /// Bu sınıfta elle TenantId yüklemi YOKTUR ve olmamalıdır — olsaydı "unutulabilir" bir kural olurdu.
 /// </summary>
-public sealed class FirmaDokumanRepository(IDbContextFactory<AppDbContext> factory) : IFirmaDokumanRepository
+public sealed class FirmaDokumanRepository(IDbContextFactory<AppDbContext> factory) : ICompanyFileRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -20,7 +20,7 @@ public sealed class FirmaDokumanRepository(IDbContextFactory<AppDbContext> facto
         d => new FirmaDokumanSatiri(d.Id, d.Baslik, d.Aciklama, d.DosyaAdi, d.Boyut, d.Sira,
             d.YukleyenKullanici, d.CreatedAtUtc);
 
-    public async Task<IReadOnlyList<FirmaDokumanSatiri>> ListeleAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<FirmaDokumanSatiri>> ListAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.FirmaDokumanlari.AsNoTracking()
@@ -34,7 +34,7 @@ public sealed class FirmaDokumanRepository(IDbContextFactory<AppDbContext> facto
         return await db.FirmaDokumanlari.AsNoTracking().CountAsync(ct);
     }
 
-    public async Task<Guid> EkleAsync(FirmaDokuman dokuman, int maxYuva, CancellationToken ct = default)
+    public async Task<Guid> AddAsync(FirmaDokuman dokuman, int maxYuva, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -64,7 +64,7 @@ public sealed class FirmaDokumanRepository(IDbContextFactory<AppDbContext> facto
         return dokuman.Id;
     }
 
-    public async Task<bool> SilAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var dokuman = await db.FirmaDokumanlari.FirstOrDefaultAsync(d => d.Id == id, ct);
@@ -74,7 +74,7 @@ public sealed class FirmaDokumanRepository(IDbContextFactory<AppDbContext> facto
         return true;
     }
 
-    public async Task<FirmaDokumanIcerik?> IndirAsync(Guid id, CancellationToken ct = default)
+    public async Task<FirmaDokumanIcerik?> DownloadAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.FirmaDokumanlari.AsNoTracking()

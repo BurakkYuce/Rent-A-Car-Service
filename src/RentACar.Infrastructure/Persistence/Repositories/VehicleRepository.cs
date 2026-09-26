@@ -44,12 +44,12 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             // (VehicleService.NormalizeSipp) → arama terimi de aynı normalizasyondan geçmeli,
             // yoksa listede gördüğü "cdmd"yi yazan kullanıcı boş sonuç alır.
             var deger = filter.Grup.Trim();
-            q = filter.GrupTuru == AracGrupTuru.Sipp
+            q = filter.GrupTuru == VehicleGroupType.Sipp
                 ? q.Where(v => v.Sipp == deger.ToUpperInvariant())
                 : q.Where(v => v.Grup == filter.Grup);
         }
         // FAZ-11 tarih aralığı — TİP seçilmemişse aralık HİÇ uygulanmaz (bkz. AracTarihTuru.Yok).
-        if (filter.TarihTuru != AracTarihTuru.Yok && (filter.TarihBas is not null || filter.TarihBit is not null))
+        if (filter.TarihTuru != VehicleDateType.Yok && (filter.TarihBas is not null || filter.TarihBit is not null))
         {
             var bas = filter.TarihBas;
             // Bitiş GÜN DAHİL: kullanıcı "31.12'ye kadar" derken 31.12'yi de kastediyor
@@ -60,16 +60,16 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             var bit = filter.TarihBit?.AddDays(1);
             q = filter.TarihTuru switch
             {
-                AracTarihTuru.FiloGiris => q.Where(v => v.FiloGirisTarih != null
+                VehicleDateType.FiloGiris => q.Where(v => v.FiloGirisTarih != null
                     && (bas == null || v.FiloGirisTarih >= bas) && (bit == null || v.FiloGirisTarih < bit)),
-                AracTarihTuru.FiloCikis => q.Where(v => v.FiloCikisTarih != null
+                VehicleDateType.FiloCikis => q.Where(v => v.FiloCikisTarih != null
                     && (bas == null || v.FiloCikisTarih >= bas) && (bit == null || v.FiloCikisTarih < bit)),
                 _ => q.Where(v => v.TescilTarihi != null
                     && (bas == null || v.TescilTarihi >= bas) && (bit == null || v.TescilTarihi < bit)),
             };
         }
         // FAZ-11 araç sahibi: özel "girilmemiş" kovası ya da belirli bir sahip (bkz. AracSahiplik).
-        if (filter.Sahiplik == AracSahiplik.Girilmemis)
+        if (filter.Sahiplik == VehicleOwnership.Girilmemis)
         {
             q = q.Where(v => v.AracSahibi == null || v.AracSahibi.Trim() == "");
         }
@@ -93,7 +93,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         return new PagedResult<Vehicle>(items, total, filter.Page, filter.PageSize);
     }
 
-    public async Task<IReadOnlyList<VehicleDetayRow>> ListDetayAsync(
+    public async Task<IReadOnlyList<VehicleDetayRow>> ListDetailAsync(
         VehicleDetayFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -166,7 +166,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
                 select new
                 {
                     r.VehicleId, r.BitTar, r.SozlesmeNo, r.BasTar, r.MusteriId,
-                    Musteri = c == null ? null : (c.Tip == CariType.Bireysel
+                    Musteri = c == null ? null : (c.Tip == CustomerType.Bireysel
                         ? ((c.Ad ?? "") + " " + (c.Soyad ?? "")) : c.Unvan)
                 }).ToListAsync(ct))
             .GroupBy(x => x.VehicleId)
@@ -188,7 +188,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }).ToList();
     }
 
-    public async Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListeEkAsync(
+    public async Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListExtrasAsync(
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default)
     {
         if (vehicleIds.Count == 0) return new Dictionary<Guid, VehicleListeEk>();
@@ -206,14 +206,14 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         // Bayraklar: "var mı" sorusu → Select yerine küme; EF bunları EXISTS'e indirger.
         var servisli = (await db.ServiceRecords.AsNoTracking()
             .Where(s => ids.Contains(s.VehicleId)
-                     && (s.Durum == ServisDurum.Acik || s.Durum == ServisDurum.Serviste))
+                     && (s.Durum == ServiceStatus.Acik || s.Durum == ServiceStatus.Serviste))
             .Select(s => s.VehicleId).Distinct().ToListAsync(ct)).ToHashSet();
         var bafli = (await db.Baflar.AsNoTracking()
-            .Where(b => ids.Contains(b.VehicleId) && b.Durum == BafDurum.Acik)
+            .Where(b => ids.Contains(b.VehicleId) && b.Durum == BafStatus.Acik)
             .Select(b => b.VehicleId).Distinct().ToListAsync(ct)).ToHashSet();
         // Satış bayrağı İPTAL'i saymaz: iptal edilmiş satış girişimi aracı "satılıyor" göstermez.
         var satisli = (await db.VehicleSales.AsNoTracking()
-            .Where(x => ids.Contains(x.VehicleId) && x.Durum != SatisDurum.Iptal)
+            .Where(x => ids.Contains(x.VehicleId) && x.Durum != SaleStatus.Iptal)
             .Select(x => x.VehicleId).Distinct().ToListAsync(ct)).ToHashSet();
 
         // Kasko: araç başına EN GEÇ biten poliçe (yürürlükteki). Trafik poliçesi AYRI bir üründür,
@@ -255,7 +255,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == id, ct);
     }
 
-    public async Task<bool> PlakaExistsAsync(string plaka, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> PlateExistsAsync(string plaka, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Vehicles
@@ -312,7 +312,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }
     }
 
-    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.Araclar, id, ct);
@@ -336,7 +336,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         return true;
     }
 
-    public async Task<bool> ManuelKmEkleAsync(Guid id, int km, DateTimeOffset tarih, CancellationToken ct = default)
+    public async Task<bool> AddManualKmAsync(Guid id, int km, DateTimeOffset tarih, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
         {
@@ -354,7 +354,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             vehicle.Km = km;
             vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
             db.KmLoglari.Add(new VehicleKmLog
-            { VehicleId = id, Tarih = tarih, Km = km, Kaynak = KmLogKaynak.Manuel });
+            { VehicleId = id, Tarih = tarih, Km = km, Kaynak = KmLogSource.Manuel });
 
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -362,7 +362,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }, ct);
     }
 
-    public async Task<IReadOnlyList<VehicleKmLog>> KmLoglariAsync(
+    public async Task<IReadOnlyList<VehicleKmLog>> KmLogsAsync(
         Guid vehicleId, int limit = 20, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

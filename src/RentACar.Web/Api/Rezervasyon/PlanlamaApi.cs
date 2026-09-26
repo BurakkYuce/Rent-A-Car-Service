@@ -24,7 +24,7 @@ namespace RentACar.Web.Api.Rezervasyon;
 /// (Blazor <c>[Authorize(Policy="izin:OperationsWrite")]</c> ile aynı). Şube kapsamı servislerde
 /// (<see cref="CalendarService"/>, <see cref="AvailabilityService"/>, <see cref="VehicleService"/>).
 /// <para><b>Hesap SUNUCUDA</b> (UI formül taşımaz): takvim ızgarası (gün × araç, kira önceliği), müsaitlik penceresi
-/// (<see cref="AvailabilityService.Pencere"/>; gün+saat İSTANBUL saatidir, çakışma sorgusu ve yanıttaki
+/// (<see cref="AvailabilityService.Window"/>; gün+saat İSTANBUL saatidir, çakışma sorgusu ve yanıttaki
 /// <c>pencereBas/Bit</c> gerçek UTC an — F5.1 adversarial L4), yaş, km limiti yönü, boşta gün, broker çiti, döviz süzgeci ve grup
 /// başına fiyat (<see cref="RentalQuoteEngine"/> — persist SIFIR, yalnız gösterim).</para>
 /// </summary>
@@ -136,7 +136,7 @@ public static class PlanlamaApi
 
     private static async Task<Ok<MusaitlikYaniti>> Musaitlik(
         [AsParameters] MusaitlikSorgusu s, AvailabilityService musaitlik, RentalQuoteEngine motor,
-        VehicleGroupService gruplar, ReservationSourceService kaynaklar, BrokerYasakService brokerYasaklari,
+        VehicleGroupService gruplar, ReservationSourceService kaynaklar, BrokerBanService brokerYasaklari,
         CancellationToken ct)
     {
         if (s.BasGun is null)
@@ -144,7 +144,7 @@ public static class PlanlamaApi
         if (s.Gun is { } gn && gn is < 1 or > 365)
             throw new ValidationException("Gün sayısı 1 ile 365 arasında olmalıdır.", "gun");
         Sinirlar.Metin(s.Plaka, 32, "plaka", "Plaka");
-        var pencere = AvailabilityService.Pencere(s.BasGun, s.BitGun, s.Gun, s.BasSaat, s.BitSaat)
+        var pencere = AvailabilityService.Window(s.BasGun, s.BitGun, s.Gun, s.BasSaat, s.BitSaat)
             ?? throw new ValidationException("Bitiş tarihi ya da gün sayısından birini girin.", "bitGun");
         var (from, to) = pencere;
         // F5.1 adversarial L4: gün+saat İSTANBUL niyetidir. Çakışma sorgusu gerçek UTC anla koşar; fiyat motoru, broker
@@ -167,7 +167,7 @@ public static class PlanlamaApi
         var aktifKaynaklar = await kaynaklar.ListActiveAsync(ct);
 
         // Grup başına fiyat — Blazor ile aynı motor çağrısı; geçersiz grup/tarih → fiyat yok (null).
-        var kanal = KanalCozucu.Coz(rezKaynak, aktifKaynaklar);
+        var kanal = ChannelResolver.Resolve(rezKaynak, aktifKaynaklar);
         var fiyat = new Dictionary<string, MusaitlikFiyati>(StringComparer.OrdinalIgnoreCase);
         foreach (var g in liste.Select(v => v.Grup).Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -188,11 +188,11 @@ public static class PlanlamaApi
             var yasaklar = await brokerYasaklari.ListActiveAsync(ct);
             if (yasaklar.Count > 0)
             {
-                var gun = BookingMath.ComputeGun(from, to);
+                var gun = BookingMath.ComputeDays(from, to);
                 var kalan = new List<Vehicle>(liste.Count);
                 foreach (var v in liste)
                 {
-                    var engel = BrokerMusaitlik.Engel(yasaklar, rezKaynak, v.Grup, v.Sube, gun, from);
+                    var engel = BrokerAvailability.Block(yasaklar, rezKaynak, v.Grup, v.Sube, gun, from);
                     if (engel is null) { kalan.Add(v); continue; }
                     elenen++;
                     if (!gerekce.Contains(engel.Kod, StringComparer.Ordinal)) gerekce.Add(engel.Kod);
@@ -207,7 +207,7 @@ public static class PlanlamaApi
             liste = liste.Where(v => v.Grup is not null && fiyat.TryGetValue(v.Grup, out var f)
                                      && string.Equals(f.ParaBirimi, doviz, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        var son = await musaitlik.SonKullanimAsync(liste.Select(v => v.Id).ToList(), ct);
+        var son = await musaitlik.LastUsageAsync(liste.Select(v => v.Id).ToList(), ct);
         var simdi = DateTimeOffset.UtcNow;
         VehicleGroup? Grup(string? ad) => ad is not null && grupMap.TryGetValue(ad, out var g) ? g : null;
         var satirlar = liste.Select(v =>
@@ -221,7 +221,7 @@ public static class PlanlamaApi
                 v.KiraKmLimiti ?? gr?.GunlukKmLimiti, // araç kaydı grup varsayılanını EZER (kira formundaki yön)
                 gr?.SurucuMinYas, gr?.EhliyetMinYil, gr?.Provizyon, F5Ortak.Nz(gr?.ProvizyonDoviz),
                 v.KarLastigi, v.Temizlik, v.OzelKod1, v.Km,
-                sk is null ? null : AvailabilityService.BostaGun(sk.SonDonus, simdi),
+                sk is null ? null : AvailabilityService.IdleDays(sk.SonDonus, simdi),
                 sk is null ? null : sk.AnonimAd ? MusteriGorunumu.AnonimAdEtiketi : sk.MusteriAd,
                 v.Grup is not null && fiyat.TryGetValue(v.Grup, out var f) ? f : null);
         }).ToList();

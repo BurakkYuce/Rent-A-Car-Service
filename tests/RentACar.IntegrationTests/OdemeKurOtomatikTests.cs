@@ -24,10 +24,10 @@ namespace RentACar.IntegrationTests;
 public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
 {
     private static Task SabitKurAsync(IServiceProvider sp, string kod, decimal kur)
-        => sp.GetRequiredService<SabitKurService>().UpsertAsync(new SabitKurInput { Kod = kod, Kur = kur, Aktif = true });
+        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = kod, Kur = kur, Aktif = true });
 
     private static async Task<decimal> GiderToplamAsync(IServiceProvider sp)
-        => (await sp.GetRequiredService<ReportService>().GetGelirGiderAsync()).GiderToplam;
+        => (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GiderToplam;
 
     [Fact]
     public async Task Sigorta_eur_odeme_kuru_otomatik_cozulur()
@@ -39,10 +39,10 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KO 01" });
         var reg = sp.GetRequiredService<RegulationService>();
         var pol = await reg.AddInsuranceAsync(veh, InsuranceType.Kasko,
-            DateTimeOffset.UtcNow.AddDays(-10), DateTimeOffset.UtcNow.AddYears(1), prim: 100m,
-            policeNo: "P1", firma: "X", acenta: null, doviz: "EUR");
+            DateTimeOffset.UtcNow.AddDays(-10), DateTimeOffset.UtcNow.AddYears(1), premium: 100m,
+            policeNo: "P1", company: "X", agency: null, currencyCode: "EUR");
 
-        await reg.SigortaOdeAsync(pol, LedgerAccountType.Kasa); // kur YOK → otomatik 40
+        await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa); // kur YOK → otomatik 40
 
         Assert.Equal(4000m, await GiderToplamAsync(sp)); // 100 EUR × 40 (elle)
     }
@@ -59,7 +59,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         var pol = await reg.AddInsuranceAsync(veh, InsuranceType.Trafik,
             DateTimeOffset.UtcNow.AddDays(-10), DateTimeOffset.UtcNow.AddYears(1), 100m, "P2", "X", null, "EUR");
 
-        await reg.SigortaOdeAsync(pol, LedgerAccountType.Kasa, kur: 35m); // tarihsel düzeltme senaryosu
+        await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa, exchangeRate: 35m); // tarihsel düzeltme senaryosu
 
         Assert.Equal(3500m, await GiderToplamAsync(sp)); // açık kur kazanır (elle)
     }
@@ -76,7 +76,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         var pol = await reg.AddInsuranceAsync(veh, InsuranceType.Kasko,
             DateTimeOffset.UtcNow.AddDays(-10), DateTimeOffset.UtcNow.AddYears(1), 100m, "P3", "X", null, "GBP");
 
-        await Assert.ThrowsAsync<ValidationException>(() => reg.SigortaOdeAsync(pol, LedgerAccountType.Kasa));
+        await Assert.ThrowsAsync<ValidationException>(() => reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa));
         Assert.Equal(0m, await GiderToplamAsync(sp)); // hiçbir şey postlanmadı
         Assert.False((await reg.ListInsuranceAsync()).Single(p => p.Id == pol).Odendi);
     }
@@ -92,7 +92,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         var pol = await reg.AddInsuranceAsync(veh, InsuranceType.Trafik,
             DateTimeOffset.UtcNow.AddDays(-10), DateTimeOffset.UtcNow.AddYears(1), 100m, "P4", "X", null, "TRY");
 
-        await reg.SigortaOdeAsync(pol, LedgerAccountType.Kasa); // TRY → 1 (kur tablosu gerekmez)
+        await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa); // TRY → 1 (kur tablosu gerekmez)
 
         Assert.Equal(100m, await GiderToplamAsync(sp));
     }
@@ -105,19 +105,19 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         await SabitKurAsync(sp, "EUR", 40m);
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Depo", Soyad = "Cari" });
-        var depo = sp.GetRequiredService<DepozitoService>();
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Depo", Soyad = "Cari" });
+        var depo = sp.GetRequiredService<DepositService>();
 
-        await depo.AlAsync(cari, 100m, LedgerAccountType.Kasa, doviz: "EUR");   // kur otomatik 40
-        Assert.Equal(4000m, await depo.GetBakiyeAsync(cari));                    // base 4000 (elle)
+        await depo.GetAsync(cari, 100m, LedgerAccountType.Kasa, currency: "EUR");   // kur otomatik 40
+        Assert.Equal(4000m, await depo.GetBalanceAsync(cari));                    // base 4000 (elle)
 
-        await depo.IadeAsync(cari, 50m, LedgerAccountType.Kasa, doviz: "EUR");  // 2000 base iade
-        Assert.Equal(2000m, await depo.GetBakiyeAsync(cari));
+        await depo.RefundAsync(cari, 50m, LedgerAccountType.Kasa, currency: "EUR");  // 2000 base iade
+        Assert.Equal(2000m, await depo.GetBalanceAsync(cari));
 
         // Kur'suz döviz (DKK): net red + bakiye değişmez.
         await Assert.ThrowsAsync<ValidationException>(
-            () => depo.AlAsync(cari, 10m, LedgerAccountType.Kasa, doviz: "DKK"));
-        Assert.Equal(2000m, await depo.GetBakiyeAsync(cari));
+            () => depo.GetAsync(cari, 10m, LedgerAccountType.Kasa, currency: "DKK"));
+        Assert.Equal(2000m, await depo.GetBalanceAsync(cari));
     }
 
     [Fact]
@@ -135,13 +135,13 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         await sale.CreateAsync(new VehicleSaleInput
         { VehicleId = v1, AliciCariId = Guid.NewGuid(), SatisNet = 1000m, KdvOrani = 0m, Doviz = "EUR" }); // Kur YOK
         var rs = sp.GetRequiredService<ReportService>();
-        Assert.Equal(40_000m, (await rs.GetGelirGiderAsync()).GelirToplam);
+        Assert.Equal(40_000m, (await rs.GetRevenueExpenseAsync()).GelirToplam);
 
         // Açık kur ezer: 100 EUR × 35 = 3500 ek gelir → toplam 43.500.
         var v2 = await veh.CreateAsync(new VehicleInput { Plaka = "34 KO 06" });
         await sale.CreateAsync(new VehicleSaleInput
         { VehicleId = v2, AliciCariId = Guid.NewGuid(), SatisNet = 100m, KdvOrani = 0m, Doviz = "EUR", Kur = 35m });
-        Assert.Equal(43_500m, (await rs.GetGelirGiderAsync()).GelirToplam);
+        Assert.Equal(43_500m, (await rs.GetRevenueExpenseAsync()).GelirToplam);
     }
 
     [Fact]
@@ -152,19 +152,19 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KO 07" });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Rucu", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rucu", Soyad = "Cari" });
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = veh, Tip = ServisTipi.Ariza, GirisKm = 0,
-            HasarSorumlu = HasarSorumlu.Musteri, KusurOrani = 0.5m,
+            VehicleId = veh, Tip = ServiceType.Ariza, GirisKm = 0,
+            HasarSorumlu = DamageResponsible.Musteri, KusurOrani = 0.5m,
             Lines = [new ServiceLineInput { Aciklama = "X", Tutar = 1000m }]
         });
-        await svc.BaslatAsync(id);
-        await svc.TamamlaAsync(id, cikisKm: 10);
+        await svc.StartAsync(id);
+        await svc.CompleteAsync(id, pickupKm: 10);
 
-        await svc.YansitAsync(id, cari); // doviz TRY default, kur boş → 1
+        await svc.ReflectAsync(id, cari); // doviz TRY default, kur boş → 1
 
-        Assert.Equal(500m, (await sp.GetRequiredService<ReportService>().GetGelirGiderAsync()).GelirToplam);
+        Assert.Equal(500m, (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GelirToplam);
     }
 }

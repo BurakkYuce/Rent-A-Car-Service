@@ -16,7 +16,7 @@ public static class EkHizmetEndpoints
     {
         var grp = app.MapGroup("/ek-hizmetler").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (EkHizmetTanimService svc,
+        grp.MapPost("/create", async (AddOnDefinitionService svc,
             [FromForm] string kod, [FromForm] string ad,
             [FromForm] string? birimUcret, [FromForm] string? kdvOrani,
             [FromForm] string? aciklama, [FromForm] string? maxGun) =>
@@ -31,7 +31,7 @@ public static class EkHizmetEndpoints
                 Aktif = true
             }), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (EkHizmetTanimService svc, [FromForm] Guid id,
+        grp.MapPost("/update", async (AddOnDefinitionService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad,
             [FromForm] string? birimUcret, [FromForm] string? kdvOrani,
             [FromForm] string? aciklama, [FromForm] string? maxGun, [FromForm] bool aktif) =>
@@ -46,7 +46,7 @@ public static class EkHizmetEndpoints
                 Aktif = aktif
             }), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (EkHizmetTanimService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (AddOnDefinitionService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;

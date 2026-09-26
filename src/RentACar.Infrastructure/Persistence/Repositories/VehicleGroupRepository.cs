@@ -32,7 +32,7 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
         return await db.VehicleGroups.AsNoTracking().FirstOrDefaultAsync(g => g.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();
@@ -44,7 +44,7 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
     /// <summary>Türkçe katlama (İ/I/ı/i) bir .NET comparer'dır, SQL'e çevrilemez → adaylar (grup sayısı
     /// azdır) belleğe çekilip <see cref="TurkishText"/> ile karşılaştırılır. Ordinal `==` kullanmak
     /// "EKONOMİ" ile "ekonomi"yi FARKLI sayıp çakışmayı sessizce geçirirdi.</summary>
-    public async Task<bool> AdExistsAsync(string ad, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> NameExistsAsync(string ad, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var adaylar = await db.VehicleGroups.AsNoTracking()
@@ -97,7 +97,7 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
 
     /// <summary>
     /// F11.1b — sürümlü tam değiştirme: satır kilidi + xmin karşılaştırması + (ad değiştiyse) rename cascade
-    /// TEK işlemde. Sürüm uyuşmazlığında hiçbir şey yazılmaz (<see cref="EszamanliDegisiklikException"/>).
+    /// TEK işlemde. Sürüm uyuşmazlığında hiçbir şey yazılmaz (<see cref="ConcurrentModificationException"/>).
     /// </summary>
     public async Task<GrupGuncellemeSonuc> UpdateAsync(Guid id, string? expectedVersion, Action<VehicleGroup> apply, CancellationToken ct = default)
     {
@@ -112,7 +112,7 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
                 if (expectedVersion is not null
                     && await SatirSurumu.OkuAsync(db, SatirSurumu.VehicleGroups, id, ct) is { } current
                     && !string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
-                    throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+                    throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
 
                 var group = await db.VehicleGroups.FirstOrDefaultAsync(g => g.Id == id, ct);
                 if (group is null) return new GrupGuncellemeSonuc(false, 0);
@@ -139,7 +139,7 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
         return await SatirSurumu.OkuAsync(db, SatirSurumu.VehicleGroups, id, ct);
     }
 
-    public async Task<int> GrupDegeriTasiAsync(string? kaynakDeger, bool bosOlanlar, string hedefAd, CancellationToken ct = default)
+    public async Task<int> MoveGroupValueAsync(string? kaynakDeger, bool bosOlanlar, string hedefAd, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var n = bosOlanlar

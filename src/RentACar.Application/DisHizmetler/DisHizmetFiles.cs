@@ -7,18 +7,18 @@ using RentACar.Domain.Enums;
 
 namespace RentACar.Application.DisHizmetler;
 
-public interface IDisHizmetRepository
+public interface IOutsourcedServiceRepository
 {
     Task<IReadOnlyList<DisHizmetAlimi>> ListForRentalAsync(Guid rentalId, CancellationToken ct = default);
     Task<DisHizmetAlimi?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Kayıt + DENGELİ defter kümesi TEK transaction (No tahsisi DH- gapless; IslemAnahtari
     /// kısmi-unique çift-submit çiti — çakışmada ValidationException).</summary>
-    Task PostAsync(DisHizmetAlimi kayit, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
+    Task PostAsync(DisHizmetAlimi record, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 
     /// <summary>İptal: Durum=Iptal + verilen TERS defter kümesi AYNI transaction (silme/update yok).
     /// Zaten iptalse ValidationException (idempotent red).</summary>
-    Task IptalAsync(Guid id, IReadOnlyList<AccountLedgerEntry> tersEntries, CancellationToken ct = default);
+    Task CancelAsync(Guid id, IReadOnlyList<AccountLedgerEntry> reverseEntries, CancellationToken ct = default);
 }
 
 /// <summary>Dış hizmet alımı giriş modeli.</summary>
@@ -52,13 +52,13 @@ public sealed class DisHizmetInput
 /// Komisyon 0 ise ikinci çift yazılmaz. Karne/Karlilik: gider AccountRef'ten, gelir SourceType
 /// "DisHizmet" → RentalId → araç atfı. İptal ters kayıtla (net sıfır).
 /// </summary>
-public sealed class DisHizmetService(
-    IDisHizmetRepository repository,
+public sealed class OutsourcedServiceService(
+    IOutsourcedServiceRepository repository,
     Bookings.IBookingRepository bookings,
-    Customers.ICustomerRepository cariler,
+    Customers.ICustomerRepository customers,
     ICurrentUser currentUser,
     IPeriodLockGuard periodLock,
-    Kur.KurCozucu kurCozucu)
+    Kur.ExchangeRateResolver exchangeRateResolver)
 {
     public Task<IReadOnlyList<DisHizmetAlimi>> ListForRentalAsync(Guid rentalId, CancellationToken ct = default)
         => repository.ListForRentalAsync(rentalId, ct);
@@ -76,23 +76,23 @@ public sealed class DisHizmetService(
             throw new ValidationException("Bayi komisyon oranı 0 ile 100 arasında olmalıdır (%).");
         if (input.VerilecekKomisyonTutar is < 0m)
             throw new ValidationException("Verilecek komisyon tutarı negatif olamaz.");
-        TarihPolitikasi.ParaTarihi(input.Tarih, "İşlem");
+        DatePolicy.MoneyDate(input.Tarih, "İşlem");
 
         var rental = await bookings.FindRentalAsync(input.RentalId, ct)
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
         Authorization.BranchScope.RequireInScope(currentUser, rental.CikisSubeId, rental.CikisOfisi);
         if (rental.Durum == RentalStatus.Iptal)
             throw new ValidationException("İptal edilmiş kiraya dış hizmet kaydı girilemez.");
-        if (await cariler.FindAsync(input.FaturaKesilecekCariId, ct) is null)
+        if (await customers.FindAsync(input.FaturaKesilecekCariId, ct) is null)
             throw new ValidationException("Tedarikçi cari bulunamadı.");
 
-        var tarih = input.Tarih ?? DateTimeOffset.UtcNow;
-        await periodLock.EnsureOpenAsync(tarih, ct);
+        var date = input.Tarih ?? DateTimeOffset.UtcNow;
+        await periodLock.EnsureOpenAsync(date, ct);
         // 1.1 kur otomatiği: açık kur aynen; boş → TRY=1 / döviz çözümü; çözülemezse temiz red.
-        var kur = await kurCozucu.CozAsync(input.Doviz, input.Kur, tarih, ct);
-        var doviz = Kur.KurService.NormalizeKodStrict(input.Doviz);
+        var exchangeRate = await exchangeRateResolver.ResolveAsync(input.Doviz, input.Kur, date, ct);
+        var currency = Kur.ExchangeRateService.NormalizeCodeStrict(input.Doviz);
 
-        var kayit = new DisHizmetAlimi
+        var record = new DisHizmetAlimi
         {
             RentalId = rental.Id,
             FaturaKesilecekCariId = input.FaturaKesilecekCariId,
@@ -107,40 +107,40 @@ public sealed class DisHizmetService(
             BayiFaturaNo = TrimOrNull(input.BayiFaturaNo),
             KdvMuaf = input.KdvMuaf,
             IndirimTuru = TrimOrNull(input.IndirimTuru),
-            Currency = doviz,
-            Kur = kur,
-            Tarih = tarih,
+            Currency = currency,
+            Kur = exchangeRate,
+            Tarih = date,
             Aciklama = TrimOrNull(input.Aciklama),
             IslemAnahtari = input.IslemAnahtari is { } k && k != Guid.Empty ? k : null
         };
-        await repository.PostAsync(kayit, Entries(kayit, rental.VehicleId, flip: false), ct);
-        return kayit.Id;
+        await repository.PostAsync(record, Entries(record, rental.VehicleId, flip: false), ct);
+        return record.Id;
     }
 
     /// <summary>İptal — ters kayıt (net sıfır); kayıt Durum=Iptal (silme yok).</summary>
-    public async Task IptalEtAsync(Guid id, CancellationToken ct = default)
+    public async Task CancelAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.FinanceReverse); // inceltme: ters kayıt yazar
-        var kayit = await repository.FindAsync(id, ct)
+        var record = await repository.FindAsync(id, ct)
             ?? throw new ValidationException("Dış hizmet kaydı bulunamadı.");
         // F4.4a adversarial L5: kapsam, durumdan ÖNCE — başka şubenin kaydının iptal edilmiş olduğu
         // "zaten iptal" mesajıyla sızmasın; kapsam dışı her kayıt aynı 403'ü alır.
-        var rental = await bookings.FindRentalAsync(kayit.RentalId, ct)
+        var rental = await bookings.FindRentalAsync(record.RentalId, ct)
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
         Authorization.BranchScope.RequireInScope(currentUser, rental.CikisSubeId, rental.CikisOfisi);
-        if (kayit.Durum == DisHizmetDurum.Iptal)
+        if (record.Durum == DisHizmetDurum.Iptal)
             throw new ValidationException("Kayıt zaten iptal edilmiş.");
         await periodLock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // ters kayıt bugüne yazılır
-        await repository.IptalAsync(id, Entries(kayit, rental.VehicleId, flip: true, tarih: DateTimeOffset.UtcNow), ct);
+        await repository.CancelAsync(id, Entries(record, rental.VehicleId, flip: true, date: DateTimeOffset.UtcNow), ct);
     }
 
     /// <summary>Komisyon = round(bedel × oran / 100, 2) — SATIR-BAZLI yuvarlama (K2).</summary>
-    public static decimal Komisyon(decimal bedel, decimal oran)
-        => Math.Round(bedel * oran / 100m, 2, MidpointRounding.AwayFromZero);
+    public static decimal Commission(decimal charge, decimal rate)
+        => Math.Round(charge * rate / 100m, 2, MidpointRounding.AwayFromZero);
 
-    private static List<AccountLedgerEntry> Entries(DisHizmetAlimi k, Guid vehicleId, bool flip, DateTimeOffset? tarih = null)
+    private static List<AccountLedgerEntry> Entries(DisHizmetAlimi k, Guid vehicleId, bool flip, DateTimeOffset? date = null)
     {
-        var t = tarih ?? k.Tarih;
+        var t = date ?? k.Tarih;
         // Ters kayıtta SourceType KORUNUR ("DisHizmet") — karne/Karlilik atfı SourceId'den kayda gider;
         // yön çevrimi signed toplamda netler ("TersKayit" tipi atfı koparıp iptali raporda bırakıyordu).
         AccountLedgerEntry E(LedgerAccountType type, Guid? reff, LedgerDirection dir, decimal amount) => new()
@@ -158,12 +158,12 @@ public sealed class DisHizmetService(
             E(LedgerAccountType.Gider, vehicleId, LedgerDirection.Debit, k.HizmetBedeli),
             E(LedgerAccountType.Cari, k.FaturaKesilecekCariId, LedgerDirection.Credit, k.HizmetBedeli)
         };
-        var komisyon = Komisyon(k.HizmetBedeli, k.TedarikciKomisyonOran);
-        if (komisyon > 0m)
+        var commission = Commission(k.HizmetBedeli, k.TedarikciKomisyonOran);
+        if (commission > 0m)
         {
             // Komisyon geliri: tedarikçiden alacaklanırız / gelir (karne atfı SourceType "DisHizmet").
-            entries.Add(E(LedgerAccountType.Cari, k.FaturaKesilecekCariId, LedgerDirection.Debit, komisyon));
-            entries.Add(E(LedgerAccountType.Gelir, null, LedgerDirection.Credit, komisyon));
+            entries.Add(E(LedgerAccountType.Cari, k.FaturaKesilecekCariId, LedgerDirection.Debit, commission));
+            entries.Add(E(LedgerAccountType.Gelir, null, LedgerDirection.Credit, commission));
         }
         return entries;
     }

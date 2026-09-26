@@ -155,7 +155,7 @@
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
-        _detay = await Showcase.GetIlanDetayAsync(Slug);
+        _detay = await Showcase.GetListingDetailAsync(Slug);
 
         // PR-11'den devralınan kural: yayında olmayan içerik GERÇEK 404 döner. HTTP 200 ile
         // "bulunamadı" basmak (soft-404) arama motoruna bunu geçerli içerik olarak indeksletirdi.

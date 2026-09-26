@@ -35,7 +35,7 @@ public static partial class FinanceHubApi
 
     private static async Task<Ok<CashboxSummary>> GetCashboxSummary(ReportService reports, CancellationToken ct)
     {
-        var s = await reports.GetKasaBankaSummaryAsync(ct: ct);
+        var s = await reports.GetCashBankSummaryAsync(ct: ct);
         return TypedResults.Ok(new CashboxSummary(s.KasaGiris, s.KasaCikis, s.KasaBakiye, s.BankaGiris, s.BankaCikis, s.BankaBakiye));
     }
 
@@ -54,7 +54,7 @@ public static partial class FinanceHubApi
         FinansApi.Metin(q, 100, "q");
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
 
-        var rows = await cash.SearchIslemlerAsync(new CashFilter
+        var rows = await cash.SearchTransactionsAsync(new CashFilter
         {
             Ara = F5Ortak.Nz(q), Tip = type, Hesap = account, HesapId = hesapId, Bas = min, Bit = max,
             EnFazla = CashListCap,
@@ -84,7 +84,7 @@ public static partial class FinanceHubApi
     {
         FinansApi.Metin(ara, 100, "ara");
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
-        var rows = await cash.ListKasaVirmanlarAsync(new KasaVirmanFilter
+        var rows = await cash.ListCashTransfersAsync(new KasaVirmanFilter
         {
             Bas = min, Bit = max, HesapId = hesapId, Ara = F5Ortak.Nz(ara), EnFazla = Math.Clamp(limit ?? 50, 1, 500),
         }, ct);
@@ -98,7 +98,7 @@ public static partial class FinanceHubApi
 
     /// <summary>E06: aynı içerik → 200 aynı id (= işlem anahtarı); farklı tutar/yön/hesap → 409 <c>mukerrer</c>.</summary>
     private static async Task<Ok<CashOperationResult>> PostCashTransfer(
-        CashTransferRequest req, HttpContext http, CashService cash, RentACar.Application.Kur.KurCozucu rates,
+        CashTransferRequest req, HttpContext http, CashService cash, RentACar.Application.Kur.ExchangeRateResolver rates,
         CancellationToken ct)
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
@@ -110,7 +110,7 @@ public static partial class FinanceHubApi
         var branch = Text(req.Sube, 128, "sube");
         var note = Text(req.Aciklama, 512, "aciklama");
         await cash.TransferAsync(source, target, req.Tutar, currency, req.Kur, note, key,
-            kaynakHesapId: req.KaynakHesapId, hedefHesapId: req.HedefHesapId, makbuzNo: receipt, sube: branch, ct: ct);
+            sourceAccountId: req.KaynakHesapId, targetAccountId: req.HedefHesapId, receiptNo: receipt, branch: branch, ct: ct);
         return TypedResults.Ok(new CashOperationResult(key));
     }
 
@@ -124,7 +124,7 @@ public static partial class FinanceHubApi
         // L4b: kirasız kasa işleminin şubesi yok (kasa/banka hesabı şubeye bağlı değil). Şubeye bağlı kullanıcı
         // yalnız kendi şubesinin kirasına bağlı işlemi ters alabilir; kiracı geneli kasa işlemi kapsam dışıdır.
         else if (!BranchScope.EffectiveFilter(user).Unrestricted)
-            throw new YetkiYokException("Kiraya bağlı olmayan kasa işlemini yalnız şube kısıtı olmayan kullanıcı ters alabilir.");
+            throw new NoPermissionException("Kiraya bağlı olmayan kasa işlemini yalnız şube kısıtı olmayan kullanıcı ters alabilir.");
         return TypedResults.Ok(new CashOperationResult(await cash.ReverseAsync(id, ct)));
     }
 

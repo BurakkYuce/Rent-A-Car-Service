@@ -43,10 +43,10 @@ public sealed class VehicleSaleTests(PostgresFixture fx)
         BelgeNoOracle.BeklenenlerdenBiri(14, 1, sale!.No);
         Assert.Equal(20000m, sale.KdvTutar);
         Assert.Equal(120000m, sale.GenelToplam);
-        Assert.Equal(SatisDurum.Tamamlandi, sale.Durum);
+        Assert.Equal(SaleStatus.Tamamlandi, sale.Durum);
 
         // Alıcı cari brüt kadar borçlanır (+120000).
-        Assert.Equal(120000m, await cash.GetCariBalanceAsync(alici));
+        Assert.Equal(120000m, await cash.GetAccountBalanceAsync(alici));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();

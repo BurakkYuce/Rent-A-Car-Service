@@ -53,10 +53,10 @@ public static class UiHata
     /// </summary>
     public static (int Status, string Kod)? Esle(Exception ex) => ex switch
     {
-        YetkiYokException => (StatusCodes.Status403Forbidden, YetkiYok),
-        MukerrerIslemException => (StatusCodes.Status409Conflict, Mukerrer),
+        NoPermissionException => (StatusCodes.Status403Forbidden, YetkiYok),
+        DuplicateOperationException => (StatusCodes.Status409Conflict, Mukerrer),
         AvailabilityConflictException or DuplicateCariException or DuplicatePlakaException
-            or EszamanliDegisiklikException // F4.3 adversarial F2: bayat sürüm — form korunur, kayıt yeniden okunur
+            or ConcurrentModificationException // F4.3 adversarial F2: bayat sürüm — form korunur, kayıt yeniden okunur
             => (StatusCodes.Status409Conflict, Cakisma),
         ValidationException => (StatusCodes.Status400BadRequest, Dogrulama),
         _ when VeriTasmasi(ex) => (StatusCodes.Status400BadRequest, Dogrulama),
@@ -91,7 +91,7 @@ public static class UiHata
                 statusCode: StatusCodes.Status500InternalServerError,
                 title: "Sunucu hatası");
 
-        if (ex is MukerrerIslemException { Mevcut: { } m })
+        if (ex is DuplicateOperationException { Existing: { } m })
             return Problem(e.Kod, ex.Message, alan: null, mevcut: m);
         return ex is ValidationException v
             ? Problem(e.Kod, v.Message, v.Alan)

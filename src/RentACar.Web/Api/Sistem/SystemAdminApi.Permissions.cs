@@ -40,7 +40,7 @@ public static partial class SystemAdminApi
         {
             var source = F5Ortak.EnumAdi<UserRole>(i.Kaynak, "kaynak") ?? throw new ValidationException("Kaynak rol seçilmelidir.", "kaynak");
             var target = F5Ortak.EnumAdi<UserRole>(i.Hedef, "hedef") ?? throw new ValidationException("Hedef rol seçilmelidir.", "hedef");
-            return TypedResults.Ok(new CountResult(await s.KopyalaRolAsync(source, target, ct)));
+            return TypedResults.Ok(new CountResult(await s.CopyRoleAsync(source, target, ct)));
         }).AlanlariEsle([("Kaynak ve hedef", "hedef")]);
 
         g.MapGet("/gruplar", async Task<Ok<IReadOnlyList<PermissionGroupDto>>> (ScreenPermissionService s, CancellationToken ct)
@@ -49,15 +49,15 @@ public static partial class SystemAdminApi
         g.MapPost("/gruplar", async Task<Ok<IReadOnlyList<PermissionGroupDto>>> (PermissionGroupRequest i, ScreenPermissionService s, CancellationToken ct) =>
         {
             Sinirlar.Metin(i.Ad, 128, "ad", "Şablon adı");
-            await s.SnapshotGrupAsync(i.Ad ?? "", ct);
+            await s.SnapshotGroupAsync(i.Ad ?? "", ct);
             return TypedResults.Ok(await GroupsAsync(s, ct));
         }).AlanlariEsle([("Şablon adı", "ad")]);
 
         g.MapPost("/gruplar/uygula", async Task<Ok<CountResult>> (PermissionGroupRequest i, ScreenPermissionService s, CancellationToken ct)
-            => TypedResults.Ok(new CountResult(await s.UygulaGrupAsync(i.Ad ?? "", ct)))).AlanlariEsle([("Şablon bulunamadı", "ad")]);
+            => TypedResults.Ok(new CountResult(await s.ApplyGroupAsync(i.Ad ?? "", ct)))).AlanlariEsle([("Şablon bulunamadı", "ad")]);
 
         g.MapDelete("/gruplar", async Task<Results<NoContent, ProblemHttpResult>> (string? ad, ScreenPermissionService s, CancellationToken ct)
-            => !string.IsNullOrWhiteSpace(ad) && await s.SilGrupAsync(ad, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("Şablon bulunamadı."));
+            => !string.IsNullOrWhiteSpace(ad) && await s.DeleteGroupAsync(ad, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("Şablon bulunamadı."));
     }
 
     private static IReadOnlyList<UserRole> ParseRoles(IReadOnlyList<string>? roles)
@@ -76,7 +76,7 @@ public static partial class SystemAdminApi
             .ToList();
 
     private static async Task<IReadOnlyList<PermissionGroupDto>> GroupsAsync(ScreenPermissionService s, CancellationToken ct)
-        => (await s.ListGruplarAsync(ct)).OrderBy(x => x.Ad, StringComparer.Ordinal)
+        => (await s.ListGroupsAsync(ct)).OrderBy(x => x.Ad, StringComparer.Ordinal)
             .Select(x => new PermissionGroupDto(x.Ad, CountItems(x.KalemlerJson), (x.UpdatedAtUtc ?? x.CreatedAtUtc).ToUniversalTime()))
             .ToList();
 

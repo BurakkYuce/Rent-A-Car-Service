@@ -30,7 +30,7 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
 {
     private static async Task<Guid> CariAsync(IServiceProvider sp, string unvan, string? il = null, string? mail = null)
         => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = unvan, Il = il, Email = mail });
+        { Tip = CustomerType.Kurumsal, Unvan = unvan, Il = il, Email = mail });
 
     private static Task<Guid> ManuelAsync(
         IServiceProvider sp, Guid cari, string aciklama, decimal net,
@@ -110,7 +110,7 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         // ELLE: 2 fatura — 1.000 net (brüt 1.200) ve 500 net (brüt 600). İkincisi iade edilir.
         await ManuelAsync(sp, cari, "Kalır", 1000m);
         var iadeEdilecek = await ManuelAsync(sp, cari, "İade edilecek", 500m);
-        await inv.CreateIadeAsync(iadeEdilecek);
+        await inv.CreateRefundAsync(iadeEdilecek);
 
         var satirlar = await inv.ListLinesAsync();
         Assert.Equal(3, satirlar.Count);                                   // 2 fatura + 1 iade
@@ -212,7 +212,7 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
             await ManuelAsync(admin.ServiceProvider, await CariAsync(admin.ServiceProvider, "Zeta"), "X", 10m);
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => op.ServiceProvider.GetRequiredService<InvoiceService>().ListLinesAsync());
     }
 

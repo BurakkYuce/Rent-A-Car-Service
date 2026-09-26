@@ -34,7 +34,7 @@ public sealed class OperatorSayfaErisimTests(PostgresFixture fx)
         // Admin ile tohum: operatörün göreceği bir personel + araç olsun.
         using (var admin = host.ScopeFor(tenant))
         {
-            await admin.ServiceProvider.GetRequiredService<PersonelService>().CreateAsync(
+            await admin.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(
                 new PersonelInput { Kod = "OP-001", Ad = "Op", Soyad = "Test" });
             await admin.ServiceProvider.GetRequiredService<VehicleService>().CreateAsync(
                 new VehicleInput { Plaka = "34 OP 01" });
@@ -45,7 +45,7 @@ public sealed class OperatorSayfaErisimTests(PostgresFixture fx)
 
         // BafList.OnInitializedAsync'in yaptığı çağrıların AYNISI — biri bile atarsa sayfa 500 olur.
         var kayitlar = await sp.GetRequiredService<BafService>().ListAsync();
-        var personel = await sp.GetRequiredService<PersonelService>().ListForSelectAsync();
+        var personel = await sp.GetRequiredService<PersonnelService>().ListForSelectAsync();
         var araclar = await sp.GetRequiredService<VehicleService>().ListAsync();
         var subeler = await sp.GetRequiredService<BranchService>().ListActiveAsync();
 
@@ -64,7 +64,7 @@ public sealed class OperatorSayfaErisimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(tenant, role: UserRole.Operator);
 
-        await Assert.ThrowsAsync<YetkiYokException>(
-            () => s.ServiceProvider.GetRequiredService<PersonelService>().ListAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(
+            () => s.ServiceProvider.GetRequiredService<PersonnelService>().ListAsync());
     }
 }

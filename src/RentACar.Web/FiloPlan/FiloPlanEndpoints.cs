@@ -14,18 +14,18 @@ public static class FiloPlanEndpoints
     {
         var grp = app.MapGroup("/filo-plan").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (FiloPlanService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (FleetPlanService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (FiloPlanService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (FleetPlanService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
         // Artır/Azalt — delta SUNUCUDA sınırlanır: forma güvenilip serbest bırakılsaydı bir POST
         // hedefi tek hamlede istediği yere taşıyabilirdi (bu uç düzenleme ucu değil).
-        grp.MapPost("/delta", async (FiloPlanService svc, [FromForm] Guid id, [FromForm] string? yon) =>
-            await Run(() => svc.HedefDegistirAsync(id, yon == "azalt" ? -1 : 1), "İşlem tamamlandı."));
+        grp.MapPost("/delta", async (FleetPlanService svc, [FromForm] Guid id, [FromForm] string? yon) =>
+            await Run(() => svc.ChangeTargetAsync(id, yon == "azalt" ? -1 : 1), "İşlem tamamlandı."));
 
-        grp.MapPost("/delete", async (FiloPlanService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (FleetPlanService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;

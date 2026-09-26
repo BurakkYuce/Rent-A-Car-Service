@@ -16,7 +16,7 @@ public static class KdvRateEndpoints
     {
         var grp = app.MapGroup("/kdv-oranlari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (KdvRateService svc,
+        grp.MapPost("/create", async (VatRateService svc,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? oran) =>
             await Run(() => svc.CreateAsync(new KdvRateInput
             {
@@ -26,7 +26,7 @@ public static class KdvRateEndpoints
                 Aktif = true
             }), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (KdvRateService svc, [FromForm] Guid id,
+        grp.MapPost("/update", async (VatRateService svc, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] string? oran, [FromForm] bool aktif) =>
             await Run(() => svc.UpdateAsync(id, new KdvRateInput
             {
@@ -36,7 +36,7 @@ public static class KdvRateEndpoints
                 Aktif = aktif
             }), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (KdvRateService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (VatRateService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;

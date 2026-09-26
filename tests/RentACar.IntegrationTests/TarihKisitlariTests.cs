@@ -29,7 +29,7 @@ public sealed class TarihKisitlariTests(PostgresFixture fx)
     private static async Task<(Guid cari, Guid veh)> SeedAsync(IServiceProvider sp, string plaka)
     {
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Test", Soyad = "Musteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Test", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         return (cari, veh);
     }
@@ -143,7 +143,7 @@ public sealed class TarihKisitlariTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
             scope.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-            { Tip = CariType.Bireysel, Ad = "Gelecek", Soyad = "Bebek", DogumTarihi = Now.AddDays(1) }));
+            { Tip = CustomerType.Bireysel, Ad = "Gelecek", Soyad = "Bebek", DogumTarihi = Now.AddDays(1) }));
         Assert.Contains("gelecekte", ex.Message);
     }
 
@@ -153,7 +153,7 @@ public sealed class TarihKisitlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var id = await scope.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Normal", Soyad = "Musteri", DogumTarihi = Now.AddYears(-30) });
+        { Tip = CustomerType.Bireysel, Ad = "Normal", Soyad = "Musteri", DogumTarihi = Now.AddYears(-30) });
         Assert.NotEqual(Guid.Empty, id);
     }
 
@@ -164,7 +164,7 @@ public sealed class TarihKisitlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cari = await scope.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Cari", Soyad = "X" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Cari", Soyad = "X" });
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
             scope.ServiceProvider.GetRequiredService<CashService>()
                 .CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Tarih = Now.AddDays(30) }));
@@ -246,13 +246,13 @@ public sealed class TarihKisitlariTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Batch", Soyad = "X" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Batch", Soyad = "X" });
         var ex = await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync(new[]
         {
             new CashInput { CariId = cari, Tutar = 100m },
             new CashInput { CariId = cari, Tutar = 100m, Tarih = Now.AddDays(30) } // gelecek → TÜM batch red
         }));
         Assert.Contains("gelecekte", ex.Message);
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari)); // hiçbir şey yazılmadı (atomik)
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari)); // hiçbir şey yazılmadı (atomik)
     }
 }

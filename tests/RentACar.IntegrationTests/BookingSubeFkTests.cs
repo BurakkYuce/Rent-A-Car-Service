@@ -38,7 +38,7 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
 
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 BF 01" });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ofis", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ofis", Soyad = "Cari" });
         var rentals = sp.GetRequiredService<RentalService>();
         async Task<Guid> Kira(string ofis, int gunOfset) => await rentals.CreateDirectAsync(new BookingInput
         {
@@ -92,7 +92,7 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
         Assert.Equal(2, liste.Count);                                       // Merkez + Havalimanı (önce 1)
         Assert.All(liste, r => Assert.Equal(b1, r.CikisSubeId));
 
-        await Assert.ThrowsAsync<YetkiYokException>(() => rentals.GetAsync(kiraA)); // çapraz-şube probe red
+        await Assert.ThrowsAsync<NoPermissionException>(() => rentals.GetAsync(kiraA)); // çapraz-şube probe red
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
         Assert.Equal("Havalimanı", (await rentals.GetAsync(kiraM))!.CikisOfisi);
 
         // Kapsam DIŞI şubenin ofisine taşıma: hedef "Ankara Ofis" → B2 → RED.
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
             rentals.UpdateOpenAsync(kiraM, new RentalUpdateInput { CikisOfisi = "Ankara Ofis" }));
     }
 
@@ -129,7 +129,7 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
             var sp = seed.ServiceProvider;
             (b1, _, _, _, _) = await KurAsync(sp);
             var cari = await sp.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Rez", Soyad = "Cari" });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rez", Soyad = "Cari" });
             var arac2 = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 BF 02" });
             var rezBas = DateTimeOffset.UtcNow.AddDays(3);
             var rez = sp.GetRequiredService<ReservationService>();
@@ -159,7 +159,7 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
         {
             var sp = seed.ServiceProvider;
             (b1, _, kiraH, kiraA, _) = await KurAsync(sp);
-            tanim = await sp.GetRequiredService<EkHizmetTanimService>()
+            tanim = await sp.GetRequiredService<AddOnDefinitionService>()
                 .CreateAsync(new EkHizmetTanimInput { Kod = "BEBEK", Ad = "Bebek Koltuğu", BirimUcret = 100m, KdvOrani = 0.20m });
             yabanciKalem = await sp.GetRequiredService<RentalAddOnService>().AddAsync(kiraA, tanim, 1m);
         }
@@ -168,8 +168,8 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
             assignedBranch: "Merkez", assignedBranchId: b1);
         var kalemler = op.ServiceProvider.GetRequiredService<RentalAddOnService>();
 
-        await Assert.ThrowsAsync<YetkiYokException>(() => kalemler.AddAsync(kiraA, tanim, 1m));    // çapraz-şube ekleme RED
-        await Assert.ThrowsAsync<YetkiYokException>(() => kalemler.RemoveAsync(yabanciKalem));     // çapraz-şube silme RED
+        await Assert.ThrowsAsync<NoPermissionException>(() => kalemler.AddAsync(kiraA, tanim, 1m));    // çapraz-şube ekleme RED
+        await Assert.ThrowsAsync<NoPermissionException>(() => kalemler.RemoveAsync(yabanciKalem));     // çapraz-şube silme RED
 
         var kalem = await kalemler.AddAsync(kiraH, tanim, 2m);             // B1'in diğer ofisi → GEÇER
         Assert.True(await kalemler.RemoveAsync(kalem));
@@ -188,7 +188,7 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
             var sp = seed.ServiceProvider;
             (b1, _, _, _, _) = await KurAsync(sp);
             var cari = await sp.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Teklif", Soyad = "Cari" });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Teklif", Soyad = "Cari" });
             var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 TF 01" });
             var teklifler = sp.GetRequiredService<QuotationService>();
             var bas = DateTimeOffset.UtcNow.AddDays(3);
@@ -205,9 +205,9 @@ public sealed class BookingSubeFkTests(PostgresFixture fx)
             assignedBranch: "Merkez", assignedBranchId: b1);
         var svc = op.ServiceProvider.GetRequiredService<QuotationService>();
 
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.GetAsync(tekA));     // Id-probe RED
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SendAsync(tekA));    // durum geçişi RED
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.AcceptAsync(tekA));  // kabul RED
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.GetAsync(tekA));     // Id-probe RED
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.SendAsync(tekA));    // durum geçişi RED
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.AcceptAsync(tekA));  // kabul RED
 
         // Kendi şubesinin diğer ofisi ("Havalimanı"→B1): kabul GEÇER, doğan rezervasyon kapsamda.
         var rezId = await svc.AcceptAsync(tekH);

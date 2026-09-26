@@ -7,7 +7,7 @@ using RentACar.Domain.Common;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Kaydedilmiş maliyet teklifi kalıcılığı (FAZ-74). Deftere DOKUNMAZ.</summary>
-public sealed class MaliyetTeklifiRepository(IDbContextFactory<AppDbContext> factory) : IMaliyetTeklifiRepository
+public sealed class MaliyetTeklifiRepository(IDbContextFactory<AppDbContext> factory) : ICostQuotationRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -53,7 +53,7 @@ public sealed class MaliyetTeklifiRepository(IDbContextFactory<AppDbContext> fac
             await using var db = await _factory.CreateDbContextAsync(ct);
             // No tahsisi INSERT ile AYNI transaction: rollback numarayı geri alır → boşluk olmaz.
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            row.KayitNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.MaliyetTeklifi, ct);
+            row.KayitNo = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.MaliyetTeklifi, ct);
             db.MaliyetTeklifleri.Add(row);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);

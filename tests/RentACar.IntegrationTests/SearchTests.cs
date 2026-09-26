@@ -32,7 +32,7 @@ public sealed class SearchTests(PostgresFixture fx)
         var vId = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 ARA 99", Marka = "AraMarkaX" });
         var cId = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "AraCariX" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "AraCariX" });
         var rId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = cId, VehicleId = vId, BasTar = Bas, BitTar = Bas.AddDays(4), GunlukUcret = 100m });
         var rezId = await sp.GetRequiredService<ReservationService>().CreateAsync(new BookingInput

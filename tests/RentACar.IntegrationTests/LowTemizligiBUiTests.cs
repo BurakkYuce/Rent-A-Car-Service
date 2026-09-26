@@ -49,7 +49,7 @@ public sealed class LowTemizligiBUiTests(WebFixture fx)
             await db.SaveChangesAsync();
         }
         await fx.PilotYapAsync(tenant, true);
-        var musteri = new Customer { Tip = CariType.Bireysel, Ad = "Ece", Soyad = "Kaya" };
+        var musteri = new Customer { Tip = CustomerType.Bireysel, Ad = "Ece", Soyad = "Kaya" };
         var gps = new EkHizmetTanim { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m, Aktif = true };
         await VeriYazAsync(tenant, db => { db.Customers.Add(musteri); db.EkHizmetTanimlari.Add(gps); });
         return new Ortam(tenant, kod, ad, sifre, musteri.Id, gps.Id);

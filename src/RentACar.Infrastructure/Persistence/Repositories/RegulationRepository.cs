@@ -60,7 +60,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
     private const string MtvMukerrer = "Bu MTV ödemesi zaten kaydedilmiş (çift gönderim).";
     private const string MuayeneMukerrer = "Bu muayene ödemesi zaten kaydedilmiş (çift gönderim).";
 
-    public async Task<RegulasyonOdemeSonuc> PostMtvOdemeAsync(
+    public async Task<RegulasyonOdemeSonuc> PostMtvPaymentAsync(
         Guid mtvId,
         Func<decimal, int, (MtvOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
         CancellationToken ct = default, Guid? islemAnahtari = null)
@@ -81,7 +81,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
             // ödendi"/"bakiye yok" çitlerinden ÖNCE mükerrer sayılır → sonuç ilk ödemenin tutarına bağlı değil.
             if (islemAnahtari is Guid anahtar && anahtar != Guid.Empty &&
                 await db.MtvOdemeleri.AsNoTracking().AnyAsync(x => x.IslemAnahtari == anahtar, ct))
-                throw new MukerrerIslemException(MtvMukerrer);
+                throw new DuplicateOperationException(MtvMukerrer);
             if (rec.Odendi) throw new ValidationException("MTV zaten ödendi.");
             if (rec.Kalan <= 0m) throw new ValidationException("MTV kaydında ödenecek bakiye yok.");
 
@@ -114,14 +114,14 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         }, ct);
     }
 
-    public async Task<IReadOnlyList<MtvOdeme>> ListMtvOdemeAsync(Guid mtvId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<MtvOdeme>> ListMtvPaymentsAsync(Guid mtvId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.MtvOdemeleri.AsNoTracking()
             .Where(x => x.MtvId == mtvId).OrderBy(x => x.Sira).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<MtvOdeme>> ListMtvOdemeHepsiAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<MtvOdeme>> ListAllMtvPaymentsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.MtvOdemeleri.AsNoTracking()
@@ -154,7 +154,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         return await db.InspectionRecords.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
-    public async Task<RegulasyonOdemeSonuc> PostMuayeneOdemeAsync(
+    public async Task<RegulasyonOdemeSonuc> PostInspectionPaymentAsync(
         Guid inspectionId,
         Func<decimal, int, (MuayeneOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
         CancellationToken ct = default, Guid? islemAnahtari = null)
@@ -171,7 +171,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
             // F1.4 — ANAHTAR ÖNCE (bkz. PostMtvOdemeAsync).
             if (islemAnahtari is Guid anahtar && anahtar != Guid.Empty &&
                 await db.MuayeneOdemeleri.AsNoTracking().AnyAsync(x => x.IslemAnahtari == anahtar, ct))
-                throw new MukerrerIslemException(MuayeneMukerrer);
+                throw new DuplicateOperationException(MuayeneMukerrer);
             if (rec.Odendi) throw new ValidationException("Muayene zaten ödendi.");
 
             var sira = await db.MuayeneOdemeleri.CountAsync(x => x.InspectionId == inspectionId, ct) + 1;
@@ -203,14 +203,14 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         }, ct);
     }
 
-    public async Task<IReadOnlyList<MuayeneOdeme>> ListMuayeneOdemeAsync(Guid inspectionId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<MuayeneOdeme>> ListInspectionPaymentsAsync(Guid inspectionId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.MuayeneOdemeleri.AsNoTracking()
             .Where(x => x.InspectionId == inspectionId).OrderBy(x => x.Sira).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<MuayeneOdeme>> ListMuayeneOdemeHepsiAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<MuayeneOdeme>> ListAllInspectionPaymentsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.MuayeneOdemeleri.AsNoTracking()
@@ -223,7 +223,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         return await db.InsurancePolicies.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
-    public async Task PostSigortaOdemeAsync(Guid policyId, decimal zeyilPrim, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
+    public async Task PostInsurancePaymentAsync(Guid policyId, decimal zeyilPrim, IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
     {
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
         var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
@@ -265,7 +265,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
 
     // ---- FAZ-15 zeyil (poliçe eki): saf CRUD, defter YOK ----
 
-    public async Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilAsync(Guid policyId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<InsurancePolicyZeyil>> ListEndorsementsAsync(Guid policyId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.InsurancePolicyZeyilleri.AsNoTracking()
@@ -273,14 +273,14 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
             .OrderBy(x => x.Tarih).ThenBy(x => x.ZeyilNo).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilHepsiAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<InsurancePolicyZeyil>> ListAllEndorsementsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.InsurancePolicyZeyilleri.AsNoTracking()
             .OrderBy(x => x.PolicyId).ThenBy(x => x.Tarih).ThenBy(x => x.ZeyilNo).ToListAsync(ct);
     }
 
-    public async Task AddZeyilAsync(InsurancePolicyZeyil zeyil, CancellationToken ct = default)
+    public async Task AddEndorsementAsync(InsurancePolicyZeyil zeyil, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         db.InsurancePolicyZeyilleri.Add(zeyil);
@@ -295,7 +295,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         }
     }
 
-    public async Task<bool> DeleteZeyilAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteEndorsementAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Tenant sınırı: global query filter + RLS → başka tenant'ın satırı BULUNAMAZ (false).
@@ -306,7 +306,7 @@ public sealed class RegulationRepository(IDbContextFactory<AppDbContext> factory
         return true;
     }
 
-    public async Task<IReadOnlyList<VadeSource>> GetVadeSourcesAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<VadeSource>> GetDueSourcesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Tek doğruluk kaynağı (denetim O12a): bildirim job'ı da AYNI birleşimi kullanır → sessizce ayrışamaz.

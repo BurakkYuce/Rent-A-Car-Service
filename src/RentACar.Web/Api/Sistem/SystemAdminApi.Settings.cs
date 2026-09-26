@@ -64,15 +64,15 @@ public static partial class SystemAdminApi
         g.MapPost("/logo", async Task<Ok<LogoDto>> (IFormFile? dosya, TenantSettingsService svc, CancellationToken ct) =>
         {
             if (dosya is null || dosya.Length == 0) throw new ValidationException("Logo dosyası seçilmedi.", "dosya");
-            if (dosya.Length > LogoKurallari.MaxBayt) throw new ValidationException("Logo en fazla 1 MB olabilir.", "dosya");
+            if (dosya.Length > LogoValidationRules.MaxBytes) throw new ValidationException("Logo en fazla 1 MB olabilir.", "dosya");
             using var ms = new MemoryStream();
             await dosya.CopyToAsync(ms, ct);
             var bytes = ms.ToArray();
             // Tür İÇERİKTEN (magic bytes) — istemcinin Content-Type'ına ve uzantısına güvenilmez. Servis aynı kuralı
             // ikinci kez uygular (derinlik).
-            if (LogoKurallari.Reddet(bytes) is { } err) throw new ValidationException(err, "dosya");
+            if (LogoValidationRules.Reject(bytes) is { } err) throw new ValidationException(err, "dosya");
             await svc.SetLogoAsync(bytes, ct);
-            var size = PngBoyut.Oku(bytes);
+            var size = PngSize.Read(bytes);
             return TypedResults.Ok(new LogoDto(true, size?.Genislik, size?.Yukseklik, bytes.Length));
         }).DisableAntiforgery().WithMetadata(new RequestSizeLimitAttribute(LogoRequestLimit)).AlanlariEsle(LogoRules);
 
@@ -114,7 +114,7 @@ public static partial class SystemAdminApi
         var version = await svc.VersionAsync(ct);
         var m = await svc.GetAsync(ct);
         var raw = await sp.GetRequiredService<ITenantSettingsRepository>().GetAsync(ct);
-        var wa = await svc.ListWhatsAppGonderimAsync(7, ct);
+        var wa = await svc.ListWhatsAppDispatchesAsync(7, ct);
         var cfg = sp.GetRequiredService<IConfiguration>();
         return new SettingsDto
         {

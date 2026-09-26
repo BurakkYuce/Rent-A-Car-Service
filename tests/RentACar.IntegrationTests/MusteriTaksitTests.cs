@@ -25,7 +25,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
 
     private static async Task<Guid> CariAsync(IServiceProvider sp, string ad = "Taksitli Müşteri")
         => await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
 
     [Fact]
     public async Task Plan_ureti_kalan_yontemiyle_TAM_toplama_esit()
@@ -33,11 +33,11 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<MusteriTaksitService>();
+        var svc = sp.GetRequiredService<CustomerInstallmentService>();
         var cari = await CariAsync(sp);
 
         // ELLE: 10.000 TL, 3 taksit → 10000/3 = 3333,333… → 3333,33 · 3333,33 · KALAN 3333,34
-        var adet = await svc.PlanUretAsync(new TaksitPlanInput
+        var adet = await svc.GeneratePlanAsync(new TaksitPlanInput
         { CariId = cari, ToplamTutar = 10_000m, TaksitSayisi = 3, IlkVade = D(2026, 9, 15) });
         Assert.Equal(3, adet);
 
@@ -48,7 +48,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
 
         // Vadeler AYLIK: 15.09 / 15.10 / 15.11 (elle)
         Assert.Equal([D(2026, 9, 15), D(2026, 10, 15), D(2026, 11, 15)], rows.Select(x => x.Vade));
-        Assert.All(rows, r => Assert.Equal(TaksitDurum.Bekliyor, r.Durum));
+        Assert.All(rows, r => Assert.Equal(InstallmentStatus.Bekliyor, r.Durum));
         Assert.All(rows, r => Assert.Null(r.OdemeTarihi));
     }
 
@@ -58,10 +58,10 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<MusteriTaksitService>();
+        var svc = sp.GetRequiredService<CustomerInstallmentService>();
         var cari = await CariAsync(sp);
 
-        await svc.PlanUretAsync(new TaksitPlanInput
+        await svc.GeneratePlanAsync(new TaksitPlanInput
         { CariId = cari, ToplamTutar = 120_000m, TaksitSayisi = 12, IlkVade = D(2026, 1, 31) });
 
         var rows = (await svc.SearchAsync(new MusteriTaksitFilter { CariId = cari })).OrderBy(x => x.Sira).ToList();
@@ -72,7 +72,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         Assert.Equal(D(2026, 12, 31), rows[11].Vade);
 
         // İKİNCİ plan aynı cari+araçsız → sıra 13'ten devam eder (13..15), 1'e dönmez.
-        await svc.PlanUretAsync(new TaksitPlanInput
+        await svc.GeneratePlanAsync(new TaksitPlanInput
         { CariId = cari, ToplamTutar = 300m, TaksitSayisi = 3, IlkVade = D(2027, 1, 15) });
         var hepsi = (await svc.SearchAsync(new MusteriTaksitFilter { CariId = cari })).ToList();
         Assert.Equal(15, hepsi.Count);
@@ -85,7 +85,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<MusteriTaksitService>();
+        var svc = sp.GetRequiredService<CustomerInstallmentService>();
         var cari = await CariAsync(sp);
         var bugun = DateTimeOffset.UtcNow;
 
@@ -103,17 +103,17 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         Assert.Equal(gecmis, Assert.Single(gecikenler).Id);
 
         // Ödendi işaretlenince GECİKMİŞ SAYILMAZ — vadesi geçmiş olsa bile.
-        Assert.True(await svc.OdemeIsaretleAsync(gecmis, odendi: true, tarih: bugun.AddDays(-1)));
+        Assert.True(await svc.MarkPaidAsync(gecmis, paid: true, date: bugun.AddDays(-1)));
         var odenmis = (await svc.GetAsync(gecmis))!;
-        Assert.Equal(TaksitDurum.Odendi, odenmis.Durum);
+        Assert.Equal(InstallmentStatus.Odendi, odenmis.Durum);
         Assert.False(odenmis.Gecikti);
         Assert.NotNull(odenmis.OdemeTarihi);
         Assert.Empty(await svc.SearchAsync(new MusteriTaksitFilter { SadeceGecikmis = true }));
 
         // GERİ AL: durum Bekliyor'a döner VE ödeme tarihi TEMİZLENİR (çelişkili satır kalmaz).
-        Assert.True(await svc.OdemeIsaretleAsync(gecmis, odendi: false));
+        Assert.True(await svc.MarkPaidAsync(gecmis, paid: false));
         var geri = (await svc.GetAsync(gecmis))!;
-        Assert.Equal(TaksitDurum.Bekliyor, geri.Durum);
+        Assert.Equal(InstallmentStatus.Bekliyor, geri.Durum);
         Assert.Null(geri.OdemeTarihi);
         Assert.True(geri.Gecikti);      // tekrar gecikmiş
     }
@@ -124,7 +124,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<MusteriTaksitService>();
+        var svc = sp.GetRequiredService<CustomerInstallmentService>();
         var cari = await CariAsync(sp);
         var bugun = DateTimeOffset.UtcNow;
 
@@ -134,9 +134,9 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         await svc.CreateAsync(new MusteriTaksitInput
         { CariId = cari, Vade = bugun.AddDays(20), TaksitTutari = 100m, Currency = "eur", Kur = 40m });
 
-        await svc.OdemeIsaretleAsync(a, odendi: true, tarih: bugun.AddDays(-2));
+        await svc.MarkPaidAsync(a, paid: true, date: bugun.AddDays(-2));
 
-        var ozet = MusteriTaksitService.Ozet(await svc.SearchAsync());
+        var ozet = CustomerInstallmentService.Summary(await svc.SearchAsync());
         Assert.Equal(2, ozet.Adet);
         Assert.Equal(1, ozet.OdenenAdet);
         Assert.Equal(0, ozet.GecikenAdet);        // geçmiş vadeli olan ÖDENDİ → geciken yok
@@ -156,7 +156,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<MusteriTaksitService>();
+        var svc = sp.GetRequiredService<CustomerInstallmentService>();
         var cari = await CariAsync(sp);
         var bugun = DateTimeOffset.UtcNow;
 
@@ -173,15 +173,15 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new MusteriTaksitInput
         {
             CariId = cari, Vade = bugun, TaksitTutari = 100m,
-            Durum = TaksitDurum.Odendi, OdemeTarihi = bugun.AddDays(30)
+            Durum = InstallmentStatus.Odendi, OdemeTarihi = bugun.AddDays(30)
         }));
 
         // Plan sınırları
-        await Assert.ThrowsAsync<ValidationException>(() => svc.PlanUretAsync(new TaksitPlanInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.GeneratePlanAsync(new TaksitPlanInput
         { CariId = cari, ToplamTutar = 1000m, TaksitSayisi = 0, IlkVade = bugun }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.PlanUretAsync(new TaksitPlanInput
-        { CariId = cari, ToplamTutar = 1000m, TaksitSayisi = MusteriTaksitService.MaxTaksit + 1, IlkVade = bugun }));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.PlanUretAsync(new TaksitPlanInput
+        await Assert.ThrowsAsync<ValidationException>(() => svc.GeneratePlanAsync(new TaksitPlanInput
+        { CariId = cari, ToplamTutar = 1000m, TaksitSayisi = CustomerInstallmentService.MaxInstallments + 1, IlkVade = bugun }));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.GeneratePlanAsync(new TaksitPlanInput
         { CariId = cari, ToplamTutar = 0m, TaksitSayisi = 3, IlkVade = bugun }));
 
         // Hiçbiri yazılmadı.
@@ -195,13 +195,13 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var s = host.ScopeFor(tenant);
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<MusteriTaksitService>();
+        var svc = sp.GetRequiredService<CustomerInstallmentService>();
         var cari = await CariAsync(sp);
 
         var once = await LedgerSayimAsync(sp);
         var id = await svc.CreateAsync(new MusteriTaksitInput
         { CariId = cari, Vade = DateTimeOffset.UtcNow, TaksitTutari = 7500m });
-        await svc.OdemeIsaretleAsync(id, odendi: true);
+        await svc.MarkPaidAsync(id, paid: true);
 
         // Takip kaydı — defterde TEK satır bile oluşmamalı; oluşsaydı Kasa/Banka tahsilatıyla
         // birlikte cari bakiye ÇİFT düşerdi.
@@ -214,7 +214,7 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<MusteriTaksitService>();
+        var svc = sp.GetRequiredService<CustomerInstallmentService>();
         var cari1 = await CariAsync(sp, "Ali");
         var cari2 = await CariAsync(sp, "Veli");
         var arac = await sp.GetRequiredService<VehicleService>()
@@ -259,15 +259,15 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         // Operatör: ne FinanceWrite ne ViewReports → OKUYAMAZ da (para bilgisi).
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
         {
-            var svc = op.ServiceProvider.GetRequiredService<MusteriTaksitService>();
-            await Assert.ThrowsAsync<YetkiYokException>(() => svc.SearchAsync());
-            await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(new MusteriTaksitInput
+            var svc = op.ServiceProvider.GetRequiredService<CustomerInstallmentService>();
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.SearchAsync());
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(new MusteriTaksitInput
             { CariId = cari, Vade = DateTimeOffset.UtcNow, TaksitTutari = 100m }));
         }
 
         // Muhasebe: FinanceWrite → yazar VE okur (yazan rol okuyabilmeli).
         using var mh = host.ScopeFor(tenant, Guid.NewGuid(), "mh", UserRole.Muhasebe);
-        var m = mh.ServiceProvider.GetRequiredService<MusteriTaksitService>();
+        var m = mh.ServiceProvider.GetRequiredService<CustomerInstallmentService>();
         await m.CreateAsync(new MusteriTaksitInput
         { CariId = cari, Vade = DateTimeOffset.UtcNow, TaksitTutari = 100m });
         Assert.Single(await m.SearchAsync());
@@ -281,14 +281,14 @@ public sealed class MusteriTaksitTests(PostgresFixture fx)
         {
             var sp = a.ServiceProvider;
             var cari = await CariAsync(sp, "Gizli");
-            await sp.GetRequiredService<MusteriTaksitService>().CreateAsync(new MusteriTaksitInput
+            await sp.GetRequiredService<CustomerInstallmentService>().CreateAsync(new MusteriTaksitInput
             { CariId = cari, Vade = DateTimeOffset.UtcNow, TaksitTutari = 99_999m });
         }
 
         using var b = host.ScopeFor(Guid.NewGuid());
-        var svc = b.ServiceProvider.GetRequiredService<MusteriTaksitService>();
+        var svc = b.ServiceProvider.GetRequiredService<CustomerInstallmentService>();
         Assert.Empty(await svc.SearchAsync());
-        Assert.Equal(0m, MusteriTaksitService.Ozet(await svc.SearchAsync()).ToplamBaz);
+        Assert.Equal(0m, CustomerInstallmentService.Summary(await svc.SearchAsync()).ToplamBaz);
     }
 
     private static async Task<int> LedgerSayimAsync(IServiceProvider sp)

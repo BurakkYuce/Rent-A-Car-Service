@@ -14,12 +14,12 @@ public sealed class TarifeGrubuInput
     public bool Aktif { get; set; } = true;
 }
 
-public interface ITarifeGrubuRepository
+public interface ITariffGroupRepository
 {
     Task<IReadOnlyList<TarifeGrubu>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<TarifeGrubu>> ListActiveAsync(CancellationToken ct = default);
     Task<TarifeGrubu?> FindAsync(Guid id, CancellationToken ct = default);
-    Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default);
+    Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default);
     Task CreateAsync(TarifeGrubu row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<TarifeGrubu> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);

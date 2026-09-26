@@ -9,7 +9,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// filter ile otomatik. Benzersizlik kısıtı YOK — aynı müşteri aynı şartı iki kez isteyebilir
 /// (serbest metin not defteri).
 /// </summary>
-public sealed class RezSartRepository(IDbContextFactory<AppDbContext> factory) : IRezSartRepository
+public sealed class RezSartRepository(IDbContextFactory<AppDbContext> factory) : IReservationTermRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -58,7 +58,7 @@ public sealed class RezSartRepository(IDbContextFactory<AppDbContext> factory) :
         => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.RezSartlari, id, beklenenSurum,
             (db, k, c) => db.RezSartlar.FirstOrDefaultAsync(r => r.Id == k, c), apply, ct);
 
-    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.RezSartlari, id, ct);

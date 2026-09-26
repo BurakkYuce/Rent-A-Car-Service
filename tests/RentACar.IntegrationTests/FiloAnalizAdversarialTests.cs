@@ -32,13 +32,13 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = vehicle, Tip = ServisTipi.Ariza, GirisKm = 0,
-            HasarSorumlu = HasarSorumlu.Musteri, KusurOrani = 0.5m,
+            VehicleId = vehicle, Tip = ServiceType.Ariza, GirisKm = 0,
+            HasarSorumlu = DamageResponsible.Musteri, KusurOrani = 0.5m,
             Lines = [new ServiceLineInput { Aciklama = "Onarım", Tutar = maliyet }]
         });
-        await svc.BaslatAsync(id);
-        await svc.TamamlaAsync(id, cikisKm: 10);
-        await svc.YansitAsync(id, cari, tarih: tarih);
+        await svc.StartAsync(id);
+        await svc.CompleteAsync(id, pickupKm: 10);
+        await svc.ReflectAsync(id, cari, date: tarih);
         return id;
     }
 
@@ -53,12 +53,12 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         var v = await veh.CreateAsync(new VehicleInput
         { Plaka = "34 DEL 1", AlimBedeli = 1000m, AlimTarihi = DateTimeOffset.UtcNow.AddMonths(-6) });
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
 
         Assert.True(await veh.DeleteAsync(v)); // hard delete; defter (immutable) kalır
 
         var rs = sp.GetRequiredService<ReportService>();
-        var d = await rs.GetFiloAnalizAsync(); // crash?
+        var d = await rs.GetFleetAnalysisAsync(); // crash?
         var row = Assert.Single(d.Satirlar);
         Assert.Equal(v, row.VehicleId);
         Assert.Equal("(bilinmeyen araç)", row.Plaka);   // Karlilik ile aynı yol
@@ -69,18 +69,18 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         Assert.Equal(0, row.SahiplikGun);
 
         // İnvaryant 1: toplam defterle mutabık
-        var gg = await rs.GetGelirGiderAsync();
+        var gg = await rs.GetRevenueExpenseAsync();
         Assert.Equal(gg.GiderToplam, d.ToplamGider);
         Assert.Equal(100m, d.ToplamGider);
         Assert.Empty(d.YasKohortu);   // silinmiş araç kohorta girmez (yalnız mevcut filo sayılır)
 
         // Karne aynı id: null (dashboard'daki plaka linki 404'e gider — UX notu)
-        Assert.Null(await rs.GetAracKarneAsync(v));
+        Assert.Null(await rs.GetVehicleScorecardAsync(v));
 
         // F (ayrıca): keyfi sıralama string patlamaz + default'a düşer; tüm-null doluluk sıralaması patlamaz
-        var garbage = await rs.GetFiloAnalizAsync(siralama: "  DROP TABLE; ");
+        var garbage = await rs.GetFleetAnalysisAsync(sort: "  DROP TABLE; ");
         Assert.Single(garbage.Satirlar);
-        var dol = await rs.GetFiloAnalizAsync(siralama: "doluluk"); // tek satır, DolulukYuzde null
+        var dol = await rs.GetFleetAnalysisAsync(sort: "doluluk"); // tek satır, DolulukYuzde null
         Assert.Single(dol.Satirlar);
     }
 
@@ -98,20 +98,20 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
             AlimTarihi = simdi.AddMonths(-20), FiloGirisTarih = FiloGiris
         });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Zengin", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Zengin", Soyad = "Cari" });
 
         // Kira 10–12 Oca (2g×100), 300 km, faturalı (net 166,67)
         var rentals = sp.GetRequiredService<RentalService>();
         var r = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = v, BasTar = KiraBas, BitTar = KiraBas.AddDays(2), GunlukUcret = 100m });
-        await rentals.DeliverAsync(r, cikisKm: 1000, cikisYakit: 8);
-        await rentals.ReturnAsync(r, donusKm: 1300, donusYakit: 8, KiraBas.AddDays(2));
+        await rentals.DeliverAsync(r, pickupKm: 1000, pickupFuel: 8);
+        await rentals.ReturnAsync(r, returnKm: 1300, returnFuel: 8, KiraBas.AddDays(2));
         await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(r);
 
         // Rücu 620×0,5=310 gelir + gider 150
         await RucuAsync(sp, v, cari, 620m);
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 150m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 150m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
 
         // TAMAMLANMIŞ satış 800 (31 Mart) → Satildi → sahiplik penceresi satışta biter
         await sp.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput
@@ -121,8 +121,8 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         });
 
         var rs = sp.GetRequiredService<ReportService>();
-        var karne = (await rs.GetAracKarneAsync(v))!;
-        var filo = await rs.GetFiloAnalizAsync();
+        var karne = (await rs.GetVehicleScorecardAsync(v))!;
+        var filo = await rs.GetFleetAnalysisAsync();
         var row = filo.Satirlar.Single(x => x.VehicleId == v);
 
         // İnvaryant 2: iki kod yolu birebir
@@ -143,7 +143,7 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         Assert.Equal(3.33m, row.DolulukYuzde);
 
         // Dar pencere (yalnız bugün ±1g): P&L daralır ama KPI ömür-boyu AYNI kalır (karne F2 dersi)
-        var dar = await rs.GetFiloAnalizAsync(simdi.AddDays(-1), simdi.AddDays(1));
+        var dar = await rs.GetFleetAnalysisAsync(simdi.AddDays(-1), simdi.AddDays(1));
         var darRow = dar.Satirlar.Single(x => x.VehicleId == v);
         Assert.Equal(row.RoiYuzde, darRow.RoiYuzde);
         Assert.Equal(row.DolulukYuzde, darRow.DolulukYuzde);
@@ -152,7 +152,7 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         Assert.Equal(476.67m, darRow.Gelir);
         Assert.Equal(150m, darRow.Gider);
         // pencereli karne ile parite
-        var karneDar = (await rs.GetAracKarneAsync(v, simdi.AddDays(-1), simdi.AddDays(1)))!;
+        var karneDar = (await rs.GetVehicleScorecardAsync(v, simdi.AddDays(-1), simdi.AddDays(1)))!;
         Assert.Equal(karneDar.ToplamGelir, darRow.Gelir);
         Assert.Equal(karneDar.ToplamGider, darRow.Gider);
         Assert.Equal(karneDar.Kpi.RoiYuzde, darRow.RoiYuzde);
@@ -173,17 +173,17 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
 
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 PC 01" });
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Pencere", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Pencere", Soyad = "Cari" });
         var exp = sp.GetRequiredService<ExpenseService>();
 
         // Araç gideri: 100 içeride, 50 dışarıda
         await exp.CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = icTarih });
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit, Tarih = icTarih });
         await exp.CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 50m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = disTarih });
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 50m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit, Tarih = disTarih });
         // Genel gider (Atanmamış): 40 içeride
         await exp.CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 40m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = icTarih });
+        { Tip = ExpenseType.Genel, NetTutar = 40m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit, Tarih = icTarih });
         // Araca atfedilen gelir: rücu 310 içeride, 100 dışarıda
         await RucuAsync(sp, v, cari, 620m, icTarih);
         await RucuAsync(sp, v, cari, 200m, disTarih);
@@ -192,8 +192,8 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         { CariId = cari, NetTutar = 500m, KdvOrani = 0m, Tarih = icTarih, Aciklama = "manuel" });
 
         var rs = sp.GetRequiredService<ReportService>();
-        var d = await rs.GetFiloAnalizAsync(pencereBas, pencereBit);
-        var gg = await rs.GetGelirGiderAsync(pencereBas, pencereBit);
+        var d = await rs.GetFleetAnalysisAsync(pencereBas, pencereBit);
+        var gg = await rs.GetRevenueExpenseAsync(pencereBas, pencereBit);
 
         // İnvaryant 1 (pencereli): satırlar + Atanmamış == defter
         Assert.Equal(gg.GelirToplam, d.ToplamGelir);
@@ -208,8 +208,8 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         Assert.Equal(100m, row.Gider);
 
         // Penceresiz de mutabık
-        var d0 = await rs.GetFiloAnalizAsync();
-        var gg0 = await rs.GetGelirGiderAsync();
+        var d0 = await rs.GetFleetAnalysisAsync();
+        var gg0 = await rs.GetRevenueExpenseAsync();
         Assert.Equal(gg0.GelirToplam, d0.ToplamGelir);
         Assert.Equal(gg0.GiderToplam, d0.ToplamGider);
         Assert.Equal(910m, d0.ToplamGelir);   // 310+100+500
@@ -229,7 +229,7 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 GH 01", AlimBedeli = 5000m, AlimTarihi = simdi.AddMonths(-9) });
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 999m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = simdi.AddMonths(-8) });
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 999m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit, Tarih = simdi.AddMonths(-8) });
         // Hiç defter hareketi olmayan araç (yeni alım — AlimBedeli defter yazmaz)
         var v2 = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 GH 02", AlimBedeli = 9000m, AlimTarihi = simdi.AddMonths(-1) });
@@ -237,7 +237,7 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         var rs = sp.GetRequiredService<ReportService>();
         // Düzeltme (F-D): aylık görünümde v pencere-dışı hareketli olsa da SATIRDA (0 P&L) — gizli
         // zarar makinesi panodan kaçmaz; ROI ömür-boyu kaybı yine gösterir.
-        var aylik = await rs.GetFiloAnalizAsync(simdi.AddMonths(-1), simdi);
+        var aylik = await rs.GetFleetAnalysisAsync(simdi.AddMonths(-1), simdi);
         var vRow = aylik.Satirlar.Single(x => x.VehicleId == v);
         Assert.Equal(0m, vRow.Gelir);
         Assert.Equal(0m, vRow.Gider);
@@ -248,7 +248,7 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         // Kohort filo mevcudunu sayar: 2 araç.
         Assert.Equal(2, aylik.YasKohortu.Sum(k => k.AracAdet));
         // Toplamlar yine defterle mutabık (0-satırlar toplamı değiştirmez).
-        Assert.Equal((await rs.GetGelirGiderAsync(simdi.AddMonths(-1), simdi)).GiderToplam, aylik.ToplamGider);
+        Assert.Equal((await rs.GetRevenueExpenseAsync(simdi.AddMonths(-1), simdi)).GiderToplam, aylik.ToplamGider);
     }
 
     // ---------- E: YasAy ay-farkı gün ihmali (sınır) ----------
@@ -267,9 +267,9 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 YA 01", AlimBedeli = 100m, AlimTarihi = at });
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 10m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 10m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
 
-        var d = await sp.GetRequiredService<ReportService>().GetFiloAnalizAsync();
+        var d = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
         var row = Assert.Single(d.Satirlar);
         // Düzeltme (F-E): gün-hassas ay farkı — 1 yıldan 3 gün eksik araç hâlâ "0-1 yıl".
         Assert.Equal(11, row.YasAy);
@@ -286,9 +286,9 @@ public sealed class FiloAnalizAdversarialTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 YA 02", AlimTarihi = DateTimeOffset.UtcNow.AddMonths(5) });
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 10m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit });
+        { Tip = ExpenseType.Arac, VehicleId = v, NetTutar = 10m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
 
-        var d = await sp.GetRequiredService<ReportService>().GetFiloAnalizAsync();
+        var d = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
         var row = Assert.Single(d.Satirlar);
         Assert.Equal(0, row.YasAy);   // Math.Max(0, negatif) — "0-1 yıl" kovası
         Assert.Equal("0-1 yıl", Assert.Single(d.YasKohortu).Kova);

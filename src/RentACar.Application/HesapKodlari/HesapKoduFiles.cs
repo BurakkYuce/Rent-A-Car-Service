@@ -6,7 +6,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.HesapKodlari;
 
 /// <summary>Muhasebe hesap-kodu kalıcılığı (roadmap N1).</summary>
-public interface IHesapKoduRepository : IVersionedRepository<HesapKodu>
+public interface IAccountCodeRepository : IVersionedRepository<HesapKodu>
 {
     Task<IReadOnlyList<HesapKodu>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<HesapKodu>> ListActiveAsync(CancellationToken ct = default);
@@ -26,9 +26,9 @@ public sealed class HesapKoduInput
 }
 
 /// <summary>Muhasebe hesap-kodu master iş mantığı (roadmap N1). Yazma OperationsWrite.</summary>
-public sealed class HesapKoduService(IHesapKoduRepository repository, ICurrentUser currentUser)
+public sealed class AccountCodeService(IAccountCodeRepository repository, ICurrentUser currentUser)
 {
-    private readonly IHesapKoduRepository _repository = repository;
+    private readonly IAccountCodeRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<HesapKodu>> ListAsync(CancellationToken ct = default) => _repository.ListAsync(ct);
@@ -38,8 +38,8 @@ public sealed class HesapKoduService(IHesapKoduRepository repository, ICurrentUs
     public async Task<Guid> CreateAsync(HesapKoduInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        var (kod, ad, aciklama) = Normalize(input);
-        var row = new HesapKodu { Kod = kod, Ad = ad, Aciklama = aciklama, Aktif = input.Aktif };
+        var (code, name, description) = Normalize(input);
+        var row = new HesapKodu { Kod = code, Ad = name, Aciklama = description, Aktif = input.Aktif };
         await _repository.CreateAsync(row, ct);
         return row.Id;
     }
@@ -47,23 +47,23 @@ public sealed class HesapKoduService(IHesapKoduRepository repository, ICurrentUs
     public async Task<bool> UpdateAsync(Guid id, HesapKoduInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        var (kod, ad, aciklama) = Normalize(input);
+        var (code, name, description) = Normalize(input);
         return await _repository.UpdateAsync(id, r =>
         {
-            r.Kod = kod; r.Ad = ad; r.Aciklama = aciklama; r.Aktif = input.Aktif;
+            r.Kod = code; r.Ad = name; r.Aciklama = description; r.Aktif = input.Aktif;
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
 
     /// <summary>F11.2c — full replacement with optimistic concurrency: <paramref name="expectedVersion"/> is compared
-    /// under the row lock; mismatch → <see cref="EszamanliDegisiklikException"/> (409 <c>cakisma</c>).</summary>
+    /// under the row lock; mismatch → <see cref="ConcurrentModificationException"/> (409 <c>cakisma</c>).</summary>
     public async Task<bool> UpdateAsync(Guid id, HesapKoduInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        var (kod, ad, aciklama) = Normalize(input);
+        var (code, name, description) = Normalize(input);
         return await _repository.UpdateAsync(id, expectedVersion, r =>
         {
-            r.Kod = kod; r.Ad = ad; r.Aciklama = aciklama; r.Aktif = input.Aktif;
+            r.Kod = code; r.Ad = name; r.Aciklama = description; r.Aktif = input.Aktif;
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
@@ -82,11 +82,11 @@ public sealed class HesapKoduService(IHesapKoduRepository repository, ICurrentUs
 
     private static (string Kod, string Ad, string? Aciklama) Normalize(HesapKoduInput i)
     {
-        var kod = (i.Kod ?? "").Trim().ToUpperInvariant();
-        var ad = (i.Ad ?? "").Trim();
-        if (string.IsNullOrWhiteSpace(kod)) throw new ValidationException("Hesap kodu zorunludur.");
-        if (kod.Length > 32) throw new ValidationException("Hesap kodu en çok 32 karakter olabilir.");
-        if (string.IsNullOrWhiteSpace(ad)) throw new ValidationException("Hesap adı zorunludur.");
-        return (kod, ad, string.IsNullOrWhiteSpace(i.Aciklama) ? null : i.Aciklama.Trim());
+        var code = (i.Kod ?? "").Trim().ToUpperInvariant();
+        var name = (i.Ad ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(code)) throw new ValidationException("Hesap kodu zorunludur.");
+        if (code.Length > 32) throw new ValidationException("Hesap kodu en çok 32 karakter olabilir.");
+        if (string.IsNullOrWhiteSpace(name)) throw new ValidationException("Hesap adı zorunludur.");
+        return (code, name, string.IsNullOrWhiteSpace(i.Aciklama) ? null : i.Aciklama.Trim());
     }
 }

@@ -73,7 +73,7 @@ public static class RateMatrixEndpoints
         KmAylik = FormParse.Int(FormParse.Str(f, "kmAylik")),
         KmAylikUcret = FormParse.Dec(FormParse.Str(f, "kmAylikUcret")),
         MaxEsneklik = FormParse.Dec(FormParse.Str(f, "maxEsneklik")),
-        OnayDurumu = ParseEnum<TarifeOnayDurumu>(FormParse.Str(f, "onayDurumu")) ?? TarifeOnayDurumu.Bekliyor,
+        OnayDurumu = ParseEnum<TariffApprovalStatus>(FormParse.Str(f, "onayDurumu")) ?? TariffApprovalStatus.Bekliyor,
         Onaylayan = FormParse.Str(f, "onaylayan"),
         OnayZaman = FormParse.Date(FormParse.Str(f, "onayZaman")),
         Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"

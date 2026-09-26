@@ -36,7 +36,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         using var s = host.ScopeFor(t);
         var araclar = s.ServiceProvider.GetRequiredService<VehicleService>();
         var fotograflar = s.ServiceProvider.GetRequiredService<VehiclePhotoService>();
-        var ilanlar = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var ilanlar = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         var aracIdler = new List<Guid>();
         for (var i = 0; i < aracSayisi; i++)
@@ -44,17 +44,17 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
             var id = await araclar.CreateAsync(new VehicleInput
             {
                 Plaka = "34VI" + Guid.NewGuid().ToString("N")[..4].ToUpperInvariant(),
-                Marka = marka, Tip = tip, Vites = Vites.Manuel, Yakit = FuelType.Dizel,
+                Marka = marka, Tip = tip, Vites = Transmission.Manuel, Yakit = FuelType.Dizel,
                 ModelYili = 2023, Durum = VehicleStatus.Musait, GrupBilincliBos = true,
             });
             aracIdler.Add(id);
             if (foto && i == 0) await fotograflar.AddAsync(id, TinyPng); // FOTO YALNIZ İLKİNDE
         }
 
-        var imza = (await ilanlar.HavuzAsync()).Single(k => k.Araclar.Count == aracSayisi).Imza;
-        var ilanId = await ilanlar.AdimBirImzaAsync([imza]);
-        await ilanlar.AdimIkiAsync(ilanId, gunluk, haftalik, aylik, kdvDahil);
-        await ilanlar.AdimUcAsync(ilanId, [new OzellikSatiri("Marka", marka), new OzellikSatiri("Gizli", "x", Gorunur: false)]);
+        var imza = (await ilanlar.PoolAsync()).Single(k => k.Araclar.Count == aracSayisi).Imza;
+        var ilanId = await ilanlar.StepOneSignatureAsync([imza]);
+        await ilanlar.StepTwoAsync(ilanId, gunluk, haftalik, aylik, kdvDahil);
+        await ilanlar.StepThreeAsync(ilanId, [new OzellikSatiri("Marka", marka), new OzellikSatiri("Gizli", "x", Gorunur: false)]);
         return (ilanId, (await ilanlar.GetAsync(ilanId))!.Ilan.Slug, aracIdler);
     }
 
@@ -106,9 +106,9 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
             var id = await araclar.CreateAsync(new VehicleInput
             { Plaka = "34TSL001", Marka = "Fiat", Tip = "Egea", Durum = VehicleStatus.Musait, GrupBilincliBos = true });
             await s.ServiceProvider.GetRequiredService<VehiclePhotoService>().AddAsync(id, TinyPng);
-            var ilanlar = s.ServiceProvider.GetRequiredService<WebIlanService>();
-            var ilanId = await ilanlar.AdimBirImzaAsync([(await ilanlar.HavuzAsync()).Single().Imza]);
-            await ilanlar.AdimIkiAsync(ilanId, 1500m, null, null, true); // adım-3 YAPILMADI → Taslak
+            var ilanlar = s.ServiceProvider.GetRequiredService<WebListingService>();
+            var ilanId = await ilanlar.StepOneSignatureAsync([(await ilanlar.PoolAsync()).Single().Imza]);
+            await ilanlar.StepTwoAsync(ilanId, 1500m, null, null, true); // adım-3 YAPILMADI → Taslak
         }
 
         var svc = Vitrin(host, t, out var scope); using (scope)
@@ -123,7 +123,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         var (ilanId, _, aracIdler) = await IlanKurAsync(host, t);
 
         using (var s = host.ScopeFor(t))
-            await s.ServiceProvider.GetRequiredService<WebIlanService>().SetDurumAsync(ilanId, WebIlanDurum.Pasif);
+            await s.ServiceProvider.GetRequiredService<WebListingService>().SetStatusAsync(ilanId, WebIlanDurum.Pasif);
 
         var svc = Vitrin(host, t, out var scope); using (scope)
             Assert.Empty(await svc.ListShowcaseGroupsAsync());
@@ -168,7 +168,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
 
         var svc = Vitrin(host, t, out var scope); using (scope)
         {
-            var detay = await svc.GetIlanDetayAsync(slug);
+            var detay = await svc.GetListingDetailAsync(slug);
             Assert.NotNull(detay);
             Assert.Contains(detay!.Ozellikler, o => o.Etiket == "Marka");
             Assert.DoesNotContain(detay.Ozellikler, o => o.Etiket == "Gizli"); // personel kapatmıştı
@@ -194,7 +194,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         var (ilanId, slug, _) = await IlanKurAsync(host, t);
 
         using (var s = host.ScopeFor(t))
-            await s.ServiceProvider.GetRequiredService<WebIlanService>().AdimUcAsync(ilanId,
+            await s.ServiceProvider.GetRequiredService<WebListingService>().StepThreeAsync(ilanId,
             [
                 new OzellikSatiri("Marka", "Fiat"),      // başlıkta VAR  → çipe girmez
                 new OzellikSatiri("Yakıt", "Dizel"),     // başlıkta VAR  → çipe girmez
@@ -210,7 +210,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
             Assert.Equal(["BEYAZ", "510 litre"], cipler);
 
             // Detay TAM listeyi gösterir — ayıklama yalnız karta özel.
-            var detay = await svc.GetIlanDetayAsync(slug);
+            var detay = await svc.GetListingDetailAsync(slug);
             Assert.Equal(4, detay!.Ozellikler.Count);
             Assert.Contains(detay.Ozellikler, o => o.Deger == "Fiat");
         }
@@ -228,7 +228,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         var (ilanId, _, _) = await IlanKurAsync(host, t);
 
         using (var s = host.ScopeFor(t))
-            await s.ServiceProvider.GetRequiredService<WebIlanService>().AdimUcAsync(ilanId,
+            await s.ServiceProvider.GetRequiredService<WebListingService>().StepThreeAsync(ilanId,
             [
                 new OzellikSatiri("Marka", "Fiat"),
                 new OzellikSatiri("Renk", "BEYAZ")
@@ -253,17 +253,17 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
 
         var svc = Vitrin(host, t, out var scope); using (scope)
         {
-            Assert.NotNull(await svc.GetIlanDetayAsync(slug));
+            Assert.NotNull(await svc.GetListingDetailAsync(slug));
             Assert.Equal(slug, await svc.SlugByIdAsync(ilanId)); // eski GUID linki 301 için çözülür
-            Assert.Null(await svc.GetIlanDetayAsync("olmayan-slug"));
+            Assert.Null(await svc.GetListingDetailAsync("olmayan-slug"));
         }
 
         using (var s = host.ScopeFor(t))
-            await s.ServiceProvider.GetRequiredService<WebIlanService>().SetDurumAsync(ilanId, WebIlanDurum.Pasif);
+            await s.ServiceProvider.GetRequiredService<WebListingService>().SetStatusAsync(ilanId, WebIlanDurum.Pasif);
 
         var svc2 = Vitrin(host, t, out var scope2); using (scope2)
         {
-            Assert.Null(await svc2.GetIlanDetayAsync(slug));   // 404 → eski link içerik AÇMAZ
+            Assert.Null(await svc2.GetListingDetailAsync(slug));   // 404 → eski link içerik AÇMAZ
             Assert.Null(await svc2.SlugByIdAsync(ilanId));     // yönlendirme de yapılmaz → vitrine düşer
         }
     }
@@ -275,17 +275,17 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         var t = Guid.NewGuid();
         using var s = host.ScopeFor(t);
         var araclar = s.ServiceProvider.GetRequiredService<VehicleService>();
-        var ilanlar = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var ilanlar = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         var idler = new List<Guid>();
         for (var i = 1; i <= 3; i++)
             idler.Add(await araclar.CreateAsync(new VehicleInput
             {
-                Plaka = $"34SLG{i:000}", Marka = "Fiat", Tip = "Egea", Vites = Vites.Manuel,
+                Plaka = $"34SLG{i:000}", Marka = "Fiat", Tip = "Egea", Vites = Transmission.Manuel,
                 Yakit = FuelType.Dizel, Durum = VehicleStatus.Musait, GrupBilincliBos = true,
             }));
 
-        await ilanlar.AdimBirAsync(idler, beraber: false); // "ayrı" mod: 3 ilan, AYNI başlık
+        await ilanlar.StepOneAsync(idler, together: false); // "ayrı" mod: 3 ilan, AYNI başlık
 
         // Blog'dan farklı: çakışma hata DEĞİL, otomatik son-ek. Aksi halde "ayrı" mod hiç çalışmazdı.
         var sluglar = new List<string>();
@@ -415,7 +415,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         using var staff = host.ScopeFor(t);
         var svc = staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
         var talepId = (await svc.ListAsync()).Single().Id;
-        var rezId = await svc.DonusturAsync(talepId, aracId);
+        var rezId = await svc.ConvertAsync(talepId, aracId);
 
         // REGRESYON KİLİDİ (TUZAK-1): bu satır olmadan PricingService tarifeden çözmeye çalışır,
         // tenant'ta tarife olmadığı için 0 kalırdı → müşteri sitede 1.500 görür, sözleşmede 0 yazardı.
@@ -445,7 +445,7 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
 
         using var staff = host.ScopeFor(t);
         var svc = staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
-        var rezId = await svc.DonusturAsync((await svc.ListAsync()).Single().Id, aracId);
+        var rezId = await svc.ConvertAsync((await svc.ListAsync()).Single().Id, aracId);
 
         // ELLE ORACLE: ERP zinciri NET çalışır. 1200 brüt / 1,20 = 1000 net. Brütü olduğu gibi
         // geçirmek sözleşmeyi KDV oranı kadar ŞİŞİRİRDİ.

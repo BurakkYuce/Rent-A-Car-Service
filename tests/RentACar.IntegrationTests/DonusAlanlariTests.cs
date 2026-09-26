@@ -25,7 +25,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         IServiceProvider sp, string plaka, int kmLimit = 300)
     {
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Donus", Soyad = "Musteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Donus", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var rentals = sp.GetRequiredService<RentalService>();
         var rental = await rentals.CreateDirectAsync(new BookingInput
@@ -33,7 +33,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
             MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3),
             GunlukUcret = 100m, KmLimit = kmLimit, FazlaKmUcret = 2m
         });
-        await rentals.DeliverAsync(rental, cikisKm: 10000, cikisYakit: 8);
+        await rentals.DeliverAsync(rental, pickupKm: 10000, pickupFuel: 8);
         return (rental, rentals);
     }
 
@@ -46,7 +46,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         var (rental, rentals) = await TeslimliKiraAsync(scope.ServiceProvider, "34 DA 01");
 
         // kat edilen 500, limit 300 → aşım 200; hediye 100 → fazla 100 × 2 = 200 TL (elle oracle).
-        await rentals.ReturnAsync(rental, donusKm: 10500, donusYakit: 8, Bas.AddDays(3), kmHediye: 100);
+        await rentals.ReturnAsync(rental, returnKm: 10500, returnFuel: 8, Bas.AddDays(3), freeKm: 100);
 
         var c = await rentals.GetAsync(rental);
         Assert.Equal(100, c!.FazlaKm);                 // 500 − 300 − 100
@@ -62,7 +62,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (rental, rentals) = await TeslimliKiraAsync(scope.ServiceProvider, "34 DA 02");
-        await rentals.ReturnAsync(rental, donusKm: 10500, donusYakit: 8, Bas.AddDays(3)); // hediye yok
+        await rentals.ReturnAsync(rental, returnKm: 10500, returnFuel: 8, Bas.AddDays(3)); // hediye yok
         var c = await rentals.GetAsync(rental);
         Assert.Equal(200, c!.FazlaKm);        // 500 − 300 (mevcut davranış)
         Assert.Equal(400m, c.FazlaKmBedeli);  // 200 × 2
@@ -75,7 +75,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (rental, rentals) = await TeslimliKiraAsync(scope.ServiceProvider, "34 DA 03");
-        await rentals.ReturnAsync(rental, donusKm: 10500, donusYakit: 8, Bas.AddDays(3), kmHediye: 999);
+        await rentals.ReturnAsync(rental, returnKm: 10500, returnFuel: 8, Bas.AddDays(3), freeKm: 999);
         var c = await rentals.GetAsync(rental);
         Assert.Equal(0, c!.FazlaKm);         // Max(0, 200 − 999)
         Assert.Equal(0m, c.FazlaKmBedeli);
@@ -90,7 +90,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         var (rental, rentals) = await TeslimliKiraAsync(scope.ServiceProvider, "34 DA 04");
         // Negatif hediye = aşımı ŞİŞİRME hilesi olurdu (para) → erken red.
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.ReturnAsync(rental, 10500, 8, Bas.AddDays(3), kmHediye: -50));
+            () => rentals.ReturnAsync(rental, 10500, 8, Bas.AddDays(3), freeKm: -50));
         Assert.Contains("negatif", ex.Message);
     }
 
@@ -100,7 +100,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (rental, rentals) = await TeslimliKiraAsync(scope.ServiceProvider, "34 DA 05", kmLimit: 0);
-        await rentals.ReturnAsync(rental, donusKm: 15000, donusYakit: 8, Bas.AddDays(3), kmHediye: 100);
+        await rentals.ReturnAsync(rental, returnKm: 15000, returnFuel: 8, Bas.AddDays(3), freeKm: 100);
         var c = await rentals.GetAsync(rental);
         Assert.Equal(0, c!.FazlaKm); // KmLimit=0 = sınırsız → fazla yok (regresyon)
         Assert.Equal(300m, c.GenelToplam);
@@ -113,12 +113,12 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var pid = await sp.GetRequiredService<PersonelService>().CreateAsync(new PersonelInput
+        var pid = await sp.GetRequiredService<PersonnelService>().CreateAsync(new PersonelInput
         { Kod = "P-01", Ad = "Onur", Soyad = "Yuce" });
         var (rental, rentals) = await TeslimliKiraAsync(sp, "34 DA 06");
 
         await rentals.ReturnAsync(rental, 10200, 8, Bas.AddDays(3),
-            bitisSebebi: "Erken İade", teslimAlanPersonelId: pid);
+            endReason: "Erken İade", receivingStaffId: pid);
 
         var c = await rentals.GetAsync(rental);
         Assert.Equal("Erken İade", c!.BitisSebebi);
@@ -135,7 +135,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         // BULGU 1 (Kritik): int.MaxValue hediye, limit-altı kirada int wrap ile 4,29 MİLYAR TL hayalet
         // borç üretiyordu (deftere kadar). Artık üst sınır reddi + ReturnMath long aritmetik.
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.ReturnAsync(rental, 10100, 8, Bas.AddDays(3), kmHediye: int.MaxValue));
+            () => rentals.ReturnAsync(rental, 10100, 8, Bas.AddDays(3), freeKm: int.MaxValue));
         Assert.Contains("gerçekçi değil", ex.Message);
         Assert.Equal(RentalStatus.Kirada, (await rentals.GetAsync(rental))!.Durum); // yarım yazım yok
     }
@@ -148,7 +148,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         var (rental, rentals) = await TeslimliKiraAsync(scope.ServiceProvider, "34 DA 09");
         // BULGU 2 (Low): 65+ karakter varchar(64)'e çakılıp 500 veriyordu → temiz ValidationException.
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.ReturnAsync(rental, 10100, 8, Bas.AddDays(3), bitisSebebi: new string('x', 65)));
+            () => rentals.ReturnAsync(rental, 10100, 8, Bas.AddDays(3), endReason: new string('x', 65)));
         Assert.Contains("64 karakter", ex.Message);
     }
 
@@ -161,7 +161,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         // BULGU 3 (Low): 0.3333 × 3 km = 0.9999 sözleşmede kalıp fatura RoundGross(301.00) ile 0,0001
         // ıraksıyordu → satır-bazlı 2 hane yuvarlama: bedel 1.00, GenelToplam 301.00 (elle oracle).
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Kesir", Soyad = "Musteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kesir", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 DA 10" });
         var rentals = sp.GetRequiredService<RentalService>();
         var rental = await rentals.CreateDirectAsync(new BookingInput
@@ -169,8 +169,8 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
             MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3),
             GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 0.3333m
         });
-        await rentals.DeliverAsync(rental, cikisKm: 10000, cikisYakit: 8);
-        await rentals.ReturnAsync(rental, donusKm: 10303, donusYakit: 8, Bas.AddDays(3)); // aşım 3 km
+        await rentals.DeliverAsync(rental, pickupKm: 10000, pickupFuel: 8);
+        await rentals.ReturnAsync(rental, returnKm: 10303, returnFuel: 8, Bas.AddDays(3)); // aşım 3 km
 
         var c = await rentals.GetAsync(rental);
         Assert.Equal(1.00m, c!.FazlaKmBedeli);   // Round(0.9999, 2) = 1.00
@@ -184,7 +184,7 @@ public sealed class DonusAlanlariTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (rental, rentals) = await TeslimliKiraAsync(scope.ServiceProvider, "34 DA 07");
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.ReturnAsync(rental, 10200, 8, Bas.AddDays(3), teslimAlanPersonelId: Guid.NewGuid()));
+            () => rentals.ReturnAsync(rental, 10200, 8, Bas.AddDays(3), receivingStaffId: Guid.NewGuid()));
         Assert.Contains("personel bulunamadı", ex.Message);
         // Red sonrası kira hâlâ Kirada (yarım dönüş yok).
         Assert.Equal(RentalStatus.Kirada, (await rentals.GetAsync(rental))!.Durum);

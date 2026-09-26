@@ -11,7 +11,7 @@ public sealed class MaliyetHesapTests
     public void Finansmansiz_amortisman_kar_teklif()
     {
         // 1.000.000 alış, %30 kalıntı → 700.000 amortisman; 36 ay; %20 kâr; %20 KDV; finansman/gider/damga = 0.
-        var s = MaliyetHesapService.Hesapla(new MaliyetHesapInput
+        var s = CostCalculationService.Calculate(new MaliyetHesapInput
         {
             AlisBedeli = 1_000_000m, ResidualYuzde = 0.30m, SureAy = 36,
             FaizOran = 0m, KkdfOran = 0m, BsmvOran = 0m, DamgaOran = 0m, AylikGider = 0m,
@@ -33,7 +33,7 @@ public sealed class MaliyetHesapTests
     public void Finansman_kkdf_bsmv_faiz_uzerinden()
     {
         // 1.000.000 alış, kalıntı 0, 12 ay, %40 yıllık faiz, KKDF+BSMV %15+%15 = %30 (faiz üzerinden).
-        var s = MaliyetHesapService.Hesapla(new MaliyetHesapInput
+        var s = CostCalculationService.Calculate(new MaliyetHesapInput
         {
             AlisBedeli = 1_000_000m, ResidualYuzde = 0m, SureAy = 12,
             FaizOran = 0.40m, KkdfOran = 0.15m, BsmvOran = 0.15m,
@@ -49,5 +49,5 @@ public sealed class MaliyetHesapTests
     [Fact]
     public void Sifir_alis_reddedilir()
         => Assert.Throws<RentACar.Application.Common.ValidationException>(
-            () => MaliyetHesapService.Hesapla(new MaliyetHesapInput { AlisBedeli = 0m, SureAy = 12 }));
+            () => CostCalculationService.Calculate(new MaliyetHesapInput { AlisBedeli = 0m, SureAy = 12 }));
 }

@@ -20,20 +20,20 @@ public static partial class SystemAdminApi
     {
         var t = v1.MapGroup("/mesaj-sablonlari").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
 
-        t.MapGet("", async Task<Ok<IReadOnlyList<MessageTemplateDto>>> (MusteriBildirimService s, CancellationToken ct)
+        t.MapGet("", async Task<Ok<IReadOnlyList<MessageTemplateDto>>> (CustomerNotificationService s, CancellationToken ct)
             => TypedResults.Ok(await TemplatesAsync(s, ct)));
 
         t.MapPut("/{tur}/{kanal}", async Task<Ok<MessageTemplateDto>> (string tur, string kanal, MessageTemplateRequest i,
-            MusteriBildirimService s, CancellationToken ct) =>
+            CustomerNotificationService s, CancellationToken ct) =>
         {
-            var type = F5Ortak.EnumAdi<MesajTuru>(tur, "tur") ?? throw new ValidationException("Şablon türü zorunludur.", "tur");
-            var channel = F5Ortak.EnumAdi<MesajKanal>(kanal, "kanal") ?? throw new ValidationException("Kanal zorunludur.", "kanal");
+            var type = F5Ortak.EnumAdi<MessageType>(tur, "tur") ?? throw new ValidationException("Şablon türü zorunludur.", "tur");
+            var channel = F5Ortak.EnumAdi<MessageChannel>(kanal, "kanal") ?? throw new ValidationException("Kanal zorunludur.", "kanal");
             Sinirlar.Metin(i.Konu, 256, "konu", "Konu");
             Sinirlar.Metin(i.Govde, 8192, "govde", "Gövde");
             // Satır varsa sürüm zorunlu (bayat sekme başka oturumun şablonunu sessizce ezmesin); yoksa ilk kayıt.
             if ((await TemplatesAsync(s, ct)).Any(x => x.Tur == type.ToString() && x.Kanal == channel.ToString() && x.Surum is not null))
                 SystemApiCommon.RequireVersion(i.Surum);
-            await s.SablonKaydetAsync(new MesajSablonInput { Tur = type, Kanal = channel, Konu = i.Konu, Govde = i.Govde ?? "", Aktif = i.Aktif },
+            await s.SaveTemplateAsync(new MesajSablonInput { Tur = type, Kanal = channel, Konu = i.Konu, Govde = i.Govde ?? "", Aktif = i.Aktif },
                 SystemApiCommon.Clean(i.Surum), ct);
             return TypedResults.Ok((await TemplatesAsync(s, ct)).First(x => x.Tur == type.ToString() && x.Kanal == channel.ToString()));
         }).AlanlariEsle([("Mesaj gövdesi", "govde"), ("SMS gövdesi", "govde"), ("E-posta şablonunda konu", "konu")]);
@@ -42,24 +42,24 @@ public static partial class SystemAdminApi
         var n = v1.MapGroup("/bildirimler").WithTags(SystemApiCommon.Tag)
             .IzinMuaf("Bildirim merkezi: oturum yeter (Blazor [Authorize] paritesi); kiracı izolasyonu RLS.");
 
-        n.MapGet("", async Task<Ok<NotificationCenterDto>> (bool? okundu, BildirimService s, CancellationToken ct) =>
+        n.MapGet("", async Task<Ok<NotificationCenterDto>> (bool? okundu, InAppNotificationService s, CancellationToken ct) =>
         {
             var d = await s.GetAsync(ct: ct);
             var list = await s.ListPersistedAsync(okundu, ct);
             return TypedResults.Ok(new NotificationCenterDto(
                 d.VadeGecmis, d.VadeYakin, d.AcikSikayet, d.DonemKapanis?.ToUniversalTime(),
                 d.Vadeler.Select(v => new MessageDueItemDto(v.VehicleId, v.Tur, v.Bitis.ToUniversalTime(), v.KalanGun,
-                    v.Bucket == VadeBucket.Gecmis)).ToList(),
+                    v.Bucket == DueBucket.Gecmis)).ToList(),
                 d.Sikayetler.Select(x => new OpenComplaintDto(x.Id, x.Konu, x.Tarih.ToUniversalTime())).ToList(),
                 list.Select(b => new NotificationDto(b.Id, b.Tur, b.Mesaj, b.VehicleId, b.VadeTarihi.ToUniversalTime(), b.Okundu,
                     b.OlusturmaTarihi.ToUniversalTime())).ToList(),
                 await s.UnreadCountAsync(ct)));
         });
 
-        n.MapPost("/{id:guid}/oku", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, BildirimService s, CancellationToken ct)
+        n.MapPost("/{id:guid}/oku", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, InAppNotificationService s, CancellationToken ct)
             => await s.MarkReadAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("Bildirim bulunamadı."));
 
-        n.MapPost("/hepsini-oku", async Task<Ok<CountResult>> (BildirimService s, CancellationToken ct)
+        n.MapPost("/hepsini-oku", async Task<Ok<CountResult>> (InAppNotificationService s, CancellationToken ct)
             => TypedResults.Ok(new CountResult(await s.MarkAllReadAsync(ct))));
 
         // ---- genel arama (şube kapsamı SearchService'te)
@@ -73,13 +73,13 @@ public static partial class SystemAdminApi
     }
 
     /// <summary>Tüm (tür × kanal) birleşimleri döner; kayıtlı olmayanlar <c>Kayitli=false</c>, <c>Surum=null</c>.</summary>
-    private static async Task<IReadOnlyList<MessageTemplateDto>> TemplatesAsync(MusteriBildirimService s, CancellationToken ct)
+    private static async Task<IReadOnlyList<MessageTemplateDto>> TemplatesAsync(CustomerNotificationService s, CancellationToken ct)
     {
-        var versions = await s.SablonSurumlariAsync(ct);
-        var rows = (await s.SablonListAsync(ct)).ToDictionary(x => (x.Tur, x.Kanal));
+        var versions = await s.TemplateVersionsAsync(ct);
+        var rows = (await s.ListTemplatesAsync(ct)).ToDictionary(x => (x.Tur, x.Kanal));
         var result = new List<MessageTemplateDto>();
-        foreach (var type in Enum.GetValues<MesajTuru>())
-            foreach (var channel in Enum.GetValues<MesajKanal>())
+        foreach (var type in Enum.GetValues<MessageType>())
+            foreach (var channel in Enum.GetValues<MessageChannel>())
                 result.Add(rows.TryGetValue((type, channel), out var r)
                     ? new MessageTemplateDto(type.ToString(), channel.ToString(), true, r.Konu, r.Govde, r.Aktif, versions.GetValueOrDefault(r.Id))
                     : new MessageTemplateDto(type.ToString(), channel.ToString(), false, null, "", false, null));

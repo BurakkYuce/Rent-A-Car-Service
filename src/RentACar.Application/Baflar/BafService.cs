@@ -21,10 +21,10 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
     /// FAZ-18 — filtreli liste (canlı baf_ara.aspx). Şube kapsamı filtreden BAĞIMSIZ uygulanır:
     /// Operatör "Ofis=Kadıköy" yazsa bile kendi şubesi dışını göremez (filtre kapsamı GENİŞLETEMEZ).
     /// </summary>
-    public Task<IReadOnlyList<Baf>> SearchAsync(BafFilter? filtre = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<Baf>> SearchAsync(BafFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        return _repository.SearchAsync(BranchScope.EffectiveFilter(_currentUser), filtre ?? new BafFilter(), ct);
+        return _repository.SearchAsync(BranchScope.EffectiveFilter(_currentUser), filter ?? new BafFilter(), ct);
     }
 
     public async Task<Baf?> GetAsync(Guid id, CancellationToken ct = default)
@@ -34,11 +34,11 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
         return baf;
     }
 
-    /// <summary>Yakıt TEK iç ölçekte 0–12 (<see cref="YakitOlcegi"/>, Karar (3)); boş = girilmedi.</summary>
-    private static void YakitAraligi(int? yakit, string etiket)
+    /// <summary>Yakıt TEK iç ölçekte 0–12 (<see cref="FuelScale"/>, Karar (3)); boş = girilmedi.</summary>
+    private static void FuelRange(int? fuel, string label)
     {
-        if (yakit is { } y && !YakitOlcegi.Gecerli(y))
-            throw new ValidationException($"{etiket} yakıt 0-{YakitOlcegi.EnFazla} aralığında olmalıdır.");
+        if (fuel is { } y && !FuelScale.IsValid(y))
+            throw new ValidationException($"{label} yakıt 0-{FuelScale.Max} aralığında olmalıdır.");
     }
 
     public async Task<Guid> CreateAsync(BafInput input, CancellationToken ct = default)
@@ -47,7 +47,7 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
         if (input.PersonelId == Guid.Empty) throw new ValidationException("Personel seçilmelidir.");
         if (input.VehicleId == Guid.Empty) throw new ValidationException("Araç seçilmelidir.");
         if (input.CikisKm < 0) throw new ValidationException("Çıkış KM negatif olamaz.");
-        YakitAraligi(input.CikisYakit, "Çıkış");
+        FuelRange(input.CikisYakit, "Çıkış");
 
         var row = new Baf
         {
@@ -58,7 +58,7 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
             CikisKm = input.CikisKm,
             CikisYakit = input.CikisYakit,
             Sube = string.IsNullOrWhiteSpace(input.Sube) ? null : input.Sube.Trim(),
-            Durum = Domain.Enums.BafDurum.Acik,
+            Durum = Domain.Enums.BafStatus.Acik,
             Aciklama = string.IsNullOrWhiteSpace(input.Aciklama) ? null : input.Aciklama.Trim(),
             // FAZ-18 bilgi alanları — hiçbiri iş kuralı işletmez, defter postlamaz.
             KullanimAmaci = input.KullanimAmaci,
@@ -71,69 +71,69 @@ public sealed class BafService(IBafRepository repository, ICurrentUser currentUs
     }
 
     /// <summary>
-    /// Teslim al (dönüş). FAZ-18: <paramref name="donusSube"/>/<paramref name="donusSaat"/> BİLGİ alanlarıdır —
+    /// Teslim al (dönüş). FAZ-18: <paramref name="returnBranch"/>/<paramref name="returnHour"/> BİLGİ alanlarıdır —
     /// şube KAPSAMI hâlâ çıkış şubesinden (<c>baf.Sube</c>) işler; dönüş şubesi kapsamı değiştirmez
     /// (aksi hâlde kullanıcı kendi göremediği bir şubeye "dönüş" yazarak kaydı kapsamından çıkarabilirdi).
     /// </summary>
-    public async Task<bool> TeslimAlAsync(Guid id, int donusKm, int? donusYakit, DateTimeOffset? donusTarihi = null,
-        string? donusSube = null, TimeOnly? donusSaat = null, CancellationToken ct = default)
+    public async Task<bool> ReceiveAsync(Guid id, int returnKm, int? returnFuel, DateTimeOffset? returnDate = null,
+        string? returnBranch = null, TimeOnly? returnHour = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var baf = await _repository.FindAsync(id, ct);
         if (baf is null) return false;
         BranchScope.RequireInScope(_currentUser, baf.Sube); // adversarial: tekil şube-kapsam
-        if (baf.Durum != Domain.Enums.BafDurum.Acik) throw new ValidationException("Yalnız açık tahsis teslim alınabilir.");
-        YakitAraligi(donusYakit, "Dönüş");
-        if (donusKm < baf.CikisKm) throw new ValidationException("Dönüş KM çıkış KM'den küçük olamaz.");
-        return await _repository.TeslimAlAsync(id, donusKm, donusYakit, donusTarihi ?? DateTimeOffset.UtcNow,
-            string.IsNullOrWhiteSpace(donusSube) ? null : donusSube.Trim(), donusSaat, ct);
+        if (baf.Durum != Domain.Enums.BafStatus.Acik) throw new ValidationException("Yalnız açık tahsis teslim alınabilir.");
+        FuelRange(returnFuel, "Dönüş");
+        if (returnKm < baf.CikisKm) throw new ValidationException("Dönüş KM çıkış KM'den küçük olamaz.");
+        return await _repository.ReceiveAsync(id, returnKm, returnFuel, returnDate ?? DateTimeOffset.UtcNow,
+            string.IsNullOrWhiteSpace(returnBranch) ? null : returnBranch.Trim(), returnHour, ct);
     }
 
-    public async Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // inceltme
         var baf = await _repository.FindAsync(id, ct);
         if (baf is null) return false;
         BranchScope.RequireInScope(_currentUser, baf.Sube); // adversarial: tekil şube-kapsam
-        return await _repository.IptalAsync(id, ct);
+        return await _repository.CancelAsync(id, ct);
     }
 
     /// <summary>
-    /// F6.1b — <see cref="TeslimAlAsync"/>'in KİLİTLİ karşılığı (/api/ui). Blazor yolu durumu kilitsiz okuyordu:
+    /// F6.1b — <see cref="ReceiveAsync"/>'in KİLİTLİ karşılığı (/api/ui). Blazor yolu durumu kilitsiz okuyordu:
     /// eşzamanlı iki teslim (ya da teslim + iptal) ikisi de "Açık" görüp birbirini eziyordu. Kapsam ve durum çitleri
     /// satır kilidinin ALTINDA yeniden denetlenir (kapsam önce — başka şubenin kaydının durumu sızmasın).
     /// </summary>
-    public async Task<bool> TeslimAlKilitliAsync(Guid id, int donusKm, int? donusYakit, DateTimeOffset? donusTarihi,
-        string? donusSube, TimeOnly? donusSaat, CancellationToken ct = default)
+    public async Task<bool> ReceiveLockedAsync(Guid id, int returnKm, int? returnFuel, DateTimeOffset? returnDate,
+        string? returnBranch, TimeOnly? returnHour, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        YakitAraligi(donusYakit, "Dönüş");
-        var sube = string.IsNullOrWhiteSpace(donusSube) ? null : donusSube.Trim();
-        return await _repository.KilitliGuncelleAsync(id, row =>
+        FuelRange(returnFuel, "Dönüş");
+        var branch = string.IsNullOrWhiteSpace(returnBranch) ? null : returnBranch.Trim();
+        return await _repository.UpdateLockedAsync(id, row =>
         {
             BranchScope.RequireInScope(_currentUser, row.Sube);
-            if (row.Durum != Domain.Enums.BafDurum.Acik) throw new ValidationException("Yalnız açık tahsis teslim alınabilir.");
-            if (donusKm < row.CikisKm) throw new ValidationException("Dönüş KM çıkış KM'den küçük olamaz.");
-            row.DonusTarihi = donusTarihi ?? DateTimeOffset.UtcNow;
-            row.DonusKm = donusKm;
-            row.DonusYakit = donusYakit;
-            if (sube is not null) row.DonusSube = sube;
-            if (donusSaat is { } ds) row.DonusSaat = ds;
-            row.Durum = Domain.Enums.BafDurum.Kapandi;
+            if (row.Durum != Domain.Enums.BafStatus.Acik) throw new ValidationException("Yalnız açık tahsis teslim alınabilir.");
+            if (returnKm < row.CikisKm) throw new ValidationException("Dönüş KM çıkış KM'den küçük olamaz.");
+            row.DonusTarihi = returnDate ?? DateTimeOffset.UtcNow;
+            row.DonusKm = returnKm;
+            row.DonusYakit = returnFuel;
+            if (branch is not null) row.DonusSube = branch;
+            if (returnHour is { } ds) row.DonusSaat = ds;
+            row.Durum = Domain.Enums.BafStatus.Kapandi;
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
 
     /// <summary>F6.1b — kilitli iptal: yalnız AÇIK tahsis iptal edilir (kapanmış tahsisin dönüş km/yakıt kaydı
     /// iptalle "yok" sayılmasın); zaten iptal olan → 400.</summary>
-    public async Task<bool> IptalKilitliAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> IsCancelLockedAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsDelete);
-        return await _repository.KilitliGuncelleAsync(id, row =>
+        return await _repository.UpdateLockedAsync(id, row =>
         {
             BranchScope.RequireInScope(_currentUser, row.Sube);
-            if (row.Durum != Domain.Enums.BafDurum.Acik) throw new ValidationException("Yalnız açık tahsis iptal edilebilir.");
-            row.Durum = Domain.Enums.BafDurum.Iptal;
+            if (row.Durum != Domain.Enums.BafStatus.Acik) throw new ValidationException("Yalnız açık tahsis iptal edilebilir.");
+            row.Durum = Domain.Enums.BafStatus.Iptal;
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }

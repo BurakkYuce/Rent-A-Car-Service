@@ -34,9 +34,9 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         var n = Normalize(input);
         // F11.1b güvenlik (H1 devamı): şube kapsamı SERVİSTE — Blazor ve /api/ui tek kural; operatör yalnız kendi
         // şubesine ofis açar.
-        BranchScope.RequireInScope(_currentUser, kayitSubeId: null, n.Sube);
+        BranchScope.RequireInScope(_currentUser, recordBranchId: null, n.Sube);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ofis zaten var.");
 
         var loc = new Location();
@@ -61,9 +61,9 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         // şubenin ofisini düzenleyemez ya da bir ofisi başka şubeye taşıyamaz (Blazor + API tek kural).
         if (await _repository.FindAsync(id, ct) is not { } current) return false;
         BranchScope.RequireInScope(_currentUser, current.SubeId, current.Sube);
-        BranchScope.RequireInScope(_currentUser, kayitSubeId: null, n.Sube);
+        BranchScope.RequireInScope(_currentUser, recordBranchId: null, n.Sube);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ofis zaten var.");
 
         void ApplyAll(Location loc)
@@ -124,7 +124,7 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
         DropCalismaSekli = Trim(input.DropCalismaSekli),
         OzelMail = Trim(input.OzelMail),
         OzelTelefon = Trim(input.OzelTelefon),
-        HaftalikCalismaSaatleri = HaftaNormalize(input.HaftalikCalismaSaatleri),
+        HaftalikCalismaSaatleri = NormalizeWeek(input.HaftalikCalismaSaatleri),
         Aktif = input.Aktif
     };
 
@@ -133,27 +133,27 @@ public sealed class LocationService(ILocationRepository repository, ICurrentUser
     /// bir form kaydı bozmasın diye şekil BURADA garanti edilir; okuyucu 7 satır olduğunu varsayabilir.
     /// Gün numarası aralık dışıysa satır atılır (sessiz kabul yerine görünür kayıp yok — 7 satır sabit).
     /// </summary>
-    public static List<RentACar.Domain.Entities.GunSaat> HaftaNormalize(
-        IEnumerable<RentACar.Domain.Entities.GunSaat>? girdi)
+    public static List<RentACar.Domain.Entities.GunSaat> NormalizeWeek(
+        IEnumerable<RentACar.Domain.Entities.GunSaat>? input)
     {
-        var gelen = (girdi ?? []).Where(g => g.Gun is >= 1 and <= 7)
+        var incoming = (input ?? []).Where(g => g.Gun is >= 1 and <= 7)
             .GroupBy(g => g.Gun).ToDictionary(g => g.Key, g => g.Last());
-        var sonuc = new List<RentACar.Domain.Entities.GunSaat>(7);
-        for (var gun = 1; gun <= 7; gun++)
+        var result = new List<RentACar.Domain.Entities.GunSaat>(7);
+        for (var day = 1; day <= 7; day++)
         {
-            if (gelen.TryGetValue(gun, out var g))
-                sonuc.Add(new RentACar.Domain.Entities.GunSaat
+            if (incoming.TryGetValue(day, out var g))
+                result.Add(new RentACar.Domain.Entities.GunSaat
                 {
-                    Gun = gun,
+                    Gun = day,
                     Acilis = Trim(g.Acilis),
                     Kapanis = Trim(g.Kapanis),
                     // Saat girilmemişse gün KAPALI sayılır — "boş açılış" bir çalışma saati değildir.
                     Kapali = g.Kapali || (string.IsNullOrWhiteSpace(g.Acilis) && string.IsNullOrWhiteSpace(g.Kapanis))
                 });
             else
-                sonuc.Add(new RentACar.Domain.Entities.GunSaat { Gun = gun, Kapali = true });
+                result.Add(new RentACar.Domain.Entities.GunSaat { Gun = day, Kapali = true });
         }
-        return sonuc;
+        return result;
     }
 
     private static void Apply(Location loc, LocationInput n)

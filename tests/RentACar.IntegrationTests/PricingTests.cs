@@ -26,7 +26,7 @@ public sealed class PricingTests(PostgresFixture fx)
         var customers = s.ServiceProvider.GetRequiredService<CustomerService>();
         var rates = s.ServiceProvider.GetRequiredService<RateCardService>();
         var arac = await vehicles.CreateAsync(new VehicleInput { Plaka = "34PRC01", Grup = grup });
-        var musteri = await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Fiyat", Soyad = "Test" });
+        var musteri = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Fiyat", Soyad = "Test" });
         await rates.CreateAsync(new RateCardInput { Kod = "B1", Ad = "B 1-3", Grup = "B", MinGun = 1, MaxGun = 3, GunlukUcret = 100m });
         await rates.CreateAsync(new RateCardInput { Kod = "B2", Ad = "B 4+", Grup = "B", MinGun = 4, MaxGun = 9999, GunlukUcret = 80m });
         return (musteri, arac);

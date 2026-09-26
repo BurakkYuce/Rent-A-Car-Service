@@ -123,7 +123,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _list = await Yetkiler.ListAsync();
-        _gruplar = await Yetkiler.ListGruplarAsync();
+        _gruplar = await Yetkiler.ListGroupsAsync();
     }
 
     private static int KalemSayisi(string json)

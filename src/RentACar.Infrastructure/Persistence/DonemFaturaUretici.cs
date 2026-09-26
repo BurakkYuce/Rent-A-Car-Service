@@ -42,13 +42,13 @@ public static class DonemFaturaUretici
             return new Sonuc(0, 0, atlananlar);
         }
 
-        var tenantKdv = ayar.VarsayilanKdvOrani is >= 0m and <= 1m ? ayar.VarsayilanKdvOrani.Value : KdvMath.VarsayilanOran;
+        var tenantKdv = ayar.VarsayilanKdvOrani is >= 0m and <= 1m ? ayar.VarsayilanKdvOrani.Value : VatMath.DefaultRate;
 
         // Adaylar: vadesi gelmiş Planlandi dönemler × job'a açık Kirada kiralar.
         var adaylar = await (
             from d in db.FaturaDonemleri.AsNoTracking()
             join r in db.Rentals.AsNoTracking() on d.RentalId equals r.Id
-            where d.Durum == FaturaDonemDurum.Planlandi && d.DonemBit <= now
+            where d.Durum == InvoicePeriodStatus.Planlandi && d.DonemBit <= now
                   && r.Durum == RentalStatus.Kirada && r.DonemselFaturalama
             orderby d.RentalId, d.DonemSira
             select new { Donem = d, Rental = r }).ToListAsync(ct);
@@ -57,7 +57,7 @@ public static class DonemFaturaUretici
         foreach (var a in adaylar)
         {
             // FX kirası: kur çözümü servis katmanının işi (KurCozucu) — job atlar, manuel kesilir.
-            if (RentACar.Application.Kur.KurService.NormalizeKod(a.Rental.Doviz) != "TRY")
+            if (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(a.Rental.Doviz) != "TRY")
             {
                 atlananlar.Add($"kira {a.Rental.SozlesmeNo} dönem {a.Donem.DonemSira}: FX ({a.Rental.Doviz}) — manuel kesim");
                 continue;
@@ -103,36 +103,36 @@ public static class DonemFaturaUretici
             var donemler = await db.FaturaDonemleri
                 .Where(d => d.RentalId == rentalId).OrderBy(d => d.DonemSira).ToListAsync(ct);
             var donem = donemler.First(d => d.Id == donemId);
-            if (donem.Durum != FaturaDonemDurum.Planlandi) { await tx.RollbackAsync(ct); return (false, false); }
-            if (donemler.Any(d => d.DonemSira < donemSira && d.Durum == FaturaDonemDurum.Planlandi))
+            if (donem.Durum != InvoicePeriodStatus.Planlandi) { await tx.RollbackAsync(ct); return (false, false); }
+            if (donemler.Any(d => d.DonemSira < donemSira && d.Durum == InvoicePeriodStatus.Planlandi))
             { await tx.RollbackAsync(ct); return (false, false); } // sıralı kesim — önceki dönem gelecekte
 
             // KDV zinciri manuel yolla (CreateDonemFaturasiAsync) BİREBİR.
             var netMod = string.Equals(rental.FiyatTuru?.Trim(), "Günlük", StringComparison.OrdinalIgnoreCase)
                       || string.Equals(rental.FiyatTuru?.Trim(), "Toplam", StringComparison.OrdinalIgnoreCase);
-            var rate = rental.OzelKdvOran ?? (netMod ? rental.KdvOranSnapshot ?? KdvMath.VarsayilanOran : tenantKdv);
+            var rate = rental.OzelKdvOran ?? (netMod ? rental.KdvOranSnapshot ?? VatMath.DefaultRate : tenantKdv);
 
             // Kümülatif tahakkuk + cap — B1/B2 SAF matematiği (tek kopya).
             var gunler = donemler
                 .Select(d => Math.Max(1, (d.DonemBit.UtcDateTime.Date - d.DonemBas.UtcDateTime.Date).Days)).ToList();
-            var tahakkuklar = FaturaDonemPlanService.ProRataAccrual(rental.Tutar, gunler);
+            var tahakkuklar = InvoicePeriodPlanService.ProRataAccrual(rental.Tutar, gunler);
             var kumulatif = donemler.Select((d, i) => (d.DonemSira, T: tahakkuklar[i]))
                 .Where(x => x.DonemSira <= donemSira).Sum(x => x.T);
-            var baseGross = KdvMath.RoundGross(RentACar.Application.Bookings.RentalTotals.BaseGross(rental));
+            var baseGross = VatMath.RoundGross(RentACar.Application.Bookings.RentalTotals.BaseGross(rental));
             var (faturalanan, farkSayisi) = await OrtakSorgular.FarkStateAsync(db, rentalId, ct);
-            var kesilecek = KdvMath.RoundGross(Math.Min(kumulatif, baseGross) - faturalanan);
+            var kesilecek = VatMath.RoundGross(Math.Min(kumulatif, baseGross) - faturalanan);
             if (kesilecek <= 0m)
             {
                 // Savunma derinliği (B4-1): faturası olan dönem ASLA Atlandi'ye yazılmaz (çelişkili iz).
                 if (donem.InvoiceId is not null) { await tx.RollbackAsync(ct); return (false, false); }
-                donem.Durum = FaturaDonemDurum.Atlandi; // cap — kalıcı iz (manuel yolla aynı)
+                donem.Durum = InvoicePeriodStatus.Atlandi; // cap — kalıcı iz (manuel yolla aynı)
                 donem.UpdatedAtUtc = now;
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
                 return (false, false);
             }
 
-            var (net, kdv) = KdvMath.FromGross(kesilecek, rate);
+            var (net, kdv) = VatMath.FromGross(kesilecek, rate);
             var invoice = new Invoice
             {
                 TenantId = tenantId, // interceptor'sız job yolu → açık damga
@@ -154,7 +154,7 @@ public static class DonemFaturaUretici
             var entries = InvoiceService.BuildEntries(invoice); // manuel yolla AYNI defter kümesi
             foreach (var e in entries) { e.TenantId = tenantId; e.Description = $"Fatura {invoice.No}"; }
 
-            donem.Durum = FaturaDonemDurum.Kesildi;
+            donem.Durum = InvoicePeriodStatus.Kesildi;
             donem.InvoiceId = invoice.Id;
             donem.KesilenTutar = kesilecek;
             donem.UpdatedAtUtc = now;
@@ -178,7 +178,7 @@ public static class DonemFaturaUretici
                     Kanal = RentACar.Domain.Entities.CashKanal.Masaustu // FAZ-84: otomatik iş — kanal seçilemez
                 };
                 // Job'un kendi "now"ı geçilir: belge günü ile job günü ayrışmasın.
-                ctx.No = await BelgeNoUretici.UretAsync(db, tenantId, BelgeNoTuru.Tahsilat, ct, simdi: now);
+                ctx.No = await BelgeNoUretici.UretAsync(db, tenantId, DocumentNoType.Tahsilat, ct, simdi: now);
                 var cashEntries = CashService.Natural(ctx);
                 foreach (var e in cashEntries) e.TenantId = tenantId;
                 db.CashTransactions.Add(ctx);
@@ -212,7 +212,7 @@ public static class DonemFaturaUretici
         if (r.Durum == RentalStatus.Iptal) return "kira bu sırada iptal edildi — dönem faturası kesilmedi";
         if (r.Durum != RentalStatus.Kirada) return $"kira artık Kirada değil ({r.Durum}) — dönem faturası kesilmedi";
         if (!r.DonemselFaturalama) return "kirada dönemsel faturalama kapatıldı — dönem faturası kesilmedi";
-        if (RentACar.Application.Kur.KurService.NormalizeKod(r.Doviz) != "TRY")
+        if (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(r.Doviz) != "TRY")
             return $"kira dövizi {r.Doviz} — manuel kesim";
         return null;
     }

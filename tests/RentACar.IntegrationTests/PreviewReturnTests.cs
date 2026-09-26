@@ -25,7 +25,7 @@ public sealed class PreviewReturnTests(PostgresFixture fx)
         IServiceProvider sp, string plaka)
     {
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Onizleme", Soyad = "Musteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Onizleme", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var rentals = sp.GetRequiredService<RentalService>();
         var rental = await rentals.CreateDirectAsync(new BookingInput
@@ -33,7 +33,7 @@ public sealed class PreviewReturnTests(PostgresFixture fx)
             MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3),
             GunlukUcret = 120m, KmLimit = 500, FazlaKmUcret = 2m
         });
-        await rentals.DeliverAsync(rental, cikisKm: 10000, cikisYakit: 8);
+        await rentals.DeliverAsync(rental, pickupKm: 10000, pickupFuel: 8);
         return (rental, rentals, sp);
     }
 
@@ -44,7 +44,7 @@ public sealed class PreviewReturnTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (rental, rentals, _) = await TeslimliKiraAsync(scope.ServiceProvider, "34 PR 01");
         // kat edilen 600 − limit 500 − hediye 100 = 0 (elle)
-        var p = await rentals.PreviewReturnAsync(rental, 10600, 8, Bas.AddDays(3), kmHediye: 100);
+        var p = await rentals.PreviewReturnAsync(rental, 10600, 8, Bas.AddDays(3), freeKm: 100);
         Assert.True(p.Ok);
         Assert.Equal(600, p.KullanilanKm);
         Assert.Equal(0, p.FazlaKm);
@@ -77,7 +77,7 @@ public sealed class PreviewReturnTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (rental, rentals, _) = await TeslimliKiraAsync(sp, "34 PR 03");
-        var tanim = await sp.GetRequiredService<EkHizmetTanimService>().CreateAsync(
+        var tanim = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
             new EkHizmetTanimInput { Kod = "NAV", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m });
         await sp.GetRequiredService<RentalAddOnService>().AddAsync(rental, tanim, 2m); // 2×50 net → 120 brüt (elle)
 
@@ -94,7 +94,7 @@ public sealed class PreviewReturnTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (rental, rentals, _) = await TeslimliKiraAsync(scope.ServiceProvider, "34 PR 04");
 
-        await rentals.PreviewReturnAsync(rental, 10600, 8, Bas.AddDays(5), kmHediye: 50);
+        await rentals.PreviewReturnAsync(rental, 10600, 8, Bas.AddDays(5), freeKm: 50);
         var c = await rentals.GetAsync(rental);
         // PERSIST YOK: durum hâlâ Kirada, dönüş alanları boş, toplam baz (elle 360)
         Assert.Equal(RentalStatus.Kirada, c!.Durum);
@@ -118,7 +118,7 @@ public sealed class PreviewReturnTests(PostgresFixture fx)
         {
             var sp = seed.ServiceProvider;
             var cari = await sp.GetRequiredService<CustomerService>()
-                .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ankara", Soyad = "Musteri" });
+                .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ankara", Soyad = "Musteri" });
             var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 PR 05" });
             var rentals = sp.GetRequiredService<RentalService>();
             rental = await rentals.CreateDirectAsync(new BookingInput
@@ -126,7 +126,7 @@ public sealed class PreviewReturnTests(PostgresFixture fx)
             await rentals.DeliverAsync(rental, 10000, 8);
         }
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez");
-        await Assert.ThrowsAsync<RentACar.Application.Common.YetkiYokException>(
+        await Assert.ThrowsAsync<RentACar.Application.Common.NoPermissionException>(
             () => op.ServiceProvider.GetRequiredService<RentalService>()
                 .PreviewReturnAsync(rental, 10600, 8, Bas.AddDays(3)));
     }

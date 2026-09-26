@@ -29,13 +29,13 @@ public class Baf : ITenantOwned, IAuditable
 
     /// <summary>Çıkış şubesi (metin). Şube kapsamı bu alandan işler (C3 — Baf'ta SubeId FK'si yok).</summary>
     public string? Sube { get; set; }
-    public BafDurum Durum { get; set; } = BafDurum.Acik;
+    public BafStatus Durum { get; set; } = BafStatus.Acik;
     public string? Aciklama { get; set; }
 
     // ---- FAZ-18: canlı baf_islemleri.aspx alan derinliği (hepsi BİLGİ — defter postlamaz) ----
 
     /// <summary>Tahsisin amacı (11 seçenek). Bilgi/rapor alanı; iş kuralı işletmez.</summary>
-    public BafKullanimAmaci? KullanimAmaci { get; set; }
+    public BafUsagePurpose? KullanimAmaci { get; set; }
 
     /// <summary>Tahsisi onaylayan personel (Personel.Id). Bilgi — yetki kontrolü DEĞİL.</summary>
     public Guid? Onaylayan { get; set; }

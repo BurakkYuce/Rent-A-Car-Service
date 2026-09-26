@@ -20,7 +20,7 @@ public sealed class TestZamanTests(PostgresFixture fx)
 {
     private static async Task<DateTimeOffset> YazOkuAsync(IServiceProvider sp, Guid musteri, DateTimeOffset t)
     {
-        var svc = sp.GetRequiredService<RezSartService>();
+        var svc = sp.GetRequiredService<ReservationTermService>();
         var id = await svc.CreateAsync(new RezSartInput { MusteriId = musteri, Sart = "zaman", TalepTarihi = t });
         return (await svc.GetAsync(id))!.TalepTarihi;
     }
@@ -32,7 +32,7 @@ public sealed class TestZamanTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var musteri = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Zaman", Soyad = "Testi" });
+        { Tip = CustomerType.Bireysel, Ad = "Zaman", Soyad = "Testi" });
 
         // 1 tick = 100ns → µs'nin altında. PG bunu saklayamaz; yazılan ≠ okunan.
         var tickli = TestZaman.Simdi().AddTicks(3);

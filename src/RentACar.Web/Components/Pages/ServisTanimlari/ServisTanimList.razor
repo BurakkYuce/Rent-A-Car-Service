@@ -1,7 +1,7 @@
 @page "/servis-tanimlari"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
 @using RentACar.Application.ServisTanimlari
-@inject ServisTanimService Tanimlar
+@inject ServiceDefinitionService Tanimlar
 
 <PageTitle>Servis Tanımları — RentPro</PageTitle>
 
@@ -109,6 +109,6 @@
     protected override async Task OnInitializedAsync()
     {
         _list = await Tanimlar.ListAsync();
-        _oneri = await Tanimlar.OneriAsync();
+        _oneri = await Tanimlar.SuggestionAsync();
     }
 }

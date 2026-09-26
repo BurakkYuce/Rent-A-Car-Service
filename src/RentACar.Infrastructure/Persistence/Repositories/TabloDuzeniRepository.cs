@@ -9,9 +9,9 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// Kişisel tablo düzenleri (F3.5). Tenant: merkezi EF filtresi + FORCE RLS. Kullanıcı: her sorguda
 /// açık <c>UserId</c> yüklemi (çağıran servis oturumdan verir).
 /// </summary>
-public sealed class TabloDuzeniRepository(IDbContextFactory<AppDbContext> factory) : ITabloDuzeniRepository
+public sealed class TabloDuzeniRepository(IDbContextFactory<AppDbContext> factory) : ITableLayoutRepository
 {
-    public async Task<TabloDuzeniKaydi?> GetirAsync(Guid userId, string tabloKodu, CancellationToken ct = default)
+    public async Task<TabloDuzeniKaydi?> FetchAsync(Guid userId, string tabloKodu, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         return await db.TabloDuzenleri.AsNoTracking()
@@ -20,7 +20,7 @@ public sealed class TabloDuzeniRepository(IDbContextFactory<AppDbContext> factor
             .SingleOrDefaultAsync(ct);
     }
 
-    public async Task<DateTimeOffset> YazAsync(
+    public async Task<DateTimeOffset> WriteAsync(
         Guid userId, string tabloKodu, string duzenJson, DateTimeOffset simdi, CancellationToken ct = default)
     {
         // İki deneme yeter: ilk INSERT eşzamanlı başka bir ilk yazıma (iki sekme) çarparsa satır artık
@@ -61,7 +61,7 @@ public sealed class TabloDuzeniRepository(IDbContextFactory<AppDbContext> factor
         }
     }
 
-    public async Task SilAsync(Guid userId, string tabloKodu, CancellationToken ct = default)
+    public async Task DeleteAsync(Guid userId, string tabloKodu, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         await db.TabloDuzenleri

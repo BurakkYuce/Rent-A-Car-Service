@@ -27,42 +27,42 @@ public sealed class IslemAnahtariTureticiTests
     {
         // uuid.uuid5(uuid.NAMESPACE_DNS, 'python.org') — Python dokümanındaki örnek.
         var dns = new Guid("6ba7b810-9dad-11d1-80b4-00c04fd430c8");
-        Assert.Equal(new Guid("886313e1-3b8a-5372-9b90-0c9aee199e5d"), IslemAnahtariTuretici.UuidV5(dns, "python.org"));
+        Assert.Equal(new Guid("886313e1-3b8a-5372-9b90-0c9aee199e5d"), OperationKeyDeriver.UuidV5(dns, "python.org"));
     }
 
     [Fact]
     public void Ad_alani_sabit()
-        => Assert.Equal(new Guid("2adf1c10-4f5c-4c27-bad3-3294d841ee0c"), IslemAnahtariTuretici.AdAlani);
+        => Assert.Equal(new Guid("2adf1c10-4f5c-4c27-bad3-3294d841ee0c"), OperationKeyDeriver.NameField);
 
     [Theory]
     [InlineData(Baslik, "a4068cc6-1a4f-574a-a145-937a9b14eaac")]
     [InlineData("tahsilat-form-0001", "d8b25d16-e0a8-5c78-abf3-15a3ec210de4")]
     public void Test_vektorleri_python_ile_ayrica_hesaplandi(string baslik, string beklenen)
-        => Assert.Equal(new Guid(beklenen), IslemAnahtariTuretici.Turet(T1, U1, baslik));
+        => Assert.Equal(new Guid(beklenen), OperationKeyDeriver.Derive(T1, U1, baslik));
 
     [Fact]
     public void Ayni_baslik_farkli_kullanici_ya_da_kiraci_ASLA_ayni_anahtar_degil()
     {
-        var k = IslemAnahtariTuretici.Turet(T1, U1, Baslik);
-        Assert.Equal(new Guid("a9fdeecb-62a1-5b20-b5f7-b24d13338683"), IslemAnahtariTuretici.Turet(T1, U2, Baslik));
-        Assert.Equal(new Guid("e63a9b3f-adb6-59b2-858f-2c8bd717ed75"), IslemAnahtariTuretici.Turet(T2, U1, Baslik));
-        Assert.NotEqual(k, IslemAnahtariTuretici.Turet(T1, U2, Baslik));
-        Assert.NotEqual(k, IslemAnahtariTuretici.Turet(T2, U1, Baslik));
+        var k = OperationKeyDeriver.Derive(T1, U1, Baslik);
+        Assert.Equal(new Guid("a9fdeecb-62a1-5b20-b5f7-b24d13338683"), OperationKeyDeriver.Derive(T1, U2, Baslik));
+        Assert.Equal(new Guid("e63a9b3f-adb6-59b2-858f-2c8bd717ed75"), OperationKeyDeriver.Derive(T2, U1, Baslik));
+        Assert.NotEqual(k, OperationKeyDeriver.Derive(T1, U2, Baslik));
+        Assert.NotEqual(k, OperationKeyDeriver.Derive(T2, U1, Baslik));
         // Aynı üçlü → aynı anahtar (çift gönderim yakalanır).
-        Assert.Equal(k, IslemAnahtariTuretici.Turet(T1, U1, Baslik));
+        Assert.Equal(k, OperationKeyDeriver.Derive(T1, U1, Baslik));
     }
 
     [Fact]
     public void Ham_istemci_degeri_anahtar_olmaz()
     {
         // İstemci bir GUID yollasa bile anahtar o GUID DEĞİL (PK'ye doğrudan yazılmaz).
-        Assert.NotEqual(new Guid(Baslik), IslemAnahtariTuretici.Turet(T1, U1, Baslik));
+        Assert.NotEqual(new Guid(Baslik), OperationKeyDeriver.Derive(T1, U1, Baslik));
     }
 
     [Fact]
     public void Surum_5_ve_RFC_varyanti()
     {
-        var s = IslemAnahtariTuretici.Turet(T1, U1, Baslik).ToString("D");
+        var s = OperationKeyDeriver.Derive(T1, U1, Baslik).ToString("D");
         Assert.Equal('5', s[14]);                 // xxxxxxxx-xxxx-5xxx
         Assert.Contains(s[19], "89ab");           // varyant 10xx
     }
@@ -75,24 +75,24 @@ public sealed class IslemAnahtariTureticiTests
     [InlineData("Çift-Gönderim-ü-anahtar")]         // ASCII-dışı
     [InlineData("tab\ticeren-anahtar-00")]          // kontrol karakteri
     public void Gecersiz_baslik_reddedilir(string? deger)
-        => Assert.False(IslemAnahtariTuretici.GecerliMi(deger));
+        => Assert.False(OperationKeyDeriver.IsValid(deger));
 
     [Fact]
     public void Uzunluk_sinirlari()
     {
-        Assert.True(IslemAnahtariTuretici.GecerliMi(new string('a', 16)));
-        Assert.False(IslemAnahtariTuretici.GecerliMi(new string('a', 15)));
-        Assert.True(IslemAnahtariTuretici.GecerliMi(new string('a', 128)));
-        Assert.False(IslemAnahtariTuretici.GecerliMi(new string('a', 129)));
+        Assert.True(OperationKeyDeriver.IsValid(new string('a', 16)));
+        Assert.False(OperationKeyDeriver.IsValid(new string('a', 15)));
+        Assert.True(OperationKeyDeriver.IsValid(new string('a', 128)));
+        Assert.False(OperationKeyDeriver.IsValid(new string('a', 129)));
     }
 
     [Fact]
     public void Turet_gecersiz_girdide_alanli_dogrulama_hatasi()
     {
-        var ex = Assert.Throws<ValidationException>(() => IslemAnahtariTuretici.Turet(T1, U1, "kisa"));
+        var ex = Assert.Throws<ValidationException>(() => OperationKeyDeriver.Derive(T1, U1, "kisa"));
         Assert.Equal("Idempotency-Key", ex.Alan);
-        Assert.Throws<ArgumentException>(() => IslemAnahtariTuretici.Turet(Guid.Empty, U1, Baslik));
-        Assert.Throws<ArgumentException>(() => IslemAnahtariTuretici.Turet(T1, Guid.Empty, Baslik));
+        Assert.Throws<ArgumentException>(() => OperationKeyDeriver.Derive(Guid.Empty, U1, Baslik));
+        Assert.Throws<ArgumentException>(() => OperationKeyDeriver.Derive(T1, Guid.Empty, Baslik));
     }
 
     [Fact]
@@ -100,12 +100,12 @@ public sealed class IslemAnahtariTureticiTests
     {
         var det = new Guid("aaaaaaaa-0000-0000-0000-000000000001");
         var hdr = new Guid("bbbbbbbb-0000-0000-0000-000000000002");
-        Assert.Equal(det, IslemAnahtariTuretici.Sec(det, hdr));
-        Assert.Equal(det, IslemAnahtariTuretici.Sec(det, null));
-        Assert.Equal(hdr, IslemAnahtariTuretici.Sec(null, hdr));
-        Assert.Equal(hdr, IslemAnahtariTuretici.Sec(Guid.Empty, hdr));  // boş Guid "yok" sayılır
-        Assert.Null(IslemAnahtariTuretici.Sec(null, null));
-        Assert.Null(IslemAnahtariTuretici.Sec(Guid.Empty, Guid.Empty));
+        Assert.Equal(det, OperationKeyDeriver.Select(det, hdr));
+        Assert.Equal(det, OperationKeyDeriver.Select(det, null));
+        Assert.Equal(hdr, OperationKeyDeriver.Select(null, hdr));
+        Assert.Equal(hdr, OperationKeyDeriver.Select(Guid.Empty, hdr));  // boş Guid "yok" sayılır
+        Assert.Null(OperationKeyDeriver.Select(null, null));
+        Assert.Null(OperationKeyDeriver.Select(Guid.Empty, Guid.Empty));
     }
 
     // ---------------- Web erişimcisi (IdempotencyBasligi) ----------------

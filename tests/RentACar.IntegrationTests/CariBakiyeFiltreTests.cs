@@ -27,7 +27,7 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var c = new Customer { Tip = CariType.Bireysel };
+        var c = new Customer { Tip = CustomerType.Bireysel };
         kur(c);
         db.Customers.Add(c);
         await db.SaveChangesAsync();
@@ -69,7 +69,7 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
         { VehicleId = v2, AliciCariId = cari, SatisNet = 500m, KdvOrani = 0.20m });
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 300m });
 
-        var b = Assert.Single(await reports.GetCariBalancesAsync());
+        var b = Assert.Single(await reports.GetAccountBalancesAsync());
         Assert.Equal(1800m, b.ToplamBorc);
         Assert.Equal(300m, b.ToplamAlacak);
         Assert.Equal(1500m, b.Bakiye);
@@ -86,13 +86,13 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
 
         var cari = await CariAsync(scope, c =>
         {
-            c.Tip = CariType.Kurumsal; c.Unvan = "Acme A.Ş.";
+            c.Tip = CustomerType.Kurumsal; c.Unvan = "Acme A.Ş.";
             c.CepTel = "05551112233"; c.Email = "muhasebe@acme.test";
             c.BankaAdi = "Ziraat"; c.Doviz = "EURO"; c.OzelCariTip = "Grup İçi"; c.Sinif = "Kurumsal";
         });
         await sp.GetRequiredService<CashService>().CollectAsync(new CashInput { CariId = cari, Tutar = 100m });
 
-        var b = Assert.Single(await sp.GetRequiredService<ReportService>().GetCariBalancesAsync());
+        var b = Assert.Single(await sp.GetRequiredService<ReportService>().GetAccountBalancesAsync());
         Assert.Equal("Acme A.Ş.", b.Ad);
         Assert.Equal("05551112233", b.Telefon);
         Assert.Equal("muhasebe@acme.test", b.Email);
@@ -114,7 +114,7 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
 
         // A: kurumsal, TL, "Yurtiçi" — satış net 1000 @%20 → borç 1200 (borçlu)
         var a = await CariAsync(scope, c =>
-        { c.Tip = CariType.Kurumsal; c.Unvan = "Alfa Lojistik"; c.Doviz = "TL"; c.OzelCariTip = "Yurtiçi"; c.CepTel = "05320001122"; });
+        { c.Tip = CustomerType.Kurumsal; c.Unvan = "Alfa Lojistik"; c.Doviz = "TL"; c.OzelCariTip = "Yurtiçi"; c.CepTel = "05320001122"; });
         await sales.CreateAsync(new VehicleSaleInput
         { VehicleId = await AracAsync(scope, "34 FL 01"), AliciCariId = a, SatisNet = 1000m, KdvOrani = 0.20m });
 
@@ -140,13 +140,13 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         // Elle: 3 cari, hepsinin bakiyesi sıfırdan farklı → 3 satır, borçtan alacağa sıralı.
-        var hepsi = await reports.GetCariBalancesAsync();
+        var hepsi = await reports.GetAccountBalancesAsync();
         Assert.Equal(3, hepsi.Count);
         Assert.Equal(1200m, hepsi[0].Bakiye);     // en yüksek önce
         Assert.Equal(-50m, hepsi[1].Bakiye);
         Assert.Equal(-800m, hepsi[2].Bakiye);
         // null filtre ile boş filtre nesnesi AYNI sonucu vermeli (filtre eklenmiş olması daraltmasın).
-        Assert.Equal(3, (await reports.GetCariBalancesAsync(new CariBakiyeFilter())).Count);
+        Assert.Equal(3, (await reports.GetAccountBalancesAsync(new CariBakiyeFilter())).Count);
     }
 
     [Fact]
@@ -158,31 +158,31 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
         var r = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         // Metin araması: ada göre
-        Assert.Equal(a, Assert.Single(await r.GetCariBalancesAsync(new CariBakiyeFilter { Ara = "alfa" })).CariId);
+        Assert.Equal(a, Assert.Single(await r.GetAccountBalancesAsync(new CariBakiyeFilter { Ara = "alfa" })).CariId);
         // …telefona göre (kısmi)
-        Assert.Equal(a, Assert.Single(await r.GetCariBalancesAsync(new CariBakiyeFilter { Ara = "0532" })).CariId);
+        Assert.Equal(a, Assert.Single(await r.GetAccountBalancesAsync(new CariBakiyeFilter { Ara = "0532" })).CariId);
         // …e-postaya göre
-        Assert.Equal(b, Assert.Single(await r.GetCariBalancesAsync(new CariBakiyeFilter { Ara = "beta@" })).CariId);
+        Assert.Equal(b, Assert.Single(await r.GetAccountBalancesAsync(new CariBakiyeFilter { Ara = "beta@" })).CariId);
 
         // Özel kod: "Yurtiçi" → A ve C
-        Assert.Equal(2, (await r.GetCariBalancesAsync(new CariBakiyeFilter { OzelKod = "Yurtiçi" })).Count);
+        Assert.Equal(2, (await r.GetAccountBalancesAsync(new CariBakiyeFilter { OzelKod = "Yurtiçi" })).Count);
         // Döviz: EURO → yalnız B
-        Assert.Equal(b, Assert.Single(await r.GetCariBalancesAsync(new CariBakiyeFilter { Doviz = "EURO" })).CariId);
+        Assert.Equal(b, Assert.Single(await r.GetAccountBalancesAsync(new CariBakiyeFilter { Doviz = "EURO" })).CariId);
         // Cari tipi: kurumsal → yalnız A
-        Assert.Equal(a, Assert.Single(await r.GetCariBalancesAsync(new CariBakiyeFilter { Kurumsal = true })).CariId);
-        Assert.Equal(2, (await r.GetCariBalancesAsync(new CariBakiyeFilter { Kurumsal = false })).Count);
+        Assert.Equal(a, Assert.Single(await r.GetAccountBalancesAsync(new CariBakiyeFilter { Kurumsal = true })).CariId);
+        Assert.Equal(2, (await r.GetAccountBalancesAsync(new CariBakiyeFilter { Kurumsal = false })).Count);
 
         // Bakiye türü
-        Assert.Equal(a, Assert.Single(await r.GetCariBalancesAsync(new CariBakiyeFilter { BakiyeTuru = "borclu" })).CariId);
-        Assert.Equal(2, (await r.GetCariBalancesAsync(new CariBakiyeFilter { BakiyeTuru = "alacakli" })).Count);
+        Assert.Equal(a, Assert.Single(await r.GetAccountBalancesAsync(new CariBakiyeFilter { BakiyeTuru = "borclu" })).CariId);
+        Assert.Equal(2, (await r.GetAccountBalancesAsync(new CariBakiyeFilter { BakiyeTuru = "alacakli" })).Count);
 
         // Min tutar MUTLAK bakiyeye uygulanır: 100 → A (1200) ve B (−800) kalır, C (−50) düşer.
-        var min100 = await r.GetCariBalancesAsync(new CariBakiyeFilter { MinTutar = 100m });
+        var min100 = await r.GetAccountBalancesAsync(new CariBakiyeFilter { MinTutar = 100m });
         Assert.Equal(2, min100.Count);
         Assert.DoesNotContain(min100, x => x.CariId == kucuk);
 
         // Birleşik filtre: alacaklı VE mutlak ≥100 → yalnız B.
-        Assert.Equal(b, Assert.Single(await r.GetCariBalancesAsync(
+        Assert.Equal(b, Assert.Single(await r.GetAccountBalancesAsync(
             new CariBakiyeFilter { BakiyeTuru = "alacakli", MinTutar = 100m })).CariId);
     }
 
@@ -205,13 +205,13 @@ public sealed class CariBakiyeFiltreTests(PostgresFixture fx)
         }
 
         var r = sp.GetRequiredService<ReportService>();
-        var satir = Assert.Single(await r.GetCariBalancesAsync());
+        var satir = Assert.Single(await r.GetAccountBalancesAsync());
         Assert.Equal(-250m, satir.Bakiye);
         Assert.Null(satir.Telefon);
         Assert.Null(satir.Doviz);
         Assert.False(satir.Kurumsal);
         // Filtre yine çalışır (null alanlar eşleşmez, istisna atmaz).
-        Assert.Empty(await r.GetCariBalancesAsync(new CariBakiyeFilter { Doviz = "TL" }));
-        Assert.Single(await r.GetCariBalancesAsync(new CariBakiyeFilter { MinTutar = 100m }));
+        Assert.Empty(await r.GetAccountBalancesAsync(new CariBakiyeFilter { Doviz = "TL" }));
+        Assert.Single(await r.GetAccountBalancesAsync(new CariBakiyeFilter { MinTutar = 100m }));
     }
 }

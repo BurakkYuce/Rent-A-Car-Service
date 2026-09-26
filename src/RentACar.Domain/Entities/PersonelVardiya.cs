@@ -44,7 +44,7 @@ public class PersonelVardiya : ITenantOwned, IAuditable, IBranchScoped
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 
     /// <summary>Vardiya uzunluğu (dakika) — gece vardiyasında gün aşımı eklenir. 0 asla dönmez.</summary>
-    public int SureDk => VardiyaZaman.SureDk(BaslangicSaat, BitisSaat);
+    public int SureDk => VardiyaZaman.DurationMinutes(BaslangicSaat, BitisSaat);
 }
 
 /// <summary>
@@ -59,16 +59,16 @@ public static class VardiyaZaman
     public static int Dk(TimeOnly t) => t.Hour * 60 + t.Minute;
 
     /// <summary>Süre; bitiş &lt;= başlangıç ise ertesi güne taşar (gece vardiyası).</summary>
-    public static int SureDk(TimeOnly bas, TimeOnly bit)
+    public static int DurationMinutes(TimeOnly start, TimeOnly bit)
     {
-        var d = Dk(bit) - Dk(bas);
+        var d = Dk(bit) - Dk(start);
         return d > 0 ? d : d + GunDk;
     }
 
     /// <summary>Vardiyanın MUTLAK aralığı (epoch-gün × 1440 tabanında) — çakışma karşılaştırması için.</summary>
-    public static (long Bas, long Bit) Aralik(DateOnly tarih, TimeOnly bas, TimeOnly bit)
+    public static (long Bas, long Bit) Range(DateOnly date, TimeOnly start, TimeOnly bit)
     {
-        var b = (long)tarih.DayNumber * GunDk + Dk(bas);
-        return (b, b + SureDk(bas, bit));
+        var b = (long)date.DayNumber * GunDk + Dk(start);
+        return (b, b + DurationMinutes(start, bit));
     }
 }

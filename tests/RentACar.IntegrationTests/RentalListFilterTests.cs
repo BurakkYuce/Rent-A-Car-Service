@@ -22,7 +22,7 @@ public sealed class RentalListFilterTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
 
-        var cust = new Customer { Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli" };
+        var cust = new Customer { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli" };
         var veh = new Vehicle { Plaka = "34AAA01", Durum = VehicleStatus.Kirada };
         db.Customers.Add(cust);
         db.Vehicles.Add(veh);

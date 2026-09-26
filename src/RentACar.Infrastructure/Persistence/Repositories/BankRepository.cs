@@ -32,7 +32,7 @@ public sealed class BankRepository(IDbContextFactory<AppDbContext> factory) : IB
         return await db.Banks.AsNoTracking().FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();

@@ -7,8 +7,8 @@ public sealed record DropDto(Guid Id, string Lokasyon, string Sube, string? Ciki
     string? CalismaSekli, string? OzelIletisim, decimal? Ucret, int? MinGun, int? ManSuresi, decimal? Drop2, bool Aktif,
     string? Surum) : IDefinitionRow
 {
-    internal static readonly SiralamaHaritasi<DropDto> Sort = SiralamaHaritasi<DropDto>
-        .Olustur(x => x.Id).Alan("lokasyon", x => x.Lokasyon).Alan("sube", x => x.Sube)
+    internal static readonly SortFieldMap<DropDto> Sort = SortFieldMap<DropDto>
+        .Create(x => x.Id).Alan("lokasyon", x => x.Lokasyon).Alan("sube", x => x.Sube)
         .Alan("cikisLokasyon", x => x.CikisLokasyon).Alan("ucret", x => x.Ucret).Alan("aktif", x => x.Aktif);
 }
 
@@ -24,8 +24,8 @@ public sealed record OccupancyRuleDto(Guid Id, string Kod, string Ad, string? Ar
     decimal CarpanYuzde, string? Sube, bool SadeceKendiSubeleri, DateOnly? GecerlilikBas, DateOnly? GecerlilikBit,
     bool Aktif, string? Surum) : IDefinitionRow
 {
-    internal static readonly SiralamaHaritasi<OccupancyRuleDto> Sort = SiralamaHaritasi<OccupancyRuleDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("aracGrupKod", x => x.AracGrupKod)
+    internal static readonly SortFieldMap<OccupancyRuleDto> Sort = SortFieldMap<OccupancyRuleDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("aracGrupKod", x => x.AracGrupKod)
         .Alan("esikYuzde", x => x.EsikYuzde).Alan("carpanYuzde", x => x.CarpanYuzde).Alan("aktif", x => x.Aktif);
 }
 

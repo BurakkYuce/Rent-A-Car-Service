@@ -15,25 +15,25 @@ namespace RentACar.Infrastructure.Persistence;
 /// <see cref="AppDbContext"/> ile çalışır (bkz. <c>VadeBildirimJob</c>). Uygulama servisleri ise
 /// <c>IDbContextFactory</c> üzerinden KENDİ context'ini açan repository'lere bağlıdır — job içinde
 /// o factory doğru tenant'a kapsanmış olmaz. Bu iki uyarlama, aynı repository sözleşmesini job'ın
-/// elindeki context üzerinden karşılar; böylece <see cref="MusteriBildirimService"/>'in mantığı
+/// elindeki context üzerinden karşılar; böylece <see cref="CustomerNotificationService"/>'in mantığı
 /// (şablon çözümü, idempotency, deneme sayacı, izin kuralı) job yolunda DA aynen kullanılır —
 /// kopyalanmaz.</para>
 /// </summary>
-public sealed class DogrudanMesajRepository(AppDbContext db, Guid tenantId) : IMesajRepository
+public sealed class DogrudanMesajRepository(AppDbContext db, Guid tenantId) : IMessageRepository
 {
-    public Task<IReadOnlyList<MesajSablonRow>> SablonListAsync(CancellationToken ct = default)
+    public Task<IReadOnlyList<MesajSablonRow>> ListTemplatesAsync(CancellationToken ct = default)
         => throw new NotSupportedException("Şablon listesi job yolunda kullanılmaz.");
 
-    public Task<MesajSablon?> SablonBulAsync(MesajTuru tur, MesajKanal kanal, CancellationToken ct = default)
+    public Task<MesajSablon?> FindTemplateAsync(MessageType tur, MessageChannel kanal, CancellationToken ct = default)
         => db.MesajSablonlari.AsNoTracking().FirstOrDefaultAsync(x => x.Tur == tur && x.Kanal == kanal, ct);
 
-    public Task SablonUpsertAsync(MesajSablonInput input, CancellationToken ct = default)
+    public Task UpsertTemplateAsync(MesajSablonInput input, CancellationToken ct = default)
         => throw new NotSupportedException("Şablon yazımı job yolunda kullanılmaz.");
 
-    public Task<GidenMesaj?> MesajBulAsync(string anahtar, CancellationToken ct = default)
+    public Task<GidenMesaj?> FindMessageAsync(string anahtar, CancellationToken ct = default)
         => db.GidenMesajlar.AsNoTracking().FirstOrDefaultAsync(x => x.Anahtar == anahtar, ct);
 
-    public async Task<bool> MesajEkleAsync(GidenMesaj mesaj, CancellationToken ct = default)
+    public async Task<bool> AddMessageAsync(GidenMesaj mesaj, CancellationToken ct = default)
     {
         mesaj.TenantId = tenantId; // interceptor'sız job yolu → açık damga (VadeBildirimUretici deseni)
         db.GidenMesajlar.Add(mesaj);
@@ -51,7 +51,7 @@ public sealed class DogrudanMesajRepository(AppDbContext db, Guid tenantId) : IM
         }
     }
 
-    public async Task MesajGuncelleAsync(Guid id, Action<GidenMesaj> apply, CancellationToken ct = default)
+    public async Task UpdateMessageAsync(Guid id, Action<GidenMesaj> apply, CancellationToken ct = default)
     {
         var m = await db.GidenMesajlar.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (m is null) return;
@@ -59,7 +59,7 @@ public sealed class DogrudanMesajRepository(AppDbContext db, Guid tenantId) : IM
         await db.SaveChangesAsync(ct);
     }
 
-    public Task<IReadOnlyList<GidenMesajRow>> MesajListAsync(
+    public Task<IReadOnlyList<GidenMesajRow>> ListMessagesAsync(
         GidenMesajFilter? filter = null, CancellationToken ct = default)
         => throw new NotSupportedException("Giden mesaj listesi job yolunda kullanılmaz.");
 }
@@ -73,6 +73,6 @@ public sealed class DogrudanAyarRepository(AppDbContext db) : ITenantSettingsRep
     public Task UpsertAsync(Action<Ayar> apply, CancellationToken ct = default)
         => throw new NotSupportedException("Ayar yazımı job yolunda kullanılmaz.");
 
-    public Task<IReadOnlyList<WhatsAppGonderim>> ListWhatsAppGonderimAsync(int take = 7, CancellationToken ct = default)
+    public Task<IReadOnlyList<WhatsAppGonderim>> ListWhatsAppDispatchesAsync(int take = 7, CancellationToken ct = default)
         => throw new NotSupportedException("WhatsApp gönderim listesi job yolunda kullanılmaz.");
 }

@@ -21,8 +21,8 @@ public sealed record BranchDto(
         b.KomisyonHesabi, b.OnlineRezId, b.SozlesmeNoFormati, b.NakitHesapId, b.BankaHesapId, b.EntegrasyonKodu,
         b.ResimDosyasi, b.HaftalikCalismaSaatleri, b.Aktif, surum);
 
-    internal static readonly SiralamaHaritasi<BranchDto> Sort = SiralamaHaritasi<BranchDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("il", x => x.Il)
+    internal static readonly SortFieldMap<BranchDto> Sort = SortFieldMap<BranchDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("il", x => x.Il)
         .Alan("webSira", x => x.WebSira).Alan("aktif", x => x.Aktif);
 }
 

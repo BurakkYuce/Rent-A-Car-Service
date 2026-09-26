@@ -44,7 +44,7 @@ public sealed partial class UiFinanceDocumentTests
             await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<InvoiceService>()
                 .CreateManualAsync(new ManualInvoiceInput { CariId = e.Customer, NetTutar = 0.001m, KdvOrani = 0.20m }));
             await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<ExpenseService>()
-                .CreateAsync(new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 0.004m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit }));
+                .CreateAsync(new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 0.004m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit }));
             var v = await VehicleAsync(sp, "SubeA");
             return await sp.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput
             {

@@ -59,15 +59,15 @@ public sealed class StubPosService : IPosService
     // başarı, e-Fatura'daki sahte ETTN ile aynı sınıf hatadır.
     private const string Yapilandirilmadi = "Ödeme sağlayıcısı yapılandırılmadı (stub).";
 
-    public Task<PosBaslatSonuc> BaslatAsync(PosOdemeIstegi istek, CancellationToken ct = default)
+    public Task<PosBaslatSonuc> StartAsync(PosOdemeIstegi istek, CancellationToken ct = default)
         => Task.FromResult(new PosBaslatSonuc(false, null, null, Yapilandirilmadi));
 
-    public Task<PosDurumSonuc> SonucAsync(string token, CancellationToken ct = default)
+    public Task<PosDurumSonuc> ResultAsync(string token, CancellationToken ct = default)
         => Task.FromResult(new PosDurumSonuc(false, null, null, null, null, null, null, Yapilandirilmadi));
 
-    public Task<PosResult> KapatAsync(string odemeId, decimal tutar, string ip, CancellationToken ct = default) => Yok();
-    public Task<PosResult> IptalAsync(string odemeId, string ip, CancellationToken ct = default) => Yok();
-    public Task<PosResult> IadeAsync(string islemId, decimal tutar, string ip, CancellationToken ct = default) => Yok();
+    public Task<PosResult> CloseAsync(string odemeId, decimal tutar, string ip, CancellationToken ct = default) => Yok();
+    public Task<PosResult> CancelAsync(string odemeId, string ip, CancellationToken ct = default) => Yok();
+    public Task<PosResult> RefundAsync(string islemId, decimal tutar, string ip, CancellationToken ct = default) => Yok();
 
     private static Task<PosResult> Yok()
         => Task.FromResult(new PosResult(false, TxRef: null, Error: Yapilandirilmadi));
@@ -77,7 +77,7 @@ public sealed class StubKabisService : IKabisService
 {
     // KABİS bildirimi YASAL yükümlülük (1774 sayılı Kanun). Yapılandırma yokken "bildirildi" demek,
     // bildirilmemiş kiralamayı bildirilmiş göstermek olur — cezası kiralama BAŞINA işler.
-    public Task<bool> BildirAsync(KabisBildirim bildirim, CancellationToken ct = default) => Task.FromResult(false);
+    public Task<bool> NotifyAsync(KabisBildirim bildirim, CancellationToken ct = default) => Task.FromResult(false);
 }
 
 public sealed class StubHgsService : IHgsService

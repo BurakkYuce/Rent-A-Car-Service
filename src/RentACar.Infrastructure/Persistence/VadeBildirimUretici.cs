@@ -27,8 +27,8 @@ public static class VadeBildirimUretici
 
         // Yaklaşan/geçmiş (bucket != Ileri) → bildirim adayı.
         var adaylar = kaynaklar
-            .Select(s => (s.VehicleId, s.Tur, s.Bitis, C: VadeHesap.Classify(now, s.Bitis)))
-            .Where(x => x.C.Bucket != VadeBucket.Ileri)
+            .Select(s => (s.VehicleId, s.Tur, s.Bitis, C: DueCalculation.Classify(now, s.Bitis)))
+            .Where(x => x.C.Bucket != DueBucket.Ileri)
             .ToList();
         if (adaylar.Count == 0) return 0;
 

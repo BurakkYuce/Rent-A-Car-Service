@@ -14,7 +14,7 @@ public sealed record SistemUcretSatiri(string TanimKod, string Ad, decimal Birim
 /// Sözleşme ücret kalemleri (FAZ 3.A3a): genç sürücü + ek (2.) sürücü ücretleri SİSTEM-üretimi
 /// RentalAddOn satırı olarak. KURAL A KORUNUR — BaseGross'a DOKUNULMAZ (ReturnMath/fark/iade
 /// patlama yarıçapı); ücretler matrah-dışı ayrı satır, faturada ayrı kalem, fark/iade akışına
-/// add-on olarak otomatik katılır. Saf hesap (<see cref="HesaplaSaf"/>) KiraHesapService
+/// add-on olarak otomatik katılır. Saf hesap (<see cref="CalculatePure"/>) KiraHesapService
 /// önizlemesiyle PAYLAŞILIR → önizleme == kayıt. Sistem tanımları Kod-idempotent
 /// (SYS-GENC-SURUCU / SYS-EK-SURUCU; KDV varsayılan 0.20 — tanımdan okunur, operatör tanımda
 /// değiştirirse önizleme ve kayıt birlikte değişir). Satır idempotency'si tanım-bazlı: aynı
@@ -32,77 +32,77 @@ public sealed class FeeLineService(
     IVehicleRepository vehicles,
     IVehicleGroupRepository groups,
     ICustomerRepository customers,
-    IEkHizmetTanimRepository tanimlar,
+    IAddOnDefinitionRepository definitions,
     RentalAddOnService addOns,
     IRentalAddOnRepository addOnRepo,
     Common.ITenantCache cache,
-    DropTanimlari.IDropTanimRepository dropTanimlar,
-    Finance.KdvVarsayilan kdvVarsayilan)
+    DropTanimlari.IDropDefinitionRepository dropDefinitions,
+    Finance.VatDefault vatDefault)
 {
-    public const string GencSurucuKod = "SYS-GENC-SURUCU";
-    public const string EkSurucuKod = "SYS-EK-SURUCU";
-    public const string DropKod = "SYS-DROP"; // FAZ 3.A3b (sistem tanımı KDV'si tenant varsayılanından — A6)
+    public const string YoungDriverCode = "SYS-GENC-SURUCU";
+    public const string AdditionalDriverCode = "SYS-EK-SURUCU";
+    public const string DropCode = "SYS-DROP"; // FAZ 3.A3b (sistem tanımı KDV'si tenant varsayılanından — A6)
 
     /// <summary>Saf hesap: sistem ücret satırları (+ bilgi notları). Deftere/DB'ye dokunmaz.</summary>
-    public static IReadOnlyList<SistemUcretSatiri> HesaplaSaf(
-        VehicleGroup? grup, int gun, DateTimeOffset basTar, DateTimeOffset? dogumTarihi,
-        bool ikinciSurucuVar, string? doviz, List<string> notlar, decimal? dropUcretNet = null)
+    public static IReadOnlyList<SistemUcretSatiri> CalculatePure(
+        VehicleGroup? group, int day, DateTimeOffset startDate, DateTimeOffset? birthDate,
+        bool hasSecondDriver, string? currency, List<string> notes, decimal? dropFeeNet = null)
     {
-        var satirlar = new List<SistemUcretSatiri>();
-        if (gun <= 0) return satirlar;
+        var rows = new List<SistemUcretSatiri>();
+        if (day <= 0) return rows;
 
-        if (FxMi(doviz))
+        if (IsFx(currency))
         {
-            if (grup?.GencSurucuUcretGunluk is > 0m || grup?.EkSurucuUcretGunluk is > 0m || dropUcretNet is > 0m)
-                notlar.Add("Dövizli kirada otomatik ücret kalemleri uygulanmaz (kalemler TL) — gerekiyorsa manuel ekleyin.");
-            return satirlar;
+            if (group?.GencSurucuUcretGunluk is > 0m || group?.EkSurucuUcretGunluk is > 0m || dropFeeNet is > 0m)
+                notes.Add("Dövizli kirada otomatik ücret kalemleri uygulanmaz (kalemler TL) — gerekiyorsa manuel ekleyin.");
+            return rows;
         }
 
         // FAZ 3.A3b: drop (farklı ofise bırakma) — TEK SEFERLİK satır (Miktar=1; gün ile ölçeklenmez).
-        if (dropUcretNet is > 0m)
-            satirlar.Add(new SistemUcretSatiri(DropKod, "Drop (farklı ofise bırakma) ücreti",
-                dropUcretNet.Value, 1, null));
+        if (dropFeeNet is > 0m)
+            rows.Add(new SistemUcretSatiri(DropCode, "Drop (farklı ofise bırakma) ücreti",
+                dropFeeNet.Value, 1, null));
 
-        if (grup is null) return satirlar;
+        if (group is null) return rows;
 
-        if (grup.GencSurucuUcretGunluk is > 0m && grup.GencSurucuYas is > 0)
+        if (group.GencSurucuUcretGunluk is > 0m && group.GencSurucuYas is > 0)
         {
-            if (dogumTarihi is null)
-                notlar.Add("Doğum tarihi kayıtlı değil — genç sürücü ücreti değerlendirilemedi (tahmin yapılmaz).");
-            else if (Yas(dogumTarihi.Value, basTar) is var yas && yas < grup.GencSurucuYas.Value)
-                satirlar.Add(new SistemUcretSatiri(GencSurucuKod, "Genç sürücü ücreti",
-                    grup.GencSurucuUcretGunluk.Value, gun, $"Sürücü yaşı {yas} < eşik {grup.GencSurucuYas}."));
+            if (birthDate is null)
+                notes.Add("Doğum tarihi kayıtlı değil — genç sürücü ücreti değerlendirilemedi (tahmin yapılmaz).");
+            else if (Yas(birthDate.Value, startDate) is var yas && yas < group.GencSurucuYas.Value)
+                rows.Add(new SistemUcretSatiri(YoungDriverCode, "Genç sürücü ücreti",
+                    group.GencSurucuUcretGunluk.Value, day, $"Sürücü yaşı {yas} < eşik {group.GencSurucuYas}."));
         }
 
-        if (grup.EkSurucuUcretGunluk is > 0m && ikinciSurucuVar)
-            satirlar.Add(new SistemUcretSatiri(EkSurucuKod, "Ek sürücü ücreti",
-                grup.EkSurucuUcretGunluk.Value, gun, null));
+        if (group.EkSurucuUcretGunluk is > 0m && hasSecondDriver)
+            rows.Add(new SistemUcretSatiri(AdditionalDriverCode, "Ek sürücü ücreti",
+                group.EkSurucuUcretGunluk.Value, day, null));
 
-        return satirlar;
+        return rows;
     }
 
     /// <summary>Add-on kalemleri TL varsayımı — "FX mi" kararı sistemin TEK doğruluk kaynağından
     /// (KurService.NormalizeKod: TL/TRY/TRL/₺/Türk Lirası → TRY). Adversarial A3a-B1: ayrı bir
     /// alias listesi tutmak "₺" gibi TL-eş anlamlılarda ücretin sessizce atlanmasına yol açıyordu.</summary>
-    public static bool FxMi(string? doviz)
-        => RentACar.Application.Kur.KurService.NormalizeKod(doviz) != "TRY";
+    public static bool IsFx(string? currency)
+        => RentACar.Application.Kur.ExchangeRateService.NormalizeCode(currency) != "TRY";
 
     /// <summary>Tam yıl yaş (tarih anında; doğum günü gelmediyse yıl tamamlanmamış sayılır).</summary>
-    public static int Yas(DateTimeOffset dogum, DateTimeOffset tarih)
+    public static int Yas(DateTimeOffset birth, DateTimeOffset date)
     {
-        var y = tarih.Year - dogum.Year;
-        if (tarih.Month < dogum.Month || (tarih.Month == dogum.Month && tarih.Day < dogum.Day)) y--;
+        var y = date.Year - birth.Year;
+        if (date.Month < birth.Month || (date.Month == birth.Month && date.Day < birth.Day)) y--;
         return Math.Max(0, y);
     }
 
     /// <summary>Kirada aracın grubunu (varsa) çözer — önizleme ve kayıt aynı çözümü kullanır.</summary>
-    public async Task<VehicleGroup?> GrupCozAsync(Guid vehicleId, CancellationToken ct = default)
+    public async Task<VehicleGroup?> ResolveGroupAsync(Guid vehicleId, CancellationToken ct = default)
     {
         var vehicle = await vehicles.FindAsync(vehicleId, ct);
-        var kod = vehicle?.Grup?.Trim();
-        if (string.IsNullOrWhiteSpace(kod)) return null;
+        var code = vehicle?.Grup?.Trim();
+        if (string.IsNullOrWhiteSpace(code)) return null;
         return (await groups.ListActiveAsync(ct))
-            .FirstOrDefault(g => string.Equals(g.Kod, kod, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(g => string.Equals(g.Kod, code, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -128,21 +128,21 @@ public sealed class FeeLineService(
     /// kuralı ücreti 700 TL ARTIRIRDI. Doğru davranış: çıkış şubesinin satırı varsa o şube
     /// "yapılandırılmış" sayılır; koşulu tutmuyorsa rota ÜCRETSİZDİR.</para>
     ///
-    /// <para><paramref name="gun"/> ZORUNLU: MinGun koşulu buna bakar. Opsiyonel bırakılsaydı bir
+    /// <para><paramref name="day"/> ZORUNLU: MinGun koşulu buna bakar. Opsiyonel bırakılsaydı bir
     /// çağıran farkında olmadan koşulu atlar ve tutar sapardı.</para>
     /// </summary>
-    public async Task<decimal?> DropUcretCozAsync(
-        string? cikisOfisi, string? donusOfisi, decimal? manuelOverride, int gun,
+    public async Task<decimal?> ResolveDropFeeAsync(
+        string? pickupOffice, string? returnOffice, decimal? manualOverride, int day,
         CancellationToken ct = default)
     {
-        if (manuelOverride is > 0m) return manuelOverride;
+        if (manualOverride is > 0m) return manualOverride;
         // Adversarial A3b-B5: AÇIK 0 = MUAFİYET (operatör talimatı) — tanım ücreti bastırılır.
         // null = otomatik (form boş alanı null yollar; 0 bilinçli yazılır).
-        if (manuelOverride == 0m) return null;
-        if (string.IsNullOrWhiteSpace(cikisOfisi) || string.IsNullOrWhiteSpace(donusOfisi)) return null;
-        var cikis = cikisOfisi.Trim();
-        var donus = donusOfisi.Trim();
-        if (string.Equals(cikis, donus, StringComparison.OrdinalIgnoreCase)) return null;
+        if (manualOverride == 0m) return null;
+        if (string.IsNullOrWhiteSpace(pickupOffice) || string.IsNullOrWhiteSpace(returnOffice)) return null;
+        var pickup = pickupOffice.Trim();
+        var returnInfo = returnOffice.Trim();
+        if (string.Equals(pickup, returnInfo, StringComparison.OrdinalIgnoreCase)) return null;
 
         // NOT: karşılaştırıcı OrdinalIgnoreCase — Türkçe İ/ı için tam doğru değil ama ofis adları
         // açılır listeden geldiği için pratikte aynı metin. MEVCUT davranış budur; TurkishText'e
@@ -151,46 +151,46 @@ public sealed class FeeLineService(
         static bool Es(string? a, string? b)
             => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
 
-        var adaylar = (await dropTanimlar.ListAsync(ct))
-            .Where(t => Es(t.Lokasyon, donus))
+        var candidates = (await dropDefinitions.ListAsync(ct))
+            .Where(t => Es(t.Lokasyon, returnInfo))
             .ToList();
-        if (adaylar.Count == 0) return null;
+        if (candidates.Count == 0) return null;
 
         // Daraltma koşulları — basamağın İÇİNDE kullanılır, havuzu elemek için DEĞİL.
-        bool Kosul(Domain.Entities.DropTanim t)
-            => (t.CikisLokasyon is null || Es(t.CikisLokasyon, cikis))
-            && (t.MinGun is not int min || gun >= min);
+        bool Condition(Domain.Entities.DropTanim t)
+            => (t.CikisLokasyon is null || Es(t.CikisLokasyon, pickup))
+            && (t.MinGun is not int min || day >= min);
 
         // 1) ÇIKIŞ LOKASYONU basamağı — yalnız fiyat kararı taşıyan (Ucret != null) satırlar.
         //    Şubesi DE eşleşen satır önce (iki alan da aynı kira alanına bakar → daha özgül).
-        var lokAdaylar = adaylar
-            .Where(t => t.CikisLokasyon is not null && t.Ucret is not null && Kosul(t))
-            .OrderByDescending(t => Es(t.Sube, cikis))
+        var locCandidates = candidates
+            .Where(t => t.CikisLokasyon is not null && t.Ucret is not null && Condition(t))
+            .OrderByDescending(t => Es(t.Sube, pickup))
             .ThenBy(t => t.Sube, StringComparer.Ordinal)
             .ToList();
-        if (lokAdaylar.Count > 0) return Gecerli(lokAdaylar[0]);
+        if (locCandidates.Count > 0) return Valid(locCandidates[0]);
 
         // 2) ÇIKIŞ ŞUBESİ basamağı — şube "yapılandırılmış"sa SON SÖZ ONUNDUR. Koşulu tutan satır
         //    yoksa rota ÜCRETSİZDİR (başka şubenin ücretine düşülmez).
-        var subeSatirlari = adaylar.Where(t => Es(t.Sube, cikis)).ToList();
-        if (subeSatirlari.Count > 0)
+        var branchRows = candidates.Where(t => Es(t.Sube, pickup)).ToList();
+        if (branchRows.Count > 0)
         {
             // FİYAT KARARI TAŞIYAN satır önce (adversarial H3): benzersizlik artık CikisLokasyon'u
             // da kapsadığı için aynı (dönüş, şube) çiftinde birden çok satır olabilir; bir iletişim
             // notu satırı (Ucret=null) gerçek ücreti susturmamalı. Tek satırlı eski veride bu
             // sıralama etkisizdir → eski semantik (null/0 → ücretsiz) aynen korunur.
-            var uygun = subeSatirlari.Where(Kosul)
+            var eligible = branchRows.Where(Condition)
                 .OrderByDescending(t => t.Ucret is not null)
                 .ThenBy(t => t.Sube, StringComparer.Ordinal).FirstOrDefault();
-            return uygun is null ? null : Gecerli(uygun);
+            return eligible is null ? null : Valid(eligible);
         }
 
         // 3) Fallback — çıkış şubesine ait hiç satır yokken.
-        return adaylar.Where(t => Kosul(t) && t.Aktif && t.Ucret is > 0m)
+        return candidates.Where(t => Condition(t) && t.Aktif && t.Ucret is > 0m)
             .OrderBy(t => t.Sube, StringComparer.Ordinal)
             .FirstOrDefault()?.Ucret;
 
-        static decimal? Gecerli(Domain.Entities.DropTanim t)
+        static decimal? Valid(Domain.Entities.DropTanim t)
             => t.Aktif && t.Ucret is > 0m ? t.Ucret : null;
     }
 
@@ -201,20 +201,20 @@ public sealed class FeeLineService(
         var c = await bookings.FindRentalAsync(rentalId, ct);
         if (c is null) return;
 
-        var grup = await GrupCozAsync(c.VehicleId, ct);
-        var dogum = grup is null ? null : (await customers.FindAsync(c.MusteriId, ct))?.DogumTarihi;
-        var drop = await DropUcretCozAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun, ct);
+        var group = await ResolveGroupAsync(c.VehicleId, ct);
+        var birth = group is null ? null : (await customers.FindAsync(c.MusteriId, ct))?.DogumTarihi;
+        var drop = await ResolveDropFeeAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun, ct);
 
-        var notlar = new List<string>(); // kayıt yolunda notlar sessiz (önizleme aynı notları gösterir)
-        var satirlar = HesaplaSaf(grup, c.Gun, c.BasTar, dogum, c.IkinciSurucuId is not null, c.Doviz, notlar, drop);
-        if (satirlar.Count == 0) return;
+        var notes = new List<string>(); // kayıt yolunda notlar sessiz (önizleme aynı notları gösterir)
+        var rows = CalculatePure(group, c.Gun, c.BasTar, birth, c.IkinciSurucuId is not null, c.Doviz, notes, drop);
+        if (rows.Count == 0) return;
 
-        var mevcut = await addOns.ListAsync(rentalId, ct);
-        foreach (var s in satirlar)
+        var existing = await addOns.ListAsync(rentalId, ct);
+        foreach (var s in rows)
         {
-            var tanim = await GetOrCreateTanimAsync(s.TanimKod, s.Ad, ct);
-            if (mevcut.Any(a => a.EkHizmetTanimId == tanim.Id)) continue; // idempotent (dönüşüm/çift çağrı)
-            await addOns.AddAsync(rentalId, tanim.Id, s.Gun, birimNetOverride: s.BirimNet, sistem: true, ct: ct);
+            var definition = await GetOrCreateDefinitionAsync(s.TanimKod, s.Ad, ct);
+            if (existing.Any(a => a.EkHizmetTanimId == definition.Id)) continue; // idempotent (dönüşüm/çift çağrı)
+            await addOns.AddAsync(rentalId, definition.Id, s.Gun, unitNetOverride: s.BirimNet, system: true, ct: ct);
         }
     }
 
@@ -230,20 +230,20 @@ public sealed class FeeLineService(
         if (c is null || c.Durum != Domain.Enums.RentalStatus.Kirada) return;
         if (await addOnRepo.IsRentalInvoicedAsync(rentalId, ct)) return;
 
-        var grup = await GrupCozAsync(c.VehicleId, ct);
-        var dogum = grup is null ? null : (await customers.FindAsync(c.MusteriId, ct))?.DogumTarihi;
-        var drop = await DropUcretCozAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun, ct);
-        var notlar = new List<string>();
-        var beklenen = HesaplaSaf(grup, c.Gun, c.BasTar, dogum, c.IkinciSurucuId is not null, c.Doviz, notlar, drop);
+        var group = await ResolveGroupAsync(c.VehicleId, ct);
+        var birth = group is null ? null : (await customers.FindAsync(c.MusteriId, ct))?.DogumTarihi;
+        var drop = await ResolveDropFeeAsync(c.CikisOfisi, c.DonusOfisi, c.DropUcreti, c.Gun, ct);
+        var notes = new List<string>();
+        var expected = CalculatePure(group, c.Gun, c.BasTar, birth, c.IkinciSurucuId is not null, c.Doviz, notes, drop);
 
-        var sysTanimlar = (await tanimlar.ListAsync(ct))
+        var sysDefinitions = (await definitions.ListAsync(ct))
             .Where(t => t.Kod.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase))
             .ToDictionary(t => t.Id, t => t.Kod);
         foreach (var a in (await addOns.ListAsync(rentalId, ct))
-                 .Where(a => sysTanimlar.ContainsKey(a.EkHizmetTanimId)))
+                 .Where(a => sysDefinitions.ContainsKey(a.EkHizmetTanimId)))
         {
-            var kod = sysTanimlar[a.EkHizmetTanimId];
-            var b = beklenen.FirstOrDefault(x => string.Equals(x.TanimKod, kod, StringComparison.OrdinalIgnoreCase));
+            var code = sysDefinitions[a.EkHizmetTanimId];
+            var b = expected.FirstOrDefault(x => string.Equals(x.TanimKod, code, StringComparison.OrdinalIgnoreCase));
             if (b is null || b.Gun != a.Miktar || b.BirimNet != a.BirimNetFiyat)
                 await addOns.RemoveAsync(a.Id, ct); // kalkan/ölçeği değişen satır — aşağıda yeniden yazılır
         }
@@ -251,26 +251,26 @@ public sealed class FeeLineService(
     }
 
     /// <summary>Önizleme için sistem tanımının KDV oranı (tanım henüz yoksa kayıtta kullanılacak varsayılan).</summary>
-    public async Task<(Guid? TanimId, decimal KdvOrani)> TanimBilgiAsync(string kod, CancellationToken ct = default)
+    public async Task<(Guid? TanimId, decimal KdvOrani)> DefinitionInfoAsync(string code, CancellationToken ct = default)
     {
-        var t = (await tanimlar.ListAsync(ct))
-            .FirstOrDefault(x => string.Equals(x.Kod, kod, StringComparison.OrdinalIgnoreCase));
-        return (t?.Id, t?.KdvOrani ?? await kdvVarsayilan.OranAsync(ct)); // A6: tanım yoksa tenant varsayılanı
+        var t = (await definitions.ListAsync(ct))
+            .FirstOrDefault(x => string.Equals(x.Kod, code, StringComparison.OrdinalIgnoreCase));
+        return (t?.Id, t?.KdvOrani ?? await vatDefault.RateAsync(ct)); // A6: tanım yoksa tenant varsayılanı
     }
 
-    private async Task<EkHizmetTanim> GetOrCreateTanimAsync(string kod, string ad, CancellationToken ct)
+    private async Task<EkHizmetTanim> GetOrCreateDefinitionAsync(string code, string name, CancellationToken ct)
     {
-        var t = (await tanimlar.ListAsync(ct))
-            .FirstOrDefault(x => string.Equals(x.Kod, kod, StringComparison.OrdinalIgnoreCase));
+        var t = (await definitions.ListAsync(ct))
+            .FirstOrDefault(x => string.Equals(x.Kod, code, StringComparison.OrdinalIgnoreCase));
         if (t is not null) return t;
-        t = new EkHizmetTanim { Kod = kod, Ad = ad, BirimUcret = 0m, KdvOrani = await kdvVarsayilan.OranAsync(ct), Aktif = true }; // A6
-        try { await tanimlar.CreateAsync(t, ct); cache.Invalidate("ekhizmet"); return t; }
+        t = new EkHizmetTanim { Kod = code, Ad = name, BirimUcret = 0m, KdvOrani = await vatDefault.RateAsync(ct), Aktif = true }; // A6
+        try { await definitions.CreateAsync(t, ct); cache.Invalidate("ekhizmet"); return t; }
         catch // eşzamanlı yaratma yarışı: (TenantId, Kod) unique — kazananı oku
         {
-            var kazanan = (await tanimlar.ListAsync(ct))
-                .FirstOrDefault(x => string.Equals(x.Kod, kod, StringComparison.OrdinalIgnoreCase));
-            if (kazanan is null) throw;
-            return kazanan;
+            var winner = (await definitions.ListAsync(ct))
+                .FirstOrDefault(x => string.Equals(x.Kod, code, StringComparison.OrdinalIgnoreCase));
+            if (winner is null) throw;
+            return winner;
         }
     }
 }

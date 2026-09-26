@@ -1,7 +1,7 @@
 @page "/raporlar/filo-analiz"
 @attribute [Authorize(Policy = "izin:ViewReports")]
 @inject ReportService Reports
-@inject RentACar.Application.Regulation.VadeService Vadeler
+@inject RentACar.Application.Regulation.DueService Vadeler
 
 <PageTitle>Filo Analiz — RentPro</PageTitle>
 
@@ -136,7 +136,7 @@
     {
         DateTimeOffset? f = DateTimeOffset.TryParse(From, out var x) ? x : null;
         DateTimeOffset? t = DateTimeOffset.TryParse(To, out var y) ? y : null;
-        _d = await Reports.GetFiloAnalizAsync(f, t, Sira);
+        _d = await Reports.GetFleetAnalysisAsync(f, t, Sira);
         _vadeSayilari = await Vadeler.GetWarningCountsByVehicleAsync(); // FAZ 2.1
     }
 }

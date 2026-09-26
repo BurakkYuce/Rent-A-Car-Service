@@ -118,7 +118,7 @@
     {
         _cariler = await Cariler.ListAsync();
         _subeOpts = (await Subeler.ListActiveAsync()).Select(x => x.Ad).ToList();
-        _gecmis = await Kasa.ListCariVirmanlarAsync(new CariVirmanFilter
+        _gecmis = await Kasa.ListAccountTransfersAsync(new CariVirmanFilter
         {
             CariId = Guid.TryParse(CariId, out var c) ? c : null,
             Ara = Ara,

@@ -1,7 +1,7 @@
 @page "/filo-kiralama"
 @attribute [Authorize(Policy = "izin:OperationsWrite")]
 @using RentACar.Application.FiloKiralamalar
-@inject FiloKiralamaService Kiralamalar
+@inject FleetRentalService Kiralamalar
 @inject CustomerService Customers
 @inject VehicleService Vehicles
 
@@ -71,7 +71,7 @@
     <label>Durum
         <select name="durum">
             <option value="">— tümü —</option>
-            @foreach (var d in Enum.GetValues<RentACar.Domain.Enums.FiloKiraDurum>())
+            @foreach (var d in Enum.GetValues<RentACar.Domain.Enums.FleetRentalStatus>())
             { <option value="@d" selected="@(d.ToString() == Durum)">@d</option> }
         </select>
     </label>
@@ -93,7 +93,7 @@
         }
         @foreach (var k in _list)
         {
-            var ozet = FiloKiralamaService.TaksitPlani(k);
+            var ozet = FleetRentalService.InstallmentPlan(k);
             <tr>
                 <td>@k.No</td>
                 <td>@(k.SozlesmeNo ?? "—")</td>
@@ -108,7 +108,7 @@
                 <td class="num">@(k.VadeGun?.ToString() ?? "—")</td>
                 <td>@k.Durum</td>
                 <td>
-                    @if (k.Durum == RentACar.Domain.Enums.FiloKiraDurum.Aktif)
+                    @if (k.Durum == RentACar.Domain.Enums.FleetRentalStatus.Aktif)
                     {
                         <form method="post" action="/filo-kiralama/tamamla" style="display:inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@k.Id" /><button type="submit">Tamamla</button>
@@ -178,7 +178,7 @@
             MusteriId = Guid.TryParse(MusteriId, out var m) ? m : null,
             Plaka = Plaka,
             Ara = Ara,
-            Durum = Enum.TryParse<RentACar.Domain.Enums.FiloKiraDurum>(Durum, out var d) ? d : null,
+            Durum = Enum.TryParse<RentACar.Domain.Enums.FleetRentalStatus>(Durum, out var d) ? d : null,
             Bas = Tarih(Bas),
             // Üst sınır GÜN SONUNA genişletilir (tarih girişi 00:00'a düşer).
             Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1)

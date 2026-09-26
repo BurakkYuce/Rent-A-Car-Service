@@ -102,7 +102,7 @@
         </label>
         <label>Vites
             <select name="vites"><option value="">—</option>
-                @foreach (var v in Enum.GetValues<Vites>()) { <option value="@v">@v</option> }
+                @foreach (var v in Enum.GetValues<Transmission>()) { <option value="@v">@v</option> }
             </select>
         </label>
         <label>Entegrasyon Kodu<input name="entegrasyonKod1" maxlength="64" /></label>
@@ -189,7 +189,7 @@
                             </label>
                             <label>Vites
                                 <select name="vites"><option value="">—</option>
-                                    @foreach (var v in Enum.GetValues<Vites>()) { <option value="@v" selected="@(g.Vites == v)">@v</option> }
+                                    @foreach (var v in Enum.GetValues<Transmission>()) { <option value="@v" selected="@(g.Vites == v)">@v</option> }
                                 </select>
                             </label>
                             <label>Entegrasyon Kodu<input name="entegrasyonKod1" maxlength="64" value="@g.EntegrasyonKod1" /></label>
@@ -234,7 +234,7 @@
         var markalar = await Markalar.ListActiveAsync();
         _markaOpts = Opts(markalar.Select(m => m.Ad), _list.Select(g => g.Marka));
         _segmentOpts = Opts(_list.Select(g => g.Segment));
-        _unmatched = await AracGruplari.ListUnmatchedGrupValuesAsync();
-        _aracSayisi = await AracGruplari.AracSayilariAsync();
+        _unmatched = await AracGruplari.ListUnmatchedGroupValuesAsync();
+        _aracSayisi = await AracGruplari.VehicleCountsAsync();
     }
 }

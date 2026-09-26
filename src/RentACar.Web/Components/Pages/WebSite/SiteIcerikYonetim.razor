@@ -4,7 +4,7 @@
 @using RentACar.Domain.Common
 @using RentACar.Domain.Entities
 @using RentACar.Infrastructure.Persistence
-@inject SiteIcerikService Icerik
+@inject SiteContentService Icerik
 @inject ITenantContext Tenant
 @inject TenantStatusCache Durum
 
@@ -75,15 +75,15 @@ else
     <form method="post" action="/site-icerik/kaydet" class="grid-form card"><AntiforgeryToken />
         @if (_duzenlenen is not null) { <input type="hidden" name="id" value="@_duzenlenen.Id" /> }
         <label>Başlık <span class="req">*</span>
-            <input name="baslik" value="@_duzenlenen?.Baslik" maxlength="@SiteIcerikService.MaxBaslik" required /></label>
+            <input name="baslik" value="@_duzenlenen?.Baslik" maxlength="@SiteContentService.MaxTitle" required /></label>
         <label>Adres (boş bırakırsanız başlıktan üretilir)
             <input name="slug" value="@_duzenlenen?.Slug" maxlength="200" placeholder="hakkimizda" /></label>
         <label>Sıra (alt bilgideki sıralama)
             <input name="sira" type="number" value="@(_duzenlenen?.Sira ?? 0)" /></label>
         <label>Arama motoru özeti
-            <input name="metaAciklama" value="@_duzenlenen?.MetaAciklama" maxlength="@SiteIcerikService.MaxMeta" /></label>
+            <input name="metaAciklama" value="@_duzenlenen?.MetaAciklama" maxlength="@SiteContentService.MaxMeta" /></label>
         <label class="tam-genislik">İçerik <span class="req">*</span>
-            <textarea name="govde" rows="10" maxlength="@SiteIcerikService.MaxGovde" required>@_duzenlenen?.Govde</textarea></label>
+            <textarea name="govde" rows="10" maxlength="@SiteContentService.MaxBody" required>@_duzenlenen?.Govde</textarea></label>
         <label class="onay">
             <input type="checkbox" name="yayinda" value="true" checked="@(_duzenlenen?.Yayinda ?? true)" />
             Sitede yayında olsun
@@ -126,9 +126,9 @@ else
 
     <form method="post" action="/site-icerik/sss/kaydet" class="grid-form card"><AntiforgeryToken />
         <label class="tam-genislik">Soru <span class="req">*</span>
-            <input name="soru" maxlength="@SiteIcerikService.MaxSoru" required /></label>
+            <input name="soru" maxlength="@SiteContentService.MaxQuestion" required /></label>
         <label class="tam-genislik">Cevap <span class="req">*</span>
-            <textarea name="cevap" rows="4" maxlength="@SiteIcerikService.MaxCevap" required></textarea></label>
+            <textarea name="cevap" rows="4" maxlength="@SiteContentService.MaxAnswer" required></textarea></label>
         <label>Sıra <input name="sira" type="number" value="0" /></label>
         <label class="onay"><input type="checkbox" name="yayinda" value="true" checked /> Yayında</label>
         <div class="form-actions"><button type="submit" class="kf-btn">Soru Ekle</button></div>
@@ -153,8 +153,8 @@ else
     {
         _modul = Tenant.TenantId is { } t && await Durum.WebSitesiModuluAsync(t);
         if (!_modul) return;
-        _sayfalar = await Icerik.ListeleAsync();
-        _sorular = await Icerik.SssListeAsync();
-        if (SayfaId is Guid id) _duzenlenen = await Icerik.GetirAsync(id);
+        _sayfalar = await Icerik.ListAsync();
+        _sorular = await Icerik.ListFaqAsync();
+        if (SayfaId is Guid id) _duzenlenen = await Icerik.FetchAsync(id);
     }
 }

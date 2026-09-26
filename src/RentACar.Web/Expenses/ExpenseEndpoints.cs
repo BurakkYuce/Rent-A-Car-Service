@@ -18,7 +18,7 @@ public static class ExpenseEndpoints
         grp.MapPost("/create", async (ExpenseService svc,
             [FromForm] ExpenseType tip, [FromForm] string? vehicleId, [FromForm] string? cariId,
             [FromForm] string? sube, [FromForm] string? evrakNo, [FromForm] decimal netTutar,
-            [FromForm] decimal kdvOrani, [FromForm] OdemeYontemi odemeYontemi,
+            [FromForm] decimal kdvOrani, [FromForm] PaymentMethod odemeYontemi,
             [FromForm] string? doviz, [FromForm] string? kur, [FromForm] string? aciklama,
             [FromForm] string? hesapId,      // FAZ-50: hangi spesifik kasa/banka hesabından ödendi
             [FromForm] string? odemeTarihi, [FromForm] string? hazirAciklama, [FromForm] string? rentalId) => // FAZ-64
@@ -54,7 +54,7 @@ public static class ExpenseEndpoints
             var f = req.Form;
             try
             {
-                await svc.OdemeEkleAsync(new GiderOdemeInput
+                await svc.AddPaymentAsync(new GiderOdemeInput
                 {
                     ExpenseId = FormParse.Id(FormParse.Str(f, "expenseId")) ?? Guid.Empty,
                     Tutar = FormParse.Dec(FormParse.Str(f, "tutar")),   // boş → kalanın tamamı

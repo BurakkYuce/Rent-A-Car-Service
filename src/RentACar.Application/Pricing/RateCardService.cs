@@ -12,7 +12,7 @@ namespace RentACar.Application.Pricing;
 /// </summary>
 public sealed class RateCardService(
     IRateCardRepository repository, ICurrentUser currentUser,
-    RentACar.Application.TarifeGruplari.ITarifeGrubuRepository tarifeGruplari,
+    RentACar.Application.TarifeGruplari.ITariffGroupRepository tariffGroups,
     IRowVersionStore? rowVersions = null)
 {
     private readonly IRateCardRepository _repository = repository;
@@ -32,12 +32,12 @@ public sealed class RateCardService(
     /// bu metod yalnız PricingService geriye-uyum fallback'i (matris eşleşmezse). Yeni tarifeler RateMatrix'e.
     /// </summary>
     [Obsolete("RentalQuoteEngine/RateMatrix kullanın; RateCard fiyat çözümü yalnız geriye-uyum fallback'idir.")]
-    public async Task<RateCard?> GetRateAsync(string grup, int gun, DateTimeOffset tarih, CancellationToken ct = default)
+    public async Task<RateCard?> GetRateAsync(string group, int day, DateTimeOffset date, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(grup) || gun < 1) return null;
-        var adaylar = await _repository.ListByGroupAsync(grup.Trim(), ct);
-        return adaylar
-            .Where(r => r.Covers(gun, tarih))
+        if (string.IsNullOrWhiteSpace(group) || day < 1) return null;
+        var candidates = await _repository.ListByGroupAsync(group.Trim(), ct);
+        return candidates
+            .Where(r => r.Covers(day, date))
             .OrderByDescending(r => r.MinGun)
             .ThenByDescending(r => r.GecerliBas ?? DateTimeOffset.MinValue)
             .FirstOrDefault();
@@ -47,9 +47,9 @@ public sealed class RateCardService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
-        await TarifeGrubuVarMi(n.TarifeGrubuId, ct);
+        await TariffGroupExists(n.TarifeGrubuId, ct);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu tarife zaten var.");
 
         var rc = new RateCard();
@@ -62,9 +62,9 @@ public sealed class RateCardService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
-        await TarifeGrubuVarMi(n.TarifeGrubuId, ct);
+        await TariffGroupExists(n.TarifeGrubuId, ct);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu tarife zaten var.");
 
         return await _repository.UpdateAsync(id, rc =>
@@ -84,9 +84,9 @@ public sealed class RateCardService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
-        await TarifeGrubuVarMi(n.TarifeGrubuId, ct);
+        await TariffGroupExists(n.TarifeGrubuId, ct);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu tarife zaten var.");
         return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<RateCard>(id, expectedVersion, rc =>
         {
@@ -119,9 +119,9 @@ public sealed class RateCardService(
     /// (ya da başka tenant'a ait) bir gruba bağlanmış görünürdü; FK zaten engellerdi ama hata
     /// kullanıcıya 500 olarak dönerdi. Repo tenant-kapsamlı → başka tenant'ın grubu "bulunamadı".
     /// </summary>
-    private async Task TarifeGrubuVarMi(Guid? id, CancellationToken ct)
+    private async Task TariffGroupExists(Guid? id, CancellationToken ct)
     {
-        if (id is { } g && g != Guid.Empty && await tarifeGruplari.FindAsync(g, ct) is null)
+        if (id is { } g && g != Guid.Empty && await tariffGroups.FindAsync(g, ct) is null)
             throw new ValidationException("Seçilen tarife grubu bulunamadı.");
     }
 

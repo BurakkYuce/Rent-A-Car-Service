@@ -31,9 +31,9 @@ public static class MusteriBildirimUretici
     {
         // Servis job'ın elindeki context üzerine kurulur (bkz. DogrudanMesajRepolari): şablon çözümü,
         // idempotency, deneme sayacı ve izin kuralı TEK yerde kalır — kopyalanmaz.
-        var bildirim = new MusteriBildirimService(
+        var bildirim = new CustomerNotificationService(
             new DogrudanMesajRepository(db, tenantId),
-            new RentACar.Application.Integrations.BildirimKanaliService(
+            new RentACar.Application.Integrations.NotificationChannelService(
                 new DogrudanAyarRepository(db), secrets, eposta, sms),
             NullCurrentUser.Instance);
 
@@ -65,7 +65,7 @@ public static class MusteriBildirimUretici
 
     /// <summary>Yarın aracını teslim alacak müşterilere hatırlatma (rezervasyonlar).</summary>
     private static async Task<int> TeslimHatirlatmaAsync(
-        AppDbContext db, MusteriBildirimService bildirim,
+        AppDbContext db, CustomerNotificationService bildirim,
         DateTimeOffset bas, DateTimeOffset bit, string gun, CancellationToken ct)
     {
         var adaylar = await (
@@ -80,13 +80,13 @@ public static class MusteriBildirimUretici
                 v != null ? v.Plaka : null, v != null ? (v.Marka ?? "") + " " + (v.Tip ?? "") : null))
             .ToListAsync(ct);
 
-        return await GonderAsync(bildirim, adaylar, MesajTuru.TeslimHatirlatma,
+        return await GonderAsync(bildirim, adaylar, MessageType.TeslimHatirlatma,
             anahtarOnek: "teslim-hatirlatma", gun, kaynakTur: "Rezervasyon", ct);
     }
 
     /// <summary>Bugün aracını iade edecek müşterilere hatırlatma (açık kira sözleşmeleri).</summary>
     private static async Task<int> IadeHatirlatmaAsync(
-        AppDbContext db, MusteriBildirimService bildirim,
+        AppDbContext db, CustomerNotificationService bildirim,
         DateTimeOffset bas, DateTimeOffset bit, string gun, CancellationToken ct)
     {
         var adaylar = await (
@@ -101,12 +101,12 @@ public static class MusteriBildirimUretici
                 v != null ? v.Plaka : null, v != null ? (v.Marka ?? "") + " " + (v.Tip ?? "") : null))
             .ToListAsync(ct);
 
-        return await GonderAsync(bildirim, adaylar, MesajTuru.IadeHatirlatma,
+        return await GonderAsync(bildirim, adaylar, MessageType.IadeHatirlatma,
             anahtarOnek: "iade-hatirlatma", gun, kaynakTur: "Kira", ct);
     }
 
     private static async Task<int> GonderAsync(
-        MusteriBildirimService bildirim, IReadOnlyList<Aday> adaylar, MesajTuru tur,
+        CustomerNotificationService bildirim, IReadOnlyList<Aday> adaylar, MessageType tur,
         string anahtarOnek, string gun, string kaynakTur, CancellationToken ct)
     {
         var sayac = 0;
@@ -117,21 +117,21 @@ public static class MusteriBildirimUretici
             if (!string.IsNullOrWhiteSpace(a.Email))
             {
                 await bildirim.GonderAsync(new MesajIstegi(
-                    tur, MesajKanal.Eposta, a.Email!, $"{anahtarOnek}:{a.Id:N}:{gun}",
+                    tur, MessageChannel.Eposta, a.Email!, $"{anahtarOnek}:{a.Id:N}:{gun}",
                     degerler, kaynakTur, a.Id),
                     // KVKK: hatırlatma pazarlama DEĞİL, kurulmuş sözleşmenin ifasına ilişkin bilgidir.
                     // Yine de müşteri o kanalı AÇIKÇA kapattıysa (MailIzin=false) saygı gösterilir;
                     // "belirtilmemiş" (null) kapalı sayılmaz — sözleşme ilişkisi zaten var.
-                    izinVar: a.MailIzin != false, ct);
+                    hasPermission: a.MailIzin != false, ct);
                 sayac++;
             }
 
             if (!string.IsNullOrWhiteSpace(a.Telefon))
             {
                 await bildirim.GonderAsync(new MesajIstegi(
-                    tur, MesajKanal.Sms, a.Telefon!, $"{anahtarOnek}-sms:{a.Id:N}:{gun}",
+                    tur, MessageChannel.Sms, a.Telefon!, $"{anahtarOnek}-sms:{a.Id:N}:{gun}",
                     degerler, kaynakTur, a.Id),
-                    izinVar: a.SmsIzin != false, ct);
+                    hasPermission: a.SmsIzin != false, ct);
                 sayac++;
             }
         }
@@ -140,11 +140,11 @@ public static class MusteriBildirimUretici
 
     /// <summary>Kuyrukta kalanları yeniden dener (geçici SMTP/SMS hatası, sonradan tanımlanan şablon).</summary>
     private static async Task<int> KuyruktaYenidenDeneAsync(
-        AppDbContext db, MusteriBildirimService bildirim, DateTimeOffset now, CancellationToken ct)
+        AppDbContext db, CustomerNotificationService bildirim, DateTimeOffset now, CancellationToken ct)
     {
         var bekleyen = await Repositories.MesajRepository.KuyruktakilerAsync(
-            db, now, MusteriBildirimService.MaxDeneme, ct);
-        foreach (var m in bekleyen) await bildirim.DeneAsync(m, ct);
+            db, now, CustomerNotificationService.MaxAttempts, ct);
+        foreach (var m in bekleyen) await bildirim.TryAsync(m, ct);
         return bekleyen.Count;
     }
 

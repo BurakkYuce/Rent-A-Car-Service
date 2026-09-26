@@ -106,7 +106,7 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
         // Açık servis kaydı (Acik veya Serviste) — araç başına en yenisi.
         var servisler = (await db.ServiceRecords.AsNoTracking()
                 .Where(s => vehicleIds.Contains(s.VehicleId)
-                         && (s.Durum == ServisDurum.Acik || s.Durum == ServisDurum.Serviste))
+                         && (s.Durum == ServiceStatus.Acik || s.Durum == ServiceStatus.Serviste))
                 .Select(s => new { s.VehicleId, s.No, s.AtolyeAdi, s.GirisTarihi })
                 .ToListAsync(ct))
             .GroupBy(s => s.VehicleId)
@@ -114,7 +114,7 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
 
         // Açık BAF tahsisi — araç başına en yenisi + personel adı.
         var baflar = (await db.Baflar.AsNoTracking()
-                .Where(b => vehicleIds.Contains(b.VehicleId) && b.Durum == BafDurum.Acik)
+                .Where(b => vehicleIds.Contains(b.VehicleId) && b.Durum == BafStatus.Acik)
                 .Select(b => new { b.VehicleId, b.No, b.PersonelId, b.CikisTarihi })
                 .ToListAsync(ct))
             .GroupBy(b => b.VehicleId)
@@ -133,7 +133,7 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
 
         // Aktif uzun-dönem filo kiralama dosyası (araç başına en yenisi).
         var filoKira = (await db.FiloKiralamalar.AsNoTracking()
-                .Where(k => vehicleIds.Contains(k.VehicleId) && k.Durum == FiloKiraDurum.Aktif)
+                .Where(k => vehicleIds.Contains(k.VehicleId) && k.Durum == FleetRentalStatus.Aktif)
                 .Select(k => new { k.VehicleId, k.DosyaNo, k.BasTar })
                 .ToListAsync(ct))
             .GroupBy(k => k.VehicleId)
@@ -179,7 +179,7 @@ public sealed class FleetStatusRepository(IDbContextFactory<AppDbContext> factor
                 MusteriTel = musteri.Tel,
                 KiraBitTar = rental?.BitTar,
                 KiraBakiye = rental?.Bakiye,
-                KiraKalanGun = rental is null ? null : FleetStatusRow.KalanGun(rental.BitTar, now),
+                KiraKalanGun = rental is null ? null : FleetStatusRow.RemainingDays(rental.BitTar, now),
                 RezMusteriAd = rezMusteri.Ad,
                 RezBasTar = rez?.BasTar,
                 AcikServisNo = servis?.No,

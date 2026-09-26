@@ -6,7 +6,7 @@ namespace RentACar.Application.Common;
 ///
 /// <para><b>Alt tipler (F1.1, Angular geçişi):</b> yeni SPA hatayı TÜRÜNE göre işler — alan hatası
 /// formda kalır, çakışma formu silmez, mükerrer kaydı yeniden yükler, yetki reddi uyarı bandı olur.
-/// Bu ayrım için <see cref="YetkiYokException"/>, <see cref="MukerrerIslemException"/> ve çakışma
+/// Bu ayrım için <see cref="NoPermissionException"/>, <see cref="DuplicateOperationException"/> ve çakışma
 /// istisnaları (<c>AvailabilityConflictException</c>, <c>DuplicateCariException</c>,
 /// <c>DuplicatePlakaException</c>) buradan TÜRER: mevcut <c>catch (ValidationException)</c> blokları
 /// (Blazor uçları, <c>DogrulamaHatasiMiddleware</c>) hepsini aynen yakalamaya devam eder — Blazor

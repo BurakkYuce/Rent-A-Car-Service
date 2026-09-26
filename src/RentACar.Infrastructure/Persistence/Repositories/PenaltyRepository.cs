@@ -28,14 +28,14 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Penalties.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
     }
 
-    public async Task<IReadOnlyList<PenaltySatir>> ListSatirAsync(Guid penaltyId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<PenaltySatir>> ListLinesAsync(Guid penaltyId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.PenaltySatirlari.AsNoTracking()
             .Where(s => s.PenaltyId == penaltyId).OrderBy(s => s.Sira).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<PenaltyOdeme>> ListOdemeAsync(Guid penaltyId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<PenaltyOdeme>> ListPaymentsAsync(Guid penaltyId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.PenaltyOdemeleri.AsNoTracking()
@@ -53,7 +53,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
         var f = filter ?? new PenaltyFilter();
 
         var q = db.Penalties.AsNoTracking().AsQueryable();
-        if (f.Durum is CezaDurum d) q = q.Where(p => p.Durum == d);
+        if (f.Durum is PenaltyStatus d) q = q.Where(p => p.Durum == d);
         if (!string.IsNullOrWhiteSpace(f.MakbuzNo))
         {
             var mk = f.MakbuzNo.Trim();
@@ -70,9 +70,9 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
         // Ödeme durumu TUTARDAN türetilir (ayrı kolon yok → ayrışma imkânsız).
         q = f.OdemeDurum switch
         {
-            CezaOdemeDurum.Odenmemis => q.Where(p => p.OdenenTutar <= 0m),
-            CezaOdemeDurum.Kismi => q.Where(p => p.OdenenTutar > 0m && p.Kalan > 0m),
-            CezaOdemeDurum.Odendi => q.Where(p => p.OdenenTutar > 0m && p.Kalan <= 0m),
+            PenaltyPaymentStatus.Odenmemis => q.Where(p => p.OdenenTutar <= 0m),
+            PenaltyPaymentStatus.Kismi => q.Where(p => p.OdenenTutar > 0m && p.Kalan > 0m),
+            PenaltyPaymentStatus.Odendi => q.Where(p => p.OdenenTutar > 0m && p.Kalan <= 0m),
             _ => q
         };
 
@@ -148,7 +148,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            penalty.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Ceza, ct);
+            penalty.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Ceza, ct);
             db.Penalties.Add(penalty);
             foreach (var s in satirlar) { s.PenaltyId = penalty.Id; db.PenaltySatirlari.Add(s); }
             await db.SaveChangesAsync(ct);
@@ -201,7 +201,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
             if (penalty is null) return false;
             // F1.4: servis ön-kontrolüyle AYNI istisna — eskiden yarışı kaybeden ikinci yansıtma burada
             // sessizce false dönüyor (uç "başarılı" gösteriyordu), sıralı ikinci ise 400 alıyordu.
-            if (penalty.Durum != CezaDurum.Yeni)
+            if (penalty.Durum != PenaltyStatus.Yeni)
                 throw new ValidationException("Yalnız 'Yeni' durumundaki ceza yansıtılabilir.");
 
             var entries = buildEntries(penalty);
@@ -210,7 +210,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
             if (debit != credit)
                 throw new ValidationException($"Ceza yansıtma defteri dengesiz: borç {debit} ≠ alacak {credit}.");
 
-            penalty.Durum = CezaDurum.Yansitildi;
+            penalty.Durum = PenaltyStatus.Yansitildi;
             penalty.UpdatedAtUtc = DateTimeOffset.UtcNow;
             db.AccountLedgerEntries.AddRange(entries);
 
@@ -224,7 +224,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
 
     private const string OdemeMukerrerMesaji = "Bu ceza ödemesi zaten kaydedilmiş (çift gönderim).";
 
-    public async Task<CezaOdemeSonuc> PostOdemeAsync(
+    public async Task<CezaOdemeSonuc> PostPaymentAsync(
         Guid penaltyId, Guid satirId,
         Func<Penalty, PenaltySatir, decimal, int, (PenaltyOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
         CancellationToken ct = default, Guid? islemAnahtari = null)
@@ -243,7 +243,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
             // (400), kısmen kapattıysa kısıt (409) alıyordu — sonuç tutara bağlıydı.
             if (islemAnahtari is Guid anahtar && anahtar != Guid.Empty &&
                 await db.PenaltyOdemeleri.AsNoTracking().AnyAsync(o => o.IslemAnahtari == anahtar, ct))
-                throw new MukerrerIslemException(OdemeMukerrerMesaji);
+                throw new DuplicateOperationException(OdemeMukerrerMesaji);
 
             // #286 adversarial M1: başlık satırı da kilitlenir (FOR UPDATE) — iptal/yansıtma aynı sırayla
             // (danışma → satır) kilitlendiği için Durum kilit altında GÜNCEL okunur; kilitsiz okunup ezilen
@@ -252,7 +252,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
                 .FromSqlRaw("SELECT * FROM \"Penalties\" WHERE \"Id\" = {0} FOR UPDATE", penaltyId)
                 .FirstOrDefaultAsync(ct)
                 ?? throw new ValidationException("Ceza bulunamadı.");
-            if (ceza.Durum == CezaDurum.Iptal) throw new ValidationException("İptal ceza ödenemez.");
+            if (ceza.Durum == PenaltyStatus.Iptal) throw new ValidationException("İptal ceza ödenemez.");
 
             var satir = await db.PenaltySatirlari.FirstOrDefaultAsync(s => s.Id == satirId, ct)
                 ?? throw new ValidationException("Ceza kalemi bulunamadı.");
@@ -304,7 +304,7 @@ public sealed class PenaltyRepository(IDbContextFactory<AppDbContext> factory) :
             ceza.Kalan = Yuvarla(ceza.Tutar - ceza.OdenenTutar);
             if (ceza.Kalan < 0m) throw new ValidationException("Ceza kalanı negatife düşemez.");
             ceza.OdenmeTarihi = odeme.Tarih;
-            ceza.Durum = ceza.Kalan <= 0m ? CezaDurum.Odendi : CezaDurum.Kismi;
+            ceza.Durum = ceza.Kalan <= 0m ? PenaltyStatus.Odendi : PenaltyStatus.Kismi;
             ceza.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
             db.PenaltyOdemeleri.Add(odeme);

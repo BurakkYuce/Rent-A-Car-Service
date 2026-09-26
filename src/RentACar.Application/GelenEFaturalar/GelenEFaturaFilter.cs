@@ -18,7 +18,7 @@ public sealed class GelenEFaturaFilter
     /// <summary>Bağlı aracın plakası (kısmi). Plaka DB'de normalize saklanır → terim de normalize edilir.</summary>
     public string? Plaka { get; set; }
     /// <summary>İşlem türü = triage durumu.</summary>
-    public GelenEFaturaDurum? Durum { get; set; }
+    public IncomingEInvoiceStatus? Durum { get; set; }
     /// <summary>Fatura tarihi aralığı başı (dahil).</summary>
     public DateTimeOffset? Bas { get; set; }
     /// <summary>Fatura tarihi aralığı sonu (dahil).</summary>

@@ -8,12 +8,12 @@ public interface IRateCardRepository
     Task<IReadOnlyList<RateCard>> ListAsync(CancellationToken ct = default);
 
     /// <summary>Bir araç grubunun aktif tarifeleri (lookup adayları).</summary>
-    Task<IReadOnlyList<RateCard>> ListByGroupAsync(string grup, CancellationToken ct = default);
+    Task<IReadOnlyList<RateCard>> ListByGroupAsync(string group, CancellationToken ct = default);
 
     Task<RateCard?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Tenant içinde aynı kod (büyük/küçük harf duyarsız) başka kayıtta var mı?</summary>
-    Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default);
+    Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default);
 
     Task CreateAsync(RateCard rateCard, CancellationToken ct = default);
 

@@ -6,9 +6,9 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.Pricing;
 
 /// <summary>Kaydedilmiş maliyet teklifi kalıcılığı (FAZ-74).</summary>
-public interface IMaliyetTeklifiRepository
+public interface ICostQuotationRepository
 {
-    Task<IReadOnlyList<MaliyetTeklifi>> SearchAsync(MaliyetTeklifiFilter filtre, CancellationToken ct = default);
+    Task<IReadOnlyList<MaliyetTeklifi>> SearchAsync(MaliyetTeklifiFilter filter, CancellationToken ct = default);
     Task<MaliyetTeklifi?> FindAsync(Guid id, CancellationToken ct = default);
     /// <summary>Kaydı yazar ve boşluksuz <c>MT-</c> numarasını AYNI transaction'da tahsis eder.</summary>
     Task CreateAsync(MaliyetTeklifi row, CancellationToken ct = default);
@@ -33,7 +33,7 @@ public sealed class MaliyetTeklifiFilter
 
 /// <summary>
 /// Teklif kaydetme girdisi: künye + hesap girdisi. Sonuç alanları BURADA YOK — servis hesabı
-/// <see cref="MaliyetHesapService"/> ile kendisi yapar. İstemciden gelen sonuç kabul edilseydi
+/// <see cref="CostCalculationService"/> ile kendisi yapar. İstemciden gelen sonuç kabul edilseydi
 /// girdiyle tutmayan (elle düzenlenmiş) bir teklif kaydedilebilirdi.
 /// </summary>
 public sealed class MaliyetTeklifiInput
@@ -62,17 +62,17 @@ public sealed record MaliyetTeklifiOzet(int Adet, int AracAdet, decimal FiloAyli
 /// marjı ticari sır sayılır ve operasyon rolüne açılmaz; okuma <see cref="Permission.ViewReports"/>
 /// ile de mümkündür (yazan rol okuyabilmeli).</para>
 /// </summary>
-public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, ICurrentUser currentUser,
+public sealed class CostQuotationService(ICostQuotationRepository repository, ICurrentUser currentUser,
     IRowVersionStore? rowVersions = null)
 {
-    private readonly IMaliyetTeklifiRepository _repository = repository;
+    private readonly ICostQuotationRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
 
     public async Task<IReadOnlyList<MaliyetTeklifi>> SearchAsync(
-        MaliyetTeklifiFilter? filtre = null, CancellationToken ct = default)
+        MaliyetTeklifiFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.RequireAny(_currentUser, Permission.FinanceWrite, Permission.ViewReports);
-        return await _repository.SearchAsync(filtre ?? new MaliyetTeklifiFilter(), ct);
+        return await _repository.SearchAsync(filter ?? new MaliyetTeklifiFilter(), ct);
     }
 
     public async Task<MaliyetTeklifi?> GetAsync(Guid id, CancellationToken ct = default)
@@ -81,9 +81,9 @@ public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, 
         return await _repository.FindAsync(id, ct);
     }
 
-    public static MaliyetTeklifiOzet Ozet(IEnumerable<MaliyetTeklifi> satirlar)
+    public static MaliyetTeklifiOzet Summary(IEnumerable<MaliyetTeklifi> rows)
     {
-        var l = satirlar.ToList();
+        var l = rows.ToList();
         return new MaliyetTeklifiOzet(
             l.Count,
             l.Sum(x => x.AracSayisi),
@@ -96,7 +96,7 @@ public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, 
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var row = new MaliyetTeklifi();
         if (input.Id is { } id && id != Guid.Empty) row.Id = id;
-        Uygula(row, input);
+        Apply(row, input);
         await _repository.CreateAsync(row, ct);
         return row.Id;
     }
@@ -105,11 +105,11 @@ public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, 
     public async Task<bool> UpdateAsync(Guid id, MaliyetTeklifiInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        var kopya = new MaliyetTeklifi();
-        Uygula(kopya, input);   // doğrulama + hesap ÖNCE: geçersiz girdide mevcut satıra dokunulmaz
+        var copy = new MaliyetTeklifi();
+        Apply(copy, input);   // doğrulama + hesap ÖNCE: geçersiz girdide mevcut satıra dokunulmaz
         return await _repository.UpdateAsync(id, r =>
         {
-            Kopyala(kopya, r);
+            Copy(copy, r);
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
@@ -123,11 +123,11 @@ public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, 
     public async Task<bool> UpdateVersionedAsync(Guid id, MaliyetTeklifiInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        var kopya = new MaliyetTeklifi();
-        Uygula(kopya, input);
+        var copy = new MaliyetTeklifi();
+        Apply(copy, input);
         return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<MaliyetTeklifi>(id, expectedVersion, r =>
         {
-            Kopyala(kopya, r);
+            Copy(copy, r);
             r.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, "Kayıt zaten var.", ct);
     }
@@ -139,7 +139,7 @@ public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, 
     }
 
     /// <summary>Kayıtlı snapshot'tan hesap girdisini geri kurar (teklifi forma yükleme / kopyalama).</summary>
-    public static MaliyetHesapInput GirdiyeCevir(MaliyetTeklifi t) => new()
+    public static MaliyetHesapInput ToInput(MaliyetTeklifi t) => new()
     {
         AlisBedeli = t.AlisBedeli,
         ResidualYuzde = t.ResidualYuzde,
@@ -169,27 +169,27 @@ public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, 
     };
 
     /// <summary>Snapshot'tan kalem dökümünü yeniden üretir (kayıtlı girdiden — yeniden fiyatlama değil).</summary>
-    public static IReadOnlyList<MaliyetGiderKalem> Kalemler(MaliyetTeklifi t)
+    public static IReadOnlyList<MaliyetGiderKalem> Items(MaliyetTeklifi t)
     {
-        try { return MaliyetHesapService.Hesapla(GirdiyeCevir(t)).Kalemler; }
+        try { return CostCalculationService.Calculate(ToInput(t)).Kalemler; }
         catch (ValidationException) { return []; }   // eski/geçersiz snapshot listeyi patlatmasın
     }
 
-    private static void Uygula(MaliyetTeklifi row, MaliyetTeklifiInput n)
+    private static void Apply(MaliyetTeklifi row, MaliyetTeklifiInput n)
     {
         if (string.IsNullOrWhiteSpace(n.Baslik)) throw new ValidationException("Teklif başlığı zorunludur.");
-        var tarih = n.Tarih ?? DateTimeOffset.UtcNow;
+        var date = n.Tarih ?? DateTimeOffset.UtcNow;
         // Teklif GELECEK tarihli olamaz: "planlama belgesi" ileri tarihe atılırsa arama/dönem
         // süzgeçleri sessizce yanlış kovaya düşer.
-        TarihPolitikasi.ParaTarihi(tarih, "Teklif");
+        DatePolicy.MoneyDate(date, "Teklif");
 
         // Hesap BURADA yapılır — Rotatif reddi dahil tüm doğrulamalar tek kapıdan geçer.
-        var sonuc = MaliyetHesapService.Hesapla(n.Girdi);
+        var result = CostCalculationService.Calculate(n.Girdi);
         var g = n.Girdi;
 
         row.Baslik = n.Baslik.Trim();
         row.Plaka = Trim(n.Plaka);
-        row.Tarih = tarih;
+        row.Tarih = date;
         row.CariId = n.CariId;
         row.HazirlayanId = n.HazirlayanId;
         row.Aciklama = Trim(n.Aciklama);
@@ -221,22 +221,22 @@ public sealed class MaliyetTeklifiService(IMaliyetTeklifiRepository repository, 
         row.AylikGider = g.AylikGider;
         row.BankaDosyaDigerMasraf = g.BankaDosyaDigerMasraf;
 
-        row.ResidualDeger = sonuc.ResidualDeger;
-        row.NetAmortisman = sonuc.NetAmortisman;
-        row.FinansmanFaiz = sonuc.FinansmanFaiz;
-        row.FinansmanVergi = sonuc.FinansmanVergi;
-        row.Damga = sonuc.Damga;
-        row.ToplamGider = sonuc.ToplamGider;
-        row.ToplamMaliyet = sonuc.ToplamMaliyet;
-        row.BasaBasAylik = sonuc.BasaBasAylik;
-        row.Kar = sonuc.Kar;
-        row.TeklifNet = sonuc.TeklifNet;
-        row.TeklifAylikNet = sonuc.TeklifAylikNet;
-        row.TeklifKdvli = sonuc.TeklifKdvli;
+        row.ResidualDeger = result.ResidualDeger;
+        row.NetAmortisman = result.NetAmortisman;
+        row.FinansmanFaiz = result.FinansmanFaiz;
+        row.FinansmanVergi = result.FinansmanVergi;
+        row.Damga = result.Damga;
+        row.ToplamGider = result.ToplamGider;
+        row.ToplamMaliyet = result.ToplamMaliyet;
+        row.BasaBasAylik = result.BasaBasAylik;
+        row.Kar = result.Kar;
+        row.TeklifNet = result.TeklifNet;
+        row.TeklifAylikNet = result.TeklifAylikNet;
+        row.TeklifKdvli = result.TeklifKdvli;
     }
 
     /// <summary>KayitNo / Id / audit HARİÇ tüm alanları taşır (numara güncellemede DEĞİŞMEZ).</summary>
-    private static void Kopyala(MaliyetTeklifi k, MaliyetTeklifi r)
+    private static void Copy(MaliyetTeklifi k, MaliyetTeklifi r)
     {
         r.Baslik = k.Baslik; r.Plaka = k.Plaka; r.Tarih = k.Tarih;
         r.CariId = k.CariId; r.HazirlayanId = k.HazirlayanId; r.Aciklama = k.Aciklama;

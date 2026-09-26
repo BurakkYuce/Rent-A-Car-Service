@@ -15,7 +15,7 @@ public sealed class KdvMathTests
     [InlineData(0, 0.20, 0, 0)]
     public void FromGross_decomposes(decimal gross, decimal rate, decimal expNet, decimal expKdv)
     {
-        var (net, kdv) = KdvMath.FromGross(gross, rate);
+        var (net, kdv) = VatMath.FromGross(gross, rate);
         Assert.Equal(expNet, net);
         Assert.Equal(expKdv, kdv);
         Assert.Equal(gross, net + kdv); // net + kdv == brüt (kuruş tutarlı)
@@ -27,7 +27,7 @@ public sealed class KdvMathTests
     [InlineData(1234.5678, 0.10, 1234.57)]
     public void Net_and_kdv_are_always_two_decimals(decimal gross, decimal rate, decimal expGrossKurus)
     {
-        var (net, kdv) = KdvMath.FromGross(gross, rate);
+        var (net, kdv) = VatMath.FromGross(gross, rate);
         Assert.Equal(Math.Round(net, 2), net);
         Assert.Equal(Math.Round(kdv, 2), kdv);
         // net + kdv = kuruşa sabitlenmiş brüt (denge korunur). Denetim C6: beklenen ELLE sabit
@@ -41,7 +41,7 @@ public sealed class KdvMathTests
     [InlineData(250, 0.10, 25.00, 275.00)]
     public void FromNet_adds_kdv(decimal net, decimal rate, decimal expKdv, decimal expGross)
     {
-        var (kdv, gross) = KdvMath.FromNet(net, rate);
+        var (kdv, gross) = VatMath.FromNet(net, rate);
         Assert.Equal(expKdv, kdv);
         Assert.Equal(expGross, gross);
         Assert.Equal(Math.Round(kdv, 2), kdv); // kuruş

@@ -34,16 +34,16 @@ public sealed class VadeAracBoyutuTests(PostgresFixture fx)
         await reg.AddMtvAsync(v1, "2026-1", 50m, now.AddDays(-3));           // GEÇMİŞ (ödenmemiş)
         await reg.AddInspectionAsync(v2, now.AddDays(-165), now.AddDays(200), 20m); // İleri
 
-        var vade = sp.GetRequiredService<VadeService>();
+        var vade = sp.GetRequiredService<DueService>();
 
         // Araç filtresi: V1'in 2 kalemi (kasko + MTV), V2'nin 1 kalemi (muayene).
         var v1Kalemler = await vade.GetForVehicleAsync(v1);
         Assert.Equal(2, v1Kalemler.Count);
-        Assert.Contains(v1Kalemler, i => i.Tur == "Kasko" && i.Bucket == VadeBucket.YediGun);
-        Assert.Contains(v1Kalemler, i => i.Tur == "MTV" && i.Bucket == VadeBucket.Gecmis);
+        Assert.Contains(v1Kalemler, i => i.Tur == "Kasko" && i.Bucket == DueBucket.YediGun);
+        Assert.Contains(v1Kalemler, i => i.Tur == "MTV" && i.Bucket == DueBucket.Gecmis);
         var v2Kalemler = await vade.GetForVehicleAsync(v2);
         var muayene = Assert.Single(v2Kalemler);
-        Assert.Equal(VadeBucket.Ileri, muayene.Bucket);
+        Assert.Equal(DueBucket.Ileri, muayene.Bucket);
 
         // Uyarı sayıları (geçmiş + ≤30): V1=2; V2 sözlükte YOK (uyarısı olmayan araç 0 sayılır).
         var sayilar = await vade.GetWarningCountsByVehicleAsync();
@@ -52,7 +52,7 @@ public sealed class VadeAracBoyutuTests(PostgresFixture fx)
 
         // Ödenen MTV vade panosundan düşer → V1 uyarısı 1'e iner (mevcut union davranışı korunuyor).
         var mtvId = (await reg.ListMtvAsync()).Single(m => m.VehicleId == v1).Id;
-        await reg.MtvOdeAsync(mtvId, LedgerAccountType.Kasa);
+        await reg.PayMtvAsync(mtvId, LedgerAccountType.Kasa);
         var sonra = await vade.GetWarningCountsByVehicleAsync();
         Assert.Equal(1, sonra[v1]);
     }

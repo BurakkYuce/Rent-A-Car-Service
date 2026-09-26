@@ -45,7 +45,7 @@
     @if (FiltreVar) { <a class="link" href="/raporlar/extre-ozeti">Temizle</a> }
 </form>
 
-<p class="muted small">@_rows.Count fatura · @_rows.Count(r => (r.KalanGun(_asOf) ?? 0) < 0 && r.VadeTarihi is not null) vadesi geçmiş ·
+<p class="muted small">@_rows.Count fatura · @_rows.Count(r => (r.RemainingDays(_asOf) ?? 0) < 0 && r.VadeTarihi is not null) vadesi geçmiş ·
     <strong>Brüt toplam @_rows.Sum(r => r.IsaretliTutarTl).ToString("N2") ₺</strong>
     <span class="muted">(iadeler negatif, TL-baz)</span></p>
 
@@ -63,7 +63,7 @@
         }
         @foreach (var r in _rows)
         {
-            var kalan = r.KalanGun(_asOf);
+            var kalan = r.RemainingDays(_asOf);
             <tr>
                 <td>@(r.VadeTarihi?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
                 <td class="num @(kalan is < 0 ? "neg" : null)">@(kalan?.ToString() ?? "—")</td>
@@ -117,7 +117,7 @@
         _customers = await Customers.ListAsync();
         _ofisler = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
 
-        _rows = await Reports.GetExtreOzetiAsync(new ExtreOzetiFilter
+        _rows = await Reports.GetStatementSummaryAsync(new ExtreOzetiFilter
         {
             CariId = Guid.TryParse(CariId, out var cid) ? cid : null,
             Plaka = Plaka,

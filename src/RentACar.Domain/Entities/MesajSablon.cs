@@ -20,8 +20,8 @@ public class MesajSablon : ITenantOwned, IAuditable
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
 
-    public MesajTuru Tur { get; set; }
-    public MesajKanal Kanal { get; set; }
+    public MessageType Tur { get; set; }
+    public MessageChannel Kanal { get; set; }
 
     /// <summary>E-posta konusu. SMS'te kullanılmaz.</summary>
     public string? Konu { get; set; }

@@ -58,10 +58,10 @@ public static partial class FinanceHubApi
         if (!names.ContainsKey(cariId)) return F5Ortak.Bulunamadi("Cari bulunamadı.");
         await SelectionRentalScopeAsync(map.Keys, user, rentals, f, ct);
 
-        if (await cash.IslemAnahtariylaBulAsync(key, ct) is { } prior)
+        if (await cash.FindByOperationKeyAsync(key, ct) is { } prior)
         {
             if (prior.CariId != cariId || prior.Tip != CashTransactionType.Tahsilat)
-                throw MukerrerIslemException.FarkliIcerik();
+                throw DuplicateOperationException.DifferentContent();
             // L3: aynı içerik = aynı kalem kümesi + (tutar verilen kalemde) aynı tahsis tutarı + hesap/kanal/açıklama.
             // Tahsis kaydı kalıcıdır; tutarsız ("kalanın tamamı") kalemde tutar ilk yazımda belirlendiği için
             // yalnız kalemin varlığı karşılaştırılır.
@@ -76,13 +76,13 @@ public static partial class FinanceHubApi
                        && string.Equals(prior.Kanal ?? CashKanal.Masaustu, channel, StringComparison.Ordinal)
                        && (note is null || string.Equals(FinansApi.AciklamaNorm(prior.Aciklama), note, StringComparison.Ordinal));
             var amount = prior.Amount.Amount.ToString("N2", Tr);
-            throw new MukerrerIslemException(
+            throw new DuplicateOperationException(
                 string.Format(Tr, same ? CloseAlreadyRecordedMessage : CloseOtherRecordedMessage, prior.No, amount),
                 new MevcutIslem(prior.Id, prior.No, prior.Amount.Amount, prior.Amount.Currency, same));
         }
 
-        var total = await cash.TekCariTopluKapatAsync(cariId, map, account, date, note, key, channel, ct);
-        var written = await cash.IslemAnahtariylaBulAsync(key, ct);
+        var total = await cash.CloseSingleAccountBulkAsync(cariId, map, account, date, note, key, channel, ct);
+        var written = await cash.FindByOperationKeyAsync(key, ct);
         return TypedResults.Ok(new CloseItemsResult(written?.Id ?? Guid.Empty, written?.No ?? "", total));
     }
 

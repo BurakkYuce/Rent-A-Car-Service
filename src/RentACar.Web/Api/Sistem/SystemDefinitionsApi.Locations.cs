@@ -21,8 +21,8 @@ public static partial class SystemDefinitionsApi
     private static readonly (string, string)[] LocationRules =
         [("Ofis kodu", "kod"), ("Ofis adı", "ad"), ("'", "kod")];
 
-    private static readonly SiralamaHaritasi<LocationDto> LocationSort = SiralamaHaritasi<LocationDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("sube", x => x.Sube)
+    private static readonly SortFieldMap<LocationDto> LocationSort = SortFieldMap<LocationDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("sube", x => x.Sube)
         .Alan("webSira", x => x.WebSira).Alan("aktif", x => x.Aktif);
 
     private static void MapLocations(RouteGroupBuilder v1)
@@ -41,7 +41,7 @@ public static partial class SystemDefinitionsApi
         g.MapPost("", async Task<Results<Created<LocationDto>, ProblemHttpResult>> (LocationRequest i, LocationService s, ICurrentUser user, CancellationToken ct) =>
         {
             LocationLimits(i);
-            BranchScope.RequireInScope(user, kayitSubeId: null, SystemApiCommon.Clean(i.Sube));
+            BranchScope.RequireInScope(user, recordBranchId: null, SystemApiCommon.Clean(i.Sube));
             var id = await s.CreateAsync(LocationInput(i), ct);
             return await LocationAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/lokasyonlar/{id}", d) : SystemApiCommon.NotFound();
         }).AlanlariEsle(LocationRules);
@@ -51,7 +51,7 @@ public static partial class SystemDefinitionsApi
             BranchScope.RequireInScope(user, current.SubeId, current.Sube); // kapsam durumdan/doğrulamadan ÖNCE
             SystemApiCommon.RequireVersion(i.Surum);
             LocationLimits(i);
-            BranchScope.RequireInScope(user, kayitSubeId: null, SystemApiCommon.Clean(i.Sube));
+            BranchScope.RequireInScope(user, recordBranchId: null, SystemApiCommon.Clean(i.Sube));
             if (!await s.UpdateAsync(id, LocationInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
             return await LocationAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).AlanlariEsle(LocationRules);

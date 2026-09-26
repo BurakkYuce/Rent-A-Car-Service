@@ -64,12 +64,12 @@ else
         {
             <p class="onizleme-alt">@_post.AltBaslik</p>
         }
-        @foreach (var b in IcerikMetni.Bloklar(_post.Icerik))
+        @foreach (var b in ContentText.Blocks(_post.Icerik))
         {
             @switch (b.Tur)
             {
-                case IcerikMetni.BlokTuru.Baslik2: <h3>@b.Metin</h3> break;
-                case IcerikMetni.BlokTuru.Baslik3: <h4>@b.Metin</h4> break;
+                case ContentText.BlockType.Baslik2: <h3>@b.Metin</h3> break;
+                case ContentText.BlockType.Baslik3: <h4>@b.Metin</h4> break;
                 default: <p>@b.Metin</p> break;
             }
         }
@@ -90,7 +90,7 @@ else
     private string? Aciklama => _post is null ? null
         : !string.IsNullOrWhiteSpace(_post.MetaAciklama) ? _post.MetaAciklama
         : !string.IsNullOrWhiteSpace(_post.Ozet) ? _post.Ozet
-        : IcerikMetni.Ozet(_post.Icerik);
+        : ContentText.Summary(_post.Icerik);
 
     protected override async Task OnInitializedAsync()
     {

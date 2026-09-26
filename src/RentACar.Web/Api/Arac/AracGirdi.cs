@@ -117,7 +117,7 @@ internal static class AracGirdi
                 throw new ValidationException("Şube zorunludur (şubeye bağlı kullanıcı kendi şubesini seçmelidir).", "sube");
             return;
         }
-        BranchScope.RequireInScope(kullanici, (await subeler.FindByAdAsync(s, ct))?.Id, s);
+        BranchScope.RequireInScope(kullanici, (await subeler.FindByNameAsync(s, ct))?.Id, s);
     }
 
     /// <summary>Not alanındaki cari bu kiracıda olmalı (RLS kapsamlı okuma; başka kiracının kimliği "yok"tur).</summary>
@@ -137,10 +137,10 @@ internal static class AracGirdi
         Plaka = i.Plaka ?? string.Empty,
         Marka = i.Marka, Tip = i.Tip, Grup = i.Grup, GrupBilincliBos = i.GrupBilincliBos, VitrinAdet = i.VitrinAdet,
         Segment = i.Segment, Sipp = i.Sipp, Renk = i.Renk, ModelYili = i.ModelYili,
-        Vites = F5Ortak.EnumAdi<Vites>(i.Vites, "vites"),
+        Vites = F5Ortak.EnumAdi<Transmission>(i.Vites, "vites"),
         SasiNo = i.SasiNo, MotorNo = i.MotorNo, Sube = i.Sube,
         Durum = F5Ortak.EnumAdi<VehicleStatus>(i.Durum, "durum") ?? VehicleStatus.Musait,
-        FiloDurum = F5Ortak.EnumAdi<FiloStatus>(i.FiloDurum, "filoDurum"),
+        FiloDurum = F5Ortak.EnumAdi<FleetLifecycleStatus>(i.FiloDurum, "filoDurum"),
         Km = i.Km,
         Yakit = F5Ortak.EnumAdi<FuelType>(i.Yakit, "yakit"),
         MotorGucu = i.MotorGucu, SilindirHacmi = i.SilindirHacmi, RuhsatNo = i.RuhsatNo, TescilTarihi = U(i.TescilTarihi),

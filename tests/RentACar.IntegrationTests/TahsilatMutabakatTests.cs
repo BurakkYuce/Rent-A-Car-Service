@@ -31,7 +31,7 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         IServiceProvider sp, string unvan, string plaka, decimal gunluk, int gun)
     {
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = unvan });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = unvan });
         var arac = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = plaka });
         var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
@@ -66,7 +66,7 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         // C: 1 gün × 700 → HİÇ faturalanmadı, hiç tahsil edilmedi.
         var (c, _) = await KiraAsync(sp, "Gama", "34 MT 03", 700m, 1);
 
-        var rows = await sp.GetRequiredService<ReportService>().GetTahsilatMutabakatAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetCollectionReconciliationAsync();
         Assert.Equal(3, rows.Count);
 
         var ra = Assert.Single(rows, x => x.RentalId == a);
@@ -106,7 +106,7 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         var txId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 800m, RentalId = kira });
         await cash.ReverseAsync(txId);
 
-        var row = Assert.Single(await sp.GetRequiredService<ReportService>().GetTahsilatMutabakatAsync());
+        var row = Assert.Single(await sp.GetRequiredService<ReportService>().GetCollectionReconciliationAsync());
         // 800 alındı, 800 geri alındı → net tahsilat 0.
         Assert.Equal(0m, row.Tahsilat);
         Assert.Equal(0m, row.TahsilatAyrimi);
@@ -125,13 +125,13 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         var faturaId = await inv.CreateFromRentalAsync(kira);
         var top = (await sp.GetRequiredService<RentalService>().GetAsync(kira))!.GenelToplam;
 
-        var once = Assert.Single(await sp.GetRequiredService<ReportService>().GetTahsilatMutabakatAsync());
+        var once = Assert.Single(await sp.GetRequiredService<ReportService>().GetCollectionReconciliationAsync());
         Assert.Equal(top, once.Faturalanan);
 
-        await inv.CreateIadeAsync(faturaId);
+        await inv.CreateRefundAsync(faturaId);
 
         // İade sonrası faturalanan SIFIRA döner (iade-netli) → fatura farkı tüm borç kadar.
-        var sonra = Assert.Single(await sp.GetRequiredService<ReportService>().GetTahsilatMutabakatAsync());
+        var sonra = Assert.Single(await sp.GetRequiredService<ReportService>().GetCollectionReconciliationAsync());
         Assert.Equal(0m, sonra.Faturalanan);
         Assert.Equal(top, sonra.FaturaFarki);
     }
@@ -152,35 +152,35 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         var aTop = (await sp.GetRequiredService<RentalService>().GetAsync(a))!.GenelToplam;
         await cash.CollectAsync(new CashInput { CariId = cariA, Tutar = aTop, RentalId = a });
 
-        Assert.Equal(2, (await rapor.GetTahsilatMutabakatAsync()).Count);
-        Assert.Equal(2, (await rapor.GetTahsilatMutabakatAsync(new TahsilatMutabakatFilter())).Count);
+        Assert.Equal(2, (await rapor.GetCollectionReconciliationAsync()).Count);
+        Assert.Equal(2, (await rapor.GetCollectionReconciliationAsync(new TahsilatMutabakatFilter())).Count);
 
         // Metin: müşteri adı / plaka (boşluklu giriş de bulmalı) / sözleşme no
-        Assert.Equal(a, Assert.Single(await rapor.GetTahsilatMutabakatAsync(
+        Assert.Equal(a, Assert.Single(await rapor.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Ara = "alfa" })).RentalId);
-        Assert.Equal(b, Assert.Single(await rapor.GetTahsilatMutabakatAsync(
+        Assert.Equal(b, Assert.Single(await rapor.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Ara = "06 BT" })).RentalId);
 
         // Bakiye durumu
-        Assert.Equal(a, Assert.Single(await rapor.GetTahsilatMutabakatAsync(
+        Assert.Equal(a, Assert.Single(await rapor.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { BakiyeDurumu = "kapali" })).RentalId);
-        Assert.Equal(b, Assert.Single(await rapor.GetTahsilatMutabakatAsync(
+        Assert.Equal(b, Assert.Single(await rapor.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { BakiyeDurumu = "acik" })).RentalId);
 
         // Durum
-        Assert.Equal(2, (await rapor.GetTahsilatMutabakatAsync(
+        Assert.Equal(2, (await rapor.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Durum = RentalStatus.Kirada })).Count);
-        Assert.Empty(await rapor.GetTahsilatMutabakatAsync(
+        Assert.Empty(await rapor.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Durum = RentalStatus.Iptal }));
 
         // Sağlıklı veride "yalnız tutarsız" BOŞ dönmeli (yanlış alarm yok).
-        Assert.Empty(await rapor.GetTahsilatMutabakatAsync(
+        Assert.Empty(await rapor.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { YalnizTutarsiz = true }));
 
         // Tarih aralığı (kira başlangıcına göre)
-        Assert.Equal(2, (await rapor.GetTahsilatMutabakatAsync(
+        Assert.Equal(2, (await rapor.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Bas = T0.AddDays(-1) })).Count);
-        Assert.Empty(await rapor.GetTahsilatMutabakatAsync(
+        Assert.Empty(await rapor.GetCollectionReconciliationAsync(
             new TahsilatMutabakatFilter { Bit = T0.AddDays(-1) }));
     }
 
@@ -197,7 +197,7 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
         await sp.GetRequiredService<CashService>()
             .CollectAsync(new CashInput { CariId = cari, Tutar = top, RentalId = kira });
 
-        var ozet = await sp.GetRequiredService<ReportService>().GetTahsilatFaturaAsync();
+        var ozet = await sp.GetRequiredService<ReportService>().GetCollectionInvoiceAsync();
         Assert.Equal(1, ozet.FaturaAdet);
         Assert.Equal(top, ozet.FaturaToplam);
         Assert.Equal(1, ozet.TahsilatAdet);
@@ -213,6 +213,6 @@ public sealed class TahsilatMutabakatTests(PostgresFixture fx)
             await KiraAsync(s1.ServiceProvider, "Gizli", "34 GZ 99", 1000m, 1);
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ReportService>().GetTahsilatMutabakatAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ReportService>().GetCollectionReconciliationAsync());
     }
 }

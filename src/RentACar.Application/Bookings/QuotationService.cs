@@ -42,7 +42,7 @@ public sealed class QuotationService(
         // Tarih politikası GİRİŞ noktasında (adversarial BULGU 1/2): teklif → kabul → rezervasyon → kira
         // zinciri bu guard'ı atlıyordu. Teklif rezervasyona dönüşeceği için rez politikası uygulanır (geçmişe
         // kapalı + ≤+1yıl). Kabul/convert TEKRAR guard'lamaz → gün sonra yaşlanmış teklifin kabulü kilitlenmez.
-        TarihPolitikasi.RezervasyonBaslangic(input.BasTar);
+        DatePolicy.ReservationStart(input.BasTar);
         // Varlık kontrolü (DEVIR §6 Low): teklif → rezervasyon → kira zinciri kimlikleri taşır; müşteri/araç bu
         // kiracıda var olmalı. /api/ui ve Blazor aynı kuraldan geçer (uç kopyası kaldırıldı).
         await BookingPartyCheck.RequireAsync(customers, vehicles, input.MusteriId, input.VehicleId, ct);
@@ -92,7 +92,7 @@ public sealed class QuotationService(
         // F5.1 adversarial H1: zaten kabul edilmiş teklif (yanıtı kaybolan tekrar dahil) → 409 cakisma; eşzamanlı
         // kabulde aynı karar repo'da satır kilidi ALTINDA yeniden verilir (bu ön kontrol yalnız hızlı yol).
         if (quotation.Durum == QuotationStatus.Kabul && quotation.ReservationId is not null)
-            throw new EszamanliDegisiklikException(EszamanliDegisiklikException.TeklifKabulMesaji);
+            throw new ConcurrentModificationException(ConcurrentModificationException.QuotationAcceptMessage);
         if (quotation.Durum is not (QuotationStatus.Taslak or QuotationStatus.Gonderildi))
             throw new ValidationException("Yalnız Taslak/Gönderildi teklif kabul edilebilir.");
 

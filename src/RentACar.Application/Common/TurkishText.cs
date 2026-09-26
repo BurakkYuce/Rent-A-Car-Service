@@ -27,7 +27,7 @@ public static class TurkishText
     /// <c>lower()</c>/ILIKE yetmez: sonucu DB'nin LC_CTYPE'ına bağlı — <c>en_US</c>'de <c>lower('I')='i'</c>
     /// olduğundan "IŞIK" ile "ışık" eşleşmez. Önce ASCII'ye çevrim, sonra küçültme her yerelde aynıdır.
     /// </summary>
-    public static IReadOnlyList<(char From, char To)> Esleme => Map;
+    public static IReadOnlyList<(char From, char To)> Mapping => Map;
 
     /// <summary>Türkçe harfleri (büyük+küçük) ASCII hedefe eşler, sonra kalan A-Z'yi invariant küçültür.</summary>
     public static string Normalize(string s)

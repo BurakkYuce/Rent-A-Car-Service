@@ -12,7 +12,7 @@ namespace RentACar.Web.Common;
 ///
 /// <para><b>Kurallar:</b>
 /// <list type="number">
-/// <item>Sunucunun deterministik anahtarı varsa O kazanır (<see cref="IslemAnahtariTuretici.Sec"/>) —
+/// <item>Sunucunun deterministik anahtarı varsa O kazanır (<see cref="OperationKeyDeriver.Select"/>) —
 /// başlık onu ezemez.</item>
 /// <item>Yoksa <c>Idempotency-Key</c> başlığı → <c>UUIDv5(tenantId | userId | başlık)</c>. Ham değer
 /// ASLA anahtar/PK olmaz. Kiracı ve kullanıcı oturum claim'lerinden okunur (istemci gövdesinden DEĞİL).</item>
@@ -28,7 +28,7 @@ public static class IdempotencyBasligi
 
     /// <summary>Öncelik kuralıyla seçilmiş anahtar (deterministik ▸ başlıktan türetilen ▸ null).</summary>
     public static Guid? Anahtar(HttpContext ctx, Guid? deterministik = null)
-        => IslemAnahtariTuretici.Sec(deterministik, BasliktanTuret(ctx));
+        => OperationKeyDeriver.Select(deterministik, BasliktanTuret(ctx));
 
     /// <summary>
     /// <see cref="Anahtar"/> ile aynı seçim; ancak ne deterministik anahtar ne başlık varsa 400
@@ -51,16 +51,16 @@ public static class IdempotencyBasligi
         if (degerler.Count != 1)
             throw new ValidationException("Idempotency-Key başlığı tek değer olmalı.", Ad);
         var deger = degerler[0];
-        if (!IslemAnahtariTuretici.GecerliMi(deger))
+        if (!OperationKeyDeriver.IsValid(deger))
             throw new ValidationException(
-                $"Idempotency-Key geçersiz: {IslemAnahtariTuretici.EnAzUzunluk}-{IslemAnahtariTuretici.EnFazlaUzunluk} " +
+                $"Idempotency-Key geçersiz: {OperationKeyDeriver.MinLength}-{OperationKeyDeriver.MaxLength} " +
                 "karakter, yalnız görünür ASCII olmalı.", Ad);
 
         var tenant = ClaimGuid(ctx, IdentityClaims.TenantId);
         var user = ClaimGuid(ctx, IdentityClaims.UserId);
         if (tenant is null || user is null)
             throw new InvalidOperationException("Idempotency-Key kimliksiz istekte türetilemez (tenant/kullanıcı claim'i yok).");
-        return IslemAnahtariTuretici.Turet(tenant.Value, user.Value, deger!);
+        return OperationKeyDeriver.Derive(tenant.Value, user.Value, deger!);
     }
 
     private static Guid? ClaimGuid(HttpContext ctx, string tip)

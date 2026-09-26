@@ -169,7 +169,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _balances = await Reports.GetCariBalancesAsync(new CariBakiyeFilter
+        _balances = await Reports.GetAccountBalancesAsync(new CariBakiyeFilter
         {
             Ara = Ara, OzelKod = OzelKod, Sinif = Sinif, Doviz = Doviz,
             Kurumsal = Tip switch { "kurumsal" => true, "bireysel" => false, _ => (bool?)null },
@@ -179,7 +179,7 @@
 
         // KART toplamları FİLTREDEN BAĞIMSIZ: "toplam alacağımız" firmanın geneli için bir
         // rakamdır; filtrelenmiş alt kümenin toplamı olarak göstermek yanıltıcı olur.
-        var tumu = await Reports.GetCariBalancesAsync();
+        var tumu = await Reports.GetAccountBalancesAsync();
         _borcluToplam = tumu.Where(b => b.Bakiye > 0).Sum(b => b.Bakiye);
         _alacakliToplam = -tumu.Where(b => b.Bakiye < 0).Sum(b => b.Bakiye);
 

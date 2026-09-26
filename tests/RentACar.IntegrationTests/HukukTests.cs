@@ -22,8 +22,8 @@ public sealed class HukukTests(PostgresFixture fx)
 {
     private static HukukDosyaInput Input(string no) => new()
     {
-        DosyaNo = no, Tur = HukukTuru.Icra, Avukat = "Av. Demir", Tutar = 15000m,
-        Durum = HukukDurum.Acik, Tarih = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero), Aciklama = "İcra takibi"
+        DosyaNo = no, Tur = LegalType.Icra, Avukat = "Av. Demir", Tutar = 15000m,
+        Durum = LegalStatus.Acik, Tarih = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero), Aciklama = "İcra takibi"
     };
 
     [Fact]
@@ -31,19 +31,19 @@ public sealed class HukukTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<HukukDosyaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<LegalCaseService>();
 
         var id = await svc.CreateAsync(Input("2026/123"));
         var h = await svc.GetAsync(id);
         Assert.NotNull(h);
         Assert.Equal("2026/123", h!.DosyaNo);
-        Assert.Equal(HukukTuru.Icra, h.Tur);
+        Assert.Equal(LegalType.Icra, h.Tur);
         Assert.Equal(15000m, h.Tutar);
-        Assert.Equal(HukukDurum.Acik, h.Durum);
+        Assert.Equal(LegalStatus.Acik, h.Durum);
 
         Assert.True(await svc.UpdateAsync(id, new HukukDosyaInput
-        { DosyaNo = "2026/123", Tur = HukukTuru.Icra, Tutar = 15000m, Durum = HukukDurum.Kapali }));
-        Assert.Equal(HukukDurum.Kapali, (await svc.GetAsync(id))!.Durum);
+        { DosyaNo = "2026/123", Tur = LegalType.Icra, Tutar = 15000m, Durum = LegalStatus.Kapali }));
+        Assert.Equal(LegalStatus.Kapali, (await svc.GetAsync(id))!.Durum);
 
         Assert.Single(await svc.ListAsync());
         Assert.True(await svc.DeleteAsync(id));
@@ -55,7 +55,7 @@ public sealed class HukukTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<HukukDosyaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<LegalCaseService>();
 
         await svc.CreateAsync(Input("2026/999"));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Input("2026/999")));
@@ -69,10 +69,10 @@ public sealed class HukukTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using (var s1 = host.ScopeFor(t1))
-            await s1.ServiceProvider.GetRequiredService<HukukDosyaService>().CreateAsync(Input("2026/123"));
+            await s1.ServiceProvider.GetRequiredService<LegalCaseService>().CreateAsync(Input("2026/123"));
 
         using var s2 = host.ScopeFor(t2);
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<HukukDosyaService>().ListAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<LegalCaseService>().ListAsync());
     }
 
     [Fact]
@@ -81,8 +81,8 @@ public sealed class HukukTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         // Muhasebe: FinanceWrite/ViewReports var, OperationsWrite YOK → yazma reddedilir.
         using var scope = host.ScopeFor(Guid.NewGuid(), role: UserRole.Muhasebe);
-        await Assert.ThrowsAsync<YetkiYokException>(
-            () => scope.ServiceProvider.GetRequiredService<HukukDosyaService>().CreateAsync(Input("2026/1")));
+        await Assert.ThrowsAsync<NoPermissionException>(
+            () => scope.ServiceProvider.GetRequiredService<LegalCaseService>().CreateAsync(Input("2026/1")));
     }
 
     // ---------------- FAZ-41 ----------------
@@ -96,11 +96,11 @@ public sealed class HukukTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<HukukDosyaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<LegalCaseService>();
 
         var id = await svc.CreateAsync(new HukukDosyaInput
         {
-            DosyaNo = "2026/41", Tur = HukukTuru.Icra, Tutar = 1000m, Tahsilat = 300m,
+            DosyaNo = "2026/41", Tur = LegalType.Icra, Tutar = 1000m, Tahsilat = 300m,
             FaturaNoTemp = "FTR-77", Avukat = "Av. Demir", AvukatTel = "0212 111 22 33",
             AvukatMail = "demir@ornek.com", Avukat2Ad = "Av. Yılmaz", Avukat2Tel = "0532 444 55 66",
             Avukat2Mail = "yilmaz@ornek.com"
@@ -129,7 +129,7 @@ public sealed class HukukTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<HukukDosyaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<LegalCaseService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
             new HukukDosyaInput { DosyaNo = "2026/NEG", Tutar = 100m, Tahsilat = -1m }));
@@ -155,7 +155,7 @@ public sealed class HukukTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Hukuk", Soyad = "Müşterisi" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Hukuk", Soyad = "Müşterisi" });
         await sp.GetRequiredService<CashService>().CollectAsync(new CashInput
         { CariId = cari, Tutar = 700m, Hesap = LedgerAccountType.Kasa });
 
@@ -166,7 +166,7 @@ public sealed class HukukTests(PostgresFixture fx)
             return await c.AccountLedgerEntries.AsNoTracking().CountAsync();
         }
         async Task<decimal> BakiyeAsync()
-            => (await sp.GetRequiredService<ReportService>().GetCariBalancesAsync())
+            => (await sp.GetRequiredService<ReportService>().GetAccountBalancesAsync())
                 .Where(b => b.CariId == cari).Sum(b => b.Bakiye);
 
         var satirOnce = await SatirSayisiAsync();
@@ -174,7 +174,7 @@ public sealed class HukukTests(PostgresFixture fx)
         Assert.Equal(2, satirOnce);        // tahsilat = 1 borç + 1 alacak
         Assert.Equal(-700m, bakiyeOnce);   // müşteri alacaklı (Credit → negatif)
 
-        var svc = sp.GetRequiredService<HukukDosyaService>();
+        var svc = sp.GetRequiredService<LegalCaseService>();
         var dosya = await svc.CreateAsync(new HukukDosyaInput
         { DosyaNo = "2026/LEDGER", CariId = cari, Tutar = 5_000m, Tahsilat = 987_654_321m });
         await svc.UpdateAsync(dosya, new HukukDosyaInput
@@ -195,9 +195,9 @@ public sealed class HukukTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var cust = sp.GetRequiredService<CustomerService>();
-        var ali = await cust.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ali", Soyad = "Veli" });
-        var ayse = await cust.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ayşe", Soyad = "Kaya" });
-        var svc = sp.GetRequiredService<HukukDosyaService>();
+        var ali = await cust.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ali", Soyad = "Veli" });
+        var ayse = await cust.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Kaya" });
+        var svc = sp.GetRequiredService<LegalCaseService>();
 
         await svc.CreateAsync(new HukukDosyaInput
         { DosyaNo = "2026/A1", CariId = ali, Tutar = 100m, FaturaNoTemp = "FTR-1", Tarih = D(2026, 1, 10) });
@@ -230,10 +230,10 @@ public sealed class HukukTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
-            await s1.ServiceProvider.GetRequiredService<HukukDosyaService>().CreateAsync(Input("2026/ISO"));
+            await s1.ServiceProvider.GetRequiredService<LegalCaseService>().CreateAsync(Input("2026/ISO"));
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<HukukDosyaService>()
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<LegalCaseService>()
             .SearchAsync(new HukukDosyaFilter { DosyaNo = "2026" }));
     }
 

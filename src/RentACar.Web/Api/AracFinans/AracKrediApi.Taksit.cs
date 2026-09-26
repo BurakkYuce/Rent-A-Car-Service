@@ -22,8 +22,8 @@ public static partial class AracKrediApi
         "Bu işlem anahtarı başka bir işlemde kullanılmış; taksit ödenmedi. Kayıtları kontrol edip yeni işlem başlatın.";
 
     private static async Task<Results<Ok<TaksitOdeYaniti>, ProblemHttpResult>> TaksitOde(
-        Guid id, TaksitOdeIstegi istek, HttpContext http, AracKrediService svc, IDbContextFactory<AppDbContext> dbf,
-        ICurrentUser kullanici, KurCozucu kurResolver, CancellationToken ct)
+        Guid id, TaksitOdeIstegi istek, HttpContext http, VehicleLoanService svc, IDbContextFactory<AppDbContext> dbf,
+        ICurrentUser kullanici, ExchangeRateResolver kurResolver, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         var k = await KapsamliAsync(id, svc, dbf, kullanici, ct); // kapsam durumdan ÖNCE (403)
@@ -37,24 +37,24 @@ public static partial class AracKrediApi
         // (2) Giriş kuralları; bayatlık (sira ≠ ödenen+1) kilit altında serviste → 409 cakisma.
         if (istek.Sira < 1 || istek.Sira > k.TaksitSayisi)
             throw new ValidationException($"Taksit sırası 1 ile {k.TaksitSayisi} arasında olmalıdır.", "sira");
-        await Alanli("odemeTarihi", () => { TarihPolitikasi.ParaTarihi(tarih, "Taksit"); return Task.CompletedTask; });
+        await Alanli("odemeTarihi", () => { DatePolicy.MoneyDate(tarih, "Taksit"); return Task.CompletedTask; });
         // Adversarial L3: dövizli kredide ödeme günü kuru bulunamazsa hata errors[kur] ile döner (servis de aynı
         // çözümü yapar; burada yalnız alanlı ön kontrol — TRY'de kur daima 1, çağrı gereksiz).
         if (k.Currency != AracFinansOrtak.TemelDoviz)
-            await Alanli("kur", () => kurResolver.CozAsync(k.Currency, null, tarih ?? DateTimeOffset.UtcNow, ct));
+            await Alanli("kur", () => kurResolver.ResolveAsync(k.Currency, null, tarih ?? DateTimeOffset.UtcNow, ct));
 
         bool odendi;
         try
         {
-            odendi = await svc.TaksitOdeAsync(id, hesap, tarih, anahtar, istek.HesapId, ct, beklenenSira: istek.Sira);
+            odendi = await svc.PayInstallmentAsync(id, hesap, tarih, anahtar, istek.HesapId, ct, expectedSequence: istek.Sira);
         }
-        catch (MukerrerIslemException ex) when (ex.Mevcut is null)
+        catch (DuplicateOperationException ex) when (ex.Existing is null)
         {
             // Yarış: aynı anahtarla eşzamanlı ikinci istek kilit içi anahtar çitine takıldı → yazılmış kaydı bildir.
             await MevcutTaksitAsync(dbf, anahtar, k, istek, hesap, tarih, ct);
             throw;
         }
-        if (!odendi) throw new EszamanliDegisiklikException("Kredinin tüm taksitleri ödenmiş; taksit ödenmedi.");
+        if (!odendi) throw new ConcurrentModificationException("Kredinin tüm taksitleri ödenmiş; taksit ödenmedi.");
 
         await using var db = await dbf.CreateDbContextAsync(ct);
         var g = await db.Expenses.AsNoTracking().FirstAsync(e => e.IslemAnahtari == anahtar, ct);
@@ -75,14 +75,14 @@ public static partial class AracKrediApi
         if (g is null) return;
         var onek = $"Kredi taksiti {k.No} #";
         if (g.Tip != ExpenseType.Finansman || g.Aciklama is not { } a || !a.StartsWith(onek, StringComparison.Ordinal))
-            throw new MukerrerIslemException(AnahtarBaskaIslemde);
+            throw new DuplicateOperationException(AnahtarBaskaIslemde);
         var siraMetni = a[onek.Length..].Split('/')[0];
         var sira = int.TryParse(siraMetni, out var s) ? s : 0;
         var hesapId = istek.HesapId is { } h && h != Guid.Empty ? h : (Guid?)null;
         var ayni = sira == istek.Sira && g.KasaBankaHesap == hesap && g.FinansalHesapId == hesapId
                    && AracFinansOrtak.AyniAn(g.Tarih, tarih);
         var tutar = g.GenelToplam.ToString("N2", Tr);
-        throw new MukerrerIslemException(
+        throw new DuplicateOperationException(
             string.Format(Tr, ayni ? TaksitZatenOdendi : TaksitBaskaOdeme, g.No, tutar, g.Currency),
             new MevcutIslem(g.Id, g.No, g.GenelToplam, g.Currency, ayni));
     }

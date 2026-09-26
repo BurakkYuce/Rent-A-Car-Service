@@ -37,7 +37,7 @@ public sealed class SurucuUcretleriTests(PostgresFixture fx)
 
     private static Task<Guid> MusteriAsync(IServiceProvider sp, string ad, DateTimeOffset? dogum) =>
         sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = ad, Soyad = "SU", DogumTarihi = dogum });
+        { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "SU", DogumTarihi = dogum });
 
     [Fact]
     public async Task Genc_ve_ek_surucu_ucretleri_addon_satiri_olur()
@@ -103,16 +103,16 @@ public sealed class SurucuUcretleriTests(PostgresFixture fx)
         var grup = new Domain.Entities.VehicleGroup
         { Kod = "EKO", Ad = "E", GencSurucuYas = 25, GencSurucuUcretGunluk = 100m, EkSurucuUcretGunluk = 50m };
         var notlar = new List<string>();
-        var satirlar = FeeLineService.HesaplaSaf(grup, 3, Bas, Bas.AddYears(-20), true, "EUR", notlar);
+        var satirlar = FeeLineService.CalculatePure(grup, 3, Bas, Bas.AddYears(-20), true, "EUR", notlar);
         Assert.Empty(satirlar);
         Assert.Contains(notlar, n => n.Contains("Dövizli"));
 
         // TL'de aynı girdi 2 satır üretir (kontrast). TL EŞANLAMLILARI da TL sayılır — adversarial B1:
         // "₺"/"TRL" ayrı alias listesinde FX sanılıp ücret sessizce atlanıyordu (NormalizeKod tek kaynak).
         notlar.Clear();
-        Assert.Equal(2, FeeLineService.HesaplaSaf(grup, 3, Bas, Bas.AddYears(-20), true, "TL", notlar).Count);
-        Assert.Equal(2, FeeLineService.HesaplaSaf(grup, 3, Bas, Bas.AddYears(-20), true, "₺", notlar).Count);
-        Assert.Equal(2, FeeLineService.HesaplaSaf(grup, 3, Bas, Bas.AddYears(-20), true, "trl", notlar).Count);
+        Assert.Equal(2, FeeLineService.CalculatePure(grup, 3, Bas, Bas.AddYears(-20), true, "TL", notlar).Count);
+        Assert.Equal(2, FeeLineService.CalculatePure(grup, 3, Bas, Bas.AddYears(-20), true, "₺", notlar).Count);
+        Assert.Equal(2, FeeLineService.CalculatePure(grup, 3, Bas, Bas.AddYears(-20), true, "trl", notlar).Count);
     }
 
     [Fact]
@@ -180,8 +180,8 @@ public sealed class SurucuUcretleriTests(PostgresFixture fx)
         { MusteriId = genc, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 1000m });
 
         // Sistem tanımı artık mevcut (create yarattı) — manuel/matris yolundan EKLENEMEZ (çift ücret çiti).
-        var sysTanim = (await sp.GetRequiredService<RentACar.Application.EkHizmetler.EkHizmetTanimService>()
-            .ListAsync()).Single(t => t.Kod == FeeLineService.GencSurucuKod);
+        var sysTanim = (await sp.GetRequiredService<RentACar.Application.EkHizmetler.AddOnDefinitionService>()
+            .ListAsync()).Single(t => t.Kod == FeeLineService.YoungDriverCode);
         var ex = await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
             () => sp.GetRequiredService<RentalAddOnService>().AddAsync(id, sysTanim.Id, 1m));
         Assert.Contains("manuel eklenemez", ex.Message);
@@ -217,9 +217,9 @@ public sealed class SurucuUcretleriTests(PostgresFixture fx)
         var v = await GrupluAracAsync(sp, "34 SU 05");
         var genc = await MusteriAsync(sp, "Genc", Bas.AddYears(-22).AddDays(-1));
         var ikinci = await MusteriAsync(sp, "Ikinci", null);
-        var hesap = sp.GetRequiredService<KiraHesapService>();
+        var hesap = sp.GetRequiredService<RentalCalculationService>();
 
-        var onizleme = await hesap.HesaplaAsync(new KiraHesapIstek(
+        var onizleme = await hesap.CalculateAsync(new KiraHesapIstek(
             VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: 1000m,
             FiyatTuru: null, Doviz: null, CikisOfisi: null, EkHizmetler: [],
             MusteriId: genc, IkinciSurucuId: ikinci));
@@ -233,7 +233,7 @@ public sealed class SurucuUcretleriTests(PostgresFixture fx)
 
         // Doğum tarihi kayıtsız müşteri: önizleme NOT düşer (kayıt sessizce ücretsiz — tahmin yok).
         var dogumsuz = await MusteriAsync(sp, "Dogumsuz", null);
-        var notlu = await hesap.HesaplaAsync(new KiraHesapIstek(
+        var notlu = await hesap.CalculateAsync(new KiraHesapIstek(
             VehicleId: v, BasTar: Bas, BitTar: Bas.AddDays(3), GunlukUcret: 1000m,
             FiyatTuru: null, Doviz: null, CikisOfisi: null, EkHizmetler: [], MusteriId: dogumsuz));
         Assert.NotNull(notlu.Notlar);

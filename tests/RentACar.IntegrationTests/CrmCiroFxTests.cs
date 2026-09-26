@@ -34,10 +34,10 @@ public sealed class CrmCiroFxTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await sp.GetRequiredService<SabitKurService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
+        await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
 
-        var cariFx = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Euro", Soyad = "Musteri" });
-        var cariTl = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Lira", Soyad = "Musteri" });
+        var cariFx = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Euro", Soyad = "Musteri" });
+        var cariTl = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Lira", Soyad = "Musteri" });
         await KiraAsync(sp, cariFx, "34 CX 01", "EURO"); // 300 EUR @40 → 12.000 TL
         await KiraAsync(sp, cariTl, "34 CX 02", "TL");   // 300 TL (snapshot 1 — regresyon)
 
@@ -47,7 +47,7 @@ public sealed class CrmCiroFxTests(PostgresFixture fx)
         Assert.Equal(300m, rows.Items.Single(r => r.Id == cariTl).Ciro);   // TRY snapshot=1 korunur
 
         // Segment: 12.000 ≥ 10.000 → VIP; 300 TL → Standart (eski bug: EUR müşteri "Standart" kalırdı).
-        var seg = await sp.GetRequiredService<ReportService>().GetMusteriSegmentAsync();
+        var seg = await sp.GetRequiredService<ReportService>().GetCustomerSegmentAsync();
         Assert.Equal("VIP", seg.Single(s => s.CariId == cariFx).Segment);
         Assert.Equal("Standart", seg.Single(s => s.CariId == cariTl).Segment);
     }

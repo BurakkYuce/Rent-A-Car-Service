@@ -58,12 +58,12 @@ public static class FiloBildirimUretici
         // (2) Tut/Sat — ≥2 kural (filo panosuyla aynı ham + aynı hesap).
         var paket = await OrtakSorgular.TutSatHamAsync(db, now, ct);
         var hamById = paket.Ham.ToDictionary(h => h.VehicleId);
-        var grupOrt = GrupOrtalama.Hesapla(paket.Araclar, a => a.Grup,
+        var grupOrt = GroupAverage.Calculate(paket.Araclar, a => a.Grup,
             a => a.IkinciElDeger is > 0m ? hamById[a.Id].Gider12 / a.IkinciElDeger.Value : null);
         var ayCipasi = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero);
         foreach (var a in paket.Araclar)
         {
-            var s = TutSatHesap.Hesapla(hamById[a.Id], a.IkinciElDeger, GrupOrtalama.Deger(grupOrt, a.Grup), esik);
+            var s = HoldSellCalculation.Calculate(hamById[a.Id], a.IkinciElDeger, GroupAverage.Value(grupOrt, a.Grup), esik);
             if (s.Sinyal < 2) continue;
             Ekle("Tut/Sat", a.Id, ayCipasi, $"{a.Plaka}: tut/sat sinyali ({s.Sinyal}/3) — {s.Gerekceler[0]}");
         }

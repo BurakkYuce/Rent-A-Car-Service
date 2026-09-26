@@ -15,7 +15,7 @@ namespace RentACar.Web.Api.ServiceInsurance;
 
 /// <summary>
 /// <c>/api/ui/v1/regulasyon/*</c> + <c>/vade</c> (F9.1) — sigorta poliçesi (+ zeyil), MTV, muayene, vade panosu.
-/// İş mantığı <see cref="RegulationService"/> / <see cref="VadeService"/>'te.
+/// İş mantığı <see cref="RegulationService"/> / <see cref="DueService"/>'te.
 /// <para><b>İzin:</b> okuma OperationsWrite ∨ FinanceWrite ∨ ViewReports (Blazor sayfası tüm rollere açık); kayıt/zeyil
 /// OperationsWrite (bilgi kaydı, deftere yazmaz); ÖDEME FinanceWrite (dengeli defter: Borç Gider[araç] / Alacak
 /// Kasa-Banka).</para>
@@ -107,24 +107,24 @@ internal static partial class RegulationApi
 
     // ------------------------------------------------------------------ vade panosu
 
-    private static readonly SiralamaHaritasi<DueItemDto> DueSort = SiralamaHaritasi<DueItemDto>
-        .Olustur(x => x.VehicleId).Alan("plaka", x => x.Plaka).Alan("tur", x => x.Tur).Alan("bitis", x => x.Bitis)
+    private static readonly SortFieldMap<DueItemDto> DueSort = SortFieldMap<DueItemDto>
+        .Create(x => x.VehicleId).Alan("plaka", x => x.Plaka).Alan("tur", x => x.Tur).Alan("bitis", x => x.Bitis)
         .Alan("kalanGun", x => x.KalanGun);
 
     private static async Task<Ok<DueBoard>> DueBoardEndpoint(
-        string? kova, string? tur, string? plaka, int? sayfa, int? boyut, string? sirala, VadeService dues,
+        string? kova, string? tur, string? plaka, int? sayfa, int? boyut, string? sirala, DueService dues,
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var bucket = F5Ortak.EnumAdi<VadeBucket>(kova, "kova");
+        var bucket = F5Ortak.EnumAdi<DueBucket>(kova, "kova");
         var items = await S.VisibleAsync(dbf, user, await dues.GetAllAsync(ct: ct), i => i.VehicleId, ct);
         var plates = await S.PlatesAsync(dbf, items.Select(i => i.VehicleId), ct);
         var rows = items.Select(i => new DueItemDto(i.VehicleId, F5Ortak.Plaka(plates, i.VehicleId), i.Tur, i.Bitis, i.KalanGun,
             i.Bucket.ToString())).ToList();
         if (F5Ortak.Nz(tur) is { } t) rows = rows.Where(r => string.Equals(r.Tur, t, StringComparison.OrdinalIgnoreCase)).ToList();
         if (F5Ortak.Nz(plaka) is { } p) rows = rows.Where(r => r.Plaka.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList();
-        var summary = new DueSummary(rows.Count(r => r.Kova == nameof(VadeBucket.Gecmis)),
-            rows.Count(r => r.Kova == nameof(VadeBucket.YediGun)), rows.Count(r => r.Kova == nameof(VadeBucket.OtuzGun)),
-            rows.Count(r => r.Kova == nameof(VadeBucket.Ileri)));
+        var summary = new DueSummary(rows.Count(r => r.Kova == nameof(DueBucket.Gecmis)),
+            rows.Count(r => r.Kova == nameof(DueBucket.YediGun)), rows.Count(r => r.Kova == nameof(DueBucket.OtuzGun)),
+            rows.Count(r => r.Kova == nameof(DueBucket.Ileri)));
         if (bucket is { } b) rows = rows.Where(r => r.Kova == b.ToString()).ToList();
         return TypedResults.Ok(new DueBoard(summary, F5Ortak.Sayfala(rows, DueSort, sayfa, boyut, sirala)));
     }

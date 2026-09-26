@@ -30,7 +30,7 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
         return await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.Id == addOnId, ct);
     }
 
-    public async Task<RentalAddOn?> FindByIslemAnahtariAsync(Guid islemAnahtari, CancellationToken ct = default)
+    public async Task<RentalAddOn?> FindByOperationKeyAsync(Guid islemAnahtari, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.IslemAnahtari == islemAnahtari, ct);
@@ -68,7 +68,7 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
             // (DEVIR §5). Farklı kiralarla aynı anahtar yarışı kısmi unique index'te yakalanır (catch aşağıda).
             if (addOn.IslemAnahtari is { } anahtar
                 && await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.IslemAnahtari == anahtar, ct) is { } onceki)
-                throw RentalAddOnService.Mukerrer(onceki, addOn.RentalId, addOn.EkHizmetTanimId, addOn.Miktar);
+                throw RentalAddOnService.Duplicate(onceki, addOn.RentalId, addOn.EkHizmetTanimId, addOn.Miktar);
 
             var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct)
                 ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
@@ -80,7 +80,7 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
                 throw new ValidationException("Faturalanmış kiraya ek hizmet eklenemez.");
             // K2/O2 (denetim): ek hizmet tutarları TL girilir; FX kirada kira dövizine karışıp faturada ×Kur
             // çarpılırdı (500 TL koltuk → "500 EUR" satırı → 17.500 TL defter). v1 sınırı: FX kirada ek hizmet YOK.
-            if (RentACar.Application.Kur.KurService.NormalizeKod(rental.Doviz) != "TRY")
+            if (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(rental.Doviz) != "TRY")
                 throw new ValidationException("Dövizli kirada ek hizmet v1'de desteklenmiyor (tutar birimleri karışır).");
 
             db.RentalAddOns.Add(addOn);
@@ -92,7 +92,7 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
                 { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation } pg
                 && IdempotencyKisiti.MukerrerKisitiMi(pg.ConstraintName))
             {
-                throw new MukerrerIslemException(MukerrerIslemException.FarkliIcerikMesaji);
+                throw new DuplicateOperationException(DuplicateOperationException.DifferentContentMessage);
             }
 
             await RecomputeAsync(db, rental, ct);

@@ -35,7 +35,7 @@ public sealed class RegulasyonGiderAtfiTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 GA 01", Durum = VehicleStatus.Musait });
         var reg = sp.GetRequiredService<RegulationService>();
         var mtv = await reg.AddMtvAsync(v, "2026/1", 2000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa);
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa);
         Assert.Equal(v, await GiderRef(sp, "MtvOdeme"));   // araca atıf (null değil)
     }
 
@@ -49,7 +49,7 @@ public sealed class RegulasyonGiderAtfiTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
         var insp = await reg.AddInspectionAsync(v, new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2028, 1, 10, 0, 0, 0, TimeSpan.Zero), 500m);
-        await reg.MuayeneOdeAsync(insp, LedgerAccountType.Kasa, ceza: 100m);
+        await reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, penalty: 100m);
         Assert.Equal(v, await GiderRef(sp, "MuayeneOdeme"));
     }
 
@@ -63,7 +63,7 @@ public sealed class RegulasyonGiderAtfiTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
         var pol = await reg.AddInsuranceAsync(v, InsuranceType.Kasko, new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2027, 1, 1, 0, 0, 0, TimeSpan.Zero), 1200m, "POL-1", "Sig", null);
-        await reg.SigortaOdeAsync(pol, LedgerAccountType.Kasa);
+        await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa);
         Assert.Equal(v, await GiderRef(sp, "SigortaOdeme"));
     }
 }

@@ -9,11 +9,11 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// <summary>
 /// Mesaj şablonları + giden mesaj kaydı. Tenant izolasyonu query filter + RLS ile otomatik.
 ///
-/// <para><b>İdempotency burada:</b> <see cref="MesajEkleAsync"/> benzersiz index ihlalini (23505)
+/// <para><b>İdempotency burada:</b> <see cref="AddMessageAsync"/> benzersiz index ihlalini (23505)
 /// YUTAR ve <c>false</c> döner — "başka bir çağrı bu olayı zaten yazdı" demektir, hata değil.
 /// Çağıran bunu görüp ikinci mesajı GÖNDERMEZ.</para>
 /// </summary>
-public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : IMesajRepository, IMessageTemplateVersionStore
+public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : IMessageRepository, IMessageTemplateVersionStore
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -47,11 +47,11 @@ public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : I
                     await SatirSurumu.KilitleAsync(db, SatirSurumu.MesajSablonlari, k, ct);
                     var current = await SatirSurumu.OkuAsync(db, SatirSurumu.MesajSablonlari, k, ct);
                     if (expectedVersion is null || !string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
-                        throw new Application.Common.EszamanliDegisiklikException(Application.Common.EszamanliDegisiklikException.KayitMesaji);
+                        throw new Application.Common.ConcurrentModificationException(Application.Common.ConcurrentModificationException.RecordMessage);
                 }
                 else if (expectedVersion is not null)
                 {
-                    throw new Application.Common.EszamanliDegisiklikException(Application.Common.EszamanliDegisiklikException.KayitMesaji);
+                    throw new Application.Common.ConcurrentModificationException(Application.Common.ConcurrentModificationException.RecordMessage);
                 }
 
                 var s = await db.MesajSablonlari.FirstOrDefaultAsync(x => x.Tur == input.Tur && x.Kanal == input.Kanal, ct);
@@ -68,11 +68,11 @@ public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : I
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            throw new Application.Common.EszamanliDegisiklikException(Application.Common.EszamanliDegisiklikException.KayitMesaji);
+            throw new Application.Common.ConcurrentModificationException(Application.Common.ConcurrentModificationException.RecordMessage);
         }
     }
 
-    public async Task<IReadOnlyList<MesajSablonRow>> SablonListAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<MesajSablonRow>> ListTemplatesAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.MesajSablonlari.AsNoTracking()
@@ -81,14 +81,14 @@ public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : I
             .ToListAsync(ct);
     }
 
-    public async Task<MesajSablon?> SablonBulAsync(MesajTuru tur, MesajKanal kanal, CancellationToken ct = default)
+    public async Task<MesajSablon?> FindTemplateAsync(MessageType tur, MessageChannel kanal, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.MesajSablonlari.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Tur == tur && x.Kanal == kanal, ct);
     }
 
-    public async Task SablonUpsertAsync(MesajSablonInput input, CancellationToken ct = default)
+    public async Task UpsertTemplateAsync(MesajSablonInput input, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var s = await db.MesajSablonlari
@@ -121,13 +121,13 @@ public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : I
         }
     }
 
-    public async Task<GidenMesaj?> MesajBulAsync(string anahtar, CancellationToken ct = default)
+    public async Task<GidenMesaj?> FindMessageAsync(string anahtar, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.GidenMesajlar.AsNoTracking().FirstOrDefaultAsync(x => x.Anahtar == anahtar, ct);
     }
 
-    public async Task<bool> MesajEkleAsync(GidenMesaj mesaj, CancellationToken ct = default)
+    public async Task<bool> AddMessageAsync(GidenMesaj mesaj, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         db.GidenMesajlar.Add(mesaj);
@@ -143,7 +143,7 @@ public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : I
         }
     }
 
-    public async Task MesajGuncelleAsync(Guid id, Action<GidenMesaj> apply, CancellationToken ct = default)
+    public async Task UpdateMessageAsync(Guid id, Action<GidenMesaj> apply, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var m = await db.GidenMesajlar.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -152,7 +152,7 @@ public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : I
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<IReadOnlyList<GidenMesajRow>> MesajListAsync(
+    public async Task<IReadOnlyList<GidenMesajRow>> ListMessagesAsync(
         GidenMesajFilter? filter = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -181,7 +181,7 @@ public sealed class MesajRepository(IDbContextFactory<AppDbContext> factory) : I
         // mesajı yardımcı değil zararlıdır. Kayıt kalır, operatör ekranda görür.
         var sinir = now.AddDays(-3);
         return db.GidenMesajlar
-            .Where(x => x.Durum == GidenMesajDurum.Kuyrukta
+            .Where(x => x.Durum == OutgoingMessageStatus.Kuyrukta
                         && x.DenemeSayisi < maxDeneme
                         && x.OlusturmaUtc >= sinir)
             .OrderBy(x => x.OlusturmaUtc)

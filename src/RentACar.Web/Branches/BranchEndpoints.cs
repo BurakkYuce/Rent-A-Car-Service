@@ -30,7 +30,7 @@ public static class BranchEndpoints
 
         // ---- FAZ-23: şubeye özel ücretsiz hizmet ----
         grp.MapPost("/hizmet-ekle", async (BranchService svc, HttpRequest req) =>
-            await Run(() => svc.AddHizmetAsync(new RentACar.Application.Branches.SubeUcretsizHizmetInput
+            await Run(() => svc.AddServiceAsync(new RentACar.Application.Branches.SubeUcretsizHizmetInput
             {
                 SubeId = FormParse.Id(FormParse.Str(req.Form, "subeId")) ?? Guid.Empty,
                 HizmetAdi = req.Form["hizmetAdi"].ToString(),
@@ -38,7 +38,7 @@ public static class BranchEndpoints
             }), "İşlem tamamlandı."));
 
         grp.MapPost("/hizmet-sil", async (BranchService svc, [FromForm] Guid id) =>
-            await Run(() => svc.RemoveHizmetAsync(id), "İşlem tamamlandı."));
+            await Run(() => svc.RemoveServiceAsync(id), "İşlem tamamlandı."));
 
         // ---- FAZ-23: şube birleştirme ----
         // Onay kutusu ZORUNLU: geri alınamayan toplu bir işlem, kazara tıklamayla çalışmamalı.
@@ -50,7 +50,7 @@ public static class BranchEndpoints
                 return Results.Redirect("/subeler?hata=" + Uri.EscapeDataString("Birleştirme için onay kutusunu işaretleyin."));
             try
             {
-                var n = await svc.BirlestirAsync(kaynak, hedef);
+                var n = await svc.MergeAsync(kaynak, hedef);
                 return Results.Redirect($"/subeler?bilgi={Uri.EscapeDataString($"{n} kayıt taşındı; kaynak şube pasife alındı.")}");
             }
             catch (ValidationException ex) { return Results.Redirect($"/subeler?hata={Uri.EscapeDataString(ex.Message)}"); }

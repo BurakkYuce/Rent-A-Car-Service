@@ -32,7 +32,7 @@ public sealed class CoverageProductService(ICoverageProductRepository repository
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu sigorta ürünü zaten var.");
 
         var row = new CoverageProduct();
@@ -46,7 +46,7 @@ public sealed class CoverageProductService(ICoverageProductRepository repository
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu sigorta ürünü zaten var.");
 
         return await _repository.UpdateAsync(id, row =>
@@ -66,7 +66,7 @@ public sealed class CoverageProductService(ICoverageProductRepository repository
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu sigorta ürünü zaten var.");
         return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<CoverageProduct>(id, expectedVersion, row =>
         {

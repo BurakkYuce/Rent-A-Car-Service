@@ -6,7 +6,7 @@ namespace RentACar.Domain.Entities;
 /// Vites türü tanımı (master sözlük): araç şanzıman tiplerinin adlandırılmış listesi (ör. "Manuel",
 /// "Otomatik", "Yarı Otomatik", "CVT"). Tenant-owned + auditable. Tanım/raporlama sözlüğü.
 /// </summary>
-public class TransmissionType : ITenantOwned, IAuditable, IMasterTanim
+public class TransmissionType : ITenantOwned, IAuditable, IMasterDefinition
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

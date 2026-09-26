@@ -24,7 +24,7 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
     /// </summary>
     private void RequireAdminRole(string message)
     {
-        if (_currentUser.Role != Domain.Enums.UserRole.Admin) throw new YetkiYokException(message);
+        if (_currentUser.Role != Domain.Enums.UserRole.Admin) throw new NoPermissionException(message);
     }
 
     public async Task<IReadOnlyList<UserListItem>> ListAsync(CancellationToken ct = default)
@@ -103,11 +103,11 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
     /// <para>Tenant sınırı ayrıca RLS + global query filter ile korunur: başka tenant'ın
     /// kullanıcısı <c>FindAsync</c> ile bulunamaz.</para>
     /// </summary>
-    public async Task<bool> ChangeOwnPasswordAsync(string eskiSifre, string yeniSifre, CancellationToken ct = default)
+    public async Task<bool> ChangeOwnPasswordAsync(string oldPassword, string newPassword, CancellationToken ct = default)
     {
         if (_currentUser.UserId is not { } uid)
             throw new ValidationException("Oturum bulunamadı.");
-        if (string.IsNullOrWhiteSpace(yeniSifre) || yeniSifre.Length < 6)
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
             throw new ValidationException("Parola en az 6 karakter olmalıdır.");
 
         var user = await _repository.FindAsync(uid, ct)
@@ -115,10 +115,10 @@ public sealed class UserService(IUserRepository repository, IPasswordHasher hash
 
         // Eski parola doğrulaması: oturumu çalınmış bir tarayıcının parolayı sessizce
         // değiştirmesini zorlaştıran tek kontrol bu.
-        if (!_hasher.Verify(user.PasswordHash, eskiSifre))
+        if (!_hasher.Verify(user.PasswordHash, oldPassword))
             throw new ValidationException("Mevcut parola hatalı.");
 
-        var hash = _hasher.Hash(yeniSifre);
+        var hash = _hasher.Hash(newPassword);
         return await _repository.UpdateAuditedAsync(uid, u => u.PasswordHash = hash, new UserAuditEntry("KendiParolasiniDegistirme"), ct);
     }
 }

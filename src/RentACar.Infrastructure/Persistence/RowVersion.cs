@@ -81,7 +81,7 @@ internal static class RowVersion
 
     /// <summary>
     /// Lock + version comparison + <paramref name="apply"/> in ONE transaction. Different version →
-    /// <see cref="EszamanliDegisiklikException"/> (409 <c>cakisma</c>), nothing is written. Missing row → <c>false</c>.
+    /// <see cref="ConcurrentModificationException"/> (409 <c>cakisma</c>), nothing is written. Missing row → <c>false</c>.
     /// </summary>
     public static Task<bool> UpdateAsync<T>(
         IDbContextFactory<AppDbContext> factory, Guid id, string expectedVersion, Action<T> apply, CancellationToken ct)
@@ -96,7 +96,7 @@ internal static class RowVersion
             var current = await ReadAsync<T>(db, id, ct);
             if (current is null) return false;
             if (!string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
-                throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+                throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
             var entity = await db.Set<T>().FirstOrDefaultAsync(x => EF.Property<Guid>(x, "Id") == id, ct);
             if (entity is null) return false;
             apply(entity);

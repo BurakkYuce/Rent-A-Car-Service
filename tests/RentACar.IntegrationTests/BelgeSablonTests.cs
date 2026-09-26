@@ -24,7 +24,7 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BelgeSablonService>();
+        var svc = scope.ServiceProvider.GetRequiredService<DocumentTemplateService>();
 
         var id = await svc.CreateAsync(new BelgeSablonInput
         {
@@ -49,7 +49,7 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BelgeSablonService>();
+        var svc = scope.ServiceProvider.GetRequiredService<DocumentTemplateService>();
 
         var id = await svc.CreateAsync(new BelgeSablonInput
         {
@@ -65,7 +65,7 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BelgeSablonService>();
+        var svc = scope.ServiceProvider.GetRequiredService<DocumentTemplateService>();
 
         await svc.CreateAsync(Yeni(BelgeTuru.KiraSozlesmesi, "Kurumsal"));
         await Assert.ThrowsAsync<ValidationException>(
@@ -80,7 +80,7 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BelgeSablonService>();
+        var svc = scope.ServiceProvider.GetRequiredService<DocumentTemplateService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Yeni(BelgeTuru.Makbuz, "   ")));
         await Assert.ThrowsAsync<ValidationException>(
@@ -92,12 +92,12 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BelgeSablonService>();
+        var svc = scope.ServiceProvider.GetRequiredService<DocumentTemplateService>();
 
         var a = await svc.CreateAsync(Yeni(BelgeTuru.KiraSozlesmesi, "A", varsayilan: true));
         var b = await svc.CreateAsync(Yeni(BelgeTuru.KiraSozlesmesi, "B", varsayilan: true)); // B varsayılan olunca A düşer
 
-        var liste = await svc.ListByTuruAsync(BelgeTuru.KiraSozlesmesi);
+        var liste = await svc.ListByTypeAsync(BelgeTuru.KiraSozlesmesi);
         Assert.False(liste.Single(x => x.Id == a).VarsayilanMi);
         Assert.True(liste.Single(x => x.Id == b).VarsayilanMi);
         Assert.Single(liste, x => x.VarsayilanMi);
@@ -108,8 +108,8 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
-        var svc = scope.ServiceProvider.GetRequiredService<BelgeSablonService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        var svc = scope.ServiceProvider.GetRequiredService<DocumentTemplateService>();
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(Yeni(BelgeTuru.KiraSozlesmesi, "Yetkisiz")));
     }
 
@@ -121,11 +121,11 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using (var s1 = host.ScopeFor(t1))
-            await s1.ServiceProvider.GetRequiredService<BelgeSablonService>()
+            await s1.ServiceProvider.GetRequiredService<DocumentTemplateService>()
                 .CreateAsync(Yeni(BelgeTuru.KiraSozlesmesi, "T1"));
 
         using var s2 = host.ScopeFor(t2);
-        var svc2 = s2.ServiceProvider.GetRequiredService<BelgeSablonService>();
+        var svc2 = s2.ServiceProvider.GetRequiredService<DocumentTemplateService>();
         Assert.Empty(await svc2.ListAsync());                    // t2 t1'inkini görmez (RLS/racar_app)
         await svc2.CreateAsync(Yeni(BelgeTuru.KiraSozlesmesi, "T1")); // aynı ad farklı tenant'ta serbest
         Assert.Single(await svc2.ListAsync());
@@ -136,34 +136,34 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BelgeSablonService>();
-        var cozucu = scope.ServiceProvider.GetRequiredService<BelgeSablonCozumleyici>();
+        var svc = scope.ServiceProvider.GetRequiredService<DocumentTemplateService>();
+        var cozucu = scope.ServiceProvider.GetRequiredService<DocumentTemplateResolver>();
 
         // Şablon hiç yokken → boş (renderer koddaki sabiti basar).
-        var bos = await cozucu.KiraAsync(null);
+        var bos = await cozucu.RentalAsync(null);
         Assert.Null(bos.HukukiMetinSol);
         Assert.Null(bos.Baslik);
 
         // Varsayılan şablon → seçim yapılmadan çözülür.
         var vId = await svc.CreateAsync(new BelgeSablonInput
         { BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Vars", VarsayilanMi = true, HukukiMetinSol = "VARS-SOL" });
-        Assert.Equal("VARS-SOL", (await cozucu.KiraAsync(null)).HukukiMetinSol);
+        Assert.Equal("VARS-SOL", (await cozucu.RentalAsync(null)).HukukiMetinSol);
 
         // Açık seçim → varsayılanı ezer.
         var secId = await svc.CreateAsync(new BelgeSablonInput
         { BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "Secili", BelgeBasligi = "SECILI-BASLIK" });
-        var secili = await cozucu.KiraAsync(secId);
+        var secili = await cozucu.RentalAsync(secId);
         Assert.Equal("SECILI-BASLIK", secili.Baslik);
         Assert.Null(secili.HukukiMetinSol); // seçili şablonda bu bölüm boş → renderer sabiti basar
 
         // Geçersiz/bulunamayan seçim → varsayılana düşer.
-        Assert.Equal("VARS-SOL", (await cozucu.KiraAsync(Guid.NewGuid())).HukukiMetinSol);
+        Assert.Equal("VARS-SOL", (await cozucu.RentalAsync(Guid.NewGuid())).HukukiMetinSol);
 
         // Fatura varsayılanı kira çözümüne SIZMAZ (tür ayrımı).
         await svc.CreateAsync(new BelgeSablonInput
         { BelgeTuru = BelgeTuru.Fatura, Ad = "F", VarsayilanMi = true, AltBilgi = "FT-ALT" });
-        Assert.Equal("FT-ALT", (await cozucu.VarsayilanAsync(BelgeTuru.Fatura)).AltBilgi);
-        Assert.Null((await cozucu.KiraAsync(null)).AltBilgi); // kira varsayılanında AltBilgi yok
+        Assert.Equal("FT-ALT", (await cozucu.DefaultAsync(BelgeTuru.Fatura)).AltBilgi);
+        Assert.Null((await cozucu.RentalAsync(null)).AltBilgi); // kira varsayılanında AltBilgi yok
     }
 
     [Fact]
@@ -174,8 +174,8 @@ public sealed class BelgeSablonTests(PostgresFixture fx)
             ["FirmaMarka"] = "YÜCE RENT", ["BelgeNo"] = "RZ-000123", ["Bos"] = null
         };
         Assert.Equal("YÜCE RENT — RZ-000123",
-            SablonToken.Uygula("{FirmaMarka} — {BelgeNo}", sozluk));
-        Assert.Equal("A", SablonToken.Uygula("A{Bos}", sozluk)); // null değer → yer-tutucu silinir
-        Assert.Null(SablonToken.Uygula(null, sozluk));
+            TemplateToken.Apply("{FirmaMarka} — {BelgeNo}", sozluk));
+        Assert.Equal("A", TemplateToken.Apply("A{Bos}", sozluk)); // null değer → yer-tutucu silinir
+        Assert.Null(TemplateToken.Apply(null, sozluk));
     }
 }

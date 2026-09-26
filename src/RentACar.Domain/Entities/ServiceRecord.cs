@@ -17,8 +17,8 @@ public class ServiceRecord : ITenantOwned, IAuditable
     public string No { get; set; } = string.Empty;
 
     public Guid VehicleId { get; set; }
-    public ServisTipi Tip { get; set; } = ServisTipi.Periyodik;
-    public ServisDurum Durum { get; set; } = ServisDurum.Acik;
+    public ServiceType Tip { get; set; } = ServiceType.Periyodik;
+    public ServiceStatus Durum { get; set; } = ServiceStatus.Acik;
 
     public string? AtolyeAdi { get; set; }
     public DateTimeOffset GirisTarihi { get; set; } = DateTimeOffset.UtcNow;
@@ -27,7 +27,7 @@ public class ServiceRecord : ITenantOwned, IAuditable
     public int? CikisKm { get; set; }
 
     /// <summary>Hasarlı serviste sorumluluk; KusurOrani 0..1 (kusur yüzdesi).</summary>
-    public HasarSorumlu HasarSorumlu { get; set; } = HasarSorumlu.Yok;
+    public DamageResponsible HasarSorumlu { get; set; } = DamageResponsible.Yok;
     public decimal? KusurOrani { get; set; }
 
     /// <summary>Periyodik bakım için sonraki bakım KM hedefi.</summary>
@@ -97,7 +97,7 @@ public class ServiceRecord : ITenantOwned, IAuditable
     /// belge bilgisidir.</summary>
     public decimal? OdemeKur { get; set; }
     /// <summary>Ödeme türü (Nakit/Banka/Açık hesap) — BİLGİ; karşı hesabı BELİRLEMEZ.</summary>
-    public OdemeYontemi? OdemeTuru { get; set; }
+    public PaymentMethod? OdemeTuru { get; set; }
     /// <summary>Kasa kodu (canlı alan adı) — serbest metin; FinancialAccount FK DEĞİL, çünkü bu
     /// ödeme defterde bir kasa hareketi yaratmıyor.</summary>
     public string? KasaKodu { get; set; }
@@ -112,7 +112,7 @@ public class ServiceRecord : ITenantOwned, IAuditable
     /// <summary>Araç servisten dönerken yakıt seviyesi, 0-12.</summary>
     public int? DonusYakit { get; set; }
 
-    /// <summary>Planlanan randevu penceresi başlangıcı (<see cref="ServisDurum.Rezerve"/>).
+    /// <summary>Planlanan randevu penceresi başlangıcı (<see cref="ServiceStatus.Rezerve"/>).
     /// GERÇEK <see cref="GirisTarihi"/>'nden AYRI: plan tutmayabilir, ikisinin farkı ölçülebilsin.</summary>
     public DateTimeOffset? PlanBasTarihi { get; set; }
     /// <summary>Planlanan randevu penceresi bitişi.</summary>

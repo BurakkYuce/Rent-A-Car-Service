@@ -106,15 +106,15 @@ public static class DependencyInjection
             Persistence.Repositories.PublicBookingRequestRepository>(); // PR-8
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
-        services.AddScoped<RentACar.Application.Notifications.IBildirimRepository, BildirimRepository>();
+        services.AddScoped<RentACar.Application.Notifications.INotificationRepository, BildirimRepository>();
         services.AddMemoryCache(); // master/referans cache (Web zaten çağırıyor; idempotent)
         services.AddScoped<RentACar.Application.Common.ITenantCache, RentACar.Infrastructure.Caching.TenantCache>();
         services.AddScoped<ICurrencyRepository, CurrencyRepository>();
-        services.AddScoped<RentACar.Application.Kur.IKurRepository, KurRepository>();
-        services.AddScoped<RentACar.Application.Kur.ISabitKurRepository, SabitKurRepository>();
+        services.AddScoped<RentACar.Application.Kur.IExchangeRateRepository, KurRepository>();
+        services.AddScoped<RentACar.Application.Kur.IPinnedRateRepository, SabitKurRepository>();
         services.AddScoped<IRateCardRepository, RateCardRepository>();
         services.AddScoped<ILocationRepository, LocationRepository>();
-        services.AddScoped<IEkHizmetTanimRepository, EkHizmetTanimRepository>();
+        services.AddScoped<IAddOnDefinitionRepository, EkHizmetTanimRepository>();
         services.AddScoped<RentACar.Application.FuelKinds.IFuelKindRepository, FuelKindRepository>();
         services.AddScoped<RentACar.Application.TransmissionTypes.ITransmissionTypeRepository, TransmissionTypeRepository>();
         services.AddScoped<RentACar.Application.VehicleColors.IVehicleColorRepository, VehicleColorRepository>();
@@ -134,28 +134,28 @@ public static class DependencyInjection
         services.AddScoped<RentACar.Application.FinancialAccounts.IFinancialAccountRepository, FinancialAccountRepository>();
         services.AddScoped<RentACar.Application.CustomCodes.ICustomCodeRepository, CustomCodeRepository>();
         services.AddScoped<IBrandRepository, BrandRepository>();
-        services.AddScoped<IKdvRateRepository, KdvRateRepository>();
+        services.AddScoped<IVatRateRepository, KdvRateRepository>();
         services.AddScoped<IVehicleGroupRepository, VehicleGroupRepository>();
-        services.AddScoped<RentACar.Application.WebSite.IWebIlanRepository,
+        services.AddScoped<RentACar.Application.WebSite.IWebListingRepository,
             Persistence.Repositories.WebIlanRepository>(); // PR-13
-        services.AddScoped<RentACar.Application.PlatformBelgeler.IPlatformBelgeRepository,
+        services.AddScoped<RentACar.Application.PlatformBelgeler.IPlatformDocumentRepository,
             Persistence.Repositories.PlatformBelgeRepository>(); // PR-B
-        services.AddScoped<RentACar.Application.FirmaDokumanlar.IFirmaDokumanRepository,
+        services.AddScoped<RentACar.Application.FirmaDokumanlar.ICompanyFileRepository,
             Persistence.Repositories.FirmaDokumanRepository>(); // firma dokümanları (tenant-owned)
-        services.AddScoped<RentACar.Application.Bookings.ISozlesmePaylasimRepository,
+        services.AddScoped<RentACar.Application.Bookings.IContractShareRepository,
             Persistence.Repositories.SozlesmePaylasimRepository>(); // PR-C
-        services.AddScoped<RentACar.Application.SiteIcerik.ISiteIcerikRepository,
+        services.AddScoped<RentACar.Application.SiteIcerik.ISiteContentRepository,
             Persistence.Repositories.SiteIcerikRepository>(); // PR-16
         services.AddScoped<IRateMatrixRepository, RateMatrixRepository>();
         services.AddScoped<ICoverageProductRepository, CoverageProductRepository>();
         services.AddScoped<IRentalRuleRepository, RentalRuleRepository>();
-        services.AddScoped<RentACar.Application.BrokerYasaklari.IBrokerYasakRepository, BrokerYasakRepository>();
-        services.AddScoped<RentACar.Application.RezSartlar.IRezSartRepository, RezSartRepository>();
-        services.AddScoped<RentACar.Application.Jobs.IJobCalismaLogRepository, JobCalismaLogRepository>();
-        services.AddScoped<RentACar.Application.TarifeGruplari.ITarifeGrubuRepository, TarifeGrubuRepository>();
+        services.AddScoped<RentACar.Application.BrokerYasaklari.IBrokerBanRepository, BrokerYasakRepository>();
+        services.AddScoped<RentACar.Application.RezSartlar.IReservationTermRepository, RezSartRepository>();
+        services.AddScoped<RentACar.Application.Jobs.IJobRunLogRepository, JobCalismaLogRepository>();
+        services.AddScoped<RentACar.Application.TarifeGruplari.ITariffGroupRepository, TarifeGrubuRepository>();
         services.AddScoped<RentACar.Application.TenantSettings.ITenantSettingsRepository,
             Persistence.Repositories.TenantSettingsRepository>();
-        services.AddScoped<RentACar.Application.Notifications.IMesajRepository,
+        services.AddScoped<RentACar.Application.Notifications.IMessageRepository,
             Persistence.Repositories.MesajRepository>();
         // F11.1b — tam değiştirme PUT'larının sürüm deposu (iş/job yolu uygulamaları sürüm bilmez; ayrı sözleşme)
         services.AddScoped<RentACar.Application.TenantSettings.ITenantSettingsVersionStore,
@@ -166,33 +166,33 @@ public static class DependencyInjection
         services.AddSingleton<RentACar.Application.TenantSettings.IDnsTxtResolver, Integrations.UdpDnsTxtResolver>();
         services.AddScoped<RentACar.Application.TenantSettings.ITenantDomainRepository,
             Persistence.Repositories.TenantDomainRepository>(); // PR-2: public-site host self-servis
-        services.AddScoped<RentACar.Application.Personnel.IPersonelRepository,
+        services.AddScoped<RentACar.Application.Personnel.IPersonnelRepository,
             Persistence.Repositories.PersonelRepository>();
-        services.AddScoped<RentACar.Application.Personnel.IPersonelVardiyaRepository,
+        services.AddScoped<RentACar.Application.Personnel.IPersonnelShiftRepository,
             Persistence.Repositories.PersonelVardiyaRepository>();   // FAZ-45
-        services.AddScoped<RentACar.Application.Legal.IHukukDosyaRepository,
+        services.AddScoped<RentACar.Application.Legal.ILegalCaseRepository,
             Persistence.Repositories.HukukDosyaRepository>();
-        services.AddScoped<RentACar.Application.Crm.IAnketRepository,
+        services.AddScoped<RentACar.Application.Crm.ISurveyRepository,
             Persistence.Repositories.AnketRepository>();
-        services.AddScoped<RentACar.Application.Crm.ISikayetRepository,
+        services.AddScoped<RentACar.Application.Crm.IComplaintRepository,
             Persistence.Repositories.SikayetRepository>();
-        services.AddScoped<RentACar.Application.Crm.IAssistansTalepRepository,
+        services.AddScoped<RentACar.Application.Crm.IAssistanceRequestRepository,
             Persistence.Repositories.AssistansTalepRepository>();   // FAZ-44
-        services.AddScoped<RentACar.Application.FiloPlan.IFiloPlanRepository,
+        services.AddScoped<RentACar.Application.FiloPlan.IFleetPlanRepository,
             Persistence.Repositories.FiloPlanRepository>();   // FAZ-19
-        services.AddScoped<RentACar.Application.MusteriTaksitleri.IMusteriTaksitRepository,
+        services.AddScoped<RentACar.Application.MusteriTaksitleri.ICustomerInstallmentRepository,
             Persistence.Repositories.MusteriTaksitRepository>();   // FAZ-66
-        services.AddScoped<RentACar.Application.Pricing.IMaliyetTeklifiRepository,
+        services.AddScoped<RentACar.Application.Pricing.ICostQuotationRepository,
             Persistence.Repositories.MaliyetTeklifiRepository>();   // FAZ-74
         services.AddScoped<RentACar.Application.Search.ISearchRepository,
             Persistence.Repositories.SearchRepository>();
-        services.AddScoped<RentACar.Application.Periods.IDonemKilidiRepository,
+        services.AddScoped<RentACar.Application.Periods.IPeriodLockRepository,
             Persistence.Repositories.DonemKilidiRepository>();
-        services.AddScoped<RentACar.Application.Periods.IDonemKapanisRepository,
+        services.AddScoped<RentACar.Application.Periods.IPeriodClosingRepository,
             Persistence.Repositories.DonemKapanisRepository>(); // PR-A atomik/serileştirilmiş kapanış fişi
         services.AddScoped<RentACar.Application.Authorization.IScreenPermissionRepository,
             Persistence.Repositories.ScreenPermissionRepository>();
-        services.AddScoped<RentACar.Application.Authorization.IYetkiGrupRepository,
+        services.AddScoped<RentACar.Application.Authorization.IPermissionGroupRepository,
             Persistence.Repositories.YetkiGrupRepository>(); // PR-D — ekran-izni şablonu
         services.AddScoped<IFleetStatusRepository, FleetStatusRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
@@ -201,7 +201,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarRepository, CalendarRepository>();
         services.AddScoped<ICashRepository, CashRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
-        services.AddScoped<RentACar.Application.GelenEFaturalar.IGelenEFaturaRepository, GelenEFaturaRepository>();
+        services.AddScoped<RentACar.Application.GelenEFaturalar.IIncomingEInvoiceRepository, GelenEFaturaRepository>();
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
         services.AddScoped<IRegulationRepository, RegulationRepository>();
         // F9.1: generic row-version store for /api/ui full-replacement PUTs (servis/sigorta/fiyat tanımları).
@@ -210,24 +210,24 @@ public static class DependencyInjection
         services.AddScoped<IPenaltyTypeRepository, PenaltyTypeRepository>();
         services.AddScoped<ILedgerPoster, LedgerPoster>();
         services.AddScoped<IVehicleSaleRepository, VehicleSaleRepository>();
-        services.AddScoped<RentACar.Application.FiloKiralamalar.IFiloKiralamaRepository, Persistence.Repositories.FiloKiralamaRepository>(); // roadmap L1
-        services.AddScoped<RentACar.Application.AracSiparisleri.IAracSiparisRepository, Persistence.Repositories.AracSiparisRepository>(); // roadmap L3
-        services.AddScoped<RentACar.Application.AracKredileri.IAracKrediRepository, Persistence.Repositories.AracKrediRepository>(); // roadmap L4
+        services.AddScoped<RentACar.Application.FiloKiralamalar.IFleetRentalRepository, Persistence.Repositories.FiloKiralamaRepository>(); // roadmap L1
+        services.AddScoped<RentACar.Application.AracSiparisleri.IVehicleOrderRepository, Persistence.Repositories.AracSiparisRepository>(); // roadmap L3
+        services.AddScoped<RentACar.Application.AracKredileri.IVehicleLoanRepository, Persistence.Repositories.AracKrediRepository>(); // roadmap L4
         services.AddScoped<RentACar.Application.Baflar.IBafRepository, Persistence.Repositories.BafRepository>(); // roadmap L5
-        services.AddScoped<RentACar.Application.HesapKodlari.IHesapKoduRepository, Persistence.Repositories.HesapKoduRepository>(); // roadmap N1
-        services.AddScoped<RentACar.Application.ServisTanimlari.IServisTanimRepository, Persistence.Repositories.ServisTanimRepository>(); // roadmap N1
-        services.AddScoped<RentACar.Application.DropTanimlari.IDropTanimRepository, Persistence.Repositories.DropTanimRepository>(); // roadmap N2
-        services.AddScoped<RentACar.Application.DolulukFiyat.IDolulukFiyatKuralRepository, Persistence.Repositories.DolulukFiyatKuralRepository>(); // FAZ 3.A7
+        services.AddScoped<RentACar.Application.HesapKodlari.IAccountCodeRepository, Persistence.Repositories.HesapKoduRepository>(); // roadmap N1
+        services.AddScoped<RentACar.Application.ServisTanimlari.IServiceDefinitionRepository, Persistence.Repositories.ServisTanimRepository>(); // roadmap N1
+        services.AddScoped<RentACar.Application.DropTanimlari.IDropDefinitionRepository, Persistence.Repositories.DropTanimRepository>(); // roadmap N2
+        services.AddScoped<RentACar.Application.DolulukFiyat.IOccupancyPriceRuleRepository, Persistence.Repositories.DolulukFiyatKuralRepository>(); // FAZ 3.A7
         services.AddScoped<RentACar.Application.DolulukFiyat.IOccupancyProvider, Persistence.Repositories.OccupancyProvider>();
-        services.AddScoped<RentACar.Application.BelgeSablon.IBelgeSablonRepository, Persistence.Repositories.BelgeSablonRepository>(); // marka-özel PDF metin şablonu
-        services.AddScoped<RentACar.Application.FaturaDonemleri.IFaturaDonemRepository, Persistence.Repositories.FaturaDonemRepository>(); // FAZ 4.2-B1
-        services.AddScoped<RentACar.Application.DisHizmetler.IDisHizmetRepository, Persistence.Repositories.DisHizmetRepository>(); // FAZ 4.3
+        services.AddScoped<RentACar.Application.BelgeSablon.IDocumentTemplateRepository, Persistence.Repositories.BelgeSablonRepository>(); // marka-özel PDF metin şablonu
+        services.AddScoped<RentACar.Application.FaturaDonemleri.IInvoicePeriodRepository, Persistence.Repositories.FaturaDonemRepository>(); // FAZ 4.2-B1
+        services.AddScoped<RentACar.Application.DisHizmetler.IOutsourcedServiceRepository, Persistence.Repositories.DisHizmetRepository>(); // FAZ 4.3
         services.AddScoped<IDamageFileRepository, DamageFileRepository>();
         services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IKullaniciIzinRepository, KullaniciIzinRepository>(); // izin istisnaları
-        services.AddScoped<RentACar.Application.TabloDuzenleri.ITabloDuzeniRepository, Persistence.Repositories.TabloDuzeniRepository>(); // F3.5 kişisel tablo düzeni
+        services.AddScoped<IUserPermissionRepository, KullaniciIzinRepository>(); // izin istisnaları
+        services.AddScoped<RentACar.Application.TabloDuzenleri.ITableLayoutRepository, Persistence.Repositories.TabloDuzeniRepository>(); // F3.5 kişisel tablo düzeni
         services.AddScoped<IAvailabilityRepository, AvailabilityRepository>();
         services.AddScoped<IDetailRepository, DetailRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();

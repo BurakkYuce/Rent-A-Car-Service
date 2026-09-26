@@ -14,7 +14,7 @@ public static class PermissionGuard
         // 2026-08-17: karar artık EffectivePermission'dan — rol matrisi + kullanıcı-bazlı
         // ek izin/yasak bileşimi. İstisnası olmayan kullanıcıda davranış birebir eski matris.
         if (!EffectivePermission.Has(user, permission))
-            throw new YetkiYokException($"Bu işlem için yetkiniz yok ({permission}).");
+            throw new NoPermissionException($"Bu işlem için yetkiniz yok ({permission}).");
     }
 
     /// <summary>
@@ -26,7 +26,7 @@ public static class PermissionGuard
     public static void RequireAny(ICurrentUser user, params Permission[] permissions)
     {
         if (!permissions.Any(p => EffectivePermission.Has(user, p)))
-            throw new YetkiYokException(
+            throw new NoPermissionException(
                 $"Bu işlem için yetkiniz yok ({string.Join(" veya ", permissions)}).");
     }
 }

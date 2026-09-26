@@ -21,7 +21,7 @@ public sealed class DamageFileTests(PostgresFixture fx)
         var id = await svc.CreateAsync(new DamageFileInput { VehicleId = Guid.NewGuid(), TahminiTutar = 1500m });
         var f = await svc.GetAsync(id);
         BelgeNoOracle.BeklenenlerdenBiri(11, 1, f!.No);   // 11 = HasarDosyasi
-        Assert.Equal(HasarDurum.Acik, f.Durum);
+        Assert.Equal(DamageStatus.Acik, f.Durum);
 
         var id2 = await svc.CreateAsync(new DamageFileInput { VehicleId = Guid.NewGuid() });
         BelgeNoOracle.BeklenenlerdenBiri(11, 2, (await svc.GetAsync(id2))!.No);
@@ -35,16 +35,16 @@ public sealed class DamageFileTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<DamageFileService>();
         var id = await svc.CreateAsync(new DamageFileInput { VehicleId = Guid.NewGuid() });
 
-        Assert.True(await svc.OnayaGonderAsync(id));
-        Assert.Equal(HasarDurum.Onayda, (await svc.GetAsync(id))!.Durum);
+        Assert.True(await svc.SendForApprovalAsync(id));
+        Assert.Equal(DamageStatus.Onayda, (await svc.GetAsync(id))!.Durum);
 
-        Assert.True(await svc.OnaylaAsync(id, "uygun"));
+        Assert.True(await svc.ApproveAsync(id, "uygun"));
         var approved = await svc.GetAsync(id);
-        Assert.Equal(HasarDurum.Onaylandi, approved!.Durum);
+        Assert.Equal(DamageStatus.Onaylandi, approved!.Durum);
         Assert.Equal("uygun", approved.OnayNotu);
 
-        Assert.True(await svc.KapatAsync(id));
-        Assert.Equal(HasarDurum.Kapali, (await svc.GetAsync(id))!.Durum);
+        Assert.True(await svc.CloseAsync(id));
+        Assert.Equal(DamageStatus.Kapali, (await svc.GetAsync(id))!.Durum);
     }
 
     [Fact]
@@ -56,15 +56,15 @@ public sealed class DamageFileTests(PostgresFixture fx)
         var id = await svc.CreateAsync(new DamageFileInput { VehicleId = Guid.NewGuid() });
 
         // Açık'tan doğrudan onaylanamaz (önce Onayda olmalı).
-        await Assert.ThrowsAsync<ValidationException>(() => svc.OnaylaAsync(id));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ApproveAsync(id));
         // Açık'tan doğrudan kapatılamaz.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.KapatAsync(id));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CloseAsync(id));
 
-        await svc.OnayaGonderAsync(id);
-        await svc.ReddetAsync(id, "yetersiz");
-        Assert.Equal(HasarDurum.Reddedildi, (await svc.GetAsync(id))!.Durum);
+        await svc.SendForApprovalAsync(id);
+        await svc.RejectAsync(id, "yetersiz");
+        Assert.Equal(DamageStatus.Reddedildi, (await svc.GetAsync(id))!.Durum);
         // Reddedilmiş tekrar onaya gönderilemez.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.OnayaGonderAsync(id));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.SendForApprovalAsync(id));
     }
 
     [Fact]

@@ -75,8 +75,8 @@ public sealed record RentalResponse(
         c.Id, c.SozlesmeNo, c.Durum, c.ReservationId, c.MusteriId, c.VehicleId, c.BasTar, c.BitTar,
         c.CikisOfisi, c.DonusOfisi, c.Gun, c.GunlukUcret, c.Tutar, c.GenelToplam, c.Tahsilat, c.Bakiye,
         c.KmLimit, c.FazlaKmUcret, YakitSozlesmesi.BirimUcretDisari(c.YakitBirimUcret), c.CikisKm, c.DonusKm,
-        YakitOlcegi.OnIkidenYuzdeye(c.CikisYakit), YakitOlcegi.OnIkidenYuzdeye(c.DonusYakit),
-        c.GercekDonusTar, c.FazlaKm, c.FazlaKmBedeli, YakitOlcegi.OnIkidenYuzdeye(c.EksikYakit), c.YakitBedeli, c.UzatmaGun, c.UzatmaBedeli,
+        FuelScale.TwelfthsToPercent(c.CikisYakit), FuelScale.TwelfthsToPercent(c.DonusYakit),
+        c.GercekDonusTar, c.FazlaKm, c.FazlaKmBedeli, FuelScale.TwelfthsToPercent(c.EksikYakit), c.YakitBedeli, c.UzatmaGun, c.UzatmaBedeli,
         c.Aciklama, c.CreatedAtUtc, c.UpdatedAtUtc);
 }
 
@@ -112,8 +112,8 @@ public static class YakitSozlesmesi
         => yuzdeBasina > BirimUcretEnFazla
             ? throw new RentACar.Application.Common.ValidationException(
                 "Yakıt birim ücreti çok büyük.", "yakitBirimUcret")
-            : Math.Round(yuzdeBasina * YakitOlcegi.YuzdeEnFazla / YakitOlcegi.EnFazla, 4, MidpointRounding.AwayFromZero);
+            : Math.Round(yuzdeBasina * FuelScale.MaxPercent / FuelScale.Max, 4, MidpointRounding.AwayFromZero);
 
     public static decimal BirimUcretDisari(decimal onIkideBirBasina)
-        => Math.Round(onIkideBirBasina * YakitOlcegi.EnFazla / YakitOlcegi.YuzdeEnFazla, 2, MidpointRounding.AwayFromZero);
+        => Math.Round(onIkideBirBasina * FuelScale.Max / FuelScale.MaxPercent, 2, MidpointRounding.AwayFromZero);
 }

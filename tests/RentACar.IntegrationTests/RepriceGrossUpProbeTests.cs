@@ -23,7 +23,7 @@ public sealed class RepriceGrossUpProbeTests(PostgresFixture fx)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Reprice", Soyad = "Probe" });
+        { Tip = CustomerType.Bireysel, Ad = "Reprice", Soyad = "Probe" });
         return (m, v);
     }
 

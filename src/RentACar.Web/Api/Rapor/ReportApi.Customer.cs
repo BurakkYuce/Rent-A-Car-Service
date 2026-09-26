@@ -61,12 +61,12 @@ public static partial class ReportApi
         if (bakiye is not null and not "borclu" and not "alacakli")
             throw new ValidationException("Geçersiz bakiye değeri. İzin verilenler: borclu, alacakli.", "bakiye");
 
-        var satirlar = await reports.GetCariBalancesAsync(new CariBakiyeFilter
+        var satirlar = await reports.GetAccountBalancesAsync(new CariBakiyeFilter
         {
             Ara = F(f.Ara), OzelKod = F(f.OzelKod), Sinif = F(f.Sinif), Doviz = F(f.Doviz),
             Kurumsal = tip, BakiyeTuru = bakiye, MinTutar = f.Min,
         }, ct);
-        var tumu = await reports.GetCariBalancesAsync(ct: ct);
+        var tumu = await reports.GetAccountBalancesAsync(ct: ct);
         var mask = await CustomerMask.LoadAsync(dbf, satirlar.Select(s => s.CariId), ct);
         var rows = satirlar.Select(s => s with
         {
@@ -86,8 +86,8 @@ public static partial class ReportApi
             new ReportPeriodDto(null, null), ozet, page.Apply(rows, BalanceMap), export));
     }
 
-    private static readonly SiralamaHaritasi<CariBalanceDto> BalanceMap = SiralamaHaritasi<CariBalanceDto>
-        .Olustur(r => r.CariId).Alan("ad", r => r.Ad).Alan("bakiye", r => r.Bakiye).Alan("toplamBorc", r => r.ToplamBorc)
+    private static readonly SortFieldMap<CariBalanceDto> BalanceMap = SortFieldMap<CariBalanceDto>
+        .Create(r => r.CariId).Alan("ad", r => r.Ad).Alan("bakiye", r => r.Bakiye).Alan("toplamBorc", r => r.ToplamBorc)
         .Alan("toplamAlacak", r => r.ToplamAlacak).Alan("doviz", r => r.Doviz).Alan("sinif", r => r.Sinif);
 
     // ------------------------------------------------------------------ yaşlandırma
@@ -112,7 +112,7 @@ public static partial class ReportApi
             ReportExport.Links(http, user, "yaslandirma", [("asOf", ReportExport.Day(gun))], pdf: true)));
     }
 
-    private static readonly SiralamaHaritasi<AgingRowDto> AgingMap = SiralamaHaritasi<AgingRowDto>
-        .Olustur(r => r.CariId).Alan("ad", r => r.Ad).Alan("toplam", r => r.Toplam).Alan("b0_30", r => r.B0_30)
+    private static readonly SortFieldMap<AgingRowDto> AgingMap = SortFieldMap<AgingRowDto>
+        .Create(r => r.CariId).Alan("ad", r => r.Ad).Alan("toplam", r => r.Toplam).Alan("b0_30", r => r.B0_30)
         .Alan("b31_60", r => r.B31_60).Alan("b61_90", r => r.B61_90).Alan("b90Plus", r => r.B90Plus);
 }
