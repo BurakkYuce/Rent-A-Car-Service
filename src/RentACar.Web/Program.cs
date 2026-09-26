@@ -18,83 +18,13 @@ using RentACar.Infrastructure;
 using RentACar.Web.Components;
 using RentACar.Web.Observability;
 using RentACar.Web.Calendar;
-using RentACar.Web.Import;
-using RentACar.Web.Notifications;
 using RentACar.Infrastructure.Integrations;
-using RentACar.Web.Kur;
 using RentACar.Web.Identity;
 using RentACar.Web.Platform;
-using RentACar.Web.SiteIcerik;
 using RentACar.Web.Bookings;
-using RentACar.Web.Branches;
-using RentACar.Web.FuelKinds;
-using RentACar.Web.TransmissionTypes;
-using RentACar.Web.VehicleColors;
-using RentACar.Web.CustomerGroups;
-using RentACar.Web.InsuranceCompanies;
-using RentACar.Web.Banks;
-using RentACar.Web.Departments;
-using RentACar.Web.PaymentTypes;
-using RentACar.Web.Countries;
-using RentACar.Web.Accessories;
-using RentACar.Web.CancelReasons;
-using RentACar.Web.ReservationSources;
-using RentACar.Web.VehicleSegments;
-using RentACar.Web.VehicleTypes;
-using RentACar.Web.VehicleOwners;
-using RentACar.Web.ExpenseCategories;
-using RentACar.Web.FinancialAccounts;
-using RentACar.Web.CustomCodes;
-using RentACar.Web.Brands;
-using RentACar.Web.Currencies;
-using RentACar.Web.Customers;
-using RentACar.Web.DamageFiles;
-using RentACar.Web.EkHizmetler;
-using RentACar.Web.Expenses;
-using RentACar.Web.Finance;
-using RentACar.Web.GelenEFaturalar;
-using RentACar.Web.KdvRates;
-using RentACar.Web.Locations;
-using RentACar.Web.Penalties;
-using RentACar.Web.PenaltyTypes;
 using RentACar.Web.Persistence;
-using RentACar.Web.Pricing;
-using RentACar.Web.Regulation;
-using RentACar.Web.CoverageProducts;
-using RentACar.Web.RateMatrices;
-using RentACar.Web.RentalRules;
-using RentACar.Web.BrokerYasaklari;
-using RentACar.Web.RezSartlar;
-using RentACar.Web.TarifeGruplari;
 using RentACar.Web.Reports;
-using RentACar.Web.ServiceRecords;
-using RentACar.Web.TenantSettings;
-using RentACar.Web.Personnel;
-using RentACar.Web.Legal;
-using RentACar.Web.Blog;
-using RentACar.Web.PublicSite;
-using RentACar.Web.Crm;
-using RentACar.Web.Periods;
-using RentACar.Web.Authorization;
-using RentACar.Web.Notifications;
-using RentACar.Infrastructure.Integrations;
-using RentACar.Web.Users;
-using RentACar.Web.VehicleGroups;
 using RentACar.Web.Documents;
-using RentACar.Web.WebSite;
-using RentACar.Web.VehicleSales;
-using RentACar.Web.FiloKiralamalar;
-using RentACar.Web.AracSiparisleri;
-using RentACar.Web.AracKredileri;
-using RentACar.Web.Baflar;
-using RentACar.Web.HesapKodlari;
-using RentACar.Web.ServisTanimlari;
-using RentACar.Web.DropTanimlari;
-using RentACar.Web.FiloPlan;
-using RentACar.Web.MusteriTaksitleri;
-using RentACar.Web.DolulukFiyat;
-using RentACar.Web.BelgeSablon;
-using RentACar.Web.Vehicles;
 using RentACar.Web.Api;
 
 // Bootstrap yardımcısı: `dotnet run --project src/RentACar.Web -- --platform-hash '<parola>'` →
@@ -538,96 +468,15 @@ app.MapStaticAssets();
 RentACar.Web.Spa.SpaHosting.MapSpaHosting(app);
 app.MapAuthEndpoints();
 app.MapUiApi();                   // F1.2 — /api/ui/v1 (yeni arayüz JSON katmanı: CSRF + pilot kapısı + ProblemDetails)
-app.MapPlatformAuthEndpoints();   // platform operatörü login/logout
-app.MapPlatformTenantEndpoints(); // tenant aç/kapa/oluştur (PlatformAdmin policy)
-app.MapPlatformDocumentEndpoints();  // PR-B — Belge Merkezi (PlatformAdmin policy)
-app.MapCalendarFeedEndpoints();   // kimliksiz iCal feed + token yenile
-app.MapExchangeRateEndpoints();            // TCMB yenile + sabit kur CRUD
-app.MapVehicleEndpoints();
-app.MapVehiclePhotoEndpoints(); // PR-3
-app.MapCustomerEndpoints();
-app.MapBookingEndpoints();
-app.MapRentalAddOnEndpoints();
-app.MapQuotationEndpoints();
-app.MapFinanceEndpoints();
-app.MapIncomingEInvoiceEndpoints();
-app.MapDepositEndpoints(); // roadmap I3
-app.MapExpenseEndpoints();
-app.MapRegulationEndpoints();
-app.MapPenaltyEndpoints();
-app.MapVehicleSaleEndpoints();
-app.MapFleetRentalEndpoints(); // roadmap L1
-app.MapVehicleOrderEndpoints(); // roadmap L3
-app.MapVehicleLoanEndpoints(); // roadmap L4
-app.MapBafEndpoints(); // roadmap L5
-app.MapAccountCodeEndpoints(); // roadmap N1
-app.MapServiceDefinitionEndpoints(); // roadmap N1
-app.MapDropDefinitionEndpoints(); // roadmap N2
-app.MapOccupancyPriceEndpoints(); // FAZ 3.A7
-app.MapDocumentTemplateEndpoints(); // marka-özel PDF metin şablonları
-app.MapDamageFileEndpoints();
-app.MapServiceRecordEndpoints();
-app.MapUserEndpoints();
-app.MapProfileEndpoints();   // FAZ-83: kendi parolanı değiştirme (rol kısıtı YOK)
-app.MapBranchEndpoints();
-app.MapRateCardEndpoints();
-app.MapLocationEndpoints();
-app.MapFuelKindEndpoints();
-app.MapTransmissionTypeEndpoints();
-app.MapVehicleColorEndpoints();
-app.MapCustomerGroupEndpoints();
-app.MapInsuranceCompanyEndpoints();
-app.MapBankEndpoints();
-app.MapDepartmentEndpoints();
-app.MapPaymentTypeEndpoints();
-app.MapCountryEndpoints();
-app.MapAccessoryEndpoints();
-app.MapCancelReasonEndpoints();
-app.MapReservationSourceEndpoints();
-app.MapVehicleSegmentEndpoints();
-app.MapVehicleTypeEndpoints();
-app.MapVehicleOwnerEndpoints();
-app.MapExpenseCategoryEndpoints();
-app.MapFinancialAccountEndpoints();
-app.MapCustomCodeEndpoints();
-app.MapBrandEndpoints();
-app.MapCurrencyEndpoints();
-app.MapPenaltyTypeEndpoints();
-app.MapVatRateEndpoints();
-app.MapVehicleGroupEndpoints();
-app.MapReportExportEndpoints();
-app.MapListExportEndpoints(); // roadmap G6: liste export
-app.MapPdfEndpoints();
-app.MapImportEndpoints(); // veri göçü içe-aktarım (ManageUsers)
-app.MapTenantSettingsEndpoints();
-app.MapMessageTemplateEndpoints();
-app.MapPersonnelEndpoints();
-app.MapLegalEndpoints();
-app.MapCrmEndpoints();
-app.MapAssistanceRequestEndpoints();   // FAZ-44
-app.MapFleetPlanEndpoints();         // FAZ-19
-app.MapCustomerInstallmentEndpoints();    // FAZ-66
-app.MapBlogEndpoints(); // PR-6 — halka açık site blog yönetimi
-app.MapIncomingRequestEndpoints(); // PR-8 — site talepleri (lead) dönüştür/reddet
-app.MapWebSiteEndpoints();    // PR-12 — Web Sitesi modülü (modül+rol kapılı)
-app.MapCompanyDocumentEndpoints(); // PR-B — tenant tarafı belge indirme (salt-okur, dört koşullu)
-app.MapCompanyFileEndpoints(); // firmanın KENDİ yüklediği PDF dokümanları (yükle/sil/indir)
-app.MapContractShareEndpoints();  // PR-C — paylaş / yeni sürüm / iptal (girişli, OperationsWrite)
-app.MapContractViewEndpoints(); // PR-C — GET /sozlesme/{token} ANONİM (ERP host'unda, PublicSite'ta değil)
-app.MapSiteContentEndpoints();        // PR-16 — halka açık site içerik sayfaları + SSS yönetimi
-app.MapPeriodClosingEndpoints();
-app.MapPermissionEndpoints();
-app.MapNotificationEndpoints();
-app.MapRateMatrixEndpoints();
-app.MapCoverageProductEndpoints();
-app.MapRentalRuleEndpoints();
-app.MapBrokerBanEndpoints();
-app.MapReservationTermEndpoints();
-app.MapShiftEndpoints();   // FAZ-45
-app.MapTariffGroupEndpoints();
-app.MapQuoteEndpoints();
-app.MapCostQuotationEndpoints();   // FAZ-74 — kayıtlı maliyet teklifi (deftere yazmaz)
-app.MapAddOnEndpoints();
+// F13.1a: Blazor form POST uçları (~330) ve yalnız Blazor'un kullandığı GET'ler silindi — yazma yolu yalnız
+// /api/ui/v1 (ve harici /api/v1, ayrı proje). Kalan GET'ler yeni arayüzün bağlandığı dosya/indirme uçları.
+app.MapCalendarFeedEndpoints();   // kimliksiz iCal feed
+app.MapReportExportEndpoints();   // GET /raporlar/export/{rapor} (rapor ekranı dışa aktarım)
+app.MapListExportEndpoints();     // GET /listeler/export… (liste dışa aktarım)
+app.MapPdfEndpoints();            // GET sözleşme/fatura PDF
+app.MapCompanyDocumentEndpoints(); // GET /firma-belgeleri/{id}/indir (DocumentApi indirme adresi)
+app.MapCompanyFileEndpoints();    // GET /dokumanlar/{id}/indir (DocumentApi indirme adresi)
+app.MapContractViewEndpoints();   // GET /sozlesme/{token} ANONİM (ERP host'unda, PublicSite'ta değil)
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

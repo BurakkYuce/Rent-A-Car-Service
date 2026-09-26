@@ -4,7 +4,7 @@ using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 using RentACar.IntegrationTests.Infrastructure;
-using RentACar.Web.Components.Pages.Audit;
+using RentACar.Web.Api.Sistem;
 
 namespace RentACar.IntegrationTests;
 
@@ -137,8 +137,8 @@ public sealed class AuditSecretColumnTests(PostgresFixture fx)
         Assert.Equal("********2222", Value(acc[1].NewValues, "Iban"));
         foreach (var l in acc)
             Assert.DoesNotContain(zeros, (l.OldValues ?? "") + (l.NewValues ?? ""));
-        // Okuma yüzeyi (Blazor) yazma yolunun kısmi maskesini korur.
-        Assert.Contains("\"Iban\":\"********2222\"", AuditList.Masked(acc[1].NewValues!, acc[1].EntityName));
+        // Okuma yüzeyi (/api/ui denetim ekranı; F13'te Blazor ekranından devralındı) yazma yolunun kısmi maskesini korur.
+        Assert.Contains("\"Iban\":\"********2222\"", SystemAdminApi.MaskSecrets(acc[1].NewValues!, acc[1].EntityName));
 
         // Firma VKN'si: son 4.
         var setId = Guid.NewGuid();
@@ -170,13 +170,15 @@ public sealed class AuditSecretColumnTests(PostgresFixture fx)
     }
 
     [Fact]
-    public void Blazor_audit_screen_masks_legacy_rows_with_the_same_rule()
+    public void Audit_api_masks_legacy_rows_with_the_same_rule()
     {
-        // Kural öncesinden kalmış kayıt: cipher/hash/token düz duruyor.
+        // Kural öncesinden kalmış kayıt: cipher/hash/token düz duruyor. F13: Blazor denetim ekranı kalktı; aynı kural
+        // /api/ui denetim ucunun maskesinde (SystemAdminApi.MaskSecrets → AuditSecretMask).
         const string legacy = "{\"SmtpSifreEnc\":\"CfDJ8-legacy\",\"PasswordHash\":\"AQAAAA-legacy\",\"CalendarToken\":\"tok-legacy\",\"FirmaUnvan\":\"X\"}";
-        var shown = AuditList.Masked(legacy);
+        var shown = SystemAdminApi.MaskSecrets(legacy);
+        Assert.NotNull(shown);
         Assert.DoesNotContain("legacy", shown);
         Assert.Contains("\"FirmaUnvan\":\"X\"", shown);
-        Assert.Equal("(gösterilemiyor)", AuditList.Masked("düz metin CfDJ8-legacy"));
+        Assert.Null(SystemAdminApi.MaskSecrets("düz metin CfDJ8-legacy")); // ayrıştırılamayan metin gösterilmez
     }
 }

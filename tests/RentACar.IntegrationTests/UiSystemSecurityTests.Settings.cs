@@ -106,12 +106,12 @@ public sealed partial class UiSystemSecurityTests
     [Fact]
     public void Send_test_endpoints_are_rate_limited()
     {
-        // 3. tur: girişten AYRI kova; API + Blazor karşılıkları (test gönderimleri, alan adı ekle/doğrula).
+        // 3. tur: girişten AYRI kova (test gönderimleri, alan adı ekle/doğrula). F13.1a: Blazor karşılıkları
+        // (/ayarlar/smtp-test|sms-test|whatsapp-test|domain-ekle) silindi; yalnız API uçları kalır.
         string[] expected =
         [
             "/api/ui/v1/ayarlar/test/eposta", "/api/ui/v1/ayarlar/test/sms", "/api/ui/v1/ayarlar/test/whatsapp",
             "/api/ui/v1/ayarlar/domainler", "/api/ui/v1/ayarlar/domainler/dogrula",
-            "/ayarlar/smtp-test", "/ayarlar/sms-test", "/ayarlar/whatsapp-test", "/ayarlar/domain-ekle",
         ];
         var routes = fx.Web.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints
             .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()

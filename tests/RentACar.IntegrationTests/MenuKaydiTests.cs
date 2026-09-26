@@ -173,39 +173,27 @@ public sealed class MenuKaydiTests
         Assert.All(items, o => Assert.Equal(o.Grup == "Web Sitesi" ? "WebSitesi" : null, o.Modul));
     }
 
-    /// <summary>Rota → Blazor sayfasının [Authorize] özniteliği (Web derlemesindeki bileşenlerden).</summary>
-    private static Dictionary<string, AuthorizeAttribute?> PagePermissions()
+    /// <summary>
+    /// F13.1a: Blazor sayfaları silindi; önceden sayfaların <c>[Authorize]</c> özniteliğinden OKUNAN, grup kapısından farklı
+    /// sayfa yetkileri burada ELLE donduruldu (silinmeden önceki son ölçüm, 2026-09-26). Anahtar eski Blazor rotası.
+    /// </summary>
+    private static readonly Dictionary<string, Permission> FrozenPagePermissions = new(StringComparer.OrdinalIgnoreCase)
     {
-        var d = new Dictionary<string, AuthorizeAttribute?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var t in typeof(MenuRegistry).Assembly.GetTypes().Where(t => typeof(IComponent).IsAssignableFrom(t)))
-        {
-            var auth = t.GetCustomAttributes<AuthorizeAttribute>(inherit: true).FirstOrDefault();
-            foreach (var r in t.GetCustomAttributes<RouteAttribute>())
-                d[r.Template] = auth;
-        }
-        return d;
-    }
+        ["/vehicles/detayli"] = Permission.ViewReports,
+        ["/musteri-taksit"] = Permission.FinanceWrite,
+        ["/crm"] = Permission.ViewReports,
+        ["/tarife-aktar"] = Permission.ManageUsers,
+        ["/maliyet-hesapla"] = Permission.FinanceWrite,
+        ["/maliyet-teklifleri"] = Permission.FinanceWrite,
+    };
 
     [Fact]
     public void Her_ogenin_izni_sayfanin_yetkisinden_turetilmis()
     {
-        var pages = PagePermissions();
         var errors = new List<string>();
         foreach (var o in MenuRegistry.Items)
         {
-            // spa öğesi: Blazor karşılığı yaşadıkça (F4.6b'ye dek) onun yetkisi; sayfa silinince grup kapısı.
-            if (!pages.TryGetValue(OldRoute(o), out var auth))
-            {
-                if (o.Sahip == MenuRegistry.Spa) auth = null;
-                else { errors.Add($"{o.Rota}: sayfa yok"); continue; }
-            }
-            Permission? expected;
-            if (auth?.Policy is { } pol && pol.StartsWith("izin:", StringComparison.Ordinal))
-                expected = Enum.Parse<Permission>(pol["izin:".Length..]);
-            else if (auth?.Roles is "Admin")
-                expected = Permission.ManageUsers;
-            else
-                expected = GroupGate[o.Grup];
+            Permission? expected = FrozenPagePermissions.TryGetValue(OldRoute(o), out var p) ? p : GroupGate[o.Grup];
             if (expected != o.Izin) errors.Add($"{o.Grup}|{o.Rota}: beklenen {expected?.ToString() ?? "(herkes)"}, kayıtta {o.Izin?.ToString() ?? "(herkes)"}");
         }
         Assert.True(errors.Count == 0, "Menü izni sayfa yetkisiyle uyuşmuyor:\n" + string.Join("\n", errors));

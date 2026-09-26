@@ -565,8 +565,8 @@ public sealed class IlkKesisKararTests
         => Assert.Equal(expected, Cutover.BlazorEquivalent(spa));
 
     /// <summary>
-    /// Bir fazın envanter tablosundaki (<c>docs/roadmap/F?.md</c>) sayfa rotaları; aynı sayfaların gerçek <c>@page</c>
-    /// satırlarıyla BİREBİR karşılaştırılır (sayfa rotası değişir ya da envantere sayfa eklenirse kırmızı).
+    /// Bir fazın envanter tablosundaki (<c>docs/roadmap/F?.md</c>) sayfa rotaları. F13.1a'dan beri tablodaki her Blazor
+    /// sayfa dosyasının SİLİNMİŞ olduğu da doğrulanır (önceden gerçek <c>@page</c> satırlarıyla karşılaştırılıyordu).
     /// </summary>
     private static HashSet<string> InventoryRoutes(string faz, int expectedPage)
     {
@@ -578,18 +578,15 @@ public sealed class IlkKesisKararTests
         static string Normal(string r) => r.Trim().Replace("{Id:guid}", "{id:guid}", StringComparison.Ordinal)
             .Replace("{VehicleId:guid}", "{id:guid}", StringComparison.Ordinal); // F10 araç karnesi
         var inventory = new HashSet<string>(StringComparer.Ordinal);
-        var pages = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match s in rows)
         {
             // Kabuk (layout) satırı rota değil: F12 PlatformLayout gibi (@page yok, "(kabuk)" yazılı).
             if (s.Groups["rotalar"].Value.Trim() == "`(kabuk)`") continue;
             foreach (var r in s.Groups["rotalar"].Value.Split("<br>")) inventory.Add(Normal(r.Trim('`', ' ')));
+            // F13.1a: fazın Blazor sayfası SİLİNDİ (Exit "@page = 0"); rota yalnız yönlendirme haritasında yaşar.
             var file = Path.Combine(root, "src/RentACar.Web/Components/Pages", s.Groups["dosya"].Value);
-            foreach (Match p in Regex.Matches(File.ReadAllText(file), @"^@page\s+""(?<r>[^""]+)""", RegexOptions.Multiline))
-                pages.Add(Normal(p.Groups["r"].Value));
+            Assert.False(File.Exists(file), $"F13.1a sonrası Blazor sayfası hâlâ var: {s.Groups["dosya"].Value}");
         }
-
-        Assert.Equal(inventory.OrderBy(x => x), pages.OrderBy(x => x)); // envanter = sayfaların gerçek rotaları
         return inventory;
     }
 
@@ -968,12 +965,17 @@ public sealed class IlkKesisHostTests(WebFixture fx)
 
     private async Task<HttpClient> PlatformSessionAsync()
     {
+        // F13.1a: Blazor platform giriş formu kalktı; yeni arayüzün platform oturum ucu (aynı çerez).
         var c = fx.Web.Client();
-        var r = await c.PostAsync("/platform/auth/login", new FormUrlEncodedContent(new Dictionary<string, string>
+        var x = await c.GetAsync("/api/ui/v1/oturum/xsrf");
+        var xsrf = CookieValue(x, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("XSRF yok");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/ui/v1/platform/oturum/giris")
         {
-            ["kullanici"] = fx.Platform.Kullanici, ["sifre"] = fx.Platform.Sifre,
-        }));
-        Assert.Equal("/platform/tenants", r.Headers.Location?.OriginalString);
+            Content = JsonContent.Create(new { kullanici = fx.Platform.Kullanici, sifre = fx.Platform.Sifre }),
+        };
+        request.Headers.Add("X-XSRF-TOKEN", xsrf);
+        var r = await c.SendAsync(request);
+        Assert.True(r.StatusCode == HttpStatusCode.OK, await r.Content.ReadAsStringAsync());
         return c;
     }
 
@@ -1210,8 +1212,12 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await RedirectsAsync(op, "/profil/sifre-degistir", "/app/profil/sifre-degistir");
     }
 
+    /// <summary>
+    /// F13.1a: Blazor sayfaları SİLİNDİ. Pilot olmayan firmada eski adres artık Blazor sayfası açmaz (404, HTML sayfa
+    /// değil ve yönlendirme yok). Ara durum: F13.1b haritayı pilotsuz ve kalıcı (301) yapar; bu test orada değişir.
+    /// </summary>
     [Fact]
-    public async Task Pilot_olmayan_firma_yonlenmez_Blazor_sayfasi_acilir()
+    public async Task Pilot_olmayan_firmada_Blazor_sayfasi_artik_yok()
     {
         var c = await SessionAsync(fx.OtherAdmin);
         foreach (var url in new[]
@@ -1229,8 +1235,8 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                  })
         {
             var r = await c.GetAsync(url);
-            Assert.True(r.StatusCode == HttpStatusCode.OK, $"{url}: {(int)r.StatusCode} {r.Headers.Location}");
-            Assert.Equal("text/html", r.Content.Headers.ContentType?.MediaType);
+            Assert.True(r.StatusCode == HttpStatusCode.NotFound, $"{url}: {(int)r.StatusCode} {r.Headers.Location}");
+            Assert.Null(r.Headers.Location);
         }
     }
 
@@ -1245,12 +1251,13 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         var c = await SessionAsync(fx.PilotAdmin);
         var rentalGets = MinimalGetEndpoints()
             .Where(u => u.StartsWith("/kiralar/", StringComparison.OrdinalIgnoreCase)).ToList();
-        // Canlıda bilinen: PDF, örnek sözleşme PDF, hesapla, müsait-araç, dönüş-hesapla (rg "MapGet(\"/kiralar").
+        // Canlıda bilinen: PDF, örnek sözleşme PDF. F13.1a: yalnız Blazor kira formunun kullandığı hesapla, müsait-araç ve
+        // dönüş-hesapla GET'leri silindi (yeni arayüz /api/ui/v1/kiralar/… uçlarını kullanır).
         Assert.Contains("/kiralar/{id:guid}/pdf", rentalGets);
         Assert.Contains("/kiralar/ornek-sozlesme/pdf", rentalGets);
-        Assert.Contains("/kiralar/hesapla", rentalGets);
-        Assert.Contains("/kiralar/donus-hesapla", rentalGets);
-        Assert.Contains("/kiralar/musait-arac", rentalGets);
+        Assert.DoesNotContain("/kiralar/hesapla", rentalGets);
+        Assert.DoesNotContain("/kiralar/donus-hesapla", rentalGets);
+        Assert.DoesNotContain("/kiralar/musait-arac", rentalGets);
 
         // F5.4: haritadaki HER kaynak sayfanın altındaki minimal-API GET'leri de (bugün yok; eklenirse kapsanır).
         var prefixes = Cutover.Map.Select(e => e.Kaynak).Where(k => k != "/" && !k.Contains('{')).ToList();
@@ -1409,12 +1416,14 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await RedirectsAsync(c, "/platform/login", "/app/platform/giris");
         await RedirectsAsync(c, "/platform/login?hata=1", "/app/platform/giris?hata=1");
         await RedirectsAsync(c, "/platform/login", "/app/platform/giris", HttpMethod.Head);
-        // Korumalı konsol sayfası: önce challenge (/platform/login, dönüşsüz), sonra SPA platform girişi — döngü yok.
+        // F13.1a: Blazor konsol sayfası silindi (challenge alacak uç yok) → doğrudan SPA konsolu; oturum kapısı SPA'da ve
+        // /api/ui/v1/platform'da. Döngü yok.
         var chain = await ChainAsync(c, "/platform/tenants");
-        Assert.Equal(new[] { "/platform/tenants", "/platform/login", "/app/platform/giris" }, chain.Select(z => z.Adres));
+        Assert.Equal(new[] { "/platform/tenants", "/app/platform/kiracilar" }, chain.Select(z => z.Adres));
 
-        // Cookie challenge ve AccessDeniedPath DEĞİŞMEDİ (/login, /yetkisiz): challenge dönüşü taşır.
-        await RedirectsAsync(c, "/vehicles?x=1", "/login?ReturnUrl=%2Fvehicles%3Fx%3D1");
+        // F13.1a: korumalı Blazor sayfası kalmadığı için eski adreslerde cookie challenge yok (uç yok). Challenge
+        // hâlâ korumalı minimal-API GET'lerinde: dönüş adresi indirme olduğu için taşınmaz.
+        await RedirectsAsync(c, "/listeler/export/kiralar", "/login");
     }
 
     [Fact]
@@ -1464,10 +1473,12 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         // SPA konsolu kendisi yönlenmez (döngü yok). Dosya GET'leri ve POST'lar birim testlerde (Harita_disi_yol_yonlenmez).
         Assert.Null(await LocationAsync(platform, "/app/platform/kiracilar"));
 
-        // Pilot OLMAYAN firmanın kullanıcısı: konsol sayfası 403 → platform girişi (SPA). Firma verisi yok.
+        // Pilot OLMAYAN firmanın kullanıcısı da SPA konsoluna yönlenir (Blazor sayfası yok); veri kapısı platform API'sinde:
+        // firma oturumu platform verisini okuyamaz.
         var other = await SessionAsync(fx.OtherAdmin);
         var chain = await ChainAsync(other, "/platform/tenants");
-        Assert.Equal(new[] { "/platform/tenants", "/platform/login", "/app/platform/giris" }, chain.Select(z => z.Adres));
+        Assert.Equal(new[] { "/platform/tenants", "/app/platform/kiracilar" }, chain.Select(z => z.Adres));
+        Assert.NotEqual(HttpStatusCode.OK, (await other.GetAsync("/api/ui/v1/platform/kiracilar")).StatusCode);
     }
 
     /// <summary>
@@ -1481,16 +1492,10 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         var c = fx.Web.Client();
         foreach (var start in new[]
                  {
-                     "/", "/kiralar", "/kiralar/yeni?varac=" + G, "/kiralar/" + G + "/yazdir", "/kiralar/" + G + "/pdf",
-                     "/vehicles", "/login", "/login?ReturnUrl=%2Flogin", "/app/giris", "/app/giris?returnUrl=%2Fkiralar",
-                     "/rezervasyonlar", "/musaitlik?from=2026-10-01", "/filo-kiralama",
-                     "/vehicles/" + G, "/araclar/" + G, "/arac-kredi",
-                     "/cariler", "/cariler/" + G + "/detay", "/crm",
-                     "/raporlar/gelir-gider", "/raporlar/arac-karne/" + G,
-                     "/markalar", "/ayarlar", "/profil/sifre-degistir", "/web-sitesi/ilan/" + G + "/fiyat",
-                     "/gelen-talepler?durum=0",
-                     "/servisler", "/vade", "/tarifeler",
-                     "/kasa", "/faturalar/" + G + "/yazdir", "/cariler/" + G + "/ekstre",
+                     // F13.1a: eski Blazor sayfa adresleri oturumsuz 404 (uç yok, challenge yok); F13.1b onları pilotsuz
+                     // kalıcı yönlendirmeyle bu listeye geri ekler.
+                     "/kiralar/" + G + "/pdf", "/faturalar/" + G + "/pdf",
+                     "/login", "/login?ReturnUrl=%2Flogin", "/app/giris", "/app/giris?returnUrl=%2Fkiralar",
                  })
         {
             var chain = await ChainAsync(c, start);
@@ -1531,7 +1536,7 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         var other = await SessionAsync(fx.OtherAdmin);
         var z3 = await ChainAsync(other, "/login?ReturnUrl=%2Fapp%2Fkiralar");
         Assert.Equal(new[] { "/login?ReturnUrl=%2Fapp%2Fkiralar", "/" }, z3.Select(z => z.Adres));
-        Assert.Equal(HttpStatusCode.OK, z3[^1].Durum);
+        Assert.Equal(HttpStatusCode.NotFound, z3[^1].Durum); // F13.1a: Blazor Panel silindi (F13.1b: pilotsuz /app/panel)
     }
 
     [Fact]
@@ -1566,41 +1571,45 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         var id = await fx.TenantIdAsync(k.Firma);
         var user = await SessionAsync(k);
         Assert.False(await IsPilotAsync(user));
-        Assert.Equal(HttpStatusCode.OK, (await user.GetAsync("/kiralar")).StatusCode);
+        Assert.Null(await LocationAsync(user, "/kiralar")); // pilot değil: yönlenmez (F13.1a: sayfa yok → 404)
 
-        // Firma yöneticisi (Admin) anahtara dokunamaz: PlatformAdmin politikası.
-        var red = await user.PostAsync("/platform/tenants/yeni-arayuz-pilot", Form(id, true));
-        Assert.StartsWith("/platform/login", red.Headers.Location?.OriginalString);
+        // Firma yöneticisi (Admin) anahtara dokunamaz: PlatformAdmin politikası (API: 403).
+        var red = await PilotSwitchAsync(user, id, true);
+        Assert.Equal(HttpStatusCode.Forbidden, red.StatusCode);
         Assert.False(await IsPilotAsync(user));
 
+        // F13.1a: Blazor anahtar formu kalktı; yeni arayüzün platform ucu (/api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot).
         var platform = await PlatformSessionAsync();
-        // F12 kesiş: detay sayfası artık SPA'da (anahtar orada, /api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot).
         await RedirectsAsync(platform, $"/platform/tenants/{id}", $"/app/platform/kiracilar/{id}");
 
-        var open = await platform.PostAsync("/platform/tenants/yeni-arayuz-pilot", Form(id, true));
-        Assert.Equal($"/platform/tenants/{id}?ok=1", open.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.OK, (await PilotSwitchAsync(platform, id, true)).StatusCode);
         Assert.True(await IsPilotAsync(user));
         await RedirectsAsync(user, "/kiralar", "/app/kiralar"); // önbelleksiz: ANINDA
         Assert.Equal(1, await AuditCountAsync(id, "true"));
 
-        var repeat = await platform.PostAsync("/platform/tenants/yeni-arayuz-pilot", Form(id, true)); // no-op
-        Assert.Equal($"/platform/tenants/{id}?ok=1", repeat.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.OK, (await PilotSwitchAsync(platform, id, true)).StatusCode); // no-op
         Assert.Equal(1, await AuditCountAsync(id, "true"));
 
-        var close = await platform.PostAsync("/platform/tenants/yeni-arayuz-pilot", Form(id, false));
-        Assert.Equal($"/platform/tenants/{id}?ok=1", close.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.OK, (await PilotSwitchAsync(platform, id, false)).StatusCode);
         Assert.False(await IsPilotAsync(user));
-        Assert.Equal(HttpStatusCode.OK, (await user.GetAsync("/kiralar")).StatusCode); // ANINDA eski arayüz
+        Assert.Null(await LocationAsync(user, "/kiralar")); // ANINDA yönlendirme durur
         Assert.Equal(1, await AuditCountAsync(id, "false"));
 
-        var none = await platform.PostAsync("/platform/tenants/yeni-arayuz-pilot", Form(Guid.NewGuid(), true));
-        Assert.Contains("hata=", none.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.NotFound, (await PilotSwitchAsync(platform, Guid.NewGuid(), true)).StatusCode);
     }
 
-    private static FormUrlEncodedContent Form(Guid id, bool active) => new(new Dictionary<string, string>
+    /// <summary>Platform pilot anahtarı (JSON + XSRF başlığı; aynı çerez istemcide).</summary>
+    private static async Task<HttpResponseMessage> PilotSwitchAsync(HttpClient c, Guid id, bool active)
     {
-        ["id"] = id.ToString(), ["aktif"] = active ? "true" : "false",
-    });
+        var x = await c.GetAsync("/api/ui/v1/oturum/xsrf");
+        var xsrf = CookieValue(x, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("XSRF yok");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot")
+        {
+            Content = JsonContent.Create(new { aktif = active }),
+        };
+        request.Headers.Add("X-XSRF-TOKEN", xsrf);
+        return await c.SendAsync(request);
+    }
 
     private static async Task<bool> IsPilotAsync(HttpClient c)
     {

@@ -12,10 +12,9 @@ namespace RentACar.IntegrationTests;
 /// "(Atanmamış)" tarafında birikiyordu</b>. Servis testi bunu yakalayamaz: servise VehicleId
 /// verildiğinde doğru çalışıyor. Kırık olan zincirin form ucuydu.</para>
 ///
-/// <para>Bu test kaynak düzeyinde çalışır: "şu input alanı varsa, şu formda da sorulmalı".
-/// Kapsam bilinçli olarak DAR — yalnız parite taramasında ölçülmüş üç kalem. Genel bir
-/// "tüm input alanları formda olmalı" kuralı YANLIŞ olurdu (çok alan bilinçli olarak
-/// yalnız API/servis yolundan doldurulur).</para>
+/// <para><b>F13.1a:</b> Blazor formları ve form uçları silindi; çit aynı dokuz alanı yeni arayüzün formunda
+/// (Angular, JSON alan adı) ve <c>/api/ui/v1</c> ucunun gövde/DTO dosyasında (C# özellik adı) arar.
+/// Kapsam bilinçli olarak DAR — yalnız parite taramasında ölçülmüş kalemler.</para>
 /// </summary>
 public sealed class WireInKapsamaTests
 {
@@ -29,39 +28,41 @@ public sealed class WireInKapsamaTests
 
     private static string Read(string relativePath) => File.ReadAllText(Path.Combine(Root(), relativePath));
 
+    private const string Loan = "src/RentACar.Frontend/src/app/features/vehicle-finance/loans/loan-form-model.ts";
+    private const string Sale = "src/RentACar.Frontend/src/app/features/finance-documents/vehicle-sales/sale-create-form.ts";
+    private const string Baf = "src/RentACar.Frontend/src/app/features/vehicle-finance/allocations/allocation-return-panel.ts";
+
     public static TheoryData<string, string, string> ExpectedValues() => new()
     {
-        // (form dosyası, form alan adı, neden önemli)
-        { "src/RentACar.Web/Components/Pages/AracKredileri/AracKrediList.razor", "vehicleId",
-          "taksit gideri araca atfedilir (AccountRef=VehicleId); yoksa karnede (Atanmamış)" },
-        { "src/RentACar.Web/Components/Pages/AracKredileri/AracKrediList.razor", "cariId",
-          "FAZ-13 kredi-cari ilişkisi; sorulmazsa liste cari filtresi hep boş sonuç verir" },
-        { "src/RentACar.Web/Components/Pages/AracKredileri/AracKrediList.razor", "dosyaNo",
-          "FAZ-13 banka dosya referansı; kolon ve arama bu alana dayanır" },
-        { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "hedefFiyat", "satış analizi" },
-        { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "satisKm", "satış anı km" },
-        { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "satisKanali", "satış kanalı kırılımı" },
-        { "src/RentACar.Web/Components/Pages/VehicleSales/VehicleSaleList.razor", "devir", "noter/trafik devir notu" },
-        { "src/RentACar.Web/Components/Pages/Baflar/BafList.razor", "donusYakit", "dönüş yakıt seviyesi (0-12)" },
-        { "src/RentACar.Web/Components/Pages/Baflar/BafList.razor", "donusTarihi",
-          "gerçek teslim anı; yoksa kayıt anı yazılır" },
+        // (SPA form dosyası, JSON alan adı, neden önemli)
+        { Loan, "vehicleId", "taksit gideri araca atfedilir (AccountRef=VehicleId); yoksa karnede (Atanmamış)" },
+        { Loan, "cariId", "FAZ-13 kredi-cari ilişkisi; sorulmazsa liste cari filtresi hep boş sonuç verir" },
+        { Loan, "dosyaNo", "FAZ-13 banka dosya referansı; kolon ve arama bu alana dayanır" },
+        { Sale, "hedefFiyat", "satış analizi" },
+        { Sale, "satisKm", "satış anı km" },
+        { Sale, "satisKanali", "satış kanalı kırılımı" },
+        { Sale, "devir", "noter/trafik devir notu" },
+        { Baf, "donusYakit", "dönüş yakıt seviyesi (0-12)" },
+        { Baf, "donusTarihi", "gerçek teslim anı; yoksa kayıt anı yazılır" },
     };
 
     [Theory]
     [MemberData(nameof(ExpectedValues))]
     public void Form_alani_SORULUYOR(string file, string alan, string reason)
-        => Assert.True(Regex.IsMatch(Read(file), $@"name=""{Regex.Escape(alan)}"""),
+        => Assert.True(Regex.IsMatch(Read(file), $@"\b{Regex.Escape(alan)}\b"),
             $"`{alan}` alanı {file} formunda YOK — {reason}.");
 
     [Theory]
     [MemberData(nameof(ExpectedValues))]
     public void Ucta_da_OKUNUYOR(string file, string alan, string reason)
     {
-        // Formda sorulup uçta okunmaması da aynı sınıf hata: kullanıcı doldurur, veri kaybolur.
-        var endpoint = file.Contains("AracKredileri") ? "src/RentACar.Web/AracKredileri/VehicleLoanEndpoints.cs"
-               : file.Contains("VehicleSales") ? "src/RentACar.Web/VehicleSales/VehicleSaleEndpoints.cs"
-               : "src/RentACar.Web/Baflar/BafEndpoints.cs";
-        Assert.True(Read(endpoint).Contains(alan, StringComparison.Ordinal),
-            $"`{alan}` uçta ({endpoint}) okunmuyor — {reason}.");
+        // Formda sorulup uçta okunmaması da aynı sınıf hata: kullanıcı doldurur, veri kaybolur. /api/ui gövdesi
+        // camelCase JSON → C# PascalCase özellik.
+        var endpoint = file == Loan ? "src/RentACar.Web/Api/AracFinans/AracKrediDtolari.cs"
+            : file == Sale ? "src/RentACar.Web/Api/FinansBelge/VehicleSaleUiApi.cs"
+            : "src/RentACar.Web/Api/AracFinans/OperasyonDtolari.cs";
+        var property = char.ToUpperInvariant(alan[0]) + alan[1..];
+        Assert.True(Regex.IsMatch(Read(endpoint), $@"\b{Regex.Escape(property)}\b"),
+            $"`{property}` uçta ({endpoint}) okunmuyor — {reason}.");
     }
 }

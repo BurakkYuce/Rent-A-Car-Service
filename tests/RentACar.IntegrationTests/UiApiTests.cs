@@ -398,12 +398,12 @@ public sealed class UiApiTests(WebFixture fx)
     [Fact]
     public async Task Platform_operatoru_ui_verisine_403_ben_401_yonlendirme_yok()
     {
+        // F13.1a: Blazor platform giriş formu kalktı; platform oturumu yeni arayüzün platform ucuyla (aynı çerez).
         var c = fx.Web.Client();
-        var entry = await c.PostAsync("/platform/auth/login", new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["kullanici"] = fx.Platform.Kullanici, ["sifre"] = fx.Platform.Sifre,
-        }));
-        Assert.Equal(HttpStatusCode.Redirect, entry.StatusCode);
+        var xsrf = CookieValue(await c.GetAsync(Xsrf), "XSRF-TOKEN");
+        var entry = await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/platform/oturum/giris", xsrf,
+            new { kullanici = fx.Platform.Kullanici, sifre = fx.Platform.Sifre }));
+        Assert.Equal(HttpStatusCode.OK, entry.StatusCode);
         Assert.NotNull(CookieValue(entry, "racar.session"));
 
         await ExpectProblem(await c.GetAsync("/api/ui/v1/test/tamam"), HttpStatusCode.Forbidden, "yetki_yok");
@@ -428,10 +428,7 @@ public sealed class UiApiTests(WebFixture fx)
     public async Task Blazor_yonlendirmeleri_degismedi()
     {
         var c = fx.Web.Client();
-
-        var main = await c.GetAsync("/");
-        Assert.Equal(HttpStatusCode.Redirect, main.StatusCode);
-        Assert.StartsWith("/login", main.Headers.Location?.OriginalString);
+        // F13.1a: Blazor Panel ("/") silindi — oturumsuz "/" artık challenge almaz (F13.1b pilotsuz yönlendirme ekler).
 
         var pickup = await c.PostAsync("/auth/logout", new FormUrlEncodedContent([]));
         Assert.Equal(HttpStatusCode.Redirect, pickup.StatusCode);
@@ -584,17 +581,8 @@ public sealed class UiApiYapisalTests(WebFixture fx)
         Assert.True(violation.Count == 0, "Modül metadatası eksik: " + string.Join(", ", violation));
     }
 
-    [Fact]
-    public void Blazor_web_sitesi_uclari_modul_metadatasi_tasir()
-    {
-        // RequireWebSitesiModulu filtreyi takarken metadatayı da yazar — mevcut Blazor uçlarında kanıt.
-        var ws = fx.Web.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
-            .Where(e => RouteOf(e).StartsWith("/web-sitesi/", StringComparison.OrdinalIgnoreCase)
-                        && e.Metadata.GetMetadata<System.Reflection.MethodInfo>() is not null) // minimal API (Razor sayfası değil)
-            .ToList();
-        Assert.NotEmpty(ws);
-        Assert.All(ws, e => Assert.Contains(e.Metadata.GetOrderedMetadata<ModulMetadata>(), m => m.Modul == "WebSitesi"));
-    }
+    // F13.1a: "Blazor web sitesi uçları modül metadatası taşır" testi silindi — /web-sitesi/* Blazor form uçları kalktı.
+    // Aynı kural /api/ui web sitesi uçlarında Modul_yolundaki_uc_modul_metadatasi_tasir ile kilitli.
 
     [Theory]
     [InlineData("/api/ui/v1/oturum/ben", true)]
