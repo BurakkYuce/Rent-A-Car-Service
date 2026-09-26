@@ -12,16 +12,16 @@
 | [F1](F1.md) | Backend API temeli: hata/yetki, `/api/ui` + pilot kapısı, liste, idempotency, `/app` barındırma, F4–F5 seçim uçları + menü kaydı | 6 | F1.4 | ✔ 2026-09-21 |
 | [F2](F2.md) | Frontend iskeleti + kalite kapıları + tip üretimi + CI artifact dağıtımı (F2.1 F1'le paralel) | 2 | — | F2.1 ✔ · F2.2 kod ✔ #249, sunucu Exit'i bekliyor |
 | [F3](F3.md) | Çekirdek: tasarım sistemi, kabuk, oturum, veri katmanı, tablo, form seti, vitrin | 7 | — | ✔ 2026-09-22 |
-| [F4](F4.md) | Pilot: Panel + Kira (liste, form, yazdır), tek SPA girişi, ilk kesiş | 6 | ✔ | kod ✔ 2026-09-23 · pilot + söküm (F4.6b) bekliyor |
-| [F5](F5.md) | Rezervasyon, teklif, müsaitlik, takvim, rez şartları, filo kiralama | 5 | — | sürüyor (#271 #272 #273 main'de, #274 açık, F5.4 kesiş) |
-| [F6](F6.md) | Araçlar | 6 | ✔ | kod ✔ (#278 #279 #285 #291 #294 + F6.4 kesiş) · Blazor sayfa silme pilot sonrası |
-| [F7](F7.md) | Cariler & CRM | 3 | — | kod ✔ (#283 #295 + F7.3 parite + kesiş) · Blazor sayfa silme pilot sonrası |
-| [F8](F8.md) | Finans + cari ekstre + fatura yazdır | 6 | ✔ | kod ✔ (#284 #286 #299 #300 + F8.3 parite + kesiş) · Blazor sayfa silme pilot sonrası |
-| [F9](F9.md) | Servis & Sigorta + Vade + Fiyat & Tarife | 5 | ✔ | kod ✔ (#292 #301 + F9.3 parite + kesiş) · Blazor sayfa silme pilot sonrası |
-| [F10](F10.md) | Raporlar | 4 | — | kod ✔ (#287 #296 #302 + F10.3b parite + kesiş) · Blazor sayfa silme pilot sonrası |
-| [F11](F11.md) | Tanımlar + Sistem + Web Sitesi + kabuk sayfaları | 6 | — | kod ✔ (#282 #288 #297 #304 #306 #308 + F11.3 parite + kesiş) · Blazor sayfa silme pilot sonrası |
-| [F12](F12.md) | Platform konsolu | 3 | — | kod ✔ (#281 #293 + F12 parite + kesiş; canlı parite yok, kullanıcı kararı) |
-| [F13](F13.md) | Blazor söküm ve kapanış | 4 | — | sürüyor (F13.0 karar + F12 kesiş, F13.1a, F13.1b, F13.2) · yayın F2.2 sonrası |
+| [F4](F4.md) | Pilot: Panel + Kira (liste, form, yazdır), tek SPA girişi, ilk kesiş | 6 | ✔ | ✔ kod 2026-09-23 · Blazor söküldü F13 (pilot beklenmeden, kullanıcı kararı) |
+| [F5](F5.md) | Rezervasyon, teklif, müsaitlik, takvim, rez şartları, filo kiralama | 5 | — | ✔ (#271–#274 + F5.4 kesiş #276) · Blazor söküldü F13 |
+| [F6](F6.md) | Araçlar | 6 | ✔ | kod ✔ (#278 #279 #285 #291 #294 + F6.4 kesiş) · Blazor söküldü F13 |
+| [F7](F7.md) | Cariler & CRM | 3 | — | kod ✔ (#283 #295 + F7.3 parite + kesiş) · Blazor söküldü F13 |
+| [F8](F8.md) | Finans + cari ekstre + fatura yazdır | 6 | ✔ | kod ✔ (#284 #286 #299 #300 + F8.3 parite + kesiş) · Blazor söküldü F13 |
+| [F9](F9.md) | Servis & Sigorta + Vade + Fiyat & Tarife | 5 | ✔ | kod ✔ (#292 #301 + F9.3 parite + kesiş) · Blazor söküldü F13 |
+| [F10](F10.md) | Raporlar | 4 | — | kod ✔ (#287 #296 #302 + F10.3b parite + kesiş) · Blazor söküldü F13 |
+| [F11](F11.md) | Tanımlar + Sistem + Web Sitesi + kabuk sayfaları | 6 | — | kod ✔ (#282 #288 #297 #304 #306 #308 + F11.3 parite + kesiş) · Blazor söküldü F13 |
+| [F12](F12.md) | Platform konsolu | 3 | — | ✔ (#281 #293 + kesiş #348; canlı parite yok, kullanıcı kararı) |
+| [F13](F13.md) | Blazor söküm ve kapanış | 4 | — | ✔ 2026-09-26 (#348 karar + F12 kesiş, #349 sayfa/uç, #350 kabuk + pilot kapısı + 301, F13.2 belgeler) · **canlıya yayın F2.2 sonrası** |
 
 Her faz bir öncekinin **Exit**'i sağlanınca başlar (tek istisna F2.1). Faz içindeki PR'lar tek tek merge edilir.
 `/api/ui/v1`'de yalnız eklemeli değişiklik yapılır. Sıra ya da kapsam değişikliği: [DEGISIKLIKLER.md](DEGISIKLIKLER.md).
@@ -57,7 +57,7 @@ Karar: Angular 21. Kullanıcının kendi Revlo projesinden (`~/Desktop/revlo-mar
 | Blazor testlerinin devri | Testler repo değiştirir | Yan yana |
 | Araçlar | CLAUDE.md, hafıza, graphify, hook'lar ikinci kez kurulur | Ortak |
 
-Bedeli: tek CI'da iki araç zinciri (.NET + Node) ve `src/RentACar.Frontend` içinde ikinci bir `package.json` (kökteki Playwright paketi F13'e kadar yaşar).
+Bedeli: tek CI'da iki araç zinciri (.NET + Node) ve `src/RentACar.Frontend` içinde ikinci bir `package.json` (kökteki Playwright paketi F13.1a'da kaldırıldı).
 
 **Sıra kuralı (kullanıcı isteği).** Faz sırası kilitli; iş sürerken öne ya da arkaya alınmaz. Bunun için:
 - Her fazın **sayfa listesi** ve **gereken uç listesi** F0.1'de `docs/roadmap/F*.md` dosyalarına yazılır. Liste, her sayfanın `@inject` satırlarından ve form hedeflerinden **mekanik olarak üretilir**.
@@ -78,7 +78,7 @@ Bedeli: tek CI'da iki araç zinciri (.NET + Node) ve `src/RentACar.Frontend` iç
 | Global şube seçici | Yok |
 | İngilizce çeviri | Yok. Anahtarlar hazır, yalnız `tr.json` |
 | Deneysel Angular çalışma zamanı API'leri | Signal Forms, `resource()`, `@angular/aria` kullanılmaz. **Araç istisnası:** `@angular/build:unit-test` `[EXPERIMENTAL]`, sürümü sabitlenir |
-| Staging | Kurulmaz. Karanlık yayın: `/app` kabuğu anonim yüklenir ama tüm veri `/api/ui` üzerinden gelir ve oturum + pilot kapısı ister |
+| Staging | Kurulmaz. Karanlık yayın: `/app` kabuğu anonim yüklenir ama tüm veri `/api/ui` üzerinden gelir ve oturum ister (pilot kapısı F13.1b'de kalktı) |
 | Sunucuda Node / npm | Yok. SPA CI'da derlenir; sunucu commit SHA'sına ait checksum'lı artifact'ı indirir |
 | Çevrimdışı PWA | Yok |
 
@@ -117,13 +117,13 @@ Bedeli: tek CI'da iki araç zinciri (.NET + Node) ve `src/RentACar.Frontend` iç
 Rent-A-Car-Service/
   src/RentACar.Web/
     Api/                              /api/ui/v1
-      UiApiExtensions.cs              grup, ProblemDetails, CSRF, no-store, izin ve pilot kapısı
+      UiApiExtensions.cs              grup, ProblemDetails, CSRF, no-store, izin (pilot kapısı F13.1b'de kalktı)
       Oturum/OturumApi.cs             giriş, çıkış, ben, xsrf
       Menu/MenuKaydi.cs + MenuApi.cs  tek menü kaydı (iki UI)
       Secim/, Arama/                  typeahead ve arama (F1.6 + modül fazları)
       <Modul>/<Modul>Api.cs
     Spa/SpaBarindirma.cs              /app anonim statik + fallback (Spa:Dizin)
-    Components/                       F13'te silinir
+    Spa/Cutover.cs                    eski Blazor adresleri → /app (301), giriş/hata hedefleri (F13; Components/ silindi)
   src/RentACar.Frontend/              Angular çalışma alanı (package.json, AGENTS.md, e2e/)
   src/RentACar.Application/Common/
     ValidationException.cs (+Alan), YetkiYokException.cs, MukerrerIslemException.cs, ListeIstegi.cs, Sayfa.cs

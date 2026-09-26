@@ -33,30 +33,33 @@ Ekranlar bu defterin etrafında duruyor.
 | Katman | Seçim | Neden |
 |---|---|---|
 | Platform | **.NET 10 (LTS)**, C# | Uzun destek, tek dil |
-| Web | **ASP.NET Core + Blazor Server, statik SSR** | Aşağıya bakınız — bilinçli ve alışılmadık bir karar |
+| Web | **ASP.NET Core** — JSON API (`/api/ui/v1`) + dosya uçları | Arayüz sunmaz; SPA'yı `/app` altında statik barındırır |
+| Arayüz | **Angular 21 SPA** (`src/RentACar.Frontend`) | Aşağıya bakınız — Blazor'dan geçiş (F13'te söküldü) |
 | Veri | **EF Core 10 + PostgreSQL** (Npgsql) | Row Level Security için Postgres şart |
 | Para | `decimal` / `numeric(19,4)` | `double` ile para tutmak yasak |
 | Mimari | Temiz mimari (4 katman) | Bağımlılık yönü daima içe doğru |
 | Test | xUnit + **gerçek PostgreSQL** | In-memory DB, RLS'i test edemez |
 | Paketler | Central Package Management (`Directory.Packages.props`) | Sürümler tek dosyada |
 
-### Blazor "statik SSR" kararı
+### Arayüz: Blazor statik SSR'den Angular SPA'ya (2026-09, F0–F13)
 
-Blazor genelde **interaktif** kullanılır: tarayıcı ile sunucu arasında kalıcı bir WebSocket
-(circuit) açılır, her tuş vuruşu sunucuya gider. Bu proje bunu **bilinçli olarak kullanmıyor.**
+İlk arayüz **Blazor statik SSR** idi: interaktif circuit yok, formlar klasik `method="post"` ile
+minimal-API uçlarına gidiyordu (dayanıklılık, ölçek, öngörülebilirlik gerekçesiyle). Canlı kullanımda
+iki kök sorun ölçüldü: hata olunca `Redirect("?hata=…")` yazılanları siliyordu (kira formunda 172 alan)
+ve tarayıcıda durum tutulamadığı için tasarımın tavanı alçaktı.
 
-Formlar klasik `method="post"` ile minimal-API uçlarına gidiyor — 1990'ların web'i gibi. Sebep:
+Karar: arayüz modül modül **Angular 21 SPA**'ya taşındı (`docs/roadmap/`, F0–F12), F13'te Blazor
+tamamen söküldü (2026-09-26). Bugün:
 
-- **Dayanıklılık.** Circuit kopunca kullanıcı yarım kalmış bir formla baş başa kalır. Bir kiralama
-  sözleşmesi doldururken bunun olması kabul edilemez.
-- **Ölçek.** Her açık sekme için sunucuda canlı bir circuit tutmak, yüzlerce şubeli bir SaaS'ta
-  pahalıdır.
-- **Öngörülebilirlik.** POST → doğrula → yaz → yönlendir zinciri test edilebilir; bir devlet
-  makinesinin ara durumları değil.
-
-Bedeli: canlı hesaplama gereken yerlerde (kira mega-formu) küçük JavaScript parçaları ve sunucudan
-`GET /kiralar/hesapla` gibi hesap uçları yazıldı. **Formül asla istemciye taşınmadı** — tarayıcı
-sunucuya sorar, cevabı gösterir.
+- SPA `/app` altında Web sunucusundan statik barınır (`Spa/SpaHosting.cs`, anonim kabuk — veri
+  kapısı API'de). Veri yalnız **`/api/ui/v1`**: aynı oturum çerezi, `X-XSRF-TOKEN` CSRF, ProblemDetails
+  hata sözleşmesi (`dogrulama`, `yetki_yok`, `cakisma`, `mukerrer`…), her uçta açık izin kararı.
+- Eski Blazor adresleri `Spa/Cutover.cs` haritasıyla **301** → `/app/...` (yer imleri ve bildirim
+  bağlantıları çalışır). Giriş `/app/giris`; 401/403/404/500 tarayıcıda SPA Panel'ine hata bandıyla.
+- **Formül yine istemcide değil** — canlı hesap (`GET /api/ui/v1/kiralar/hesapla` vb.) sunucu motorundan
+  gelir; SPA sorar, cevabı gösterir. Para formları idempotency anahtarı ve donmuş denemeyle çalışır
+  (`docs/api/idempotency-envanteri.md`).
+- Yayın: söküm main'de; canlıya yayın F2.2 sunucu adımları tamamlanınca (`docs/roadmap/DEGISIKLIKLER.md`).
 
 ---
 
@@ -73,7 +76,8 @@ RentACar.Domain          →  Application  →  Infrastructure  →  Web / Api /
 | `RentACar.Domain` | ~6.400 | Varlıklar (103 tablo), enum'lar, `Money` tipi. Hiçbir dış bağımlılığı yok. |
 | `RentACar.Application` | ~23.900 | 93 servis — doğrulama, iş kuralı, yetki, fiyat motoru, raporlar. Repository *arayüzleri* burada. |
 | `RentACar.Infrastructure` | ~16.300 (+183 migration) | EF Core yapılandırması, repository *gerçeklemeleri*, RLS, arka plan işleri. |
-| `RentACar.Web` | ~33.500 | 150 Razor sayfası + 90 endpoint dosyası. Yönetim arayüzü. |
+| `RentACar.Web` | — | Yönetim arayüzünün sunucusu: `/api/ui/v1` JSON API, dosya uçları (PDF/export/indir), SPA barındırma, eski adres yönlendirmesi. F13'te Blazor sayfaları ve form uçları silindi. |
+| `RentACar.Frontend` | — | Angular 21 SPA (yönetim arayüzü, `/app`). |
 | `RentACar.Api` | ~1.300 | JWT korumalı REST API (mobil/entegrasyon için). |
 | `RentACar.PublicSite` | ~2.100 | Kiracıya özel halka açık site: vitrin, blog, müsaitlik/fiyat sorgu, talep formu. |
 | `tests/RentACar.IntegrationTests` | ~52.400 | 325 dosya, ~2.100 test. Kod tabanının en büyük parçası. |
@@ -290,10 +294,10 @@ Kaynak sistemdeki `Kiralama.aspx` ekranının eşdeğeri: **tek sayfada** 8 ana 
 8 alt sekme, artı sağda yapışkan bir finans paneli (5 alt sekme). Bir kiralama sözleşmesinin
 bütün alanları burada.
 
-Statik SSR ile bunu kurmanın yolu: **tek bir ana form** bütün panelleri sarar (gizli paneller
-`hidden` ile saklanır ama submit'e dahil olur); ikincil işlemler ana formun *dışında* durur ve
-kontroller `form="..."` niteliğiyle bağlanır (iç içe form HTML'de yasaktır). Sekme geçişi, alan
-aynalama ve arama küçük bir JS dosyasında; **hesaplama sunucuda.**
+Yeni arayüzde (Angular, F4) aynı ekran `/app/kiralar/:id`: sekmeler istemci durumunda, form hata
+alınca korunur; sabit finans paneli para işlemlerini idempotency anahtarı ve donmuş denemeyle yapar.
+**Hesaplama yine sunucuda** (`/api/ui/v1/kiralar/hesapla`, `.../donus-hesapla`). Blazor dönemindeki
+statik SSR kurgusu (tek ana form + `form="..."` bağlı ikincil işlemler) F13'te kalktı.
 
 ### Fiyat motoru
 
@@ -360,7 +364,8 @@ güvenlik açığı bırakan kısımlardır.
 5. Repository arayüzü (Application) + gerçeklemesi (Infrastructure)
 6. Servis (doğrulama + yetki guard'ı + iş kuralı)
 7. DI kaydı (iki tarafta)
-8. Web: Razor sayfası + endpoint + `Program.cs` + navigasyon
+8. Web: `/api/ui/v1` ucu (`Api/<Modül>/`, izin metadatası, OpenAPI anlık görüntüsü) + SPA ekranı
+   (`src/RentACar.Frontend`, rota `sayfalar.ts`, menü `Api/Menu/MenuKaydi.cs`)
 9. Test: CRUD + benzersizlik + **kiracı izolasyonu (`racar_app` ile)** + yetki
 
 ---
