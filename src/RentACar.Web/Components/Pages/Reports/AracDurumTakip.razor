@@ -169,8 +169,8 @@ else
             Sube = Sube, AracSahibi = AracSahibi, Grup = Grup, Sipp = Sipp, Plaka = Plaka
         };
 
-        if (AracModu) _aracRows = await Reports.GetAracDurumTakipAracBazliAsync(filtre, from, to);
-        else _rows = await Reports.GetAracDurumTakipAsync(filtre, from, to);
+        if (AracModu) _aracRows = await Reports.GetVehicleStatusTrackingByVehicleAsync(filtre, from, to);
+        else _rows = await Reports.GetVehicleStatusTrackingAsync(filtre, from, to);
 
         // Seçenekler FİLTRESİZ kaynaktan türetilir — filtrelenmiş listeden türetilseydi bir seçim
         // sonrası diğer seçenekler kaybolur ve filtre kendini kilitlerdi.

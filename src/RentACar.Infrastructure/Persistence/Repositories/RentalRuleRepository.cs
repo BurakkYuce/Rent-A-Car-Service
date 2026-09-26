@@ -32,7 +32,7 @@ public sealed class RentalRuleRepository(IDbContextFactory<AppDbContext> factory
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.RentalRules.AsNoTracking()
-            .Where(r => r.KampanyaDurum == KampanyaDurum.Aktif).OrderBy(r => r.Ad).ToListAsync(ct);
+            .Where(r => r.KampanyaDurum == CampaignStatus.Aktif).OrderBy(r => r.Ad).ToListAsync(ct);
     }
 
     public async Task<RentalRule?> FindAsync(Guid id, CancellationToken ct = default)
@@ -41,7 +41,7 @@ public sealed class RentalRuleRepository(IDbContextFactory<AppDbContext> factory
         return await db.RentalRules.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();

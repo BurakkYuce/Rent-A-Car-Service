@@ -64,8 +64,8 @@ public static class RezervasyonApi
 
     // ================================================================== liste
 
-    private static readonly SiralamaHaritasi<RezervasyonListeSatiri> Harita = SiralamaHaritasi<RezervasyonListeSatiri>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<RezervasyonListeSatiri> Harita = SortFieldMap<RezervasyonListeSatiri>
+        .Create(r => r.Id)
         .Alan("no", r => r.No)
         .Alan("musteri", r => r.MusteriAd)
         .Alan("plaka", r => r.Plaka)
@@ -125,9 +125,9 @@ public static class RezervasyonApi
 
     /// <summary>Yeni rezervasyon formunun seçenekleri. <c>varsayilanFiyatTuru</c> YALNIZ yeni formun ön-seçimidir
     /// (FAZ-82; düzenlemede kaydın kendi değeri geçerli).</summary>
-    private static async Task<Ok<RezervasyonFormSecenekleri>> FormSecenekleri(FormVarsayilanCozucu varsayilanlar, CancellationToken ct)
+    private static async Task<Ok<RezervasyonFormSecenekleri>> FormSecenekleri(FormDefaultResolver varsayilanlar, CancellationToken ct)
         => TypedResults.Ok(new RezervasyonFormSecenekleri(
-            await varsayilanlar.FiyatTuruAsync(ct), FiyatTuruSecenek.Hepsi, TalepTurleri));
+            await varsayilanlar.PriceTypeAsync(ct), PriceTypeOption.All, TalepTurleri));
 
     /// <summary>Talep türü önerileri (serbest metin; Blazor datalist'iyle aynı).</summary>
     public static readonly IReadOnlyList<string> TalepTurleri = ["Bireysel", "Kurumsal", "Sigorta İkame", "Filo"];
@@ -145,7 +145,7 @@ public static class RezervasyonApi
         Guid id, HttpContext http, ReservationService rezervasyonlar, IBookingRepository depo,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var surum = await depo.ReservationSurumuAsync(id, ct);
+        var surum = await depo.ReservationVersionAsync(id, ct);
         var r = await rezervasyonlar.GetAsync(id, ct); // kapsam dışı → 403
         if (r is null) return null;
         var cariler = await F5Ortak.CarilerAsync(dbf, [r.MusteriId], ct);
@@ -216,7 +216,7 @@ public static class RezervasyonApi
         Sinirlar.Metin(i.GeldigiBirim, 64, "geldigiBirim", "Geldiği birim");
         Sinirlar.Metin(i.OnayKodu, 64, "onayKodu", "Onay kodu");
         Sinirlar.Metin(i.ProjeAdi, 128, "projeAdi", "Proje adı");
-        TarihPolitikasi.KiraBitis(i.BasTar, i.BitTar);
+        DatePolicy.RentalEnd(i.BasTar, i.BitTar);
     }
 
     private static async Task<Created<RezervasyonOlusturYaniti>> Olustur(

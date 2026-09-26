@@ -18,7 +18,7 @@ public sealed class RegulationTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var reg = scope.ServiceProvider.GetRequiredService<RegulationService>();
-        var vade = scope.ServiceProvider.GetRequiredService<VadeService>();
+        var vade = scope.ServiceProvider.GetRequiredService<DueService>();
         var arac = Guid.NewGuid();
 
         await reg.AddInsuranceAsync(arac, InsuranceType.Trafik, Now.AddYears(-1), Now.AddDays(5), 1000m, "P1", "Allianz", null); // ≤7
@@ -27,9 +27,9 @@ public sealed class RegulationTests(PostgresFixture fx)
 
         var items = await vade.GetAllAsync(Now);
         Assert.Equal(3, items.Count);
-        Assert.Contains(items, i => i.Tur == "Trafik" && i.Bucket == VadeBucket.YediGun);
-        Assert.Contains(items, i => i.Tur == "MTV" && i.Bucket == VadeBucket.OtuzGun);
-        Assert.Contains(items, i => i.Tur == "Muayene" && i.Bucket == VadeBucket.Gecmis);
+        Assert.Contains(items, i => i.Tur == "Trafik" && i.Bucket == DueBucket.YediGun);
+        Assert.Contains(items, i => i.Tur == "MTV" && i.Bucket == DueBucket.OtuzGun);
+        Assert.Contains(items, i => i.Tur == "Muayene" && i.Bucket == DueBucket.Gecmis);
 
         var warnings = await vade.GetWarningsAsync(Now);
         Assert.Equal(3, warnings.Count); // hiçbiri İleri değil
@@ -41,7 +41,7 @@ public sealed class RegulationTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var reg = scope.ServiceProvider.GetRequiredService<RegulationService>();
-        var vade = scope.ServiceProvider.GetRequiredService<VadeService>();
+        var vade = scope.ServiceProvider.GetRequiredService<DueService>();
         var arac = Guid.NewGuid();
 
         // Ödenmiş MTV doğrudan repo ile (servis Odendi set etmiyor) — DB'ye ödenmiş ekleyelim:

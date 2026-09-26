@@ -14,20 +14,20 @@ public static class ServisTanimEndpoints
     {
         var grp = app.MapGroup("/servis-tanimlari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (ServisTanimService svc, HttpRequest req,
+        grp.MapPost("/create", async (ServiceDefinitionService svc, HttpRequest req,
             [FromForm] string kod, [FromForm] string aracTipi, [FromForm] int bakimKm, [FromForm] string? aciklama) =>
             await Run(() => svc.CreateAsync(Build(req.Form, kod, aracTipi, bakimKm, aciklama, true)), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (ServisTanimService svc, HttpRequest req, [FromForm] Guid id,
+        grp.MapPost("/update", async (ServiceDefinitionService svc, HttpRequest req, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string aracTipi, [FromForm] int bakimKm, [FromForm] string? aciklama, [FromForm] bool aktif) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form, kod, aracTipi, bakimKm, aciklama, aktif)), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (ServisTanimService svc, [FromForm] Guid id) => await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
+        grp.MapPost("/delete", async (ServiceDefinitionService svc, [FromForm] Guid id) => await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         // FAZ-14 C: öneriyi KABUL et — öneri sayfası hiçbir şey yazmaz, kayıt bu uçta doğar.
         // Kod/KM kullanıcı tarafından düzenlenebilir olduğu için formdan gelir (önerinin
         // kendisinden değil) — kullanıcı ne gördüyse o kaydedilir.
-        grp.MapPost("/oneri-kabul", async (ServisTanimService svc, HttpRequest req) =>
+        grp.MapPost("/oneri-kabul", async (ServiceDefinitionService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(
                 req.Form,
                 req.Form["kod"].ToString(),

@@ -34,7 +34,7 @@ public static class FinanceEndpoints
         var grp = app.MapGroup("/finans").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
         // FAZ 4.3: B2B dış hizmet alımı — TAM DEFTERLİ (gider araçta + komisyon geliri); ters kayıtla iptal.
-        grp.MapPost("/dis-hizmet", async (RentACar.Application.DisHizmetler.DisHizmetService svc, HttpRequest req,
+        grp.MapPost("/dis-hizmet", async (RentACar.Application.DisHizmetler.OutsourcedServiceService svc, HttpRequest req,
             [FromForm] Guid rentalId, [FromForm] Guid cariId, [FromForm] string alinanHizmet,
             [FromForm] string? hizmetBedeli, [FromForm] string? komisyonOran, [FromForm] string? doviz,
             [FromForm] string? kur, [FromForm] string? aciklama, [FromForm] Guid islemAnahtari,
@@ -60,25 +60,25 @@ public static class FinanceEndpoints
             { return Results.Redirect($"{geri}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        grp.MapPost("/dis-hizmet-iptal", async (RentACar.Application.DisHizmetler.DisHizmetService svc,
+        grp.MapPost("/dis-hizmet-iptal", async (RentACar.Application.DisHizmetler.OutsourcedServiceService svc,
             [FromForm] Guid id, [FromForm] string? donus) =>
         {
             var geri = SafeDonus(donus, "/kiralar");
-            try { await svc.IptalEtAsync(id); return Sonuc.Tamam(geri, "Dış hizmet alımı iptal edildi (ters kayıt)."); }
+            try { await svc.CancelAsync(id); return Sonuc.Tamam(geri, "Dış hizmet alımı iptal edildi (ters kayıt)."); }
             catch (ValidationException ex)
             { return Results.Redirect($"{geri}?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.FinanceReverse);
 
         // FAZ 4.2-B3: dönem faturası kes (+opsiyonel tahsilat kaydı). Çift-submit güvenli: fatura
         // idempotent (Kesildi→mevcut), tahsilat deterministik RowKey(rentalId, donemSira) anahtarlı.
-        grp.MapPost("/donem-fatura", async (RentACar.Application.FaturaDonemleri.DonemTahsilatService svc,
+        grp.MapPost("/donem-fatura", async (RentACar.Application.FaturaDonemleri.PeriodCollectionService svc,
             [FromForm] Guid rentalId, [FromForm] int donemSira, [FromForm] string? tahsilat,
             [FromForm] string? hesap, [FromForm] string? donus) =>
         {
             var geri = SafeDonus(donus, "/kiralar/" + rentalId);
             try
             {
-                await svc.KesVeTahsilEtAsync(rentalId, donemSira,
+                await svc.IssueAndCollectAsync(rentalId, donemSira,
                     tahsilat is "true" or "on",
                     string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase)
                         ? LedgerAccountType.Banka : LedgerAccountType.Kasa);
@@ -110,7 +110,7 @@ public static class FinanceEndpoints
             }
             catch (ValidationException ex)
             {
-                RentACar.Application.Observability.RacarMetrics.TahsilatFail(); // metrik: tahsilat reddi (döviz/kilit/idempotent…)
+                RentACar.Application.Observability.RacarMetrics.CollectionFail(); // metrik: tahsilat reddi (döviz/kilit/idempotent…)
                 var url = SafeDonus(donus, $"/cariler/{cariId}/ekstre");
                 return Results.Redirect(HataUrl(url, ex.Message)); // donus querystring'liyse '&' (çift-? düzeltmesi)
             }
@@ -154,11 +154,11 @@ public static class FinanceEndpoints
             try
             {
                 await svc.TransferAsync(ParseHesap(kaynak), ParseHesap(hedef), tutar,
-                    doviz: string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, kur: FormParse.Dec(kur),
-                    aciklama: aciklama,
-                    islemAnahtari: FormParse.Id(islemAnahtari), // M5-takip: çift-submit idempotency
-                    kaynakHesapId: FormParse.Id(kaynakHesapId), hedefHesapId: FormParse.Id(hedefHesapId),
-                    makbuzNo: makbuzNo, sube: sube);
+                    currency: string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, exchangeRate: FormParse.Dec(kur),
+                    description: aciklama,
+                    operationKey: FormParse.Id(islemAnahtari), // M5-takip: çift-submit idempotency
+                    sourceAccountId: FormParse.Id(kaynakHesapId), targetAccountId: FormParse.Id(hedefHesapId),
+                    receiptNo: makbuzNo, branch: sube);
                 return Sonuc.Tamam("/kasa", "Virman kaydedildi.");
             }
             catch (ValidationException ex)
@@ -168,7 +168,7 @@ public static class FinanceEndpoints
         });
 
         // FAZ-56 — bakiye düzeltme: Kasa/Banka'ya DOKUNMAZ, karşı bacak "Muhasebe Düzeltmesi".
-        grp.MapPost("/bakiye-duzeltme", async (BakiyeDuzeltmeService svc, HttpRequest req) =>
+        grp.MapPost("/bakiye-duzeltme", async (BalanceAdjustmentService svc, HttpRequest req) =>
         {
             var f = req.Form;
             var donus = FormParse.Str(f, "donus");
@@ -178,8 +178,8 @@ public static class FinanceEndpoints
                 {
                     CariId = FormParse.Id(FormParse.Str(f, "cariId")) ?? Guid.Empty,
                     Tutar = FormParse.Dec(FormParse.Str(f, "tutar")) ?? 0m,
-                    Yon = Enum.TryParse<BakiyeDuzeltmeYonu>(FormParse.Str(f, "yon"), out var y)
-                        ? y : BakiyeDuzeltmeYonu.Alacaklandir,
+                    Yon = Enum.TryParse<BalanceAdjustmentDirection>(FormParse.Str(f, "yon"), out var y)
+                        ? y : BalanceAdjustmentDirection.Alacaklandir,
                     Doviz = FormParse.Str(f, "doviz") ?? "TRY",
                     Kur = FormParse.Dec(FormParse.Str(f, "kur")),
                     Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
@@ -244,7 +244,7 @@ public static class FinanceEndpoints
                 DamgaVergisi: FormParse.Dec(S("damgaVergisi")),
                 IadeMi: B("iadeMi"),
                 ManuelMi: B("manuelMi"));
-            try { await svc.CreateFromRentalAsync(rentalId, vergi: vergi); return Sonuc.Tamam($"/kiralar/{rentalId}", "Fatura kesildi."); }
+            try { await svc.CreateFromRentalAsync(rentalId, tax: vergi); return Sonuc.Tamam($"/kiralar/{rentalId}", "Fatura kesildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{rentalId}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
@@ -255,7 +255,7 @@ public static class FinanceEndpoints
         grp.MapPost("/fatura-iade", async (InvoiceService svc, HttpRequest req) =>
         {
             var kaynak = FormParse.Id(req.Form["kaynakFaturaId"].ToString()) ?? Guid.Empty;
-            try { await svc.CreateIadeAsync(kaynak); return Sonuc.Tamam("/faturalar", "İade faturası kesildi."); }
+            try { await svc.CreateRefundAsync(kaynak); return Sonuc.Tamam("/faturalar", "İade faturası kesildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/faturalar?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.FinanceReverse);
 
@@ -271,14 +271,14 @@ public static class FinanceEndpoints
             var anahtar = FormParse.Id(f["islemAnahtari"].ToString()); // çift-submit idempotency token
             try
             {
-                await svc.TransferBetweenCariAsync(kaynak, hedef, tutar,
+                await svc.TransferBetweenAccountsAsync(kaynak, hedef, tutar,
                     string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz, kur,
                     string.IsNullOrWhiteSpace(aciklama) ? null : aciklama, anahtar,
                     // FAZ-59 künye alanları. "İşlem Yapan" formdan ALINMAZ — oturumdan yazılır.
-                    tarih: FormParse.Date(f["tarih"].ToString()),
-                    vade: FormParse.Date(f["vade"].ToString()),
-                    makbuzNo: f["makbuzNo"].ToString(),
-                    sube: f["sube"].ToString());
+                    date: FormParse.Date(f["tarih"].ToString()),
+                    due: FormParse.Date(f["vade"].ToString()),
+                    receiptNo: f["makbuzNo"].ToString(),
+                    branch: f["sube"].ToString());
                 return Sonuc.Tamam("/cari-virman", "Cari virman kaydedildi.");
             }
             catch (ValidationException ex) { return Results.Redirect($"/cari-virman?hata={Uri.EscapeDataString(ex.Message)}"); }
@@ -321,8 +321,8 @@ public static class FinanceEndpoints
             var f = req.Form;
             var anahtar = FormParse.Id(f["islemAnahtari"].ToString()); // çift-submit idempotency token
             var tip = Enum.TryParse<ExpenseType>(f["tip"].ToString(), out var t) ? t : ExpenseType.Genel;
-            var odeme = Enum.TryParse<OdemeYontemi>(f["odemeYontemi"].ToString(), out var o) ? o : OdemeYontemi.Nakit;
-            var hesap = odeme == OdemeYontemi.Banka ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
+            var odeme = Enum.TryParse<PaymentMethod>(f["odemeYontemi"].ToString(), out var o) ? o : PaymentMethod.Nakit;
+            var hesap = odeme == PaymentMethod.Banka ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
             var kdvOrani = FormParse.Dec(f["kdvOrani"].ToString()) ?? 0m;
             var cariId = FormParse.Id(FormParse.Str(f, "cariId"));
             var vade = FormParse.Date(FormParse.Str(f, "vade"));
@@ -332,7 +332,7 @@ public static class FinanceEndpoints
             // eşleşme plaka normalizasyonuyla (boşluk/harf duyarsız) yapılır — kullanıcı
             // "34 abc 34" yazdığında da tutsun.
             var plakaIndex = (await araclar.ListAsync())
-                .GroupBy(v => VehicleService.PlakaAnahtar(v.Plaka))
+                .GroupBy(v => VehicleService.PlateKey(v.Plaka))
                 .ToDictionary(g => g.Key, g => g.First().Id);
 
             try
@@ -350,7 +350,7 @@ public static class FinanceEndpoints
                     {
                         // TANINMAYAN PLAKA GÜRÜLTÜLÜ REDDEDİLİR: sessizce null bırakmak gideri
                         // "(Atanmamış)"a yazar ve araç karnesi eksik kalırdı.
-                        if (!plakaIndex.TryGetValue(VehicleService.PlakaAnahtar(p[2]), out var vid))
+                        if (!plakaIndex.TryGetValue(VehicleService.PlateKey(p[2]), out var vid))
                             throw new ValidationException($"Satır {satirNo}: '{p[2]}' plakalı araç bulunamadı.");
                         vehicleId = vid;
                     }
@@ -379,7 +379,7 @@ public static class FinanceEndpoints
 
         // FAZ-30 — dönem faturası/tahsilatı ELLE tetikleme (seçili dönemler).
         grp.MapPost("/otomatik-tahsilat/calistir", async (
-            RentACar.Application.FaturaDonemleri.OtomatikTahsilatService svc, HttpRequest req) =>
+            RentACar.Application.FaturaDonemleri.AutoCollectionService svc, HttpRequest req) =>
         {
             if (!req.HasFormContentType) return Results.BadRequest();
             var f = req.Form;
@@ -404,15 +404,15 @@ public static class FinanceEndpoints
                     throw new ValidationException("Hesap Kasa ya da Banka olmalıdır.");
                 var hesap = ParseHesap(hesapMetin);
 
-                var sonuc = await svc.CalistirAsync(secim, f["tahsilat"].ToString() is "true" or "on", hesap);
+                var sonuc = await svc.RunAsync(secim, f["tahsilat"].ToString() is "true" or "on", hesap);
 
                 var q = $"{geri}?ok={Uri.EscapeDataString($"{sonuc.Kesilen} dönem kesildi, {sonuc.Tahsilat} tahsilat yazıldı.")}";
                 if (sonuc.Atlananlar.Count > 0)
                 {
                     // URL sınırı yüzünden ilk 10 gösterilir ama KALANI SAYILIR (adversarial M3):
                     // sessizce yutmak "atlanan yok" gibi okunuyordu.
-                    var goster = RentACar.Application.FaturaDonemleri.OtomatikTahsilatService
-                        .AtlananGoster(sonuc.Atlananlar);
+                    var goster = RentACar.Application.FaturaDonemleri.AutoCollectionService
+                        .ShowSkipped(sonuc.Atlananlar);
                     q += "&atlanan=" + Uri.EscapeDataString(string.Join("|", goster));
                 }
                 return Results.Redirect(q);
@@ -441,12 +441,12 @@ public static class FinanceEndpoints
                 }
                 var hesap = Enum.TryParse<LedgerAccountType>(f["hesap"].ToString(), out var h)
                     ? h : LedgerAccountType.Kasa;
-                var tutar = await svc.TekCariTopluKapatAsync(
+                var tutar = await svc.CloseSingleAccountBulkAsync(
                     cariId, secim, hesap,
-                    tarih: FormParse.Date(FormParse.Str(f, "tarih")),
-                    aciklama: FormParse.Str(f, "aciklama"),
-                    islemAnahtari: FormParse.Id(f["islemAnahtari"].ToString()),
-                    kanal: FormParse.Str(f, "kanal")); // FAZ-84
+                    date: FormParse.Date(FormParse.Str(f, "tarih")),
+                    description: FormParse.Str(f, "aciklama"),
+                    operationKey: FormParse.Id(f["islemAnahtari"].ToString()),
+                    channel: FormParse.Str(f, "kanal")); // FAZ-84
                 return Results.Redirect($"{geri}&ok={Uri.EscapeDataString(tutar.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))}");
             }
             catch (ValidationException ex) { return Results.Redirect($"{geri}&hata={Uri.EscapeDataString(ex.Message)}"); }

@@ -28,7 +28,7 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         => sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Arac, VehicleId = veh, NetTutar = net, KdvOrani = 0m,
-            Tarih = DateTimeOffset.UtcNow.AddDays(-1), OdemeYontemi = OdemeYontemi.Nakit
+            Tarih = DateTimeOffset.UtcNow.AddDays(-1), OdemeYontemi = PaymentMethod.Nakit
         });
 
     /// <summary>Kira + teslim + dönüş (km yazımı); faturala=true ise %0 KDV ile deftere gelir düşer.</summary>
@@ -38,9 +38,9 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
         var r = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = veh, BasTar = bas, BitTar = bit, GunlukUcret = 100m });
-        if (faturala) await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(r, kdvRate: 0m);
-        await rentals.DeliverAsync(r, cikisKm: 0, cikisYakit: 8);
-        await rentals.ReturnAsync(r, donusKm: donusKm, donusYakit: 8, bit);
+        if (faturala) await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(r, vatRate: 0m);
+        await rentals.DeliverAsync(r, pickupKm: 0, pickupFuel: 8);
+        await rentals.ReturnAsync(r, returnKm: donusKm, returnFuel: 8, bit);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var veh = sp.GetRequiredService<VehicleService>();
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "KPI", Soyad = "C" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "KPI", Soyad = "C" });
         var simdi = DateTimeOffset.UtcNow;
 
         // İki EKO aracı, sahiplik penceresi 10'ar gün (bugün-9 → bugün, kapsayıcı takvim günü).
@@ -67,7 +67,7 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         await KiraAsync(sp, cari, v2, simdi.AddDays(-5), simdi.AddDays(-3), donusKm: 100, faturala: true);
         await GiderAsync(sp, v2, 80m);
 
-        var filo = await sp.GetRequiredService<ReportService>().GetFiloAnalizAsync();
+        var filo = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
         var r1 = filo.Satirlar.Single(x => x.VehicleId == v1);
         var r2 = filo.Satirlar.Single(x => x.VehicleId == v2);
 
@@ -99,14 +99,14 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         // Alım 3044, İkinciEl yok → residual %30: amortisman 3044×0.7=2130.80; sahiplik 0 → süre 1 ay,
         // gider 0 → aylık başabaş 2130.80 → GÜNLÜK 2130.80/30.44 = 70.00 (elle, tam bölünme).
         var vb = await veh.CreateAsync(new VehicleInput { Plaka = "34 KP 03", AlimBedeli = 3044m });
-        var karne = (await rs.GetAracKarneAsync(vb))!;
+        var karne = (await rs.GetVehicleScorecardAsync(vb))!;
         Assert.Equal(70.00m, karne.BasaBasGunluk);
         Assert.Null(karne.Kpi.Adr);            // hiç kiralanmamış → ADR yok (UI "—")
 
         // Alım bedelsiz araçta model yok → başabaş günlük null (uydurma değer basılmaz).
         var vc = await veh.CreateAsync(new VehicleInput { Plaka = "34 KP 04" });
-        Assert.Null((await rs.GetAracKarneAsync(vc))!.BasaBasGunluk);
-        Assert.Null((await rs.GetAracKarneAsync(vc))!.MaliyetModel);
+        Assert.Null((await rs.GetVehicleScorecardAsync(vc))!.BasaBasGunluk);
+        Assert.Null((await rs.GetVehicleScorecardAsync(vc))!.MaliyetModel);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var veh = sp.GetRequiredService<VehicleService>();
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "KPI", Soyad = "K" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "KPI", Soyad = "K" });
         var simdi = DateTimeOffset.UtcNow;
 
         // SOLO grubunda km-maliyetli TEK araç: 50/100=0.50, ort=kendisi → endeks 1.00.
@@ -127,7 +127,7 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         await GiderAsync(sp, v1, 50m);
         var v2 = await veh.CreateAsync(new VehicleInput { Plaka = "34 KP 06", Grup = "SOLO" });
 
-        var filo = await sp.GetRequiredService<ReportService>().GetFiloAnalizAsync();
+        var filo = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
         Assert.Equal(1.00m, filo.Satirlar.Single(x => x.VehicleId == v1).SinifEndeks);
         Assert.Null(filo.Satirlar.Single(x => x.VehicleId == v2).SinifEndeks);
 

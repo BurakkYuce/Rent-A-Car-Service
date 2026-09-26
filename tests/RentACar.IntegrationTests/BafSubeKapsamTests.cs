@@ -37,7 +37,7 @@ public sealed class BafSubeKapsamTests(PostgresFixture fx)
             Assert.Single(list);                                   // yalnız Merkez tahsisi
             Assert.All(list, b => Assert.Equal("Merkez", b.Sube));
             Assert.Contains("kapsamınız dışında",                   // başka şube tahsisi ID ile okunamaz
-                (await Assert.ThrowsAsync<YetkiYokException>(() => svc.GetAsync(ankara))).Message);
+                (await Assert.ThrowsAsync<NoPermissionException>(() => svc.GetAsync(ankara))).Message);
         }
 
         using (var admin = host.ScopeFor(tenant))

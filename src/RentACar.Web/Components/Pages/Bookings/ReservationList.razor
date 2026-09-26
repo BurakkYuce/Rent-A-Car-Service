@@ -5,7 +5,7 @@
 @inject VehicleService Vehicles
 @inject LocationService Locations
 @inject ReservationSourceService Kaynaklar
-@inject RentACar.Application.TenantSettings.FormVarsayilanCozucu Varsayilanlar
+@inject RentACar.Application.TenantSettings.FormDefaultResolver Varsayilanlar
 
 <PageTitle>Rezervasyonlar — RentPro</PageTitle>
 
@@ -48,7 +48,7 @@
         <label>Fiyat Türü
             <select name="fiyatTuru">
                 <option value="" selected="@(_varsayilanFiyatTuru is null)">—</option>
-                @foreach (var o in RentACar.Application.Pricing.FiyatTuruSecenek.Hepsi)
+                @foreach (var o in RentACar.Application.Pricing.PriceTypeOption.All)
                 { <option value="@o" selected="@(o == _varsayilanFiyatTuru)">@o</option> }
             </select>
         </label>
@@ -277,11 +277,11 @@
         _rows = await Reservations.SearchAsync(Filtre());
         // Müşteri dropdown'ı PII'siz seçim listesinden (ListAsync PII çözer — liste ekranında gereksiz
         // şifre çözme + açılışta uyarı fırtınası üretir). Ad/telefon kolonları artık satırdan geliyor.
-        _customers = await Customers.ListSecimAsync();
+        _customers = await Customers.ListForSelectAsync();
         _vehicles = await Vehicles.ListAsync();
         _locations = await Locations.ListActiveAsync();
         _kaynaklar = await Kaynaklar.ListActiveAsync();
-        _varsayilanFiyatTuru = await Varsayilanlar.FiyatTuruAsync(); // FAZ-82 (ayar yoksa null = "—")
+        _varsayilanFiyatTuru = await Varsayilanlar.PriceTypeAsync(); // FAZ-82 (ayar yoksa null = "—")
     }
 
     private ReservationFilter Filtre() => new()

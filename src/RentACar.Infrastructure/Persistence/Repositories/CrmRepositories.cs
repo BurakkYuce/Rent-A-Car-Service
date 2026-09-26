@@ -6,7 +6,7 @@ using RentACar.Domain.Enums;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>CRM anket repo'su (roadmap C3). Tenant izolasyonu RLS + query filter ile otomatik.</summary>
-public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : IAnketRepository
+public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : ISurveyRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -40,14 +40,14 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
         return await db.Anketler.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<IReadOnlyList<AnketCevap>> ListCevapAsync(Guid anketId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<AnketCevap>> ListResponsesAsync(Guid anketId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.AnketCevaplari.AsNoTracking()
             .Where(x => x.AnketId == anketId).OrderBy(x => x.SoruNo).ToListAsync(ct);
     }
 
-    public async Task CreateWithCevapAsync(Anket anket, IReadOnlyList<AnketCevap> cevaplar, CancellationToken ct = default)
+    public async Task CreateWithAnswersAsync(Anket anket, IReadOnlyList<AnketCevap> cevaplar, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -58,7 +58,7 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
         await tx.CommitAsync(ct);
     }
 
-    public async Task<bool> UpdateWithCevapAsync(Guid id, Action<Anket> apply,
+    public async Task<bool> UpdateWithResponseAsync(Guid id, Action<Anket> apply,
         IReadOnlyList<AnketCevap> cevaplar, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -106,7 +106,7 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
     }
 
     /// <summary>
-    /// F7.1 — <see cref="UpdateWithCevapAsync"/> satır kilidi + iyimser sürüm altında (<see cref="SatirSurumu"/>):
+    /// F7.1 — <see cref="UpdateWithResponseAsync"/> satır kilidi + iyimser sürüm altında (<see cref="SatirSurumu"/>):
     /// eski cevaplar kilitli işlem içinde okunur, silinir ve yenileri aynı SaveChanges'ta yazılır.
     /// </summary>
     public Task<bool> UpdateWithAnswersAsync(Guid id, string expectedVersion, Action<Anket> apply,
@@ -138,7 +138,7 @@ public sealed class AnketRepository(IDbContextFactory<AppDbContext> factory) : I
 }
 
 /// <summary>CRM şikayet repo'su (roadmap C3). Tenant izolasyonu RLS + query filter ile otomatik.</summary>
-public sealed class SikayetRepository(IDbContextFactory<AppDbContext> factory) : ISikayetRepository
+public sealed class SikayetRepository(IDbContextFactory<AppDbContext> factory) : IComplaintRepository
 {
     /// <summary>
     /// FAZ-43 — filtreli şikayet listesi. Plaka/sözleşme no SNAPSHOT DEĞİL: sözleşme→araç bağından
@@ -194,7 +194,7 @@ public sealed class SikayetRepository(IDbContextFactory<AppDbContext> factory) :
             .Select(x => new
             {
                 x.s,
-                MusteriAd = x.c == null ? null : (x.c.Tip == CariType.Bireysel
+                MusteriAd = x.c == null ? null : (x.c.Tip == CustomerType.Bireysel
                     ? ((x.c.Ad ?? "") + " " + (x.c.Soyad ?? "")) : x.c.Unvan),
                 MusteriTel = x.c == null ? null : x.c.CepTel,
                 SozlesmeNo = x.r == null ? null : x.r.SozlesmeNo,

@@ -7,7 +7,7 @@ namespace RentACar.Domain.Entities;
 /// "Dizel", "LPG", "Elektrik", "Hibrit"). Tenant-owned + auditable. Tanım/raporlama sözlüğü.
 /// NOT: <see cref="RentACar.Domain.Enums.FuelType"/> enum'ı ile çakışmasın diye sınıf adı FuelKind.
 /// </summary>
-public class FuelKind : ITenantOwned, IAuditable, IMasterTanim
+public class FuelKind : ITenantOwned, IAuditable, IMasterDefinition
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

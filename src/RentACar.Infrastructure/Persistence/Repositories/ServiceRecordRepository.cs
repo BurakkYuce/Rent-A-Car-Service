@@ -37,7 +37,7 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            record.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.ServisKaydi, ct);
+            record.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.ServisKaydi, ct);
             foreach (var l in record.Lines) l.ServiceRecordId = record.Id;
             record.ToplamIscilik = record.Lines.Sum(l => l.Tutar);
             db.ServiceRecords.Add(record);
@@ -84,7 +84,7 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
         }, ct);
     }
 
-    public Task<bool> UpdateBilgiAsync(Guid id, Action<ServiceRecord> apply, CancellationToken ct = default)
+    public Task<bool> UpdateInfoAsync(Guid id, Action<ServiceRecord> apply, CancellationToken ct = default)
         // Durum geçişi yok, araç kuplajı yok, km log yok — yalnız alan güncellemesi (FAZ-16 bilgi blokları).
         => TransitionAsync(id, apply, setVehicleTo: null, onlyWhenVehicleIs: null, ct: ct);
 
@@ -107,8 +107,8 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
             // kilidin arkasında burada görülür (ToplamIscilik iki kez artmaz). Durum çitinden ÖNCE: sonuç ilk
             // isteğin servisi kapatıp kapatmamasına bağlı olmaz.
             if (await db.Set<ServiceLine>().AsNoTracking().AnyAsync(l => l.Id == kalem.Id, ct))
-                throw new MukerrerIslemException(KalemMukerrer);
-            if (rec.Durum is ServisDurum.Tamamlandi or ServisDurum.Iptal)
+                throw new DuplicateOperationException(KalemMukerrer);
+            if (rec.Durum is ServiceStatus.Tamamlandi or ServiceStatus.Iptal)
                 throw new ValidationException("Kapanmış servise kalem eklenemez.");
 
             kalem.ServiceRecordId = rec.Id;
@@ -126,7 +126,7 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
                 await tx.RollbackAsync(ct);
-                throw new MukerrerIslemException(KalemMukerrer); // PK = anahtar (başka servis/kiracıya ait olsa da yazılmaz)
+                throw new DuplicateOperationException(KalemMukerrer); // PK = anahtar (başka servis/kiracıya ait olsa da yazılmaz)
             }
             await tx.CommitAsync(ct);
             return true;
@@ -136,7 +136,7 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
     /// <summary>F9.1 — aynı işlem anahtarıyla ikinci kalem.</summary>
     public const string KalemMukerrer = "Bu kalem zaten eklendi (çift gönderim); yeni kalem yazılmadı.";
 
-    public async Task PostYansitmaAsync(Guid serviceId, Guid cariId, decimal yansitilanTutar,
+    public async Task PostReflectionAsync(Guid serviceId, Guid cariId, decimal yansitilanTutar,
         IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
     {
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
@@ -155,9 +155,9 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
                 .FirstOrDefaultAsync(ct)
                 ?? throw new ValidationException("Servis kaydı bulunamadı.");
             if (rec.Yansitildi) throw new ValidationException("Servis maliyeti zaten yansıtıldı.");
-            if (rec.Durum != ServisDurum.Tamamlandi || rec.KusurOrani is not { } kusur
+            if (rec.Durum != ServiceStatus.Tamamlandi || rec.KusurOrani is not { } kusur
                 || decimal.Round(rec.ToplamIscilik * kusur, 2, MidpointRounding.AwayFromZero) != yansitilanTutar)
-                throw new EszamanliDegisiklikException("Servis kaydı bu sırada değişti; kaydı yeniden açıp tekrar deneyin.");
+                throw new ConcurrentModificationException("Servis kaydı bu sırada değişti; kaydı yeniden açıp tekrar deneyin.");
             rec.Yansitildi = true;
             rec.YansitilanTutar = yansitilanTutar;
             rec.YansitilanCariId = cariId;

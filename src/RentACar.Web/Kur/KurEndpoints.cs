@@ -22,7 +22,7 @@ public static class KurEndpoints
                 : "/kurlar?ok=1");
         });
 
-        grp.MapPost("/sabit/kaydet", async (SabitKurService svc, HttpRequest req) =>
+        grp.MapPost("/sabit/kaydet", async (FixedExchangeRateService svc, HttpRequest req) =>
         {
             try
             {
@@ -41,7 +41,7 @@ public static class KurEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/kurlar?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        grp.MapPost("/sabit/sil", async (SabitKurService svc, [FromForm] Guid id) =>
+        grp.MapPost("/sabit/sil", async (FixedExchangeRateService svc, [FromForm] Guid id) =>
         {
             await svc.DeleteAsync(id);
             return Results.Redirect("/kurlar?ok=1");

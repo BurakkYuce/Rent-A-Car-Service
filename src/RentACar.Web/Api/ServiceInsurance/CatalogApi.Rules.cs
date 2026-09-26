@@ -24,12 +24,12 @@ internal static partial class CatalogApi
     /// </summary>
     private static RateMatrixInput RateMatrixInput(RateMatrixRequest r, RateMatrix? old, HttpContext http)
     {
-        var state = F5Ortak.EnumAdi<TarifeOnayDurumu>(r.OnayDurumu, "onayDurumu") ?? TarifeOnayDurumu.Bekliyor;
+        var state = F5Ortak.EnumAdi<TariffApprovalStatus>(r.OnayDurumu, "onayDurumu") ?? TariffApprovalStatus.Bekliyor;
         string? approver = null;
         DateTimeOffset? approvedAt = null;
-        if (state == TarifeOnayDurumu.Onayli)
+        if (state == TariffApprovalStatus.Onayli)
         {
-            if (old is { OnayDurumu: TarifeOnayDurumu.Onayli }) (approver, approvedAt) = (old.Onaylayan, old.OnayZaman);
+            if (old is { OnayDurumu: TariffApprovalStatus.Onayli }) (approver, approvedAt) = (old.Onaylayan, old.OnayZaman);
             else
             {
                 var user = http.RequestServices.GetRequiredService<ICurrentUser>();
@@ -70,7 +70,7 @@ internal static partial class CatalogApi
         S.CatalogAmount(r.KmHaftalikUcret, o?.KmHaftalikUcret, "kmHaftalikUcret");
         S.CatalogAmount(r.KmAylikUcret, o?.KmAylikUcret, "kmAylikUcret");
         S.Ratio(r.MaxEsneklik, o?.MaxEsneklik, "maxEsneklik");
-        F5Ortak.EnumAdi<TarifeOnayDurumu>(r.OnayDurumu, "onayDurumu");
+        F5Ortak.EnumAdi<TariffApprovalStatus>(r.OnayDurumu, "onayDurumu");
     }
 
     private static readonly CatalogSpec<RateMatrixService, RateMatrix, RateMatrixRequest, RateMatrixDto> RateMatrices = new()
@@ -84,7 +84,7 @@ internal static partial class CatalogApi
         Delete = (s, id, ct) => s.DeleteAsync(id, ct),
         Validate = RateMatrixLimits,
         Matches = (d, q) => Has(d.Kod, q) || Has(d.Ad, q) || Has(d.Kanal, q) || Has(d.AracGrupKod, q),
-        Sort = SiralamaHaritasi<RateMatrixDto>.Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
+        Sort = SortFieldMap<RateMatrixDto>.Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
             .Alan("kanal", x => x.Kanal).Alan("aracGrupKod", x => x.AracGrupKod).Alan("gun1", x => x.Gun1)
             .Alan("onayDurumu", x => x.OnayDurumu).Alan("aktif", x => x.Aktif),
         FieldRules =
@@ -106,12 +106,12 @@ internal static partial class CatalogApi
         MusteriSegment = r.MusteriSegment, GecerlilikBas = S.Date(r.GecerlilikBas, "gecerlilikBas"),
         GecerlilikBit = S.Date(r.GecerlilikBit, "gecerlilikBit"), SartMetni = r.SartMetni,
         TalepBas = S.Date(r.TalepBas, "talepBas"), TalepBit = S.Date(r.TalepBit, "talepBit"),
-        PromosyonTuru = F5Ortak.EnumAdi<PromosyonTuru>(r.PromosyonTuru, "promosyonTuru"),
-        KuponGecerlilik = F5Ortak.EnumAdi<KuponGecerlilik>(r.KuponGecerlilik, "kuponGecerlilik"),
-        HesaplamaTipi = F5Ortak.EnumAdi<HesaplamaTipi>(r.HesaplamaTipi, "hesaplamaTipi"), HizliIslem = r.HizliIslem,
+        PromosyonTuru = F5Ortak.EnumAdi<PromotionType>(r.PromosyonTuru, "promosyonTuru"),
+        KuponGecerlilik = F5Ortak.EnumAdi<CouponValidity>(r.KuponGecerlilik, "kuponGecerlilik"),
+        HesaplamaTipi = F5Ortak.EnumAdi<CalculationType>(r.HesaplamaTipi, "hesaplamaTipi"), HizliIslem = r.HizliIslem,
         HaftaGunKisiti = r.HaftaGunKisiti,
-        TarihTipi = F5Ortak.EnumAdi<KuralTarihTipi>(r.TarihTipi, "tarihTipi") ?? KuralTarihTipi.Rezervasyon,
-        KampanyaDurum = F5Ortak.EnumAdi<KampanyaDurum>(r.KampanyaDurum, "kampanyaDurum"), Aktif = r.Aktif,
+        TarihTipi = F5Ortak.EnumAdi<RuleDateType>(r.TarihTipi, "tarihTipi") ?? RuleDateType.Rezervasyon,
+        KampanyaDurum = F5Ortak.EnumAdi<CampaignStatus>(r.KampanyaDurum, "kampanyaDurum"), Aktif = r.Aktif,
     };
 
     private static readonly CatalogSpec<RentalRuleService, RentalRule, RentalRuleRequest, RentalRuleDto> RentalRules = new()
@@ -133,7 +133,7 @@ internal static partial class CatalogApi
             S.Ratio(r.SonraOdeOran, o?.SonraOdeOran, "sonraOdeOran");
         },
         Matches = (d, q) => Has(d.Kod, q) || Has(d.Ad, q) || Has(d.KampanyaKodu, q),
-        Sort = SiralamaHaritasi<RentalRuleDto>.Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
+        Sort = SortFieldMap<RentalRuleDto>.Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
             .Alan("kanal", x => x.Kanal).Alan("kampanyaDurum", x => x.KampanyaDurum).Alan("gecerlilikBas", x => x.GecerlilikBas),
         FieldRules =
         [
@@ -154,7 +154,7 @@ internal static partial class CatalogApi
         Aktif = r.Aktif,
     };
 
-    private static readonly CatalogSpec<BrokerYasakService, BrokerYasak, BrokerBanRequest, BrokerBanDto> BrokerBans = new()
+    private static readonly CatalogSpec<BrokerBanService, BrokerYasak, BrokerBanRequest, BrokerBanDto> BrokerBans = new()
     {
         Path = "/broker-yasaklari", Tag = "Fiyat & Tarife", NotFoundText = "Broker yasağı bulunamadı.",
         ReadPermissions = OpsOnly, WritePermission = Permission.OperationsWrite,
@@ -169,7 +169,7 @@ internal static partial class CatalogApi
             S.Text(r.AracGrupKod, 32, "aracGrupKod"); S.Text(r.Bolge, 64, "bolge"); S.IntRange(r.MinGun, -100_000, 100_000, "minGun");
         },
         Matches = (d, q) => Has(d.Kod, q) || Has(d.Ad, q) || Has(d.Kaynak, q),
-        Sort = SiralamaHaritasi<BrokerBanDto>.Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
+        Sort = SortFieldMap<BrokerBanDto>.Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad)
             .Alan("kaynak", x => x.Kaynak).Alan("aktif", x => x.Aktif),
         FieldRules =
         [

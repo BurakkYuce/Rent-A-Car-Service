@@ -103,8 +103,8 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
         var bakimArac = await arac.CreateAsync(new VehicleInput { Plaka = "34 YL 02", Km = 9_500 });
         var servis = sp.GetRequiredService<ServiceRecordService>();
         var sid = await servis.CreateAsync(new ServiceRecordInput { VehicleId = bakimArac, GirisKm = 9_000 });
-        Assert.True(await servis.BaslatAsync(sid));
-        Assert.True(await servis.TamamlaAsync(sid, 9_500, sonrakiBakimKm: 10_000));
+        Assert.True(await servis.StartAsync(sid));
+        Assert.True(await servis.CompleteAsync(sid, 9_500, nextMaintenanceKm: 10_000));
 
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         db.TenantSettings.Add(new TenantSettings { WhatsAppGunlukOzet = true, WhatsAppNumarasi = "0532 111 22 33" });
@@ -114,7 +114,7 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
     private static VadeBildirimJob Job(IServiceProvider sp, IWhatsAppService wa) => new(
         new ConfigurationBuilder().Build(), wa,
         sp.GetRequiredService<ISecretProtector>(), sp.GetRequiredService<IEmailSender>(),
-        sp.GetRequiredService<ISmsService>(), TutSatEsikleri.Varsayilan, NullLogger<VadeBildirimJob>.Instance);
+        sp.GetRequiredService<ISmsService>(), TutSatEsikleri.Default, NullLogger<VadeBildirimJob>.Instance);
 
     [Theory]
     [InlineData(0)]
@@ -142,7 +142,7 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
         Assert.Equal(Beklenen.Where((_, i) => i != patlayan).Sum(), toplam);
 
         // (a) + (b): koşu günlüğü — patlayan Basarisiz, diğerleri kendi başarı satırıyla.
-        var loglar = await sp.GetRequiredService<JobCalismaLogService>().ListAsync();
+        var loglar = await sp.GetRequiredService<JobRunLogService>().ListAsync();
         Assert.Equal(3, loglar.Count);
         for (var i = 0; i < Sira.Length; i++)
         {
@@ -194,7 +194,7 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
             _ => throw new HttpRequestException("WhatsApp sağlayıcısı yanıt vermedi"), log, CancellationToken.None);
 
         Assert.Equal(Beklenen.Sum(), toplam);
-        var loglar = await sp.GetRequiredService<JobCalismaLogService>().ListAsync();
+        var loglar = await sp.GetRequiredService<JobRunLogService>().ListAsync();
         Assert.Equal(3, loglar.Count);
         Assert.All(loglar, l => Assert.True(l.Basarili, $"{l.JobAdi}: {l.Detay}"));
 
@@ -224,7 +224,7 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
                 "kirik-baglanti", () => db.Reservations.CountAsync(r => r.BasTar >= ofsetli)));
         }
 
-        var satir = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobCalismaLogService>().ListAsync());
+        var satir = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
         Assert.Equal("kirik-baglanti", satir.JobAdi);
         Assert.False(satir.Basarili);
         Assert.Contains("Offset=03:00:00", satir.Detay);
@@ -252,6 +252,6 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
         var uyari = Assert.Single(log.Kayitlar, k => k.Seviye == LogLevel.Warning);
         Assert.NotNull(uyari.Hata);
         Assert.Equal(tenant, uyari.Alanlar["Tenant"]);
-        Assert.Empty(await scope.ServiceProvider.GetRequiredService<JobCalismaLogService>().ListAsync());
+        Assert.Empty(await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
     }
 }

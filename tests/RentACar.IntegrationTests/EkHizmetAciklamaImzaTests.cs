@@ -27,7 +27,7 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
+        var svc = s.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
 
         var id = await svc.CreateAsync(new EkHizmetTanimInput
         {
@@ -53,7 +53,7 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
+        var svc = s.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
 
         // Yeni alanlar HİÇ verilmeden eski çağrı biçimi çalışmalı.
         var id = await svc.CreateAsync(new EkHizmetTanimInput { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 50m });
@@ -74,7 +74,7 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
+        var svc = s.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
 
         // 0 ve negatif anlamsız: "sınırsız" için null kullanılır.
         var ex0 = await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
@@ -103,7 +103,7 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<BelgeSablonService>();
+        var svc = s.ServiceProvider.GetRequiredService<DocumentTemplateService>();
 
         // Alan HİÇ set edilmeden: varsayılan true (mevcut PDF davranışı korunur).
         var id = await svc.CreateAsync(new BelgeSablonInput
@@ -126,18 +126,18 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var coz = s.ServiceProvider.GetRequiredService<BelgeSablonCozumleyici>();
+        var coz = s.ServiceProvider.GetRequiredService<DocumentTemplateResolver>();
 
         // Hiç şablon yok → SablonMetin.Bos → imza alanı AÇIK olmalı (regresyon çiti: şablon
         // tanımlamayan tenant'ların sözleşmesi imzasız basılmaya başlamamalı).
-        Assert.True((await coz.KiraAsync(null)).ImzaAlaniGoster);
+        Assert.True((await coz.RentalAsync(null)).ImzaAlaniGoster);
 
         // Kapalı varsayılan şablon tanımlanırsa çözümleyici onu taşır.
-        await s.ServiceProvider.GetRequiredService<BelgeSablonService>().CreateAsync(new BelgeSablonInput
+        await s.ServiceProvider.GetRequiredService<DocumentTemplateService>().CreateAsync(new BelgeSablonInput
         {
             BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "E-imza", VarsayilanMi = true,
             ImzaAlaniGoster = false
         });
-        Assert.False((await coz.KiraAsync(null)).ImzaAlaniGoster);
+        Assert.False((await coz.RentalAsync(null)).ImzaAlaniGoster);
     }
 }

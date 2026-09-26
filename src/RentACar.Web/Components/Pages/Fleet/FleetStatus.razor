@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy = "izin:OperationsWrite")]
 @inject FleetStatusService Fleet
 @inject BranchService Subeler
-@inject PersonelService Personeller
+@inject PersonnelService Personeller
 
 <PageTitle>Araç Güncel Durum — RentPro</PageTitle>
 @* Canlı operasyon panosu: statik SSR olduğundan sayfa 60 sn'de bir otomatik yenilenir → araç durumu
@@ -43,7 +43,7 @@
     </select>
     <select name="filo">
         <option value="">Filo Status (tümü)</option>
-        @foreach (var f in Enum.GetValues<FiloStatus>())
+        @foreach (var f in Enum.GetValues<FleetLifecycleStatus>())
         {
             <option value="@f" selected="@(Filo == f.ToString())">@f</option>
         }
@@ -59,7 +59,7 @@
     </select>
     <select name="vites">
         <option value="">Vites (tümü)</option>
-        @foreach (var vt in Enum.GetValues<Vites>())
+        @foreach (var vt in Enum.GetValues<Transmission>())
         {
             <option value="@vt" selected="@(VitesF == vt.ToString())">@vt</option>
         }
@@ -171,10 +171,10 @@
                                     <input type="hidden" name="vehicleId" value="@r.VehicleId" />
                                     @* Giriş KM aracın güncel odometresidir; kullanıcı servis ekranından düzeltebilir. *@
                                     <input type="hidden" name="girisKm" value="@r.Km" />
-                                    <input type="hidden" name="hasarSorumlu" value="@HasarSorumlu.Yok" />
+                                    <input type="hidden" name="hasarSorumlu" value="@DamageResponsible.Yok" />
                                     <input type="hidden" name="aciklama" value="Araç Güncel Durum ekranından açıldı" />
                                     <select name="tip" title="Servis türü">
-                                        @foreach (var t in Enum.GetValues<ServisTipi>())
+                                        @foreach (var t in Enum.GetValues<ServiceType>())
                                         {
                                             <option value="@t">@t</option>
                                         }
@@ -248,8 +248,8 @@
         {
             Query = Q,
             Durum = Enum.TryParse<VehicleStatus>(Durum, out var d) ? d : null,
-            FiloDurum = Enum.TryParse<FiloStatus>(Filo, out var f) ? f : null,
-            Vites = Enum.TryParse<Vites>(VitesF, out var vt) ? vt : null,
+            FiloDurum = Enum.TryParse<FleetLifecycleStatus>(Filo, out var f) ? f : null,
+            Vites = Enum.TryParse<Transmission>(VitesF, out var vt) ? vt : null,
             Yakit = Enum.TryParse<FuelType>(Yakit, out var yk) ? yk : null,
             Grup = string.IsNullOrWhiteSpace(Grup) ? null : Grup,
             Marka = string.IsNullOrWhiteSpace(Marka) ? null : Marka,

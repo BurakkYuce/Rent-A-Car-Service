@@ -32,7 +32,7 @@ public class Penalty : ITenantOwned, IAuditable
     /// <summary>Başlık sebebi (tek satırlı cezada satırın sebebiyle aynı; çok satırlıda özet).</summary>
     public string? Sebep { get; set; }
 
-    public CezaDurum Durum { get; set; } = CezaDurum.Yeni;
+    public PenaltyStatus Durum { get; set; } = PenaltyStatus.Yeni;
 
     // ---- FAZ-60 kısmi ödeme (SATIR BAZINDA — KARARLAR.md) ----
 

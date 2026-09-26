@@ -28,7 +28,7 @@ public sealed class DetailTests(PostgresFixture fx)
             vid = v.Id;
             db.Rentals.Add(new RentalContract { SozlesmeNo = "K-D1", VehicleId = vid, Durum = RentalStatus.Kirada,
                 BasTar = DateTimeOffset.UtcNow, BitTar = DateTimeOffset.UtcNow.AddDays(2) });
-            db.ServiceRecords.Add(new ServiceRecord { No = "SRV-D1", VehicleId = vid, Tip = ServisTipi.Periyodik, GirisKm = 100 });
+            db.ServiceRecords.Add(new ServiceRecord { No = "SRV-D1", VehicleId = vid, Tip = ServiceType.Periyodik, GirisKm = 100 });
             db.Penalties.Add(new Penalty { No = "CZ-D1", CezaTuru = "Hız", VehicleId = vid, Tutar = 500m });
             db.DamageFiles.Add(new DamageFile { No = "BAF-D1", VehicleId = vid });
             // Başka araca ait kayıt → bu detayda GÖRÜNMEMELİ.
@@ -57,7 +57,7 @@ public sealed class DetailTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Customers.Add(new Customer { Id = cari, Tip = CariType.Bireysel, Ad = "Det", Soyad = "Ay" });
+            db.Customers.Add(new Customer { Id = cari, Tip = CustomerType.Bireysel, Ad = "Det", Soyad = "Ay" });
             db.Rentals.Add(new RentalContract { SozlesmeNo = "K-C1", MusteriId = cari, VehicleId = Guid.NewGuid(),
                 Durum = RentalStatus.Kirada, BasTar = DateTimeOffset.UtcNow, BitTar = DateTimeOffset.UtcNow.AddDays(1) });
             await db.SaveChangesAsync();

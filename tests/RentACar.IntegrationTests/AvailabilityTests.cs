@@ -69,7 +69,7 @@ public sealed class AvailabilityTests(PostgresFixture fx)
         await SeedAsync(scope);
 
         var grupA = await scope.ServiceProvider.GetRequiredService<AvailabilityService>()
-            .FindAvailableAsync(WinFrom, WinTo, grup: "A");
+            .FindAvailableAsync(WinFrom, WinTo, group: "A");
         Assert.Equal(new[] { "34A001", "34A004" }, grupA.Select(v => v.Plaka).OrderBy(p => p).ToArray());
     }
 
@@ -84,7 +84,7 @@ public sealed class AvailabilityTests(PostgresFixture fx)
         // Operatör Merkez → yalnız Merkez araçları (V1). Seçtiği şube override edemez.
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez");
         var available = await op.ServiceProvider.GetRequiredService<AvailabilityService>()
-            .FindAvailableAsync(WinFrom, WinTo, sube: "Ankara");
+            .FindAvailableAsync(WinFrom, WinTo, branch: "Ankara");
         Assert.Equal(new[] { "34A001" }, available.Select(v => v.Plaka).ToArray());
     }
 

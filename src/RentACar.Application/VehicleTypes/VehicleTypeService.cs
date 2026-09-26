@@ -29,7 +29,7 @@ public sealed class VehicleTypeService(IVehicleTypeRepository repository, ICurre
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu araç tipi zaten var.");
 
         var type = new VehicleType();
@@ -39,28 +39,28 @@ public sealed class VehicleTypeService(IVehicleTypeRepository repository, ICurre
     }
 
     public Task<bool> UpdateAsync(Guid id, VehicleTypeInput input, CancellationToken ct = default)
-        => UpdateAsync(id, input, beklenenSurum: null, ct);
+        => UpdateAsync(id, input, expectedVersion: null, ct);
 
     /// <summary>F6.1a — satır sürümü (opak); yoksa <c>null</c>.</summary>
-    public Task<string?> SurumAsync(Guid id, CancellationToken ct = default) => _repository.SurumAsync(id, ct);
+    public Task<string?> VersionAsync(Guid id, CancellationToken ct = default) => _repository.VersionAsync(id, ct);
 
-    /// <summary>F6.1a — <paramref name="beklenenSurum"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme.</summary>
-    public async Task<bool> UpdateAsync(Guid id, VehicleTypeInput input, string? beklenenSurum, CancellationToken ct = default)
+    /// <summary>F6.1a — <paramref name="expectedVersion"/> doluysa kilit altında sürüm karşılaştırmalı tam değiştirme.</summary>
+    public async Task<bool> UpdateAsync(Guid id, VehicleTypeInput input, string? expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu araç tipi zaten var.");
 
-        void Uygula(VehicleType type)
+        void ApplyChanges(VehicleType type)
         {
             Apply(type, n);
             type.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }
-        return beklenenSurum is null
-            ? await _repository.UpdateAsync(id, Uygula, ct)
-            : await _repository.UpdateAsync(id, beklenenSurum, Uygula, ct);
+        return expectedVersion is null
+            ? await _repository.UpdateAsync(id, ApplyChanges, ct)
+            : await _repository.UpdateAsync(id, expectedVersion, ApplyChanges, ct);
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

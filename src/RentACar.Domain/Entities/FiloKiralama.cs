@@ -59,7 +59,7 @@ public class FiloKiralama : ITenantOwned, IAuditable
     /// KARIŞTIRILMAMALI: "Limiti" sözleşmedeki üst sınır, bu ise gerçekleşen değerdir.</summary>
     public int? ToplamKm { get; set; }
 
-    public FiloKiraDurum Durum { get; set; } = FiloKiraDurum.Aktif;
+    public FleetRentalStatus Durum { get; set; } = FleetRentalStatus.Aktif;
     public string? Aciklama { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

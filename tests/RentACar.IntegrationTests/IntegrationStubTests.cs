@@ -53,7 +53,7 @@ public sealed class IntegrationStubTests
         using var sp = Build();
         var pos = sp.GetRequiredService<IPosService>();
 
-        var baslat = await pos.BaslatAsync(new PosOdemeIstegi(
+        var baslat = await pos.StartAsync(new PosOdemeIstegi(
             500m, "TRY", "RZ-1", "https://ornek/donus",
             new PosAlici("M1", "Ahmet", "Yılmaz", "a@b.c", "+905000000000", "11111111110",
                 "Adres", "İstanbul", "Turkey", "1.2.3.4"),
@@ -63,15 +63,15 @@ public sealed class IntegrationStubTests
         Assert.Null(baslat.OdemeSayfasiUrl);
         Assert.False(string.IsNullOrWhiteSpace(baslat.Hata));
 
-        var durum = await pos.SonucAsync("herhangi-token");
+        var durum = await pos.ResultAsync("herhangi-token");
         Assert.False(durum.Ok);
         Assert.Null(durum.OdemeId);
 
         foreach (var sonuc in new[]
         {
-            await pos.KapatAsync("1", 10m, "1.2.3.4"),
-            await pos.IptalAsync("1", "1.2.3.4"),
-            await pos.IadeAsync("1", 10m, "1.2.3.4"),
+            await pos.CloseAsync("1", 10m, "1.2.3.4"),
+            await pos.CancelAsync("1", "1.2.3.4"),
+            await pos.RefundAsync("1", 10m, "1.2.3.4"),
         })
         {
             Assert.False(sonuc.Success);
@@ -92,7 +92,7 @@ public sealed class IntegrationStubTests
     {
         // KABİS yasal yükümlülük: bildirilmemiş kiralamayı "bildirildi" göstermek cezayı gizler.
         using var sp = Build();
-        var ok = await sp.GetRequiredService<IKabisService>().BildirAsync(
+        var ok = await sp.GetRequiredService<IKabisService>().NotifyAsync(
             new KabisBildirim("RZ-000001", "34ABC123", "11111111110",
                 DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(3)));
         Assert.False(ok);

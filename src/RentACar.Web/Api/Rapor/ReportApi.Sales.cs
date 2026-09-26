@@ -46,12 +46,12 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var kdv = f.KdvDahil == true ? KdvDurum.KdvDahil : KdvDurum.Kdvsiz;
-        var d = await reports.GetKarlilikAsync(p.FromUtc, p.ToUtc, F(f.Sube), F(f.Grup), F(f.Plaka), F(f.Kaynak),
+        var kdv = f.KdvDahil == true ? VatStatus.KdvDahil : VatStatus.Kdvsiz;
+        var d = await reports.GetProfitabilityAsync(p.FromUtc, p.ToUtc, F(f.Sube), F(f.Grup), F(f.Plaka), F(f.Kaynak),
             F(f.Sipp), kdv, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
         var rows = d.Satirlar.Select(r => r.CariAd is null ? r : r with { CariAd = mask.Name(r.CariAd) }).ToList();
-        var ozet = new ProfitabilitySummary(d.ToplamGelir, d.ToplamGider, d.ToplamNetKar, kdv == KdvDurum.KdvDahil,
+        var ozet = new ProfitabilitySummary(d.ToplamGelir, d.ToplamGider, d.ToplamNetKar, kdv == VatStatus.KdvDahil,
             d.ToplamPotansiyelGelir, d.ToplamReferansMaliyet, d.ToplamHesaplananKdv);
         var export = ReportExport.Links(http, user, "karlilik",
         [
@@ -62,8 +62,8 @@ public static partial class ReportApi
             page.Apply(rows, ProfitabilityMap), export));
     }
 
-    private static readonly SiralamaHaritasi<KarlilikSatirDto> ProfitabilityMap = SiralamaHaritasi<KarlilikSatirDto>
-        .Olustur(r => r.Plaka).Alan("plaka", r => r.Plaka).Alan("gelir", r => r.Gelir).Alan("gider", r => r.Gider)
+    private static readonly SortFieldMap<KarlilikSatirDto> ProfitabilityMap = SortFieldMap<KarlilikSatirDto>
+        .Create(r => r.Plaka).Alan("plaka", r => r.Plaka).Alan("gelir", r => r.Gelir).Alan("gider", r => r.Gider)
         .Alan("netKar", r => r.NetKar).Alan("sube", r => r.Sube).Alan("grup", r => r.Grup)
         .Alan("dolulukYuzde", r => r.DolulukYuzde);
 
@@ -79,7 +79,7 @@ public static partial class ReportApi
         var b = F(boyut)?.ToLowerInvariant() ?? "grup";
         if (!Dimensions.Contains(b))
             throw new ValidationException($"Geçersiz boyut. İzin verilenler: {string.Join(", ", Dimensions)}.", "boyut");
-        var d = await reports.GetKarlilikOzetAsync(b, p.FromUtc, p.ToUtc, ct);
+        var d = await reports.GetProfitabilitySummaryAsync(b, p.FromUtc, p.ToUtc, ct);
         return TypedResults.Ok(new ReportSummaryResult<KarlilikOzetDto>(p.ToDto(), d,
             ReportExport.Links(http, user, "karlilik-" + b, ReportExport.Period(p), pdf: true)));
     }
@@ -91,7 +91,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var d = await reports.GetEkHizmetRaporuAsync(p.FromUtc, p.ToUtc, ct);
+        var d = await reports.GetAddOnReportAsync(p.FromUtc, p.ToUtc, ct);
         return TypedResults.Ok(new ReportSummaryResult<EkHizmetRaporDto>(p.ToDto(), d,
             ReportExport.Links(http, user, "ek-hizmet", ReportExport.Period(p))));
     }
@@ -102,7 +102,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var d = await reports.GetEkHizmetAracPivotAsync(p.FromUtc, p.ToUtc, ct);
+        var d = await reports.GetAddOnVehiclePivotAsync(p.FromUtc, p.ToUtc, ct);
         return TypedResults.Ok(new ReportSummaryResult<EkHizmetAracPivotDto>(p.ToDto(), d,
             ReportExport.Links(http, user, "ek-hizmet-arac", ReportExport.Period(p))));
     }
@@ -117,7 +117,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var satirlar = await reports.GetEkHizmetDetayAsync(new EkHizmetDetayFilter
+        var satirlar = await reports.GetAddOnDetailAsync(new EkHizmetDetayFilter
         {
             Bas = p.FromUtc, Bit = p.ToUtc, Ara = F(ara), PersonelId = personelId, Ofis = F(ofis),
             RezKaynagi = F(kaynak), SistemKalemleriniGizle = sistemGizle == true,
@@ -129,8 +129,8 @@ public static partial class ReportApi
             page.Apply(rows, AddOnDetailMap), null));
     }
 
-    private static readonly SiralamaHaritasi<EkHizmetDetayRow> AddOnDetailMap = SiralamaHaritasi<EkHizmetDetayRow>
-        .Olustur(r => r.AddOnId).Alan("eklenmeTarihi", r => r.EklenmeTarihi).Alan("sozlesmeNo", r => r.SozlesmeNo)
+    private static readonly SortFieldMap<EkHizmetDetayRow> AddOnDetailMap = SortFieldMap<EkHizmetDetayRow>
+        .Create(r => r.AddOnId).Alan("eklenmeTarihi", r => r.EklenmeTarihi).Alan("sozlesmeNo", r => r.SozlesmeNo)
         .Alan("ad", r => r.Ad).Alan("plaka", r => r.Plaka).Alan("brut", r => r.Brut);
 
     // ------------------------------------------------------------------ günlük faaliyet
@@ -141,7 +141,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var g = ReportPeriod.ValidateDay(gun, "gun") ?? ReportPeriod.Today;
-        var d = await reports.GetGunlukFaaliyetAsync(ReportPeriod.Anchor(g), F(sube), ct);
+        var d = await reports.GetDailyActivityAsync(ReportPeriod.Anchor(g), F(sube), ct);
         return TypedResults.Ok(new ReportSummaryResult<GunlukFaaliyetDto>(new ReportPeriodDto(g, g), d,
             ReportExport.Links(http, user, "gunluk", [("gun", ReportExport.Day(g))])));
     }

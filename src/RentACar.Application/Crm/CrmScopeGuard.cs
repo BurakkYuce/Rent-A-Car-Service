@@ -40,7 +40,7 @@ public sealed class CrmScopeGuard(ICurrentUser currentUser, IBookingRepository b
     }
 
     private async Task<bool> OfficeInScopeAsync(BranchScope.BranchFilter filter, string office, CancellationToken ct)
-        => BranchScope.InScope(filter, (await locations.FindByAdAsync(office, ct))?.SubeId, office);
+        => BranchScope.InScope(filter, (await locations.FindByNameAsync(office, ct))?.SubeId, office);
 
     /// <summary>Mevcut kayıt (okuma/güncelleme/silme) kapsamda olmalı; değilse 403 — durum kontrolünden ÖNCE çağrılır.</summary>
     public async Task RequireRecordAsync(Guid? rentalId, string? office, CancellationToken ct = default)
@@ -51,7 +51,7 @@ public sealed class CrmScopeGuard(ICurrentUser currentUser, IBookingRepository b
             rentalIn = BranchScope.InScope(filter, rental.CikisSubeId, rental.CikisOfisi);
         var o = office?.Trim();
         bool? officeIn = string.IsNullOrEmpty(o) ? null : await OfficeInScopeAsync(filter, o, ct);
-        if (!Visible(rentalId, rentalIn, o, officeIn)) throw new YetkiYokException(OutOfScopeMessage);
+        if (!Visible(rentalId, rentalIn, o, officeIn)) throw new NoPermissionException(OutOfScopeMessage);
     }
 
     /// <summary>
@@ -70,11 +70,11 @@ public sealed class CrmScopeGuard(ICurrentUser currentUser, IBookingRepository b
             var rental = await bookings.FindRentalAsync(rentalId!.Value, ct)
                 ?? throw new ValidationException("Kira sözleşmesi bulunamadı.", "rentalId");
             if (restricted && !BranchScope.InScope(filter, rental.CikisSubeId, rental.CikisOfisi))
-                throw new YetkiYokException("Seçilen kira sözleşmesi şube kapsamınız dışında.");
+                throw new NoPermissionException("Seçilen kira sözleşmesi şube kapsamınız dışında.");
         }
         var o = office?.Trim();
         if (!string.IsNullOrEmpty(o) && restricted && !await OfficeInScopeAsync(filter, o, ct))
-            throw new YetkiYokException("Seçilen çıkış ofisi şube kapsamınız dışında.");
+            throw new NoPermissionException("Seçilen çıkış ofisi şube kapsamınız dışında.");
         if (creating && restricted && !hasRental && string.IsNullOrEmpty(o))
             throw new ValidationException(
                 "Şubeye bağlı kullanıcı kaydı bir kira sözleşmesine ya da şubesinin çıkış ofisine bağlamalıdır.", "rentalId");
@@ -90,7 +90,7 @@ public sealed class CrmScopeGuard(ICurrentUser currentUser, IBookingRepository b
         var hadBranch = currentRentalId is { } c && c != Guid.Empty || !string.IsNullOrWhiteSpace(currentOffice);
         var hasBranch = rentalId is { } r && r != Guid.Empty || !string.IsNullOrWhiteSpace(office);
         if (hadBranch && !hasBranch)
-            throw new YetkiYokException(
+            throw new NoPermissionException(
                 "Şube kapsamlı kullanıcı kaydın kira ve çıkış ofisi bağını birlikte kaldıramaz; kayıt tüm şubelere açılırdı.");
     }
 

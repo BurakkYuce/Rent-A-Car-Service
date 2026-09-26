@@ -24,13 +24,13 @@ public interface IServiceRecordRepository
     /// FAZ-16 — yalnız BİLGİ alanlarını günceller (defter etkisi YOK). Durum/araç kuplajı olmayan
     /// <see cref="TransitionAsync"/>: aynı kilit/retry yolunu kullanır, ayrı bir yazma yolu doğmaz.
     /// </summary>
-    Task<bool> UpdateBilgiAsync(Guid id, Action<ServiceRecord> apply, CancellationToken ct = default);
+    Task<bool> UpdateInfoAsync(Guid id, Action<ServiceRecord> apply, CancellationToken ct = default);
 
     /// <summary>İşçilik/parça kalemi ekler ve ToplamIscilik'i yeniden hesaplar (kapanmamış serviste).</summary>
-    Task<bool> AddLineAsync(Guid id, ServiceLine kalem, CancellationToken ct = default);
+    Task<bool> AddLineAsync(Guid id, ServiceLine item, CancellationToken ct = default);
 
     /// <summary>Servis yansıtma/rücu (roadmap J4): tek transaction'da Yansitildi=true + YansitilanTutar/CariId +
     /// DENGELİ defter. SourceId=serviceId deterministik → çift-yansıtma idempotency index ile reddedilir.</summary>
-    Task PostYansitmaAsync(Guid serviceId, Guid cariId, decimal yansitilanTutar,
+    Task PostReflectionAsync(Guid serviceId, Guid customerId, decimal reflectedAmount,
         IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 }

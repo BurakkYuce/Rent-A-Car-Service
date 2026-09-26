@@ -6,7 +6,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.ServisTanimlari;
 
 /// <summary>Periyodik bakım tanım kalıcılığı (roadmap N1).</summary>
-public interface IServisTanimRepository
+public interface IServiceDefinitionRepository
 {
     Task<IReadOnlyList<ServisTanim>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<ServisTanim>> ListActiveAsync(CancellationToken ct = default);
@@ -19,14 +19,14 @@ public interface IServisTanimRepository
     /// FAZ-14 C — filodaki GERÇEK (Marka, Tip, Yakıt, Vites) kombinasyonları + her birinin araç
     /// adedi. Kaynak <c>Vehicles</c>; tanım tablosuna bakmaz (eşleştirme serviste yapılır).
     /// </summary>
-    Task<IReadOnlyList<FiloKombinasyon>> FiloKombinasyonlariAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<FiloKombinasyon>> FleetCombinationsAsync(CancellationToken ct = default);
 }
 
 /// <summary>Filodaki bir araç kombinasyonu ve o kombinasyondaki araç adedi.</summary>
 public sealed record FiloKombinasyon(string? Marka, string? Tip, string? Yakit, string? Vites, int AracSayisi)
 {
     /// <summary>Karşılaştırma anahtarı — boş alanlar da anlamlıdır (bilgi girilmemiş araç grubu).</summary>
-    public string Anahtar => ServisTanimKombinasyon.Anahtar(Marka, Tip, Yakit, Vites);
+    public string Anahtar => ServiceDefinitionCombination.Key(Marka, Tip, Yakit, Vites);
 
     public string Etiket => string.Join(" · ",
         new[] { Marka, Tip, Yakit, Vites }.Where(x => !string.IsNullOrWhiteSpace(x)))
@@ -37,11 +37,11 @@ public sealed record FiloKombinasyon(string? Marka, string? Tip, string? Yakit, 
 public sealed record ServisTanimOneri(FiloKombinasyon Kombinasyon, string OnerilenKod);
 
 /// <summary>Kombinasyon anahtarı — servis, repo ve test AYNI kuralı kullansın diye tek yerde.</summary>
-public static class ServisTanimKombinasyon
+public static class ServiceDefinitionCombination
 {
     /// <summary>Büyük/küçük harf ve boşluk duyarsız; Türkçe karakterler korunur.</summary>
-    public static string Anahtar(string? marka, string? tip, string? yakit, string? vites)
-        => string.Join("|", new[] { marka, tip, yakit, vites }
+    public static string Key(string? brand, string? tip, string? fuel, string? transmission)
+        => string.Join("|", new[] { brand, tip, fuel, transmission }
             .Select(x => (x ?? "").Trim().ToUpperInvariant()));
 }
 
@@ -60,10 +60,10 @@ public sealed class ServisTanimInput
 }
 
 /// <summary>Periyodik bakım tanım master iş mantığı (roadmap N1). Yazma OperationsWrite.</summary>
-public sealed class ServisTanimService(IServisTanimRepository repository, ICurrentUser currentUser,
+public sealed class ServiceDefinitionService(IServiceDefinitionRepository repository, ICurrentUser currentUser,
     IRowVersionStore? rowVersions = null)
 {
-    private readonly IServisTanimRepository _repository = repository;
+    private readonly IServiceDefinitionRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<ServisTanim>> ListAsync(CancellationToken ct = default) => _repository.ListAsync(ct);
@@ -125,51 +125,51 @@ public sealed class ServisTanimService(IServisTanimRepository repository, ICurre
     /// harflerinden türetilir ve MEVCUT kodlarla çakışmayacak şekilde tekilleştirilir; kullanıcı
     /// yine de düzenleyebilir. ÖNERİ HİÇBİR ŞEY YAZMAZ — kabul ayrı bir adımdır.
     /// </summary>
-    public async Task<IReadOnlyList<ServisTanimOneri>> OneriAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<ServisTanimOneri>> SuggestionAsync(CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        var filo = await _repository.FiloKombinasyonlariAsync(ct);
-        var mevcut = await _repository.ListAsync(ct);
+        var fleet = await _repository.FleetCombinationsAsync(ct);
+        var existing = await _repository.ListAsync(ct);
 
         // Eşleşme yalnız KOMBİNASYON kolonları üzerinden; eski (kombinasyonsuz) tanımlar hiçbir
         // kombinasyonu "kapsamış" saymaz — aksi hâlde tek bir eski satır tüm önerileri susturur.
-        var kapsanan = mevcut
+        var covered = existing
             .Where(t => t.Marka != null || t.Tip != null || t.Yakit != null || t.Vites != null)
-            .Select(t => ServisTanimKombinasyon.Anahtar(t.Marka, t.Tip, t.Yakit, t.Vites))
+            .Select(t => ServiceDefinitionCombination.Key(t.Marka, t.Tip, t.Yakit, t.Vites))
             .ToHashSet(StringComparer.Ordinal);
 
-        var kullanilanKod = mevcut.Select(t => t.Kod).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var sonuc = new List<ServisTanimOneri>();
-        foreach (var k in filo.Where(k => !kapsanan.Contains(k.Anahtar)))
-            sonuc.Add(new ServisTanimOneri(k, TekilKod(k, kullanilanKod)));
-        return sonuc;
+        var usedCode = existing.Select(t => t.Kod).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var result = new List<ServisTanimOneri>();
+        foreach (var k in fleet.Where(k => !covered.Contains(k.Anahtar)))
+            result.Add(new ServisTanimOneri(k, UniqueCode(k, usedCode)));
+        return result;
     }
 
     /// <summary>Kombinasyondan kod türetir; çakışırsa sonuna sayı ekler (üretilen kod da rezerve edilir).</summary>
-    private static string TekilKod(FiloKombinasyon k, HashSet<string> kullanilan)
+    private static string UniqueCode(FiloKombinasyon k, HashSet<string> used)
     {
-        var ham = string.Concat(new[] { k.Marka, k.Tip, k.Yakit, k.Vites }
+        var raw = string.Concat(new[] { k.Marka, k.Tip, k.Yakit, k.Vites }
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => new string(x!.Trim().Where(char.IsLetterOrDigit).Take(4).ToArray())));
-        var taban = (string.IsNullOrWhiteSpace(ham) ? "SRV" : ham).ToUpperInvariant();
-        if (taban.Length > 28) taban = taban[..28];
+        var floor = (string.IsNullOrWhiteSpace(raw) ? "SRV" : raw).ToUpperInvariant();
+        if (floor.Length > 28) floor = floor[..28];
 
-        var aday = taban;
-        for (var i = 2; kullanilan.Contains(aday); i++) aday = $"{taban}{i}";
-        kullanilan.Add(aday);
-        return aday;
+        var candidate = floor;
+        for (var i = 2; used.Contains(candidate); i++) candidate = $"{floor}{i}";
+        used.Add(candidate);
+        return candidate;
     }
 
     private static (string Kod, string AracTipi, string? Aciklama, string? Marka, string? Tip, string? Yakit, string? Vites)
         Normalize(ServisTanimInput i)
     {
-        var kod = (i.Kod ?? "").Trim().ToUpperInvariant();
+        var code = (i.Kod ?? "").Trim().ToUpperInvariant();
         var tip = (i.AracTipi ?? "").Trim();
-        if (string.IsNullOrWhiteSpace(kod)) throw new ValidationException("Kod zorunludur.");
-        if (kod.Length > 32) throw new ValidationException("Kod en çok 32 karakter olabilir.");
+        if (string.IsNullOrWhiteSpace(code)) throw new ValidationException("Kod zorunludur.");
+        if (code.Length > 32) throw new ValidationException("Kod en çok 32 karakter olabilir.");
         if (string.IsNullOrWhiteSpace(tip)) throw new ValidationException("Araç tipi zorunludur.");
         if (i.BakimKm < 0) throw new ValidationException("Bakım KM negatif olamaz.");
         static string? T(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-        return (kod, tip, T(i.Aciklama), T(i.Marka), T(i.Tip), T(i.Yakit), T(i.Vites));
+        return (code, tip, T(i.Aciklama), T(i.Marka), T(i.Tip), T(i.Yakit), T(i.Vites));
     }
 }

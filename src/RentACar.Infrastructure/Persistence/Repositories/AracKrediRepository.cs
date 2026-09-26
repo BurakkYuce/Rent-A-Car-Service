@@ -8,7 +8,7 @@ using RentACar.Domain.Common;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Araç kredisi kalıcılığı (roadmap L4). CreateAsync boşluksuz No (KR-000001) tahsis eder.</summary>
-public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory) : IAracKrediRepository
+public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory) : IVehicleLoanRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -43,7 +43,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
             // Plaka DB'de boşluksuz-büyük harf saklanır (VehicleService.Normalize) → arama terimi de
             // AYNI kuraldan geçmeli, yoksa listede görülen "34 ABC 01" yazımı hiçbir şey bulmazdı
             // (FAZ-29 M4 dersi: tek kural, kopya yok).
-            var p = RentACar.Application.Vehicles.VehicleService.PlakaAnahtar(filtre.Plaka);
+            var p = RentACar.Application.Vehicles.VehicleService.PlateKey(filtre.Plaka);
             q = q.Where(x => x.VehicleId != null
                 && db.Vehicles.Any(v => v.Id == x.VehicleId && EF.Functions.ILike(v.Plaka, $"%{p}%")));
         }
@@ -63,7 +63,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.AracKredi, ct);
+            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.AracKredi, ct);
             db.AracKredileri.Add(row);
             try
             {
@@ -82,7 +82,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
             catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (PkIhlali.Mi(ex))
             {
                 await tx.RollbackAsync(ct);
-                throw new RentACar.Application.Common.MukerrerIslemException(PkIhlali.Mesaj);
+                throw new RentACar.Application.Common.DuplicateOperationException(PkIhlali.Mesaj);
             }
             await tx.CommitAsync(ct);
         }, ct);
@@ -90,7 +90,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
 
     private const string TaksitMukerrer = "Bu taksit ödemesi zaten kaydedilmiş (çift gönderim).";
 
-    public async Task<bool> TaksitOdeAsync(Guid id,
+    public async Task<bool> PayInstallmentAsync(Guid id,
         Func<int, (Expense Expense, IReadOnlyList<AccountLedgerEntry> Entries)>? posting = null,
         CancellationToken ct = default, Guid? islemAnahtari = null, int? beklenenSira = null)
     {
@@ -110,21 +110,21 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
             // ara taksidin tekrarı kısıt reddi alıyordu — sonuç taksidin sırasına bağlıydı.
             if (islemAnahtari is Guid anahtar && anahtar != Guid.Empty &&
                 await db.Expenses.AsNoTracking().AnyAsync(e => e.IslemAnahtari == anahtar, ct))
-                throw new RentACar.Application.Common.MukerrerIslemException(TaksitMukerrer);
+                throw new RentACar.Application.Common.DuplicateOperationException(TaksitMukerrer);
             // Adversarial 1.3 M1: Durum çiti KİLİDİN ARKASINDA — iptal-yarışında iptal krediye para
             // yazılıp İptal'in Kapandi ile ezilmesi imkânsızlaşır (servis ön-kontrolü yarışa açıktı).
-            if (row.Durum == KrediDurum.Iptal)
+            if (row.Durum == LoanStatus.Iptal)
                 throw new RentACar.Application.Common.ValidationException("İptal kredinin taksiti ödenemez.");
             // F6.1b — BAYATLIK (anahtar kontrolünden SONRA, kilit altında): istemci hangi taksidi ödediğini söyler.
             // İki sekme farklı anahtarla aynı ekrandan "Taksit Öde"ye basarsa ikincisi #n+1'i DEĞİL 409 cakisma alır
             // (aksi halde kullanıcının niyeti olmayan bir sonraki taksit de ödenirdi).
             if (beklenenSira is int beklenen && row.OdenenTaksit + 1 != beklenen)
-                throw new RentACar.Application.Common.EszamanliDegisiklikException(
+                throw new RentACar.Application.Common.ConcurrentModificationException(
                     $"Kredinin ödenen taksit sayısı bu ekran açıldıktan sonra değişti (şu an {row.OdenenTaksit}/{row.TaksitSayisi}); " +
                     "taksit ödenmedi. Güncel planı kontrol edip yeniden deneyin.");
             if (row.OdenenTaksit >= row.TaksitSayisi) return false; // tüm taksitler ödendi
             row.OdenenTaksit++;
-            if (row.OdenenTaksit >= row.TaksitSayisi) row.Durum = KrediDurum.Kapandi;
+            if (row.OdenenTaksit >= row.TaksitSayisi) row.Durum = LoanStatus.Kapandi;
             row.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
             // FAZ 1.3: taksit GİDERİ sayaçla AYNI transaction'da — biri olmadan diğeri asla yazılmaz.
@@ -135,7 +135,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
                 var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
                 if (debit != credit)
                     throw new RentACar.Application.Common.ValidationException($"Defter dengesiz: borç {debit} ≠ alacak {credit}.");
-                expense.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Gider, ct);
+                expense.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Gider, ct);
                 db.Expenses.Add(expense);
                 db.AccountLedgerEntries.AddRange(entries);
             }
@@ -160,7 +160,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
 
     /// <summary>FAZ-13 — toplu iptal. Kilit sırası ID'ye göre SABİT: iki eşzamanlı toplu iptal
     /// kesişen kümelerde birbirini deadlock'a sokmaz. Aktif olmayan satır sessizce atlanır.</summary>
-    public async Task<int> TopluIptalAsync(IReadOnlyList<Guid> ids, CancellationToken ct = default)
+    public async Task<int> BulkCancelAsync(IReadOnlyList<Guid> ids, CancellationToken ct = default)
     {
         if (ids.Count == 0) return 0;
         return await PgRetry.RunAsync(async () =>
@@ -176,8 +176,8 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
                 // Kapanmış (tüm taksitleri ödenmiş) ya da zaten iptal olan kredi ATLANIR — toplu
                 // seçimde tek satır yüzünden işlem patlamasın, ödenmiş taksitlerin defteri de
                 // hiçbir şekilde geri alınmasın.
-                if (row is null || row.Durum != KrediDurum.Aktif) continue;
-                row.Durum = KrediDurum.Iptal;
+                if (row is null || row.Durum != LoanStatus.Aktif) continue;
+                row.Durum = LoanStatus.Iptal;
                 row.UpdatedAtUtc = DateTimeOffset.UtcNow;
                 sayac++;
             }
@@ -187,7 +187,7 @@ public sealed class AracKrediRepository(IDbContextFactory<AppDbContext> factory)
         }, ct);
     }
 
-    public async Task<bool> SetDurumAsync(Guid id, KrediDurum durum, CancellationToken ct = default)
+    public async Task<bool> SetStatusAsync(Guid id, LoanStatus durum, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () =>
         {

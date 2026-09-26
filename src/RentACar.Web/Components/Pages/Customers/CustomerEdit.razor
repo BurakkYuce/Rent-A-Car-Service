@@ -23,7 +23,7 @@ else
         <input type="hidden" name="id" value="@_c.Id" />
         <label>Tür
             <select name="tip">
-                @foreach (var t in Enum.GetValues<CariType>())
+                @foreach (var t in Enum.GetValues<CustomerType>())
                 {
                     <option value="@t" selected="@(t == _c.Tip)">@t</option>
                 }

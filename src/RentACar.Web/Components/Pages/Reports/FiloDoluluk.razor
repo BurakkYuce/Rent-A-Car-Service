@@ -115,7 +115,7 @@
 
 @code {
     private FleetUtilizationDto _f = new(0, 0, 0, 0, 0, 0, 0);
-    private FiloSubeDto _sube = new([], ReportService.FiloPencereVarsayilan);
+    private FiloSubeDto _sube = new([], ReportService.DefaultFleetWindow);
 
     // Aktif filo = satılmış ve pasif hariç (kiralanabilir havuz).
     private string DolulukYuzde
@@ -130,6 +130,6 @@
     protected override async Task OnInitializedAsync()
     {
         _f = await Reports.GetFleetUtilizationAsync();
-        _sube = await Reports.GetFleetUtilizationBySubeAsync();
+        _sube = await Reports.GetFleetUtilizationByBranchAsync();
     }
 }

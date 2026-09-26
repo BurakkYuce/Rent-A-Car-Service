@@ -52,9 +52,9 @@ public static class RentalsApi
     /// </summary>
     internal static int YuzdeYakit(int yuzde, string alan)
     {
-        if (yuzde is < 0 or > YakitOlcegi.YuzdeEnFazla)
-            throw new ValidationException($"Yakıt yüzdesi 0-{YakitOlcegi.YuzdeEnFazla} aralığında olmalıdır.", alan);
-        return YakitOlcegi.YuzdedenOnIkiye(yuzde);
+        if (yuzde is < 0 or > FuelScale.MaxPercent)
+            throw new ValidationException($"Yakıt yüzdesi 0-{FuelScale.MaxPercent} aralığında olmalıdır.", alan);
+        return FuelScale.PercentToTwelfths(yuzde);
     }
 
     private static IResult NotFound()

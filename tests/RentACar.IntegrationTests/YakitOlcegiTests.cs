@@ -37,7 +37,7 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
     [InlineData(50, 6)]     // 6,00
     [InlineData(80, 10)]    // 9,60 → 10
     [InlineData(100, 12)]   // 12,00
-    public void Yuzde_on_ikiye(int yuzde, int beklenen) => Assert.Equal(beklenen, YakitOlcegi.YuzdedenOnIkiye(yuzde));
+    public void Yuzde_on_ikiye(int yuzde, int beklenen) => Assert.Equal(beklenen, FuelScale.PercentToTwelfths(yuzde));
 
     [Theory]
     [InlineData(0, 0)]
@@ -47,7 +47,7 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
     [InlineData(6, 50)]     // 50,00
     [InlineData(10, 83)]    // 83,33 → 83
     [InlineData(12, 100)]
-    public void On_ikiden_yuzdeye(int onIkide, int beklenen) => Assert.Equal(beklenen, YakitOlcegi.OnIkidenYuzdeye(onIkide));
+    public void On_ikiden_yuzdeye(int onIkide, int beklenen) => Assert.Equal(beklenen, FuelScale.TwelfthsToPercent(onIkide));
 
     // Kira servisi müşteri/araç varlığını girişte doğrular (#328) → her kira kiracıda GERÇEK araç + cari ile.
     private static async Task<BookingInput> InputAsync(IServiceProvider sp, decimal yakitBirim)
@@ -68,8 +68,8 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
         var id = await svc.CreateDirectAsync(await InputAsync(scope.ServiceProvider, yakitBirim: 150m));
-        Assert.True(await svc.DeliverAsync(id, cikisKm: 1000, cikisYakit: 12)); // dolu depo
-        Assert.True(await svc.ReturnAsync(id, donusKm: 1000, donusYakit: 7, gercekDonus: Bit));
+        Assert.True(await svc.DeliverAsync(id, pickupKm: 1000, pickupFuel: 12)); // dolu depo
+        Assert.True(await svc.ReturnAsync(id, returnKm: 1000, returnFuel: 7, actualReturn: Bit));
 
         var c = (await svc.GetAsync(id))!;
         Assert.Equal(5, c.EksikYakit);          // 12 − 7
@@ -103,9 +103,9 @@ public sealed class YakitOlcegiTests(PostgresFixture fx)
             { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 100, CikisYakit = 13 }));
         var id = await svc.CreateAsync(new BafInput
             { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 100, CikisYakit = 12 });
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TeslimAlAsync(id, 150, donusYakit: 13));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TeslimAlKilitliAsync(id, 150, 13, null, null, null));
-        Assert.True(await svc.TeslimAlAsync(id, 150, donusYakit: 0));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ReceiveAsync(id, 150, returnFuel: 13));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ReceiveLockedAsync(id, 150, 13, null, null, null));
+        Assert.True(await svc.ReceiveAsync(id, 150, returnFuel: 0));
         Assert.Equal(0, (await svc.GetAsync(id))!.DonusYakit);
     }
 

@@ -39,23 +39,23 @@ public static class IncomingInvoiceUiApi
         g.MapGet("/{id:guid}", Detail);
         g.MapPost("", Create);
         g.MapPost("/sync", Sync);
-        g.MapPost("/{id:guid}/onayla", (Guid id, GelenEFaturaService s, ICurrentUser u, CancellationToken ct)
-            => TransitionAsync(id, s, u, () => s.OnaylaAsync(id, ct), GelenEFaturaDurum.Onaylandi, ct));
-        g.MapPost("/{id:guid}/reddet", (Guid id, IncomingInvoiceRejectRequest req, GelenEFaturaService s, ICurrentUser u, CancellationToken ct) =>
+        g.MapPost("/{id:guid}/onayla", (Guid id, IncomingEInvoiceService s, ICurrentUser u, CancellationToken ct)
+            => TransitionAsync(id, s, u, () => s.ApproveAsync(id, ct), IncomingEInvoiceStatus.Onaylandi, ct));
+        g.MapPost("/{id:guid}/reddet", (Guid id, IncomingInvoiceRejectRequest req, IncomingEInvoiceService s, ICurrentUser u, CancellationToken ct) =>
         {
             Text(req.Neden, 512, "neden");
-            return TransitionAsync(id, s, u, () => s.ReddetAsync(id, req.Neden, ct), GelenEFaturaDurum.Reddedildi, ct);
+            return TransitionAsync(id, s, u, () => s.RejectAsync(id, req.Neden, ct), IncomingEInvoiceStatus.Reddedildi, ct);
         });
-        g.MapPost("/{id:guid}/isle", (Guid id, GelenEFaturaService s, ICurrentUser u, CancellationToken ct)
-            => TransitionAsync(id, s, u, () => s.IsleAsync(id, ct), GelenEFaturaDurum.Islendi, ct));
+        g.MapPost("/{id:guid}/isle", (Guid id, IncomingEInvoiceService s, ICurrentUser u, CancellationToken ct)
+            => TransitionAsync(id, s, u, () => s.IsleAsync(id, ct), IncomingEInvoiceStatus.Islendi, ct));
         g.MapPut("/{id:guid}/bag", Link);
         g.MapPost("/{id:guid}/giderlestir", ToExpense)
             .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         return g;
     }
 
-    private static readonly SiralamaHaritasi<IncomingInvoiceRow> Sort = SiralamaHaritasi<IncomingInvoiceRow>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<IncomingInvoiceRow> Sort = SortFieldMap<IncomingInvoiceRow>
+        .Create(r => r.Id)
         .Alan("tarih", r => r.Tarih).Alan("ettn", r => r.Ettn).Alan("gonderenUnvan", r => r.GonderenUnvan)
         .Alan("genelToplam", r => r.GenelToplam).Alan("durum", r => r.Durum);
 
@@ -73,7 +73,7 @@ public static class IncomingInvoiceUiApi
     }
 
     private static async Task<Ok<Sayfa<IncomingInvoiceRow>>> List(
-        [AsParameters] IncomingInvoiceFilter f, GelenEFaturaService svc, ICurrentUser user,
+        [AsParameters] IncomingInvoiceFilter f, IncomingEInvoiceService svc, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         RequireUnrestricted(user);
@@ -85,14 +85,14 @@ public static class IncomingInvoiceUiApi
         var rows = await svc.ListAsync(new GelenEFaturaFilter
         {
             Firma = F5Ortak.Nz(f.Firma), EttnBas = F5Ortak.Nz(f.EttnBas), EttnBit = F5Ortak.Nz(f.EttnBit),
-            Plaka = F5Ortak.Nz(f.Plaka), Durum = F5Ortak.EnumAdi<GelenEFaturaDurum>(f.Durum, "durum"),
+            Plaka = F5Ortak.Nz(f.Plaka), Durum = F5Ortak.EnumAdi<IncomingEInvoiceStatus>(f.Durum, "durum"),
             Bas = bas, Bit = bit, Giderlestirildi = f.Giderlestirildi,
         }, ct);
         return TypedResults.Ok(F5Ortak.Sayfala(await RowsAsync(dbf, rows, ct), Sort, sayfa, boyut, sirala));
     }
 
     private static async Task<Results<Ok<IncomingInvoiceDetail>, ProblemHttpResult>> Detail(
-        Guid id, GelenEFaturaService svc, IGelenEFaturaRepository repo, ICurrentUser user,
+        Guid id, IncomingEInvoiceService svc, IIncomingEInvoiceRepository repo, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         RequireUnrestricted(user);
@@ -129,7 +129,7 @@ public static class IncomingInvoiceUiApi
     }
 
     private static async Task<Ok<DocumentResult>> Create(
-        IncomingInvoiceCreateRequest req, GelenEFaturaService svc, ICurrentUser user, CancellationToken ct)
+        IncomingInvoiceCreateRequest req, IncomingEInvoiceService svc, ICurrentUser user, CancellationToken ct)
     {
         RequireUnrestricted(user);
         if (string.IsNullOrWhiteSpace(req.Ettn)) throw new ValidationException("ETTN zorunludur.", "ettn");
@@ -144,7 +144,7 @@ public static class IncomingInvoiceUiApi
         AmountLimit(req.KdvTutar, "kdvTutar");
         if (req.NetTutar < 0m) throw new ValidationException("Net tutar negatif olamaz.", "netTutar");
         if (req.KdvTutar < 0m) throw new ValidationException("KDV tutarı negatif olamaz.", "kdvTutar");
-        WithField("tarih", () => TarihPolitikasi.ParaTarihi(req.Tarih, "Fatura"));
+        WithField("tarih", () => DatePolicy.MoneyDate(req.Tarih, "Fatura"));
         var id = await svc.CreateManualAsync(new GelenEFaturaInput
         {
             Ettn = req.Ettn.Trim(), GonderenVkn = req.GonderenVkn.Trim(), GonderenUnvan = req.GonderenUnvan.Trim(),
@@ -155,7 +155,7 @@ public static class IncomingInvoiceUiApi
     }
 
     private static async Task<Ok<IncomingInvoiceSyncResult>> Sync(
-        IncomingInvoiceSyncRequest req, GelenEFaturaService svc, IEInvoiceService einvoice, ICurrentUser user, CancellationToken ct)
+        IncomingInvoiceSyncRequest req, IncomingEInvoiceService svc, IEInvoiceService einvoice, ICurrentUser user, CancellationToken ct)
     {
         RequireUnrestricted(user);
         if (req.Bit < req.Bas) throw new ValidationException("Bitiş tarihi başlangıçtan önce olamaz.", "bit");
@@ -167,7 +167,7 @@ public static class IncomingInvoiceUiApi
     }
 
     private static async Task<Results<Ok<IncomingInvoiceStateResult>, ProblemHttpResult>> TransitionAsync(
-        Guid id, GelenEFaturaService svc, ICurrentUser user, Func<Task<bool>> act, GelenEFaturaDurum target, CancellationToken ct)
+        Guid id, IncomingEInvoiceService svc, ICurrentUser user, Func<Task<bool>> act, IncomingEInvoiceStatus target, CancellationToken ct)
     {
         RequireUnrestricted(user);
         if (await svc.GetAsync(id, ct) is null) return F5Ortak.Bulunamadi("Gelen fatura bulunamadı.");
@@ -176,7 +176,7 @@ public static class IncomingInvoiceUiApi
     }
 
     private static async Task<Results<Ok<IncomingInvoiceLinkResult>, ProblemHttpResult>> Link(
-        Guid id, IncomingInvoiceLinkRequest req, GelenEFaturaService svc, IGelenEFaturaRepository repo, ICurrentUser user,
+        Guid id, IncomingInvoiceLinkRequest req, IncomingEInvoiceService svc, IIncomingEInvoiceRepository repo, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         RequireUnrestricted(user);
@@ -199,7 +199,7 @@ public static class IncomingInvoiceUiApi
             if (req.GiderKategoriId is { } k && !await db.ExpenseCategories.AsNoTracking().AnyAsync(x => x.Id == k, ct))
                 throw new ValidationException("Gider kategorisi bulunamadı.", "giderKategoriId");
         }
-        await svc.BaglaAsync(new GelenEFaturaBaglamaInput
+        await svc.LinkAsync(new GelenEFaturaBaglamaInput
         {
             Id = id, Kdv20Matrah = req.Kdv20Matrah, Kdv20 = req.Kdv20, Kdv10Matrah = req.Kdv10Matrah, Kdv10 = req.Kdv10,
             Kdv1Matrah = req.Kdv1Matrah, Kdv1 = req.Kdv1, Kdv0Matrah = req.Kdv0Matrah, VehicleId = req.AracId,
@@ -211,18 +211,18 @@ public static class IncomingInvoiceUiApi
     }
 
     private static async Task<Results<Ok<IncomingInvoiceExpenseResult>, ProblemHttpResult>> ToExpense(
-        Guid id, IncomingInvoiceExpenseRequest req, GelenEFaturaService svc, ICurrentUser user,
+        Guid id, IncomingInvoiceExpenseRequest req, IncomingEInvoiceService svc, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         RequireUnrestricted(user);
-        var method = F5Ortak.EnumAdi<OdemeYontemi>(req.OdemeYontemi, "odemeYontemi") ?? OdemeYontemi.AcikHesap;
+        var method = F5Ortak.EnumAdi<PaymentMethod>(req.OdemeYontemi, "odemeYontemi") ?? PaymentMethod.AcikHesap;
         Text(req.Sube, 64, "sube");
         var row = await svc.GetAsync(id, ct);
         if (row is null) return F5Ortak.Bulunamadi("Gelen fatura bulunamadı.");
         await using (var db = await dbf.CreateDbContextAsync(ct))
-            await RequireCustomerAsync(db, method == OdemeYontemi.AcikHesap ? req.CariId ?? row.CariId : null, "cariId", ct);
+            await RequireCustomerAsync(db, method == PaymentMethod.AcikHesap ? req.CariId ?? row.CariId : null, "cariId", ct);
         WithField("doviz", () => Currency(row.Currency)); // eski "TL"/etiket belge: defter ISO koda indirger (N1)
-        var count = await svc.GiderlestirAsync(new GelenEFaturaGiderInput
+        var count = await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput
         {
             Id = id, OdemeYontemi = method, CariId = req.CariId, Sube = Trimmed(req.Sube),
         }, ct);

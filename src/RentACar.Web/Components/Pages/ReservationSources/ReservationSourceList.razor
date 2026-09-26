@@ -154,7 +154,7 @@
             <label>Kaynak grubu
                 <select name="kaynakGrubu">
                     <option value="" selected="@(s?.KaynakGrubu is null)">— belirtilmemiş —</option>
-                    @foreach (var g in Enum.GetValues<RezKaynakGrubu>())
+                    @foreach (var g in Enum.GetValues<ReservationSourceGroup>())
                     {
                         <option value="@g" selected="@(s?.KaynakGrubu == g)">@g</option>
                     }

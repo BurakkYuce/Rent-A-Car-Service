@@ -49,8 +49,8 @@ public static class MaliyetHesapGirdi
 
             // Tanınmayan değer sessizce Eşit Taksitli'ye DÜŞMEZ; enum'a çevrilemeyen metin
             // varsayılana düşer ama "Rotatif" yazımı korunur → servis güvenli-red verir.
-            KrediHesaplamaSekli = Enum.TryParse<KrediHesaplamaSekli>(oku("kredi"), ignoreCase: true, out var k)
-                ? k : KrediHesaplamaSekli.EsitTaksitli,
+            KrediHesaplamaSekli = Enum.TryParse<LoanCalculationMethod>(oku("kredi"), ignoreCase: true, out var k)
+                ? k : LoanCalculationMethod.EsitTaksitli,
             AracSayisi = FormParse.Int(oku("adet")) ?? 1
         };
     }

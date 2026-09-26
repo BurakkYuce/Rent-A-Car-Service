@@ -23,22 +23,22 @@ public static partial class FinanceHubApi
     }
 
     private static async Task<Results<Ok<CustomerBalance>, ProblemHttpResult>> GetCustomerBalance(
-        Guid cariId, CashService cash, DepozitoService deposits, IDbContextFactory<AppDbContext> f, CancellationToken ct)
+        Guid cariId, CashService cash, DepositService deposits, IDbContextFactory<AppDbContext> f, CancellationToken ct)
     {
         var names = await F5Ortak.CarilerAsync(f, [cariId], ct);
         if (!names.ContainsKey(cariId)) return F5Ortak.Bulunamadi("Cari bulunamadı.");
         return TypedResults.Ok(new CustomerBalance(cariId, F5Ortak.CariAdi(names, cariId),
-            await cash.GetCariBalanceAsync(cariId, ct), await deposits.GetBakiyeAsync(cariId, ct)));
+            await cash.GetAccountBalanceAsync(cariId, ct), await deposits.GetBalanceAsync(cariId, ct)));
     }
 
     /// <summary>E13: aynı içerik → 200 aynı id; başka cari/yön/tutar → 409 <c>mukerrer</c>. Kasa/Banka'ya dokunmaz;
     /// karşı bacak MuhasebeDuzeltmesi (P&amp;L raporlarına girmez).</summary>
     private static async Task<Ok<CashOperationResult>> PostBalanceAdjustment(
-        BalanceAdjustmentRequest req, HttpContext http, BakiyeDuzeltmeService svc, IDbContextFactory<AppDbContext> f,
-        RentACar.Application.Kur.KurCozucu rates, CancellationToken ct)
+        BalanceAdjustmentRequest req, HttpContext http, BalanceAdjustmentService svc, IDbContextFactory<AppDbContext> f,
+        RentACar.Application.Kur.ExchangeRateResolver rates, CancellationToken ct)
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
-        var direction = F5Ortak.EnumAdi<BakiyeDuzeltmeYonu>(req.Yon, "yon")
+        var direction = F5Ortak.EnumAdi<BalanceAdjustmentDirection>(req.Yon, "yon")
                         ?? throw new ValidationException("Yön seçilmelidir (Alacaklandir ya da Borclandir).", "yon");
         var currency = MoneyInput(req.Tutar, req.Doviz, req.Kur);
         // Açıklama + " [makbuz]" defter açıklamasına (512) sığmalı.
@@ -63,7 +63,7 @@ public static partial class FinanceHubApi
     {
         FinansApi.Metin(ara, 100, "ara");
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
-        var rows = await cash.ListCariVirmanlarAsync(new CariVirmanFilter
+        var rows = await cash.ListAccountTransfersAsync(new CariVirmanFilter
         {
             CariId = cariId, Ara = F5Ortak.Nz(ara), Bas = min, Bit = max, EnFazla = Math.Clamp(limit ?? 200, 1, 1000),
         }, ct);
@@ -78,7 +78,7 @@ public static partial class FinanceHubApi
     /// <summary>E07: aynı içerik → 200 aynı id (= işlem anahtarı); başka cari/tutar → 409 <c>mukerrer</c>.</summary>
     private static async Task<Ok<CashOperationResult>> PostCustomerTransfer(
         CustomerTransferRequest req, HttpContext http, CashService cash, IDbContextFactory<AppDbContext> f,
-        RentACar.Application.Kur.KurCozucu rates, CancellationToken ct)
+        RentACar.Application.Kur.ExchangeRateResolver rates, CancellationToken ct)
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
         var currency = MoneyInput(req.Tutar, req.Doviz, req.Kur);
@@ -93,24 +93,24 @@ public static partial class FinanceHubApi
         if (req.KaynakCariId == req.HedefCariId)
             throw new ValidationException("Kaynak ve hedef cari farklı olmalıdır.", "hedefCariId");
 
-        await cash.TransferBetweenCariAsync(req.KaynakCariId, req.HedefCariId, req.Tutar, currency, req.Kur, note, key, ct,
-            tarih: date, vade: due, makbuzNo: receipt, sube: branch);
+        await cash.TransferBetweenAccountsAsync(req.KaynakCariId, req.HedefCariId, req.Tutar, currency, req.Kur, note, key, ct,
+            date: date, due: due, receiptNo: receipt, branch: branch);
         return TypedResults.Ok(new CashOperationResult(key));
     }
 
     /// <summary>Para tarihi: 2000'den önce değil, gelecekte değil (TarihPolitikasi; +1 gün tolerans) — alan'lı. UTC.</summary>
     internal static DateTimeOffset? MoneyDate(DateTimeOffset? value, string label, string field = "tarih")
     {
-        if (value is { } t && t < TarihPolitikasi.EnErkenBelgeTarihi)
+        if (value is { } t && t < DatePolicy.EarliestDocumentDate)
             throw new ValidationException($"{label} tarihi 2000 yılından önce olamaz.", field);
-        FinansApi.Alanli(field, () => TarihPolitikasi.ParaTarihi(value, label));
+        FinansApi.Alanli(field, () => DatePolicy.MoneyDate(value, label));
         return Utc(value);
     }
 
     /// <summary>Vade (bilgi alanı): geleceğe açık ama makul pencerede [2000, bugün + 10 yıl]. UTC.</summary>
     internal static DateTimeOffset? DueDate(DateTimeOffset? value, string field = "vade")
     {
-        if (value is { } v && (v < TarihPolitikasi.EnErkenBelgeTarihi || v > DateTimeOffset.UtcNow.AddYears(10)))
+        if (value is { } v && (v < DatePolicy.EarliestDocumentDate || v > DateTimeOffset.UtcNow.AddYears(10)))
             throw new ValidationException("Vade tarihi 2000 ile bugünden 10 yıl sonrası arasında olmalıdır.", field);
         return Utc(value);
     }

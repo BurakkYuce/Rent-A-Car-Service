@@ -20,11 +20,11 @@ namespace RentACar.IntegrationTests;
 public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
 {
     private static Task SabitKurAsync(IServiceProvider sp, string kod, decimal kur)
-        => sp.GetRequiredService<SabitKurService>().UpsertAsync(new SabitKurInput { Kod = kod, Kur = kur, Aktif = true });
+        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = kod, Kur = kur, Aktif = true });
 
     private static Task<Guid> CariAsync(IServiceProvider sp, string ad = "Fx") =>
         sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Cari" });
 
     [Fact]
     public async Task Tahsilat_eur_otomatik_ve_acik_kur()
@@ -37,10 +37,10 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         var cash = sp.GetRequiredService<CashService>();
 
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "EUR" }); // kur boş
-        Assert.Equal(-4000m, await cash.GetCariBalanceAsync(cari));   // 100×40 tahsilat → cari −4000 (elle)
+        Assert.Equal(-4000m, await cash.GetAccountBalanceAsync(cari));   // 100×40 tahsilat → cari −4000 (elle)
 
         await cash.PayAsync(new CashInput { CariId = cari, Tutar = 10m, Doviz = "EUR", Kur = 35m }); // açık kur
-        Assert.Equal(-3650m, await cash.GetCariBalanceAsync(cari));   // −4000 + 350
+        Assert.Equal(-3650m, await cash.GetAccountBalanceAsync(cari));   // −4000 + 350
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
 
         await Assert.ThrowsAsync<ValidationException>(
             () => cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "DKK" }));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
         Assert.Empty(await cash.ListAsync()); // CashTransaction bile yazılmadı
     }
 
@@ -76,8 +76,8 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
             new CashInput { CariId = c1, Tutar = 100m, Doviz = "EUR" },                 // oto 40
             new CashInput { CariId = c2, Tutar = 100m, Doviz = "EUR", Kur = 35m }       // açık
         ]);
-        Assert.Equal(-4100m, await cash.GetCariBalanceAsync(c1));
-        Assert.Equal(-3500m, await cash.GetCariBalanceAsync(c2));
+        Assert.Equal(-4100m, await cash.GetAccountBalanceAsync(c1));
+        Assert.Equal(-3500m, await cash.GetAccountBalanceAsync(c2));
 
         // Atomiklik: 2. satır DKK (çözülemez) → HİÇBİR satır yazılmaz.
         await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync(
@@ -85,8 +85,8 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
             new CashInput { CariId = c1, Tutar = 50m },
             new CashInput { CariId = c2, Tutar = 50m, Doviz = "DKK" }
         ]));
-        Assert.Equal(-4100m, await cash.GetCariBalanceAsync(c1)); // değişmedi
-        Assert.Equal(-3500m, await cash.GetCariBalanceAsync(c2));
+        Assert.Equal(-4100m, await cash.GetAccountBalanceAsync(c1)); // değişmedi
+        Assert.Equal(-3500m, await cash.GetAccountBalanceAsync(c2));
     }
 
     [Fact]
@@ -100,22 +100,22 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         var rs = sp.GetRequiredService<ReportService>();
 
         // Kasa→Banka 10 EUR (oto 40): kasa −400 / banka +400 (elle).
-        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 10m, doviz: "EUR");
-        var ozet = await rs.GetKasaBankaSummaryAsync();
+        await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 10m, currency: "EUR");
+        var ozet = await rs.GetCashBankSummaryAsync();
         Assert.Equal(-400m, ozet.KasaBakiye);
         Assert.Equal(400m, ozet.BankaBakiye);
 
         // Cari↔cari 5 EUR (oto 40): kaynak −200 / hedef +200.
         var k = await CariAsync(sp, "K");
         var h = await CariAsync(sp, "H");
-        await cash.TransferBetweenCariAsync(k, h, 5m, doviz: "EUR");
-        Assert.Equal(-200m, await cash.GetCariBalanceAsync(k));
-        Assert.Equal(200m, await cash.GetCariBalanceAsync(h));
+        await cash.TransferBetweenAccountsAsync(k, h, 5m, currency: "EUR");
+        Assert.Equal(-200m, await cash.GetAccountBalanceAsync(k));
+        Assert.Equal(200m, await cash.GetAccountBalanceAsync(h));
 
         // Kur'suz döviz virmanı → red (bakiyeler değişmez).
         await Assert.ThrowsAsync<ValidationException>(
-            () => cash.TransferBetweenCariAsync(k, h, 1m, doviz: "DKK"));
-        Assert.Equal(-200m, await cash.GetCariBalanceAsync(k));
+            () => cash.TransferBetweenAccountsAsync(k, h, 1m, currency: "DKK"));
+        Assert.Equal(-200m, await cash.GetAccountBalanceAsync(k));
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         // JSON gövdesinde Kur alanı hiç gönderilmedi → null → otomatik 40 (eski DTO default'u 1m'di).
         var req = new RentACar.Api.Dtos.CashRequest { CariId = cari, Tutar = 100m, Doviz = "EUR" };
         await cash.CollectAsync(req.ToInput());
-        Assert.Equal(-4000m, await cash.GetCariBalanceAsync(cari)); // 100×40 (elle) — 100 DEĞİL
+        Assert.Equal(-4000m, await cash.GetAccountBalanceAsync(cari)); // 100×40 (elle) — 100 DEĞİL
     }
 
     [Fact]
@@ -145,23 +145,23 @@ public sealed class TahsilatKurOtomatikTests(PostgresFixture fx)
         var rs = sp.GetRequiredService<ReportService>();
 
         await exp.CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m, Doviz = "EUR", OdemeYontemi = OdemeYontemi.Nakit });
-        Assert.Equal(4000m, (await rs.GetGelirGiderAsync()).GiderToplam); // 100×40 elle
+        { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m, Doviz = "EUR", OdemeYontemi = PaymentMethod.Nakit });
+        Assert.Equal(4000m, (await rs.GetRevenueExpenseAsync()).GiderToplam); // 100×40 elle
 
         // Toplu: TRY 50 + EUR 10 (oto 40 → 400) = +450 → 4450.
         await exp.BatchCreateAsync(
         [
-            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 50m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit },
-            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 10m, KdvOrani = 0m, Doviz = "EUR", OdemeYontemi = OdemeYontemi.Nakit }
+            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 50m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit },
+            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 10m, KdvOrani = 0m, Doviz = "EUR", OdemeYontemi = PaymentMethod.Nakit }
         ]);
-        Assert.Equal(4450m, (await rs.GetGelirGiderAsync()).GiderToplam);
+        Assert.Equal(4450m, (await rs.GetRevenueExpenseAsync()).GiderToplam);
 
         // Toplu içinde DKK → atomik red, toplam değişmez.
         await Assert.ThrowsAsync<ValidationException>(() => exp.BatchCreateAsync(
         [
-            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 5m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit },
-            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 5m, KdvOrani = 0m, Doviz = "DKK", OdemeYontemi = OdemeYontemi.Nakit }
+            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 5m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit },
+            new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 5m, KdvOrani = 0m, Doviz = "DKK", OdemeYontemi = PaymentMethod.Nakit }
         ]));
-        Assert.Equal(4450m, (await rs.GetGelirGiderAsync()).GiderToplam);
+        Assert.Equal(4450m, (await rs.GetRevenueExpenseAsync()).GiderToplam);
     }
 }

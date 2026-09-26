@@ -81,8 +81,8 @@ internal static class PenaltyWrites
         await using (var db = await dbf.CreateDbContextAsync(ct))
             if (await PenaltyUiApi.LoadInScopeAsync(db, penalties, user, id, ct) is null)
                 return F5Ortak.Bulunamadi("Ceza bulunamadı.");
-        await penalties.YansitAsync(id, ct);
-        return TypedResults.Ok(new PenaltyStateResult(id, CezaDurum.Yansitildi.ToString()));
+        await penalties.ReflectAsync(id, ct);
+        return TypedResults.Ok(new PenaltyStateResult(id, PenaltyStatus.Yansitildi.ToString()));
     }
 
     public static async Task<Results<Ok<PenaltyStateResult>, ProblemHttpResult>> CancelAsync(
@@ -91,8 +91,8 @@ internal static class PenaltyWrites
         await using (var db = await dbf.CreateDbContextAsync(ct))
             if (await PenaltyUiApi.LoadInScopeAsync(db, penalties, user, id, ct) is null)
                 return F5Ortak.Bulunamadi("Ceza bulunamadı.");
-        await penalties.IptalAsync(id, ct);
-        return TypedResults.Ok(new PenaltyStateResult(id, CezaDurum.Iptal.ToString()));
+        await penalties.CancelAsync(id, ct);
+        return TypedResults.Ok(new PenaltyStateResult(id, PenaltyStatus.Iptal.ToString()));
     }
 
     /// <summary>
@@ -125,14 +125,14 @@ internal static class PenaltyWrites
                 var amount = o.Tutar.ToString("N2", Tr);
                 // belgeNo: ceza no + ödeme sırası (gider ödemesiyle aynı biçim "No/Sıra"); yalnız sıra ("1") hangi cezanın
                 // ödemesi olduğunu söylemiyordu (#300 L2 eski). Yanıt alanı; yazma yolu değişmedi.
-                throw new MukerrerIslemException(
+                throw new DuplicateOperationException(
                     same ? string.Format(Tr, PaymentAlreadySaved, amount, o.Sira) : string.Format(Tr, PaymentOtherSaved, amount),
                     o.PenaltyId == id ? new MevcutIslem(o.Id, $"{penalty.No}/{o.Sira}", o.Tutar, "TRY", same) : null);
             }
         }
-        WithField("tarih", () => TarihPolitikasi.ParaTarihi(req.Tarih, "Ceza ödeme"));
+        WithField("tarih", () => DatePolicy.MoneyDate(req.Tarih, "Ceza ödeme"));
 
-        var r = await penalties.KismiOdeAsync(id, new CezaOdemeInput
+        var r = await penalties.PayPartialAsync(id, new CezaOdemeInput
         {
             SatirId = req.SatirId, Tutar = req.Tutar, Hesap = account, Tarih = F5Ortak.Utc(req.Tarih),
             MakbuzNo = Trimmed(req.MakbuzNo), KasaKodu = Trimmed(req.KasaKodu), HesapNo = Trimmed(req.HesapNo),

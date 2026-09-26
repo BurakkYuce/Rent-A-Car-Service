@@ -12,7 +12,7 @@ public interface ICashRepository
     Task<IReadOnlyList<CashTransaction>> ListAsync(CancellationToken ct = default);
 
     /// <summary>FAZ-67 — süzgeçli nakit işlem listesi; cari adı/özel kodu çözümlenmiş.</summary>
-    Task<IReadOnlyList<NakitIslemSatirDto>> SearchIslemlerAsync(
+    Task<IReadOnlyList<NakitIslemSatirDto>> SearchTransactionsAsync(
         CashFilter? filter = null, CancellationToken ct = default);
     Task<CashTransaction?> FindAsync(Guid id, CancellationToken ct = default);
 
@@ -22,12 +22,12 @@ public interface ICashRepository
     /// <summary>F1.4 — bu kiracıda verilen <c>IslemAnahtari</c> ile yazılmış bir kasa/banka işlemi var mı?
     /// Anahtarlı çift gönderimin sonucunu tutara/zamanlamaya bağlı olmaktan çıkarmak için servis ön-kontrolü
     /// (tahsis/bakiye çitlerinden ÖNCE) kullanır.</summary>
-    Task<bool> IslemAnahtariVarMiAsync(Guid islemAnahtari, CancellationToken ct = default);
+    Task<bool> OperationKeyExistsAsync(Guid operationKey, CancellationToken ct = default);
 
     /// <summary>F4.4a — verilen <c>IslemAnahtari</c> ile yazılmış kasa/banka işlemi (yoksa null). Deterministik
     /// anahtarın "zaten kaydedilmiş" dalında kaydın GERÇEKTEN aynı işleme (ör. aynı kiranın dönem tahsilatına)
     /// ait olduğunu doğrulamak için.</summary>
-    Task<CashTransaction?> FindByIslemAnahtariAsync(Guid islemAnahtari, CancellationToken ct = default);
+    Task<CashTransaction?> FindByOperationKeyAsync(Guid operationKey, CancellationToken ct = default);
 
     /// <summary>
     /// Belge + DENGELİ defter kümesi + (kira bağlıysa) Tahsilat/Bakiye'yi TEK transaction'da işler. Kira
@@ -47,14 +47,14 @@ public interface ICashRepository
     Task PostBatchAsync(IReadOnlyList<CashPosting> items, CancellationToken ct = default);
 
     /// <summary>Cari bakiye (yerel para) = Σ (Borç +, Alacak −). Pozitif = müşteri borçlu.</summary>
-    Task<decimal> GetCariBalanceAsync(Guid cariId, CancellationToken ct = default);
+    Task<decimal> GetAccountBalanceAsync(Guid customerId, CancellationToken ct = default);
 
     /// <summary>Cari'nin elde tutulan depozito bakiyesi (roadmap I3): Σ Depozito (Alacak:+ Borç:−) = tutulan tutar.</summary>
-    Task<decimal> GetDepozitoBakiyeAsync(Guid cariId, CancellationToken ct = default);
+    Task<decimal> GetDepositBalanceAsync(Guid customerId, CancellationToken ct = default);
 
-    /// <summary>F8.1a — depozito bakiyesi SIFIR OLMAYAN carilerin bakiyeleri (tek sorgu; <see cref="GetDepozitoBakiyeAsync"/>
+    /// <summary>F8.1a — depozito bakiyesi SIFIR OLMAYAN carilerin bakiyeleri (tek sorgu; <see cref="GetDepositBalanceAsync"/>
     /// ile AYNI işaret kuralı: Alacak +, Borç −, baz para).</summary>
-    Task<Dictionary<Guid, decimal>> GetDepozitoBakiyeleriAsync(CancellationToken ct = default);
+    Task<Dictionary<Guid, decimal>> GetDepositBalancesAsync(CancellationToken ct = default);
 
     /// <summary>Depozito işlemi (Al/İade/Mahsup/İrat) — TEK transaction + (tenant,cari) danışma kilidi.
     /// kontrolEt: bakiye kontrolü KİLİDİN ARKASINDA tx-İÇİNDE yapılır (TOCTOU çiti — adversarial 1.2 Medium:
@@ -69,21 +69,21 @@ public interface ICashRepository
     /// 8 tahsilat yazmış, bakiye −7000'e düşmüştü. Bakiye ve tahsis kontrolleri bu yüzden çağıranda
     /// DEĞİL, burada — kilidin arkasında ve aynı tx içinde — tekrar yapılır.</para>
     /// </summary>
-    Task PostCariKapatmaAsync(
-        Guid cariId, CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries,
-        IReadOnlyList<KapatmaTahsis> tahsisler, CancellationToken ct = default);
+    Task PostAccountClosingAsync(
+        Guid customerId, CashTransaction tx, IReadOnlyList<AccountLedgerEntry> entries,
+        IReadOnlyList<KapatmaTahsis> allocations, CancellationToken ct = default);
 
     /// <summary>Verilen fatura id'leri için (fatura → kira) eşlemesi; kirası olmayan fatura
     /// sözlükte YOKTUR (kapatma tahsilatının kira bağını çözmek için).</summary>
-    Task<Dictionary<Guid, Guid>> FaturaKiralariAsync(
-        IReadOnlyCollection<Guid> faturaIds, CancellationToken ct = default);
+    Task<Dictionary<Guid, Guid>> InvoiceRentalsAsync(
+        IReadOnlyCollection<Guid> invoiceIds, CancellationToken ct = default);
 
     /// <summary>Verilen borç satırları için ŞU ANA KADAR tahsis edilmiş baz tutarlar
     /// (satırId → kapatılan). Ekran "kapalı/kısmi" göstermek, servis çit kurmak için kullanır.</summary>
-    Task<Dictionary<Guid, decimal>> GetTahsisToplamlariAsync(
+    Task<Dictionary<Guid, decimal>> GetAllocationTotalsAsync(
         IReadOnlyCollection<Guid> ledgerEntryIds, CancellationToken ct = default);
 
-    Task PostDepozitoIslemAsync(Guid cariId, bool kontrolEt, DepozitoIrat? izKaydi,
+    Task PostDepositTransactionAsync(Guid customerId, bool shouldCheck, DepozitoIrat? auditTrail,
         IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default);
 
     /// <summary>Cari hesap ekstresi (kronolojik defter satırları).</summary>
@@ -96,18 +96,18 @@ public interface ICashRepository
     /// FAZ-59 — cari↔cari virman geçmişi: künye tablosu + DEFTERDEN okunan tutar (tek kaynak).
     /// </summary>
     /// <summary>FAZ-50 — kasa/banka virman geçmişi (künye + defterden tutar).</summary>
-    Task<IReadOnlyList<KasaVirmanSatirDto>> ListKasaVirmanlarAsync(
+    Task<IReadOnlyList<KasaVirmanSatirDto>> ListCashTransfersAsync(
         KasaVirmanFilter? filter = null, CancellationToken ct = default);
 
-    Task<IReadOnlyList<CariVirmanSatirDto>> ListCariVirmanlarAsync(
+    Task<IReadOnlyList<CariVirmanSatirDto>> ListAccountTransfersAsync(
         CariVirmanFilter? filter = null, CancellationToken ct = default);
 
-    Task<CariEkstreSonuc> GetCariStatementAsync(
-        Guid cariId, CariEkstreFilter? filter = null, CancellationToken ct = default);
+    Task<CariEkstreSonuc> GetAccountStatementAsync(
+        Guid customerId, CariEkstreFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>Kira başına kasa/banka işlem SAYISI (ters kayıtlar DAHİL → monoton artan sayaç).
     /// Deterministik tahsilat idempotency anahtarının zamansal bileşeni: yalnız (kira, bakiye)
     /// snapshot'ı aylık kirada aynı değere geri dönüp meşru tahsilatı kilitler; sayaç bunu kırar.
     /// Kayıtsız kira sözlükte YER ALMAZ — tüketici TryGetValue→0 kullanmalı.</summary>
-    Task<Dictionary<Guid, int>> GetRentalIslemSayilariAsync(IReadOnlyCollection<Guid> rentalIds, CancellationToken ct = default);
+    Task<Dictionary<Guid, int>> GetRentalTransactionCountsAsync(IReadOnlyCollection<Guid> rentalIds, CancellationToken ct = default);
 }

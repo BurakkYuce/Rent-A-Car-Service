@@ -76,7 +76,7 @@ public sealed partial class UiFinanceDocumentTests
         await Ok(pay);
         await Problem(cancel, HttpStatusCode.BadRequest, "dogrulama");
         var p = await PenaltyRowAsync(e, id);
-        Assert.Equal(CezaDurum.Kismi, p.Durum);           // iptal edilmedi, ödeme durumu korundu
+        Assert.Equal(PenaltyStatus.Kismi, p.Durum);           // iptal edilmedi, ödeme durumu korundu
         Assert.Equal(100m, p.OdenenTutar);
         Assert.Equal(100.50m, p.Kalan);                    // 200,50 − 100
         await AllLedgerBalancedAsync(e);
@@ -93,7 +93,7 @@ public sealed partial class UiFinanceDocumentTests
             () => PostAsync(s, $"/cezalar/{id}/iptal", null));
         await Ok(reflect);
         await Problem(cancel, HttpStatusCode.BadRequest, "dogrulama");
-        Assert.Equal(CezaDurum.Yansitildi, (await PenaltyRowAsync(e, id)).Durum);
+        Assert.Equal(PenaltyStatus.Yansitildi, (await PenaltyRowAsync(e, id)).Durum);
         Assert.Equal(200.50m, await CustomerBalanceAsync(e, e.Customer)); // borç yansıtılmış cezaya ait, iptal değil
         await AllLedgerBalancedAsync(e);
     }
@@ -110,7 +110,7 @@ public sealed partial class UiFinanceDocumentTests
         await Ok(cancel);
         await Problem(pay, HttpStatusCode.BadRequest, "dogrulama");
         var p = await PenaltyRowAsync(e, id);
-        Assert.Equal(CezaDurum.Iptal, p.Durum);
+        Assert.Equal(PenaltyStatus.Iptal, p.Durum);
         Assert.Equal(0m, p.OdenenTutar);
         Assert.Equal(0, await DbAsync(e, db => db.PenaltyOdemeleri.CountAsync()));
         Assert.Equal(0, await DbAsync(e, db => db.AccountLedgerEntries.CountAsync(x => x.SourceType == "CezaOdeme")));

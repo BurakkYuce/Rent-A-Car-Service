@@ -72,9 +72,9 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         var b = await HesapAsync(scope, "IS", "İş Bankası TL", "Banka");
 
         await cash.TransferAsync(LedgerAccountType.Banka, LedgerAccountType.Banka, 1000m,
-            kaynakHesapId: a, hedefHesapId: b, makbuzNo: "MK-1", sube: "Merkez");
+            sourceAccountId: a, targetAccountId: b, receiptNo: "MK-1", branch: "Merkez");
 
-        var satir = Assert.Single(await cash.ListKasaVirmanlarAsync());
+        var satir = Assert.Single(await cash.ListCashTransfersAsync());
         // Elle kurulan değerler: Debit = hedef (İş Bankası), Credit = kaynak (Ziraat).
         Assert.Equal(a, satir.KaynakHesapId);
         Assert.Equal(b, satir.HedefHesapId);
@@ -95,7 +95,7 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var satir = Assert.Single(await cash.ListKasaVirmanlarAsync());
+        var satir = Assert.Single(await cash.ListCashTransfersAsync());
         Assert.False(satir.KunyeVar);
         Assert.Equal(750m, satir.Tutar);
         // Tür defterden okunur; hesap seçilmemiş (legacy) olduğu için null.
@@ -118,10 +118,10 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         var a = await HesapAsync(scope, "A", "Kasa A", "Kasa");
         var b = await HesapAsync(scope, "B", "Kasa B", "Kasa");
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Kasa, 1000m,
-            kaynakHesapId: a, hedefHesapId: b);
+            sourceAccountId: a, targetAccountId: b);
 
         // Elle: 2 virman (biri eski/künyesiz 250, biri yeni 1000).
-        var satirlar = await cash.ListKasaVirmanlarAsync();
+        var satirlar = await cash.ListCashTransfersAsync();
         Assert.Equal(2, satirlar.Count);
         Assert.Equal(1250m, satirlar.Sum(x => x.Tutar));
         Assert.Single(satirlar, x => !x.KunyeVar);
@@ -140,22 +140,22 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         var b = await HesapAsync(scope, "B", "Kasa B", "Kasa");
         var c = await HesapAsync(scope, "C", "Kasa C", "Kasa");
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Kasa, 1000m,
-            kaynakHesapId: a, hedefHesapId: b, makbuzNo: "MK-AB");
+            sourceAccountId: a, targetAccountId: b, receiptNo: "MK-AB");
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Kasa, 500m,
-            kaynakHesapId: b, hedefHesapId: c, makbuzNo: "MK-BC");
+            sourceAccountId: b, targetAccountId: c, receiptNo: "MK-BC");
 
         // Süzgeçsiz: 3.
-        Assert.Equal(3, (await cash.ListKasaVirmanlarAsync()).Count);
+        Assert.Equal(3, (await cash.ListCashTransfersAsync()).Count);
         // Tarih penceresi son 7 gün: eski kayıt düşer → 2.
-        Assert.Equal(2, (await cash.ListKasaVirmanlarAsync(new KasaVirmanFilter { Bas = Gun(-7) })).Count);
+        Assert.Equal(2, (await cash.ListCashTransfersAsync(new KasaVirmanFilter { Bas = Gun(-7) })).Count);
         // Hesap A: yalnız A→B → 1.
-        Assert.Single(await cash.ListKasaVirmanlarAsync(new KasaVirmanFilter { HesapId = a }));
+        Assert.Single(await cash.ListCashTransfersAsync(new KasaVirmanFilter { HesapId = a }));
         // Hesap B kaynak VEYA hedef olduğu iki virmanda da geçer → 2.
-        Assert.Equal(2, (await cash.ListKasaVirmanlarAsync(new KasaVirmanFilter { HesapId = b })).Count);
+        Assert.Equal(2, (await cash.ListCashTransfersAsync(new KasaVirmanFilter { HesapId = b })).Count);
         // Makbuz araması.
-        Assert.Single(await cash.ListKasaVirmanlarAsync(new KasaVirmanFilter { Ara = "MK-BC" }));
+        Assert.Single(await cash.ListCashTransfersAsync(new KasaVirmanFilter { Ara = "MK-BC" }));
         // Boş süzgeç daraltmaz.
-        Assert.Equal(3, (await cash.ListKasaVirmanlarAsync(new KasaVirmanFilter { Ara = "" })).Count);
+        Assert.Equal(3, (await cash.ListCashTransfersAsync(new KasaVirmanFilter { Ara = "" })).Count);
     }
 
     [Fact]
@@ -169,9 +169,9 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
 
         // Dövizli virman: kur açıkça verilir → TL karşılığı elle: 100 × 40 = 4000.
         await cash.TransferAsync(LedgerAccountType.Banka, LedgerAccountType.Banka, 100m,
-            doviz: "EUR", kur: 40m, kaynakHesapId: a, hedefHesapId: b);
+            currency: "EUR", exchangeRate: 40m, sourceAccountId: a, targetAccountId: b);
 
-        var satir = Assert.Single(await cash.ListKasaVirmanlarAsync());
+        var satir = Assert.Single(await cash.ListCashTransfersAsync());
         Assert.Equal(100m, satir.Tutar);
         Assert.Equal("EUR", satir.Doviz);
         Assert.Equal(4000m, satir.TutarTl);
@@ -190,17 +190,17 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
             var a = await HesapAsync(s1, "A", "Kasa A", "Kasa");
             var b = await HesapAsync(s1, "B", "Kasa B", "Kasa");
             await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Kasa, 300m,
-                kaynakHesapId: a, hedefHesapId: b, makbuzNo: "T1-GIZLI");
+                sourceAccountId: a, targetAccountId: b, receiptNo: "T1-GIZLI");
         }
         await EskiVirmanYazAsync(host, t1, 400m, Gun(-2));   // künyesiz kayıt da sızmamalı
 
         // racar_app ile bağlanan T2 bağlamı T1'in virmanlarını GÖRMEZ.
         using var s2 = host.ScopeFor(t2);
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<CashService>().ListKasaVirmanlarAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<CashService>().ListCashTransfersAsync());
 
         // Operatör raporu göremez (ViewReports yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
-        await Assert.ThrowsAsync<RentACar.Application.Common.YetkiYokException>(
-            () => op.ServiceProvider.GetRequiredService<CashService>().ListKasaVirmanlarAsync());
+        await Assert.ThrowsAsync<RentACar.Application.Common.NoPermissionException>(
+            () => op.ServiceProvider.GetRequiredService<CashService>().ListCashTransfersAsync());
     }
 }

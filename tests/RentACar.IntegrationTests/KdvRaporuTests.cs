@@ -43,7 +43,7 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var c = new Customer { Tip = CariType.Bireysel, Ad = "Test", Soyad = "Cari" };
+            var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Test", Soyad = "Cari" };
             db.Customers.Add(c);
             // A: dönem içi, %20 (100/20) + %10 (50/5)
             db.Invoices.Add(Inv(c.Id, "FT-K01", D(2026, 6, 10), InvoiceStatus.Kesildi, 1m, (0.20m, 100m, 20m), (0.10m, 50m, 5m)));
@@ -57,7 +57,7 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var rapor = await svc.GetKdvListesiAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
+        var rapor = await svc.GetVatListAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
 
         Assert.Equal(2, rapor.Satirlar.Count); // %10 ve %20
         var y20 = rapor.Satirlar.Single(s => s.Oran == 0.20m);
@@ -85,7 +85,7 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var c = new Customer { Tip = CariType.Bireysel, Ad = "Doviz", Soyad = "Cari" };
+            var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Doviz", Soyad = "Cari" };
             db.Customers.Add(c);
             // USD fatura, Kur 30: net 10 / kdv 2 → base net 300, kdv 60, brüt 360.
             db.Invoices.Add(Inv(c.Id, "FT-USD1", D(2026, 6, 5), InvoiceStatus.Kesildi, 30m, (0.20m, 10m, 2m)));
@@ -93,7 +93,7 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var rapor = await svc.GetKdvListesiAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
+        var rapor = await svc.GetVatListAsync(D(2026, 6, 1), D(2026, 6, 30).AddDays(1).AddTicks(-1));
 
         var y20 = Assert.Single(rapor.Satirlar);
         Assert.Equal(0.20m, y20.Oran);
@@ -110,7 +110,7 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
         {
             var factory = s1.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             await using var db = await factory.CreateDbContextAsync();
-            var c = new Customer { Tip = CariType.Bireysel, Ad = "T1", Soyad = "C" };
+            var c = new Customer { Tip = CustomerType.Bireysel, Ad = "T1", Soyad = "C" };
             db.Customers.Add(c);
             db.Invoices.Add(Inv(c.Id, "FT-T1", D(2026, 6, 5), InvoiceStatus.Kesildi, 1m, (0.20m, 100m, 20m)));
             await db.SaveChangesAsync();
@@ -118,7 +118,7 @@ public sealed class KdvRaporuTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var rapor = await s2.ServiceProvider.GetRequiredService<ReportService>()
-            .GetKdvListesiAsync(D(2026, 6, 1), D(2026, 6, 30));
+            .GetVatListAsync(D(2026, 6, 1), D(2026, 6, 30));
         Assert.Empty(rapor.Satirlar);
         Assert.Equal(0, rapor.FaturaAdet);
     }

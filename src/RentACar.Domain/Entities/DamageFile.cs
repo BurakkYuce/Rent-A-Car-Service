@@ -24,7 +24,7 @@ public class DamageFile : ITenantOwned, IAuditable
     public string? Aciklama { get; set; }
     public decimal? TahminiTutar { get; set; }
 
-    public HasarDurum Durum { get; set; } = HasarDurum.Acik;
+    public DamageStatus Durum { get; set; } = DamageStatus.Acik;
     public string? OnayNotu { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

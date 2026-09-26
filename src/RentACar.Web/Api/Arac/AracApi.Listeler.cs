@@ -16,8 +16,8 @@ public static partial class AracApi
 {
     // ================================================================== detaylı liste (ViewReports)
 
-    private static readonly SiralamaHaritasi<AracDetayliSatir> DetayliHarita = SiralamaHaritasi<AracDetayliSatir>
-        .Olustur(s => s.Id)
+    private static readonly SortFieldMap<AracDetayliSatir> DetayliHarita = SortFieldMap<AracDetayliSatir>
+        .Create(s => s.Id)
         .Alan("plaka", s => s.Plaka)
         .Alan("marka", s => s.Marka)
         .Alan("grup", s => s.Grup)
@@ -40,7 +40,7 @@ public static partial class AracApi
         string? ara, string? sube, string? durum, int? sayfa, int? boyut, string? sirala,
         VehicleService araclar, ICurrentUser kullanici, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var satirlar = await araclar.ListDetayAsync(new VehicleDetayFilter
+        var satirlar = await araclar.ListDetailAsync(new VehicleDetayFilter
         {
             Ara = F5Ortak.Nz(ara), Sube = F5Ortak.Nz(sube),
             Durum = F5Ortak.EnumAdi<VehicleStatus>(durum, "durum"), EnFazla = 10_000,
@@ -71,8 +71,8 @@ public static partial class AracApi
 
     // ================================================================== araç güncel durum (OperationsWrite)
 
-    private static readonly SiralamaHaritasi<AracDurumSatiri> DurumHarita = SiralamaHaritasi<AracDurumSatiri>
-        .Olustur(s => s.VehicleId)
+    private static readonly SortFieldMap<AracDurumSatiri> DurumHarita = SortFieldMap<AracDurumSatiri>
+        .Create(s => s.VehicleId)
         .Alan("plaka", s => s.Plaka)
         .Alan("marka", s => s.Marka)
         .Alan("grup", s => s.Grup)
@@ -108,8 +108,8 @@ public static partial class AracApi
         {
             Query = F5Ortak.Nz(Q),
             Durum = F5Ortak.EnumAdi<VehicleStatus>(Durum, "durum"),
-            FiloDurum = F5Ortak.EnumAdi<FiloStatus>(FiloDurum, "filoDurum"),
-            Vites = F5Ortak.EnumAdi<Vites>(Vites, "vites"),
+            FiloDurum = F5Ortak.EnumAdi<FleetLifecycleStatus>(FiloDurum, "filoDurum"),
+            Vites = F5Ortak.EnumAdi<Transmission>(Vites, "vites"),
             Yakit = F5Ortak.EnumAdi<FuelType>(Yakit, "yakit"),
             Grup = F5Ortak.Nz(Grup), Marka = F5Ortak.Nz(Marka), Sube = F5Ortak.Nz(Sube),
             KiradaMi = Kirada, PasifSebep = F5Ortak.Nz(PasifSebep), HgsNo = F5Ortak.Nz(Hgs), TakipNo = F5Ortak.Nz(Gps),

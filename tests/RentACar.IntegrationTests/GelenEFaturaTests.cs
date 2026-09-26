@@ -26,7 +26,7 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         var id = await svc.CreateManualAsync(Sample());
         var r = await svc.GetAsync(id);
@@ -35,7 +35,7 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
         Assert.Equal("Tedarikçi A.Ş.", r.GonderenUnvan);
         Assert.Equal(1200m, r.GenelToplam);
         Assert.Equal("TRY", r.Currency);                       // döviz upper normalize
-        Assert.Equal(GelenEFaturaDurum.Beklemede, r.Durum);    // başlangıç durumu
+        Assert.Equal(IncomingEInvoiceStatus.Beklemede, r.Durum);    // başlangıç durumu
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         await svc.CreateManualAsync(Sample("DUP-1"));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(Sample("DUP-1")));
@@ -54,7 +54,7 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = "", GonderenVkn = "1", GonderenUnvan = "X" }));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateManualAsync(new GelenEFaturaInput { Ettn = "E", GonderenVkn = "", GonderenUnvan = "X" }));
@@ -66,21 +66,21 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         var id = await svc.CreateManualAsync(Sample("AKIS-1"));
         // Beklemede iken İşle → reddedilir (yalnız onaylanmış işlenir).
         await Assert.ThrowsAsync<ValidationException>(() => svc.IsleAsync(id));
 
         // Beklemede → Onayla → Onaylandı.
-        Assert.True(await svc.OnaylaAsync(id));
-        Assert.Equal(GelenEFaturaDurum.Onaylandi, (await svc.GetAsync(id))!.Durum);
+        Assert.True(await svc.ApproveAsync(id));
+        Assert.Equal(IncomingEInvoiceStatus.Onaylandi, (await svc.GetAsync(id))!.Durum);
         // Tekrar Onayla → reddedilir (artık Beklemede değil).
-        await Assert.ThrowsAsync<ValidationException>(() => svc.OnaylaAsync(id));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ApproveAsync(id));
 
         // Onaylandı → İşle → İşlendi.
         Assert.True(await svc.IsleAsync(id));
-        Assert.Equal(GelenEFaturaDurum.Islendi, (await svc.GetAsync(id))!.Durum);
+        Assert.Equal(IncomingEInvoiceStatus.Islendi, (await svc.GetAsync(id))!.Durum);
     }
 
     [Fact]
@@ -88,12 +88,12 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         var id = await svc.CreateManualAsync(Sample("RED-1"));
-        Assert.True(await svc.ReddetAsync(id, "Mükerrer fatura"));
+        Assert.True(await svc.RejectAsync(id, "Mükerrer fatura"));
         var r = await svc.GetAsync(id);
-        Assert.Equal(GelenEFaturaDurum.Reddedildi, r!.Durum);
+        Assert.Equal(IncomingEInvoiceStatus.Reddedildi, r!.Durum);
         Assert.Equal("Mükerrer fatura", r.RedNedeni);
     }
 
@@ -102,7 +102,7 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         // Stub IEInvoiceService boş liste → 0 eklenir (entegrasyon kimliği yok).
         var added = await svc.SyncFromGibAsync(
@@ -118,8 +118,8 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         // Operatör: OperationsWrite var, FinanceWrite YOK → reddedilmeli.
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
-        var svc = scope.ServiceProvider.GetRequiredService<GelenEFaturaService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateManualAsync(Sample("YETKI-1")));
+        var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateManualAsync(Sample("YETKI-1")));
     }
 
     [Fact]
@@ -130,10 +130,10 @@ public sealed class GelenEFaturaTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using (var s1 = host.ScopeFor(t1))
-            await s1.ServiceProvider.GetRequiredService<GelenEFaturaService>().CreateManualAsync(Sample("T1-ETTN"));
+            await s1.ServiceProvider.GetRequiredService<IncomingEInvoiceService>().CreateManualAsync(Sample("T1-ETTN"));
 
         using var s2 = host.ScopeFor(t2);
-        var svc2 = s2.ServiceProvider.GetRequiredService<GelenEFaturaService>();
+        var svc2 = s2.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         Assert.Empty(await svc2.ListAsync());
         // Aynı ETTN başka tenant'ta serbest (benzersizlik tenant-içi).
         await svc2.CreateManualAsync(Sample("T1-ETTN"));

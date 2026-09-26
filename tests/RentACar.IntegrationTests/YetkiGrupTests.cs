@@ -26,14 +26,14 @@ public sealed class YetkiGrupTests(PostgresFixture fx)
 
         await svc.SetAsync("kasa", new[] { UserRole.Admin, UserRole.Muhasebe });
         await svc.SetAsync("giderler", new[] { UserRole.Admin });
-        await svc.SnapshotGrupAsync("Profil A");
+        await svc.SnapshotGroupAsync("Profil A");
 
         // Yapıyı boz: kasa override'ını kaldır.
         await svc.RemoveAsync("kasa");
         Assert.DoesNotContain(await svc.ListAsync(), x => x.EkranKodu == "kasa");
 
         // Uygula → snapshot geri yüklenir (2 kalem: kasa + giderler).
-        var n = await svc.UygulaGrupAsync("Profil A");
+        var n = await svc.ApplyGroupAsync("Profil A");
         Assert.Equal(2, n);
         var kasa = (await svc.ListAsync()).FirstOrDefault(x => x.EkranKodu == "kasa");
         Assert.NotNull(kasa);
@@ -49,9 +49,9 @@ public sealed class YetkiGrupTests(PostgresFixture fx)
         using var admin = host.ScopeFor(t, role: UserRole.Admin);
         var svc = Svc(admin);
         await svc.SetAsync("kasa", new[] { UserRole.Admin });
-        await svc.SnapshotGrupAsync("Profil A");
-        await svc.SnapshotGrupAsync("Profil A"); // ikinci kez → upsert
-        Assert.Single(await svc.ListGruplarAsync(), g => g.Ad == "Profil A");
+        await svc.SnapshotGroupAsync("Profil A");
+        await svc.SnapshotGroupAsync("Profil A"); // ikinci kez → upsert
+        Assert.Single(await svc.ListGroupsAsync(), g => g.Ad == "Profil A");
     }
 
     [Fact]
@@ -61,10 +61,10 @@ public sealed class YetkiGrupTests(PostgresFixture fx)
         var t = Guid.NewGuid();
         using var op = host.ScopeFor(t, role: UserRole.Operator); // ManageUsers YOK
         var svc = Svc(op);
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListGruplarAsync());
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SnapshotGrupAsync("x"));
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.UygulaGrupAsync("x"));
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.SilGrupAsync("x"));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.ListGroupsAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.SnapshotGroupAsync("x"));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.ApplyGroupAsync("x"));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteGroupAsync("x"));
     }
 
     [Fact]
@@ -76,10 +76,10 @@ public sealed class YetkiGrupTests(PostgresFixture fx)
         using (var a = host.ScopeFor(tA, role: UserRole.Admin))
         {
             await Svc(a).SetAsync("kasa", new[] { UserRole.Admin });
-            await Svc(a).SnapshotGrupAsync("Profil A");
+            await Svc(a).SnapshotGroupAsync("Profil A");
         }
         using var b = host.ScopeFor(tB, role: UserRole.Admin);
-        Assert.Empty(await Svc(b).ListGruplarAsync()); // tenant B, A'nın grubunu GÖRMEZ (RLS)
+        Assert.Empty(await Svc(b).ListGroupsAsync()); // tenant B, A'nın grubunu GÖRMEZ (RLS)
     }
 
     [Fact]
@@ -91,9 +91,9 @@ public sealed class YetkiGrupTests(PostgresFixture fx)
         {
             // "Gevşek" şablon: kasa ekranını Operator'e "izinli" yazar (grant denemesi).
             await Svc(admin).SetAsync("kasa", new[] { UserRole.Operator });
-            await Svc(admin).SnapshotGrupAsync("Gevsek");
+            await Svc(admin).SnapshotGroupAsync("Gevsek");
             await Svc(admin).RemoveAsync("kasa");
-            await Svc(admin).UygulaGrupAsync("Gevsek"); // kasa override'ı Operator ile geri gelir
+            await Svc(admin).ApplyGroupAsync("Gevsek"); // kasa override'ı Operator ile geri gelir
         }
         using var op = host.ScopeFor(t, role: UserRole.Operator);
         // FinanceWrite floor'u Operator'de YOK → grup override "izinli" dese bile RED (grant floor'u aşamaz).

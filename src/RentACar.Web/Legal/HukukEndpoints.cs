@@ -16,13 +16,13 @@ public static class HukukEndpoints
     {
         var grp = app.MapGroup("/hukuk").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (HukukDosyaService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (LegalCaseService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (HukukDosyaService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (LegalCaseService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (HukukDosyaService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (LegalCaseService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;
@@ -32,10 +32,10 @@ public static class HukukEndpoints
     {
         DosyaNo = f["dosyaNo"].ToString(),
         CariId = Guid.TryParse(FormParse.Str(f, "cariId"), out var c) ? c : null,
-        Tur = ParseEnum<HukukTuru>(FormParse.Str(f, "tur")) ?? HukukTuru.Dava,
+        Tur = ParseEnum<LegalType>(FormParse.Str(f, "tur")) ?? LegalType.Dava,
         Avukat = FormParse.Str(f, "avukat"),
         Tutar = FormParse.Dec(FormParse.Str(f, "tutar")) ?? 0m,
-        Durum = ParseEnum<HukukDurum>(FormParse.Str(f, "durum")) ?? HukukDurum.Acik,
+        Durum = ParseEnum<LegalStatus>(FormParse.Str(f, "durum")) ?? LegalStatus.Acik,
         Tarih = FormParse.Date(FormParse.Str(f, "tarih")),
         Aciklama = FormParse.Str(f, "aciklama"),
         Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True",

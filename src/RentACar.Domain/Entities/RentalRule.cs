@@ -66,11 +66,11 @@ public class RentalRule : ITenantOwned, IAuditable, IBranchScoped
     public DateTimeOffset? TalepBit { get; set; }
 
     /// <summary>Promosyon birden çok kez mi uygulanır. BİLGİ — fiyat motoru bu alanı OKUMAZ.</summary>
-    public PromosyonTuru? PromosyonTuru { get; set; }
+    public PromotionType? PromosyonTuru { get; set; }
     /// <summary>Kuponun kapsamı. BİLGİ — fiyat motoru bu alanı OKUMAZ.</summary>
-    public KuponGecerlilik? KuponGecerlilik { get; set; }
+    public CouponValidity? KuponGecerlilik { get; set; }
     /// <summary>Tutarın oran mı serbest mi olduğu. BİLGİ — fiyat motoru bu alanı OKUMAZ.</summary>
-    public HesaplamaTipi? HesaplamaTipi { get; set; }
+    public CalculationType? HesaplamaTipi { get; set; }
     /// <summary>Hızlı işlem kısayolunda görünsün mü (BİLGİ/ekran tercihi).</summary>
     public bool HizliIslem { get; set; }
 
@@ -84,19 +84,19 @@ public class RentalRule : ITenantOwned, IAuditable, IBranchScoped
     public string? HaftaGunKisiti { get; set; }
     /// <summary>FAZ-73 — kampanya arama sınıflandırması (Talep/Rezervasyon). BİLGİ ALANI: fiyat
     /// motoru geçerliliği DAİMA kira başlangıç tarihinden kontrol eder, bu alan o kontrolü
-    /// DEĞİŞTİRMEZ (bkz. <see cref="KuralTarihTipi"/>).</summary>
-    public KuralTarihTipi TarihTipi { get; set; } = KuralTarihTipi.Rezervasyon;
+    /// DEĞİŞTİRMEZ (bkz. <see cref="RuleDateType"/>).</summary>
+    public RuleDateType TarihTipi { get; set; } = RuleDateType.Rezervasyon;
 
     /// <summary>Kira/rezervasyon şart metni (sözleşme/rez şartları — rezsartlar).</summary>
     public string? SartMetni { get; set; }
 
     /// <summary>
     /// FAZ-73 — 5 durumlu kampanya yaşam döngüsü. Fiyat motoru (ListActiveAsync) YALNIZ
-    /// <see cref="KampanyaDurum.Aktif"/> kuralları okur.
+    /// <see cref="CampaignStatus.Aktif"/> kuralları okur.
     /// <para><b>Değişmez:</b> <see cref="Aktif"/> == (<c>KampanyaDurum == Aktif</c>). İki alan tek
     /// yazma noktasından (RentalRuleService.Apply) BİRLİKTE set edilir; asenkron sürüklenme yok.</para>
     /// </summary>
-    public KampanyaDurum KampanyaDurum { get; set; } = KampanyaDurum.Aktif;
+    public CampaignStatus KampanyaDurum { get; set; } = CampaignStatus.Aktif;
 
     /// <summary>Geriye uyum bayrağı — <see cref="KampanyaDurum"/> ile SENKRON tutulur (bkz. orada).
     /// Yeni okuma noktaları KampanyaDurum kullanmalıdır; bu kolonun kaldırılması ayrı temizlik işi.</summary>

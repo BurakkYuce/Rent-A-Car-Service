@@ -80,7 +80,7 @@ public sealed record CariBalanceDto(
 public sealed record KarsilastirmaliSatirDto(string Kirilim, IReadOnlyDictionary<string, decimal> Aylar)
 {
     public decimal Toplam => Aylar.Values.Sum();
-    public decimal Ay(string anahtar) => Aylar.TryGetValue(anahtar, out var v) ? v : 0m;
+    public decimal Month(string key) => Aylar.TryGetValue(key, out var v) ? v : 0m;
 }
 
 /// <summary>
@@ -95,7 +95,7 @@ public sealed record KarsilastirmaliAnalizDto(
     string Tablo, string VeriTuru, string Kirilim)
 {
     /// <summary>Ay bazında sütun toplamı.</summary>
-    public decimal AyToplami(string ay) => Satirlar.Sum(s => s.Ay(ay));
+    public decimal MonthTotal(string month) => Satirlar.Sum(s => s.Month(month));
     public decimal GenelToplam => Satirlar.Sum(s => s.Toplam);
 }
 
@@ -215,7 +215,7 @@ public sealed record ExtreOzetiRowDto(
     public decimal IsaretliTutarTl => IsaretliTutar * Kur;
 
     /// <summary>Vadeye kalan/geçen gün (asOf'a göre). Vade yoksa null. Negatif = gecikmiş.</summary>
-    public int? KalanGun(DateTimeOffset asOf)
+    public int? RemainingDays(DateTimeOffset asOf)
         => VadeTarihi is { } v ? (v.UtcDateTime.Date - asOf.UtcDateTime.Date).Days : null;
 }
 
@@ -322,7 +322,7 @@ public sealed record FiloSubeDto(IReadOnlyList<FiloSubeRow> Satirlar, int Pencer
 }
 
 /// <summary>Doluluk "Karşılaştır" boyutu.</summary>
-public enum DolulukBoyut
+public enum OccupancyDimension
 {
     /// <summary>Kırılım yok — tek seri (tüm filo).</summary>
     Yok = 0,
@@ -354,7 +354,7 @@ public sealed record DolulukGunRow(
 /// Rezervasyon kaynağı satırlarında kaynak rezervasyonun kendi alanıdır.</para>
 /// </summary>
 public sealed record DolulukGunlukDto(
-    IReadOnlyList<DolulukGunRow> Satirlar, DolulukBoyut Boyut, string PaydaAciklama,
+    IReadOnlyList<DolulukGunRow> Satirlar, OccupancyDimension Boyut, string PaydaAciklama,
     int DonemGun, int ToplamKiraGun, int ToplamRezGun);
 
 /// <summary>Doluluk ham kira satırı — araç kimliği + şube/grup atfı taşır (FAZ-77 kırılımı için).</summary>
@@ -375,7 +375,7 @@ public sealed record DolulukAtifPaket(
     IReadOnlyList<DolulukRezAtifRow> Rezervasyonlar);
 
 /// <summary>Şube kırılımlı filo raporu için ham araç satırı.</summary>
-public sealed record FiloAracHamRow(Guid Id, string Sube, VehicleStatus Durum, FiloStatus? FiloDurum);
+public sealed record FiloAracHamRow(Guid Id, string Sube, VehicleStatus Durum, FleetLifecycleStatus? FiloDurum);
 
 /// <summary>Şube kırılımlı filo raporu için ham kira satırı (araç şubesi atfıyla).</summary>
 public sealed record FiloKiraHamRow(string Sube, DateTimeOffset Bas, DateTimeOffset Bit);
@@ -394,10 +394,10 @@ public sealed record TahsilatFaturaDto(
     int FaturaAdet, decimal FaturaToplam, int TahsilatAdet, decimal TahsilatToplam, decimal Fark);
 
 /// <summary>Tek tamamlanmış servis kaydı (ham) — araç plakası çözümlenmiş.</summary>
-public sealed record ServiceCostRowDto(Guid VehicleId, string Plaka, ServisTipi Tip, decimal ToplamIscilik);
+public sealed record ServiceCostRowDto(Guid VehicleId, string Plaka, ServiceType Tip, decimal ToplamIscilik);
 
 /// <summary>Araç+tip başına servis maliyet özeti (gruplanmış).</summary>
-public sealed record ServiceCostSummaryDto(Guid VehicleId, string Plaka, ServisTipi Tip, decimal Toplam, int Adet);
+public sealed record ServiceCostSummaryDto(Guid VehicleId, string Plaka, ServiceType Tip, decimal Toplam, int Adet);
 
 /// <summary>Periyodik servis (KM-bazlı bakım uyarısı) satırı — roadmap H1. KalanKm = SonrakiBakimKm − GuncelKm.
 /// İKİ kaynak (VehicleId bazında MIN(KalanKm) — çift satır yok): (1) servis kaydındaki elle hedef
@@ -706,7 +706,7 @@ public sealed record KdvGenisSatirDto(
 {
     public decimal ToplamBrut => ToplamNet + ToplamKdv;
     /// <summary>Alış satırı mı (indirilecek KDV)?</summary>
-    public bool AlisMi => Tur == KdvGenisDto.TurAlis;
+    public bool AlisMi => Tur == KdvGenisDto.TypePurchase;
 }
 
 /// <summary>
@@ -726,8 +726,8 @@ public sealed record KdvGenisDto(
     decimal SatisNet, decimal SatisKdv, decimal AlisNet, decimal AlisKdv,
     int SatisBelgeAdet, int AlisBelgeAdet, int AtlananDovizliAlis)
 {
-    public const string TurSatis = "Satış";
-    public const string TurAlis = "Alış";
+    public const string TypeSale = "Satış";
+    public const string TypePurchase = "Alış";
 
     /// <summary>Hesaplanan − indirilecek. Pozitif: ödenecek KDV; negatif: devreden KDV.</summary>
     public decimal NetKdv => SatisKdv - AlisKdv;
@@ -799,7 +799,7 @@ public sealed record KarlilikSatirDto(
 /// <summary>KDV gösterim modu (canlı "Kdv Durum"). SALT GÖSTERİM: Gelir/Gider/NetKar DEĞERLERİ hiçbir
 /// modda değişmez; yalnız ekranda ayrıca KDV/KDV-dahil referans kolonlarının gösterilip gösterilmediğini
 /// belirler (defter zaten net taşır, KDV ayrı hesaptadır).</summary>
-public enum KdvDurum
+public enum VatStatus
 {
     /// <summary>Varsayılan — defterdeki net tutarlar gösterilir.</summary>
     Kdvsiz = 0,
@@ -814,7 +814,7 @@ public enum KdvDurum
 /// birbirlerine EKLENMEZ.</para></summary>
 public sealed record KarlilikDto(
     IReadOnlyList<KarlilikSatirDto> Satirlar, decimal ToplamGelir, decimal ToplamGider, decimal ToplamNetKar,
-    KdvDurum KdvDurum = KdvDurum.Kdvsiz,
+    VatStatus KdvDurum = VatStatus.Kdvsiz,
     decimal? ToplamPotansiyelGelir = null, decimal? ToplamReferansMaliyet = null,
     decimal? ToplamHesaplananKdv = null);
 
@@ -1016,7 +1016,7 @@ public sealed record FiloKiraRow(Guid VehicleId, DateTimeOffset Bas, DateTimeOff
 /// DegerOrani: son-12-ay araç gideri ÷ İkinciElDeğer eşiği. SinifKati: sınıf (Grup) ortalamasının katı.</summary>
 public sealed record TutSatEsikleri(decimal DegerOrani = 0.45m, decimal SinifKati = 1.5m)
 {
-    public static readonly TutSatEsikleri Varsayilan = new();
+    public static readonly TutSatEsikleri Default = new();
 }
 
 /// <summary>Tut/Sat sinyal sonucu: 0-3 kural tetiklendi + gerekçe metinleri (karne kartı / filo kolonu).</summary>
@@ -1062,20 +1062,20 @@ public sealed record SigortaMuayeneRow(
     bool ZIzni, DateTimeOffset? ZIzniBitis, DateTimeOffset? SeyrusiferBitis)
 {
     /// <summary>Verilen türün bitişi (filtre/sıralama için) — yoksa null.</summary>
-    public DateTimeOffset? Bitis(SigortaMuayeneTur tur) => tur switch
+    public DateTimeOffset? End(InsuranceInspectionType type) => type switch
     {
-        SigortaMuayeneTur.Trafik => TrafikBitis,
-        SigortaMuayeneTur.Kasko => KaskoBitis,
-        SigortaMuayeneTur.Muayene => MuayeneBitis,
-        SigortaMuayeneTur.Mtv => MtvVade,
-        SigortaMuayeneTur.ZIzni => ZIzniBitis,
-        SigortaMuayeneTur.Seyrusefer => SeyrusiferBitis,
+        InsuranceInspectionType.Trafik => TrafikBitis,
+        InsuranceInspectionType.Kasko => KaskoBitis,
+        InsuranceInspectionType.Muayene => MuayeneBitis,
+        InsuranceInspectionType.Mtv => MtvVade,
+        InsuranceInspectionType.ZIzni => ZIzniBitis,
+        InsuranceInspectionType.Seyrusefer => SeyrusiferBitis,
         _ => null
     };
 }
 
 /// <summary>Birleşik rapor tür filtresi.</summary>
-public enum SigortaMuayeneTur
+public enum InsuranceInspectionType
 {
     Hepsi = 0, Trafik = 1, Kasko = 2, Muayene = 3, Mtv = 4, ZIzni = 5, Seyrusefer = 6
 }
@@ -1083,7 +1083,7 @@ public enum SigortaMuayeneTur
 /// <summary>Birleşik rapor filtresi. <c>AracSahibi</c> boş = tümü.</summary>
 public sealed class SigortaMuayeneFilter
 {
-    public SigortaMuayeneTur Tur { get; set; } = SigortaMuayeneTur.Hepsi;
+    public InsuranceInspectionType Tur { get; set; } = InsuranceInspectionType.Hepsi;
     /// <summary>Araç sahibi (serbest metin, harf duyarsız). Canlıdaki "Bizim/Dış" ayrımı bu alandan.</summary>
     public string? AracSahibi { get; set; }
     public string? Plaka { get; set; }

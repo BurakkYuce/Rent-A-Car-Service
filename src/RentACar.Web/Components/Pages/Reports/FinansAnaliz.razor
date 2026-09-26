@@ -71,7 +71,7 @@
     protected override async Task OnInitializedAsync()
     {
         // 12-ay trend (sabit pencere — filtreden bağımsız).
-        var trend = await Reports.GetAylikGelirGiderTrendAsync(12);
+        var trend = await Reports.GetMonthlyRevenueExpenseTrendAsync(12);
         _ayEtiketleri = trend.Select(t => t.AyBas.ToString("MM.yy")).ToList();
         _aySerileri =
         [
@@ -83,7 +83,7 @@
         // Dönem analizi (tarih filtresi — GelirGider ile aynı yorum: boş = tüm zaman).
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
-        var gg = await Reports.GetGelirGiderAsync(from, to);
+        var gg = await Reports.GetRevenueExpenseAsync(from, to);
         _gelirDilim = gg.GelirKirilim.Select((k, i) => new SvgDilim(KaynakAd(k.SourceType), k.Tutar, RenkSira(i))).ToList();
         _giderDilim = gg.GiderKirilim.Select((k, i) => new SvgDilim(KaynakAd(k.SourceType), k.Tutar, RenkSira(i))).ToList();
 
@@ -98,7 +98,7 @@
         ];
 
         // Fatura vs tahsilat mutabakatı.
-        var tf = await Reports.GetTahsilatFaturaAsync(from, to);
+        var tf = await Reports.GetCollectionInvoiceAsync(from, to);
         _mutabakat =
         [
             new SvgDilim($"Fatura ({tf.FaturaAdet})", tf.FaturaToplam, 2),
@@ -108,7 +108,7 @@
 
         // Son 30 gün doluluk (günlük tarihsel seri).
         var bugun = DateTimeOffset.UtcNow.Date;
-        var takip = await Reports.GetAracDurumTakipAsync(
+        var takip = await Reports.GetVehicleStatusTrackingAsync(
             new DateTimeOffset(bugun.AddDays(-29), TimeSpan.Zero), new DateTimeOffset(bugun, TimeSpan.Zero));
         _dolulukGunler = takip.Select(g => g.Gun.ToString("dd.MM")).ToList();
         _dolulukYuzde = takip.Select(g => g.ToplamArac == 0 ? 0m : Math.Round(100m * g.Dolu / g.ToplamArac, 1)).ToList();

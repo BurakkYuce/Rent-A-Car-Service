@@ -112,7 +112,7 @@ public class AracSiparis : ITenantOwned, IAuditable
     public string Currency { get; set; } = "TRY";
     public decimal Kur { get; set; } = 1m;
 
-    public SiparisDurum Durum { get; set; } = SiparisDurum.Bekliyor;
+    public OrderStatus Durum { get; set; } = OrderStatus.Bekliyor;
     public string? Aciklama { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

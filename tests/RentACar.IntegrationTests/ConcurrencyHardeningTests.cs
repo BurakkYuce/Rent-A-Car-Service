@@ -39,7 +39,7 @@ public sealed class ConcurrencyHardeningTests(PostgresFixture fx)
         {
             using var s = host.ScopeFor(tenant);
             await s.ServiceProvider.GetRequiredService<ServiceRecordService>()
-                .KalemEkleAsync(recId, $"kalem-{i}", 10m);
+                .AddItemAsync(recId, $"kalem-{i}", 10m);
         }));
         await Task.WhenAll(tasks);
 
@@ -60,7 +60,7 @@ public sealed class ConcurrencyHardeningTests(PostgresFixture fx)
         Guid krediId;
         using (var scope = host.ScopeFor(tenant))
         {
-            krediId = await scope.ServiceProvider.GetRequiredService<AracKrediService>()
+            krediId = await scope.ServiceProvider.GetRequiredService<VehicleLoanService>()
                 .CreateAsync(new AracKrediInput { BankaAdi = "Test Bank", KrediTutari = 100000m, FaizOran = 0.1m, TaksitSayisi = 12 });
         }
 
@@ -68,12 +68,12 @@ public sealed class ConcurrencyHardeningTests(PostgresFixture fx)
         var tasks = Enumerable.Range(0, 3).Select(_ => Task.Run(async () =>
         {
             using var s = host.ScopeFor(tenant);
-            await s.ServiceProvider.GetRequiredService<AracKrediService>().TaksitOdeAsync(krediId);
+            await s.ServiceProvider.GetRequiredService<VehicleLoanService>().PayInstallmentAsync(krediId);
         }));
         await Task.WhenAll(tasks);
 
         using var check = host.ScopeFor(tenant);
-        var k = await check.ServiceProvider.GetRequiredService<AracKrediService>().GetAsync(krediId);
+        var k = await check.ServiceProvider.GetRequiredService<VehicleLoanService>().GetAsync(krediId);
         Assert.Equal(3, k!.OdenenTaksit); // hiçbir artırım kaybolmadı (oracle)
     }
 }

@@ -57,9 +57,9 @@ public class RateCard : ITenantOwned, IAuditable
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 
     /// <summary>Bu tarife verilen gün sayısı + tarihi kapsıyor mu? (Grup eşleşmesi çağırana ait.)</summary>
-    public bool Covers(int gun, DateTimeOffset tarih)
+    public bool Covers(int day, DateTimeOffset date)
         => Aktif
-           && gun >= MinGun && gun <= MaxGun
-           && (GecerliBas is null || GecerliBas <= tarih)
-           && (GecerliBit is null || GecerliBit >= tarih);
+           && day >= MinGun && day <= MaxGun
+           && (GecerliBas is null || GecerliBas <= date)
+           && (GecerliBit is null || GecerliBit >= date);
 }

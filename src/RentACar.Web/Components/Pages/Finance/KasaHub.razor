@@ -188,11 +188,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _summary = await Reports.GetKasaBankaSummaryAsync();
+        _summary = await Reports.GetCashBankSummaryAsync();
         // FAZ-67: süzme SUNUCUDA (SearchIslemlerAsync) ve LİMİTTEN ÖNCE — FAZ-84'ün "önce süz,
         // sonra kes" dersi korunuyor: tersi olsaydı eşleşen satırlar ilk 50'nin dışında kalıp
         // görünmezdi. Cari adı/kodu da orada çözülür (PII çözülmez: düz-metin kolonlar).
-        var tumu = await Cash.SearchIslemlerAsync(new CashFilter
+        var tumu = await Cash.SearchTransactionsAsync(new CashFilter
         {
             Ara = string.IsNullOrWhiteSpace(Q) ? null : Q,
             Tip = Enum.TryParse<CashTransactionType>(Tip, out var tp) ? tp : null,
@@ -207,7 +207,7 @@
                 : tumu.Where(x => (x.Islem.Kanal ?? CashKanal.Masaustu) == KanalFiltre))
             .Take(50)];
         _hesapAdlari = (await Hesaplar.ListAsync()).ToDictionary(h => h.Id, h => h.Ad);
-        _virmanlar = await Cash.ListKasaVirmanlarAsync(new KasaVirmanFilter { EnFazla = 50 });
+        _virmanlar = await Cash.ListCashTransfersAsync(new KasaVirmanFilter { EnFazla = 50 });
     }
 
     private static DateTimeOffset? ParseGun(string? s)

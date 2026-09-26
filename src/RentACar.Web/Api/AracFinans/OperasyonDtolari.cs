@@ -56,9 +56,9 @@ public sealed record HasarDto(
     public static HasarDto From(DamageFile f, string plaka, string? cariAd) => new(
         f.Id, f.No, f.Durum.ToString(), f.VehicleId, plaka, f.RentalId, f.CariId, cariAd, f.AcilisTarihi, f.Aciklama,
         f.TahminiTutar, f.OnayNotu, new HasarYetkileri(
-            f.Durum == Domain.Enums.HasarDurum.Acik, f.Durum == Domain.Enums.HasarDurum.Onayda,
-            f.Durum == Domain.Enums.HasarDurum.Onayda,
-            f.Durum is Domain.Enums.HasarDurum.Onaylandi or Domain.Enums.HasarDurum.Reddedildi));
+            f.Durum == Domain.Enums.DamageStatus.Acik, f.Durum == Domain.Enums.DamageStatus.Onayda,
+            f.Durum == Domain.Enums.DamageStatus.Onayda,
+            f.Durum is Domain.Enums.DamageStatus.Onaylandi or Domain.Enums.DamageStatus.Reddedildi));
 }
 
 /// <summary><c>POST /filo-plan</c> ve <c>PUT /filo-plan/{id}</c> (PUT'ta <c>surum</c> zorunlu).</summary>

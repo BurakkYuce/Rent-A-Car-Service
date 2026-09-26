@@ -14,13 +14,13 @@ public interface IPenaltyRepository
     Task<IReadOnlyList<Penalty>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default);
 
     /// <summary>Bir cezanın kalemleri (sıraya göre).</summary>
-    Task<IReadOnlyList<PenaltySatir>> ListSatirAsync(Guid penaltyId, CancellationToken ct = default);
+    Task<IReadOnlyList<PenaltySatir>> ListLinesAsync(Guid penaltyId, CancellationToken ct = default);
 
     /// <summary>Bir cezanın ödeme geçmişi (kalem + sıra).</summary>
-    Task<IReadOnlyList<PenaltyOdeme>> ListOdemeAsync(Guid penaltyId, CancellationToken ct = default);
+    Task<IReadOnlyList<PenaltyOdeme>> ListPaymentsAsync(Guid penaltyId, CancellationToken ct = default);
 
     /// <summary>No boşluksuz tahsis edip ekler — başlık + kalemler TEK transaction.</summary>
-    Task CreateAsync(Penalty penalty, IReadOnlyList<PenaltySatir> satirlar, CancellationToken ct = default);
+    Task CreateAsync(Penalty penalty, IReadOnlyList<PenaltySatir> rows, CancellationToken ct = default);
 
     /// <summary>Durum geçişi (İptal vb.). Yansıtma için ReflectAsync, ödeme için PostOdemeAsync.</summary>
     Task<bool> UpdateAsync(Guid id, Action<Penalty> apply, CancellationToken ct = default);
@@ -50,10 +50,10 @@ public interface IPenaltyRepository
     /// sırası) alır ve (ödeme satırı, defter kümesi) döndürür. Kalan, önbellek kolonundan
     /// DEĞİL, ödeme satırları toplanarak hesaplanır — önbellek bozulsa bile aşım imkânsız.</para>
     /// </summary>
-    /// <remarks>F1.4: <paramref name="islemAnahtari"/> verilirse kilidin arkasında, kalan kontrolünden
+    /// <remarks>F1.4: <paramref name="operationKey"/> verilirse kilidin arkasında, kalan kontrolünden
     /// ÖNCE aranır; varsa <c>MukerrerIslemException</c> (sonuç ilk ödemenin tam/kısmi olmasına bağlı değil).</remarks>
-    Task<CezaOdemeSonuc> PostOdemeAsync(
-        Guid penaltyId, Guid satirId,
+    Task<CezaOdemeSonuc> PostPaymentAsync(
+        Guid penaltyId, Guid lineId,
         Func<Penalty, PenaltySatir, decimal, int, (PenaltyOdeme Odeme, IReadOnlyList<AccountLedgerEntry> Entries)> posting,
-        CancellationToken ct = default, Guid? islemAnahtari = null);
+        CancellationToken ct = default, Guid? operationKey = null);
 }

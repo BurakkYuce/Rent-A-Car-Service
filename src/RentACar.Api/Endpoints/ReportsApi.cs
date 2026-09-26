@@ -14,7 +14,7 @@ public static class ReportsApi
         var grp = app.MapGroup("/api/v1/reports").WithTags("Reports").RequirePermission(Permission.ViewReports);
 
         grp.MapGet("/kasa-banka", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
-            Results.Ok(await svc.GetKasaBankaSummaryAsync(from, to, ct)));
+            Results.Ok(await svc.GetCashBankSummaryAsync(from, to, ct)));
 
         // FAZ-50: hesapId opsiyonel — boş: türün tümü, Guid.Empty: "hesap belirtilmemiş" (legacy) kova.
         grp.MapGet("/account-ledger", async (ReportService svc, CancellationToken ct,
@@ -24,10 +24,10 @@ public static class ReportsApi
 
         // FAZ-50: hesap-bazlı kasa/banka özeti (her FinancialAccount ayrı satır + legacy kova).
         grp.MapGet("/kasa-banka/hesaplar", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
-            Results.Ok(await svc.GetHesapBazliOzetAsync(from, to, ct)));
+            Results.Ok(await svc.GetAccountBasedSummaryAsync(from, to, ct)));
 
         grp.MapGet("/gelir-gider", async (DateTimeOffset? from, DateTimeOffset? to, ReportService svc, CancellationToken ct) =>
-            Results.Ok(await svc.GetGelirGiderAsync(from, to, ct)));
+            Results.Ok(await svc.GetRevenueExpenseAsync(from, to, ct)));
 
         // FAZ-62: filtre parametreleri opsiyonel — hiçbiri verilmezse davranış eskisiyle AYNI.
         // `min` string alınır: boş "?min=" ile gelen istek decimal? bağlamasında 400 verirdi.
@@ -35,7 +35,7 @@ public static class ReportsApi
             ReportService svc, CancellationToken ct,
             string? ara = null, string? ozelKod = null, string? sinif = null, string? doviz = null,
             string? tip = null, string? bakiye = null, string? min = null) =>
-            Results.Ok(await svc.GetCariBalancesAsync(new CariBakiyeFilter
+            Results.Ok(await svc.GetAccountBalancesAsync(new CariBakiyeFilter
             {
                 Ara = ara, OzelKod = ozelKod, Sinif = sinif, Doviz = doviz,
                 Kurumsal = tip switch { "kurumsal" => true, "bireysel" => false, _ => (bool?)null },
@@ -58,8 +58,8 @@ public static class ReportsApi
         grp.MapGet("/karlilik", async (ReportService svc, CancellationToken ct,
             DateTimeOffset? from = null, DateTimeOffset? to = null, string? sube = null, string? grup = null,
             string? plaka = null, string? kaynak = null, string? sipp = null, bool kdvDahil = false) =>
-            Results.Ok(await svc.GetKarlilikAsync(from, to, sube, grup, plaka, kaynak, sipp,
-                kdvDahil ? KdvDurum.KdvDahil : KdvDurum.Kdvsiz, ct)));
+            Results.Ok(await svc.GetProfitabilityAsync(from, to, sube, grup, plaka, kaynak, sipp,
+                kdvDahil ? VatStatus.KdvDahil : VatStatus.Kdvsiz, ct)));
 
         return app;
     }

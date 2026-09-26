@@ -8,7 +8,7 @@
 @inject BranchService Subeler
 @inject VehicleGroupService AracGruplari
 @inject ReservationSourceService Kaynaklar
-@inject BrokerYasakService BrokerYasaklari
+@inject BrokerBanService BrokerYasaklari
 @inject RateMatrixService Tarifeler
 
 <PageTitle>Müsait Araç Ara — RentPro</PageTitle>
@@ -119,7 +119,7 @@
                     <td class="num">@v.Km.ToString("N0")</td>
                     @* Boşta gün = son TAMAMLANMIŞ kiranın dönüşünden bugüne. Hiç kiralanmamış araçta
                        "—" yazılır; 0 yazmak "dün döndü" ile karışırdı. *@
-                    <td class="num">@(son is null ? "—" : AvailabilityService.BostaGun(son.SonDonus, _now).ToString())</td>
+                    <td class="num">@(son is null ? "—" : AvailabilityService.IdleDays(son.SonDonus, _now).ToString())</td>
                     <td>@(son?.MusteriAd ?? "—")</td>
                     <td class="num">@(f is null ? "—" : f.Value.Gunluk.ToString("N2"))</td>
                     <td class="num">@(f is null ? "—" : f.Value.Toplam.ToString("N2"))</td>
@@ -227,7 +227,7 @@
 
         // Pencere kuralı SUNUCUDA (saf fonksiyon): gün sayısı bitişin yerine geçer, saatler
         // verilmezse 00:00 → eski davranışla birebir.
-        var pencere = AvailabilityService.Pencere(
+        var pencere = AvailabilityService.Window(
             Tarih(From), Tarih(To), FormParse.Int(Gun),
             FormParse.Saat(BasSaat), FormParse.Saat(BitSaat));
         if (pencere is null)
@@ -259,11 +259,11 @@
                     _list = _list.Where(v => v.Plaka.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
-            _son = await Availability.SonKullanimAsync(_list.Select(v => v.Id).ToList());
+            _son = await Availability.LastUsageAsync(_list.Select(v => v.Id).ToList());
             // roadmap G4: her müsait grup için fiyat motorundan teklif.
             // FAZ-48: kanal artık seçilebilir — çözüm PricingService'le AYNI çitten (KanalCozucu):
             // yalnız AKTİF kaynak eşleşirse kanal setlenir, aksi null (kanalsız = base matris).
-            var kanal = KanalCozucu.Coz(RezKaynak, aktifKaynaklar);
+            var kanal = ChannelResolver.Resolve(RezKaynak, aktifKaynaklar);
             foreach (var grup in _list.Select(v => v.Grup)
                 .Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase))
             {
@@ -286,12 +286,12 @@
                 var yasaklar = await BrokerYasaklari.ListActiveAsync();
                 if (yasaklar.Count > 0)
                 {
-                    var gun = BookingMath.ComputeGun(from, to);
+                    var gun = BookingMath.ComputeDays(from, to);
                     var kalan = new List<Vehicle>(_list.Count);
                     var gerekce = new List<string>();
                     foreach (var v in _list)
                     {
-                        var engel = BrokerMusaitlik.Engel(yasaklar, RezKaynak, v.Grup, v.Sube, gun, from);
+                        var engel = BrokerAvailability.Block(yasaklar, RezKaynak, v.Grup, v.Sube, gun, from);
                         if (engel is null) { kalan.Add(v); continue; }
                         _brokerElenen++;
                         if (!gerekce.Contains(engel.Kod, StringComparer.Ordinal)) gerekce.Add(engel.Kod);

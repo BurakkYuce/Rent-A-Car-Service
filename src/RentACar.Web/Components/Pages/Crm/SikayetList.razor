@@ -1,8 +1,8 @@
 @page "/sikayetler"
 @attribute [Authorize(Policy = "izin:OperationsWrite")]
-@inject SikayetService Sikayetler
+@inject ComplaintService Sikayetler
 @inject CustomerService Cariler
-@inject PersonelService Personeller
+@inject PersonnelService Personeller
 @inject RentalService Kiralar
 @inject LocationService Ofisler
 @using RentACar.Domain.Enums
@@ -35,7 +35,7 @@
     <label>Şikayet Yeri
         <select name="yer">
             <option value="">— tümü —</option>
-            @foreach (var y in Enum.GetValues<SikayetYeri>()) { <option value="@y" selected="@(y.ToString() == Yer)">@y</option> }
+            @foreach (var y in Enum.GetValues<ComplaintLocation>()) { <option value="@y" selected="@(y.ToString() == Yer)">@y</option> }
         </select>
     </label>
     <label>Kanal
@@ -47,7 +47,7 @@
     <label>Durum
         <select name="durum">
             <option value="">— tümü —</option>
-            @foreach (var d in Enum.GetValues<SikayetDurum>()) { <option value="@d" selected="@(d.ToString() == Durum)">@d</option> }
+            @foreach (var d in Enum.GetValues<ComplaintStatus>()) { <option value="@d" selected="@(d.ToString() == Durum)">@d</option> }
         </select>
     </label>
     <label>Ara<input name="ara" value="@Ara" placeholder="konu / detay / sözleşme / plaka" /></label>
@@ -55,7 +55,7 @@
     @if (FiltreVar) { <a class="link" href="/sikayetler">Temizle</a> }
 </form>
 
-<p class="muted small">@_rows.Count şikayet · @_rows.Count(x => x.Sikayet.Durum == SikayetDurum.Acik) açık</p>
+<p class="muted small">@_rows.Count şikayet · @_rows.Count(x => x.Sikayet.Durum == ComplaintStatus.Acik) açık</p>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
@@ -87,7 +87,7 @@
                 <td>@(r.TeslimEdenAd ?? "—")</td>
                 <td>@s.Konu</td>
                 <td>
-                    <span class="status-pill @(s.Durum == SikayetDurum.Acik ? "sp-warn" : "sp-success")">@s.Durum</span>
+                    <span class="status-pill @(s.Durum == ComplaintStatus.Acik ? "sp-warn" : "sp-success")">@s.Durum</span>
                 </td>
                 <td>@(s.Cozum ?? "—")</td>
                 <td><a href="/sikayetler?duzenle=@s.Id" class="link">Düzenle</a></td>
@@ -118,7 +118,7 @@
     <label>Şikayet Yeri
         <select name="sikayetYeri">
             <option value="">—</option>
-            @foreach (var y in Enum.GetValues<SikayetYeri>()) { <option value="@y" selected="@(_edit?.SikayetYeri == y)">@y</option> }
+            @foreach (var y in Enum.GetValues<ComplaintLocation>()) { <option value="@y" selected="@(_edit?.SikayetYeri == y)">@y</option> }
         </select>
     </label>
     <label>Kanal<input name="sikayetKanali" list="dl-sikayet-kanal" value="@_edit?.SikayetKanali" maxlength="64" />
@@ -151,7 +151,7 @@
     <label class="u-col-full">Detay<input name="detay" value="@_edit?.Detay" /></label>
     <label>Durum
         <select name="durum">
-            @foreach (var d in Enum.GetValues<SikayetDurum>()) { <option value="@d" selected="@(_edit?.Durum == d)">@d</option> }
+            @foreach (var d in Enum.GetValues<ComplaintStatus>()) { <option value="@d" selected="@(_edit?.Durum == d)">@d</option> }
         </select>
     </label>
     <label class="u-col-full">Çözüm<input name="cozum" value="@_edit?.Cozum" /></label>
@@ -203,9 +203,9 @@
         {
             CariId = Guid.TryParse(CariId, out var cid) ? cid : null,
             Ofis = Ofis,
-            Yer = Enum.TryParse<SikayetYeri>(Yer, out var y) ? y : null,
+            Yer = Enum.TryParse<ComplaintLocation>(Yer, out var y) ? y : null,
             Kanal = Kanal,
-            Durum = Enum.TryParse<SikayetDurum>(Durum, out var d) ? d : null,
+            Durum = Enum.TryParse<ComplaintStatus>(Durum, out var d) ? d : null,
             Ara = Ara
         });
 

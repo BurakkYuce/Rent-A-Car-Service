@@ -23,7 +23,7 @@ public sealed class CustomerDerinlikTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(new CustomerInput
         {
-            Tip = CariType.Kurumsal, Unvan = "ABC A.Ş.",
+            Tip = CustomerType.Kurumsal, Unvan = "ABC A.Ş.",
             KvkkOnay = true, KvkkOnayTarih = Onay, EkAdres = "Depo adresi",
             BankaIban = "tr120006...", BankaAdi = "Ziraat", FaturaAdresi = "Fatura adresi", FaturaUnvan = "ABC Ticaret A.Ş."
         });
@@ -39,7 +39,7 @@ public sealed class CustomerDerinlikTests(PostgresFixture fx)
 
         // Update: KVKK geri çek + banka temizle
         await svc.UpdateAsync(id, new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = "ABC A.Ş.", KvkkOnay = false, BankaIban = null });
+        { Tip = CustomerType.Kurumsal, Unvan = "ABC A.Ş.", KvkkOnay = false, BankaIban = null });
         var c2 = await svc.GetAsync(id);
         Assert.False(c2!.KvkkOnay);
         Assert.Null(c2.BankaIban);

@@ -143,7 +143,7 @@
     protected override async Task OnInitializedAsync()
     {
         _subeler = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
-        _rows = await Vehicles.ListDetayAsync(new VehicleDetayFilter
+        _rows = await Vehicles.ListDetailAsync(new VehicleDetayFilter
         {
             Ara = Ara,
             Sube = Sube,

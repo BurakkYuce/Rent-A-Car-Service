@@ -22,7 +22,7 @@ public sealed class RaporEksik3Tests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var custId = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Takip Müşteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Takip Müşteri" });
         var vId = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 DT 01", Durum = VehicleStatus.Musait });
 
@@ -33,7 +33,7 @@ public sealed class RaporEksik3Tests(PostgresFixture fx)
             GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m
         });
 
-        var rows = await sp.GetRequiredService<ReportService>().GetAracDurumTakipAsync(
+        var rows = await sp.GetRequiredService<ReportService>().GetVehicleStatusTrackingAsync(
             new DateTimeOffset(2026, 6, 9, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 6, 13, 0, 0, 0, TimeSpan.Zero));
 

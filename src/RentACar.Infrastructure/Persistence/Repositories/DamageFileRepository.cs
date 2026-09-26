@@ -29,19 +29,19 @@ public sealed class DamageFileRepository(IDbContextFactory<AppDbContext> factory
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            file.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.HasarDosyasi, ct);
+            file.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.HasarDosyasi, ct);
             db.DamageFiles.Add(file);
             try { await db.SaveChangesAsync(ct); }
             catch (DbUpdateException ex) when (PkIhlali.Mi(ex)) // F6.1b: Id = işlem anahtarı → çift gönderim
             {
                 await tx.RollbackAsync(ct);
-                throw new RentACar.Application.Common.MukerrerIslemException(PkIhlali.Mesaj);
+                throw new RentACar.Application.Common.DuplicateOperationException(PkIhlali.Mesaj);
             }
             await tx.CommitAsync(ct);
         }, ct);
     }
 
-    public Task<bool> KilitliGuncelleAsync(Guid id, Action<DamageFile> apply, CancellationToken ct = default)
+    public Task<bool> UpdateLockedAsync(Guid id, Action<DamageFile> apply, CancellationToken ct = default)
         => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.HasarDosyalari, id, beklenenSurum: null,
             (db, k, c) => db.DamageFiles.FirstOrDefaultAsync(f => f.Id == k, c), apply, ct);
 

@@ -23,7 +23,7 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         await using var db = await factory.CreateDbContextAsync();
 
         var v = new Vehicle { Plaka = "34ADV" + Guid.NewGuid().ToString("N")[..4], Durum = VehicleStatus.Kirada };
-        var c = new Customer { Tip = CariType.Bireysel, Ad = "Adv", Soyad = "Ersary" };
+        var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Adv", Soyad = "Ersary" };
         db.Vehicles.Add(v);
         db.Customers.Add(c);
 
@@ -90,12 +90,12 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
 
         var bitTar = (await GetRentalAsync(scope, rentalId)).BitTar;
         // 1 gün geç dönüş → uzatma 1 gün × 100 = 100. Baz brüt 400+100 = 500.
-        await rentalSvc.ReturnAsync(rentalId, donusKm: 1000, donusYakit: 8, gercekDonus: bitTar.AddDays(1));
+        await rentalSvc.ReturnAsync(rentalId, returnKm: 1000, returnFuel: 8, actualReturn: bitTar.AddDays(1));
         var afterReturn = await GetRentalAsync(scope, rentalId);
         Assert.Equal(500m, afterReturn.GenelToplam); // 400 baz + 100 uzatma
 
         // Dönüşten SONRA ek hizmet (faturalanmadı → izinli). GPS net 100 brüt 120.
-        await addSvc.AddAsync(rentalId, gpsId, miktar: 1m);
+        await addSvc.AddAsync(rentalId, gpsId, quantity: 1m);
         var final = await GetRentalAsync(scope, rentalId);
         // Doğru: 500 (baz+uzatma) + 120 (ek hizmet) = 620. Çift sayım olursa 720 olur.
         Assert.Equal(620m, final.GenelToplam);
@@ -128,8 +128,8 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         // 7 adet odd kalem ekle (yuvarlama birikimi tetikle).
         for (int i = 0; i < 7; i++)
         {
-            await addSvc.AddAsync(rentalId, oddTanim, miktar: 1m);
-            await addSvc.AddAsync(rentalId, oddTanim2, miktar: 1.5m);
+            await addSvc.AddAsync(rentalId, oddTanim, quantity: 1m);
+            await addSvc.AddAsync(rentalId, oddTanim2, quantity: 1.5m);
         }
 
         var invId = await invSvc.CreateFromRentalAsync(rentalId);
@@ -163,7 +163,7 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         var (rentalId, gpsId, _) = await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.AddAsync(rentalId, gpsId, miktar: 1m, birimNetOverride: -100m));
+            () => svc.AddAsync(rentalId, gpsId, quantity: 1m, unitNetOverride: -100m));
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         var (rentalId, gpsId, _) = await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.AddAsync(rentalId, gpsId, miktar: 1m, kdvOraniOverride: 1.5m));
+            () => svc.AddAsync(rentalId, gpsId, quantity: 1m, vatRateOverride: 1.5m));
     }
 
     [Fact]
@@ -185,7 +185,7 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         var (rentalId, gpsId, _) = await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.AddAsync(rentalId, gpsId, miktar: -3m));
+            () => svc.AddAsync(rentalId, gpsId, quantity: -3m));
     }
 
     // ---- VECTOR 6: tenant izolasyonu — başka tenant kira id'siyle ek hizmet ----
@@ -213,7 +213,7 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         var svc = scopeBAttack.ServiceProvider.GetRequiredService<RentalAddOnService>();
         // Kira A tenant B'de görünmemeli → "Kira bulunamadı" beklenir.
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.AddAsync(rentalA, gpsB, miktar: 1m));
+            () => svc.AddAsync(rentalA, gpsB, quantity: 1m));
 
         // Ve tenant A'nın kirasında hiç ek hizmet oluşmamalı.
         using var scopeAVerify = host.ScopeFor(tenantA);
@@ -234,7 +234,7 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         {
             var (r, gps, _) = await SeedAsync(scopeA);
             var svcA = scopeA.ServiceProvider.GetRequiredService<RentalAddOnService>();
-            await svcA.AddAsync(r, gps, miktar: 1m);
+            await svcA.AddAsync(r, gps, quantity: 1m);
             rentalA = r;
         }
 
@@ -255,7 +255,7 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         var invSvc = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
         var before = (await GetRentalAsync(scope, rentalId)).Bakiye;
-        await addSvc.AddAsync(rentalId, gpsId, miktar: 1m); // +120 brüt
+        await addSvc.AddAsync(rentalId, gpsId, quantity: 1m); // +120 brüt
         var after = (await GetRentalAsync(scope, rentalId)).Bakiye;
         Assert.True(after > before, "ek hizmet bakiyeyi ARTIRMALI");
         Assert.Equal(before + 120m, after);

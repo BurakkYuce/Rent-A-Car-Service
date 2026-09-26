@@ -3,7 +3,7 @@
 @using RentACar.Application.Notifications
 @using RentACar.Domain.Entities
 @using RentACar.Domain.Enums
-@inject BildirimService Bildirimler
+@inject InAppNotificationService Bildirimler
 
 <PageTitle>Bildirim Merkezi — RentPro</PageTitle>
 
@@ -87,7 +87,7 @@ else
                     <td>@v.Tur</td>
                     <td>@v.Bitis.ToString("yyyy-MM-dd")</td>
                     <td class="num">@v.KalanGun</td>
-                    <td>@(v.Bucket == VadeBucket.Gecmis ? "Geçmiş" : "Yaklaşan")</td>
+                    <td>@(v.Bucket == DueBucket.Gecmis ? "Geçmiş" : "Yaklaşan")</td>
                 </tr>
             }
         </tbody>

@@ -39,7 +39,7 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "LB", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "LB", Soyad = "M" });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
             MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90), GunlukUcret = 100m,
@@ -67,15 +67,15 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
             Aciklama = "onden", IslemAnahtari = CashService.RowKey(kira, 1)
         });
 
-        var ex = await Assert.ThrowsAsync<MukerrerIslemException>(() => sp.GetRequiredService<DonemTahsilatService>()
-            .KesVeTahsilEtDetayAsync(kira, 1, true, LedgerAccountType.Kasa));
-        Assert.NotNull(ex.Mevcut);
-        Assert.False(ex.Mevcut!.AyniIcerik);
-        Assert.Equal(1m, ex.Mevcut.Tutar);
+        var ex = await Assert.ThrowsAsync<DuplicateOperationException>(() => sp.GetRequiredService<PeriodCollectionService>()
+            .IssueAndCollectDetailAsync(kira, 1, true, LedgerAccountType.Kasa));
+        Assert.NotNull(ex.Existing);
+        Assert.False(ex.Existing!.AyniIcerik);
+        Assert.Equal(1m, ex.Existing.Tutar);
         Assert.Contains("YAZILMADI", ex.Message);
 
         // Fatura kesildi (D1 borç), yalnız ön-alınan 1 TL alacak: bakiye D1 − 1 — dönem tahsilatı YOK.
-        Assert.Equal(firstPeriod - 1m, await kasa.GetCariBalanceAsync(cari));
+        Assert.Equal(firstPeriod - 1m, await kasa.GetAccountBalanceAsync(cari));
     }
 
     [Fact]
@@ -93,10 +93,10 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
             IslemAnahtari = CashService.RowKey(kira, 1)
         });
 
-        var (_, yazildi) = await sp.GetRequiredService<DonemTahsilatService>()
-            .KesVeTahsilEtDetayAsync(kira, 1, true, LedgerAccountType.Kasa);
+        var (_, yazildi) = await sp.GetRequiredService<PeriodCollectionService>()
+            .IssueAndCollectDetailAsync(kira, 1, true, LedgerAccountType.Kasa);
         Assert.False(yazildi);
-        Assert.Equal(0m, await kasa.GetCariBalanceAsync(cari)); // D1 borç − D1 alacak
+        Assert.Equal(0m, await kasa.GetAccountBalanceAsync(cari)); // D1 borç − D1 alacak
     }
 
     // ------------------------------------------------------------ N4
@@ -141,7 +141,7 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
         Assert.False(await kontrol.Invoices.AnyAsync(i => i.KaynakKiraId == kira || i.RentalId == kira));
         Assert.False(await kontrol.CashTransactions.AnyAsync(c => c.RentalId == kira));
         Assert.All(await kontrol.FaturaDonemleri.Where(d => d.RentalId == kira).ToListAsync(),
-            d => Assert.Equal(FaturaDonemDurum.Planlandi, d.Durum));
+            d => Assert.Equal(InvoicePeriodStatus.Planlandi, d.Durum));
     }
 
     /// <summary>Verilen advisory anahtarı için BEKLEYEN (granted=false) bir kilit görünene dek bekler (≤10 sn).</summary>

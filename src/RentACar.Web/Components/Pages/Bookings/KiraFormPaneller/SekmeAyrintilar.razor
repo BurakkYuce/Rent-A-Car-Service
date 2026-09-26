@@ -45,8 +45,8 @@
                     { <span> — kapama @pkt.LocalDateTime.ToString("dd.MM.yyyy HH:mm"), tutar @(Vm.Rental!.ProvizyonKapamaTutar?.ToString("N2") ?? "—")</span> }
                 </p>
                 <div style="display:flex;gap:.5rem;">
-                    <button type="submit" form="kf-prov-al" disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.ProvizyonDurum.Yok)">Provizyon Al (manuel)</button>
-                    <button type="submit" form="kf-prov-kapat" disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.ProvizyonDurum.Alindi)">Provizyon Kapat</button>
+                    <button type="submit" form="kf-prov-al" disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.PreAuthStatus.Yok)">Provizyon Al (manuel)</button>
+                    <button type="submit" form="kf-prov-kapat" disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.PreAuthStatus.Alindi)">Provizyon Kapat</button>
                 </div>
             }
             else

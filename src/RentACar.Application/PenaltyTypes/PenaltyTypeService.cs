@@ -31,7 +31,7 @@ public sealed class PenaltyTypeService(IPenaltyTypeRepository repository, ICurre
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ceza türü zaten var.");
 
         var type = new PenaltyType();
@@ -52,7 +52,7 @@ public sealed class PenaltyTypeService(IPenaltyTypeRepository repository, ICurre
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu ceza türü zaten var.");
 
         void ApplyAll(PenaltyType type)

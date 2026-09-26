@@ -42,7 +42,7 @@ public static partial class FinanceHubApi
         var names = await F5Ortak.CarilerAsync(f, [cariId], ct);
         if (!names.ContainsKey(cariId)) return F5Ortak.Bulunamadi("Cari bulunamadı.");
 
-        var balance = await cash.GetCariBalanceAsync(cariId, ct);
+        var balance = await cash.GetAccountBalanceAsync(cariId, ct);
         var all = (await cash.GetStatementAsync(cariId, null, ct)).Satirlar;
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
         var filter = new CariEkstreFilter
@@ -93,7 +93,7 @@ public static partial class FinanceHubApi
         if (!names.ContainsKey(cariId)) return F5Ortak.Bulunamadi("Cari bulunamadı.");
         var debts = (await cash.GetStatementAsync(cariId, null, ct)).Satirlar
             .Where(x => x.Direction == LedgerDirection.Debit).OrderBy(x => x.EntryDateUtc).ToList();
-        var closed = await cash.KapatilanTutarlarAsync([.. debts.Select(x => x.Id)], ct);
+        var closed = await cash.SettledAmountsAsync([.. debts.Select(x => x.Id)], ct);
         var items = debts.Select(s =>
         {
             var done = closed.GetValueOrDefault(s.Id);
@@ -103,6 +103,6 @@ public static partial class FinanceHubApi
                 s.Amount.Currency, s.Amount.AmountInBase, done, isClosed ? 0m : rest, isClosed);
         }).ToList();
         return TypedResults.Ok(new CustomerOpenItems(cariId, F5Ortak.CariAdi(names, cariId),
-            await cash.GetCariBalanceAsync(cariId, ct), items.Where(i => !i.Kapali).Sum(i => i.Kalan), items));
+            await cash.GetAccountBalanceAsync(cariId, ct), items.Where(i => !i.Kapali).Sum(i => i.Kalan), items));
     }
 }

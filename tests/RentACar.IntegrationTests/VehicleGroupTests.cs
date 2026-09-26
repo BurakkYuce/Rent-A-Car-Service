@@ -98,7 +98,7 @@ public sealed class VehicleGroupTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(new VehicleGroupInput { Kod = "X", Ad = "Yetkisiz" }));
     }
 
@@ -135,7 +135,7 @@ public sealed class VehicleGroupTests(PostgresFixture fx)
         await vehicles.CreateAsync(new VehicleInput { Plaka = "34UM0002", Durum = VehicleStatus.Musait, Grup = "FİAT-EGEA-MANUEL-DİZEL" }); // gerçek sapma
         await vehicles.CreateAsync(new VehicleInput { Plaka = "34UM0003", Durum = VehicleStatus.Musait, Grup = "FİAT-EGEA-MANUEL-DİZEL" }); // aynı sapma, 2. araç
 
-        var unmatched = await groups.ListUnmatchedGrupValuesAsync();
+        var unmatched = await groups.ListUnmatchedGroupValuesAsync();
 
         Assert.Single(unmatched);
         Assert.Equal("FİAT-EGEA-MANUEL-DİZEL", unmatched[0].Grup);

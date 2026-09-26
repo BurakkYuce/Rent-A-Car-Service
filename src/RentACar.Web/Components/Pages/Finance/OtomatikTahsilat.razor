@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy = "izin:FinanceWrite")]
 @using RentACar.Application.FaturaDonemleri
 @using RentACar.Domain.Enums
-@inject OtomatikTahsilatService Tetik
+@inject AutoCollectionService Tetik
 @inject TenantSettingsService Ayarlar
 
 <PageTitle>Otomatik Tahsilat — RentPro</PageTitle>
@@ -47,7 +47,7 @@
 @* Tutarlar DÖVİZ KIRILIMLI yazılır: native tutarları tek sayıda toplamak (EUR + TRY) anlamsız
    bir rakam üretiyordu (adversarial L1). Cari bakiye BAZ paradır, ayrı gösterilir. *@
 <p class="muted small">@_adaylar.Count aday dönem@(FiltreVar ? " (filtreli)" : "") ·
-    @foreach (var (doviz, toplam) in OtomatikTahsilatService.DovizToplamlari(_adaylar))
+    @foreach (var (doviz, toplam) in AutoCollectionService.CurrencyTotals(_adaylar))
     {
         <text>@toplam.ToString("N2") @doviz · </text>
     }
@@ -118,7 +118,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _jobAcik = (await Ayarlar.GetAsync())?.DonemselOtomatikTahsilat ?? false;
-        _adaylar = await Tetik.AdaylarAsync(new OtomatikTahsilatFiltre
+        _adaylar = await Tetik.CandidatesAsync(new OtomatikTahsilatFiltre
         {
             SozlesmeNo = Soz,
             VadeMin = DateTimeOffset.TryParse(Min, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : null,

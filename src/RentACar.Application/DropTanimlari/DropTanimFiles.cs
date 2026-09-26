@@ -6,11 +6,11 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.DropTanimlari;
 
 /// <summary>Drop matris kalıcılığı (roadmap N2).</summary>
-public interface IDropTanimRepository : IVersionedRepository<DropTanim>
+public interface IDropDefinitionRepository : IVersionedRepository<DropTanim>
 {
     Task<IReadOnlyList<DropTanim>> ListAsync(CancellationToken ct = default);
     /// <summary>FAZ-22 filtreli liste (dönüş lokasyonu / çıkış lokasyonu / şube / durum).</summary>
-    Task<IReadOnlyList<DropTanim>> SearchAsync(DropTanimFilter filtre, CancellationToken ct = default);
+    Task<IReadOnlyList<DropTanim>> SearchAsync(DropTanimFilter filter, CancellationToken ct = default);
     Task<DropTanim?> FindAsync(Guid id, CancellationToken ct = default);
     Task CreateAsync(DropTanim row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<DropTanim> apply, CancellationToken ct = default);
@@ -50,23 +50,23 @@ public sealed class DropTanimInput
 }
 
 /// <summary>Lokasyon-şube drop matris master iş mantığı (roadmap N2). Yazma OperationsWrite.</summary>
-public sealed class DropTanimService(IDropTanimRepository repository, ICurrentUser currentUser)
+public sealed class DropDefinitionService(IDropDefinitionRepository repository, ICurrentUser currentUser)
 {
-    private readonly IDropTanimRepository _repository = repository;
+    private readonly IDropDefinitionRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
 
     public Task<IReadOnlyList<DropTanim>> ListAsync(CancellationToken ct = default) => _repository.ListAsync(ct);
 
     /// <summary>FAZ-22 filtreli liste. Filtre yalnız GÖRÜNÜMÜ daraltır; ücret motoru bundan etkilenmez.</summary>
-    public Task<IReadOnlyList<DropTanim>> SearchAsync(DropTanimFilter? filtre = null, CancellationToken ct = default)
-        => _repository.SearchAsync(filtre ?? new DropTanimFilter(), ct);
+    public Task<IReadOnlyList<DropTanim>> SearchAsync(DropTanimFilter? filter = null, CancellationToken ct = default)
+        => _repository.SearchAsync(filter ?? new DropTanimFilter(), ct);
     public Task<DropTanim?> GetAsync(Guid id, CancellationToken ct = default) => _repository.FindAsync(id, ct);
 
     public async Task<Guid> CreateAsync(DropTanimInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
-        Sayilar(input);
+        Counts(input);
         var row = new DropTanim
         {
             Lokasyon = n.Lokasyon, Sube = n.Sube,
@@ -96,7 +96,7 @@ public sealed class DropTanimService(IDropTanimRepository repository, ICurrentUs
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
-        Sayilar(input);
+        Counts(input);
         void Update(DropTanim r)
         {
             r.Lokasyon = n.Lokasyon; r.Sube = n.Sube;
@@ -119,7 +119,7 @@ public sealed class DropTanimService(IDropTanimRepository repository, ICurrentUs
     }
 
     /// <summary>Sayısal alan doğrulaması — negatif ücret/gün/süre reddedilir.</summary>
-    private static void Sayilar(DropTanimInput i)
+    private static void Counts(DropTanimInput i)
     {
         if (i.Ucret is < 0m) throw new ValidationException("Drop ücreti negatif olamaz.");
         if (i.Drop2 is < 0m) throw new ValidationException("Drop 2 negatif olamaz.");
@@ -131,10 +131,10 @@ public sealed class DropTanimService(IDropTanimRepository repository, ICurrentUs
         string? OzelIletisim, string? CikisLokasyon) Normalize(DropTanimInput i)
     {
         var lok = (i.Lokasyon ?? "").Trim();
-        var sube = (i.Sube ?? "").Trim();
+        var branch = (i.Sube ?? "").Trim();
         if (string.IsNullOrWhiteSpace(lok)) throw new ValidationException("Lokasyon zorunludur.");
-        if (string.IsNullOrWhiteSpace(sube)) throw new ValidationException("Şube zorunludur.");
+        if (string.IsNullOrWhiteSpace(branch)) throw new ValidationException("Şube zorunludur.");
         static string? T(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-        return (lok, sube, T(i.KarsilamaSekli), T(i.CalismaSekli), T(i.OzelIletisim), T(i.CikisLokasyon));
+        return (lok, branch, T(i.KarsilamaSekli), T(i.CalismaSekli), T(i.OzelIletisim), T(i.CikisLokasyon));
     }
 }

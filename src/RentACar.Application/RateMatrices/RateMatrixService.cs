@@ -32,15 +32,15 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
     /// Yetki gerektirmez (salt fiyat okuma; ListActive gibi). Eşleşme yoksa null. Deftere dokunmaz.
     /// YALNIZ tarife-matris ekranının fiyat-sorgu paneli (RateMatrixList) + test-oracle kullanır;
     /// booking/kira fiyat akışının üretim çözümleyicisi <c>RentalQuoteEngine.SelectMatrix</c>'tir.</summary>
-    public async Task<RateMatrisSonuc?> CozumleAsync(RateMatrisSorgu sorgu, CancellationToken ct = default)
-        => RateMatrisCozumleme.Coz(await _repository.ListActiveAsync(ct), sorgu);
+    public async Task<RateMatrisSonuc?> ResolveAsync(RateMatrisSorgu query, CancellationToken ct = default)
+        => RateMatrixResolution.Resolve(await _repository.ListActiveAsync(ct), query);
 
     public async Task<Guid> CreateAsync(RateMatrixInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu tarife matrisi zaten var.");
 
         var row = new RateMatrix();
@@ -54,7 +54,7 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu tarife matrisi zaten var.");
 
         return await _repository.UpdateAsync(id, row =>
@@ -74,7 +74,7 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu tarife matrisi zaten var.");
         return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<RateMatrix>(id, expectedVersion, row =>
         {
@@ -93,7 +93,7 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
     /// FAZ-31 — bir Rezervasyon Kaynağının (<see cref="RateMatrix.Kanal"/>) tarife satırlarını
     /// TOPLU siler.
     ///
-    /// <para><b>YALNIZ <see cref="TarifeOnayDurumu.Bekliyor"/> SİLİNİR.</b> Başka bir durum
+    /// <para><b>YALNIZ <see cref="TariffApprovalStatus.Bekliyor"/> SİLİNİR.</b> Başka bir durum
     /// istenirse gürültülü red — sessizce daraltmak, kullanıcının "onaylıları da sildim" sanmasına
     /// yol açardı. Çit güvenlik kararıdır: fiyat motoru (<c>RentalQuoteEngine.RowMatches</c>,
     /// <c>RateMatrisCozumleme</c>) YALNIZ <c>Onayli</c> satırları kullanır; dolayısıyla bu işlem
@@ -120,24 +120,24 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
     /// bir kaynağa ait değildir.</para>
     /// </summary>
     /// <returns>Silinen satır sayısı.</returns>
-    public async Task<int> DeleteByKanalAsync(string? kanal, TarifeOnayDurumu sadeceDurum,
+    public async Task<int> DeleteByChannelAsync(string? channel, TariffApprovalStatus statusOnly,
         CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ManageUsers);
 
-        if (sadeceDurum != TarifeOnayDurumu.Bekliyor)
+        if (statusOnly != TariffApprovalStatus.Bekliyor)
             throw new ValidationException(
                 "Toplu silme yalnız 'Bekliyor' durumundaki tarife satırları için yapılabilir; onaylı tarifeler bu yolla silinemez.");
 
-        if (string.IsNullOrWhiteSpace(kanal))
+        if (string.IsNullOrWhiteSpace(channel))
             throw new ValidationException("Silinecek rezervasyon kaynağı (kanal) seçilmelidir.");
 
-        var hedefler = (await _repository.ListAsync(ct))
-            .Where(r => SilmeAdayi(r, kanal))
+        var targets = (await _repository.ListAsync(ct))
+            .Where(r => DeletionCandidate(r, channel))
             .Select(r => r.Id)
             .ToList();
 
-        return await _repository.DeleteManyAsync(hedefler, ct);
+        return await _repository.DeleteManyAsync(targets, ct);
     }
 
     /// <summary>
@@ -149,11 +149,11 @@ public sealed class RateMatrixService(IRateMatrixRepository repository, ICurrent
     /// kullanıcı yanlış sayıyı onaylardı. Saf olduğu için ekstra bir DB okuması da gerekmez —
     /// sayfa zaten elindeki listeyi kullanır.</para>
     /// </summary>
-    public static bool SilmeAdayi(RateMatrix r, string? kanal)
-        => !string.IsNullOrWhiteSpace(kanal)
-           && r.OnayDurumu == TarifeOnayDurumu.Bekliyor
+    public static bool DeletionCandidate(RateMatrix r, string? channel)
+        => !string.IsNullOrWhiteSpace(channel)
+           && r.OnayDurumu == TariffApprovalStatus.Bekliyor
            && r.Kanal is not null
-           && string.Equals(r.Kanal.Trim(), kanal.Trim(), StringComparison.OrdinalIgnoreCase);
+           && string.Equals(r.Kanal.Trim(), channel.Trim(), StringComparison.OrdinalIgnoreCase);
 
     private static void Validate(RateMatrixInput n)
     {

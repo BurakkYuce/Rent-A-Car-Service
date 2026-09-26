@@ -26,7 +26,7 @@ public static partial class AracApi
 
     private static async Task<AracKartDto?> KartAsync(Guid id, VehicleService araclar, CancellationToken ct)
     {
-        var surum = await araclar.SurumAsync(id, ct);
+        var surum = await araclar.VersionAsync(id, ct);
         var v = await araclar.GetAsync(id, ct); // şube kapsamı → YetkiYokException (403)
         return v is null ? null : AracGirdi.Kart(v, surum);
     }
@@ -38,7 +38,7 @@ public static partial class AracApi
         if (await araclar.GetAsync(id, ct) is null) return Bulunamadi();
         var d = await detaylar.GetVehicleAsync(id, ct);
         if (d is null) return Bulunamadi();
-        var km = await araclar.KmLoglariAsync(id, 10, ct);
+        var km = await araclar.KmLogsAsync(id, 10, ct);
         var v = d.Vehicle;
         return TypedResults.Ok(new AracDetayDto(v.Id, v.Plaka, v.Marka, v.Grup, v.Sube, v.Durum.ToString(), v.Km,
             d.Rentals.Select(r => new AracKiraOzeti(r.Id, r.SozlesmeNo, r.BasTar, r.BitTar, r.Durum.ToString(), r.GenelToplam)).ToList(),
@@ -112,7 +112,7 @@ public static partial class AracApi
         if (await araclar.GetAsync(id, ct) is null) return Bulunamadi();
         if (istek.Km is not { } km) throw new ValidationException("KM zorunludur.", "km");
         if (km > 10_000_000) throw new ValidationException("KM 10.000.000'dan büyük olamaz.", "km");
-        await araclar.ManuelKmGirAsync(id, km, istek.Tarih?.ToUniversalTime(), ct);
+        await araclar.EnterManualKmAsync(id, km, istek.Tarih?.ToUniversalTime(), ct);
         return TypedResults.NoContent();
     }
 }

@@ -60,11 +60,11 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         return t.Id;
     }
 
-    private static PlatformBelgeService Belgeler(TestHost host, Guid tenantId, out IServiceScope scope,
+    private static PlatformDocumentService Belgeler(TestHost host, Guid tenantId, out IServiceScope scope,
         UserRole role = UserRole.Admin)
     {
         scope = host.ScopeFor(tenantId, role: role);
-        return scope.ServiceProvider.GetRequiredService<PlatformBelgeService>();
+        return scope.ServiceProvider.GetRequiredService<PlatformDocumentService>();
     }
 
     // ---- Yaşam döngüsü ----
@@ -81,8 +81,8 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         var svc = Belgeler(host, tenantId, out var scope); using (scope)
         {
             // "Yükle → kontrol et → yayınla" akışı: yükleme anında canlıya ÇIKMAZ.
-            Assert.DoesNotContain(await svc.ListeleAsync(), x => x.Id == belgeId2);
-            Assert.Null(await svc.IndirAsync(belgeId2));
+            Assert.DoesNotContain(await svc.ListAsync(), x => x.Id == belgeId2);
+            Assert.Null(await svc.DownloadAsync(belgeId2));
         }
     }
 
@@ -100,10 +100,10 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         {
             var svc = Belgeler(host, t, out var scope); using (scope)
             {
-                var satir = Assert.Single(await svc.ListeleAsync(), x => x.Id == belgeId);
+                var satir = Assert.Single(await svc.ListAsync(), x => x.Id == belgeId);
                 Assert.Equal("KVKK Metni", satir.Baslik);
                 Assert.True(satir.Yeni);                     // 14 gün içinde güncellendi
-                Assert.NotNull(await svc.IndirAsync(belgeId));
+                Assert.NotNull(await svc.DownloadAsync(belgeId));
             }
         }
     }
@@ -120,8 +120,8 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var svc = Belgeler(host, tenantId, out var scope); using (scope)
         {
-            Assert.DoesNotContain(await svc.ListeleAsync(), x => x.Id == belgeId);
-            Assert.Null(await svc.IndirAsync(belgeId));      // arşiv → indirilemez
+            Assert.DoesNotContain(await svc.ListAsync(), x => x.Id == belgeId);
+            Assert.Null(await svc.DownloadAsync(belgeId));      // arşiv → indirilemez
         }
         // …ama platform tarafında kayıt ve dosya duruyor ("hangi sürümü indirdiler" cevaplanabilir).
         Assert.NotNull(await platform.BelgeIcerikAsync(belgeId));
@@ -145,16 +145,16 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         // Hedef tenant: görüyor VE indiriyor.
         var hedefSvc = Belgeler(host, hedefTenant, out var s1); using (s1)
         {
-            Assert.Contains(await hedefSvc.ListeleAsync(), x => x.Id == belgeId);
-            Assert.NotNull(await hedefSvc.IndirAsync(belgeId));
+            Assert.Contains(await hedefSvc.ListAsync(), x => x.Id == belgeId);
+            Assert.NotNull(await hedefSvc.DownloadAsync(belgeId));
         }
 
         // Yabancı tenant: listede YOK **ve** ID'yi bilse bile İNDİREMİYOR.
         // RLS burada korumuyor (platform tablosu) → tek savunma uygulama yüklemi.
         var yabanciSvc = Belgeler(host, yabanciTenant, out var s2); using (s2)
         {
-            Assert.DoesNotContain(await yabanciSvc.ListeleAsync(), x => x.Id == belgeId);
-            Assert.Null(await yabanciSvc.IndirAsync(belgeId));
+            Assert.DoesNotContain(await yabanciSvc.ListAsync(), x => x.Id == belgeId);
+            Assert.Null(await yabanciSvc.DownloadAsync(belgeId));
         }
     }
 
@@ -172,15 +172,15 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         // Operatör: görmüyor ve indiremiyor.
         var opSvc = Belgeler(host, tenantId, out var s1, UserRole.Operator); using (s1)
         {
-            Assert.DoesNotContain(await opSvc.ListeleAsync(), x => x.Id == belgeId);
-            Assert.Null(await opSvc.IndirAsync(belgeId));
+            Assert.DoesNotContain(await opSvc.ListAsync(), x => x.Id == belgeId);
+            Assert.Null(await opSvc.DownloadAsync(belgeId));
         }
 
         // Yonetici (DİKKAT: ASCII, "Yönetici" DEĞİL — yanlış yazım kimseyi geçirmezdi): görüyor.
         var yonSvc = Belgeler(host, tenantId, out var s2, UserRole.Yonetici); using (s2)
         {
-            Assert.Contains(await yonSvc.ListeleAsync(), x => x.Id == belgeId);
-            Assert.NotNull(await yonSvc.IndirAsync(belgeId));
+            Assert.Contains(await yonSvc.ListAsync(), x => x.Id == belgeId);
+            Assert.NotNull(await yonSvc.DownloadAsync(belgeId));
         }
     }
 
@@ -195,7 +195,7 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         // Yeni bir Permission değeri EKLENMEDİ; kapı "oturum açık" + belge bayrağı.
         var svc = Belgeler(host, tenantId, out var scope, UserRole.Muhasebe); using (scope)
-            Assert.Contains(await svc.ListeleAsync(), x => x.Id == belgeId);
+            Assert.Contains(await svc.ListAsync(), x => x.Id == belgeId);
     }
 
     // ---- Sürümleme ----
@@ -213,11 +213,11 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         var svc = Belgeler(host, tenantId, out var scope); using (scope)
         {
             // TEK kayıt — yeni satır açılmadı (aynı Id, sürüm artmış).
-            var satir = Assert.Single(await svc.ListeleAsync(), x => x.Id == belgeId);
+            var satir = Assert.Single(await svc.ListAsync(), x => x.Id == belgeId);
             Assert.Equal(2, satir.Surum);
             Assert.Equal(505, satir.Boyut);                     // yeni dosyanın boyutu
 
-            var icerik = await svc.IndirAsync(belgeId);          // ESKİ link çalışmaya devam ediyor
+            var icerik = await svc.DownloadAsync(belgeId);          // ESKİ link çalışmaya devam ediyor
             Assert.NotNull(icerik);
             Assert.Equal(2, icerik!.Surum);                      // ETag'in sürüm bileşeni
         }
@@ -247,7 +247,7 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var svc = Belgeler(host, tenantId, out var scope); using (scope)
         {
-            var ad = (await svc.IndirAsync(belgeId))!.DosyaAdi;
+            var ad = (await svc.DownloadAsync(belgeId))!.DosyaAdi;
             Assert.Equal("sofor-kilavuzu.pdf", ad);
             Assert.All(ad, c => Assert.True(char.IsAscii(c)));
         }
@@ -274,7 +274,7 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         var identity = new SystemTenantContext { TenantId = tenantId };
         var repo = new PlatformBelgeRepository(new ScopedAppDbContextFactory(options, identity, identity));
 
-        var liste = await repo.ListeleAsync(tenantId, yoneticiMi: true);
+        var liste = await repo.ListAsync(tenantId, yoneticiMi: true);
         Assert.Contains(liste, x => x.Id == belgeId);
 
         var gidenSql = string.Join("\n", sql);

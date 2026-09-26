@@ -51,7 +51,7 @@ public sealed partial class UiCustomerApiTests
             "DASH" => $"{tc[..3]}-{tc[3..]}",
             _ => tc + " ",
         };
-        var legacy = new Customer { Tip = CariType.Kurumsal, Unvan = "Eski " + Marker(), VergiNo = stored };
+        var legacy = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Eski " + Marker(), VergiNo = stored };
         await WriteAsync(e.TenantId, db => db.Customers.Add(legacy));
 
         var (card, rawCard) = await Json(await Send(opA, HttpMethod.Get, $"{Customers}/{legacy.Id}"));

@@ -14,7 +14,7 @@ public interface IReportRepository
     /// Cari GENERİK çözülür: aynı <c>SourceId</c>'yi paylaşan dengeli kümenin Cari/Depozito
     /// bacağından. Sözlük anahtarı <c>SourceId</c>.
     /// </summary>
-    Task<IReadOnlyDictionary<Guid, HareketBelgeDto>> GetHareketBelgeleriAsync(
+    Task<IReadOnlyDictionary<Guid, HareketBelgeDto>> GetMovementDocumentsAsync(
         IReadOnlyCollection<Guid> sourceIds, CancellationToken ct = default);
 
     Task<IReadOnlyList<LedgerRowDto>> GetLedgerRowsAsync(
@@ -25,7 +25,7 @@ public interface IReportRepository
     /// Cari (AccountType=Cari) defter satırları, cari adı çözümlenmiş (Customers join, bellek-içi
     /// DisplayName). <paramref name="asOf"/> verilirse o tarihe kadar. Bakiye + yaşlandırma için.
     /// </summary>
-    Task<IReadOnlyList<CariLedgerRowDto>> GetCariLedgerRowsAsync(
+    Task<IReadOnlyList<CariLedgerRowDto>> GetAccountLedgerRowsAsync(
         DateTimeOffset? asOf, CancellationToken ct = default);
 
     /// <summary>
@@ -33,41 +33,41 @@ public interface IReportRepository
     /// kolon ve filtre ihtiyacı için; defter matematiğinden AYRI tutulur ki bakiye hesabı kart
     /// alanlarındaki bir değişiklikten etkilenmesin.
     /// </summary>
-    Task<IReadOnlyList<CariKartDto>> GetCariKartlariAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<CariKartDto>> GetAccountCardsAsync(CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-61 — extre özeti satırları: fatura × cari × kira × araç. İptal faturalar HARİÇ.
     /// Tutar BRÜT (fatura-bazlı tahsilat mahsubu sistemde yok — bkz. <see cref="ExtreOzetiRowDto"/>).
     /// </summary>
-    Task<IReadOnlyList<ExtreOzetiRowDto>> GetExtreOzetiRowsAsync(
+    Task<IReadOnlyList<ExtreOzetiRowDto>> GetStatementSummaryRowsAsync(
         ExtreOzetiFilter? filter, DateTimeOffset asOf, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-68 — tahsilat raporu satır modu: sözleşme başına borç/faturalanan/tahsilat mutabakatı.
-    /// Dönem-toplamı modu (<see cref="GetTahsilatFaturaAsync"/>) DEĞİŞMEZ, bu ayrı bir görünümdür.
+    /// Dönem-toplamı modu (<see cref="GetCollectionInvoiceAsync"/>) DEĞİŞMEZ, bu ayrı bir görünümdür.
     /// </summary>
-    Task<IReadOnlyList<TahsilatMutabakatRowDto>> GetTahsilatMutabakatRowsAsync(
+    Task<IReadOnlyList<TahsilatMutabakatRowDto>> GetCollectionReconciliationRowsAsync(
         TahsilatMutabakatFilter? filter, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-78 — ek hizmet SATIR-BAZLI detay (kira/araç/müşteri/personel çözümlenmiş).
-    /// Mevcut ÖZET sorgusu <see cref="GetEkHizmetSalesRowsAsync"/> DEĞİŞMEZ; bu ayrı bir yoldur.
+    /// Mevcut ÖZET sorgusu <see cref="GetAddOnSalesRowsAsync"/> DEĞİŞMEZ; bu ayrı bir yoldur.
     /// </summary>
-    Task<IReadOnlyList<EkHizmetDetayRow>> GetEkHizmetDetayRowsAsync(
+    Task<IReadOnlyList<EkHizmetDetayRow>> GetAddOnDetailRowsAsync(
         EkHizmetDetayFilter? filter, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-27 — karşılaştırmalı hacim pivotu (kira/rezervasyon × adet/gün × kırılım × ay).
     /// Tutar üretmez.
     /// </summary>
-    Task<KarsilastirmaliAnalizDto> GetKarsilastirmaliAnalizAsync(
+    Task<KarsilastirmaliAnalizDto> GetComparativeAnalysisAsync(
         KarsilastirmaliAnalizFilter filter, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-75 — araç başına belge/vade envanteri (Trafik/Kasko/MTV/Muayene + araç master).
     /// TÜM araçlar döner (belgesiz araç da satır alır — eksik belge görünmelidir).
     /// </summary>
-    Task<IReadOnlyList<SigortaMuayeneRow>> GetSigortaMuayeneRowsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<SigortaMuayeneRow>> GetInsuranceInspectionRowsAsync(CancellationToken ct = default);
 
     /// <summary>Tüm araçların durumları (filo dağılımı için).</summary>
     Task<IReadOnlyList<VehicleStatus>> GetVehicleStatusesAsync(CancellationToken ct = default);
@@ -83,20 +83,20 @@ public interface IReportRepository
     /// FAZ-77 — şube kırılımlı filo raporu hamı. Kira/rezervasyon/BAF satırları ARACIN şubesine
     /// göre etiketlenir (tek atıf kuralı, bkz. <see cref="FiloSubeRow"/>).
     /// </summary>
-    Task<FiloSubeHamPaket> GetFiloSubeHamAsync(
-        DateTimeOffset pencereBas, DateTimeOffset pencereBit, CancellationToken ct = default);
+    Task<FiloSubeHamPaket> GetFleetBranchRawAsync(
+        DateTimeOffset windowStart, DateTimeOffset windowEnd, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-77 — gün-kırılımlı doluluk hamı: araç envanteri (payda) + dönemle çakışan kira ve
     /// rezervasyon aralıkları, şube/grup/kaynak atıflarıyla. <see cref="GetRentalIntervalsAsync"/>
     /// olduğu gibi durur (geriye uyum).
     /// </summary>
-    Task<DolulukAtifPaket> GetDolulukAtifAsync(
+    Task<DolulukAtifPaket> GetOccupancyAttributionAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
     /// Dönem ([from,to]) tahsilat-fatura mutabakatı: fatura (İptal hariç, GenelToplam×Kur) ve
     /// tahsilat (ters kayıt hariç, Amount×Rate) adet+toplamları. Fark service'te hesaplanır.
     /// </summary>
-    Task<TahsilatFaturaDto> GetTahsilatFaturaAsync(
+    Task<TahsilatFaturaDto> GetCollectionInvoiceAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>Aktif (Kirada) kira sözleşmesi sayısı.</summary>
@@ -110,40 +110,40 @@ public interface IReportRepository
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>Periyodik servis: her aracın en yüksek SonrakiBakimKm'si + güncel km (roadmap H1).</summary>
-    Task<IReadOnlyList<PeriyodikServisRow>> GetPeriyodikServisRowsAsync(
-        PeriyodikServisFilter? filtre = null, CancellationToken ct = default);
+    Task<IReadOnlyList<PeriyodikServisRow>> GetPeriodicServiceRowsAsync(
+        PeriyodikServisFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>Dönmüş kiraların (CikisKm+DonusKm dolu) KM detayı (roadmap H1).</summary>
-    Task<IReadOnlyList<KmDetayRow>> GetKmDetayRowsAsync(
+    Task<IReadOnlyList<KmDetayRow>> GetKmDetailRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>Rezervasyon kaynak özeti (roadmap H2): BasTar [from,to] filtreli, kaynak başına agrega.</summary>
-    Task<IReadOnlyList<RezervasyonKaynakRow>> GetRezervasyonKaynakRowsAsync(
-        RezervasyonKaynakFilter filtre, CancellationToken ct = default);
+    Task<IReadOnlyList<RezervasyonKaynakRow>> GetReservationSourceRowsAsync(
+        RezervasyonKaynakFilter filter, CancellationToken ct = default);
 
     /// <summary>Fatura dönem listesi (roadmap H2): Tarih [from,to] filtreli, cari adıyla.</summary>
-    Task<IReadOnlyList<FaturaDonemRow>> GetFaturaDonemRowsAsync(
+    Task<IReadOnlyList<FaturaDonemRow>> GetInvoicePeriodRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-53 — kira faturalama durumu: dönemle KESİŞEN kiralar (BasTar &lt;= to &amp;&amp; BitTar &gt;= from)
     /// + her birinin faturalanıp faturalanmadığı. "Faturalanmamış kira" sekmesinin kaynağı.
     /// </summary>
-    Task<IReadOnlyList<KiraFaturaDurumRow>> GetKiraFaturaDurumRowsAsync(
+    Task<IReadOnlyList<KiraFaturaDurumRow>> GetRentalInvoiceStatusRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, KiraFaturaDurumFilter? filter,
         CancellationToken ct = default);
 
     /// <summary>Araç durum-takip (roadmap H3): [from,to] her gün için dolu/bakım/boş sayısı (gün kırılımı).</summary>
-    Task<IReadOnlyList<AracDurumTakipRow>> GetAracDurumTakipRowsAsync(
-        DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filtre = null, CancellationToken ct = default);
+    Task<IReadOnlyList<AracDurumTakipRow>> GetVehicleStatusTrackingRowsAsync(
+        DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-12 Bölüm A — araç durum-takip ARAÇ kırılımı: [from,to] aralığında araç başına
-    /// dolu/bakım/baf/boş GÜN sayısı. Gün kırılımıyla (<see cref="GetAracDurumTakipRowsAsync"/>)
+    /// dolu/bakım/baf/boş GÜN sayısı. Gün kırılımıyla (<see cref="GetVehicleStatusTrackingRowsAsync"/>)
     /// aynı ham veriden türer; o sorgu DEĞİŞMEZ. Filtreye uyan araç yoksa boş liste.
     /// </summary>
-    Task<IReadOnlyList<AracDurumTakipAracRow>> GetAracDurumTakipAracBazliRowsAsync(
-        DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filtre = null, CancellationToken ct = default);
+    Task<IReadOnlyList<AracDurumTakipAracRow>> GetVehicleStatusTrackingByVehicleRowsAsync(
+        DateTimeOffset from, DateTimeOffset to, AracDurumTakipFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-12 Bölüm B — verilen GÜNDE aktif olan kiraların araç-bazlı günlük gelir kesiti.
@@ -151,57 +151,57 @@ public interface IReportRepository
     /// (<c>BasTar.Date &lt;= gün &lt;= (GercekDonusTar ?? BitTar).Date</c>, İptal hariç) — iki rapor
     /// aynı aracı aynı gün farklı anlatmasın. Tutarlar PROJEKSİYON, deftere yazılmaz.
     /// </summary>
-    Task<IReadOnlyList<AracGunlukDurumRow>> GetAracGunlukDurumRowsAsync(
-        DateTimeOffset gun, AracGunlukDurumFilter? filtre = null, CancellationToken ct = default);
+    Task<IReadOnlyList<AracGunlukDurumRow>> GetVehicleDailyStatusRowsAsync(
+        DateTimeOffset day, AracGunlukDurumFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>
     /// Müşteri segment (roadmap N3): kira sayısı/ciro/son işlem (kiralardan agrega).
     /// FAZ-41: opsiyonel süzgeç (tarih aralığı / min kira adedi / rez. kaynağı / çıkış ofisi) +
     /// iletişim ve projeksiyon alanları. <c>null</c> filtre → tüm kiralar (eski davranış).
     /// </summary>
-    Task<IReadOnlyList<MusteriSegmentRow>> GetMusteriSegmentRowsAsync(
+    Task<IReadOnlyList<MusteriSegmentRow>> GetCustomerSegmentRowsAsync(
         MusteriSegmentFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>FAZ-41 — segment süzgeci açılır liste seçenekleri (FİLTRESİZ kiralardan).</summary>
-    Task<MusteriSegmentSecenekleri> GetMusteriSegmentSecenekleriAsync(CancellationToken ct = default);
+    Task<MusteriSegmentSecenekleri> GetCustomerSegmentOptionsAsync(CancellationToken ct = default);
 
     /// <summary>Personel çalışma (roadmap N3): personel başına BAF (araç tahsis) sayısı.</summary>
-    Task<IReadOnlyList<PersonelCalismaRow>> GetPersonelCalismaRowsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<PersonelCalismaRow>> GetPersonnelWorkRowsAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Bir günün ([from,to]) operasyonel faaliyet sayaçları + tutarları (yeni rezervasyon/kira,
     /// çıkış/dönüş, tahsilat, fatura). Günlük faaliyet raporu için.
     /// </summary>
-    Task<GunlukFaaliyetDto> GetGunlukFaaliyetAsync(
-        DateTimeOffset from, DateTimeOffset to, string? sube = null, CancellationToken ct = default);
+    Task<GunlukFaaliyetDto> GetDailyActivityAsync(
+        DateTimeOffset from, DateTimeOffset to, string? branch = null, CancellationToken ct = default);
 
     /// <summary>
     /// İptal olmayan faturaların satırları (Invoice.Tarih aralığında), base para (× Kur) tutarlarıyla.
     /// KDV oranı bazlı dönem kırılımı (KDV listesi raporu) için ham satırlar.
     /// </summary>
-    Task<IReadOnlyList<KdvLineRowDto>> GetKdvLineRowsAsync(
+    Task<IReadOnlyList<KdvLineRowDto>> GetVatLineRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>
-    /// FAZ-53 — KDV geniş format (satır=belge, sütun=oran) satırları. <paramref name="dahilAlis"/>
+    /// FAZ-53 — KDV geniş format (satır=belge, sütun=oran) satırları. <paramref name="includePurchases"/>
     /// true ise gelen e-Faturaların (FAZ-55 oran kırılımı) alış satırları da eklenir; kırılımı
     /// girilmemiş / reddedilmiş / TRY olmayan belgeler dışarıda kalır (sonuncuların sayısı döner).
     /// </summary>
-    Task<(IReadOnlyList<KdvGenisSatirDto> Satirlar, int AtlananDovizliAlis)> GetKdvGenisRowsAsync(
-        DateTimeOffset? from, DateTimeOffset? to, bool dahilAlis, CancellationToken ct = default);
+    Task<(IReadOnlyList<KdvGenisSatirDto> Satirlar, int AtlananDovizliAlis)> GetVatExtendedRowsAsync(
+        DateTimeOffset? from, DateTimeOffset? to, bool includePurchases, CancellationToken ct = default);
 
     /// <summary>
     /// İptal olmayan kiraların ek hizmet kalemleri (RentalAddOn.CreatedAtUtc aralığında), base para.
     /// Ek hizmet satış raporu (Extralar_Raporu) için ham satırlar.
     /// </summary>
-    Task<IReadOnlyList<EkHizmetSalesRowDto>> GetEkHizmetSalesRowsAsync(
+    Task<IReadOnlyList<EkHizmetSalesRowDto>> GetAddOnSalesRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-12 Bölüm C — aynı ek hizmet kalemleri, ARAÇ kimliği çözülmüş hâlde (araç-bazlı pivot için).
-    /// Pencere tanımı <see cref="GetEkHizmetSalesRowsAsync"/> ile BİREBİR aynıdır; o sorgu DEĞİŞMEZ.
+    /// Pencere tanımı <see cref="GetAddOnSalesRowsAsync"/> ile BİREBİR aynıdır; o sorgu DEĞİŞMEZ.
     /// </summary>
-    Task<IReadOnlyList<EkHizmetAracSalesRow>> GetEkHizmetAracSalesRowsAsync(
+    Task<IReadOnlyList<EkHizmetAracSalesRow>> GetAddOnVehicleSalesRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>
@@ -209,7 +209,7 @@ public interface IReportRepository
     /// base, SourceId→Fatura→Kira→Araç ile atfedilir. Araca bağlanamayan gelir/gider null VehicleId
     /// "(Atanmamış)" satırına toplanır. Σ satır Gelir/Gider = defter Gelir/Gider toplamı (invariant).
     /// </summary>
-    Task<IReadOnlyList<KarlilikSatirDto>> GetKarlilikRowsAsync(
+    Task<IReadOnlyList<KarlilikSatirDto>> GetProfitabilityRowsAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>
@@ -220,7 +220,7 @@ public interface IReportRepository
     /// durur. Ömür listesi from/to null iken BOŞ döner (çağıran pencere listesini kullanır; ikinci
     /// defter taraması yapılmaz).</para>
     /// </summary>
-    Task<KarlilikEkRawDto> GetKarlilikEkRawAsync(
+    Task<KarlilikEkRawDto> GetProfitabilityExtraRawAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>
@@ -232,13 +232,13 @@ public interface IReportRepository
     /// gizleyebilir (ör. 2025 vadeli MTV 2026'da ödendi). KPI ham alanları (aralıklar/KiraSayisi/katedilenKm/
     /// SonSatisTarih) pencereden BAĞIMSIZ tüm geçmiştir — KPI'lar sahiplik-penceresi (ömür boyu) metrikleridir.
     /// </summary>
-    Task<AracKarneRawDto> GetAracKarneRawAsync(
+    Task<AracKarneRawDto> GetVehicleScorecardRawAsync(
         Guid vehicleId, DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 
     /// <summary>
     /// Filo analiz hamı: dönem-pencereli + ömür-boyu Karlilik satırları (aynı atıf kuralları) + araç KPI
     /// alanları (pencere/satış) + İptal-dışı kira aralıkları. Gün/KPI matematiği ReportService'te.
     /// </summary>
-    Task<FiloAnalizRawDto> GetFiloAnalizRawAsync(
+    Task<FiloAnalizRawDto> GetFleetAnalysisRawAsync(
         DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct = default);
 }

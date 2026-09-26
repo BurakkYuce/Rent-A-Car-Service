@@ -32,20 +32,20 @@ public static partial class ReportApi
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
         var simdi = DateTimeOffset.UtcNow;
-        var satirlar = await reports.GetExtreOzetiAsync(new ExtreOzetiFilter
+        var satirlar = await reports.GetStatementSummaryAsync(new ExtreOzetiFilter
         {
             CariId = cariId, Plaka = F(plaka), Ofis = F(ofis), Bas = p.FromUtc, Bit = p.ToUtc,
             YalnizGecikmis = gecikmis == true,
         }, simdi, ct);
         var mask = await CustomerMask.LoadAsync(dbf, satirlar.Select(s => s.CariId), ct);
         var rows = satirlar.Select(s => s with { CariAd = mask.Name(s.CariId, s.CariAd) }).ToList();
-        var ozet = new StatementReportSummary(rows.Sum(r => r.IsaretliTutarTl), rows.Count(r => r.KalanGun(simdi) < 0));
+        var ozet = new StatementReportSummary(rows.Sum(r => r.IsaretliTutarTl), rows.Count(r => r.RemainingDays(simdi) < 0));
         return TypedResults.Ok(new ReportResult<StatementReportSummary, ExtreOzetiRowDto>(p.ToDto(), ozet,
             page.Apply(rows, StatementMap), null));
     }
 
-    private static readonly SiralamaHaritasi<ExtreOzetiRowDto> StatementMap = SiralamaHaritasi<ExtreOzetiRowDto>
-        .Olustur(r => r.FaturaId).Alan("tarih", r => r.Tarih).Alan("vadeTarihi", r => r.VadeTarihi)
+    private static readonly SortFieldMap<ExtreOzetiRowDto> StatementMap = SortFieldMap<ExtreOzetiRowDto>
+        .Create(r => r.FaturaId).Alan("tarih", r => r.Tarih).Alan("vadeTarihi", r => r.VadeTarihi)
         .Alan("faturaNo", r => r.FaturaNo).Alan("cariAd", r => r.CariAd).Alan("tutar", r => r.Tutar);
 
     // ------------------------------------------------------------------ tahsilat-fatura
@@ -55,7 +55,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var data = await reports.GetTahsilatFaturaAsync(p.FromUtc, p.ToUtc, ct);
+        var data = await reports.GetCollectionInvoiceAsync(p.FromUtc, p.ToUtc, ct);
         return TypedResults.Ok(new ReportSummaryResult<TahsilatFaturaDto>(p.ToDto(), data,
             ReportExport.Links(http, user, "tahsilat-fatura", ReportExport.Period(p))));
     }
@@ -80,7 +80,7 @@ public static partial class ReportApi
         var bd = F(bakiye)?.ToLowerInvariant();
         if (bd is not null and not "acik" and not "kapali")
             throw new ValidationException("Geçersiz bakiye değeri. İzin verilenler: acik, kapali.", "bakiye");
-        var satirlar = await reports.GetTahsilatMutabakatAsync(new TahsilatMutabakatFilter
+        var satirlar = await reports.GetCollectionReconciliationAsync(new TahsilatMutabakatFilter
         {
             Ara = F(ara), Durum = F5Ortak.EnumAdi<RentalStatus>(durum, "durum"), BakiyeDurumu = bd,
             YalnizTutarsiz = tutarsiz == true, Bas = p.FromUtc, Bit = p.ToUtc,
@@ -96,8 +96,8 @@ public static partial class ReportApi
             page.Apply(rows, ReconciliationMap), null));
     }
 
-    private static readonly SiralamaHaritasi<ReconciliationReportRow> ReconciliationMap = SiralamaHaritasi<ReconciliationReportRow>
-        .Olustur(r => r.RentalId).Alan("basTar", r => r.BasTar).Alan("sozlesmeNo", r => r.SozlesmeNo)
+    private static readonly SortFieldMap<ReconciliationReportRow> ReconciliationMap = SortFieldMap<ReconciliationReportRow>
+        .Create(r => r.RentalId).Alan("basTar", r => r.BasTar).Alan("sozlesmeNo", r => r.SozlesmeNo)
         .Alan("musteriAd", r => r.MusteriAd).Alan("genelToplam", r => r.GenelToplam).Alan("bakiye", r => r.Bakiye)
         .Alan("faturaFarki", r => r.FaturaFarki);
 
@@ -112,7 +112,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var satirlar = await reports.GetFaturaDonemAsync(p.FromUtc, p.ToUtc, ct);
+        var satirlar = await reports.GetInvoicePeriodAsync(p.FromUtc, p.ToUtc, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
         var rows = satirlar.Select(r => r with { Cari = mask.Name(r.Cari) }).ToList();
         var ozet = new InvoicePeriodSummary(rows.Count, rows.Sum(r => (r.IadeMi ? -r.GenelToplam : r.GenelToplam) * r.Kur));
@@ -120,8 +120,8 @@ public static partial class ReportApi
             page.Apply(rows, InvoicePeriodMap), ReportExport.Links(http, user, "fatura-donem", ReportExport.Period(p))));
     }
 
-    private static readonly SiralamaHaritasi<FaturaDonemRow> InvoicePeriodMap = SiralamaHaritasi<FaturaDonemRow>
-        .Olustur(r => r.InvoiceId).Alan("tarih", r => r.Tarih).Alan("vadeTarihi", r => r.VadeTarihi)
+    private static readonly SortFieldMap<FaturaDonemRow> InvoicePeriodMap = SortFieldMap<FaturaDonemRow>
+        .Create(r => r.InvoiceId).Alan("tarih", r => r.Tarih).Alan("vadeTarihi", r => r.VadeTarihi)
         .Alan("no", r => r.No).Alan("cari", r => r.Cari).Alan("genelToplam", r => r.GenelToplam);
 
     public sealed record RentalInvoiceSummary(int Adet, int FaturalanmamisAdet, decimal FaturalananTutar);
@@ -139,7 +139,7 @@ public static partial class ReportApi
             null => null, "yok" => false, "var" => true,
             _ => throw new ValidationException("Geçersiz faturaDurum değeri. İzin verilenler: yok, var.", "faturaDurum"),
         };
-        var satirlar = await reports.GetKiraFaturaDurumAsync(p.FromUtc, p.ToUtc,
+        var satirlar = await reports.GetRentalInvoiceStatusAsync(p.FromUtc, p.ToUtc,
             new KiraFaturaDurumFilter { Q = F(ara), Faturalanan = faturalanan, SubeId = subeId }, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
         var rows = satirlar.Select(r => r with { Cari = mask.Name(r.Cari) }).ToList();
@@ -150,7 +150,7 @@ public static partial class ReportApi
                 [.. ReportExport.Period(p), ("q", ara), ("faturaDurum", faturaDurum), ("sube", subeId?.ToString())])));
     }
 
-    private static readonly SiralamaHaritasi<KiraFaturaDurumRow> RentalInvoiceMap = SiralamaHaritasi<KiraFaturaDurumRow>
-        .Olustur(r => r.RentalId).Alan("basTar", r => r.BasTar).Alan("sozlesmeNo", r => r.SozlesmeNo)
+    private static readonly SortFieldMap<KiraFaturaDurumRow> RentalInvoiceMap = SortFieldMap<KiraFaturaDurumRow>
+        .Create(r => r.RentalId).Alan("basTar", r => r.BasTar).Alan("sozlesmeNo", r => r.SozlesmeNo)
         .Alan("cari", r => r.Cari).Alan("plaka", r => r.Plaka).Alan("faturalananTutar", r => r.FaturalananTutar);
 }

@@ -78,12 +78,12 @@ public static partial class FinanceHubApi
     /// Kur çözülemezse servisle aynı 400 (<c>kur</c> alanı).
     /// </summary>
     internal static async Task ResolvedBaseLimitAsync(
-        RentACar.Application.Kur.KurCozucu rates, decimal amount, string currency, decimal? rate, DateTimeOffset? date,
+        RentACar.Application.Kur.ExchangeRateResolver rates, decimal amount, string currency, decimal? rate, DateTimeOffset? date,
         CancellationToken ct, string field = "tutar")
     {
         if (rate is not null) return;
         decimal resolved = 0m;
-        try { resolved = await rates.CozAsync(currency, null, date, ct); }
+        try { resolved = await rates.ResolveAsync(currency, null, date, ct); }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException) && ex.Alan is null)
         { throw new ValidationException(ex.Message, "kur"); }
         if (!RentACar.Infrastructure.Persistence.Interceptors.LedgerAmountGuardInterceptor.IsWithinLimit(amount, resolved))

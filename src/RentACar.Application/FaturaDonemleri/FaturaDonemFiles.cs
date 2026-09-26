@@ -6,14 +6,14 @@ using RentACar.Domain.Enums;
 
 namespace RentACar.Application.FaturaDonemleri;
 
-public interface IFaturaDonemRepository
+public interface IInvoicePeriodRepository
 {
     Task<IReadOnlyList<FaturaDonemi>> ListForRentalAsync(Guid rentalId, CancellationToken ct = default);
 
     /// <summary>Planı TEK transaction'da yeniler: verilen rental'ın PLANLANDİ satırları silinir,
-    /// <paramref name="yeniPlanlar"/> eklenir. Kesildi/Atlandi satırlara DOKUNULMAZ (çağıran onların
+    /// <paramref name="newPlans"/> eklenir. Kesildi/Atlandi satırlara DOKUNULMAZ (çağıran onların
     /// sıralarını yeni listeden çıkarmıştır).</summary>
-    Task ReplacePlannedAsync(Guid rentalId, IReadOnlyList<FaturaDonemi> yeniPlanlar, CancellationToken ct = default);
+    Task ReplacePlannedAsync(Guid rentalId, IReadOnlyList<FaturaDonemi> newPlans, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-30 — ELLE TETİKLEME adayları: vadesi gelmiş (DonemBit <= now) PLANLANDI dönemler ×
@@ -24,12 +24,12 @@ public interface IFaturaDonemRepository
     /// kesilmemesi gereken sözleşmelerde değişmez fatura + tahsilat yazılabiliyordu. Job'un kapısı
     /// (<c>DonemFaturaUretici</c>) da budur; iki yol AYNI kuralı konuşmalı.</para>
     /// </summary>
-    Task<IReadOnlyList<OtomatikTahsilatAdayi>> AdaylarAsync(
-        OtomatikTahsilatFiltre filtre, CancellationToken ct = default);
+    Task<IReadOnlyList<OtomatikTahsilatAdayi>> CandidatesAsync(
+        OtomatikTahsilatFiltre filter, CancellationToken ct = default);
 
     /// <summary>B2: kesilecek tahakkuku kalmayan dönemi ATLANDI işaretler (yalnız Planlandi→Atlandi;
     /// kalıcı iz — sonraki kesim denemesi gürültülü red).</summary>
-    Task<bool> AtlandiIsaretleAsync(Guid donemId, CancellationToken ct = default);
+    Task<bool> MarkSkippedAsync(Guid periodId, CancellationToken ct = default);
 }
 
 /// <summary>FAZ-30 — elle tetikleme ekranının aday satırı (salt okuma; tutarlar bilgi).</summary>
@@ -59,44 +59,44 @@ public sealed class OtomatikTahsilatFiltre
 /// kuruş-birebir). NOT: tahsilat sonrası fatura İADE edilirse tahsilat DURUR (para alındı) —
 /// geri ödeme manuel "Ödeme" akışıyla (UI metninde).
 /// </summary>
-public sealed class DonemTahsilatService(
+public sealed class PeriodCollectionService(
     Finance.InvoiceService invoices,
-    Finance.CashService kasa,
+    Finance.CashService cash,
     Finance.IInvoiceRepository invoiceRepo,
-    Finance.ICashRepository kasaRepo)
+    Finance.ICashRepository cashRepo)
 {
-    public async Task<Guid> KesVeTahsilEtAsync(
-        Guid rentalId, int donemSira, bool tahsilatKaydi, LedgerAccountType hesap,
+    public async Task<Guid> IssueAndCollectAsync(
+        Guid rentalId, int periodSequence, bool collectionRecord, LedgerAccountType account,
         CancellationToken ct = default)
-        => (await KesVeTahsilEtDetayAsync(rentalId, donemSira, tahsilatKaydi, hesap, ct)).InvoiceId;
+        => (await IssueAndCollectDetailAsync(rentalId, periodSequence, collectionRecord, account, ct)).InvoiceId;
 
     /// <summary>
-    /// <see cref="KesVeTahsilEtAsync"/> ile AYNI akış; ek olarak tahsilatın GERÇEKTEN yazılıp
+    /// <see cref="IssueAndCollectAsync"/> ile AYNI akış; ek olarak tahsilatın GERÇEKTEN yazılıp
     /// yazılmadığını bildirir. FAZ-30 adversarial M1: idempotent yutulan durumda çağıran
     /// "N tahsilat yazıldı" diyordu — sayaç yalan söylüyordu.
     /// </summary>
-    public async Task<(Guid InvoiceId, bool TahsilatYazildi)> KesVeTahsilEtDetayAsync(
-        Guid rentalId, int donemSira, bool tahsilatKaydi, LedgerAccountType hesap,
+    public async Task<(Guid InvoiceId, bool TahsilatYazildi)> IssueAndCollectDetailAsync(
+        Guid rentalId, int periodSequence, bool collectionRecord, LedgerAccountType account,
         CancellationToken ct = default)
     {
-        var invId = await invoices.CreateDonemFaturasiAsync(rentalId, donemSira, ct: ct);
-        if (!tahsilatKaydi) return (invId, false);
+        var invId = await invoices.CreatePeriodInvoiceAsync(rentalId, periodSequence, ct: ct);
+        if (!collectionRecord) return (invId, false);
 
         var inv = await invoiceRepo.FindAsync(invId, ct)
             ?? throw new ValidationException("Dönem faturası okunamadı.");
-        var anahtar = Finance.CashService.RowKey(rentalId, donemSira);
+        var key = Finance.CashService.RowKey(rentalId, periodSequence);
         try
         {
-            await kasa.CollectAsync(new Finance.CashInput
+            await cash.CollectAsync(new Finance.CashInput
             {
                 CariId = inv.CariId,
                 RentalId = rentalId,
                 Tutar = inv.GenelToplam,
                 Doviz = inv.Currency,
                 Kur = inv.Kur,
-                Hesap = hesap,
-                Aciklama = $"Dönem {donemSira} tahsilatı ({inv.No})",
-                IslemAnahtari = anahtar
+                Hesap = account,
+                Aciklama = $"Dönem {periodSequence} tahsilatı ({inv.No})",
+                IslemAnahtari = key
             }, ct);
         }
         catch (ValidationException ex) when (ex.Message.Contains("zaten kaydedilmiş"))
@@ -105,21 +105,21 @@ public sealed class DonemTahsilatService(
             // önceden kullandıysa (ör. başka kiranın tahsilatına uydurma anahtar olarak verildiyse) bu dönemin
             // tahsilatı "daha önce alınmış" sayılıp SESSİZCE bastırılıyordu. Yalnız kayıt gerçekten bu kiranın
             // tahsilatıysa idempotent no-op; değilse gürültülü hata (fatura kesildi, tahsilat yazılmadı).
-            var mevcut = await kasaRepo.FindByIslemAnahtariAsync(anahtar, ct);
-            if (mevcut is null || mevcut.RentalId != rentalId || mevcut.Tip != CashTransactionType.Tahsilat)
+            var existing = await cashRepo.FindByOperationKeyAsync(key, ct);
+            if (existing is null || existing.RentalId != rentalId || existing.Tip != CashTransactionType.Tahsilat)
                 throw new ValidationException(
-                    $"Dönem {donemSira} faturası kesildi ancak tahsilat yazılamadı: dönem tahsilat anahtarı başka bir " +
+                    $"Dönem {periodSequence} faturası kesildi ancak tahsilat yazılamadı: dönem tahsilat anahtarı başka bir " +
                     "kayıtta kullanılmış. Kayıtları kontrol edip tahsilatı ayrıca girin.");
             // R04 (Low temizliği B): anahtar tahmin edilebilir ve Blazor kasa formu ham IslemAnahtari kabul eder →
             // aynı kiraya FARKLI tutar/döviz/kurla bir tahsilat bu anahtarı ÖNDEN alabilir. Sessiz başarı yalnız
             // kayıt dönem faturasının tutarı + dövizi + kuruyla BİREBİR aynıysa (idempotency envanteri "sessiz
             // başarı kuralı"); değilse 409 farklı içerik — dönem tahsilatı YAZILMADI, gizlenmez.
-            if (!AyniDonemTahsilati(mevcut, inv))
-                throw new MukerrerIslemException(
-                    $"Dönem {donemSira} faturası kesildi ancak tahsilat YAZILMADI: dönem tahsilat anahtarı farklı " +
-                    $"içerikli bir tahsilatta (No {mevcut.No}, {mevcut.Amount.Amount:0.00} {mevcut.Amount.Currency}) " +
-                    "kullanılmış. " + MukerrerIslemException.FarkliIcerikMesaji,
-                    new MevcutIslem(mevcut.Id, mevcut.No, mevcut.Amount.Amount, mevcut.Amount.Currency, AyniIcerik: false));
+            if (!SamePeriodCollection(existing, inv))
+                throw new DuplicateOperationException(
+                    $"Dönem {periodSequence} faturası kesildi ancak tahsilat YAZILMADI: dönem tahsilat anahtarı farklı " +
+                    $"içerikli bir tahsilatta (No {existing.No}, {existing.Amount.Amount:0.00} {existing.Amount.Currency}) " +
+                    "kullanılmış. " + DuplicateOperationException.DifferentContentMessage,
+                    new MevcutIslem(existing.Id, existing.No, existing.Amount.Amount, existing.Amount.Currency, AyniIcerik: false));
             // Deterministik anahtar mükerreri = bu dönemin tahsilatı DAHA ÖNCE alınmış (çift-submit /
             // yeniden deneme) → idempotent no-op; fatura tarafı da idempotent olduğundan akış sessiz biter.
             return (invId, false);   // ÇAĞIRAN "yazıldı" saymasın (FAZ-30 M1)
@@ -130,11 +130,11 @@ public sealed class DonemTahsilatService(
     /// <summary>R04: RowKey'li mevcut tahsilat bu dönem faturasının tahsilatıyla içerik olarak aynı mı? Tutar
     /// DB ölçeğinde (numeric(19,4)), kur numeric(19,6) hassasiyetinde karşılaştırılır; decimal eşitliği ölçekten
     /// bağımsızdır (300.0000 == 300).</summary>
-    private static bool AyniDonemTahsilati(CashTransaction mevcut, Invoice inv) =>
-        Math.Round(mevcut.Amount.Amount, 4, MidpointRounding.AwayFromZero)
+    private static bool SamePeriodCollection(CashTransaction existing, Invoice inv) =>
+        Math.Round(existing.Amount.Amount, 4, MidpointRounding.AwayFromZero)
             == Math.Round(inv.GenelToplam, 4, MidpointRounding.AwayFromZero)
-        && string.Equals(mevcut.Amount.Currency, inv.Currency, StringComparison.OrdinalIgnoreCase)
-        && Math.Round(mevcut.Amount.Rate, 6, MidpointRounding.AwayFromZero)
+        && string.Equals(existing.Amount.Currency, inv.Currency, StringComparison.OrdinalIgnoreCase)
+        && Math.Round(existing.Amount.Rate, 6, MidpointRounding.AwayFromZero)
             == Math.Round(inv.Kur, 6, MidpointRounding.AwayFromZero);
 }
 
@@ -142,7 +142,7 @@ public sealed class DonemTahsilatService(
 /// cap/fark mekanizması ayrıca devreye girer).</summary>
 public sealed record FaturaDonemOnizleme(
     int DonemSira, DateTimeOffset DonemBas, DateTimeOffset DonemBit,
-    FaturaDonemDurum Durum, decimal Tahakkuk, Guid? InvoiceId, decimal? KesilenTutar);
+    InvoicePeriodStatus Durum, decimal Tahakkuk, Guid? InvoiceId, decimal? KesilenTutar);
 
 /// <summary>
 /// Periyodik faturalama dönem PLANI (FAZ 4.2-B1; parasız — deftere/faturaya dokunmaz).
@@ -153,46 +153,46 @@ public sealed record FaturaDonemOnizleme(
 /// yuvarlama kayması yapısal SIFIR; Σ tahakkuk == Tutar invaryantı). Yalnız PLANLANDİ satırlar
 /// yeniden üretilir; Kesildi/Atlandi sıralar korunur (uzatma planı büyütür, kesilmişe dokunmaz).
 /// </summary>
-public sealed class FaturaDonemPlanService(
-    IFaturaDonemRepository repository,
+public sealed class InvoicePeriodPlanService(
+    IInvoicePeriodRepository repository,
     Bookings.IBookingRepository bookings,
     ICurrentUser currentUser)
 {
-    public static bool UygunMu(RentalContract c) =>
+    public static bool IsEligible(RentalContract c) =>
         string.Equals(c.KiralamaTuru?.Trim(), "Uzun Kiralama", StringComparison.OrdinalIgnoreCase)
         || string.Equals(c.KiralamaTuru?.Trim(), "Aylık", StringComparison.OrdinalIgnoreCase)
         || c.Gun >= 28;
 
     /// <summary>Ay-çıpalı dönem aralıkları: [Bas+i ay, min(Bas+(i+1) ay, Bit)); Bit'e ulaşınca durur.</summary>
-    public static IReadOnlyList<(DateTimeOffset Bas, DateTimeOffset Bit)> DonemAraliklari(
-        DateTimeOffset bas, DateTimeOffset bit)
+    public static IReadOnlyList<(DateTimeOffset Bas, DateTimeOffset Bit)> PeriodRanges(
+        DateTimeOffset start, DateTimeOffset bit)
     {
-        var donemler = new List<(DateTimeOffset, DateTimeOffset)>();
+        var periods = new List<(DateTimeOffset, DateTimeOffset)>();
         for (var i = 0; ; i++)
         {
-            var dBas = bas.AddMonths(i);          // origin'den AddMonths → gün-of-ay çıpası korunur
-            if (dBas >= bit) break;
-            var dBit = bas.AddMonths(i + 1);
-            donemler.Add((dBas, dBit < bit ? dBit : bit));
+            var dStart = start.AddMonths(i);          // origin'den AddMonths → gün-of-ay çıpası korunur
+            if (dStart >= bit) break;
+            var dBit = start.AddMonths(i + 1);
+            periods.Add((dStart, dBit < bit ? dBit : bit));
             if (dBit >= bit) break;
         }
-        return donemler;
+        return periods;
     }
 
     /// <summary>GÜN-BAZLI pro-rata tahakkuk; SON dönem kalan-yöntemi (Σ == tutar, kuruş-birebir).</summary>
-    public static IReadOnlyList<decimal> ProRataAccrual(decimal tutar, IReadOnlyList<int> donemGunleri)
+    public static IReadOnlyList<decimal> ProRataAccrual(decimal amount, IReadOnlyList<int> periodDays)
     {
-        var toplamGun = donemGunleri.Sum();
-        if (toplamGun <= 0 || donemGunleri.Count == 0) return [];
-        var sonuc = new decimal[donemGunleri.Count];
-        decimal dagitilan = 0m;
-        for (var i = 0; i < donemGunleri.Count - 1; i++)
+        var totalDays = periodDays.Sum();
+        if (totalDays <= 0 || periodDays.Count == 0) return [];
+        var result = new decimal[periodDays.Count];
+        decimal distributed = 0m;
+        for (var i = 0; i < periodDays.Count - 1; i++)
         {
-            sonuc[i] = Math.Round(tutar * donemGunleri[i] / toplamGun, 2, MidpointRounding.AwayFromZero);
-            dagitilan += sonuc[i];
+            result[i] = Math.Round(amount * periodDays[i] / totalDays, 2, MidpointRounding.AwayFromZero);
+            distributed += result[i];
         }
-        sonuc[^1] = tutar - dagitilan; // kalan-yöntemi
-        return sonuc;
+        result[^1] = amount - distributed; // kalan-yöntemi
+        return result;
     }
 
     /// <summary>Planı kurar/yeniler (create + uzatma sonrası çağrılır). Uygun değilse mevcut Planlandi
@@ -202,27 +202,27 @@ public sealed class FaturaDonemPlanService(
         var c = await bookings.FindRentalAsync(rentalId, ct);
         if (c is null) return;
 
-        var mevcut = await repository.ListForRentalAsync(rentalId, ct);
-        var korunanSiralar = mevcut
-            .Where(d => d.Durum != FaturaDonemDurum.Planlandi)
+        var existing = await repository.ListForRentalAsync(rentalId, ct);
+        var preservedSequences = existing
+            .Where(d => d.Durum != InvoicePeriodStatus.Planlandi)
             .Select(d => d.DonemSira).ToHashSet();
 
-        var yeniPlanlar = new List<FaturaDonemi>();
-        if (UygunMu(c) && c.Durum != RentalStatus.Iptal)
+        var newPlans = new List<FaturaDonemi>();
+        if (IsEligible(c) && c.Durum != RentalStatus.Iptal)
         {
-            var araliklar = DonemAraliklari(c.BasTar, c.BitTar);
-            for (var i = 0; i < araliklar.Count; i++)
+            var ranges = PeriodRanges(c.BasTar, c.BitTar);
+            for (var i = 0; i < ranges.Count; i++)
             {
-                var sira = i + 1;
-                if (korunanSiralar.Contains(sira)) continue; // Kesildi/Atlandi — dokunma
-                yeniPlanlar.Add(new FaturaDonemi
+                var order = i + 1;
+                if (preservedSequences.Contains(order)) continue; // Kesildi/Atlandi — dokunma
+                newPlans.Add(new FaturaDonemi
                 {
-                    RentalId = rentalId, DonemSira = sira,
-                    DonemBas = araliklar[i].Bas, DonemBit = araliklar[i].Bit
+                    RentalId = rentalId, DonemSira = order,
+                    DonemBas = ranges[i].Bas, DonemBit = ranges[i].Bit
                 });
             }
         }
-        await repository.ReplacePlannedAsync(rentalId, yeniPlanlar, ct);
+        await repository.ReplacePlannedAsync(rentalId, newPlans, ct);
     }
 
     /// <summary>Dönem listesi + pro-rata tahakkuk önizlemesi (UI alt-sekmesi / job matematiğiyle ortak).</summary>
@@ -231,15 +231,15 @@ public sealed class FaturaDonemPlanService(
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
         var c = await bookings.FindRentalAsync(rentalId, ct)
             ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
-        var satirlar = (await repository.ListForRentalAsync(rentalId, ct))
+        var rows = (await repository.ListForRentalAsync(rentalId, ct))
             .OrderBy(d => d.DonemSira).ToList();
-        if (satirlar.Count == 0) return [];
+        if (rows.Count == 0) return [];
 
-        var gunler = satirlar
+        var gunler = rows
             .Select(d => Math.Max(1, (d.DonemBit.UtcDateTime.Date - d.DonemBas.UtcDateTime.Date).Days))
             .ToList();
-        var tahakkuklar = ProRataAccrual(c.Tutar, gunler);
-        return satirlar.Select((d, i) => new FaturaDonemOnizleme(
-            d.DonemSira, d.DonemBas, d.DonemBit, d.Durum, tahakkuklar[i], d.InvoiceId, d.KesilenTutar)).ToList();
+        var accruals = ProRataAccrual(c.Tutar, gunler);
+        return rows.Select((d, i) => new FaturaDonemOnizleme(
+            d.DonemSira, d.DonemBas, d.DonemBit, d.Durum, accruals[i], d.InvoiceId, d.KesilenTutar)).ToList();
     }
 }

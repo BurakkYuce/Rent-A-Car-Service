@@ -1,6 +1,6 @@
 @page "/raporlar/otomatik-servisler"
 @attribute [Authorize(Policy = "izin:ViewReports")]
-@inject JobCalismaLogService Loglar
+@inject JobRunLogService Loglar
 
 <PageTitle>Otomatik Servisler — RentPro</PageTitle>
 
@@ -102,7 +102,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _son = (await Loglar.SonKosularAsync()).OrderBy(s => s.JobAdi).ToList();
+        _son = (await Loglar.LastRunsAsync()).OrderBy(s => s.JobAdi).ToList();
         _isAdlari = _son.Select(s => s.JobAdi).ToArray();
 
         _list = await Loglar.ListAsync(new JobCalismaLogFilter

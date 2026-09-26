@@ -63,21 +63,21 @@ public sealed class FleetReportTests(PostgresFixture fx)
         // Tamamlanmış servis: 800 + 200 = 1000 işçilik.
         var done = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = vid, Tip = ServisTipi.Periyodik, GirisKm = 1000,
+            VehicleId = vid, Tip = ServiceType.Periyodik, GirisKm = 1000,
             Lines = [new ServiceLineInput { Aciklama = "Yağ", Tutar = 800m }, new ServiceLineInput { Aciklama = "Filtre", Tutar = 200m }]
         });
-        await svc.BaslatAsync(done);
-        await svc.TamamlaAsync(done, cikisKm: 1010);
+        await svc.StartAsync(done);
+        await svc.CompleteAsync(done, pickupKm: 1010);
 
         // Açık (tamamlanmamış) servis → özete GİRMEMELİ.
         var acik = await svc.CreateAsync(new ServiceRecordInput
-        { VehicleId = vid, Tip = ServisTipi.Ariza, GirisKm = 1010, Lines = [new ServiceLineInput { Aciklama = "X", Tutar = 5000m }] });
-        await svc.BaslatAsync(acik);
+        { VehicleId = vid, Tip = ServiceType.Ariza, GirisKm = 1010, Lines = [new ServiceLineInput { Aciklama = "X", Tutar = 5000m }] });
+        await svc.StartAsync(acik);
 
         var summary = await reports.GetServiceCostSummaryAsync();
         var row = Assert.Single(summary);
         Assert.Equal("34SC01", row.Plaka);
-        Assert.Equal(ServisTipi.Periyodik, row.Tip);
+        Assert.Equal(ServiceType.Periyodik, row.Tip);
         Assert.Equal(1000m, row.Toplam);
         Assert.Equal(1, row.Adet);
     }

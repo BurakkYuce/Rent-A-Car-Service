@@ -116,7 +116,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            reservation.ReservationNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Rezervasyon, ct);
+            reservation.ReservationNo = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Rezervasyon, ct);
             db.Reservations.Add(reservation);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -134,7 +134,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Rezervasyonlar, id, beklenenSurum,
             (db, k, c) => db.Reservations.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 
-    public async Task<string?> ReservationSurumuAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> ReservationVersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.Rezervasyonlar, id, ct);
@@ -182,17 +182,17 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         var min = filter.BaslangicMin; var max = filter.BaslangicMax;
         if (min is not null || max is not null)
         {
-            switch (filter.TarihTuru ?? TarihListesiTuru.Baslangic)
+            switch (filter.TarihTuru ?? DateListType.Baslangic)
             {
-                case TarihListesiTuru.Bitis:
+                case DateListType.Bitis:
                     if (min is { } bmin) q = q.Where(r => r.BitTar >= bmin);
                     if (max is { } bmax) q = q.Where(r => r.BitTar <= bmax);
                     break;
-                case TarihListesiTuru.Islem:
+                case DateListType.Islem:
                     if (min is { } imin) q = q.Where(r => r.CreatedAtUtc >= imin);
                     if (max is { } imax) q = q.Where(r => r.CreatedAtUtc <= imax);
                     break;
-                case TarihListesiTuru.Vade:
+                case DateListType.Vade:
                     // Vadesi GİRİLMEMİŞ sözleşme vade aralığına DÜŞMEZ (null sessizce eşleşmez).
                     if (min is { } vmin) q = q.Where(r => r.VadeTar != null && r.VadeTar >= vmin);
                     if (max is { } vmax) q = q.Where(r => r.VadeTar != null && r.VadeTar <= vmax);
@@ -210,8 +210,8 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             var ofis = filter.Ofis;
             q = filter.OfisDurum switch
             {
-                OfisDurumu.Cikis => q.Where(r => r.CikisOfisi == ofis),
-                OfisDurumu.Donus => q.Where(r => r.DonusOfisi == ofis),
+                OfficeStatus.Cikis => q.Where(r => r.CikisOfisi == ofis),
+                OfficeStatus.Donus => q.Where(r => r.DonusOfisi == ofis),
                 _ => q.Where(r => r.CikisOfisi == ofis || r.DonusOfisi == ofis)
             };
         }
@@ -315,7 +315,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            contract.SozlesmeNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.KiraSozlesmesi, ct);
+            contract.SozlesmeNo = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
             db.Rentals.Add(contract);
             try
             {
@@ -346,7 +346,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
             // başka yazım giremez). Bayat istemci (başka oturum drop ücretini değiştirdi) hiçbir şey yazamaz.
             if (beklenenSurum is not null && await KiraKilitleri.SurumAsync(db, id, ct) is { } guncel
                 && !string.Equals(guncel, beklenenSurum.Trim(), StringComparison.Ordinal))
-                throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KiraMesaji);
+                throw new ConcurrentModificationException(ConcurrentModificationException.RentalMessage);
             var r = await db.Rentals.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (r is null) return false;
             apply(r);
@@ -366,7 +366,7 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
         }, ct);
     }
 
-    public async Task<string?> RentalSurumuAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> RentalVersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await KiraKilitleri.SurumAsync(db, id, ct);
@@ -454,11 +454,11 @@ public sealed class BookingRepository(IDbContextFactory<AppDbContext> factory) :
                 ?? throw new ValidationException("Rezervasyon bulunamadı.");
             if (reservation.RentalContractId is not null
                 || reservation.Durum is not (ReservationStatus.Rezerv or ReservationStatus.Onayli))
-                throw new EszamanliDegisiklikException(
+                throw new ConcurrentModificationException(
                     $"Rezervasyon bu sırada başka bir oturumda '{reservation.Durum}' durumuna geçti; kiraya çevrilmedi.");
 
             var rental = buildRental(reservation);
-            rental.SozlesmeNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.KiraSozlesmesi, ct);
+            rental.SozlesmeNo = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.KiraSozlesmesi, ct);
             db.Rentals.Add(rental);
 
             reservation.Durum = ReservationStatus.KirayaCevrildi;

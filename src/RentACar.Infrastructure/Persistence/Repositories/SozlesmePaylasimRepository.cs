@@ -18,18 +18,18 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// <c>Guid.Empty</c> yazılır, FK patlar (sessiz sızıntı değil — gürültülü hata, doğru davranış).</para>
 /// </summary>
 public sealed class SozlesmePaylasimRepository(IDbContextFactory<AppDbContext> factory)
-    : ISozlesmePaylasimRepository
+    : IContractShareRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<PaylasimDurum?> AktifAsync(Guid rentalId, CancellationToken ct = default)
+    public async Task<PaylasimDurum?> ActiveAsync(Guid rentalId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var link = await Aktif(db, rentalId).AsNoTracking().FirstOrDefaultAsync(ct);
         return link is null ? null : await DurumAsync(db, link, ct);
     }
 
-    public async Task<PaylasimDurum> OlusturAsync(Guid rentalId, string sozlesmeNo, string token,
+    public async Task<PaylasimDurum> CreateAsync(Guid rentalId, string sozlesmeNo, string token,
         byte[] pdf, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -55,7 +55,7 @@ public sealed class SozlesmePaylasimRepository(IDbContextFactory<AppDbContext> f
         return await DurumAsync(db, link, ct);
     }
 
-    public async Task<PaylasimDurum> YeniSurumAsync(Guid rentalId, string sozlesmeNo, string token,
+    public async Task<PaylasimDurum> NewVersionAsync(Guid rentalId, string sozlesmeNo, string token,
         byte[] pdf, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -81,7 +81,7 @@ public sealed class SozlesmePaylasimRepository(IDbContextFactory<AppDbContext> f
         return await DurumAsync(db, link, ct);
     }
 
-    public async Task<bool> IptalAsync(Guid rentalId, CancellationToken ct = default)
+    public async Task<bool> CancelAsync(Guid rentalId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var linkler = await Aktif(db, rentalId).ToListAsync(ct);

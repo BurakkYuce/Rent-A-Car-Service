@@ -20,7 +20,7 @@ public class FaturaDonemi : ITenantOwned, IAuditable
     public DateTimeOffset DonemBas { get; set; }
     public DateTimeOffset DonemBit { get; set; }
 
-    public FaturaDonemDurum Durum { get; set; } = FaturaDonemDurum.Planlandi;
+    public InvoicePeriodStatus Durum { get; set; } = InvoicePeriodStatus.Planlandi;
     public Guid? InvoiceId { get; set; }
     /// <summary>Kesilen brüt tutar (Kesildi'de dolu; bilgi/iz).</summary>
     public decimal? KesilenTutar { get; set; }

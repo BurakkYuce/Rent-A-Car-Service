@@ -20,7 +20,7 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
     public Task<IReadOnlyList<RentalRule>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
 
-    /// <summary>Fiyat motorunun okuduğu küme: YALNIZ <see cref="KampanyaDurum.Aktif"/> kurallar
+    /// <summary>Fiyat motorunun okuduğu küme: YALNIZ <see cref="CampaignStatus.Aktif"/> kurallar
     /// (repository tek tüketim noktasıdır — FAZ-73 wire-in taraması).</summary>
     public Task<IReadOnlyList<RentalRule>> ListActiveAsync(CancellationToken ct = default)
         => _repository.ListActiveAsync(ct);
@@ -28,18 +28,18 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
     /// <summary>
     /// FAZ-73 — kampanya arama (canlı kampanya_ara.aspx). Filtre yalnız GÖRÜNÜMÜ daraltır; fiyat
     /// motoru bu yolu hiç kullanmaz. Master tablo küçük olduğu için süzgeç SAF fonksiyonda
-    /// (<see cref="Filtrele"/>) bellekte uygulanır — Türkçe harf duyarsızlığı SQL collation'ına
+    /// (<see cref="Filter"/>) bellekte uygulanır — Türkçe harf duyarsızlığı SQL collation'ına
     /// bırakılmaz ve kural test edilebilir kalır.
     /// </summary>
     public async Task<IReadOnlyList<RentalRule>> SearchAsync(
-        RentalRuleFilter? filtre = null, CancellationToken ct = default)
-        => Filtrele(await _repository.ListAsync(ct), filtre);
+        RentalRuleFilter? filter = null, CancellationToken ct = default)
+        => Filter(await _repository.ListAsync(ct), filter);
 
     /// <summary>Arama süzgecinin SAF karşılığı (bağımsız test edilebilir). Boş filtre → tam liste.</summary>
-    public static IReadOnlyList<RentalRule> Filtrele(IReadOnlyList<RentalRule> hepsi, RentalRuleFilter? f)
+    public static IReadOnlyList<RentalRule> Filter(IReadOnlyList<RentalRule> all, RentalRuleFilter? f)
     {
-        if (f is null) return hepsi;
-        IEnumerable<RentalRule> q = hepsi;
+        if (f is null) return all;
+        IEnumerable<RentalRule> q = all;
 
         if (!string.IsNullOrWhiteSpace(f.Terim))
         {
@@ -71,9 +71,9 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu kiralama kuralı zaten var.");
-        await KampanyaKoduBenzersizAsync(n.KampanyaKodu, excludeId: null, ct);
+        await IsCampaignCodeUniqueAsync(n.KampanyaKodu, excludeId: null, ct);
 
         var row = new RentalRule();
         Apply(row, n);
@@ -86,9 +86,9 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu kiralama kuralı zaten var.");
-        await KampanyaKoduBenzersizAsync(n.KampanyaKodu, excludeId: id, ct);
+        await IsCampaignCodeUniqueAsync(n.KampanyaKodu, excludeId: id, ct);
 
         return await _repository.UpdateAsync(id, row =>
         {
@@ -107,9 +107,9 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu kiralama kuralı zaten var.");
-        await KampanyaKoduBenzersizAsync(n.KampanyaKodu, excludeId: id, ct);
+        await IsCampaignCodeUniqueAsync(n.KampanyaKodu, excludeId: id, ct);
         return await RowVersionStoreGuard.Require(rowVersions).UpdateAsync<RentalRule>(id, expectedVersion, row =>
         {
             Apply(row, n);
@@ -125,13 +125,13 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
 
     /// <summary>FAZ 3.A5 adversarial B4: aynı KampanyaKodu iki kuralda olursa KodluKuralSec keyfi/yanlış
     /// seçer — kod tenant içinde TEK kurala ait olmalı (case-insensitive; boş kod serbest).</summary>
-    private async Task KampanyaKoduBenzersizAsync(string? kod, Guid? excludeId, CancellationToken ct)
+    private async Task IsCampaignCodeUniqueAsync(string? code, Guid? excludeId, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(kod)) return;
-        var hepsi = await _repository.ListAsync(ct);
-        if (hepsi.Any(r => r.Id != excludeId && !string.IsNullOrWhiteSpace(r.KampanyaKodu) &&
-                string.Equals(r.KampanyaKodu.Trim(), kod.Trim(), StringComparison.OrdinalIgnoreCase)))
-            throw new ValidationException($"'{kod}' kampanya kodu başka bir kuralda kullanılıyor (kod tek kurala ait olmalı).");
+        if (string.IsNullOrWhiteSpace(code)) return;
+        var all = await _repository.ListAsync(ct);
+        if (all.Any(r => r.Id != excludeId && !string.IsNullOrWhiteSpace(r.KampanyaKodu) &&
+                string.Equals(r.KampanyaKodu.Trim(), code.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new ValidationException($"'{code}' kampanya kodu başka bir kuralda kullanılıyor (kod tek kurala ait olmalı).");
     }
 
     private static void Validate(RentalRuleInput n)
@@ -162,15 +162,15 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
     /// ederdi). Tekrarlar ayıklanır, sıralanır; boş sonuç null döner (kısıt yok).
     /// Saf fonksiyon — ekran ve servis AYNI kuralı kullansın diye public.
     /// </summary>
-    public static string? HaftaGunNormalize(string? ham)
+    public static string? NormalizeWeekday(string? raw)
     {
-        if (string.IsNullOrWhiteSpace(ham)) return null;
+        if (string.IsNullOrWhiteSpace(raw)) return null;
         var gunler = new SortedSet<int>();
-        foreach (var parca in ham.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var part in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            if (!int.TryParse(parca, System.Globalization.NumberStyles.Integer,
+            if (!int.TryParse(part, System.Globalization.NumberStyles.Integer,
                     System.Globalization.CultureInfo.InvariantCulture, out var g) || g is < 0 or > 6)
-                throw new ValidationException($"Geçersiz hafta günü: '{parca}'. 0 (Pazar) ile 6 (Cumartesi) arası olmalıdır.");
+                throw new ValidationException($"Geçersiz hafta günü: '{part}'. 0 (Pazar) ile 6 (Cumartesi) arası olmalıdır.");
             gunler.Add(g);
         }
         return gunler.Count == 0 ? null : string.Join(',', gunler);
@@ -204,15 +204,15 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         KuponGecerlilik = input.KuponGecerlilik,
         HesaplamaTipi = input.HesaplamaTipi,
         HizliIslem = input.HizliIslem,
-        HaftaGunKisiti = HaftaGunNormalize(input.HaftaGunKisiti),
+        HaftaGunKisiti = NormalizeWeekday(input.HaftaGunKisiti),
         TarihTipi = input.TarihTipi,
         // FAZ-73 SENKRON NOKTASI (tek yer): durum verilmediyse eski Aktif bayrağından türetilir
         // (true→Aktif, false→Pasif — migration backfill'iyle AYNI eşleme); verildiyse Aktif ondan
         // türetilir. Böylece iki alan asla ayrışamaz ve eski çağıranlar davranış değiştirmez.
         // NOT (FAZ-46 birleştirmesi): `Aktif` YALNIZ burada set edilir — iki fazın ayrı ayrı
         // yazdığı iki `Aktif` satırı birleşmede tek satıra indirildi.
-        KampanyaDurum = input.KampanyaDurum ?? (input.Aktif ? KampanyaDurum.Aktif : KampanyaDurum.Pasif),
-        Aktif = input.KampanyaDurum is { } kd ? kd == KampanyaDurum.Aktif : input.Aktif
+        KampanyaDurum = input.KampanyaDurum ?? (input.Aktif ? CampaignStatus.Aktif : CampaignStatus.Pasif),
+        Aktif = input.KampanyaDurum is { } kd ? kd == CampaignStatus.Aktif : input.Aktif
     };
 
     private static string? TrimOrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
@@ -246,7 +246,7 @@ public sealed class RentalRuleService(IRentalRuleRepository repository, ICurrent
         row.HaftaGunKisiti = n.HaftaGunKisiti;
         row.TarihTipi = n.TarihTipi;                  // FAZ-73
         // İki alan BİRLİKTE yazılır (Normalize'de senkronlandı) — asenkron sürüklenme imkânsız.
-        row.KampanyaDurum = n.KampanyaDurum ?? KampanyaDurum.Aktif;
+        row.KampanyaDurum = n.KampanyaDurum ?? CampaignStatus.Aktif;
         row.Aktif = n.Aktif;
     }
 }

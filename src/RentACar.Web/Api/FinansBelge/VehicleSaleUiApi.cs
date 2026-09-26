@@ -54,8 +54,8 @@ public static class VehicleSaleUiApi
         return g;
     }
 
-    private static readonly SiralamaHaritasi<VehicleSaleRow> Sort = SiralamaHaritasi<VehicleSaleRow>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<VehicleSaleRow> Sort = SortFieldMap<VehicleSaleRow>
+        .Create(r => r.Id)
         .Alan("no", r => r.No).Alan("tarih", r => r.Tarih).Alan("plaka", r => r.Plaka).Alan("aliciAd", r => r.AliciAd)
         .Alan("genelToplam", r => r.GenelToplam);
 
@@ -78,7 +78,7 @@ public static class VehicleSaleUiApi
         var (bas, bit) = F5Ortak.GunAraligi(f.Bas, f.Bit);
         var rows = await sales.SearchAsync(new VehicleSaleFilter
         {
-            Plaka = F5Ortak.Nz(f.Plaka), AliciCariId = f.AliciCariId, Durum = F5Ortak.EnumAdi<SatisDurum>(f.Durum, "durum"),
+            Plaka = F5Ortak.Nz(f.Plaka), AliciCariId = f.AliciCariId, Durum = F5Ortak.EnumAdi<SaleStatus>(f.Durum, "durum"),
             SatisiVerildi = f.SatisiVerildi, Ofis = F5Ortak.Nz(f.Ofis), Bas = bas, Bit = bit,
         }, ct);
         await using var db = await dbf.CreateDbContextAsync(ct);
@@ -119,7 +119,7 @@ public static class VehicleSaleUiApi
         Text(req.IhaleSayisi, 64, "ihaleSayisi");
         Text(req.YevmiyeNumarasi, 64, "yevmiyeNumarasi");
         Text(req.Aciklama2, 512, "aciklama2");
-        WithField("tarih", () => TarihPolitikasi.ParaTarihi(req.Tarih, "Satış"));
+        WithField("tarih", () => DatePolicy.MoneyDate(req.Tarih, "Satış"));
 
         await using (var db = await dbf.CreateDbContextAsync(ct))
         {

@@ -7,7 +7,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Hesap kodu kalıcılığı (roadmap N1). Kod benzersizliği DB unique index; 23505→ValidationException.</summary>
-public sealed class HesapKoduRepository(IDbContextFactory<AppDbContext> factory) : IHesapKoduRepository
+public sealed class HesapKoduRepository(IDbContextFactory<AppDbContext> factory) : IAccountCodeRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 

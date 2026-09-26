@@ -22,7 +22,7 @@ public sealed class OperasyonelYetkiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muhasebe", UserRole.Muhasebe);
-        var ex = await Assert.ThrowsAsync<YetkiYokException>(() => islem(scope));
+        var ex = await Assert.ThrowsAsync<NoPermissionException>(() => islem(scope));
         Assert.Contains("yetkiniz yok", ex.Message); // red YETKİDEN (OperationsWrite), girdi/veri hatasından değil
     }
 
@@ -37,6 +37,6 @@ public sealed class OperasyonelYetkiTests(PostgresFixture fx)
     [Fact] public Task Muhasebe_kira_uzatamaz() => MuhasebeReddiAsync(s => Svc<RentalService>(s).ExtendAsync(Guid.NewGuid(), D));
     [Fact] public Task Muhasebe_arac_olusturamaz() => MuhasebeReddiAsync(s => Svc<VehicleService>(s).CreateAsync(new VehicleInput { Plaka = "34X" }));
     [Fact] public Task Muhasebe_rezervasyon_olusturamaz() => MuhasebeReddiAsync(s => Svc<ReservationService>(s).CreateAsync(new BookingInput()));
-    [Fact] public Task Muhasebe_cari_olusturamaz() => MuhasebeReddiAsync(s => Svc<CustomerService>(s).CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "X" }));
+    [Fact] public Task Muhasebe_cari_olusturamaz() => MuhasebeReddiAsync(s => Svc<CustomerService>(s).CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "X" }));
     [Fact] public Task Muhasebe_ceza_olusturamaz() => MuhasebeReddiAsync(s => Svc<PenaltyService>(s).CreateAsync(new PenaltyInput { CezaTuru = "Hız" }));
 }

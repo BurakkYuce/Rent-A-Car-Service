@@ -15,7 +15,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// </summary>
 public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory) : IQuotationRepository
 {
-    private const string ZatenKabulMesaji = EszamanliDegisiklikException.TeklifKabulMesaji;
+    private const string ZatenKabulMesaji = ConcurrentModificationException.QuotationAcceptMessage;
 
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -45,7 +45,7 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            quotation.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Teklif, ct);
+            quotation.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Teklif, ct);
             db.Quotations.Add(quotation);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -72,14 +72,14 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
             var quotation = await db.Quotations.FirstOrDefaultAsync(x => x.Id == quotationId, ct)
                 ?? throw new ValidationException("Teklif bulunamadı.");
             if (quotation.ReservationId is not null)
-                throw new EszamanliDegisiklikException(ZatenKabulMesaji);
+                throw new ConcurrentModificationException(ZatenKabulMesaji);
             if (quotation.Durum is not (QuotationStatus.Taslak or QuotationStatus.Gonderildi))
-                throw new EszamanliDegisiklikException(
+                throw new ConcurrentModificationException(
                     $"Teklif bu sırada başka bir oturumda '{quotation.Durum}' durumuna geçti; kabul edilmedi.");
 
             var reservation = buildReservation(quotation);
             reservation.KaynakTeklifId = quotation.Id; // yapısal çit: (TenantId, KaynakTeklifId) kısmi UNIQUE
-            reservation.ReservationNo = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Rezervasyon, ct);
+            reservation.ReservationNo = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Rezervasyon, ct);
             db.Reservations.Add(reservation);
 
             quotation.Durum = QuotationStatus.Kabul;
@@ -97,7 +97,7 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
                 ConstraintName: Configurations.ReservationConfig.TeklifTekRezervasyonIndeksi,
             })
             {
-                throw new EszamanliDegisiklikException(ZatenKabulMesaji);
+                throw new ConcurrentModificationException(ZatenKabulMesaji);
             }
             return reservation.Id;
         }, ct);

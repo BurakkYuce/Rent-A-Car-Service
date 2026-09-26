@@ -108,13 +108,13 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
 
         // ELLE: 5 manuel KM girişi, artan sırada. Odometre geriye gidemez.
         int[] kmler = [1000, 2000, 3000, 4000, 5000];
-        foreach (var km in kmler) await svc.ManuelKmGirAsync(id, km);
+        foreach (var km in kmler) await svc.EnterManualKmAsync(id, km);
 
-        var son3 = await svc.KmLoglariAsync(id, 3);
+        var son3 = await svc.KmLogsAsync(id, 3);
         Assert.Equal(3, son3.Count);
         // EN YENİ 3: 5000, 4000, 3000 (elle) — sıra en yeniden eskiye.
         Assert.Equal([5000, 4000, 3000], son3.Select(x => x.Km));
-        Assert.All(son3, k => Assert.Equal(KmLogKaynak.Manuel, k.Kaynak));
+        Assert.All(son3, k => Assert.Equal(KmLogSource.Manuel, k.Kaynak));
 
         // Araç kartındaki Km alanı da son değere gelmiş olmalı.
         Assert.Equal(5000, (await svc.GetAsync(id))!.Km);
@@ -154,8 +154,8 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
                 KasaBankaHesap = LedgerAccountType.Kasa, VehicleId = v, Aciklama = "Bakım"
             });
 
-        var kSade = await rapor.GetAracKarneAsync(sade);
-        var kKurlu = await rapor.GetAracKarneAsync(kurlu);
+        var kSade = await rapor.GetVehicleScorecardAsync(sade);
+        var kKurlu = await rapor.GetVehicleScorecardAsync(kurlu);
 
         Assert.NotNull(kSade);
         Assert.NotNull(kKurlu);
@@ -165,7 +165,7 @@ public sealed class VehicleKartDerinlikTests(PostgresFixture fx)
         Assert.Equal(kSade.ToplamNetKar, kKurlu.ToplamNetKar);
 
         // Karlılık satırı da aynı — iki yol da kurdan habersiz.
-        var karlilik = await rapor.GetKarlilikAsync();
+        var karlilik = await rapor.GetProfitabilityAsync();
         var rSade = karlilik.Satirlar.Single(r => r.Plaka == "34KD10");
         var rKurlu = karlilik.Satirlar.Single(r => r.Plaka == "34KD11");
         Assert.Equal(rSade.Gelir, rKurlu.Gelir);

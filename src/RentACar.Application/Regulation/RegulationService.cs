@@ -22,7 +22,7 @@ public sealed class RegulasyonOdemeInput
     /// <summary>Çift-submit koruması — form her render'da yeni GUID basar.</summary>
     public Guid? IslemAnahtari { get; set; }
     /// <summary>F9.1 — ekranın gördüğü kalan (isteğe bağlı). Doluysa SATIR KİLİDİ altında okunan kalanla (muayenede
-    /// ceza eklenmeden önceki) karşılaştırılır; farklıysa <see cref="EszamanliDegisiklikException"/> (409 cakisma) —
+    /// ceza eklenmeden önceki) karşılaştırılır; farklıysa <see cref="ConcurrentModificationException"/> (409 cakisma) —
     /// bayat ekran / iki sekme "kalanın tamamı" ile beklemediği tutarı ödemez. <c>null</c> → karşılaştırma yok (Blazor).</summary>
     public decimal? BeklenenKalan { get; set; }
     /// <summary>FAZ-50 — ödemenin geçtiği SPESİFİK kasa/banka hesabı (<c>FinancialAccount</c>).
@@ -51,13 +51,13 @@ public sealed class ZeyilInput
 
 /// <summary>Sigorta/MTV/Muayene CRUD + doğrulama (araç zorunlu, tarih tutarlılığı) + MTV ödeme→defter (J1).</summary>
 public sealed class RegulationService(IRegulationRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.KurCozucu kurCozucu, RentACar.Application.FinancialAccounts.HesapCozucu hesapCozucu)
+    RentACar.Application.Kur.ExchangeRateResolver exchangeRateResolver, RentACar.Application.FinancialAccounts.AccountResolver accountResolver)
 {
     private readonly IRegulationRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
-    private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
-    private readonly RentACar.Application.FinancialAccounts.HesapCozucu _hesapCozucu = hesapCozucu;
+    private readonly RentACar.Application.Kur.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
+    private readonly RentACar.Application.FinancialAccounts.AccountResolver _accountResolver = accountResolver;
 
     /// <summary>Sigorta poliçesi para birimi beyaz-listesi (Currency kolonu HasMaxLength(3)).</summary>
     private static readonly HashSet<string> AllowedCurrencies = new(StringComparer.Ordinal) { "TRY", "EUR", "USD", "GBP" };
@@ -70,36 +70,36 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
         => _repository.ListInspectionAsync(ct);
 
     /// <summary>
-    /// Poliçe ekler. <paramref name="aracDegeri"/>/<paramref name="immDegeri"/>/
-    /// <paramref name="aksesuarDegeri"/> FAZ-15 sigorta değer tabanıdır ve <b>BİLGİ ALANIDIR</b>
+    /// Poliçe ekler. <paramref name="vehicleValue"/>/<paramref name="immValue"/>/
+    /// <paramref name="accessoryValue"/> FAZ-15 sigorta değer tabanıdır ve <b>BİLGİ ALANIDIR</b>
     /// (KARARLAR.md genel politikası) — deftere yazmaz, hiçbir hesaba/tavana girmez.
     /// <c>Kalan</c> açılışta <c>= prim</c> olur (ödeme onu 0'a düşürür).
     /// </summary>
     public async Task<Guid> AddInsuranceAsync(
-        Guid vehicleId, InsuranceType tip, DateTimeOffset baslangic, DateTimeOffset bitis,
-        decimal prim, string? policeNo, string? firma, string? acenta,
-        string? doviz = "TRY", decimal? aracDegeri = null, decimal? immDegeri = null,
-        decimal? aksesuarDegeri = null, CancellationToken ct = default, Guid? id = null)
+        Guid vehicleId, InsuranceType tip, DateTimeOffset start, DateTimeOffset end,
+        decimal premium, string? policeNo, string? company, string? agency,
+        string? currencyCode = "TRY", decimal? vehicleValue = null, decimal? immValue = null,
+        decimal? accessoryValue = null, CancellationToken ct = default, Guid? id = null)
     {
         RequireVehicle(vehicleId);
-        if (bitis <= baslangic) throw new ValidationException("Bitiş başlangıçtan sonra olmalıdır.");
-        if (prim < 0) throw new ValidationException("Prim negatif olamaz.");
+        if (end <= start) throw new ValidationException("Bitiş başlangıçtan sonra olmalıdır.");
+        if (premium < 0) throw new ValidationException("Prim negatif olamaz.");
         // Teminat değerleri negatif olamaz (bilgi alanı da olsa saçma değer ekranı bozar).
-        if (aracDegeri is < 0m) throw new ValidationException("Araç değeri negatif olamaz.");
-        if (immDegeri is < 0m) throw new ValidationException("İMM değeri negatif olamaz.");
-        if (aksesuarDegeri is < 0m) throw new ValidationException("Aksesuar değeri negatif olamaz.");
+        if (vehicleValue is < 0m) throw new ValidationException("Araç değeri negatif olamaz.");
+        if (immValue is < 0m) throw new ValidationException("İMM değeri negatif olamaz.");
+        if (accessoryValue is < 0m) throw new ValidationException("Aksesuar değeri negatif olamaz.");
         // Çok-döviz: ithal araç poliçesi EUR/USD olabilir → Currency create'te set edilir; ödemede
         // (SigortaOdeAsync) kur ile baz tutara çevrilir. Boş → TRY (yerel poliçe). Beyaz-liste dışı
         // reddedilir (adversarial Low: crafted POST'la çöp/uzun döviz → 3-hane kolon DbUpdateException).
-        var currency = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz.Trim().ToUpperInvariant();
+        var currency = string.IsNullOrWhiteSpace(currencyCode) ? "TRY" : currencyCode.Trim().ToUpperInvariant();
         if (!AllowedCurrencies.Contains(currency))
             throw new ValidationException($"Geçersiz para birimi: {currency}. İzinli: {string.Join(", ", AllowedCurrencies)}.");
         var p = new InsurancePolicy
         {
-            VehicleId = vehicleId, Tip = tip, Baslangic = baslangic, Bitis = bitis,
-            Prim = prim, Currency = currency, PoliceNo = Trim(policeNo), Firma = Trim(firma), Acenta = Trim(acenta),
-            AracDegeri = aracDegeri, ImmDegeri = immDegeri, AksesuarDegeri = aksesuarDegeri,
-            Kalan = prim   // FAZ-15: bilgi amaçlı bakiye; ödeme 0'a düşürür (zeyil DEĞİŞTİRMEZ)
+            VehicleId = vehicleId, Tip = tip, Baslangic = start, Bitis = end,
+            Prim = premium, Currency = currency, PoliceNo = Trim(policeNo), Firma = Trim(company), Acenta = Trim(agency),
+            AracDegeri = vehicleValue, ImmDegeri = immValue, AksesuarDegeri = accessoryValue,
+            Kalan = premium   // FAZ-15: bilgi amaçlı bakiye; ödeme 0'a düşürür (zeyil DEĞİŞTİRMEZ)
         };
         if (id is { } pid && pid != Guid.Empty) p.Id = pid; // F9.1: Idempotency-Key → PK
         await _repository.AddInsuranceAsync(p, ct);
@@ -107,34 +107,34 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     }
 
     public async Task<Guid> AddMtvAsync(
-        Guid vehicleId, string donem, decimal tutar, DateTimeOffset vade,
-        string? aciklama = null, CancellationToken ct = default, Guid? id = null)
+        Guid vehicleId, string period, decimal amount, DateTimeOffset due,
+        string? description = null, CancellationToken ct = default, Guid? id = null)
     {
         RequireVehicle(vehicleId);
-        if (string.IsNullOrWhiteSpace(donem)) throw new ValidationException("Dönem zorunludur.");
-        if (tutar < 0) throw new ValidationException("Tutar negatif olamaz.");
+        if (string.IsNullOrWhiteSpace(period)) throw new ValidationException("Dönem zorunludur.");
+        if (amount < 0) throw new ValidationException("Tutar negatif olamaz.");
         // Kalan = Tutar (FAZ-14): kısmi ödemeler bunu düşürür. Kaydın kendisi 0 tutarlıysa
         // Kalan da 0 olur ve ödeme "bakiye yok" ile reddedilir (doğru).
-        var m = new MtvRecord { VehicleId = vehicleId, Donem = donem.Trim(), Tutar = tutar, Kalan = tutar, Vade = vade, Aciklama = Trim(aciklama) };
+        var m = new MtvRecord { VehicleId = vehicleId, Donem = period.Trim(), Tutar = amount, Kalan = amount, Vade = due, Aciklama = Trim(description) };
         if (id is { } mid && mid != Guid.Empty) m.Id = mid; // F9.1: Idempotency-Key → PK
         await _repository.AddMtvAsync(m, ct);
         return m.Id;
     }
 
     public async Task<Guid> AddInspectionAsync(
-        Guid vehicleId, DateTimeOffset muayeneTarihi, DateTimeOffset bitis, decimal ucret,
-        int? islemKm = null, string? aciklama = null, CancellationToken ct = default, Guid? id = null)
+        Guid vehicleId, DateTimeOffset inspectionDate, DateTimeOffset end, decimal fee,
+        int? operationKm = null, string? description = null, CancellationToken ct = default, Guid? id = null)
     {
         RequireVehicle(vehicleId);
-        if (bitis <= muayeneTarihi) throw new ValidationException("Bitiş muayene tarihinden sonra olmalıdır.");
-        if (ucret < 0) throw new ValidationException("Ücret negatif olamaz.");
+        if (end <= inspectionDate) throw new ValidationException("Bitiş muayene tarihinden sonra olmalıdır.");
+        if (fee < 0) throw new ValidationException("Ücret negatif olamaz.");
         // Kalan = Ucret (FAZ-14). Ceza ödeme anında girilir ve o an borcu artırır — bu yüzden
         // açılışta kalana DAHİL EDİLMEZ (henüz doğmamış bir borç).
-        if (islemKm is < 0) throw new ValidationException("İşlem KM negatif olamaz.");
+        if (operationKm is < 0) throw new ValidationException("İşlem KM negatif olamaz.");
         var i = new InspectionRecord
         {
-            VehicleId = vehicleId, MuayeneTarihi = muayeneTarihi, Bitis = bitis, Ucret = ucret,
-            Kalan = ucret, IslemKm = islemKm, Aciklama = Trim(aciklama)
+            VehicleId = vehicleId, MuayeneTarihi = inspectionDate, Bitis = end, Ucret = fee,
+            Kalan = fee, IslemKm = operationKm, Aciklama = Trim(description)
         };
         if (id is { } iid && iid != Guid.Empty) i.Id = iid; // F9.1: Idempotency-Key → PK
         await _repository.AddInspectionAsync(i, ct);
@@ -152,141 +152,141 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// MTV deftere 1000 EUR × kur olarak yazılıyordu (sessiz şişme). Artık TRY dışı REDDEDİLİR.
     /// Kısmi ödemede bu zaten zorunlu: <c>Kalan</c> TRY iken ondan EUR düşülemez.</para>
     /// </summary>
-    public async Task<RegulasyonOdemeSonuc> MtvOdeAsync(Guid mtvId, LedgerAccountType hesap,
-        DateTimeOffset? odemeTarih = null, string? doviz = "TRY", decimal? kur = null,
-        RegulasyonOdemeInput? odeme = null, CancellationToken ct = default)
+    public async Task<RegulasyonOdemeSonuc> PayMtvAsync(Guid mtvId, LedgerAccountType account,
+        DateTimeOffset? paymentDate = null, string? currency = "TRY", decimal? exchangeRate = null,
+        RegulasyonOdemeInput? payment = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        HesapKontrol(hesap);
-        var paraBirimi = ParaBirimiKontrol(doviz, "MTV");
+        CheckAccount(account);
+        var currencyUnit = CheckCurrency(currency, "MTV");
 
         var rec = await _repository.FindMtvAsync(mtvId, ct) ?? throw new ValidationException("MTV kaydı bulunamadı.");
         // F1.4: anahtarlı gönderimde "zaten ödendi" kararı repo'ya (kilidin arkasına) bırakılır — orada
         // ÖNCE anahtar aranır. Yoksa anahtarlı çift gönderim, ilk ödeme kaydı kapattıysa 400, kısmi
         // bıraktıysa 409 alıyordu.
-        if (rec.Odendi && Anahtar(odeme?.IslemAnahtari) is null) throw new ValidationException("MTV zaten ödendi.");
+        if (rec.Odendi && Key(payment?.IslemAnahtari) is null) throw new ValidationException("MTV zaten ödendi.");
         if (rec.Tutar <= 0m) throw new ValidationException("MTV tutarı pozitif olmalıdır.");
 
         // Adversarial H1: ödeme tarihi artık FORMDAN geliyor → gelecek tarih reddi ŞART. Dönem
         // kilidi bunu yakalamaz (yalnız kapanış tarihine kadarını reddeder, gelecek serbest);
         // guard'sız 2099 tarihli 1000 TL gider deftere düşer ve hiçbir dönemde mutabık olmaz.
-        TarihPolitikasi.ParaTarihi(odemeTarih, "MTV ödeme");   // para-yolu simetrisi (AracKredi dersi)
-        var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
-        await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi: kapalı döneme MTV ödemesi YOK
-        var cozulenKur = await _kurCozucu.CozAsync(paraBirimi, kur, tarih, ct);
-        var g = odeme ?? new RegulasyonOdemeInput();
-        AnahtarKontrol(g);
-        var hesapRef = await _hesapCozucu.CozAsync(g.HesapId, hesap, ct); // FAZ-50 (lambda'dan ONCE: async)
+        DatePolicy.MoneyDate(paymentDate, "MTV ödeme");   // para-yolu simetrisi (AracKredi dersi)
+        var date = paymentDate ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(date, ct); // dönem kilidi: kapalı döneme MTV ödemesi YOK
+        var resolvedRate = await _exchangeRateResolver.ResolveAsync(currencyUnit, exchangeRate, date, ct);
+        var g = payment ?? new RegulasyonOdemeInput();
+        CheckKey(g);
+        var accountRef = await _accountResolver.ResolveAsync(g.HesapId, account, ct); // FAZ-50 (lambda'dan ONCE: async)
 
-        return await _repository.PostMtvOdemeAsync(mtvId, (kalan, sira) =>
+        return await _repository.PostMtvPaymentAsync(mtvId, (remaining, order) =>
         {
-            BayatlikKontrol(g, kalan);
-            var tutar = TutarKontrol(g.Tutar, kalan, "MTV");
-            var money = new Money(tutar, paraBirimi, cozulenKur);
-            var desc = $"MTV ödeme {rec.Donem} (#{sira})";
-            var satir = new MtvOdeme
+            CheckStaleness(g, remaining);
+            var amount = CheckAmount(g.Tutar, remaining, "MTV");
+            var money = new Money(amount, currencyUnit, resolvedRate);
+            var desc = $"MTV ödeme {rec.Donem} (#{order})";
+            var row = new MtvOdeme
             {
-                MtvId = mtvId, Sira = sira, Tutar = tutar, Tarih = tarih, Hesap = hesap,
+                MtvId = mtvId, Sira = order, Tutar = amount, Tarih = date, Hesap = account,
                 KasaKodu = Trim(g.KasaKodu), HesapNo = Trim(g.HesapNo), EvrakNo = Trim(g.EvrakNo),
                 IslemYapan = Trim(g.IslemYapan), Aciklama = Trim(g.Aciklama),
-                IslemAnahtari = Anahtar(g.IslemAnahtari)
+                IslemAnahtari = Key(g.IslemAnahtari)
             };
             // SourceId = ÖDEMENİN id'si (kaydınki değil) → mevcut kısmi unique index
             // (TenantId, SourceType, SourceId, Direction) değişmeden her ödemeyi tekilleştirir.
             IReadOnlyList<AccountLedgerEntry> entries =
             [
-                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
-                    Direction = LedgerDirection.Debit, Amount = money, SourceType = "MtvOdeme", SourceId = satir.Id, Description = desc },
+                new AccountLedgerEntry { EntryDateUtc = date, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
+                    Direction = LedgerDirection.Debit, Amount = money, SourceType = "MtvOdeme", SourceId = row.Id, Description = desc },
                 // FAZ-50: nakit bacagi hangi kasa/bankadan odendigini tasir (null -> legacy kova).
-                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = hesapRef,
-                    Direction = LedgerDirection.Credit, Amount = money, SourceType = "MtvOdeme", SourceId = satir.Id, Description = desc }
+                new AccountLedgerEntry { EntryDateUtc = date, AccountType = account, AccountRef = accountRef,
+                    Direction = LedgerDirection.Credit, Amount = money, SourceType = "MtvOdeme", SourceId = row.Id, Description = desc }
             ];
-            return (satir, entries);
-        }, ct, Anahtar(g.IslemAnahtari));
+            return (row, entries);
+        }, ct, Key(g.IslemAnahtari));
     }
 
     /// <summary>Bir MTV kaydının ödeme geçmişi (sıraya göre).</summary>
-    public Task<IReadOnlyList<MtvOdeme>> ListMtvOdemeAsync(Guid mtvId, CancellationToken ct = default)
-        => _repository.ListMtvOdemeAsync(mtvId, ct);
+    public Task<IReadOnlyList<MtvOdeme>> ListMtvPaymentsAsync(Guid mtvId, CancellationToken ct = default)
+        => _repository.ListMtvPaymentsAsync(mtvId, ct);
 
     /// <summary>Adversarial M2/L9 — TÜM MTV ödemeleri tek sorguda (liste sayfası kayıt başına
     /// sorgu atmasın ve kapanan kaydın geçmişi ekrandan KAYBOLMASIN).</summary>
-    public Task<IReadOnlyList<MtvOdeme>> ListMtvOdemeHepsiAsync(CancellationToken ct = default)
-        => _repository.ListMtvOdemeHepsiAsync(ct);
+    public Task<IReadOnlyList<MtvOdeme>> ListAllMtvPaymentsAsync(CancellationToken ct = default)
+        => _repository.ListAllMtvPaymentsAsync(ct);
 
     /// <summary>
     /// Muayene ödeme (roadmap J2 + FAZ-14 KISMİ ÖDEME). Ödemede girilen <c>Ceza</c> BORCU ARTIRIR
     /// (<c>Kalan = Kalan + Ceza − Tutar</c>) — kendiliğinden ödenmiş sayılmaz. Tutar null ise
     /// "kalan + bu ceza"nın tamamı ödenir (eski tek-seferde-kapat davranışının karşılığı).
-    /// Para birimi TRY ile sınırlı (bkz. <see cref="MtvOdeAsync"/>).
+    /// Para birimi TRY ile sınırlı (bkz. <see cref="PayMtvAsync"/>).
     /// </summary>
-    public async Task<RegulasyonOdemeSonuc> MuayeneOdeAsync(Guid inspectionId, LedgerAccountType hesap,
-        decimal ceza = 0m, DateTimeOffset? odemeTarih = null, string? doviz = "TRY", decimal? kur = null,
-        RegulasyonOdemeInput? odeme = null, CancellationToken ct = default)
+    public async Task<RegulasyonOdemeSonuc> PayInspectionAsync(Guid inspectionId, LedgerAccountType account,
+        decimal penalty = 0m, DateTimeOffset? paymentDate = null, string? currency = "TRY", decimal? exchangeRate = null,
+        RegulasyonOdemeInput? payment = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        HesapKontrol(hesap);
-        if (ceza < 0m) throw new ValidationException("Ceza negatif olamaz.");
-        var paraBirimi = ParaBirimiKontrol(doviz, "Muayene");
+        CheckAccount(account);
+        if (penalty < 0m) throw new ValidationException("Ceza negatif olamaz.");
+        var currencyUnit = CheckCurrency(currency, "Muayene");
 
         var rec = await _repository.FindInspectionAsync(inspectionId, ct) ?? throw new ValidationException("Muayene kaydı bulunamadı.");
         // F1.4: bkz. MtvOdeAsync — anahtarlıysa "zaten ödendi" kararı kilidin arkasında, anahtardan SONRA.
-        if (rec.Odendi && Anahtar(odeme?.IslemAnahtari) is null) throw new ValidationException("Muayene zaten ödendi.");
+        if (rec.Odendi && Key(payment?.IslemAnahtari) is null) throw new ValidationException("Muayene zaten ödendi.");
 
-        TarihPolitikasi.ParaTarihi(odemeTarih, "Muayene ödeme");   // adversarial H1
-        var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
-        await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi
-        var cozulenKur = await _kurCozucu.CozAsync(paraBirimi, kur, tarih, ct);
-        var g = odeme ?? new RegulasyonOdemeInput();
-        AnahtarKontrol(g);
-        var hesapRef = await _hesapCozucu.CozAsync(g.HesapId, hesap, ct); // FAZ-50
+        DatePolicy.MoneyDate(paymentDate, "Muayene ödeme");   // adversarial H1
+        var date = paymentDate ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(date, ct); // dönem kilidi
+        var resolvedRate = await _exchangeRateResolver.ResolveAsync(currencyUnit, exchangeRate, date, ct);
+        var g = payment ?? new RegulasyonOdemeInput();
+        CheckKey(g);
+        var accountRef = await _accountResolver.ResolveAsync(g.HesapId, account, ct); // FAZ-50
 
-        return await _repository.PostMuayeneOdemeAsync(inspectionId, (kalan, sira) =>
+        return await _repository.PostInspectionPaymentAsync(inspectionId, (remaining, order) =>
         {
-            BayatlikKontrol(g, kalan);
+            CheckStaleness(g, remaining);
             // Ceza önce borcu büyütür; ödenebilir tavan bu yüzden kalan + ceza.
-            var tavan = kalan + ceza;
-            var tutar = TutarKontrol(g.Tutar, tavan, "Muayene");
-            var money = new Money(tutar, paraBirimi, cozulenKur);
-            var desc = $"Muayene ödeme {rec.MuayeneTarihi.LocalDateTime:dd.MM.yyyy} (#{sira})"
-                + (ceza > 0m ? $" (+ceza {ceza})" : "");
-            var satir = new MuayeneOdeme
+            var cap = remaining + penalty;
+            var amount = CheckAmount(g.Tutar, cap, "Muayene");
+            var money = new Money(amount, currencyUnit, resolvedRate);
+            var desc = $"Muayene ödeme {rec.MuayeneTarihi.LocalDateTime:dd.MM.yyyy} (#{order})"
+                + (penalty > 0m ? $" (+ceza {penalty})" : "");
+            var row = new MuayeneOdeme
             {
-                InspectionId = inspectionId, Sira = sira, Tutar = tutar, Ceza = ceza, Tarih = tarih, Hesap = hesap,
+                InspectionId = inspectionId, Sira = order, Tutar = amount, Ceza = penalty, Tarih = date, Hesap = account,
                 KasaKodu = Trim(g.KasaKodu), HesapNo = Trim(g.HesapNo), EvrakNo = Trim(g.EvrakNo),
                 IslemYapan = Trim(g.IslemYapan), Aciklama = Trim(g.Aciklama),
-                IslemAnahtari = Anahtar(g.IslemAnahtari)
+                IslemAnahtari = Key(g.IslemAnahtari)
             };
             IReadOnlyList<AccountLedgerEntry> entries =
             [
-                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
-                    Direction = LedgerDirection.Debit, Amount = money, SourceType = "MuayeneOdeme", SourceId = satir.Id, Description = desc },
+                new AccountLedgerEntry { EntryDateUtc = date, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
+                    Direction = LedgerDirection.Debit, Amount = money, SourceType = "MuayeneOdeme", SourceId = row.Id, Description = desc },
                 // FAZ-50: nakit bacagi hangi kasa/bankadan odendigini tasir (null -> legacy kova).
-                new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = hesapRef,
-                    Direction = LedgerDirection.Credit, Amount = money, SourceType = "MuayeneOdeme", SourceId = satir.Id, Description = desc }
+                new AccountLedgerEntry { EntryDateUtc = date, AccountType = account, AccountRef = accountRef,
+                    Direction = LedgerDirection.Credit, Amount = money, SourceType = "MuayeneOdeme", SourceId = row.Id, Description = desc }
             ];
-            return (satir, entries);
-        }, ct, Anahtar(g.IslemAnahtari));
+            return (row, entries);
+        }, ct, Key(g.IslemAnahtari));
     }
 
     /// <summary>Bir muayene kaydının ödeme geçmişi (sıraya göre).</summary>
-    public Task<IReadOnlyList<MuayeneOdeme>> ListMuayeneOdemeAsync(Guid inspectionId, CancellationToken ct = default)
-        => _repository.ListMuayeneOdemeAsync(inspectionId, ct);
+    public Task<IReadOnlyList<MuayeneOdeme>> ListInspectionPaymentsAsync(Guid inspectionId, CancellationToken ct = default)
+        => _repository.ListInspectionPaymentsAsync(inspectionId, ct);
 
     /// <summary>Adversarial M2/L9 — tüm muayene ödemeleri tek sorguda.</summary>
-    public Task<IReadOnlyList<MuayeneOdeme>> ListMuayeneOdemeHepsiAsync(CancellationToken ct = default)
-        => _repository.ListMuayeneOdemeHepsiAsync(ct);
+    public Task<IReadOnlyList<MuayeneOdeme>> ListAllInspectionPaymentsAsync(CancellationToken ct = default)
+        => _repository.ListAllInspectionPaymentsAsync(ct);
 
-    private static void HesapKontrol(LedgerAccountType hesap)
+    private static void CheckAccount(LedgerAccountType account)
     {
-        if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
+        if (account is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
             throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
     }
 
     /// <summary>MTV/Muayene kayıtlarında döviz alanı yok → TRY dışı para birimi reddedilir.</summary>
-    private static string ParaBirimiKontrol(string? doviz, string ne)
+    private static string CheckCurrency(string? currency, string ne)
     {
-        var p = string.IsNullOrWhiteSpace(doviz) ? "TRY" : doviz.Trim().ToUpperInvariant();
+        var p = string.IsNullOrWhiteSpace(currency) ? "TRY" : currency.Trim().ToUpperInvariant();
         if (p != "TRY")
             throw new ValidationException(
                 $"{ne} tutarları TRY'dir (kayıtta döviz alanı yok); ödeme para birimi {p} olamaz.");
@@ -294,18 +294,18 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     }
 
     /// <summary>Kısmi tutar doğrulaması: null → tavanın tamamı; pozitif olmalı; tavanı AŞAMAZ.</summary>
-    private static decimal TutarKontrol(decimal? istenen, decimal tavan, string ne)
+    private static decimal CheckAmount(decimal? requested, decimal cap, string ne)
     {
-        if (tavan <= 0m) throw new ValidationException($"{ne} kaydında ödenecek bakiye yok.");
-        if (istenen is not { } t) return tavan;
+        if (cap <= 0m) throw new ValidationException($"{ne} kaydında ödenecek bakiye yok.");
+        if (requested is not { } t) return cap;
         // Adversarial L5: yuvarlama ÖNCE — 0,00004 gibi bir tutar pozitiflik kontrolünü geçip
         // yuvarlandıktan sonra 0'a düşüyor ve DB CHECK'ine 500 ile takılıyordu.
-        var yuvarlak = decimal.Round(t, 4, MidpointRounding.AwayFromZero);
-        if (yuvarlak <= 0m) throw new ValidationException("Ödeme tutarı pozitif olmalıdır.");
+        var rounded = decimal.Round(t, 4, MidpointRounding.AwayFromZero);
+        if (rounded <= 0m) throw new ValidationException("Ödeme tutarı pozitif olmalıdır.");
         // Aşım REDDEDİLİR: kabul etseydik Kalan negatife düşer, Odendi true olur ve deftere
         // borçtan fazlası yazılırdı (mutabakat bozulur).
-        if (yuvarlak > tavan) throw new ValidationException($"Ödeme tutarı kalan bakiyeyi aşamaz (kalan {tavan:N2}).");
-        return yuvarlak;
+        if (rounded > cap) throw new ValidationException($"Ödeme tutarı kalan bakiyeyi aşamaz (kalan {cap:N2}).");
+        return rounded;
     }
 
     /// <summary>
@@ -318,21 +318,21 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// sessizce çift gider yazardı. Form her render'da yeni GUID basar; programatik çağıranlar
     /// (job/REST) anahtarı üretmek ZORUNDADIR.</para>
     /// </summary>
-    private static void AnahtarKontrol(RegulasyonOdemeInput g)
+    private static void CheckKey(RegulasyonOdemeInput g)
     {
-        if (g.Tutar is not null && Anahtar(g.IslemAnahtari) is null)
+        if (g.Tutar is not null && Key(g.IslemAnahtari) is null)
             throw new ValidationException(
                 "Kısmi ödemede işlem anahtarı zorunludur (çift gönderim koruması).");
     }
 
-    private static Guid? Anahtar(Guid? a) => a is { } g && g != Guid.Empty ? g : null;
+    private static Guid? Key(Guid? a) => a is { } g && g != Guid.Empty ? g : null;
 
     /// <summary>F9.1 — kilit altında okunan kalan, ekranın gördüğüyle aynı mı (bkz. <see cref="RegulasyonOdemeInput.BeklenenKalan"/>).</summary>
-    private static void BayatlikKontrol(RegulasyonOdemeInput g, decimal kalan)
+    private static void CheckStaleness(RegulasyonOdemeInput g, decimal remaining)
     {
-        if (g.BeklenenKalan is { } beklenen && beklenen != kalan)
-            throw new EszamanliDegisiklikException(
-                $"Kayıt bu sırada değişti (kalan artık {kalan:N2}); ödeme yazılmadı. Kaydı yeniden açıp tekrar deneyin.");
+        if (g.BeklenenKalan is { } expected && expected != remaining)
+            throw new ConcurrentModificationException(
+                $"Kayıt bu sırada değişti (kalan artık {remaining:N2}); ödeme yazılmadı. Kaydı yeniden açıp tekrar deneyin.");
     }
 
     /// <summary>
@@ -340,34 +340,34 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// FinanceWrite + dönem-kilidi + idempotency (SourceId=policyId). InsurancePolicy.Odendi=true + ZeyilPrim
     /// (atomik, tek tx). Para birimi poliçenin Currency'si; kur ile baz tutara çevrilir.
     /// </summary>
-    public async Task SigortaOdeAsync(Guid policyId, LedgerAccountType hesap, decimal zeyilEkPrim = 0m,
-        DateTimeOffset? odemeTarih = null, decimal? kur = null,
-        Guid? hesapId = null, CancellationToken ct = default)
+    public async Task PayInsuranceAsync(Guid policyId, LedgerAccountType account, decimal endorsementExtraPremium = 0m,
+        DateTimeOffset? paymentDate = null, decimal? exchangeRate = null,
+        Guid? accountId = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        if (hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
+        if (account is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
             throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
-        if (zeyilEkPrim < 0m) throw new ValidationException("Zeyil ek prim negatif olamaz.");
+        if (endorsementExtraPremium < 0m) throw new ValidationException("Zeyil ek prim negatif olamaz.");
 
         var rec = await _repository.FindInsuranceAsync(policyId, ct) ?? throw new ValidationException("Sigorta poliçesi bulunamadı.");
         if (rec.Odendi) throw new ValidationException("Sigorta zaten ödendi.");
-        var toplam = rec.Prim + zeyilEkPrim;
-        if (toplam <= 0m) throw new ValidationException("Sigorta ödeme tutarı pozitif olmalıdır.");
+        var total = rec.Prim + endorsementExtraPremium;
+        if (total <= 0m) throw new ValidationException("Sigorta ödeme tutarı pozitif olmalıdır.");
 
-        var tarih = odemeTarih ?? DateTimeOffset.UtcNow;
-        await _lock.EnsureOpenAsync(tarih, ct); // dönem kilidi
+        var date = paymentDate ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(date, ct); // dönem kilidi
 
         // Kur çözümü (1.1): açık kur aynen; boş → TRY=1 / döviz poliçede KurService (yoksa net red).
-        var cozulenKur = await _kurCozucu.CozAsync(rec.Currency, kur, tarih, ct);
-        var money = new Money(toplam, (rec.Currency ?? "TRY").Trim().ToUpperInvariant(), cozulenKur);
-        var desc = $"Sigorta ödeme {rec.Tip}" + (zeyilEkPrim > 0m ? $" (+zeyil {zeyilEkPrim})" : "");
-        var hesapRef = await _hesapCozucu.CozAsync(hesapId, hesap, ct); // FAZ-50
-        await _repository.PostSigortaOdemeAsync(policyId, zeyilEkPrim,
+        var resolvedRate = await _exchangeRateResolver.ResolveAsync(rec.Currency, exchangeRate, date, ct);
+        var money = new Money(total, (rec.Currency ?? "TRY").Trim().ToUpperInvariant(), resolvedRate);
+        var desc = $"Sigorta ödeme {rec.Tip}" + (endorsementExtraPremium > 0m ? $" (+zeyil {endorsementExtraPremium})" : "");
+        var accountRef = await _accountResolver.ResolveAsync(accountId, account, ct); // FAZ-50
+        await _repository.PostInsurancePaymentAsync(policyId, endorsementExtraPremium,
         [
-            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
+            new AccountLedgerEntry { EntryDateUtc = date, AccountType = LedgerAccountType.Gider, AccountRef = rec.VehicleId,
                 Direction = LedgerDirection.Debit, Amount = money, SourceType = "SigortaOdeme", SourceId = policyId, Description = desc },
             // FAZ-50: nakit bacagi hangi kasa/bankadan odendigini tasir (null -> legacy kova).
-            new AccountLedgerEntry { EntryDateUtc = tarih, AccountType = hesap, AccountRef = hesapRef,
+            new AccountLedgerEntry { EntryDateUtc = date, AccountType = account, AccountRef = accountRef,
                 Direction = LedgerDirection.Credit, Amount = money, SourceType = "SigortaOdeme", SourceId = policyId, Description = desc }
         ], ct);
     }
@@ -375,12 +375,12 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     // ---- FAZ-15: poliçe zeyli (poliçe eki) ----
 
     /// <summary>Bir poliçenin zeyil geçmişi.</summary>
-    public Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilAsync(Guid policyId, CancellationToken ct = default)
-        => _repository.ListZeyilAsync(policyId, ct);
+    public Task<IReadOnlyList<InsurancePolicyZeyil>> ListEndorsementsAsync(Guid policyId, CancellationToken ct = default)
+        => _repository.ListEndorsementsAsync(policyId, ct);
 
     /// <summary>Tenant'ın tüm zeyilleri (liste ekranı için tek sorgu).</summary>
-    public Task<IReadOnlyList<InsurancePolicyZeyil>> ListZeyilHepsiAsync(CancellationToken ct = default)
-        => _repository.ListZeyilHepsiAsync(ct);
+    public Task<IReadOnlyList<InsurancePolicyZeyil>> ListAllEndorsementsAsync(CancellationToken ct = default)
+        => _repository.ListAllEndorsementsAsync(ct);
 
     /// <summary>
     /// Zeyil ekler (OperationsWrite). <b>DEFTERE HİÇBİR ŞEY YAZMAZ</b> — bu bilinçli bir karardır
@@ -389,7 +389,7 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// ne <c>IPeriodLockGuard</c> ne de <c>KurCozucu</c> çağrılır — mali bir işlem değildir.
     /// Poliçenin <c>Kalan</c>'ına da DOKUNMAZ (bkz. <c>InsurancePolicy.Kalan</c>).
     /// </summary>
-    public async Task<Guid> AddZeyilAsync(ZeyilInput input, CancellationToken ct = default)
+    public async Task<Guid> AddEndorsementAsync(ZeyilInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
 
@@ -400,32 +400,32 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
 
         var no = Trim(input.ZeyilNo) ?? throw new ValidationException("Zeyil no zorunludur.");
         if (no.Length > 32) throw new ValidationException("Zeyil no en fazla 32 karakter olabilir.");
-        if (input.Tarih is not { } tarih) throw new ValidationException("Zeyil tarihi zorunludur.");
+        if (input.Tarih is not { } date) throw new ValidationException("Zeyil tarihi zorunludur.");
         // Uzunluklar SUNUCUDA da doğrulanır: formdaki maxlength yalnız tarayıcı çiti; elle
         // hazırlanmış POST kolon sınırını aşınca DbUpdateException → 500 verirdi (temiz red şart).
-        var tipi = Trim(input.Tipi);
-        if (tipi is { Length: > 64 }) throw new ValidationException("Zeyil tipi en fazla 64 karakter olabilir.");
-        var neden = Trim(input.Neden);
-        if (neden is { Length: > 512 }) throw new ValidationException("Zeyil nedeni en fazla 512 karakter olabilir.");
+        var type = Trim(input.Tipi);
+        if (type is { Length: > 64 }) throw new ValidationException("Zeyil tipi en fazla 64 karakter olabilir.");
+        var reason = Trim(input.Neden);
+        if (reason is { Length: > 512 }) throw new ValidationException("Zeyil nedeni en fazla 512 karakter olabilir.");
         // Değer bir TEMİNAT tabanıdır → negatif olamaz. Brüt/Net/Fon-Vergi ise tenzil (iade)
         // zeylinde negatiftir; bilgi alanı olduğu için işaret serbest (yön hatası üretemez).
-        var deger = Yuvarla(input.Deger);
-        if (deger < 0m) throw new ValidationException("Zeyil değeri negatif olamaz.");
+        var value = Round(input.Deger);
+        if (value < 0m) throw new ValidationException("Zeyil değeri negatif olamaz.");
 
         var z = new InsurancePolicyZeyil
         {
             PolicyId = input.PolicyId,
             ZeyilNo = no,
-            Tarih = tarih,
+            Tarih = date,
             Tanzim = input.Tanzim,
-            Deger = deger,
-            Brut = Yuvarla(input.Brut),
-            Net = Yuvarla(input.Net),
-            FonVergi = Yuvarla(input.FonVergi),
-            Tipi = tipi,
-            Neden = neden
+            Deger = value,
+            Brut = Round(input.Brut),
+            Net = Round(input.Net),
+            FonVergi = Round(input.FonVergi),
+            Tipi = type,
+            Neden = reason
         };
-        await _repository.AddZeyilAsync(z, ct);
+        await _repository.AddEndorsementAsync(z, ct);
         return z.Id;
     }
 
@@ -433,15 +433,15 @@ public sealed class RegulationService(IRegulationRepository repository, ICurrent
     /// Zeyil siler (OperationsWrite). Zeyil mali belge değildir (defter kaydı üretmez) → yanlış
     /// giriş SİLİNEBİLİR; ters kayıt gerektirmez. Bulunamazsa temiz doğrulama hatası.
     /// </summary>
-    public async Task DeleteZeyilAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteEndorsementAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        if (!await _repository.DeleteZeyilAsync(id, ct))
+        if (!await _repository.DeleteEndorsementAsync(id, ct))
             throw new ValidationException("Zeyil kaydı bulunamadı.");
     }
 
     /// <summary>Para alanı normalizasyonu — kolon numeric(19,4); null → 0.</summary>
-    private static decimal Yuvarla(decimal? v)
+    private static decimal Round(decimal? v)
         => v is { } d ? decimal.Round(d, 4, MidpointRounding.AwayFromZero) : 0m;
 
     private static void RequireVehicle(Guid vehicleId)

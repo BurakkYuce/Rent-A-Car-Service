@@ -35,12 +35,12 @@ public sealed class KanalBaglamaTests(PostgresFixture fx)
             await rm.CreateAsync(new RateMatrixInput
             {
                 Kod = "EKO-WEB", Ad = "Eko Web", Kanal = "WEB", AracGrupKod = "EKO", ParaBirimi = "TRY",
-                Gun1 = 900m, Gun2 = 900m, Gun3 = 900m, OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+                Gun1 = 900m, Gun2 = 900m, Gun3 = 900m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
             });
             await rm.CreateAsync(new RateMatrixInput
             {
                 Kod = "EKO-BASE", Ad = "Eko Base", AracGrupKod = "EKO", ParaBirimi = "TRY",
-                Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+                Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
             });
         }
         else
@@ -48,7 +48,7 @@ public sealed class KanalBaglamaTests(PostgresFixture fx)
             await rm.CreateAsync(new RateMatrixInput
             {
                 Kod = "EKO-ACENTA", Ad = "Eko Acenta", Kanal = "ACENTA", AracGrupKod = "EKO", ParaBirimi = "TRY",
-                Gun1 = 800m, Gun2 = 800m, Gun3 = 800m, OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+                Gun1 = 800m, Gun2 = 800m, Gun3 = 800m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
             });
         }
         await sp.GetRequiredService<ReservationSourceService>().CreateAsync(new ReservationSourceInput
@@ -57,7 +57,7 @@ public sealed class KanalBaglamaTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 KB 01", Grup = "EKO" });
         var m = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "KB", Soyad = "M" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "KB", Soyad = "M" });
         return (m, v);
     }
 

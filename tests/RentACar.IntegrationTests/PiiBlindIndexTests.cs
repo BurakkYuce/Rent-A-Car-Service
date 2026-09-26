@@ -33,7 +33,7 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
 
     private static CustomerInput Bireysel(string tc, string ad = "Ali") => new()
     {
-        Tip = CariType.Bireysel, Ad = ad, Soyad = "Test", TcKimlik = tc,
+        Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test", TcKimlik = tc,
         EhliyetNo = "EHL-123", PasaportNo = "P-456"
     };
 
@@ -96,7 +96,7 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         var hash = sp.GetRequiredService<IPiiHasher>().Hash(tenant, Tc1);
         var raw = new Customer
         {
-            Tip = CariType.Bireysel, Ad = "Yarış", TcKimlikHash = hash, TcKimlikEnc = "x"
+            Tip = CustomerType.Bireysel, Ad = "Yarış", TcKimlikHash = hash, TcKimlikEnc = "x"
         };
         await Assert.ThrowsAsync<DuplicateCariException>(() => repo.CreateAsync(raw));
     }
@@ -188,7 +188,7 @@ public sealed class PiiBlindIndexTests(PostgresFixture fx)
         {
             db.Customers.Add(new Customer
             {
-                Id = legacyId, Tip = CariType.Bireysel, Ad = "Eski", Soyad = "Kayıt",
+                Id = legacyId, Tip = CustomerType.Bireysel, Ad = "Eski", Soyad = "Kayıt",
                 TcKimlik = Tc2, EhliyetNo = "EHL-OLD", PasaportNo = "P-OLD"
             });
             db.AuditLogs.Add(new AuditLog // maske ÖNCESİ yazılmış tarihsel iz simülasyonu

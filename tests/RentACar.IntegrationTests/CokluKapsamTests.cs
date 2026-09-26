@@ -35,14 +35,14 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
     [InlineData("", "EKO", false)]
     [InlineData("EKO,STD", null, false)]
     public void KapsarMi_sozlesmesi(string? csv, string? deger, bool beklenen)
-        => Assert.Equal(beklenen, BrokerYasakService.KapsarMi(csv, deger));
+        => Assert.Equal(beklenen, BrokerBanService.IsCovered(csv, deger));
 
     [Fact]
     public async Task Coklu_secim_CSVye_normalize_edilir()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<BrokerYasakService>();
+        var svc = s.ServiceProvider.GetRequiredService<BrokerBanService>();
 
         // CokluSecim bileşeni aynı adı taşıyan alanları gönderir → uca "eko, std ,EKO" gibi gelir.
         var id = await svc.CreateAsync(new BrokerYasakInput
@@ -60,9 +60,9 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
         Assert.Equal("Antalya,İzmir", r.Bolge);
 
         // Yazılan biçim okuma sözleşmesiyle uyumlu olmalı.
-        Assert.True(BrokerYasakService.KapsarMi(r.AracGrupKod, "STD"));
-        Assert.True(BrokerYasakService.KapsarMi(r.Bolge, "izmir"));
-        Assert.False(BrokerYasakService.KapsarMi(r.AracGrupKod, "LUX"));
+        Assert.True(BrokerBanService.IsCovered(r.AracGrupKod, "STD"));
+        Assert.True(BrokerBanService.IsCovered(r.Bolge, "izmir"));
+        Assert.False(BrokerBanService.IsCovered(r.AracGrupKod, "LUX"));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<BrokerYasakService>();
+        var svc = s.ServiceProvider.GetRequiredService<BrokerBanService>();
 
         var id = await svc.CreateAsync(new BrokerYasakInput
         { Kod = "BRK2", Ad = "Kapsamsız", TumSatisKapali = true, AracGrupKod = " , , ", Bolge = "" });
@@ -96,14 +96,14 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
         {
             Kod = "A-KISA", Ad = "Kısa dönem", AracGrupKod = "EKO", KiraSuresi = 14,
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m, Gun6 = 1000m, Gun7 = 1000m,
-            GunHaftalik = 1000m, GunAylik = 1000m, OnayDurumu = TarifeOnayDurumu.Onayli
+            GunHaftalik = 1000m, GunAylik = 1000m, OnayDurumu = TariffApprovalStatus.Onayli
         });
         // B: sınırsız (KiraSuresi null) günlük 700
         _ = await mat.CreateAsync(new RateMatrixInput
         {
             Kod = "B-UZUN", Ad = "Uzun dönem", AracGrupKod = "EKO",
             Gun1 = 700m, Gun2 = 700m, Gun3 = 700m, Gun4 = 700m, Gun5 = 700m, Gun6 = 700m, Gun7 = 700m,
-            GunHaftalik = 700m, GunAylik = 700m, OnayDurumu = TarifeOnayDurumu.Onayli
+            GunHaftalik = 700m, GunAylik = 700m, OnayDurumu = TariffApprovalStatus.Onayli
         });
 
         var motor = sp.GetRequiredService<RentalQuoteEngine>();
@@ -136,7 +136,7 @@ public sealed class CokluKapsamTests(PostgresFixture fx)
         {
             Kod = "TEK", Ad = "Tek satır", AracGrupKod = "EKO", KiraSuresi = 5,
             Gun1 = 900m, Gun2 = 900m, Gun3 = 900m, Gun4 = 900m, Gun5 = 900m, Gun6 = 900m, Gun7 = 900m,
-            GunHaftalik = 900m, GunAylik = 900m, OnayDurumu = TarifeOnayDurumu.Onayli
+            GunHaftalik = 900m, GunAylik = 900m, OnayDurumu = TariffApprovalStatus.Onayli
         });
 
         var bas = TestZaman.Simdi().AddDays(1);

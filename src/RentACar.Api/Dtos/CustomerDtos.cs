@@ -6,7 +6,7 @@ namespace RentACar.Api.Dtos;
 
 /// <summary>Cari yanıt modeli (DisplayName türetilmiş; enum string).</summary>
 public sealed record CustomerResponse(
-    Guid Id, CariType Tip, string DisplayName,
+    Guid Id, CustomerType Tip, string DisplayName,
     string? Ad, string? Soyad, string? TcKimlik,
     string? Unvan, string? VergiDairesi, string? VergiNo,
     string? CepTel, string? Email, string? Il, string? Ilce, string? Adres,
@@ -22,7 +22,7 @@ public sealed record CustomerResponse(
 /// <summary>Cari oluştur/güncelle istek modeli.</summary>
 public sealed class CustomerRequest
 {
-    public CariType Tip { get; set; } = CariType.Bireysel;
+    public CustomerType Tip { get; set; } = CustomerType.Bireysel;
     public string? Ad { get; set; }
     public string? Soyad { get; set; }
     public string? TcKimlik { get; set; }

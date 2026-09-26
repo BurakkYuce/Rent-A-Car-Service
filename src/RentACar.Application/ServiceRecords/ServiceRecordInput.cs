@@ -58,7 +58,7 @@ public class ServiceRecordBilgiInput
     public decimal? Odeme { get; set; }
     public string? OdemeDoviz { get; set; }
     public decimal? OdemeKur { get; set; }
-    public OdemeYontemi? OdemeTuru { get; set; }
+    public PaymentMethod? OdemeTuru { get; set; }
     public string? KasaKodu { get; set; }
     public string? HesapNo { get; set; }
 
@@ -77,14 +77,14 @@ public sealed class ServiceRecordInput : ServiceRecordBilgiInput
     public Guid? Id { get; set; }
 
     public Guid VehicleId { get; set; }
-    public ServisTipi Tip { get; set; } = ServisTipi.Periyodik;
+    public ServiceType Tip { get; set; } = ServiceType.Periyodik;
     public DateTimeOffset? GirisTarihi { get; set; }
     public int GirisKm { get; set; }
-    public HasarSorumlu HasarSorumlu { get; set; } = HasarSorumlu.Yok;
+    public DamageResponsible HasarSorumlu { get; set; } = DamageResponsible.Yok;
     public decimal? KusurOrani { get; set; }
 
     /// <summary>
-    /// FAZ-16: true → kayıt <see cref="ServisDurum.Rezerve"/> (planlanmış randevu) olarak açılır;
+    /// FAZ-16: true → kayıt <see cref="ServiceStatus.Rezerve"/> (planlanmış randevu) olarak açılır;
     /// araç servise GİRMEZ, "Servise Al" ile Açık'a döner. Varsayılan false → mevcut davranış.
     /// </summary>
     public bool Rezervasyon { get; set; }

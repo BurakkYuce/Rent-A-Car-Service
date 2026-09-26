@@ -17,14 +17,14 @@ public static class MusteriTaksitEndpoints
     {
         var grp = app.MapGroup("/musteri-taksit").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (MusteriTaksitService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (CustomerInstallmentService svc, HttpRequest req) =>
             await Run(req, () => svc.CreateAsync(Build(req.Form))));
 
-        grp.MapPost("/update", async (MusteriTaksitService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (CustomerInstallmentService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(req, () => svc.UpdateAsync(id, Build(req.Form))));
 
-        grp.MapPost("/plan", async (MusteriTaksitService svc, HttpRequest req) =>
-            await Run(req, () => svc.PlanUretAsync(new TaksitPlanInput
+        grp.MapPost("/plan", async (CustomerInstallmentService svc, HttpRequest req) =>
+            await Run(req, () => svc.GeneratePlanAsync(new TaksitPlanInput
             {
                 CariId = FormParse.Id(FormParse.Str(req.Form, "cariId")) ?? Guid.Empty,
                 VehicleId = FormParse.Id(FormParse.Str(req.Form, "vehicleId")),
@@ -36,12 +36,12 @@ public static class MusteriTaksitEndpoints
                 Aciklama = FormParse.Str(req.Form, "aciklama")
             })));
 
-        grp.MapPost("/odeme", async (MusteriTaksitService svc, HttpRequest req,
+        grp.MapPost("/odeme", async (CustomerInstallmentService svc, HttpRequest req,
             [FromForm] Guid id, [FromForm] string? geriAl) =>
-            await Run(req, () => svc.OdemeIsaretleAsync(id, geriAl != "true",
+            await Run(req, () => svc.MarkPaidAsync(id, geriAl != "true",
                 FormParse.Date(FormParse.Str(req.Form, "odemeTarihi")))));
 
-        grp.MapPost("/delete", async (MusteriTaksitService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (CustomerInstallmentService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(req, () => svc.DeleteAsync(id)));
 
         return app;
@@ -55,7 +55,7 @@ public static class MusteriTaksitEndpoints
         TaksitTutari = FormParse.Dec(FormParse.Str(f, "taksitTutari")) ?? 0m,
         Currency = FormParse.Str(f, "currency"),
         Kur = FormParse.Dec(FormParse.Str(f, "kur")),
-        Durum = Enum.TryParse<TaksitDurum>(FormParse.Str(f, "durum"), out var d) ? d : TaksitDurum.Bekliyor,
+        Durum = Enum.TryParse<InstallmentStatus>(FormParse.Str(f, "durum"), out var d) ? d : InstallmentStatus.Bekliyor,
         OdemeTarihi = FormParse.Date(FormParse.Str(f, "odemeTarihi")),
         Aciklama = FormParse.Str(f, "aciklama")
     };

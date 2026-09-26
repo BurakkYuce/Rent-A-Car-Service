@@ -14,13 +14,13 @@ namespace RentACar.Application.Expenses;
 /// Nakit/Banka → Kasa/Banka azalır; AçıkHesap → tedarikçi cari'ye borçlanılır (Alacak).
 /// </summary>
 public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.KurCozucu kurCozucu, RentACar.Application.FinancialAccounts.HesapCozucu hesapCozucu)
+    RentACar.Application.Kur.ExchangeRateResolver exchangeRateResolver, RentACar.Application.FinancialAccounts.AccountResolver accountResolver)
 {
     private readonly IExpenseRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
-    private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
-    private readonly RentACar.Application.FinancialAccounts.HesapCozucu _hesapCozucu = hesapCozucu;
+    private readonly RentACar.Application.Kur.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
+    private readonly RentACar.Application.FinancialAccounts.AccountResolver _accountResolver = accountResolver;
 
     /// <summary>
     /// Giderler. Şube kapsamı (C3: FK-farkındalı) HER ZAMAN uygulanır; <paramref name="filter"/>
@@ -41,57 +41,57 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     public async Task<Guid> CreateAsync(ExpenseInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        TarihPolitikasi.ParaTarihi(input.Tarih, "Gider"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
-        var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct); // 1.1b
-        var cozulenHesap = await CozHesapAsync(input, ct);                                   // FAZ-50
+        DatePolicy.MoneyDate(input.Tarih, "Gider"); // savunma: gelecek tarih reddi (geçmiş dönem-kilidinde)
+        var resolvedRate = await _exchangeRateResolver.ResolveAsync(input.Doviz, input.Kur, input.Tarih, ct); // 1.1b
+        var resolvedAccount = await ResolveAccountAsync(input, ct);                                   // FAZ-50
         // F1.4: tekil giderin çift-gönderim anahtarı (önceden mekanizma YOKTU — her çağrı yeni gider).
-        var posting = BuildPosting(input, input.IslemAnahtari is { } k && k != Guid.Empty ? k : null, cozulenKur, cozulenHesap);
+        var posting = BuildPosting(input, input.IslemAnahtari is { } k && k != Guid.Empty ? k : null, resolvedRate, resolvedAccount);
         await _lock.EnsureOpenAsync(posting.Expense.Tarih, ct); // dönem kilidi: kapalı tarihe gider YOK
         await _repository.PostAsync(posting.Expense, posting.Entries, ct);
         return posting.Expense.Id;
     }
 
     /// <summary>Toplu gider (parite #10): çok kalem gideri TEK transaction'da işler. ATOMİK (hep-ya-hiç) +
-    /// kalem-bazlı dengeli. <paramref name="batchAnahtari"/> verilirse her kalem deterministik idempotency
+    /// kalem-bazlı dengeli. <paramref name="batchKey"/> verilirse her kalem deterministik idempotency
     /// anahtarı alır → çift-submit tüm batch'i geri alır. Bir kalem geçersizse HİÇBİRİ yazılmaz.</summary>
     public async Task BatchCreateAsync(
-        IReadOnlyList<ExpenseInput> kalemler, Guid? batchAnahtari = null, CancellationToken ct = default)
+        IReadOnlyList<ExpenseInput> items, Guid? batchKey = null, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        if (kalemler.Count == 0) throw new ValidationException("Toplu gider en az bir kalem içermelidir.");
-        if (kalemler.Count > 500) throw new ValidationException("Toplu gider en çok 500 kalem olabilir.");
-        foreach (var k in kalemler) TarihPolitikasi.ParaTarihi(k.Tarih, "Gider"); // savunma: gelecek tarih reddi
+        if (items.Count == 0) throw new ValidationException("Toplu gider en az bir kalem içermelidir.");
+        if (items.Count > 500) throw new ValidationException("Toplu gider en çok 500 kalem olabilir.");
+        foreach (var k in items) DatePolicy.MoneyDate(k.Tarih, "Gider"); // savunma: gelecek tarih reddi
 
         var closing = await _lock.GetClosingDateAsync(ct); // dönem kilidi: bir kez oku, kalem-bazlı karşılaştır
-        var kurCache = new Dictionary<(string, DateTime?), decimal>(); // 1.1b: aynı (kod,gün) tek lookup
-        var hesapCache = new Dictionary<(Guid, OdemeYontemi), Guid?>();  // FAZ-50 L5
-        var postings = new List<ExpensePosting>(kalemler.Count);
-        for (var i = 0; i < kalemler.Count; i++)
+        var exchangeRateCache = new Dictionary<(string, DateTime?), decimal>(); // 1.1b: aynı (kod,gün) tek lookup
+        var accountCache = new Dictionary<(Guid, PaymentMethod), Guid?>();  // FAZ-50 L5
+        var postings = new List<ExpensePosting>(items.Count);
+        for (var i = 0; i < items.Count; i++)
         {
-            var input = kalemler[i];
-            decimal cozulenKur;
-            if (input.Kur is { } acikKur)
+            var input = items[i];
+            decimal resolvedRate;
+            if (input.Kur is { } explicitRate)
             {
                 // FAZ-82: açık kur da KurCozucu'dan GEÇER — tekil gider kilitliyken toplu giderin
                 // serbest kalması "kur elle girilemez" ayarını anlamsız kılardı. Kalem öneki korunur.
-                try { cozulenKur = await _kurCozucu.CozAsync(input.Doviz, acikKur, input.Tarih, ct); }
+                try { resolvedRate = await _exchangeRateResolver.ResolveAsync(input.Doviz, explicitRate, input.Tarih, ct); }
                 catch (ValidationException ex) { throw new ValidationException($"Kalem {i + 1}: {ex.Message}"); }
             }
             else
             {
-                var kurKey = (RentACar.Application.Kur.KurService.NormalizeKod(input.Doviz), input.Tarih?.UtcDateTime.Date);
-                if (!kurCache.TryGetValue(kurKey, out cozulenKur))
-                    kurCache[kurKey] = cozulenKur = await _kurCozucu.CozAsync(input.Doviz, null, input.Tarih, ct);
+                var exchangeRateKey = (RentACar.Application.Kur.ExchangeRateService.NormalizeCode(input.Doviz), input.Tarih?.UtcDateTime.Date);
+                if (!exchangeRateCache.TryGetValue(exchangeRateKey, out resolvedRate))
+                    exchangeRateCache[exchangeRateKey] = resolvedRate = await _exchangeRateResolver.ResolveAsync(input.Doviz, null, input.Tarih, ct);
             }
             // FAZ-50 adversarial L5 — aynı hesap tekrar ediyorsa tek doğrulama (500 kalemde 500 sorgu değil).
-            Guid? cozulenHesap = null;
+            Guid? resolvedAccount = null;
             if (input.FinansalHesapId is { } fh && fh != Guid.Empty)
             {
-                var anahtar = (fh, input.OdemeYontemi);
-                if (!hesapCache.TryGetValue(anahtar, out cozulenHesap))
-                    hesapCache[anahtar] = cozulenHesap = await CozHesapAsync(input, ct);
+                var key = (fh, input.OdemeYontemi);
+                if (!accountCache.TryGetValue(key, out resolvedAccount))
+                    accountCache[key] = resolvedAccount = await ResolveAccountAsync(input, ct);
             }
-            var p = BuildPosting(input, batchAnahtari is { } b ? CashService.RowKey(b, i) : null, cozulenKur, cozulenHesap);
+            var p = BuildPosting(input, batchKey is { } b ? CashService.RowKey(b, i) : null, resolvedRate, resolvedAccount);
             PeriodLock.ThrowIfClosed(p.Expense.Tarih, closing, $"Kalem {i + 1}");
             postings.Add(p);
         }
@@ -106,24 +106,24 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     /// bağlamak o hareketi İKİNCİ kez saydırırdı.
     /// Çift-submit sessizce yutulur (null döner).
     /// </summary>
-    public async Task<GiderOdeme?> OdemeEkleAsync(GiderOdemeInput input, CancellationToken ct = default)
+    public async Task<GiderOdeme?> AddPaymentAsync(GiderOdemeInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         if (input.ExpenseId == Guid.Empty) throw new ValidationException("Gider seçilmelidir.");
         if (input.Tutar is <= 0m) throw new ValidationException("Ödeme tutarı pozitif olmalıdır.");
-        TarihPolitikasi.ParaTarihi(input.Tarih, "Gider ödemesi"); // gelecek tarih reddi (para-yolu simetrisi)
+        DatePolicy.MoneyDate(input.Tarih, "Gider ödemesi"); // gelecek tarih reddi (para-yolu simetrisi)
 
-        var gider = await _repository.FindAsync(input.ExpenseId, ct)
+        var expense = await _repository.FindAsync(input.ExpenseId, ct)
             ?? throw new ValidationException("Gider bulunamadı.");
         // Şube kapsamı: kullanıcı görmediği gideri ödeyemez (liste kapsamlıyken tekil-ID probe'u).
-        BranchScope.RequireInScope(_currentUser, gider.SubeId, gider.Sube);
+        BranchScope.RequireInScope(_currentUser, expense.SubeId, expense.Sube);
 
-        return await _repository.OdemeEkleAsync(
+        return await _repository.AddPaymentAsync(
             input.ExpenseId, input.Tutar, input.Tarih ?? DateTimeOffset.UtcNow,
-            Kirp(input.MakbuzNo), Kirp(input.Aciklama), _currentUser.UserName,
+            Clamp(input.MakbuzNo), Clamp(input.Aciklama), _currentUser.UserName,
             input.IslemAnahtari, ct);
 
-        static string? Kirp(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
+        static string? Clamp(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
     }
 
     /// <summary>
@@ -131,31 +131,31 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     /// kasadan çıktı (defter öyle yazıldı) → Odenen = GenelToplam, Kalan = 0. Takip yalnız AÇIK
     /// HESAP giderinde anlamlıdır; aksi hâlde ekran ödenmiş bir gideri "borçlu" gösterirdi.
     /// </summary>
-    public async Task<Dictionary<Guid, GiderOdemeDurumu>> OdemeDurumlariAsync(
-        IReadOnlyCollection<Expense> giderler, CancellationToken ct = default)
+    public async Task<Dictionary<Guid, GiderOdemeDurumu>> PaymentStatusesAsync(
+        IReadOnlyCollection<Expense> expenses, CancellationToken ct = default)
     {
-        var acikHesap = giderler.Where(g => g.OdemeYontemi == OdemeYontemi.AcikHesap).Select(g => g.Id).ToList();
-        var odenenler = await _repository.OdenenToplamlariAsync(acikHesap, ct);
+        var openAccount = expenses.Where(g => g.OdemeYontemi == PaymentMethod.AcikHesap).Select(g => g.Id).ToList();
+        var paidItems = await _repository.PaidTotalsAsync(openAccount, ct);
 
-        var sonuc = new Dictionary<Guid, GiderOdemeDurumu>(giderler.Count);
-        foreach (var g in giderler)
+        var result = new Dictionary<Guid, GiderOdemeDurumu>(expenses.Count);
+        foreach (var g in expenses)
         {
-            if (g.OdemeYontemi != OdemeYontemi.AcikHesap)
+            if (g.OdemeYontemi != PaymentMethod.AcikHesap)
             {
-                sonuc[g.Id] = new GiderOdemeDurumu(g.Id, g.GenelToplam, g.GenelToplam, 0m, TakipEdilir: false);
+                result[g.Id] = new GiderOdemeDurumu(g.Id, g.GenelToplam, g.GenelToplam, 0m, TakipEdilir: false);
                 continue;
             }
-            var odenen = odenenler.GetValueOrDefault(g.Id);
-            sonuc[g.Id] = new GiderOdemeDurumu(g.Id, g.GenelToplam, odenen, g.GenelToplam - odenen, TakipEdilir: true);
+            var paid = paidItems.GetValueOrDefault(g.Id);
+            result[g.Id] = new GiderOdemeDurumu(g.Id, g.GenelToplam, paid, g.GenelToplam - paid, TakipEdilir: true);
         }
-        return sonuc;
+        return result;
     }
 
     /// <summary>FAZ-64 — bir giderin ödeme geçmişi.</summary>
-    public Task<IReadOnlyList<GiderOdeme>> ListOdemelerAsync(Guid expenseId, CancellationToken ct = default)
+    public Task<IReadOnlyList<GiderOdeme>> ListPaymentsAsync(Guid expenseId, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.ViewReports);
-        return _repository.ListOdemelerAsync(expenseId, ct);
+        return _repository.ListPaymentsAsync(expenseId, ct);
     }
 
     /// <summary>
@@ -163,39 +163,39 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
     /// Açık hesapta (tedarikçiye borçlanma) para kasadan ÇIKMADIĞI için tür kontrolü atlanır ve
     /// değer yalnız belge notu olarak kalır — defter bacağı zaten tedarikçi carisidir.
     /// </summary>
-    private Task<Guid?> CozHesapAsync(ExpenseInput input, CancellationToken ct)
-        => _hesapCozucu.CozAsync(
+    private Task<Guid?> ResolveAccountAsync(ExpenseInput input, CancellationToken ct)
+        => _accountResolver.ResolveAsync(
             input.FinansalHesapId,
             input.OdemeYontemi switch
             {
-                OdemeYontemi.AcikHesap => null,
-                OdemeYontemi.Banka => LedgerAccountType.Banka,
+                PaymentMethod.AcikHesap => null,
+                PaymentMethod.Banka => LedgerAccountType.Banka,
                 _ => LedgerAccountType.Kasa
             }, ct, input.Doviz);
 
     /// <summary>Bir gider girişini doğrular + Expense belgesi + dengeli defter kümesi kurar (tek + toplu ortak).</summary>
     private static ExpensePosting BuildPosting(
-        ExpenseInput input, Guid? islemAnahtari, decimal cozulenKur, Guid? cozulenHesapId = null)
+        ExpenseInput input, Guid? operationKey, decimal resolvedRate, Guid? resolvedAccountId = null)
     {
         if (input.NetTutar <= 0) throw new ValidationException("Gider tutarı pozitif olmalıdır.");
         if (input.KdvOrani < 0) throw new ValidationException("KDV oranı negatif olamaz.");
-        if (input.OdemeYontemi == OdemeYontemi.AcikHesap && (input.CariId is null || input.CariId == Guid.Empty))
+        if (input.OdemeYontemi == PaymentMethod.AcikHesap && (input.CariId is null || input.CariId == Guid.Empty))
             throw new ValidationException("Açık hesap (tedarikçi) gideri için cari seçilmelidir.");
         if (input.Tip == ExpenseType.Arac && (input.VehicleId is null || input.VehicleId == Guid.Empty))
             throw new ValidationException("Araç gideri için araç seçilmelidir.");
 
-        var (kdv, gross) = KdvMath.FromNet(input.NetTutar, input.KdvOrani);
-        var net = KdvMath.RoundGross(input.NetTutar); // kuruşa sabit
+        var (vat, gross) = VatMath.FromNet(input.NetTutar, input.KdvOrani);
+        var net = VatMath.RoundGross(input.NetTutar); // kuruşa sabit
         // #286 adversarial M2: kontrol YUVARLAMADAN SONRA — 0,004 net 0,00 tutarlı değiştirilemez gider yazıyordu.
         if (net <= 0) throw new ValidationException("Gider tutarı kuruşa yuvarlandığında pozitif olmalıdır.");
         // #279 inceleme N1: ham etiket ("TL", "EURO") deftere olduğu gibi yazılıyordu — kur TRY=1 çözülürken
         // belge/defter "TL" dövizinde kalıyor, cari/kasa bakiyeleri döviz bazında AYRIŞIYORDU. CashService ile
         // aynı kural: saklanabilir ISO koda indirgenir; tanınmayan/uzun etiket 400 (22001 → 500 olmasın).
-        var currency = RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz);
+        var currency = RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(input.Doviz);
 
-        var karsiHesap = input.OdemeYontemi == OdemeYontemi.AcikHesap
+        var counterAccount = input.OdemeYontemi == PaymentMethod.AcikHesap
             ? LedgerAccountType.Cari
-            : (input.OdemeYontemi == OdemeYontemi.Banka ? LedgerAccountType.Banka : LedgerAccountType.Kasa);
+            : (input.OdemeYontemi == PaymentMethod.Banka ? LedgerAccountType.Banka : LedgerAccountType.Kasa);
 
         var expense = new Expense
         {
@@ -207,32 +207,32 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
             EvrakNo = input.EvrakNo,
             NetTutar = net,
             KdvOrani = input.KdvOrani,
-            KdvTutar = kdv,
+            KdvTutar = vat,
             GenelToplam = gross,
             Currency = currency,
-            Kur = cozulenKur,
+            Kur = resolvedRate,
             OdemeYontemi = input.OdemeYontemi,
-            KasaBankaHesap = karsiHesap == LedgerAccountType.Cari ? LedgerAccountType.Kasa : karsiHesap,
+            KasaBankaHesap = counterAccount == LedgerAccountType.Cari ? LedgerAccountType.Kasa : counterAccount,
             Aciklama = input.Aciklama,
             // Vade DEFTERE GİRMEZ (belge notu). FinansalHesapId ise FAZ-50 ile deftere BAĞLANDI:
             // Kasa/Banka bacağının AccountRef'i olur (aşağıda BuildEntries). Açık hesapta (Cari)
             // karşılığı yok — o satırın AccountRef'i tedarikçi carisidir.
             Vade = input.Vade,
-            FinansalHesapId = cozulenHesapId,
+            FinansalHesapId = resolvedAccountId,
             // FAZ-64 bilgi alanları — deftere GİRMEZ (BuildEntries bunlardan habersizdir).
             OdemeTarihi = input.OdemeTarihi,
             HazirAciklama = input.HazirAciklama,
             RentalId = input.RentalId,
-            IslemAnahtari = islemAnahtari
+            IslemAnahtari = operationKey
         };
 
-        var entries = BuildEntries(expense, karsiHesap, net, kdv, gross);
+        var entries = BuildEntries(expense, counterAccount, net, vat, gross);
         return new ExpensePosting(expense, entries);
     }
 
     /// <summary>Borç Gider(net) + Borç KDV(kdv) / Alacak karşıHesap(gross). DENGELİ.</summary>
     private static List<AccountLedgerEntry> BuildEntries(
-        Expense e, LedgerAccountType karsiHesap, decimal net, decimal kdv, decimal gross)
+        Expense e, LedgerAccountType counterAccount, decimal net, decimal vat, decimal gross)
     {
         AccountLedgerEntry Entry(LedgerAccountType type, Guid? reff, LedgerDirection dir, decimal amount) => new()
         {
@@ -245,13 +245,13 @@ public sealed class ExpenseService(IExpenseRepository repository, ICurrentUser c
         {
             Entry(LedgerAccountType.Gider, e.VehicleId, LedgerDirection.Debit, net)
         };
-        if (kdv > 0)
-            list.Add(Entry(LedgerAccountType.Kdv, null, LedgerDirection.Debit, kdv)); // indirilecek KDV
+        if (vat > 0)
+            list.Add(Entry(LedgerAccountType.Kdv, null, LedgerDirection.Debit, vat)); // indirilecek KDV
 
         // Karşı hesap (Alacak): Kasa/Banka veya tedarikçi Cari.
         // FAZ-50: Kasa/Banka bacağı artık HANGİ hesaptan ödendiğini de taşır (null → legacy kova).
-        var karsiRef = karsiHesap == LedgerAccountType.Cari ? e.CariId : e.FinansalHesapId;
-        list.Add(Entry(karsiHesap, karsiRef, LedgerDirection.Credit, gross));
+        var counterRef = counterAccount == LedgerAccountType.Cari ? e.CariId : e.FinansalHesapId;
+        list.Add(Entry(counterAccount, counterRef, LedgerDirection.Credit, gross));
         return list;
     }
 }

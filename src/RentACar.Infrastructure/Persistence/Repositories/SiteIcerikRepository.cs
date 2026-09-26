@@ -12,13 +12,13 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// üstveri gösteriyor ve 20 KB'lık metinleri boşuna taşımak istemiyoruz (blob/uzun-metin
 /// projeksiyon dersi).</para>
 /// </summary>
-public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory) : ISiteIcerikRepository
+public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory) : ISiteContentRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     // ---- Sayfalar ----
 
-    public async Task<IReadOnlyList<SayfaOzet>> ListeleAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<SayfaOzet>> ListAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SayfaIcerikler.AsNoTracking()
@@ -27,7 +27,7 @@ public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<SayfaOzet>> YayindakilerAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<SayfaOzet>> PublishedAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SayfaIcerikler.AsNoTracking()
@@ -37,7 +37,7 @@ public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory
             .ToListAsync(ct);
     }
 
-    public async Task<SayfaGoster?> BulAsync(string slug, CancellationToken ct = default)
+    public async Task<SayfaGoster?> FindAsync(string slug, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SayfaIcerikler.AsNoTracking()
@@ -46,27 +46,27 @@ public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<SayfaIcerik?> GetirAsync(Guid id, CancellationToken ct = default)
+    public async Task<SayfaIcerik?> FetchAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SayfaIcerikler.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
-    public async Task<bool> SlugVarMiAsync(string slug, Guid? haricId, CancellationToken ct = default)
+    public async Task<bool> SlugExistsAsync(string slug, Guid? haricId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SayfaIcerikler.AsNoTracking()
             .AnyAsync(s => s.Slug == slug && (haricId == null || s.Id != haricId), ct);
     }
 
-    public async Task EkleAsync(SayfaIcerik sayfa, CancellationToken ct = default)
+    public async Task AddAsync(SayfaIcerik sayfa, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         db.SayfaIcerikler.Add(sayfa);
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<bool> GuncelleAsync(Guid id, Action<SayfaIcerik> apply, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid id, Action<SayfaIcerik> apply, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var s = await db.SayfaIcerikler.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -76,7 +76,7 @@ public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory
         return true;
     }
 
-    public async Task<bool> SilAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var s = await db.SayfaIcerikler.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -88,7 +88,7 @@ public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory
 
     // ---- SSS ----
 
-    public async Task<IReadOnlyList<SssSatiri>> SssListeAsync(bool yalnizYayinda, CancellationToken ct = default)
+    public async Task<IReadOnlyList<SssSatiri>> ListFaqAsync(bool yalnizYayinda, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Cevap BURADA seçiliyor (site `<details>` içinde cevabı da basıyor); metin 4 KB ile sınırlı.
@@ -99,14 +99,14 @@ public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory
             .ToListAsync(ct);
     }
 
-    public async Task SssEkleAsync(SssKaydi kayit, CancellationToken ct = default)
+    public async Task AddFaqAsync(SssKaydi kayit, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         db.SssKayitlari.Add(kayit);
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<bool> SssGuncelleAsync(Guid id, Action<SssKaydi> apply, CancellationToken ct = default)
+    public async Task<bool> UpdateFaqAsync(Guid id, Action<SssKaydi> apply, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = await db.SssKayitlari.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -116,7 +116,7 @@ public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory
         return true;
     }
 
-    public async Task<bool> SssSilAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteFaqAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = await db.SssKayitlari.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -128,11 +128,11 @@ public sealed class SiteIcerikRepository(IDbContextFactory<AppDbContext> factory
 
     // ---- F11.1b: iyimser eşzamanlılık (SatirSurumu) ----
 
-    public Task<bool> GuncelleAsync(Guid id, string? expectedVersion, Action<SayfaIcerik> apply, CancellationToken ct = default)
+    public Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<SayfaIcerik> apply, CancellationToken ct = default)
         => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.SayfaIcerikler, id, expectedVersion,
             (db, k, c) => db.SayfaIcerikler.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 
-    public Task<bool> SssGuncelleAsync(Guid id, string? expectedVersion, Action<SssKaydi> apply, CancellationToken ct = default)
+    public Task<bool> UpdateFaqAsync(Guid id, string? expectedVersion, Action<SssKaydi> apply, CancellationToken ct = default)
         => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.SssKayitlari, id, expectedVersion,
             (db, k, c) => db.SssKayitlari.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 

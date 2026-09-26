@@ -1,6 +1,6 @@
 @page "/donem-kapanis"
 @attribute [Authorize(Policy = "izin:FinanceWrite")]
-@inject DonemKilidiService Donem
+@inject PeriodLockService Donem
 @inject RentACar.Application.Reporting.ReportService Rapor
 
 <PageTitle>Dönem Kapanışı — RentPro</PageTitle>
@@ -88,7 +88,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _closing = await Donem.GetClosingDateAsync();
-        _mizan = await Rapor.GetMizanAsync();
+        _mizan = await Rapor.GetTrialBalanceAsync();
         // Önizleme GÜNCEL mizan bakiyesinden (kapanışın gerçekten sıfırlayacağı tutar): Gelir Alacak bakiyesi
         // (negatif) → gelir = −bakiye; Gider Borç bakiyesi (pozitif) → gider = bakiye.
         decimal Bakiye(LedgerAccountType t) => _mizan.FirstOrDefault(m => m.Tip == t)?.Bakiye ?? 0m;

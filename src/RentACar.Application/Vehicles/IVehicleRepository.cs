@@ -9,8 +9,8 @@ namespace RentACar.Application.Vehicles;
 /// </summary>
 public interface IVehicleRepository
 {
-    /// <summary><paramref name="sube"/> verilirse yalnız o şubedeki araçlar (rol bazlı kapsam).</summary>
-    Task<IReadOnlyList<Vehicle>> ListAsync(string? sube = null, CancellationToken ct = default);
+    /// <summary><paramref name="branch"/> verilirse yalnız o şubedeki araçlar (rol bazlı kapsam).</summary>
+    Task<IReadOnlyList<Vehicle>> ListAsync(string? branch = null, CancellationToken ct = default);
 
     /// <summary>Arama/filtre + sayfalama (liste ekranı). Sube filtresi <paramref name="filter"/>'da.</summary>
     Task<Common.PagedResult<Vehicle>> SearchAsync(VehicleFilter filter, CancellationToken ct = default);
@@ -19,19 +19,19 @@ public interface IVehicleRepository
     /// FAZ-28 — detaylı liste: araç + son kredi bankası + en yakın muayene/kasko/trafik bitişi +
     /// satış ihale bilgisi + AKTİF kira (canlı çözülür, depolanmaz).
     /// </summary>
-    Task<IReadOnlyList<VehicleDetayRow>> ListDetayAsync(
+    Task<IReadOnlyList<VehicleDetayRow>> ListDetailAsync(
         VehicleDetayFilter? filter = null, CancellationToken ct = default);
 
     /// <summary>
     /// FAZ-11 — verilen araçlar için diğer tablolardan çözülen liste ek bilgisi (aktif kira sözleşme
     /// no, açık servis/BAF/satış bayrakları, kasko, kredi). Yalnız GÖRÜNEN sayfa için çağrılır.
     /// </summary>
-    Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListeEkAsync(
+    Task<IReadOnlyDictionary<Guid, VehicleListeEk>> ListExtrasAsync(
         IReadOnlyCollection<Guid> vehicleIds, CancellationToken ct = default);
 
     Task<Vehicle?> FindAsync(Guid id, CancellationToken ct = default);
 
-    Task<bool> PlakaExistsAsync(string plaka, Guid? excludeId = null, CancellationToken ct = default);
+    Task<bool> PlateExistsAsync(string plate, Guid? excludeId = null, CancellationToken ct = default);
 
     /// <summary>Yeni araç ekler. Plaka benzersizlik ihlalinde DuplicatePlakaException fırlatır.</summary>
     Task CreateAsync(Vehicle vehicle, CancellationToken ct = default);
@@ -39,19 +39,19 @@ public interface IVehicleRepository
     /// <summary>Aracı yükler, <paramref name="apply"/> ile mutasyonu uygular, kaydeder. Yoksa false.</summary>
     Task<bool> UpdateAsync(Guid id, Action<Vehicle> apply, CancellationToken ct = default);
 
-    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<paramref name="beklenenSurum"/> null → yalnız
+    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<paramref name="expectedVersion"/> null → yalnız
     /// kilit); uyuşmazlık <c>EszamanliDegisiklikException</c>. Plaka çakışması <c>DuplicatePlakaException</c>.</summary>
-    Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<Vehicle> apply, CancellationToken ct = default);
+    Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Vehicle> apply, CancellationToken ct = default);
 
     /// <summary>F6.1a — satır sürümü (Postgres <c>xmin</c>, opak). Yoksa / RLS dışında <c>null</c>.</summary>
-    Task<string?> SurumAsync(Guid id, CancellationToken ct = default);
+    Task<string?> VersionAsync(Guid id, CancellationToken ct = default);
 
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>FAZ 2.5 — manuel odometre girişi: Vehicle.Km + km log satırı AYNI transaction'da.
     /// Geriye-gitme reddi TX İÇİNDE (yetkili karar — eşzamanlı girişte de tutar). Araç yoksa false.</summary>
-    Task<bool> ManuelKmEkleAsync(Guid id, int km, DateTimeOffset tarih, CancellationToken ct = default);
+    Task<bool> AddManualKmAsync(Guid id, int km, DateTimeOffset date, CancellationToken ct = default);
 
     /// <summary>FAZ 2.5 — aracın km zaman serisi (en yeni önce, limitli; araç kartı listesi).</summary>
-    Task<IReadOnlyList<VehicleKmLog>> KmLoglariAsync(Guid vehicleId, int limit = 20, CancellationToken ct = default);
+    Task<IReadOnlyList<VehicleKmLog>> KmLogsAsync(Guid vehicleId, int limit = 20, CancellationToken ct = default);
 }

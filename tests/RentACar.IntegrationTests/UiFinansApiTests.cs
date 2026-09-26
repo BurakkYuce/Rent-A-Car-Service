@@ -93,8 +93,8 @@ public sealed class UiFinansApiTests(WebFixture fx)
         var sp = s.ServiceProvider;
         if (ek is not null) await ek(sp);
         var cariler = sp.GetRequiredService<CustomerService>();
-        var musteri = await cariler.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Fin", Soyad = "Musteri" });
-        var tedarikci = await cariler.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Fin", Soyad = "Tedarikci" });
+        var musteri = await cariler.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Fin", Soyad = "Musteri" });
+        var tedarikci = await cariler.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Fin", Soyad = "Tedarikci" });
         var (kira, arac) = await KiraAsync(sp, musteri, KiraBas, gun: 3);
         return new Ortam
         {
@@ -136,7 +136,7 @@ public sealed class UiFinansApiTests(WebFixture fx)
         => OkuAsync(o, async sp => (await sp.GetRequiredService<RentalService>().GetAsync(kira))!);
 
     private Task<decimal> CariBakiyeAsync(Ortam o, Guid cari)
-        => OkuAsync(o, sp => sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari));
+        => OkuAsync(o, sp => sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
 
     /// <summary>Kiracının TÜM defter kümeleri dengeli: her (SourceType, SourceId) için Σ borç(baz) == Σ alacak(baz).</summary>
     private async Task TumDefterDengeliAsync(Ortam o)
@@ -491,7 +491,7 @@ public sealed class UiFinansApiTests(WebFixture fx)
     [Fact]
     public async Task Tahsilat_ayni_icerik_kur_aciklama_kanal_da_karsilastirilir()
     {
-        var o = await OrtamKurAsync(sp => sp.GetRequiredService<SabitKurService>()
+        var o = await OrtamKurAsync(sp => sp.GetRequiredService<FixedExchangeRateService>()
             .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true }));
         var s = await GirisAsync(o, Kim.Muhasebe);
 
@@ -633,7 +633,7 @@ public sealed class UiFinansApiTests(WebFixture fx)
     [Fact]
     public async Task Dovizli_tahsilat_bos_kur_firma_sabit_kurundan_cozulur()
     {
-        var o = await OrtamKurAsync(sp => sp.GetRequiredService<SabitKurService>()
+        var o = await OrtamKurAsync(sp => sp.GetRequiredService<FixedExchangeRateService>()
             .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true }));
         var s = await GirisAsync(o, Kim.Muhasebe);
 
@@ -666,7 +666,7 @@ public sealed class UiFinansApiTests(WebFixture fx)
         var o = await OrtamKurAsync();
         var s = await GirisAsync(o, Kim.Muhasebe);
         var digerCari = await OkuAsync(o, sp => sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Baska", Soyad = "Cari" }));
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Baska", Soyad = "Cari" }));
 
         await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 0m), YeniAnahtar()), HttpStatusCode.BadRequest, "dogrulama", "tutar");
         await Problem(await PostAsync(s, "/finans/tahsilat", Tahsilat(o, 10m, hesap: "Pos"), YeniAnahtar()), HttpStatusCode.BadRequest, "dogrulama", "hesap");
@@ -919,7 +919,7 @@ public sealed class UiFinansApiTests(WebFixture fx)
         Assert.Equal(2, kume.Count);
         Satir(kume, LedgerAccountType.Kasa, null, LedgerDirection.Debit, 500m);
         Satir(kume, LedgerAccountType.Depozito, o.Musteri, LedgerDirection.Credit, 500m);
-        Assert.Equal(500m, await OkuAsync(o, sp => sp.GetRequiredService<DepozitoService>().GetBakiyeAsync(o.Musteri)));
+        Assert.Equal(500m, await OkuAsync(o, sp => sp.GetRequiredService<DepositService>().GetBalanceAsync(o.Musteri)));
 
         // Birebir aynı tekrar: sessiz başarı, AYNI id, ikinci yazım yok.
         Assert.Equal(id, await Id(await PostAsync(s, "/finans/depozito/al", govde, anahtar)));
@@ -931,7 +931,7 @@ public sealed class UiFinansApiTests(WebFixture fx)
             HttpStatusCode.Conflict, "mukerrer");
 
         Assert.Equal(2, (await DefterAsync(o, id)).Count);
-        Assert.Equal(500m, await OkuAsync(o, sp => sp.GetRequiredService<DepozitoService>().GetBakiyeAsync(o.Musteri)));
+        Assert.Equal(500m, await OkuAsync(o, sp => sp.GetRequiredService<DepositService>().GetBalanceAsync(o.Musteri)));
         await Problem(await PostAsync(s, "/finans/depozito/al", govde, anahtar: null), HttpStatusCode.BadRequest, "dogrulama", "Idempotency-Key");
         await Problem(await PostAsync(s, "/finans/depozito/al", new { cariId = o.Musteri, tutar = 5m, hesap = "Pos" }, YeniAnahtar()),
             HttpStatusCode.BadRequest, "dogrulama", "hesap");
@@ -953,14 +953,14 @@ public sealed class UiFinansApiTests(WebFixture fx)
         Satir(kume, LedgerAccountType.Depozito, o.Musteri, LedgerDirection.Debit, 200m);
         Satir(kume, LedgerAccountType.Gelir, null, LedgerDirection.Credit, 200m);
         Assert.Equal(o.Kira, await DbAsync(o, db => db.DepozitoIratlar.AsNoTracking().Where(d => d.Id == id).Select(d => d.RentalId).SingleAsync()));
-        Assert.Equal(300m, await OkuAsync(o, sp => sp.GetRequiredService<DepozitoService>().GetBakiyeAsync(o.Musteri)));
+        Assert.Equal(300m, await OkuAsync(o, sp => sp.GetRequiredService<DepositService>().GetBalanceAsync(o.Musteri)));
 
         Assert.Equal(id, await Id(await PostAsync(s, "/finans/depozito/irat", govde, anahtar)));
         await Problem(await PostAsync(s, "/finans/depozito/irat", new { cariId = o.Musteri, tutar = 150m, kiraId = o.Kira }, anahtar),
             HttpStatusCode.Conflict, "mukerrer");
         await Problem(await PostAsync(s, "/finans/depozito/irat", new { cariId = o.Musteri, tutar = 200m }, anahtar), // kira atfı farklı
             HttpStatusCode.Conflict, "mukerrer");
-        Assert.Equal(300m, await OkuAsync(o, sp => sp.GetRequiredService<DepozitoService>().GetBakiyeAsync(o.Musteri)));
+        Assert.Equal(300m, await OkuAsync(o, sp => sp.GetRequiredService<DepositService>().GetBalanceAsync(o.Musteri)));
 
         // Tutulanı aşan irat reddedilir (iş kuralı servis/repo'da).
         await Problem(await PostAsync(s, "/finans/depozito/irat", new { cariId = o.Musteri, tutar = 301m }, YeniAnahtar()),

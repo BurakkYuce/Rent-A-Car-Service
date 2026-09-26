@@ -75,7 +75,7 @@ internal static class KiraKilitleri
         if (kira is null) return;
         var ekler = await db.RentalAddOns.AsNoTracking().Where(a => a.RentalId == rentalId)
             .Select(a => a.NetTutar + a.KdvTutar).ToListAsync(ct);
-        var guncel = RentACar.Application.Finance.KdvMath.RoundGross(RentACar.Application.Bookings.RentalTotals.BaseGross(kira))
+        var guncel = RentACar.Application.Finance.VatMath.RoundGross(RentACar.Application.Bookings.RentalTotals.BaseGross(kira))
                      + ekler.Sum();
         if (guncel != faturaBrut)
             throw new ValidationException(

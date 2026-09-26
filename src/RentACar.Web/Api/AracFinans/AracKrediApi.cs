@@ -15,7 +15,7 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Api.AracFinans;
 
 /// <summary>
-/// <c>/api/ui/v1/arac-kredileri/*</c> (F6.1b) — araç kredisi. İş mantığı <see cref="AracKrediService"/>'te.
+/// <c>/api/ui/v1/arac-kredileri/*</c> (F6.1b) — araç kredisi. İş mantığı <see cref="VehicleLoanService"/>'te.
 /// <para><b>İzin:</b> okuma OperationsWrite ∨ FinanceWrite ∨ ViewReports (servis <c>SearchAsync</c> ile aynı); oluşturma
 /// OperationsWrite; taksit ödeme FinanceWrite (defter yazar — Blazor adversarial 1.3 M2); iptal OperationsDelete.</para>
 /// <para><b>Kapsam:</b> kredi ARACIN şubesinden geçer (alt kayıt kuralı). Araçsız kredi yalnız şube kısıtsız kullanıcıya
@@ -24,7 +24,7 @@ namespace RentACar.Web.Api.AracFinans;
 /// <c>Idempotency-Key</c> zorunlu. Sıra: (1) bu anahtarla yazılmış gider VAR mı → 409 <c>mukerrer</c> + <c>mevcut</c>
 /// (kaybolan yanıttan sonraki tekrar ikinci taksidi ödemez); (2) SONRA bayatlık: istemcinin ödemek istediği
 /// <c>sira</c> kilit altında <c>OdenenTaksit + 1</c> ile karşılaştırılır → 409 <c>cakisma</c>. Kur servisteki
-/// <see cref="KurCozucu"/>'den (TRY = 1). Oluşturma da anahtarlı: kredi Id'si = anahtar (ikinci kredi PK'ye çarpar).</para>
+/// <see cref="ExchangeRateResolver"/>'den (TRY = 1). Oluşturma da anahtarlı: kredi Id'si = anahtar (ikinci kredi PK'ye çarpar).</para>
 /// </summary>
 public static partial class AracKrediApi
 {
@@ -53,14 +53,14 @@ public static partial class AracKrediApi
 
     private static ProblemHttpResult Bulunamadi() => F5Ortak.Bulunamadi("Kredi bulunamadı.");
 
-    private static readonly SiralamaHaritasi<AracKrediListeSatiri> Harita = SiralamaHaritasi<AracKrediListeSatiri>
-        .Olustur(k => k.Id)
+    private static readonly SortFieldMap<AracKrediListeSatiri> Harita = SortFieldMap<AracKrediListeSatiri>
+        .Create(k => k.Id)
         .Alan("no", k => k.No).Alan("bankaAdi", k => k.BankaAdi).Alan("plaka", k => k.Plaka)
         .Alan("cari", k => k.CariAd).Alan("krediTutari", k => k.KrediTutari).Alan("baslangicTarihi", k => k.BaslangicTarihi)
         .Alan("kalanBakiye", k => k.KalanBakiye).Alan("durum", k => k.Durum);
 
     /// <summary>Filtreli + kapsamlı kredi kümesi (liste ve özet kartları AYNI kümeden).</summary>
-    private static async Task<List<AracKredi>> KumeAsync(AracKrediService svc, IDbContextFactory<AppDbContext> dbf,
+    private static async Task<List<AracKredi>> KumeAsync(VehicleLoanService svc, IDbContextFactory<AppDbContext> dbf,
         ICurrentUser kullanici, Guid? cariId, string? plaka, string? dosyaNo, string? durum, DateOnly? bas, DateOnly? bit,
         CancellationToken ct)
     {
@@ -68,7 +68,7 @@ public static partial class AracKrediApi
         var liste = await svc.SearchAsync(new AracKrediFilter
         {
             CariId = cariId, Plaka = F5Ortak.Nz(plaka), DosyaNo = F5Ortak.Nz(dosyaNo),
-            Durum = F5Ortak.EnumAdi<KrediDurum>(durum, "durum"), Bas = min, Bit = max,
+            Durum = F5Ortak.EnumAdi<LoanStatus>(durum, "durum"), Bas = min, Bit = max,
         }, ct);
         var f = BranchScope.EffectiveFilter(kullanici);
         if (f.Unrestricted) return liste.ToList();
@@ -78,7 +78,7 @@ public static partial class AracKrediApi
     }
 
     private static async Task<Ok<Sayfa<AracKrediListeSatiri>>> Liste(
-        AracKrediService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, Guid? cariId, string? plaka,
+        VehicleLoanService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, Guid? cariId, string? plaka,
         string? dosyaNo, string? durum, DateOnly? bas, DateOnly? bit, int? sayfa, int? boyut, string? sirala,
         CancellationToken ct)
     {
@@ -87,7 +87,7 @@ public static partial class AracKrediApi
         var plakalar = await F5Ortak.PlakalarAsync(dbf, liste.Where(k => k.VehicleId is not null).Select(k => k.VehicleId!.Value), ct);
         var satirlar = liste.Select(k =>
         {
-            var oz = AracKrediService.Hesapla(k);
+            var oz = VehicleLoanService.Calculate(k);
             return new AracKrediListeSatiri(k.Id, k.No, k.BankaAdi, k.VehicleId,
                 k.VehicleId is { } v ? F5Ortak.Plaka(plakalar, v) : null, k.CariId,
                 k.CariId is { } c ? F5Ortak.CariAdi(cariler, c) : null, k.DosyaNo, k.KrediTutari, k.FaizOran,
@@ -99,18 +99,18 @@ public static partial class AracKrediApi
 
     /// <summary>Liste üstü 5 özet kart (filtreli küme; iptal hariç). Salt gösterge — deftere yazmaz.</summary>
     private static async Task<Ok<AracKrediPano>> Ozet(
-        AracKrediService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, Guid? cariId, string? plaka,
+        VehicleLoanService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, Guid? cariId, string? plaka,
         string? dosyaNo, string? durum, DateOnly? bas, DateOnly? bit, CancellationToken ct)
-        => TypedResults.Ok(AracKrediService.Pano(
+        => TypedResults.Ok(VehicleLoanService.Dashboard(
             await KumeAsync(svc, dbf, kullanici, cariId, plaka, dosyaNo, durum, bas, bit, ct), DateTimeOffset.UtcNow));
 
     private static async Task<Results<Ok<AracKrediDetayYaniti>, ProblemHttpResult>> Detay(
-        Guid id, HttpContext http, AracKrediService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici,
+        Guid id, HttpContext http, VehicleLoanService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici,
         CancellationToken ct)
         => await DetayAsync(id, http, svc, dbf, kullanici, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
 
     /// <summary>Kredi (kapsam kapısından geçmiş) ya da null.</summary>
-    private static async Task<AracKredi?> KapsamliAsync(Guid id, AracKrediService svc, IDbContextFactory<AppDbContext> dbf,
+    private static async Task<AracKredi?> KapsamliAsync(Guid id, VehicleLoanService svc, IDbContextFactory<AppDbContext> dbf,
         ICurrentUser kullanici, CancellationToken ct)
     {
         var k = await svc.GetAsync(id, ct);
@@ -119,14 +119,14 @@ public static partial class AracKrediApi
         return k;
     }
 
-    private static async Task<AracKrediDetayYaniti?> DetayAsync(Guid id, HttpContext http, AracKrediService svc,
+    private static async Task<AracKrediDetayYaniti?> DetayAsync(Guid id, HttpContext http, VehicleLoanService svc,
         IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, CancellationToken ct)
     {
         var k = await KapsamliAsync(id, svc, dbf, kullanici, ct);
         if (k is null) return null;
         var plaka = k.VehicleId is { } v ? F5Ortak.Plaka(await F5Ortak.PlakalarAsync(dbf, [v], ct), v) : null;
         var cari = k.CariId is { } c ? F5Ortak.CariAdi(await F5Ortak.CarilerAsync(dbf, [c], ct), c) : null;
-        var aktif = k.Durum == KrediDurum.Aktif;
+        var aktif = k.Durum == LoanStatus.Aktif;
         var y = new AracKrediYetkileri(
             aktif && AuthExtensions.HasPermission(http.User, Permission.FinanceWrite),
             aktif && AuthExtensions.HasPermission(http.User, Permission.OperationsDelete));

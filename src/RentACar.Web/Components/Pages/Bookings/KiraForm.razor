@@ -4,27 +4,27 @@
 @using RentACar.Application.Availability
 @using RentACar.Web.Components.Pages.Bookings.KiraFormPaneller
 @inject RentalService Rentals
-@inject RentACar.Application.FaturaDonemleri.FaturaDonemPlanService DonemPlan
-@inject RentACar.Application.DisHizmetler.DisHizmetService DisHizmetler
+@inject RentACar.Application.FaturaDonemleri.InvoicePeriodPlanService DonemPlan
+@inject RentACar.Application.DisHizmetler.OutsourcedServiceService DisHizmetler
 @inject CustomerService Customers
 @inject VehicleService Vehicles
 @inject LocationService Locations
 @inject AvailabilityService Availability
-@inject EkHizmetTanimService EkHizmetler
+@inject AddOnDefinitionService EkHizmetler
 @inject CoverageProductService Sigortalar
 @inject ReservationSourceService Kaynaklar
 @inject CustomCodeService OzelKodlar
-@inject RentACar.Application.Kur.KurService Kurlar
+@inject RentACar.Application.Kur.ExchangeRateService Kurlar
 @inject ReportService Raporlar
 @inject RentACar.Application.Integrations.IHgsService Hgs
 @inject ReservationService Rezervasyonlar
 @inject RentACar.Application.RentalAddOns.RentalAddOnService AddOns
 @inject InvoiceService Faturalar
 @inject PenaltyService Cezalar
-@inject PersonelService Personeller
-@inject RentACar.Application.BelgeSablon.BelgeSablonService BelgeSablonlar
-@inject RentACar.Application.Bookings.SozlesmePaylasimService Paylasim
-@inject RentACar.Application.TenantSettings.FormVarsayilanCozucu Varsayilanlar
+@inject PersonnelService Personeller
+@inject RentACar.Application.BelgeSablon.DocumentTemplateService BelgeSablonlar
+@inject RentACar.Application.Bookings.ContractShareService Paylasim
+@inject RentACar.Application.TenantSettings.FormDefaultResolver Varsayilanlar
 @inject RentACar.Application.Branches.BranchService Subeler
 @inject NavigationManager Nav
 
@@ -271,8 +271,8 @@ else
 
         // FAZ-82 tenant form varsayılanları — YALNIZ ön-doldurma (ayar boşsa yakıt 8 / fiyat türü "—",
         // yani bugünkü davranış). Kaydedilen değerler daima formdan gelir.
-        _vm.TenantVarsayilanYakit = await Varsayilanlar.CikisYakitAsync();
-        if (!_vm.Edit) _vm.TenantVarsayilanFiyatTuru = await Varsayilanlar.FiyatTuruAsync();
+        _vm.TenantVarsayilanYakit = await Varsayilanlar.PickupFuelAsync();
+        if (!_vm.Edit) _vm.TenantVarsayilanFiyatTuru = await Varsayilanlar.PriceTypeAsync();
 
         _vm.Customers = await Customers.ListAsync();
         _vm.Locations = await Locations.ListActiveAsync();
@@ -280,8 +280,8 @@ else
         _vm.Sigortalar = await Sigortalar.ListActiveAsync();
         _vm.Kaynaklar = (await Kaynaklar.ListActiveAsync()).Select(k => k.Ad).ToList();
         _vm.OzelKodlar = (await OzelKodlar.ListActiveAsync()).Select(k => k.Ad).ToList();
-        _vm.Kurlar = await Kurlar.BugunKurlarAsync();
-        _vm.Sablonlar = await BelgeSablonlar.ListByTuruAsync(RentACar.Domain.Enums.BelgeTuru.KiraSozlesmesi);
+        _vm.Kurlar = await Kurlar.TodayRatesAsync();
+        _vm.Sablonlar = await BelgeSablonlar.ListByTypeAsync(RentACar.Domain.Enums.BelgeTuru.KiraSozlesmesi);
         // FAZ 4.2-B3: dönem planı önizlemesi (uygun kirada; plansızda boş liste — panel gizli).
         if (_vm.Edit) _vm.FaturaDonemleri = await DonemPlan.PreviewAsync(_vm.Rental!.Id);
         // FAZ 4.3: dış hizmet grid'i.
@@ -290,7 +290,7 @@ else
         // + kira dönemi HGS geçişleri (stub boş döner; entegrasyon gelince dolar).
         if (_vm.Edit && _vm.FinansYetkisi)
         {
-            var karne = await Raporlar.GetAracKarneAsync(_vm.Rental!.VehicleId);
+            var karne = await Raporlar.GetVehicleScorecardAsync(_vm.Rental!.VehicleId);
             _vm.AracDolulukYuzde = karne?.Kpi.DolulukYuzde;
         }
         // FAZ 4.5: kaynak rezervasyon (OTA kutuları) — manuel kirada null → "—".
@@ -329,7 +329,7 @@ else
             // ekran patlamasın: link bloğu zaten OperasyonYetkisi ile gizli.
             if (_vm.OperasyonYetkisi)
             {
-                try { _paylasimDurum = await Paylasim.DurumAsync(c.Id); }
+                try { _paylasimDurum = await Paylasim.StatusAsync(c.Id); }
                 catch (RentACar.Application.Common.ValidationException) { _paylasimDurum = null; }
             }
             if (_paylasimDurum is not null)
@@ -342,7 +342,7 @@ else
                            (_paylasimUrl.Length > 0 ? $" Sözleşmeniz: {_paylasimUrl}" : "");
 
             // Döviz kira → güncel kurla TL karşılığı (bilgi; fatura kuru kesim anında sabitlenir).
-            var doviz = RentACar.Application.Kur.KurService.NormalizeKod(c.Doviz);
+            var doviz = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(c.Doviz);
             if (doviz != "TRY")
             {
                 try { _vm.DovizNot = $"{doviz} · güncel ≈ {(c.GenelToplam * await Kurlar.GetRateAsync(doviz)).ToString("N2")} TL"; }

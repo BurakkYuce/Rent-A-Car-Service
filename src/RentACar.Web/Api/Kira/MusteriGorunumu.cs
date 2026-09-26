@@ -21,7 +21,7 @@ namespace RentACar.Web.Api.Kira;
 public static class MusteriGorunumu
 {
     /// <summary><c>AnonimAd</c> işaretli carinin kira detayındaki görünen adı.</summary>
-    public const string AnonimAdEtiketi = RentACar.Application.Customers.CariAnonimlik.AdEtiketi;
+    public const string AnonimAdEtiketi = RentACar.Application.Customers.CustomerAnonymity.NameLabel;
 
     /// <summary><c>AnonimAd</c> işaretli (ya da bulunamayan) cariye hazır mesajdaki nötr hitap.</summary>
     public const string NotrHitap = "müşterimiz";
@@ -37,7 +37,7 @@ public static class MusteriGorunumu
     /// yüklenmez). Kira listesi ve Panel dönüş/çıkış kovaları bu kuraldan geçer; <c>secim/musteri*</c> aynı sabiti
     /// (<c>CariAnonimlik</c>) Application katmanında uygular.
     /// </summary>
-    public static string ListeAdi(string ad, bool anonimAd) => RentACar.Application.Customers.CariAnonimlik.Ad(ad, anonimAd);
+    public static string ListeAdi(string ad, bool anonimAd) => RentACar.Application.Customers.CustomerAnonymity.Name(ad, anonimAd);
 
     public static string? Telefon(Customer? m) => m is null || m.AnonimTelefon ? null : m.CepTel;
 

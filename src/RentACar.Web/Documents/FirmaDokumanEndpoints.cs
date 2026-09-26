@@ -24,44 +24,44 @@ namespace RentACar.Web.Documents;
 /// </summary>
 public static class FirmaDokumanEndpoints
 {
-    /// <summary>Servis sınırı (<see cref="FirmaDokumanService.MaxBayt"/>) + multipart zarfı ve metin
+    /// <summary>Servis sınırı (<see cref="CompanyFileService.MaxBytes"/>) + multipart zarfı ve metin
     /// alanları için 1 MB pay. Uçtaki bu kapı sunucuyu korur (sınır üstünü belleğe almadan reddeder),
     /// asıl karar SERVİSTE. Sabitten türetilir ki servis sınırı değişince burası sessizce dar kalmasın.</summary>
-    private const long IstekBoyutSiniri = FirmaDokumanService.MaxBayt + 1024 * 1024;
+    private const long IstekBoyutSiniri = CompanyFileService.MaxBytes + 1024 * 1024;
 
     public static IEndpointRouteBuilder MapFirmaDokumanEndpoints(this IEndpointRouteBuilder app)
     {
         var write = app.MapGroup("/dokumanlar").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        write.MapPost("/yukle", async (FirmaDokumanService svc, HttpRequest req, IFormFile? dosya) =>
+        write.MapPost("/yukle", async (CompanyFileService svc, HttpRequest req, IFormFile? dosya) =>
         {
             // Kestrel/multipart sınırı aşıldığında framework istisna atar; kullanıcıya PRG ile
             // NET mesaj dön — "413" ham sayfası değil.
             if (dosya is null || dosya.Length == 0) return Hata("Dosya seçilmedi.");
-            if (dosya.Length > FirmaDokumanService.MaxBayt)
-                return Hata($"Dosya en fazla {FirmaDokumanService.MaxBayt / (1024 * 1024)} MB olabilir.");
+            if (dosya.Length > CompanyFileService.MaxBytes)
+                return Hata($"Dosya en fazla {CompanyFileService.MaxBytes / (1024 * 1024)} MB olabilir.");
 
             using var ms = new MemoryStream();
             await dosya.CopyToAsync(ms);
 
-            return await Calistir(() => svc.YukleAsync(new FirmaDokumanInput(
+            return await Calistir(() => svc.UploadAsync(new FirmaDokumanInput(
                 Baslik: req.Form["baslik"].ToString(),
                 Aciklama: FormParse.Str(req.Form, "aciklama"),
                 DosyaAdi: dosya.FileName,
                 Bytes: ms.ToArray())));
         }).WithMetadata(new RequestSizeLimitAttribute(IstekBoyutSiniri));
 
-        write.MapPost("/sil", async (FirmaDokumanService svc, [FromForm] Guid id) =>
-            await Calistir(() => svc.SilAsync(id)));
+        write.MapPost("/sil", async (CompanyFileService svc, [FromForm] Guid id) =>
+            await Calistir(() => svc.DeleteAsync(id)));
 
         // İndirme — yalnız oturum kapısı. Başka tenant'ın belgesi servis/RLS yüzünden null döner → 404
         // ("yok" ile "yetkisiz" ayırt edilmez; belgenin varlığı da bilgidir).
         var read = app.MapGroup("/dokumanlar").RequireAuthorization();
 
-        read.MapGet("/{id:guid}/indir", async (Guid id, FirmaDokumanService svc, HttpRequest req,
+        read.MapGet("/{id:guid}/indir", async (Guid id, CompanyFileService svc, HttpRequest req,
             HttpResponse res, CancellationToken ct) =>
         {
-            var icerik = await svc.IndirAsync(id, ct);
+            var icerik = await svc.DownloadAsync(id, ct);
             if (icerik is null) return Results.NotFound();
 
             // ETag = belge + son güncelleme tick'i (PlatformBelge'nin "belge + sürüm" deseninin

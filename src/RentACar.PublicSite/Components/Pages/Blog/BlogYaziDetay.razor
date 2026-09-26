@@ -86,14 +86,14 @@
             @* MarkupString KULLANILMAZ — her blok normal Razor ifadesi olarak basılır ve otomatik
                HTML-encode edilir. `##`/`###` yalnız ETİKET SEÇER (h2/h3); metnin kendisi hiçbir
                zaman HTML'e dönüşmez, XSS risk sınıfı tasarım gereği ortadan kalkar. *@
-            @foreach (var b in IcerikMetni.Bloklar(_post.Icerik))
+            @foreach (var b in ContentText.Blocks(_post.Icerik))
             {
                 @switch (b.Tur)
                 {
-                    case IcerikMetni.BlokTuru.Baslik2:
+                    case ContentText.BlockType.Baslik2:
                         <h2>@b.Metin</h2>
                         break;
-                    case IcerikMetni.BlokTuru.Baslik3:
+                    case ContentText.BlockType.Baslik3:
                         <h3>@b.Metin</h3>
                         break;
                     default:
@@ -172,7 +172,7 @@
         // Üçü de ayrı amaçlara hizmet ettiği için birbirinin yerine geçmiyor, SIRALANIYOR.
         _aciklama = !string.IsNullOrWhiteSpace(_post.MetaAciklama) ? _post.MetaAciklama
                   : !string.IsNullOrWhiteSpace(_post.Ozet) ? _post.Ozet
-                  : IcerikMetni.Ozet(_post.Icerik);
+                  : ContentText.Summary(_post.Icerik);
 
         // og:/JSON-LD mutlak adres ister; host isteğin KENDİSİNDEN alınır (aynı içerik hem
         // subdomain hem özel domainden servis edilebiliyor — App.razor'daki canonical ile aynı kural).

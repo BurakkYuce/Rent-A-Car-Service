@@ -57,7 +57,7 @@ internal static class F5Ortak
 
     /// <summary>
     /// F5.1 adversarial L4 — "duvar saati" (offset'i anlamsız, gün+saat İstanbul niyetiyle girilmiş an) → gerçek UTC an.
-    /// <see cref="Application.Availability.AvailabilityService.Pencere"/> gün+saati offset 0 ile kurar (Blazor ekranı ve
+    /// <see cref="Application.Availability.AvailabilityService.Window"/> gün+saati offset 0 ile kurar (Blazor ekranı ve
     /// fiyat motorunun takvim-günü konvansiyonu); müsaitlik ÇAKIŞMA sorgusu ise gerçek an ister — 08:00 aranınca
     /// 08:00 İstanbul (05:00Z) sorgulanmalı, 08:00Z (11:00 İstanbul) değil.
     /// </summary>
@@ -106,7 +106,7 @@ internal static class F5Ortak
                     "Çıkış ofisi zorunludur (şubeye bağlı kullanıcı kendi şubesinin ofisini seçmelidir).", "cikisOfisi");
             return;
         }
-        var subeId = (await lokasyonlar.FindByAdAsync(o, ct))?.SubeId;
+        var subeId = (await lokasyonlar.FindByNameAsync(o, ct))?.SubeId;
         BranchScope.RequireInScope(kullanici, subeId, o);
     }
 
@@ -157,12 +157,12 @@ internal static class F5Ortak
 
     /// <summary>
     /// Sayfalama + beyaz liste sıralaması (bellekte; servisler liste döndürüyor). <c>sirala</c> yoksa servisin sırası
-    /// korunur. Bilinmeyen alan 400 (<see cref="SiralamaHaritasi{T}"/>).
+    /// korunur. Bilinmeyen alan 400 (<see cref="SortFieldMap{T}"/>).
     /// </summary>
-    public static Sayfa<T> Sayfala<T>(IReadOnlyList<T> satirlar, SiralamaHaritasi<T> harita, int? sayfa, int? boyut, string? sirala)
+    public static Sayfa<T> Sayfala<T>(IReadOnlyList<T> satirlar, SortFieldMap<T> harita, int? sayfa, int? boyut, string? sirala)
     {
         var istek = new ListeIstegi(sayfa ?? 1, boyut ?? 50, sirala);
-        IEnumerable<T> sirali = istek.Sirala is null ? satirlar : harita.Uygula(satirlar.AsQueryable(), istek.Sirala);
+        IEnumerable<T> sirali = istek.Sirala is null ? satirlar : harita.Apply(satirlar.AsQueryable(), istek.Sirala);
         var kayitlar = istek.Atla >= satirlar.Count ? [] : sirali.Skip((int)istek.Atla).Take(istek.Boyut).ToList();
         return new Sayfa<T>(kayitlar, satirlar.Count, istek.Sayfa, istek.Boyut);
     }

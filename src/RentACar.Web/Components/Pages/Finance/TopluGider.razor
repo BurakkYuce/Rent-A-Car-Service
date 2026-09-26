@@ -29,7 +29,7 @@
     </label>
     <label>Ödeme Yöntemi
         <select name="odemeYontemi">
-            @foreach (var o in Enum.GetValues<OdemeYontemi>()) { <option>@o</option> }
+            @foreach (var o in Enum.GetValues<PaymentMethod>()) { <option>@o</option> }
         </select>
     </label>
     <label>KDV Oranı<input name="kdvOrani" type="number" step="0.01" min="0" value="0.20" /></label>

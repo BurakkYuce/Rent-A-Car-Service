@@ -21,8 +21,8 @@ public sealed class HukukDosyaFilter
     public string? DosyaNo { get; set; }
     /// <summary>Serbest metin: avukat adı / açıklama içinde geçen.</summary>
     public string? Ara { get; set; }
-    public HukukTuru? Tur { get; set; }
-    public HukukDurum? Durum { get; set; }
+    public LegalType? Tur { get; set; }
+    public LegalStatus? Durum { get; set; }
     public int EnFazla { get; set; } = 1000;
 }
 

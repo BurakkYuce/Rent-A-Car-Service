@@ -30,7 +30,7 @@ public class VehicleSale : ITenantOwned, IAuditable
     public decimal Kur { get; set; } = 1m;
 
     public string? Aciklama { get; set; }
-    public SatisDurum Durum { get; set; } = SatisDurum.Tamamlandi;
+    public SaleStatus Durum { get; set; } = SaleStatus.Tamamlandi;
 
     // roadmap G2 (additive — bilgilendirme; deftere yansımaz)
     public decimal? HedefFiyat { get; set; }

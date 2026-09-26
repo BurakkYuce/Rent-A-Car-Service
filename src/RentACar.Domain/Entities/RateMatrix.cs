@@ -97,7 +97,7 @@ public class RateMatrix : ITenantOwned, IAuditable, IBranchScoped
     public decimal? MaxEsneklik { get; set; }
 
     // Onay iş akışı
-    public TarifeOnayDurumu OnayDurumu { get; set; } = TarifeOnayDurumu.Bekliyor;
+    public TariffApprovalStatus OnayDurumu { get; set; } = TariffApprovalStatus.Bekliyor;
     public string? Onaylayan { get; set; }
     public DateTimeOffset? OnayZaman { get; set; }
 

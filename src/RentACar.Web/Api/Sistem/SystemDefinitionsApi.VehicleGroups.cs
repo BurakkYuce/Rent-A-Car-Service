@@ -30,8 +30,8 @@ public static partial class SystemDefinitionsApi
     private static readonly (string, string)[] AssignRules =
         [("Kaynak grup değeri", "kaynak"), ("Hedef araç grubu", "hedefGrupId"), ("'", "hedefGrupId")];
 
-    private static readonly SiralamaHaritasi<VehicleGroupDto> GroupSort = SiralamaHaritasi<VehicleGroupDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("segment", x => x.Segment)
+    private static readonly SortFieldMap<VehicleGroupDto> GroupSort = SortFieldMap<VehicleGroupDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("segment", x => x.Segment)
         .Alan("webSira", x => x.WebSira).Alan("aracSayisi", x => x.AracSayisi).Alan("aktif", x => x.Aktif);
 
     private static void MapVehicleGroups(RouteGroupBuilder v1)
@@ -39,14 +39,14 @@ public static partial class SystemDefinitionsApi
         var g = v1.MapGroup("/arac-gruplari").WithTags(SystemApiCommon.DefinitionsTag).RequirePermission(Permission.OperationsWrite);
         g.MapGet("", async (int? sayfa, int? boyut, string? sirala, string? ara, bool? aktif, VehicleGroupService s, CancellationToken ct) =>
         {
-            var counts = await s.AracSayilariAsync(ct);
+            var counts = await s.VehicleCountsAsync(ct);
             var rows = (await s.ListAsync(ct)).Select(x => VehicleGroupDto.From(x, counts.GetValueOrDefault(x.Id), null));
             return TypedResults.Ok(F5Ortak.Sayfala(
                 Filter(rows, ara, aktif, x => [x.Kod, x.Ad, x.Sipp, x.Segment], x => x.Aktif), GroupSort, sayfa, boyut, sirala));
         }).AlanlariEsle(F5Ortak.SiralamaKurallari);
         // Tanılama paneli: hiçbir aktif gruba eşleşmeyen filo Grup değerleri (+ grubu boş araçlar).
         g.MapGet("/eslesmeyen", async Task<Ok<IReadOnlyList<UnmatchedGroupValueDto>>> (VehicleGroupService s, CancellationToken ct)
-            => TypedResults.Ok<IReadOnlyList<UnmatchedGroupValueDto>>((await s.ListUnmatchedGrupValuesAsync(ct))
+            => TypedResults.Ok<IReadOnlyList<UnmatchedGroupValueDto>>((await s.ListUnmatchedGroupValuesAsync(ct))
                 .Select(x => new UnmatchedGroupValueDto(x.Grup, x.AracSayisi, x.Bos)).ToList()));
         g.MapGet("/{id:guid}", async Task<Results<Ok<VehicleGroupDto>, ProblemHttpResult>> (Guid id, VehicleGroupService s, CancellationToken ct)
             => await GroupAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
@@ -71,7 +71,7 @@ public static partial class SystemDefinitionsApi
         {
             if (await s.GetAsync(i.HedefGrupId, ct) is null) return SystemApiCommon.NotFound("Hedef araç grubu bulunamadı.");
             Text(i.Kaynak, 64, "kaynak", "Kaynak grup değeri");
-            return TypedResults.Ok(new GroupAssignResult(await s.GrupDegeriAtaAsync(i.Kaynak, i.Bos, i.HedefGrupId, ct)));
+            return TypedResults.Ok(new GroupAssignResult(await s.AssignGroupValueAsync(i.Kaynak, i.Bos, i.HedefGrupId, ct)));
         }).AlanlariEsle(AssignRules);
     }
 
@@ -110,7 +110,7 @@ public static partial class SystemDefinitionsApi
             AylikMaxKm = i.AylikMaxKm, AsimKmUcreti = i.AsimKmUcreti, YakitFiyati = i.YakitFiyati,
             SonraOdeOran = i.SonraOdeOran, KrediKartiSart = i.KrediKartiSart, WebSira = i.WebSira, UpgradeSira = i.UpgradeSira,
             ProvizyonDoviz = i.ProvizyonDoviz, Provizyon2Doviz = i.Provizyon2Doviz,
-            YakitTuru = EnumName<FuelType>(i.YakitTuru, "yakitTuru"), Vites = EnumName<Vites>(i.Vites, "vites"),
+            YakitTuru = EnumName<FuelType>(i.YakitTuru, "yakitTuru"), Vites = EnumName<Transmission>(i.Vites, "vites"),
             EntegrasyonKod1 = i.EntegrasyonKod1, WebId = i.WebId, ServisId = i.ServisId, Aktif = i.Aktif,
         };
     }
@@ -119,7 +119,7 @@ public static partial class SystemDefinitionsApi
     {
         var version = await s.RowVersionAsync(id, ct);
         if (await s.GetAsync(id, ct) is not { } x) return null;
-        var counts = await s.AracSayilariAsync(ct);
+        var counts = await s.VehicleCountsAsync(ct);
         return VehicleGroupDto.From(x, counts.GetValueOrDefault(x.Id), version);
     }
 }

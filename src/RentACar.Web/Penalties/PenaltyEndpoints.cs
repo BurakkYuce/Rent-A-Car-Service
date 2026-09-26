@@ -67,12 +67,12 @@ public static class PenaltyEndpoints
             }
         });
 
-        fin.MapPost("/yansit", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.YansitAsync(id)));
+        fin.MapPost("/yansit", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.ReflectAsync(id)));
 
         // Tamamını öde (eski davranış) — artık defter yazdığı için FinanceWrite.
         fin.MapPost("/ode", async (PenaltyService svc, [FromForm] Guid id, [FromForm] string? hesap,
             [FromForm] string? tarih, [FromForm] string? makbuzNo, [FromForm] string? islemYapan) =>
-            await Act(() => svc.OdeAsync(id, HesapCoz(hesap), FormParse.Date(tarih), makbuzNo, islemYapan)));
+            await Act(() => svc.PayAsync(id, HesapCoz(hesap), FormParse.Date(tarih), makbuzNo, islemYapan)));
 
         // FAZ-60 — KALEM bazlı kısmi ödeme.
         fin.MapPost("/kismi-ode", async (PenaltyService svc,
@@ -83,7 +83,7 @@ public static class PenaltyEndpoints
         {
             try
             {
-                await svc.KismiOdeAsync(id, new CezaOdemeInput
+                await svc.PayPartialAsync(id, new CezaOdemeInput
                 {
                     SatirId = satirId,
                     Tutar = FormParse.Dec(tutar),
@@ -101,7 +101,7 @@ public static class PenaltyEndpoints
             }
         });
 
-        ops.MapPost("/iptal", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.IptalAsync(id), "Ceza iptal edildi.")).RequirePermission(Permission.OperationsDelete);
+        ops.MapPost("/iptal", async (PenaltyService svc, [FromForm] Guid id) => await Act(() => svc.CancelAsync(id), "Ceza iptal edildi.")).RequirePermission(Permission.OperationsDelete);
 
         return app;
     }

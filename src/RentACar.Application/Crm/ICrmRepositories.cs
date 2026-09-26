@@ -2,25 +2,25 @@ using RentACar.Domain.Entities;
 
 namespace RentACar.Application.Crm;
 
-public interface IAnketRepository
+public interface ISurveyRepository
 {
     Task<IReadOnlyList<Anket>> ListAsync(CancellationToken ct = default);
     /// <summary>FAZ-42 filtreli liste.</summary>
-    Task<IReadOnlyList<Anket>> ListAsync(AnketFilter filtre, CancellationToken ct = default);
+    Task<IReadOnlyList<Anket>> ListAsync(AnketFilter filter, CancellationToken ct = default);
     Task<Anket?> FindAsync(Guid id, CancellationToken ct = default);
     /// <summary>FAZ-42 — anketin cevap satırları (soru sırasına göre).</summary>
-    Task<IReadOnlyList<AnketCevap>> ListCevapAsync(Guid anketId, CancellationToken ct = default);
+    Task<IReadOnlyList<AnketCevap>> ListResponsesAsync(Guid surveyId, CancellationToken ct = default);
     /// <summary>FAZ-42 — anket + cevapları TEK transaction'da (yarım anket kalmasın).</summary>
-    Task CreateWithCevapAsync(Anket anket, IReadOnlyList<AnketCevap> cevaplar, CancellationToken ct = default);
+    Task CreateWithAnswersAsync(Anket survey, IReadOnlyList<AnketCevap> answers, CancellationToken ct = default);
     /// <summary>FAZ-42 — cevapları TAMAMEN değiştirir (sil + yaz), anket alanlarıyla tek transaction.</summary>
-    Task<bool> UpdateWithCevapAsync(Guid id, Action<Anket> apply, IReadOnlyList<AnketCevap> cevaplar,
+    Task<bool> UpdateWithResponseAsync(Guid id, Action<Anket> apply, IReadOnlyList<AnketCevap> answers,
         CancellationToken ct = default);
     Task CreateAsync(Anket row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<Anket> apply, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 
-    /// <summary>F7.1 — <see cref="UpdateWithCevapAsync"/> + satır kilidi ve iyimser sürüm karşılaştırması (aynı işlem).
-    /// Sürüm farklı → <see cref="Common.EszamanliDegisiklikException"/>, hiçbir şey yazılmaz.</summary>
+    /// <summary>F7.1 — <see cref="UpdateWithResponseAsync"/> + satır kilidi ve iyimser sürüm karşılaştırması (aynı işlem).
+    /// Sürüm farklı → <see cref="Common.ConcurrentModificationException"/>, hiçbir şey yazılmaz.</summary>
     Task<bool> UpdateWithAnswersAsync(Guid id, string expectedVersion, Action<Anket> apply,
         IReadOnlyList<AnketCevap> answers, CancellationToken ct = default);
 
@@ -28,7 +28,7 @@ public interface IAnketRepository
     Task<string?> GetVersionAsync(Guid id, CancellationToken ct = default);
 }
 
-public interface ISikayetRepository
+public interface IComplaintRepository
 {
     Task<IReadOnlyList<Sikayet>> ListAsync(CancellationToken ct = default);
     Task<Sikayet?> FindAsync(Guid id, CancellationToken ct = default);

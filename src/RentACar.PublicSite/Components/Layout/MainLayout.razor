@@ -5,7 +5,7 @@
 @using RentACar.Application.SiteIcerik
 @inject FleetShowcaseService Showcase
 @inject BlogService Blog
-@inject SiteIcerikService Icerik
+@inject SiteContentService Icerik
 
 @* PR-15: site kabuğu (üst bar + alt bilgi) BURAYA taşındı. Önce her sayfa kendi
    başlığını/iletişim satırını basıyordu; marka ve gezinme tek yerde olmalı.
@@ -142,13 +142,13 @@
         try
         {
             _branding = await Showcase.GetBrandingAsync();
-            _telLink = TelefonLink.Tel(_branding.Tel);
+            _telLink = PhoneLink.Tel(_branding.Tel);
             _blogVar = (await Blog.ListPublishedAsync()).Count > 0;
-            var sayfalar = await Icerik.YayindakiSayfalarAsync();
+            var sayfalar = await Icerik.PublishedPagesAsync();
             _yasalSayfalar = sayfalar.Where(YasalSayfalar.Yasal).ToList();
             _digerSayfalar = sayfalar.Where(s => !YasalSayfalar.Yasal(s)).ToList();
             _cerezPolitikasiSlug = YasalSayfalar.CerezPolitikasiSlug(sayfalar);
-            _sssVar = (await Icerik.YayindakiSssAsync()).Count > 0;
+            _sssVar = (await Icerik.PublishedFaqAsync()).Count > 0;
         }
         catch
         {

@@ -22,33 +22,33 @@ public static partial class SystemDefinitionsApi
         ("Metin bölümü", "hukukiMetinSol"), ("Alt bilgi", "altBilgi"),
     ];
 
-    private static readonly SiralamaHaritasi<DocumentTemplateDto> TemplateSort = SiralamaHaritasi<DocumentTemplateDto>
-        .Olustur(x => x.Id).Alan("belgeTuru", x => x.BelgeTuru).Alan("ad", x => x.Ad).Alan("aktif", x => x.Aktif);
+    private static readonly SortFieldMap<DocumentTemplateDto> TemplateSort = SortFieldMap<DocumentTemplateDto>
+        .Create(x => x.Id).Alan("belgeTuru", x => x.BelgeTuru).Alan("ad", x => x.Ad).Alan("aktif", x => x.Aktif);
 
     private static void MapDocumentTemplates(RouteGroupBuilder v1)
     {
         var g = v1.MapGroup("/belge-sablonlari").WithTags(SystemApiCommon.DefinitionsTag).RequirePermission(Permission.ManageUsers);
-        g.MapGet("", async (int? sayfa, int? boyut, string? sirala, string? tur, BelgeSablonService s, CancellationToken ct) =>
+        g.MapGet("", async (int? sayfa, int? boyut, string? sirala, string? tur, DocumentTemplateService s, CancellationToken ct) =>
         {
             var kind = EnumName<BelgeTuru>(tur, "tur");
-            var rows = kind is { } k ? await s.ListByTuruAsync(k, ct) : await s.ListAsync(ct);
+            var rows = kind is { } k ? await s.ListByTypeAsync(k, ct) : await s.ListAsync(ct);
             return TypedResults.Ok(F5Ortak.Sayfala(rows.Select(x => DocumentTemplateDto.From(x, null)).ToList(), TemplateSort, sayfa, boyut, sirala));
         }).AlanlariEsle(F5Ortak.SiralamaKurallari);
-        g.MapGet("/{id:guid}", async Task<Results<Ok<DocumentTemplateDto>, ProblemHttpResult>> (Guid id, BelgeSablonService s, CancellationToken ct)
+        g.MapGet("/{id:guid}", async Task<Results<Ok<DocumentTemplateDto>, ProblemHttpResult>> (Guid id, DocumentTemplateService s, CancellationToken ct)
             => await TemplateAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
-        g.MapPost("", async Task<Results<Created<DocumentTemplateDto>, ProblemHttpResult>> (DocumentTemplateRequest i, BelgeSablonService s, CancellationToken ct) =>
+        g.MapPost("", async Task<Results<Created<DocumentTemplateDto>, ProblemHttpResult>> (DocumentTemplateRequest i, DocumentTemplateService s, CancellationToken ct) =>
         {
             var id = await s.CreateAsync(TemplateInput(i), ct);
             return await TemplateAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/belge-sablonlari/{id}", d) : SystemApiCommon.NotFound();
         }).AlanlariEsle(TemplateRules);
-        g.MapPut("/{id:guid}", async Task<Results<Ok<DocumentTemplateDto>, ProblemHttpResult>> (Guid id, DocumentTemplateRequest i, BelgeSablonService s, CancellationToken ct) =>
+        g.MapPut("/{id:guid}", async Task<Results<Ok<DocumentTemplateDto>, ProblemHttpResult>> (Guid id, DocumentTemplateRequest i, DocumentTemplateService s, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound();
             SystemApiCommon.RequireVersion(i.Surum);
             if (!await s.UpdateAsync(id, TemplateInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
             return await TemplateAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).AlanlariEsle(TemplateRules);
-        g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, BelgeSablonService s, CancellationToken ct)
+        g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, DocumentTemplateService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
     }
 
@@ -63,7 +63,7 @@ public static partial class SystemDefinitionsApi
         AltBilgi = i.AltBilgi, ImzaAlaniGoster = i.ImzaAlaniGoster,
     };
 
-    private static async Task<DocumentTemplateDto?> TemplateAsync(Guid id, BelgeSablonService s, CancellationToken ct)
+    private static async Task<DocumentTemplateDto?> TemplateAsync(Guid id, DocumentTemplateService s, CancellationToken ct)
     {
         var version = await s.RowVersionAsync(id, ct);
         return await s.GetAsync(id, ct) is { } x ? DocumentTemplateDto.From(x, version) : null;
@@ -82,7 +82,7 @@ public static partial class SystemDefinitionsApi
                 async Task<Results<Ok<ReflectRatesResult>, ProblemHttpResult>> (Guid id, ReservationSourceService s, CancellationToken ct) =>
                 {
                     if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound();
-                    return TypedResults.Ok(new ReflectRatesResult(await s.OranlariYansitAsync(id, ct)));
+                    return TypedResults.Ok(new ReflectRatesResult(await s.ReflectRatesAsync(id, ct)));
                 })
             .WithTags(SystemApiCommon.DefinitionsTag).RequirePermission(Permission.OperationsWrite);
     }

@@ -10,7 +10,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// IGelenEFaturaRepository: kısa-ömürlü context'ler (factory). Tenant izolasyonu RLS + query filter ile
 /// otomatik. ETTN benzersizliği DB unique index (TenantId,Ettn) ile; ihlal (23505) ValidationException.
 /// </summary>
-public sealed class GelenEFaturaRepository(IDbContextFactory<AppDbContext> factory) : IGelenEFaturaRepository
+public sealed class GelenEFaturaRepository(IDbContextFactory<AppDbContext> factory) : IIncomingEInvoiceRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 

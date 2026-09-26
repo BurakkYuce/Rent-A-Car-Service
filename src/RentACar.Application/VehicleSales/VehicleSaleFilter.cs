@@ -20,7 +20,7 @@ public sealed class VehicleSaleFilter
     /// <summary>Alıcı cari (tekil seçim).</summary>
     public Guid? AliciCariId { get; set; }
 
-    public SatisDurum? Durum { get; set; }
+    public SaleStatus? Durum { get; set; }
 
     /// <summary>Devir durumu bayrağı (canlı Satisi_Verildi). null = tümü.</summary>
     public bool? SatisiVerildi { get; set; }
@@ -43,13 +43,13 @@ public sealed class VehicleSaleFilter
 /// Araç satışının SAF (DB'siz) yardımcı hesapları — test edilebilir olsun diye Razor'dan ayrıldı.
 /// Hiçbiri para postlamaz; ekran gösterimi içindir.
 /// </summary>
-public static class SatisHesap
+public static class SaleCalculation
 {
     /// <summary>
     /// Satış tarihinden bugüne GEÇEN GÜN (canlı listedeki "Geçen Süre" kolonu). İki taraf da UTC
     /// takvim gününe indirgenir — yerel/UTC karışımı CI ile lokalde farklı sonuç üretirdi.
     /// Gelecek tarihli satışta negatif döner (gizlenmez: veri hatası görünür kalsın).
     /// </summary>
-    public static int GecenGun(DateTimeOffset tarih, DateTimeOffset simdi)
-        => (int)(simdi.UtcDateTime.Date - tarih.UtcDateTime.Date).TotalDays;
+    public static int ElapsedDays(DateTimeOffset date, DateTimeOffset now)
+        => (int)(now.UtcDateTime.Date - date.UtcDateTime.Date).TotalDays;
 }

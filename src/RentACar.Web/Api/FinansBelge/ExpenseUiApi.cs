@@ -55,8 +55,8 @@ public static class ExpenseUiApi
 
     // ================================================================== okuma
 
-    private static readonly SiralamaHaritasi<ExpenseListRow> Sort = SiralamaHaritasi<ExpenseListRow>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<ExpenseListRow> Sort = SortFieldMap<ExpenseListRow>
+        .Create(r => r.Id)
         .Alan("no", r => r.No).Alan("tarih", r => r.Tarih).Alan("tip", r => r.Tip).Alan("plaka", r => r.Plaka)
         .Alan("cariAd", r => r.CariAd).Alan("genelToplam", r => r.GenelToplam).Alan("kalan", r => r.Kalan)
         .Alan("sube", r => r.Sube);
@@ -104,7 +104,7 @@ public static class ExpenseUiApi
     private static async Task<List<ExpenseListRow>> RowsAsync(
         ExpenseService expenses, IDbContextFactory<AppDbContext> dbf, IReadOnlyList<Expense> rows, CancellationToken ct)
     {
-        var status = await expenses.OdemeDurumlariAsync(rows.ToList(), ct);
+        var status = await expenses.PaymentStatusesAsync(rows.ToList(), ct);
         var plates = await F5Ortak.PlakalarAsync(dbf, rows.Where(e => e.VehicleId is not null).Select(e => e.VehicleId!.Value), ct);
         var names = await F5Ortak.CarilerAsync(dbf, rows.Where(e => e.CariId is not null).Select(e => e.CariId!.Value), ct);
         var contracts = await ContractNumbersAsync(dbf, rows.Where(e => e.RentalId is not null).Select(e => e.RentalId!.Value), ct);
@@ -140,7 +140,7 @@ public static class ExpenseUiApi
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
         var tip = F5Ortak.EnumAdi<ExpenseType>(req.Tip, "tip") ?? ExpenseType.Genel;
-        var method = F5Ortak.EnumAdi<OdemeYontemi>(req.OdemeYontemi, "odemeYontemi")
+        var method = F5Ortak.EnumAdi<PaymentMethod>(req.OdemeYontemi, "odemeYontemi")
                      ?? throw new ValidationException("Ödeme yöntemi seçilmelidir (Nakit, Banka, AcikHesap).", "odemeYontemi");
         Amount(req.NetTutar, "netTutar");
         VatRate(req.KdvOrani, "kdvOrani");
@@ -151,11 +151,11 @@ public static class ExpenseUiApi
         Text(req.EvrakNo, 64, "evrakNo");
         Text(req.Aciklama, 512, "aciklama");
         Text(req.HazirAciklama, 512, "hazirAciklama");
-        if (method == OdemeYontemi.AcikHesap && req.CariId is null)
+        if (method == PaymentMethod.AcikHesap && req.CariId is null)
             throw new ValidationException("Açık hesap (tedarikçi) gideri için cari seçilmelidir.", "cariId");
         if (tip == ExpenseType.Arac && req.AracId is null)
             throw new ValidationException("Araç gideri için araç seçilmelidir.", "aracId");
-        WithField("tarih", () => TarihPolitikasi.ParaTarihi(req.Tarih, "Gider"));
+        WithField("tarih", () => DatePolicy.MoneyDate(req.Tarih, "Gider"));
 
         await using (var db = await dbf.CreateDbContextAsync(ct))
         {
@@ -172,12 +172,12 @@ public static class ExpenseUiApi
 
             if (await db.Expenses.AsNoTracking().FirstOrDefaultAsync(x => x.IslemAnahtari == key, ct) is { } existing)
             {
-                var (kdv, gross) = KdvMath.FromNet(req.NetTutar, req.KdvOrani);
+                var (kdv, gross) = VatMath.FromNet(req.NetTutar, req.KdvOrani);
                 var same = existing.GenelToplam == gross && existing.KdvTutar == kdv && existing.Currency == currency
                            && existing.OdemeYontemi == method && existing.Tip == tip && existing.CariId == req.CariId
                            && existing.VehicleId == req.AracId;
                 var amount = existing.GenelToplam.ToString("N2", Tr);
-                throw new MukerrerIslemException(
+                throw new DuplicateOperationException(
                     string.Format(Tr, same ? ExpenseAlreadySaved : ExpenseOtherSaved, existing.No, amount, existing.Currency),
                     new MevcutIslem(existing.Id, existing.No, existing.GenelToplam, existing.Currency, same));
             }
@@ -211,19 +211,19 @@ public static class ExpenseUiApi
             {
                 var same = o.ExpenseId == id && (req.Tutar is not { } t || decimal.Round(t, 2, MidpointRounding.ToZero) == o.Tutar);
                 var amount = o.Tutar.ToString("N2", Tr);
-                throw new MukerrerIslemException(
+                throw new DuplicateOperationException(
                     string.Format(Tr, same ? PaymentAlreadySaved : PaymentOtherSaved, amount, e.Currency),
                     o.ExpenseId == id ? new MevcutIslem(o.Id, $"{e.No}/{o.Sira}", o.Tutar, e.Currency, same) : null);
             }
-        WithField("tarih", () => TarihPolitikasi.ParaTarihi(req.Tarih, "Gider ödemesi"));
+        WithField("tarih", () => DatePolicy.MoneyDate(req.Tarih, "Gider ödemesi"));
 
-        var p = await expenses.OdemeEkleAsync(new GiderOdemeInput
+        var p = await expenses.AddPaymentAsync(new GiderOdemeInput
         {
             ExpenseId = id, Tutar = req.Tutar, Tarih = F5Ortak.Utc(req.Tarih), MakbuzNo = Trimmed(req.MakbuzNo),
             Aciklama = Trimmed(req.Aciklama), IslemAnahtari = key,
         }, ct);
         // Yarışı kaybeden aynı anahtar: servis sessiz null döner — yeni SPA için bu da mükerrerdir (yazılmadı).
-        if (p is null) throw new MukerrerIslemException("Bu gider ödemesi zaten kaydedildi; yeni ödeme yazılmadı.");
+        if (p is null) throw new DuplicateOperationException("Bu gider ödemesi zaten kaydedildi; yeni ödeme yazılmadı.");
         return TypedResults.Ok(new ExpensePaymentDto(p.Id, p.Sira, p.Tutar, p.KalanSonrasi, p.Tarih, p.MakbuzNo, p.Aciklama, p.IslemYapan));
     }
 }

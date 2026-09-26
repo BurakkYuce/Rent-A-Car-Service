@@ -47,7 +47,7 @@ public class MaliyetTeklifi : ITenantOwned, IAuditable
     public decimal KarMarji { get; set; }
     public decimal KdvOran { get; set; }
     public decimal EnflasyonOran { get; set; }
-    public KrediHesaplamaSekli KrediHesaplamaSekli { get; set; } = KrediHesaplamaSekli.EsitTaksitli;
+    public LoanCalculationMethod KrediHesaplamaSekli { get; set; } = LoanCalculationMethod.EsitTaksitli;
     public int AracSayisi { get; set; } = 1;
 
     // Gider kalemleri (girdi snapshot'ı) — dökümü yeniden üretmeye yeter.

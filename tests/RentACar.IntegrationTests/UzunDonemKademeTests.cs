@@ -32,7 +32,7 @@ public sealed class UzunDonemKademeTests(PostgresFixture fx)
         {
             Kod = "EKO-STD", Ad = "Eko Standart", AracGrupKod = "EKO", ParaBirimi = "TRY",
             Gun7 = 700m, GunHaftalik = haftalik, GunAylik = aylik,
-            OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+            OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
     }
 
@@ -95,7 +95,7 @@ public sealed class UzunDonemKademeTests(PostgresFixture fx)
         var v = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 UD 01", Grup = "EKO" });
         var m = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "UD", Soyad = "M" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "UD", Soyad = "M" });
 
         BookingInput Girdi(int gun) => new()
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(gun), FiyatTuru = "Otomatik" };

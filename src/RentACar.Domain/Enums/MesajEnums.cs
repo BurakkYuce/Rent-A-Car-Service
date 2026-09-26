@@ -1,7 +1,7 @@
 namespace RentACar.Domain.Enums;
 
 /// <summary>Müşteriye giden bildirimin kanalı.</summary>
-public enum MesajKanal
+public enum MessageChannel
 {
     Eposta,
     Sms,
@@ -14,7 +14,7 @@ public enum MesajKanal
 /// eşleşiyor olsaydı sıra değişikliği geçmiş kayıtların anlamını bozardı — bu yüzden hem sıra
 /// korunur hem de kalıcı kayıtta ad saklanır (bkz. <c>GidenMesaj.Tur</c>).</para>
 /// </summary>
-public enum MesajTuru
+public enum MessageType
 {
     /// <summary>Halka açık siteden gelen rezervasyon talebi alındı.</summary>
     TalepAlindi,
@@ -31,7 +31,7 @@ public enum MesajTuru
 }
 
 /// <summary>Giden mesajın yaşam döngüsü.</summary>
-public enum GidenMesajDurum
+public enum OutgoingMessageStatus
 {
     /// <summary>Kuyruğa alındı, henüz gönderilmedi (ya da yeniden denenecek).</summary>
     Kuyrukta,

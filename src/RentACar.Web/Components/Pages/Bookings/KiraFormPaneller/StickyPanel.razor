@@ -17,7 +17,7 @@
         {
             @* FAZ 4.2-B3: dönem planı + satır-başı kesim (ana form DIŞI formlar). *@
             <details>
-                <summary class="link">Fatura Dönemleri (@Vm.FaturaDonemleri.Count(d => d.Durum == RentACar.Domain.Enums.FaturaDonemDurum.Kesildi)/@Vm.FaturaDonemleri.Count kesildi)</summary>
+                <summary class="link">Fatura Dönemleri (@Vm.FaturaDonemleri.Count(d => d.Durum == RentACar.Domain.Enums.InvoicePeriodStatus.Kesildi)/@Vm.FaturaDonemleri.Count kesildi)</summary>
                 <div class="table-scroll">
                     <table class="grid tr-grid">
                         <thead><tr><th>#</th><th>Aralık</th><th class="num">Tahakkuk</th><th>Durum</th><th class="num">Kesilen</th><th></th></tr></thead>
@@ -31,7 +31,7 @@
                                     <td>@d.Durum</td>
                                     <td class="num">@(d.KesilenTutar?.ToString("N2") ?? "—")</td>
                                     <td>
-                                        @if (d.Durum == RentACar.Domain.Enums.FaturaDonemDurum.Planlandi)
+                                        @if (d.Durum == RentACar.Domain.Enums.InvoicePeriodStatus.Planlandi)
                                         {
                                             <form method="post" action="/finans/donem-fatura" style="display:flex;gap:.35rem;align-items:center;"><AntiforgeryToken />
                                                 <input type="hidden" name="rentalId" value="@Vm.Rental!.Id" />
@@ -174,7 +174,7 @@
                         placeholder="Boş = bloke tutarın tamamı" value="@Vm.Rental!.Provizyon" /></label>
                     <label><input type="checkbox" name="iade" value="true" /> Çekim yok — serbest bırak (iade)</label>
                     <label class="u-self-end"><button type="submit"
-                        disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.ProvizyonDurum.Alindi)">Provizyonu Kapat</button></label>
+                        disabled="@(Vm.Rental!.ProvizyonDurum != RentACar.Domain.Enums.PreAuthStatus.Alindi)">Provizyonu Kapat</button></label>
                     <p class="muted small">Bilgi kaydıdır — deftere/bakiyeye yazmaz; gerçek tahsilat yukarıdaki akışlardan.</p>
                 </form>
             </details>

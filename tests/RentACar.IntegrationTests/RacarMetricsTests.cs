@@ -45,8 +45,8 @@ public sealed class RacarMetricsTests(PostgresFixture fx)
         using var r = new MetricRecorder();
         RacarMetrics.LoginSuccess();
         RacarMetrics.LoginFail(); RacarMetrics.LoginFail();
-        RacarMetrics.TahsilatOk();
-        RacarMetrics.TahsilatFail();
+        RacarMetrics.CollectionOk();
+        RacarMetrics.CollectionFail();
         RacarMetrics.LedgerIdempotentRejected();
         RacarMetrics.RateLimitRejected("login");
         RacarMetrics.JobFailed("tcmb-kur");

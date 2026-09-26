@@ -33,7 +33,7 @@ public static class VehicleGroupEndpoints
         {
             try
             {
-                var n = await svc.GrupDegeriAtaAsync(kaynak, bos ?? false, hedefGrupId);
+                var n = await svc.AssignGroupValueAsync(kaynak, bos ?? false, hedefGrupId);
                 return Results.Redirect("/arac-gruplari?bilgi=" +
                     Uri.EscapeDataString($"{n} araç '{kaynak}' değerinden taşındı."));
             }
@@ -82,7 +82,7 @@ public static class VehicleGroupEndpoints
         ProvizyonDoviz = FormParse.Str(f, "provizyonDoviz"),
         Provizyon2Doviz = FormParse.Str(f, "provizyon2Doviz"),
         YakitTuru = Enum.TryParse<RentACar.Domain.Enums.FuelType>(FormParse.Str(f, "yakitTuru"), out var yt) ? yt : null,
-        Vites = Enum.TryParse<RentACar.Domain.Enums.Vites>(FormParse.Str(f, "vites"), out var vt) ? vt : null,
+        Vites = Enum.TryParse<RentACar.Domain.Enums.Transmission>(FormParse.Str(f, "vites"), out var vt) ? vt : null,
         EntegrasyonKod1 = FormParse.Str(f, "entegrasyonKod1"),
         WebId = FormParse.Str(f, "webId"),
         ServisId = FormParse.Str(f, "servisId"),

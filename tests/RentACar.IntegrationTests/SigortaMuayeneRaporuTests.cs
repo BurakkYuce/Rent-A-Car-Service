@@ -42,7 +42,7 @@ public sealed class SigortaMuayeneRaporuTests(PostgresFixture fx)
         await reg.AddInspectionAsync(v1, D(2026, 3, 1), D(2028, 3, 1), 800m);
         await reg.AddMtvAsync(v1, "2026/1", 2000m, D(2026, 1, 31));
 
-        var rows = await sp.GetRequiredService<ReportService>().GetSigortaMuayeneAsync();
+        var rows = await sp.GetRequiredService<ReportService>().GetInsuranceInspectionAsync();
         Assert.Equal(2, rows.Count);
 
         var a = rows.Single(r => r.Plaka == "34SM01");
@@ -76,7 +76,7 @@ public sealed class SigortaMuayeneRaporuTests(PostgresFixture fx)
         await reg.AddInsuranceAsync(v, InsuranceType.Trafik, D(2024, 1, 1), D(2025, 12, 31), 4000m, null, null, null);
         await reg.AddInsuranceAsync(v, InsuranceType.Trafik, D(2026, 1, 1), D(2027, 1, 1), 5000m, null, null, null);
 
-        var r = Assert.Single(await sp.GetRequiredService<ReportService>().GetSigortaMuayeneAsync());
+        var r = Assert.Single(await sp.GetRequiredService<ReportService>().GetInsuranceInspectionAsync());
         Assert.Equal(D(2027, 1, 1), r.TrafikBitis);
     }
 
@@ -92,17 +92,17 @@ public sealed class SigortaMuayeneRaporuTests(PostgresFixture fx)
         // ELLE: iki dönem — 1. ödendi, 2. açık. Rapor AÇIK olanın vadesini göstermeli.
         var m1 = await reg.AddMtvAsync(v, "2026/1", 1000m, D(2026, 1, 31));
         await reg.AddMtvAsync(v, "2026/2", 1000m, D(2026, 7, 31));
-        await reg.MtvOdeAsync(m1, LedgerAccountType.Kasa, odemeTarih: DateTimeOffset.UtcNow.AddDays(-1));
+        await reg.PayMtvAsync(m1, LedgerAccountType.Kasa, paymentDate: DateTimeOffset.UtcNow.AddDays(-1));
 
         var rapor = sp.GetRequiredService<ReportService>();
-        var r = Assert.Single(await rapor.GetSigortaMuayeneAsync());
+        var r = Assert.Single(await rapor.GetInsuranceInspectionAsync());
         Assert.Equal(D(2026, 7, 31), r.MtvVade);
         Assert.False(r.MtvOdendi);
 
         // İkinci dönem de ödenince ÖDENDİ ve en geç vade bilgi olarak kalır.
         var acik = (await reg.ListMtvAsync()).Single(x => !x.Odendi);
-        await reg.MtvOdeAsync(acik.Id, LedgerAccountType.Kasa, odemeTarih: DateTimeOffset.UtcNow.AddDays(-1));
-        var r2 = Assert.Single(await rapor.GetSigortaMuayeneAsync());
+        await reg.PayMtvAsync(acik.Id, LedgerAccountType.Kasa, paymentDate: DateTimeOffset.UtcNow.AddDays(-1));
+        var r2 = Assert.Single(await rapor.GetInsuranceInspectionAsync());
         Assert.True(r2.MtvOdendi);
         Assert.Equal(D(2026, 7, 31), r2.MtvVade);
     }
@@ -125,20 +125,20 @@ public sealed class SigortaMuayeneRaporuTests(PostgresFixture fx)
         await reg.AddInsuranceAsync(v2, InsuranceType.Trafik, D(2026, 1, 1), D(2030, 1, 1), 1m, null, null, null);
 
         var svc = sp.GetRequiredService<ReportService>();
-        Assert.Equal(3, (await svc.GetSigortaMuayeneAsync()).Count);
+        Assert.Equal(3, (await svc.GetInsuranceInspectionAsync()).Count);
 
         // Araç sahibi (harf duyarsız)
-        Assert.Equal(2, (await svc.GetSigortaMuayeneAsync(new SigortaMuayeneFilter { AracSahibi = "bizim" })).Count);
-        Assert.Single(await svc.GetSigortaMuayeneAsync(new SigortaMuayeneFilter { AracSahibi = "Dış" }));
+        Assert.Equal(2, (await svc.GetInsuranceInspectionAsync(new SigortaMuayeneFilter { AracSahibi = "bizim" })).Count);
+        Assert.Single(await svc.GetInsuranceInspectionAsync(new SigortaMuayeneFilter { AracSahibi = "Dış" }));
 
         // Plaka (boşluklu giriş normalize)
-        Assert.Equal(2, (await svc.GetSigortaMuayeneAsync(new SigortaMuayeneFilter { Plaka = "34 FL" })).Count);
-        Assert.Single(await svc.GetSigortaMuayeneAsync(new SigortaMuayeneFilter { Plaka = "06xy03" }));
+        Assert.Equal(2, (await svc.GetInsuranceInspectionAsync(new SigortaMuayeneFilter { Plaka = "34 FL" })).Count);
+        Assert.Single(await svc.GetInsuranceInspectionAsync(new SigortaMuayeneFilter { Plaka = "06xy03" }));
 
         // Tür + bitiş: trafiği 2027 öncesi bitenler VE trafiği HİÇ OLMAYANLAR (eksik belge de
         // raporun konusu) → v1 + v3 = 2.
-        var vade = await svc.GetSigortaMuayeneAsync(new SigortaMuayeneFilter
-        { Tur = SigortaMuayeneTur.Trafik, BitisEnGec = D(2027, 1, 1) });
+        var vade = await svc.GetInsuranceInspectionAsync(new SigortaMuayeneFilter
+        { Tur = InsuranceInspectionType.Trafik, BitisEnGec = D(2027, 1, 1) });
         Assert.Equal(2, vade.Count);
         Assert.DoesNotContain(vade, r => r.Plaka == "34FL02");
     }
@@ -152,6 +152,6 @@ public sealed class SigortaMuayeneRaporuTests(PostgresFixture fx)
                 .CreateAsync(new VehicleInput { Plaka = "34 GZ 01" });
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ReportService>().GetSigortaMuayeneAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ReportService>().GetInsuranceInspectionAsync());
     }
 }

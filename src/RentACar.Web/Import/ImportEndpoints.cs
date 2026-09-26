@@ -75,7 +75,7 @@ public static class ImportEndpoints
             var geri = $"/tarife-aktar?kanal={Uri.EscapeDataString(kanal ?? "")}";
             try
             {
-                var n = await svc.DeleteByKanalAsync(kanal, TarifeOnayDurumu.Bekliyor);
+                var n = await svc.DeleteByChannelAsync(kanal, TariffApprovalStatus.Bekliyor);
                 return Results.Redirect($"{geri}&mesaj={Uri.EscapeDataString($"{n} bekleyen tarife satırı silindi.")}");
             }
             catch (ValidationException ex)

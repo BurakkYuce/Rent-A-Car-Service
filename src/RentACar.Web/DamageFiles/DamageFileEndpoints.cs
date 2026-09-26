@@ -36,10 +36,10 @@ public static class DamageFileEndpoints
             }
         });
 
-        grp.MapPost("/onaya-gonder", (DamageFileService svc, [FromForm] Guid id) => Act(() => svc.OnayaGonderAsync(id), "İşlem tamamlandı."));
-        grp.MapPost("/onayla", (DamageFileService svc, [FromForm] Guid id, [FromForm] string? not) => Act(() => svc.OnaylaAsync(id, not), "İşlem tamamlandı."));
-        grp.MapPost("/reddet", (DamageFileService svc, [FromForm] Guid id, [FromForm] string? not) => Act(() => svc.ReddetAsync(id, not), "Reddedildi."));
-        grp.MapPost("/kapat", (DamageFileService svc, [FromForm] Guid id) => Act(() => svc.KapatAsync(id), "Kapatıldı."));
+        grp.MapPost("/onaya-gonder", (DamageFileService svc, [FromForm] Guid id) => Act(() => svc.SendForApprovalAsync(id), "İşlem tamamlandı."));
+        grp.MapPost("/onayla", (DamageFileService svc, [FromForm] Guid id, [FromForm] string? not) => Act(() => svc.ApproveAsync(id, not), "İşlem tamamlandı."));
+        grp.MapPost("/reddet", (DamageFileService svc, [FromForm] Guid id, [FromForm] string? not) => Act(() => svc.RejectAsync(id, not), "Reddedildi."));
+        grp.MapPost("/kapat", (DamageFileService svc, [FromForm] Guid id) => Act(() => svc.CloseAsync(id), "Kapatıldı."));
 
         return app;
     }

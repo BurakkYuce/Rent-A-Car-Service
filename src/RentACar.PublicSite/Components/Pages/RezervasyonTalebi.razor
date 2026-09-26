@@ -69,6 +69,6 @@
     {
         _branding = await Showcase.GetBrandingAsync();
         _subeler = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
-        if (!string.IsNullOrWhiteSpace(Ilan)) _ilan = await Showcase.GetIlanDetayAsync(Ilan);
+        if (!string.IsNullOrWhiteSpace(Ilan)) _ilan = await Showcase.GetListingDetailAsync(Ilan);
     }
 }

@@ -7,7 +7,7 @@ namespace RentACar.Application.Vehicles;
 /// GRUBUNU ya da SIPP/ACRISS kodunu hedefler. İki ayrı kutu koymak yerine anahtar kullanılıyor
 /// çünkü kullanıcı ikisini aynı anda aramıyor; canlıdaki davranış da bu.
 /// </summary>
-public enum AracGrupTuru
+public enum VehicleGroupType
 {
     Grup = 0,
     Sipp = 1
@@ -18,7 +18,7 @@ public enum AracGrupTuru
 /// aralık hiç uygulanmaz (tarih kutuları dolu olsa bile) — "hangi tarih?" sorusu yanıtsızken
 /// rastgele bir kolona uygulamak sessizce yanlış liste üretirdi.
 /// </summary>
-public enum AracTarihTuru
+public enum VehicleDateType
 {
     Yok = 0,
     FiloGiris = 1,
@@ -37,7 +37,7 @@ public enum AracTarihTuru
 /// tamamını "dış sahipli" gösterirdi. Mülkiyeti işaretleyen ayrı bir alan olmadığı sürece
 /// doğru olan, sahibi TAHMİN etmek değil kullanıcıya seçtirmektir.</para>
 /// </summary>
-public enum AracSahiplik
+public enum VehicleOwnership
 {
     Hepsi = 0,
     /// <summary>Yalnız araç sahibi hiç girilmemiş kayıtlar (veri eksiği avı).</summary>
@@ -52,13 +52,13 @@ public sealed class VehicleFilter
     /// <summary>Grup ya da SIPP değeri — hangisi olduğu <see cref="GrupTuru"/> ile belirlenir.</summary>
     public string? Grup { get; set; }
     /// <summary>FAZ-11: <see cref="Grup"/> kutusunun hedefi (Grup ↔ SIPP).</summary>
-    public AracGrupTuru GrupTuru { get; set; } = AracGrupTuru.Grup;
+    public VehicleGroupType GrupTuru { get; set; } = VehicleGroupType.Grup;
     public string? Sube { get; set; }         // UI şube filtresi (kullanıcı seçimi)
     /// <summary>Rol bazlı şube KAPSAMI (C3; servis ayarlar) — UI Sube filtresinden bağımsız zorlanır.</summary>
     public Authorization.BranchScope.BranchFilter Kapsam { get; set; }
 
     // ---- FAZ-11 tarih aralığı (tip seçimli) ----
-    public AracTarihTuru TarihTuru { get; set; } = AracTarihTuru.Yok;
+    public VehicleDateType TarihTuru { get; set; } = VehicleDateType.Yok;
     /// <summary>Aralık başlangıç ANI (dahil) — normalde başlangıç gününün gece yarısı.</summary>
     public DateTimeOffset? TarihBas { get; set; }
     /// <summary>Aralık bitiş GÜNÜNÜN başlangıç anı. Sorgu <c>&lt; TarihBit + 1 gün</c> uygular,
@@ -66,7 +66,7 @@ public sealed class VehicleFilter
     public DateTimeOffset? TarihBit { get; set; }
 
     /// <summary>FAZ-11: "sahibi girilmemiş" özel kovası (belirli sahip için <see cref="AracSahibi"/>).</summary>
-    public AracSahiplik Sahiplik { get; set; } = AracSahiplik.Hepsi;
+    public VehicleOwnership Sahiplik { get; set; } = VehicleOwnership.Hepsi;
     /// <summary>FAZ-11: belirli araç sahibi (tam eşleşme, kırpılmış). <see cref="Sahiplik"/>
     /// <c>Girilmemis</c> iken yok sayılır — iki kova aynı anda anlamlı değil.</summary>
     public string? AracSahibi { get; set; }

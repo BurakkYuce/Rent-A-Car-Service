@@ -195,10 +195,10 @@
         // Guid.Empty = "yalnız hesap belirtilmemiş"; boş = tümü (bkz. GetAccountLedgerAsync).
         Guid? hesapFiltre = Guid.TryParse(HesapId, out var hf) ? hf : null;
 
-        _summary = await Reports.GetKasaBankaSummaryAsync(from, to);
-        _hesapOzet = await Reports.GetHesapBazliOzetAsync(from, to);
+        _summary = await Reports.GetCashBankSummaryAsync(from, to);
+        _hesapOzet = await Reports.GetAccountBasedSummaryAsync(from, to);
         _lines = await Reports.GetAccountLedgerAsync(_hesap, from, to, hesapFiltre,
-            doviz: Doviz, islemTuru: Tur, sube: Sube, devir: Devir == "true");
+            currency: Doviz, transactionType: Tur, branch: Sube, carryForward: Devir == "true");
         _hesaplar = await Hesaplar.ListAsync();
         _adlar = _hesaplar.ToDictionary(h => h.Id, h => h.Ad);
         // Hesap No / IBAN — banka_hesap_hareketleri.aspx kolonu; IBAN varsa o, yoksa hesap no.

@@ -26,7 +26,7 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
     private static async Task<(Guid cari, Guid veh)> CariAracAsync(IServiceProvider sp, string plaka)
     {
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Form", Soyad = "Musteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Form", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         return (cari, veh);
     }
@@ -203,8 +203,8 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         var (cari, veh) = await CariAracAsync(sp, "34 KF 05");
         var rentals = sp.GetRequiredService<RentalService>();
         var id = await rentals.CreateDirectAsync(Kira(cari, veh, i => { i.KmLimit = 300; i.FazlaKmUcret = 2m; }));
-        await rentals.DeliverAsync(id, cikisKm: 10000, cikisYakit: 8);
-        await rentals.ReturnAsync(id, donusKm: 10100, donusYakit: 8, Bas.AddDays(3));
+        await rentals.DeliverAsync(id, pickupKm: 10000, pickupFuel: 8);
+        await rentals.ReturnAsync(id, returnKm: 10100, returnFuel: 8, Bas.AddDays(3));
 
         // Aşım parametresi değişikliği RED (ReturnMath koştu; retroaktif oynanamaz):
         var ex = await Assert.ThrowsAsync<ValidationException>(() => rentals.UpdateOpenAsync(id,
@@ -244,7 +244,7 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         Assert.Contains("bulunamadı", ex2.Message);
         // Geçerli cari → atanır
         var ikinci = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "İkinci", Soyad = "Sürücü" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "İkinci", Soyad = "Sürücü" });
         Assert.True(await rentals.UpdateOpenAsync(id, new RentalUpdateInput { IkinciSurucuId = ikinci }));
         Assert.Equal(ikinci, (await rentals.GetAsync(id))!.IkinciSurucuId);
     }
@@ -266,14 +266,14 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
         {
             var rentals = op.ServiceProvider.GetRequiredService<RentalService>();
-            await Assert.ThrowsAsync<YetkiYokException>(
+            await Assert.ThrowsAsync<NoPermissionException>(
                 () => rentals.UpdateOpenAsync(id, new RentalUpdateInput { CikisOfisi = "Ankara", Aciklama = "x" }));
         }
         // Operatör (Ankara): kendi kirası ama kapsam DIŞINA (Merkez'e) taşıyamaz
         using (var op2 = host.ScopeFor(tenant, Guid.NewGuid(), "op2", UserRole.Operator, assignedBranch: "Ankara"))
         {
             var rentals = op2.ServiceProvider.GetRequiredService<RentalService>();
-            await Assert.ThrowsAsync<YetkiYokException>(
+            await Assert.ThrowsAsync<NoPermissionException>(
                 () => rentals.UpdateOpenAsync(id, new RentalUpdateInput { CikisOfisi = "Merkez" }));
             // Kendi kapsamı içinde güncelleme serbest
             Assert.True(await rentals.UpdateOpenAsync(id,
@@ -316,8 +316,8 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         Assert.True(await rentals.UpdateOpenAsync(id, new RentalUpdateInput
         { KmLimit = 500, FazlaKmUcret = 2m, YakitBirimUcret = 0m }));
 
-        await rentals.DeliverAsync(id, cikisKm: 10000, cikisYakit: 8);
-        await rentals.ReturnAsync(id, donusKm: 10700, donusYakit: 8, Bas.AddDays(3));
+        await rentals.DeliverAsync(id, pickupKm: 10000, pickupFuel: 8);
+        await rentals.ReturnAsync(id, returnKm: 10700, returnFuel: 8, Bas.AddDays(3));
 
         var c = await rentals.GetAsync(id);
         // ELLE ORACLE: kat edilen 700 − limit 500 = 200 fazla × 2 TL = 400 TL
@@ -382,13 +382,13 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using (var admin = host.ScopeFor(tenant))
         {
-            await admin.ServiceProvider.GetRequiredService<PersonelService>().CreateAsync(
+            await admin.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(
                 new PersonelInput { Kod = "P-10", Ad = "Aktif", Soyad = "Personel" });
-            await admin.ServiceProvider.GetRequiredService<PersonelService>().CreateAsync(
+            await admin.ServiceProvider.GetRequiredService<PersonnelService>().CreateAsync(
                 new PersonelInput { Kod = "P-11", Ad = "Pasif", Soyad = "Personel", Aktif = false });
         }
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez");
-        var svc = op.ServiceProvider.GetRequiredService<PersonelService>();
+        var svc = op.ServiceProvider.GetRequiredService<PersonnelService>();
 
         // Operatör dönüş formu için seçim listesini ALABİLİR (önceki gizli bug: ManageUsers guard patlıyordu)
         var secim = await svc.ListForSelectAsync();
@@ -396,6 +396,6 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         Assert.Equal("Aktif", secim[0].Ad);
 
         // Tam liste (PII'lı satır nesnesi) hâlâ Admin'e kilitli
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.ListAsync());
     }
 }

@@ -32,11 +32,11 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         }
         // F1.1: yetki reddi (PermissionGuard/BranchScope/ekran yetkisi) artık 400 değil 403; idempotency
         // kısıtı ihlali (aynı işlemin ikinci gönderimi) 409. İkisi de ValidationException alt tipi → önce.
-        catch (YetkiYokException ex)
+        catch (NoPermissionException ex)
         {
             await WriteAsync(ctx, StatusCodes.Status403Forbidden, "forbidden", ex.Message);
         }
-        catch (MukerrerIslemException ex)
+        catch (DuplicateOperationException ex)
         {
             await WriteAsync(ctx, StatusCodes.Status409Conflict, "duplicate_submission", ex.Message);
         }

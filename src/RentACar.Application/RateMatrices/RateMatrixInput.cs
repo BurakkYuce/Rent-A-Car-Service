@@ -50,7 +50,7 @@ public sealed class RateMatrixInput
 
     public decimal? MaxEsneklik { get; set; }
 
-    public TarifeOnayDurumu OnayDurumu { get; set; } = TarifeOnayDurumu.Bekliyor;
+    public TariffApprovalStatus OnayDurumu { get; set; } = TariffApprovalStatus.Bekliyor;
     public string? Onaylayan { get; set; }
     public DateTimeOffset? OnayZaman { get; set; }
 

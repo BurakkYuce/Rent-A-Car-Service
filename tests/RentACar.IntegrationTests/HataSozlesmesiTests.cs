@@ -23,8 +23,8 @@ public sealed class UiHataTests
 {
     public static TheoryData<Exception, int, string> EslemeTablosu() => new()
     {
-        { new YetkiYokException("Bu işlem için yetkiniz yok (FinanceWrite)."), 403, "yetki_yok" },
-        { new MukerrerIslemException("Bu işlem zaten kaydedilmiş."), 409, "mukerrer" },
+        { new NoPermissionException("Bu işlem için yetkiniz yok (FinanceWrite)."), 403, "yetki_yok" },
+        { new DuplicateOperationException("Bu işlem zaten kaydedilmiş."), 409, "mukerrer" },
         { new AvailabilityConflictException(), 409, "cakisma" },
         { new DuplicateCariException("TC", "11111111111"), 409, "cakisma" },
         { new DuplicatePlakaException("34ABC01"), 409, "cakisma" },
@@ -83,7 +83,7 @@ public sealed class UiHataTests
     [Fact]
     public void Problem_alansiz_istisnada_errors_yok()
     {
-        var p = UiHata.Problem(new YetkiYokException("Bu kayıt şube kapsamınız dışında.")).ProblemDetails;
+        var p = UiHata.Problem(new NoPermissionException("Bu kayıt şube kapsamınız dışında.")).ProblemDetails;
 
         Assert.Equal(403, p.Status);
         Assert.Equal("yetki_yok", p.Extensions["kod"]);
@@ -150,7 +150,7 @@ public sealed class IdempotencyKisitiTests
     public void Red_idempotency_kisitinda_Mukerrer_doner_mesaj_korunur()
     {
         var ex = IdempotencyKisiti.Red(UniqueIhlali("IX_CashTransactions_TenantId_IslemAnahtari"), "Bu işlem zaten kaydedilmiş.");
-        Assert.IsType<MukerrerIslemException>(ex);
+        Assert.IsType<DuplicateOperationException>(ex);
         Assert.Equal("Bu işlem zaten kaydedilmiş.", ex.Message);
     }
 

@@ -37,7 +37,7 @@ public sealed class BlogServiceTests(PostgresFixture fx)
         // Taslağa kapak yükle — public kapak ucu YİNE görmemeli (RLS taslak/yayında ayrımını BİLMEZ,
         // bu app-seviyesi bir durum; postId'yi bilen biri taslak kapağını çekememeli).
         using (var staff = host.ScopeFor(tenantId))
-            await staff.ServiceProvider.GetRequiredService<BlogService>().SetKapakAsync(taslakId, TinyPng);
+            await staff.ServiceProvider.GetRequiredService<BlogService>().SetCoverAsync(taslakId, TinyPng);
 
         using var pub = host.ScopeFor(tenantId, role: null);
         var svc = pub.ServiceProvider.GetRequiredService<BlogService>();
@@ -114,9 +114,9 @@ public sealed class BlogServiceTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenantId);
         var svc = scope.ServiceProvider.GetRequiredService<BlogService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.SetKapakAsync(id, NotAnImage));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.SetCoverAsync(id, NotAnImage));
 
-        await svc.SetKapakAsync(id, TinyPng);
+        await svc.SetCoverAsync(id, TinyPng);
         var cover = await svc.GetPublishedCoverAsync(id);
         Assert.NotNull(cover);
         Assert.Equal("image/png", cover!.ContentType);
@@ -156,9 +156,9 @@ public sealed class BlogServiceTests(PostgresFixture fx)
         using var muhasebe = host.ScopeFor(tenantId, role: UserRole.Muhasebe); // OperationsWrite YOK
         var svc = muhasebe.ServiceProvider.GetRequiredService<BlogService>();
 
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(new BlogInput { Baslik = "Olmaz", Icerik = "x" }));
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAllAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.ListAllAsync());
 
         Assert.Single(await svc.ListPublishedAsync()); // public okuma GUARD'SIZ
     }

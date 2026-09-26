@@ -20,7 +20,7 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
     private static async Task<(IServiceProvider sp, Guid rentalId)> SeedRental(TestHost host, IServiceScope scope, string plaka)
     {
         var sp = scope.ServiceProvider;
-        var cust = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Uzatma" });
+        var cust = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Uzatma" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = cust, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m });
@@ -74,7 +74,7 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
 
         Assert.True(await sp.GetRequiredService<RentalService>().ExtendAsync(id, Bas.AddDays(5))); // toplam 500
         // Ek hizmet: net 100, %20 KDV → brüt 120 → GenelToplam 500+120=620 (eski bug: 700+120).
-        var tanimId = await sp.GetRequiredService<RentACar.Application.EkHizmetler.EkHizmetTanimService>().CreateAsync(
+        var tanimId = await sp.GetRequiredService<RentACar.Application.EkHizmetler.AddOnDefinitionService>().CreateAsync(
             new RentACar.Application.EkHizmetler.EkHizmetTanimInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
         await sp.GetRequiredService<RentACar.Application.RentalAddOns.RentalAddOnService>().AddAsync(id, tanimId, 1m);
 

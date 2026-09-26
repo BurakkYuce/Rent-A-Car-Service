@@ -135,28 +135,28 @@ public static class AracTanimApi
     /// <summary>Sürüm alanlardan ÖNCE okunur.</summary>
     private static async Task<AracSahibiDto?> SahipAsync(Guid id, VehicleOwnerService s, CancellationToken ct)
     {
-        var surum = await s.SurumAsync(id, ct);
+        var surum = await s.VersionAsync(id, ct);
         return await s.GetAsync(id, ct) is { } x ? new AracSahibiDto(x.Id, x.Kod, x.Ad, x.Tur, x.Aktif, surum) : null;
     }
 
     private static async Task<SegmentDto?> SegmentAsync(Guid id, VehicleSegmentService s, CancellationToken ct)
     {
-        var surum = await s.SurumAsync(id, ct);
+        var surum = await s.VersionAsync(id, ct);
         return await s.GetAsync(id, ct) is { } x ? new SegmentDto(x.Id, x.Kod, x.Ad, x.Aciklama, x.Aktif, surum) : null;
     }
 
     private static async Task<TipDto?> TipAsync(Guid id, VehicleTypeService s, CancellationToken ct)
     {
-        var surum = await s.SurumAsync(id, ct);
+        var surum = await s.VersionAsync(id, ct);
         return await s.GetAsync(id, ct) is { } x ? TipDto.From(x, surum) : null;
     }
 
-    private static readonly SiralamaHaritasi<AracSahibiDto> SahipHarita = SiralamaHaritasi<AracSahibiDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("tur", x => x.Tur).Alan("aktif", x => x.Aktif);
-    private static readonly SiralamaHaritasi<SegmentDto> SegmentHarita = SiralamaHaritasi<SegmentDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("aktif", x => x.Aktif);
-    private static readonly SiralamaHaritasi<TipDto> TipHarita = SiralamaHaritasi<TipDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("marka", x => x.Marka)
+    private static readonly SortFieldMap<AracSahibiDto> SahipHarita = SortFieldMap<AracSahibiDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("tur", x => x.Tur).Alan("aktif", x => x.Aktif);
+    private static readonly SortFieldMap<SegmentDto> SegmentHarita = SortFieldMap<SegmentDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("aktif", x => x.Aktif);
+    private static readonly SortFieldMap<TipDto> TipHarita = SortFieldMap<TipDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("marka", x => x.Marka)
         .Alan("grup", x => x.Grup).Alan("aktif", x => x.Aktif);
 }
 

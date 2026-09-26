@@ -116,7 +116,7 @@ public sealed partial class UiRezervasyonTests
         var bozuk = new FiloKiralama
         {
             No = "FK-BOZUK-" + Guid.NewGuid().ToString("N")[..4], MusteriId = o.MusteriId, VehicleId = arac, BasTar = uzak,
-            SureAy = 12, AylikUcret = 1000m, KdvOrani = 0.20m, Currency = "TRY", Kur = 1m, Durum = FiloKiraDurum.Aktif,
+            SureAy = 12, AylikUcret = 1000m, KdvOrani = 0.20m, Currency = "TRY", Kur = 1m, Durum = FleetRentalStatus.Aktif,
         };
         await VeriYazAsync(o.TenantId, db => db.FiloKiralamalar.Add(bozuk));
         var liste = await Json(await s.C.GetAsync(Filo));

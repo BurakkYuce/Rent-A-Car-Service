@@ -80,8 +80,8 @@ public sealed class ScreenPermissionTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var op = host.ScopeFor(Guid.NewGuid(), role: UserRole.Operator);
-        await Assert.ThrowsAsync<YetkiYokException>(() => Svc(op).SetAsync("x", new[] { UserRole.Admin }));
-        await Assert.ThrowsAsync<YetkiYokException>(() => Svc(op).ListAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() => Svc(op).SetAsync("x", new[] { UserRole.Admin }));
+        await Assert.ThrowsAsync<NoPermissionException>(() => Svc(op).ListAsync());
     }
 
     [Fact]
@@ -93,6 +93,6 @@ public sealed class ScreenPermissionTests(PostgresFixture fx)
             await Svc(admin).SetAsync("ekranE", new[] { UserRole.Admin });
 
         using var op = host.ScopeFor(t, role: UserRole.Operator);
-        await Assert.ThrowsAsync<YetkiYokException>(() => Svc(op).EnsureScreenAccessAsync("ekranE", Permission.OperationsWrite));
+        await Assert.ThrowsAsync<NoPermissionException>(() => Svc(op).EnsureScreenAccessAsync("ekranE", Permission.OperationsWrite));
     }
 }

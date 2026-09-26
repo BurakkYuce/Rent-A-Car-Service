@@ -11,12 +11,12 @@ public interface ILocationRepository
     Task<IReadOnlyList<Location>> ListActiveAsync(CancellationToken ct = default);
 
     /// <summary>Ada göre TEK lokasyon (C4): exact case-insensitive; aynı adda Kod sırası deterministik.</summary>
-    Task<Location?> FindByAdAsync(string ad, CancellationToken ct = default);
+    Task<Location?> FindByNameAsync(string name, CancellationToken ct = default);
 
     Task<Location?> FindAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Tenant içinde aynı kod (büyük/küçük harf duyarsız) başka kayıtta var mı?</summary>
-    Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default);
+    Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default);
 
     Task CreateAsync(Location location, CancellationToken ct = default);
 

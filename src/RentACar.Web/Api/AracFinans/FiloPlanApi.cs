@@ -8,7 +8,7 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Api.AracFinans;
 
 /// <summary>
-/// <c>/api/ui/v1/filo-plan/*</c> (F6.1b) — filo kapasite hedefleri + gerçekleşen sayım (<see cref="FiloPlanService"/>).
+/// <c>/api/ui/v1/filo-plan/*</c> (F6.1b) — filo kapasite hedefleri + gerçekleşen sayım (<see cref="FleetPlanService"/>).
 /// Para/defter TAŞIMAZ. <b>İzin:</b> okuma ViewReports ∨ OperationsWrite (servis kuralı), yazma OperationsWrite.
 /// Kiracı geneli planlama (Blazor ile aynı; sayım tüm filodan). Çift oluşturma doğal anahtarla (grup/SIPP/dönem)
 /// yapısal olarak engelli. Artır/Azalt satır kilidi altında (±1, kayıp güncelleme yok); PUT zorunlu <c>surum</c>.
@@ -37,24 +37,24 @@ public static class FiloPlanApi
 
     private static ProblemHttpResult Bulunamadi() => F5Ortak.Bulunamadi("Plan hedefi bulunamadı.");
 
-    private static readonly SiralamaHaritasi<FiloPlanDto> Harita = SiralamaHaritasi<FiloPlanDto>
-        .Olustur(p => p.Id)
+    private static readonly SortFieldMap<FiloPlanDto> Harita = SortFieldMap<FiloPlanDto>
+        .Create(p => p.Id)
         .Alan("aracGrupAdi", p => p.AracGrupAdi).Alan("sipp", p => p.Sipp).Alan("donem", p => p.Donem)
         .Alan("hedefAdet", p => p.HedefAdet).Alan("gerceklesen", p => p.Gerceklesen).Alan("fark", p => p.Fark);
 
     private static async Task<Ok<Sayfa<FiloPlanDto>>> Liste(
-        FiloPlanService svc, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
+        FleetPlanService svc, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
         => TypedResults.Ok(F5Ortak.Sayfala(
-            (await svc.ListWithSayimAsync(ct)).Select(s => FiloPlanDto.From(s)).ToList(), Harita, sayfa, boyut, sirala));
+            (await svc.ListWithCountAsync(ct)).Select(s => FiloPlanDto.From(s)).ToList(), Harita, sayfa, boyut, sirala));
 
-    private static async Task<FiloPlanDto?> DtoAsync(Guid id, FiloPlanService svc, CancellationToken ct)
+    private static async Task<FiloPlanDto?> DtoAsync(Guid id, FleetPlanService svc, CancellationToken ct)
     {
-        var surum = await svc.SurumAsync(id, ct);
-        var s = (await svc.ListWithSayimAsync(ct)).FirstOrDefault(x => x.Hedef.Id == id);
+        var surum = await svc.VersionAsync(id, ct);
+        var s = (await svc.ListWithCountAsync(ct)).FirstOrDefault(x => x.Hedef.Id == id);
         return s is null ? null : FiloPlanDto.From(s, surum);
     }
 
-    private static async Task<Results<Ok<FiloPlanDto>, ProblemHttpResult>> Detay(Guid id, FiloPlanService svc, CancellationToken ct)
+    private static async Task<Results<Ok<FiloPlanDto>, ProblemHttpResult>> Detay(Guid id, FleetPlanService svc, CancellationToken ct)
         => await DtoAsync(id, svc, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
 
     private static FiloPlanInput Girdi(FiloPlanIstegi i)
@@ -72,23 +72,23 @@ public static class FiloPlanApi
     }
 
     private static async Task<Results<Created<FiloPlanDto>, ProblemHttpResult>> Olustur(
-        FiloPlanIstegi i, FiloPlanService svc, CancellationToken ct)
+        FiloPlanIstegi i, FleetPlanService svc, CancellationToken ct)
     {
         var id = await svc.CreateAsync(Girdi(i), ct);
         return await DtoAsync(id, svc, ct) is { } d ? TypedResults.Created($"{Kok}/{id}", d) : Bulunamadi();
     }
 
     private static async Task<Results<Ok<FiloPlanDto>, ProblemHttpResult>> Guncelle(
-        Guid id, FiloPlanIstegi i, FiloPlanService svc, CancellationToken ct)
+        Guid id, FiloPlanIstegi i, FleetPlanService svc, CancellationToken ct)
     {
         if (await svc.GetAsync(id, ct) is null) return Bulunamadi();
         var surum = AracFinansOrtak.Surum(i.Surum);
-        if (!await svc.UpdateSurumluAsync(id, Girdi(i), surum, ct)) return Bulunamadi();
+        if (!await svc.UpdateVersionedAsync(id, Girdi(i), surum, ct)) return Bulunamadi();
         return await DtoAsync(id, svc, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
     private static async Task<Results<Ok<FiloPlanDto>, ProblemHttpResult>> Delta(
-        Guid id, FiloPlanDeltaIstegi i, FiloPlanService svc, CancellationToken ct)
+        Guid id, FiloPlanDeltaIstegi i, FleetPlanService svc, CancellationToken ct)
     {
         var delta = i.Yon?.Trim().ToLowerInvariant() switch
         {
@@ -96,10 +96,10 @@ public static class FiloPlanApi
             "azalt" => -1,
             _ => throw new ValidationException("Yön 'artir' ya da 'azalt' olmalıdır.", "yon"),
         };
-        if (!await svc.HedefDegistirAsync(id, delta, ct)) return Bulunamadi();
+        if (!await svc.ChangeTargetAsync(id, delta, ct)) return Bulunamadi();
         return await DtoAsync(id, svc, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> Sil(Guid id, FiloPlanService svc, CancellationToken ct)
+    private static async Task<Results<NoContent, ProblemHttpResult>> Sil(Guid id, FleetPlanService svc, CancellationToken ct)
         => await svc.DeleteAsync(id, ct) ? TypedResults.NoContent() : Bulunamadi();
 }

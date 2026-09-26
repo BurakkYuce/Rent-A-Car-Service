@@ -27,7 +27,7 @@ public static class BookingMath
     /// <summary>Opsiyonel metin alanı: boş → null, aksi Trim + uzunluk çiti (aşımda gürültülü red).
     /// Rezervasyon ve kira aynı alanları (Talep Türü / Proje Adı …) taşıdığından kural TEK yerde
     /// (FAZ-48; RentalService.Lim buna delege eder — iki kopya sapmasın).</summary>
-    public static string? Kirp(string? s, int max, string alan)
+    public static string? Clamp(string? s, int max, string alan)
     {
         if (string.IsNullOrWhiteSpace(s)) return null;
         var t = s.Trim();
@@ -38,9 +38,9 @@ public static class BookingMath
 
     public static (int Gun, decimal Tutar) Compute(BookingInput input)
     {
-        var gun = ComputeGun(input.BasTar, input.BitTar);
-        var tutar = gun * input.GunlukUcret;
-        return (gun, tutar);
+        var day = ComputeDays(input.BasTar, input.BitTar);
+        var amount = day * input.GunlukUcret;
+        return (day, amount);
     }
 
     /// <summary>
@@ -56,16 +56,16 @@ public static class BookingMath
     ///
     /// Uzatma/geç-dönüş bu kuralı KULLANMAZ (ReturnMath ayrı: ceil).
     /// </summary>
-    public const double KismiGunEsigiSaat = 3.0;
+    public const double PartialDayThresholdHours = 3.0;
 
-    /// <summary>Gün sayısı: 24-saat TAM blok (floor) + kısmi dönem <see cref="KismiGunEsigiSaat"/>'ı aşarsa
+    /// <summary>Gün sayısı: 24-saat TAM blok (floor) + kısmi dönem <see cref="PartialDayThresholdHours"/>'ı aşarsa
     /// +1; en az 1. Fiyat motoru + kira/rezervasyon/teklif/uzatma-gün'ü kullanır (referans sistem parite).</summary>
-    public static int ComputeGun(DateTimeOffset bas, DateTimeOffset bit)
+    public static int ComputeDays(DateTimeOffset start, DateTimeOffset bit)
     {
-        var saat = (bit - bas).TotalHours;
-        if (saat <= 0) return 1; // Validate zaten bit>bas zorlar; savunma.
-        var tamGun = (int)Math.Floor(saat / 24.0);
-        var kismiSaat = saat - tamGun * 24.0;
-        return Math.Max(1, tamGun + (kismiSaat >= KismiGunEsigiSaat ? 1 : 0));
+        var hour = (bit - start).TotalHours;
+        if (hour <= 0) return 1; // Validate zaten bit>bas zorlar; savunma.
+        var fullDays = (int)Math.Floor(hour / 24.0);
+        var partialHours = hour - fullDays * 24.0;
+        return Math.Max(1, fullDays + (partialHours >= PartialDayThresholdHours ? 1 : 0));
     }
 }

@@ -22,10 +22,10 @@ public class Anket : ITenantOwned, IAuditable
     public Guid? RentalId { get; set; }
 
     /// <summary>Çıkış mı dönüş anketi mi. Null = eski (sözleşmesiz) genel anket.</summary>
-    public RentACar.Domain.Enums.AnketTuru? AnketTuru { get; set; }
+    public RentACar.Domain.Enums.SurveyType? AnketTuru { get; set; }
 
     /// <summary>Yapıldı/Yapılmadı. Varsayılan Yapildi — eski kayıtlar tamamlanmış sayılır.</summary>
-    public RentACar.Domain.Enums.AnketDurum Durum { get; set; } = RentACar.Domain.Enums.AnketDurum.Yapildi;
+    public RentACar.Domain.Enums.SurveyStatus Durum { get; set; } = RentACar.Domain.Enums.SurveyStatus.Yapildi;
 
     /// <summary>Çıkış ofisi — sözleşmeden SNAPSHOT (ofis adı sonradan değişse de anket sabit kalsın).</summary>
     public string? CikisOfisi { get; set; }

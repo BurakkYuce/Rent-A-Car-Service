@@ -76,7 +76,7 @@
     {
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
-        _rows = await Reports.GetRezervasyonKaynakAsync(new RezervasyonKaynakFilter
+        _rows = await Reports.GetReservationSourceAsync(new RezervasyonKaynakFilter
         {
             Bas = from, Bit = to, TarihTipi = TarihTipi ?? "Cikis",
             Ofis = Ofis, Grup = Grup, IptalleriDahilEt = Iptal == "true"

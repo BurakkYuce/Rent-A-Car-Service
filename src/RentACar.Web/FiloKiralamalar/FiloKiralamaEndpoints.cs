@@ -14,7 +14,7 @@ public static class FiloKiralamaEndpoints
     {
         var grp = app.MapGroup("/filo-kiralama").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (FiloKiralamaService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (FleetRentalService svc, HttpRequest req) =>
         {
             var f = req.Form;
             string? S(string k) { var v = f[k].ToString(); return string.IsNullOrWhiteSpace(v) ? null : v; }
@@ -51,7 +51,7 @@ public static class FiloKiralamaEndpoints
 
         // FAZ-21: KÜNYE güncelleme. Para/süre alanları giriş TİPİNDE yok → bu uçtan taksit planı
         // değiştirilemez (yol kapalı, "unutulmuş bir alan" riski yok).
-        grp.MapPost("/guncelle", async (FiloKiralamaService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/guncelle", async (FleetRentalService svc, HttpRequest req, [FromForm] Guid id) =>
         {
             var f = req.Form;
             string? S(string k) { var v = f[k].ToString(); return string.IsNullOrWhiteSpace(v) ? null : v; }
@@ -76,15 +76,15 @@ public static class FiloKiralamaEndpoints
             catch (ValidationException ex) { return Results.Redirect($"/filo-kiralama?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
-        grp.MapPost("/iptal", async (FiloKiralamaService svc, [FromForm] Guid id) =>
+        grp.MapPost("/iptal", async (FleetRentalService svc, [FromForm] Guid id) =>
         {
-            try { await svc.IptalAsync(id); return Sonuc.Tamam("/filo-kiralama", "İşlem iptal edildi."); }
+            try { await svc.CancelAsync(id); return Sonuc.Tamam("/filo-kiralama", "İşlem iptal edildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/filo-kiralama?hata={Uri.EscapeDataString(ex.Message)}"); }
         }).RequirePermission(Permission.OperationsDelete);
 
-        grp.MapPost("/tamamla", async (FiloKiralamaService svc, [FromForm] Guid id) =>
+        grp.MapPost("/tamamla", async (FleetRentalService svc, [FromForm] Guid id) =>
         {
-            try { await svc.TamamlaAsync(id); return Sonuc.Tamam("/filo-kiralama", "Tamamlandı."); }
+            try { await svc.CompleteAsync(id); return Sonuc.Tamam("/filo-kiralama", "Tamamlandı."); }
             catch (ValidationException ex) { return Results.Redirect($"/filo-kiralama?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 

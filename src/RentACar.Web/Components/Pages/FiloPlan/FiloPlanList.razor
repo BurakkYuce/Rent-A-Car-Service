@@ -1,7 +1,7 @@
 @page "/filo-plan"
 @attribute [Authorize(Roles = "Admin,Yonetici,Operator,Muhasebe")]
 @using RentACar.Application.FiloPlan
-@inject FiloPlanService Planlar
+@inject FleetPlanService Planlar
 @inject VehicleGroupService Gruplar
 
 <PageTitle>Filo Plan Hedefi — RentPro</PageTitle>
@@ -114,7 +114,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _list = await Planlar.ListWithSayimAsync();
+        _list = await Planlar.ListWithCountAsync();
         _grupOpts = (await Gruplar.ListActiveAsync()).Select(g => g.Kod)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .OrderBy(x => x, StringComparer.CurrentCulture).ToList();

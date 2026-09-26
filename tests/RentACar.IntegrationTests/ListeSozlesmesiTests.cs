@@ -9,7 +9,7 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// F1.3 liste sözleşmesi — saf kısım: <see cref="ListeIstegi"/> normalizasyonu,
-/// <see cref="Sayfa{T}"/> hesapları ve <see cref="SiralamaHaritasi{T}"/> beyaz listesi.
+/// <see cref="Sayfa{T}"/> hesapları ve <see cref="SortFieldMap{T}"/> beyaz listesi.
 /// Beklenen değerler ELLE yazılmış tablolardır (üretim kodundan türetilmez).
 /// </summary>
 public sealed class ListeSozlesmesiTests
@@ -43,7 +43,7 @@ public sealed class ListeSozlesmesiTests
         Assert.Equal(1, i.Sayfa);
         Assert.Equal(50, i.Boyut);
         Assert.Null(i.Sirala);
-        Assert.Null(i.SiralamaCoz());
+        Assert.Null(i.ParseSort());
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class ListeSozlesmesiTests
     [InlineData("-", "", true)] // alan adı boş → beyaz liste reddeder
     public void Sirala_alan_ve_yon_olarak_cozulur(string verilen, string alan, bool azalan)
     {
-        var coz = new ListeIstegi(Sirala: verilen).SiralamaCoz();
+        var coz = new ListeIstegi(Sirala: verilen).ParseSort();
         Assert.NotNull(coz);
         Assert.Equal(alan, coz!.Value.Alan);
         Assert.Equal(azalan, coz.Value.Azalan);
@@ -77,7 +77,7 @@ public sealed class ListeSozlesmesiTests
     {
         var i = new ListeIstegi(Sirala: verilen);
         Assert.Null(i.Sirala);
-        Assert.Null(i.SiralamaCoz());
+        Assert.Null(i.ParseSort());
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class ListeSozlesmesiTests
     public void PagedResult_kopru_alanlari_birebir_tasir()
     {
         var eski = new PagedResult<string>(["a", "b"], 7, 2, 2);
-        var yeni = eski.SayfayaCevir();
+        var yeni = eski.ToPage();
         Assert.Equal(["a", "b"], yeni.Kayitlar);
         Assert.Equal(7, yeni.Toplam);
         Assert.Equal(2, yeni.SayfaNo);
@@ -116,7 +116,7 @@ public sealed class ListeSozlesmesiTests
     [Fact]
     public void Donustur_kayitlari_esler_sayfa_bilgisini_korur()
     {
-        var s = new Sayfa<int>([1, 2], 9, 3, 2).Donustur(x => x * 10);
+        var s = new Sayfa<int>([1, 2], 9, 3, 2).Convert(x => x * 10);
         Assert.Equal([10, 20], s.Kayitlar);
         Assert.Equal((9, 3, 2), (s.Toplam, s.SayfaNo, s.Boyut));
     }
@@ -134,13 +134,13 @@ public sealed class ListeSozlesmesiTests
         new(2, "Ali", 20),
     ];
 
-    private static SiralamaHaritasi<Satir> Harita() => SiralamaHaritasi<Satir>
-        .Olustur(s => s.Id)
+    private static SortFieldMap<Satir> Harita() => SortFieldMap<Satir>
+        .Create(s => s.Id)
         .Alan("ad", s => s.Ad)
         .Alan("puan", s => s.Puan);
 
-    private static int[] Idler(SiralamaHaritasi<Satir> h, string? sirala)
-        => h.Uygula(Veri.AsQueryable(), sirala).Select(s => s.Id).ToArray();
+    private static int[] Idler(SortFieldMap<Satir> h, string? sirala)
+        => h.Apply(Veri.AsQueryable(), sirala).Select(s => s.Id).ToArray();
 
     [Theory]
     [InlineData("ad", new[] { 2, 3, 1, 4 })]      // Ali, Bora, Cem, Deniz
@@ -155,7 +155,7 @@ public sealed class ListeSozlesmesiTests
     [Fact]
     public void Bos_sirala_varsayilani_kullanir()
     {
-        var h = Harita().Varsayilan("-puan");
+        var h = Harita().Default("-puan");
         Assert.Equal([2, 4, 3, 1], Idler(h, null));
         Assert.Equal([2, 4, 3, 1], Idler(h, "  "));
     }
@@ -193,8 +193,8 @@ public sealed class ListeSozlesmesiTests
         Assert.Throws<ArgumentException>(() => Harita().Alan("AD", s => s.Puan));        // harf duyarsız çakışma
         Assert.Throws<ArgumentException>(() => Harita().Alan("-x", s => s.Puan));        // '-' önekli
         Assert.Throws<ArgumentException>(() => Harita().Alan(" x", s => s.Puan));        // boşluklu
-        Assert.Throws<ArgumentException>(() => Harita().Varsayilan("yok"));              // tanımsız alan
-        Assert.Throws<ArgumentException>(() => Harita().Varsayilan(" "));                // boş
+        Assert.Throws<ArgumentException>(() => Harita().Default("yok"));              // tanımsız alan
+        Assert.Throws<ArgumentException>(() => Harita().Default(" "));                // boş
     }
 }
 
@@ -206,11 +206,11 @@ public sealed class ListeSozlesmesiTests
 [Collection("postgres")]
 public sealed class ListeSozlesmesiPostgresTests(PostgresFixture fx)
 {
-    private static readonly SiralamaHaritasi<Brand> Harita = SiralamaHaritasi<Brand>
-        .Olustur(b => b.Id)
+    private static readonly SortFieldMap<Brand> Harita = SortFieldMap<Brand>
+        .Create(b => b.Id)
         .Alan("ad", b => b.Ad)
         .Alan("kod", b => b.Kod)
-        .Varsayilan("kod");
+        .Default("kod");
 
     [Fact]
     public async Task Gercek_sorgu_sayfalanir_esit_anahtarlar_sayfalar_arasinda_kaymaz()

@@ -31,7 +31,7 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
     { CariId = cari, Tutar = 100m, Kur = 1m, Doviz = "TRY", Hesap = LedgerAccountType.Kasa, Tarih = tarih };
 
     private static ExpenseInput Exp(DateTimeOffset tarih) => new()
-    { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = tarih };
+    { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit, Tarih = tarih };
 
     [Fact]
     public async Task Backdated_postings_into_closed_period_rejected()
@@ -39,11 +39,11 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Kilit Test" });
+        var cariId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kilit Test" });
         var cash = sp.GetRequiredService<CashService>();
         var exp = sp.GetRequiredService<ExpenseService>();
 
-        await sp.GetRequiredService<DonemKilidiService>().LockAsync(Kilit);
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(Kilit);
 
         // KAPALI tarih → red (her geri-tarihli yol)
         await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(Cash(cariId, Kapali)));
@@ -66,8 +66,8 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
 
         // Kilitsiz hazırlık (postlama-öncesi kayıtlar serbest).
         var cs = sp.GetRequiredService<CustomerService>();
-        var cari1 = await cs.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Cari Bir" });
-        var cari2 = await cs.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Cari İki" });
+        var cari1 = await cs.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Cari Bir" });
+        var cari2 = await cs.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Cari İki" });
         var vId = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 DK 01" });
         var rId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = cari1, VehicleId = vId, BasTar = Acik, BitTar = Acik.AddDays(4), GunlukUcret = 100m });
@@ -77,13 +77,13 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
         { CezaTuru = "Hız", Tutar = 500m, VadeGun = 30, CariId = cari1, VehicleId = vId });
 
         // Bugünü kapsayan kilit → bugün-tarihli postlamalar kapalı.
-        await sp.GetRequiredService<DonemKilidiService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
         await Assert.ThrowsAsync<ValidationException>(() => cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 100m));
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenCariAsync(cari1, cari2, 100m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(cari1, cari2, 100m));
         await Assert.ThrowsAsync<ValidationException>(() => cash.ReverseAsync(txId));
         await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rId));
-        await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<PenaltyService>().YansitAsync(pId));
+        await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<PenaltyService>().ReflectAsync(pId));
 
         var hgs = new HgsReflectionService(
             new FakeHgs([new TollCrossing(Acik, "Köprü", 100m)]),
@@ -91,7 +91,7 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
         await Assert.ThrowsAsync<ValidationException>(() => hgs.ReflectAsync(cari1, "34DK01", Acik, Acik.AddDays(1)));
 
         // Kilidi kaldır → bugün-tarihli postlama yeniden serbest.
-        await sp.GetRequiredService<DonemKilidiService>().UnlockAsync();
+        await sp.GetRequiredService<PeriodLockService>().UnlockAsync();
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 100m); // exception YOK
     }
 
@@ -101,11 +101,11 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Satış Alıcı" });
+        var cariId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Satış Alıcı" });
         var vId = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 DS 01" });
         var sales = sp.GetRequiredService<VehicleSaleService>();
 
-        await sp.GetRequiredService<DonemKilidiService>().LockAsync(Kilit);
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(Kilit);
 
         VehicleSaleInput Sale(DateTimeOffset t) => new()
         { VehicleId = vId, AliciCariId = cariId, SatisNet = 100m, KdvOrani = 0.20m, Doviz = "TRY", Kur = 1m, Tarih = t };
@@ -126,7 +126,7 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Serbest" });
+        var cariId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Serbest" });
 
         // Kilit yok → geri-tarihli bile serbest.
         Assert.NotEqual(Guid.Empty, await sp.GetRequiredService<CashService>().CollectAsync(Cash(cariId, Kapali)));

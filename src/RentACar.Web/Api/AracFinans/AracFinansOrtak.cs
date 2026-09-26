@@ -53,7 +53,7 @@ internal static class AracFinansOrtak
         var f = BranchScope.EffectiveFilter(kullanici);
         if (f.Unrestricted) return;
         var subeler = await AracSubeleriAsync(dbf, vehicleId is { } v ? [v] : [], ct);
-        if (!Gorunur(f, vehicleId, subeler)) throw new YetkiYokException("Bu kayıt şube kapsamınız dışında.");
+        if (!Gorunur(f, vehicleId, subeler)) throw new NoPermissionException("Bu kayıt şube kapsamınız dışında.");
     }
 
     /// <summary>
@@ -121,7 +121,7 @@ internal static class AracFinansOrtak
     public static string Doviz(string? doviz, string alan = "doviz")
     {
         if (string.IsNullOrWhiteSpace(doviz)) return TemelDoviz;
-        try { return KurService.NormalizeKodStrict(doviz); }
+        try { return ExchangeRateService.NormalizeCodeStrict(doviz); }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException))
         { throw new ValidationException(ex.Message, alan); }
     }

@@ -32,7 +32,7 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
         IServiceProvider sp, string unvan, string plaka, string? ofis = null, string? kaynak = null)
     {
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = unvan });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = unvan });
         var arac = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = plaka });
         var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
@@ -44,7 +44,7 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
     }
 
     private static Task<Guid> TanimAsync(IServiceProvider sp, string kod, string ad, decimal ucret)
-        => sp.GetRequiredService<EkHizmetTanimService>().CreateAsync(new EkHizmetTanimInput
+        => sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(new EkHizmetTanimInput
         { Kod = kod, Ad = ad, BirimUcret = ucret, KdvOrani = 0.20m });
 
     [Fact]
@@ -55,14 +55,14 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var (kira, _) = await KiraAsync(sp, "Alfa A.Ş.", "34 EH 01", "Merkez Ofis", "Web");
         var gps = await TanimAsync(sp, "GPS", "Navigasyon", 150m);
-        var personel = await sp.GetRequiredService<PersonelService>()
+        var personel = await sp.GetRequiredService<PersonnelService>()
             .CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
 
         // ELLE: 2 × 150 = 300 net, %20 → 60 KDV, 360 brüt.
         await sp.GetRequiredService<RentalAddOnService>()
-            .AddAsync(kira, gps, 2m, personelId: personel);
+            .AddAsync(kira, gps, 2m, staffId: personel);
 
-        var row = Assert.Single(await sp.GetRequiredService<ReportService>().GetEkHizmetDetayAsync());
+        var row = Assert.Single(await sp.GetRequiredService<ReportService>().GetAddOnDetailAsync());
         Assert.Equal("Navigasyon", row.Ad);
         Assert.Equal(2m, row.Miktar);
         Assert.Equal(150m, row.BirimNetFiyat);
@@ -100,8 +100,8 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
         await addOns.AddAsync(k2, gps, 1m);
 
         var rapor = sp.GetRequiredService<ReportService>();
-        var ozet = await rapor.GetEkHizmetRaporuAsync();
-        var detay = await rapor.GetEkHizmetDetayAsync();
+        var ozet = await rapor.GetAddOnReportAsync();
+        var detay = await rapor.GetAddOnDetailAsync();
 
         // Özet: 2 farklı ad, toplam net 300, KDV 60, brüt 360, 2 kirada.
         Assert.Equal(2, ozet.Satirlar.Count);
@@ -135,7 +135,7 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 400m, RentalId = kira });
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 500m, RentalId = kira });
 
-        var row = Assert.Single(await sp.GetRequiredService<ReportService>().GetEkHizmetDetayAsync());
+        var row = Assert.Single(await sp.GetRequiredService<ReportService>().GetAddOnDetailAsync());
         // Geçerli tahsilatların en erkeni 400 (900 ters kayıtlı, sayılmaz).
         Assert.Equal(400m, row.IlkTahsilat);
     }
@@ -153,33 +153,33 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
         var (k2, _) = await KiraAsync(sp, "Beta Turizm", "06 BT 02", "Şube2 Ofis", "Acente");
         var gps = await TanimAsync(sp, "GPS", "Navigasyon", 100m);
         var koltuk = await TanimAsync(sp, "BBK", "Bebek Koltuğu", 50m);
-        var p1 = await sp.GetRequiredService<PersonelService>()
+        var p1 = await sp.GetRequiredService<PersonnelService>()
             .CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
 
-        await addOns.AddAsync(k1, gps, 1m, personelId: p1);
+        await addOns.AddAsync(k1, gps, 1m, staffId: p1);
         await addOns.AddAsync(k1, koltuk, 1m);
         await addOns.AddAsync(k2, gps, 1m);
 
-        Assert.Equal(3, (await rapor.GetEkHizmetDetayAsync()).Count);
-        Assert.Equal(3, (await rapor.GetEkHizmetDetayAsync(new EkHizmetDetayFilter())).Count);
+        Assert.Equal(3, (await rapor.GetAddOnDetailAsync()).Count);
+        Assert.Equal(3, (await rapor.GetAddOnDetailAsync(new EkHizmetDetayFilter())).Count);
 
         // Metin: hizmet adı / plaka (boşluklu) / müşteri
-        Assert.Equal(2, (await rapor.GetEkHizmetDetayAsync(new EkHizmetDetayFilter { Ara = "navigasyon" })).Count);
-        Assert.Equal(2, (await rapor.GetEkHizmetDetayAsync(new EkHizmetDetayFilter { Ara = "34 AL" })).Count);
-        Assert.Single(await rapor.GetEkHizmetDetayAsync(new EkHizmetDetayFilter { Ara = "Beta" }));
+        Assert.Equal(2, (await rapor.GetAddOnDetailAsync(new EkHizmetDetayFilter { Ara = "navigasyon" })).Count);
+        Assert.Equal(2, (await rapor.GetAddOnDetailAsync(new EkHizmetDetayFilter { Ara = "34 AL" })).Count);
+        Assert.Single(await rapor.GetAddOnDetailAsync(new EkHizmetDetayFilter { Ara = "Beta" }));
 
         // Personel
-        Assert.Equal("Ayşe Yılmaz", Assert.Single(await rapor.GetEkHizmetDetayAsync(
+        Assert.Equal("Ayşe Yılmaz", Assert.Single(await rapor.GetAddOnDetailAsync(
             new EkHizmetDetayFilter { PersonelId = p1 })).SatanPersonel);
 
         // Ofis + rezervasyon kaynağı
-        Assert.Equal(2, (await rapor.GetEkHizmetDetayAsync(new EkHizmetDetayFilter { Ofis = "Merkez Ofis" })).Count);
-        Assert.Single(await rapor.GetEkHizmetDetayAsync(new EkHizmetDetayFilter { Ofis = "Şube2 Ofis" }));
+        Assert.Equal(2, (await rapor.GetAddOnDetailAsync(new EkHizmetDetayFilter { Ofis = "Merkez Ofis" })).Count);
+        Assert.Single(await rapor.GetAddOnDetailAsync(new EkHizmetDetayFilter { Ofis = "Şube2 Ofis" }));
 
         // Tarih: kalem eklenme tarihi bugün → geniş aralık hepsini verir, geçmişe kapanan hiçbirini.
         var bugun = TestZaman.Simdi();
-        Assert.Equal(3, (await rapor.GetEkHizmetDetayAsync(new EkHizmetDetayFilter { Bas = bugun.AddDays(-1) })).Count);
-        Assert.Empty(await rapor.GetEkHizmetDetayAsync(new EkHizmetDetayFilter { Bit = bugun.AddDays(-1) }));
+        Assert.Equal(3, (await rapor.GetAddOnDetailAsync(new EkHizmetDetayFilter { Bas = bugun.AddDays(-1) })).Count);
+        Assert.Empty(await rapor.GetAddOnDetailAsync(new EkHizmetDetayFilter { Bit = bugun.AddDays(-1) }));
     }
 
     [Fact]
@@ -193,14 +193,14 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
         await sp.GetRequiredService<RentalAddOnService>().AddAsync(kira, gps, 1m);
 
         var rapor = sp.GetRequiredService<ReportService>();
-        Assert.Single(await rapor.GetEkHizmetDetayAsync());
-        Assert.Equal(120m, (await rapor.GetEkHizmetRaporuAsync()).ToplamBrut);
+        Assert.Single(await rapor.GetAddOnDetailAsync());
+        Assert.Equal(120m, (await rapor.GetAddOnReportAsync()).ToplamBrut);
 
         await sp.GetRequiredService<RentalService>().CancelAsync(kira);
 
         // İki görünüm de İptal kirayı dışlamalı — ayrışırlarsa raporlar birbirini tutmaz.
-        Assert.Empty(await rapor.GetEkHizmetDetayAsync());
-        Assert.Equal(0m, (await rapor.GetEkHizmetRaporuAsync()).ToplamBrut);
+        Assert.Empty(await rapor.GetAddOnDetailAsync());
+        Assert.Equal(0m, (await rapor.GetAddOnReportAsync()).ToplamBrut);
     }
 
     [Fact]
@@ -216,6 +216,6 @@ public sealed class EkHizmetDetayTests(PostgresFixture fx)
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ReportService>().GetEkHizmetDetayAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ReportService>().GetAddOnDetailAsync());
     }
 }

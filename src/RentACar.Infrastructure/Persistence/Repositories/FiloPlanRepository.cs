@@ -7,7 +7,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Filo plan hedefi kalıcılığı (FAZ-19). Doğal-anahtar ihlali → ValidationException.</summary>
-public sealed class FiloPlanRepository(IDbContextFactory<AppDbContext> factory) : IFiloPlanRepository
+public sealed class FiloPlanRepository(IDbContextFactory<AppDbContext> factory) : IFleetPlanRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -44,7 +44,7 @@ public sealed class FiloPlanRepository(IDbContextFactory<AppDbContext> factory) 
         return true;
     }
 
-    public async Task<bool> KilitliGuncelleAsync(Guid id, string? beklenenSurum, Action<FiloPlanHedefi> apply,
+    public async Task<bool> UpdateLockedAsync(Guid id, string? beklenenSurum, Action<FiloPlanHedefi> apply,
         CancellationToken ct = default)
     {
         try
@@ -56,7 +56,7 @@ public sealed class FiloPlanRepository(IDbContextFactory<AppDbContext> factory) 
         { throw new ValidationException("Bu grup/SIPP/dönem için hedef zaten tanımlı."); }
     }
 
-    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.FiloPlanHedefleri, id, ct);

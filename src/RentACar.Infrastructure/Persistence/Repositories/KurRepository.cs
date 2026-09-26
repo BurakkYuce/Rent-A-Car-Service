@@ -8,7 +8,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// TCMB kur okuması (KurKayitlari — paylaşımlı/platform, RLS yok → tenant'tan bağımsız). Yazma
 /// TcmbKurService'te (app-conn + NullTenantContext). Fallback: bu kod için ≤tarih en yeni satır.
 /// </summary>
-public sealed class KurRepository(IDbContextFactory<AppDbContext> factory) : IKurRepository
+public sealed class KurRepository(IDbContextFactory<AppDbContext> factory) : IExchangeRateRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -35,7 +35,7 @@ public sealed class KurRepository(IDbContextFactory<AppDbContext> factory) : IKu
             .ToListAsync(ct);
     }
 
-    public async Task<DateTimeOffset?> EnYeniTarihAsync(CancellationToken ct = default)
+    public async Task<DateTimeOffset?> LatestDateAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.KurKayitlari.AsNoTracking().MaxAsync(x => (DateTimeOffset?)x.Tarih, ct);

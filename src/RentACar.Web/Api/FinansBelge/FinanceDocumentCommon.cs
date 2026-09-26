@@ -84,7 +84,7 @@ internal static class FinanceDocumentCommon
     public static string Currency(string? value, string field = "doviz")
     {
         if (string.IsNullOrWhiteSpace(value)) return "TRY";
-        try { return KurService.NormalizeKodStrict(value); }
+        try { return ExchangeRateService.NormalizeCodeStrict(value); }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException))
         { throw new ValidationException(ex.Message, field); }
     }
@@ -108,7 +108,7 @@ internal static class FinanceDocumentCommon
     public static void RequireUnrestricted(ICurrentUser user)
     {
         if (IsRestricted(user))
-            throw new YetkiYokException("Bu kayıt şube kapsamınız dışında (kiracı geneli finans belgesi).");
+            throw new NoPermissionException("Bu kayıt şube kapsamınız dışında (kiracı geneli finans belgesi).");
     }
 
     /// <summary>Belgenin şube bilgisi: kira (çıkış şubesi) ya da araç (şube); ikisi de yoksa kiracı geneli.</summary>
@@ -119,7 +119,7 @@ internal static class FinanceDocumentCommon
 
     public static void RequireInScope(ICurrentUser user, BranchInfo branch)
     {
-        if (!InScope(user, branch)) throw new YetkiYokException("Bu kayıt şube kapsamınız dışında.");
+        if (!InScope(user, branch)) throw new NoPermissionException("Bu kayıt şube kapsamınız dışında.");
     }
 
     /// <summary>Kira kimlikleri → çıkış şubesi (tek sorgu, RLS kapsamlı).</summary>

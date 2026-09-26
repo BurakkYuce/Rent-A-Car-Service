@@ -211,8 +211,8 @@ else
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1); // gün sonuna dek dahil
 
-        if (GenisMod) _genis = await Reports.GetKdvGenisAsync(from, to, DahilAlis);
-        else _data = await Reports.GetKdvListesiAsync(from, to);
+        if (GenisMod) _genis = await Reports.GetVatExtendedAsync(from, to, DahilAlis);
+        else _data = await Reports.GetVatListAsync(from, to);
     }
 
     private static DateTimeOffset? ParseDate(string? s)

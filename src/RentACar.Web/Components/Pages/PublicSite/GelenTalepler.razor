@@ -6,7 +6,7 @@
 @using RentACar.Domain.Entities
 @inject PublicBookingRequestService Talepler
 @inject AvailabilityService Musaitlik
-@inject RentACar.Application.WebSite.WebIlanService Ilanlar
+@inject RentACar.Application.WebSite.WebListingService Ilanlar
 
 <PageTitle>Gelen Talepler — RentPro</PageTitle>
 
@@ -34,7 +34,7 @@
             <option value="">Tümü</option>
             @foreach (var d in TalepDurumu.GosterimSirasi)
             {
-                <option value="@((int)d)" selected="@(Durum == (int)d)">@TalepDurumu.Etiket(d)</option>
+                <option value="@((int)d)" selected="@(Durum == (int)d)">@TalepDurumu.Label(d)</option>
             }
         </select>
     </label>
@@ -68,7 +68,7 @@
                 <td data-etiket="Tarih">
                     @t.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
                     @* Yaşlanma rozeti YALNIZ açık taleplerde: kapanmışta "12 gündür bekliyor" yanıltır. *@
-                    @if (TalepDurumu.Aktif(t.Durum) && s.BekleyenGun >= 1)
+                    @if (TalepDurumu.IsActive(t.Durum) && s.BekleyenGun >= 1)
                     {
                         <br /><span class="badge @(s.BekleyenGun >= 3 ? "danger" : "warn")">@s.BekleyenGun gün</span>
                     }
@@ -90,7 +90,7 @@
                     else { <text>—</text> }
                 </td>
                 <td data-etiket="Durum">
-                    <span class="badge @DurumSinif(t.Durum)">@TalepDurumu.Etiket(t.Durum)</span>
+                    <span class="badge @DurumSinif(t.Durum)">@TalepDurumu.Label(t.Durum)</span>
                     @if (t.Durum == PublicBookingRequestDurum.Donustu && t.DonusenReservationId is null)
                     {
                         @* Claim/release deseninde process çökerse kalabilecek TEK yarım durum — sessiz bırakılmaz. *@
@@ -117,7 +117,7 @@
                             }
                         </details>
                     }
-                    @if (TalepDurumu.Aktif(t.Durum))
+                    @if (TalepDurumu.IsActive(t.Durum))
                     {
                         <form method="post" action="/gelen-talepler/not" class="inline-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@t.Id" />
@@ -131,16 +131,16 @@
                 <td class="kart-aksiyon">
                     @* Hızlı temas: link üretimi SUNUCUDA (TelefonLink) — rc-kira-tabs.js'teki JS
                        normalizasyon kuralının ikinci kopyası çıkarılmıyor. *@
-                    @if (TelefonLink.Tel(t.Telefon) is { } tel)
+                    @if (PhoneLink.Tel(t.Telefon) is { } tel)
                     {
                         <a class="link" href="@tel">Ara</a>
                     }
-                    @if (TelefonLink.Wa(t.Telefon, WaMesaj(t)) is { } wa)
+                    @if (PhoneLink.Wa(t.Telefon, WaMesaj(t)) is { } wa)
                     {
                         <a class="link" href="@wa" target="_blank" rel="noopener">WhatsApp</a>
                     }
 
-                    @if (TalepDurumu.Aktif(t.Durum))
+                    @if (TalepDurumu.IsActive(t.Durum))
                     {
                         @* Üstlenme YALNIZ kendine — kullanıcı listesi ManageUsers kilidi ardında. *@
                         <form method="post" action="/gelen-talepler/ustlen" class="inline-form"><AntiforgeryToken />
@@ -154,7 +154,7 @@
                             <form method="post" action="/gelen-talepler/durum" class="inline-form"><AntiforgeryToken />
                                 <input type="hidden" name="id" value="@t.Id" />
                                 <input type="hidden" name="durum" value="@((int)hedef)" />
-                                <button type="submit" class="link">@TalepDurumu.Etiket(hedef)</button>
+                                <button type="submit" class="link">@TalepDurumu.Label(hedef)</button>
                             </form>
                         }
 
@@ -296,8 +296,8 @@
         var durum = Durum is { } d && Enum.IsDefined(typeof(PublicBookingRequestDurum), d)
             ? (PublicBookingRequestDurum?)d : null;
 
-        (_satirlar, _toplam) = await Talepler.ListeleAsync(new TalepFiltre(durum, Ara, SayfaNo, Boyut));
-        _ozet = await Talepler.OzetAsync();
+        (_satirlar, _toplam) = await Talepler.ListRequestsAsync(new TalepFiltre(durum, Ara, SayfaNo, Boyut));
+        _ozet = await Talepler.SummaryAsync();
 
         // PR-21 — N+1 KALDIRILDI. Eskiden AÇIK her satır için müsaitlik sorgusu koşuyordu:
         // 25 satırlık bir sayfada 25 ek sorgu. Ölçüldü: aynı sayfa, satırlar kapalıyken 19 ms,
@@ -306,7 +306,7 @@
         // Artık müsait araç listesi YALNIZ dönüştürülecek TEK talep için çekiliyor (`?donustur={id}`);
         // personel "Dönüştür"e bastığında sayfa o satırla birlikte yeniden basılır.
         if (Donustur is Guid dId && _satirlar.FirstOrDefault(x => x.Talep.Id == dId) is { } hedef
-            && TalepDurumu.Aktif(hedef.Talep.Durum))
+            && TalepDurumu.IsActive(hedef.Talep.Durum))
         {
             _musait[dId] = await Musaitlik.FindAvailableAsync(
                 hedef.Talep.BasTar, hedef.Talep.BitTar, null, hedef.Talep.Sube);
@@ -321,6 +321,6 @@
         // Notlar: yalnız NOTU OLAN satırlar için (sayı zaten tek sorguyla geldi) — notsuz satır
         // sorgu üretmez.
         foreach (var s in _satirlar.Where(x => x.NotSayisi > 0))
-            _notlar[s.Talep.Id] = await Talepler.NotlarAsync(s.Talep.Id);
+            _notlar[s.Talep.Id] = await Talepler.NotesAsync(s.Talep.Id);
     }
 }

@@ -4,7 +4,7 @@
 @inject VehicleService Vehicles
 @inject BrandService Markalar
 @inject VehicleGroupService AracGruplari
-@inject VarsayilanGrupCozucu VarsayilanGrup
+@inject DefaultGroupResolver VarsayilanGrup
 @inject BranchService Subeler
 @inject VehicleColorService Renkler
 @inject VehicleSegmentService Segmentler
@@ -59,7 +59,7 @@
         <label>Vites
             <select name="vites">
                 <option value="">—</option>
-                @foreach (var vt in Enum.GetValues<Vites>())
+                @foreach (var vt in Enum.GetValues<Transmission>())
                 {
                     <option value="@vt">@vt</option>
                 }
@@ -79,7 +79,7 @@
         <label>Filo Status
             <select name="filoDurum">
                 <option value="">—</option>
-                @foreach (var fs in Enum.GetValues<FiloStatus>())
+                @foreach (var fs in Enum.GetValues<FleetLifecycleStatus>())
                 {
                     <option value="@fs">@fs</option>
                 }
@@ -392,11 +392,11 @@ else
     {
         Query = Q,
         Grup = Grup,
-        GrupTuru = Enum.TryParse<AracGrupTuru>(GrupTuru, ignoreCase: true, out var gt) ? gt : AracGrupTuru.Grup,
+        GrupTuru = Enum.TryParse<VehicleGroupType>(GrupTuru, ignoreCase: true, out var gt) ? gt : VehicleGroupType.Grup,
         Sube = string.IsNullOrWhiteSpace(Sube) ? null : Sube,
-        Sahiplik = Sahip == SahipBosKod ? AracSahiplik.Girilmemis : AracSahiplik.Hepsi,
+        Sahiplik = Sahip == SahipBosKod ? VehicleOwnership.Girilmemis : VehicleOwnership.Hepsi,
         AracSahibi = Sahip == SahipBosKod || string.IsNullOrWhiteSpace(Sahip) ? null : Sahip,
-        TarihTuru = Enum.TryParse<AracTarihTuru>(TarihTuru, ignoreCase: true, out var tt) ? tt : AracTarihTuru.Yok,
+        TarihTuru = Enum.TryParse<VehicleDateType>(TarihTuru, ignoreCase: true, out var tt) ? tt : VehicleDateType.Yok,
         TarihBas = Tarih(TarihBas),
         TarihBit = Tarih(TarihBit),
         Durum = Enum.TryParse<VehicleStatus>(Durum, out var d) ? d : null,
@@ -420,7 +420,7 @@ else
 
         _page = await Vehicles.SearchAsync(Filtre(Page ?? 1, 20));
         // Ek bilgi YALNIZ görünen sayfa için (20 satır) — tüm filo taranmaz.
-        _ek = await Vehicles.ListeEkAsync(_page.Items.Select(v => v.Id).ToList());
+        _ek = await Vehicles.ListExtrasAsync(_page.Items.Select(v => v.Id).ToList());
 
         // Modele göre gruplu görünüm: aynı filtreyle (SearchAsync semantiği) ilk 200 aracı çek, Marka+Tip
         // bazında grupla. Sayfalama yok (grup üzerinde <details>); 200 üstü net not (sessiz kırpma yok).
@@ -452,7 +452,7 @@ else
 
         _markalar = await Markalar.ListActiveAsync();
         _gruplar = await AracGruplari.ListActiveAsync();
-        _varsayilanGrupAd = await VarsayilanGrup.AdAsync(); // PR-10: yeni araç formunda önseçili gelir
+        _varsayilanGrupAd = await VarsayilanGrup.NameAsync(); // PR-10: yeni araç formunda önseçili gelir
         _subeler = await Subeler.ListActiveAsync();
         var renkler = await Renkler.ListActiveAsync();
         var segmentler = await Segmentler.ListActiveAsync();

@@ -52,7 +52,7 @@ public sealed class GunlukFaaliyetTests(PostgresFixture fx)
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var g = await svc.GetGunlukFaaliyetAsync(At(15, 0));
+        var g = await svc.GetDailyActivityAsync(At(15, 0));
 
         Assert.Equal(2, g.YeniRezervasyon);
         Assert.Equal(1, g.YeniKira);
@@ -77,7 +77,7 @@ public sealed class GunlukFaaliyetTests(PostgresFixture fx)
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        var g = await s2.ServiceProvider.GetRequiredService<ReportService>().GetGunlukFaaliyetAsync(At(15, 0));
+        var g = await s2.ServiceProvider.GetRequiredService<ReportService>().GetDailyActivityAsync(At(15, 0));
         Assert.Equal(0, g.YeniKira);
         Assert.Equal(0, g.Cikis);
     }

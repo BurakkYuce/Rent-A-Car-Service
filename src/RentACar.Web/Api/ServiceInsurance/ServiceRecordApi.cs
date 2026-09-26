@@ -33,8 +33,8 @@ internal static partial class ServiceRecordApi
     public static void Map(RouteGroupBuilder v1)
     {
         var g = v1.MapGroup("/servisler").WithTags("Servis");
-        g.MapGet("/secenekler", () => TypedResults.Ok(new ServiceOptions(Enum.GetNames<ServisTipi>(), Enum.GetNames<ServisDurum>(),
-            Enum.GetNames<HasarSorumlu>(), Enum.GetNames<OdemeYontemi>()))).RequireAnyPermission(ReadAny);
+        g.MapGet("/secenekler", () => TypedResults.Ok(new ServiceOptions(Enum.GetNames<ServiceType>(), Enum.GetNames<ServiceStatus>(),
+            Enum.GetNames<DamageResponsible>(), Enum.GetNames<PaymentMethod>()))).RequireAnyPermission(ReadAny);
         g.MapGet("", List).AlanlariEsle(F5Ortak.SiralamaKurallari).RequireAnyPermission(ReadAny);
         g.MapGet("/sayaclar", Counts).RequireAnyPermission(ReadAny);
         g.MapGet("/{id:guid}", Detail).RequireAnyPermission(ReadAny);
@@ -62,15 +62,15 @@ internal static partial class ServiceRecordApi
         ("Yansıtılacak cari", "cariId"),
     ];
 
-    private static readonly SiralamaHaritasi<ServiceRecordRow> Sort = SiralamaHaritasi<ServiceRecordRow>
-        .Olustur(x => x.Id).Alan("no", x => x.No).Alan("plaka", x => x.Plaka).Alan("durum", x => x.Durum).Alan("tip", x => x.Tip)
+    private static readonly SortFieldMap<ServiceRecordRow> Sort = SortFieldMap<ServiceRecordRow>
+        .Create(x => x.Id).Alan("no", x => x.No).Alan("plaka", x => x.Plaka).Alan("durum", x => x.Durum).Alan("tip", x => x.Tip)
         .Alan("girisTarihi", x => x.GirisTarihi).Alan("toplamIscilik", x => x.ToplamIscilik);
 
     private static async Task<Ok<Sayfa<ServiceRecordRow>>> List(
         string? durum, string? tip, string? plaka, DateOnly? bas, DateOnly? bit, int? sayfa, int? boyut, string? sirala,
         ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var d = F5Ortak.EnumAdi<ServisDurum>(durum, "durum");
+        var d = F5Ortak.EnumAdi<ServiceStatus>(durum, "durum");
         var list = (await RowsAsync(tip, plaka, bas, bit, svc, dbf, user, ct))
             .Where(r => d is null || r.Durum == d.Value.ToString()).ToList();
         return TypedResults.Ok(F5Ortak.Sayfala(list, Sort, sayfa, boyut, sirala));
@@ -85,7 +85,7 @@ internal static partial class ServiceRecordApi
         ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         var rows = await RowsAsync(tip, plaka, bas, bit, svc, dbf, user, ct);
-        var counts = Enum.GetNames<ServisDurum>().Select(n => new ServiceStatusCount(n, rows.Count(r => r.Durum == n))).ToList();
+        var counts = Enum.GetNames<ServiceStatus>().Select(n => new ServiceStatusCount(n, rows.Count(r => r.Durum == n))).ToList();
         return TypedResults.Ok(new ServiceCounts(rows.Count, counts));
     }
 
@@ -93,7 +93,7 @@ internal static partial class ServiceRecordApi
         string? tip, string? plaka, DateOnly? bas, DateOnly? bit,
         ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var t = F5Ortak.EnumAdi<ServisTipi>(tip, "tip");
+        var t = F5Ortak.EnumAdi<ServiceType>(tip, "tip");
         S.Text(plaka, 32, "plaka"); // SPA süzgeci en çok 32
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
         var rows = (await svc.ListAsync(ct)).Where(s => (t is null || s.Tip == t)
@@ -137,11 +137,11 @@ internal static partial class ServiceRecordApi
             reflection = new ServiceReflectionDto(r.YansitilanTutar, r.YansitilanCariId, S.CustomerName(names, r.YansitilanCariId), at);
         }
         var ops = AuthExtensions.HasPermission(http.User, Permission.OperationsWrite);
-        var closed = r.Durum is ServisDurum.Tamamlandi or ServisDurum.Iptal;
-        var reflectable = r.Durum == ServisDurum.Tamamlandi && !r.Yansitildi
-                          && (r.HasarSorumlu is HasarSorumlu.Musteri or HasarSorumlu.Sigorta) && r.KusurOrani is > 0m;
+        var closed = r.Durum is ServiceStatus.Tamamlandi or ServiceStatus.Iptal;
+        var reflectable = r.Durum == ServiceStatus.Tamamlandi && !r.Yansitildi
+                          && (r.HasarSorumlu is DamageResponsible.Musteri or DamageResponsible.Sigorta) && r.KusurOrani is > 0m;
         var actions = new ServiceActions(
-            ops && r.Durum == ServisDurum.Rezerve, ops && r.Durum == ServisDurum.Acik, ops && r.Durum == ServisDurum.Serviste,
+            ops && r.Durum == ServiceStatus.Rezerve, ops && r.Durum == ServiceStatus.Acik, ops && r.Durum == ServiceStatus.Serviste,
             !closed && AuthExtensions.HasPermission(http.User, Permission.OperationsDelete), ops && !closed,
             reflectable && AuthExtensions.HasPermission(http.User, Permission.FinanceWrite),
             reflectable ? decimal.Round(r.ToplamIscilik * r.KusurOrani!.Value, 2, MidpointRounding.AwayFromZero) : null);

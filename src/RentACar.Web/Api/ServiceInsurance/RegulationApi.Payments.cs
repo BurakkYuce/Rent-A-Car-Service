@@ -50,7 +50,7 @@ internal static partial class RegulationApi
     }
 
     private static async Task<Results<Ok<InstallmentPaymentResult>, ProblemHttpResult>> PayMtv(
-        Guid id, InstallmentPaymentRequest r, HttpContext http, RegulationService reg, HesapCozucu accounts,
+        Guid id, InstallmentPaymentRequest r, HttpContext http, RegulationService reg, AccountResolver accounts,
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
@@ -61,13 +61,13 @@ internal static partial class RegulationApi
         S.PaymentAmount(r.Tutar, "tutar");
         if (r.Ceza is { } c && c != 0m) throw new ValidationException("MTV ödemesinde ceza girilmez.", "ceza");
         PaymentTexts(r);
-        await Fielded("hesapId", () => accounts.CozAsync(r.HesapId, account, ct, "TRY"));
+        await Fielded("hesapId", () => accounts.ResolveAsync(r.HesapId, account, ct, "TRY"));
         RegulasyonOdemeSonuc result;
         try
         {
-            result = await reg.MtvOdeAsync(id, account, date, "TRY", null, PaymentInput(r, key), ct);
+            result = await reg.PayMtvAsync(id, account, date, "TRY", null, PaymentInput(r, key), ct);
         }
-        catch (MukerrerIslemException ex) when (ex.Mevcut is null)
+        catch (DuplicateOperationException ex) when (ex.Existing is null)
         {
             await ExistingInstallmentAsync(dbf, key, m.Id, $"MTV {m.Donem}", r, account, date, ct); // race: report the winner
             throw;
@@ -76,7 +76,7 @@ internal static partial class RegulationApi
     }
 
     private static async Task<Results<Ok<InstallmentPaymentResult>, ProblemHttpResult>> PayInspection(
-        Guid id, InstallmentPaymentRequest r, HttpContext http, RegulationService reg, HesapCozucu accounts,
+        Guid id, InstallmentPaymentRequest r, HttpContext http, RegulationService reg, AccountResolver accounts,
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         var key = IdempotencyBasligi.ZorunluAnahtar(http);
@@ -88,13 +88,13 @@ internal static partial class RegulationApi
         S.PaymentAmount(r.Tutar, "tutar");
         S.RecordAmount(r.Ceza, "ceza");
         PaymentTexts(r);
-        await Fielded("hesapId", () => accounts.CozAsync(r.HesapId, account, ct, "TRY"));
+        await Fielded("hesapId", () => accounts.ResolveAsync(r.HesapId, account, ct, "TRY"));
         RegulasyonOdemeSonuc result;
         try
         {
-            result = await reg.MuayeneOdeAsync(id, account, r.Ceza ?? 0m, date, "TRY", null, PaymentInput(r, key), ct);
+            result = await reg.PayInspectionAsync(id, account, r.Ceza ?? 0m, date, "TRY", null, PaymentInput(r, key), ct);
         }
-        catch (MukerrerIslemException ex) when (ex.Mevcut is null)
+        catch (DuplicateOperationException ex) when (ex.Existing is null)
         {
             await ExistingInstallmentAsync(dbf, key, m.Id, label, r, account, date, ct);
             throw;
@@ -117,7 +117,7 @@ internal static partial class RegulationApi
         var (pid, owner, sira, amount, fine, after, acc, when, source) = mtv is not null
             ? (mtv.Id, mtv.MtvId, mtv.Sira, mtv.Tutar, 0m, mtv.KalanSonrasi, mtv.Hesap, mtv.Tarih, "MtvOdeme")
             : (ins!.Id, ins.InspectionId, ins.Sira, ins.Tutar, ins.Ceza, ins.KalanSonrasi, ins.Hesap, ins.Tarih, "MuayeneOdeme");
-        if (owner != recordId) throw new MukerrerIslemException(AnahtarBaskaIslemde);
+        if (owner != recordId) throw new DuplicateOperationException(AnahtarBaskaIslemde);
         var cashRef = await db.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.SourceType == source && e.SourceId == pid && e.Direction == LedgerDirection.Credit)
             .Select(e => e.AccountRef).FirstOrDefaultAsync(ct);
@@ -125,14 +125,14 @@ internal static partial class RegulationApi
         var same = (r.Tutar is { } t ? amount == t : after == 0m) && fine == (r.Ceza ?? 0m) && acc == account
                    && cashRef == wantRef && AracFinansOrtak.AyniAn(when, date);
         var belge = $"{label} #{sira}";
-        throw new MukerrerIslemException(string.Format(S.Tr, same ? PaymentAlreadySaved : OtherPaymentSaved, belge, S.Money(amount), "TRY"),
+        throw new DuplicateOperationException(string.Format(S.Tr, same ? PaymentAlreadySaved : OtherPaymentSaved, belge, S.Money(amount), "TRY"),
             new MevcutIslem(pid, belge, amount, "TRY", same));
     }
 
     // ------------------------------------------------------------------ sigorta (yapısal: poliçe başına tek ödeme)
 
     private static async Task<Results<Ok<InsurancePolicyDetail>, ProblemHttpResult>> PayPolicy(
-        Guid id, InsurancePaymentRequest r, HttpContext http, RegulationService reg, HesapCozucu accounts, KurCozucu rates,
+        Guid id, InsurancePaymentRequest r, HttpContext http, RegulationService reg, AccountResolver accounts, ExchangeRateResolver rates,
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         if (await ScopedPolicyAsync(id, reg, dbf, user, ct) is not { } p) return S.NotFound("Sigorta poliçesi bulunamadı.");
@@ -144,13 +144,13 @@ internal static partial class RegulationApi
         var total = p.Prim + (r.ZeyilEkPrim ?? 0m);
         if (total <= 0m) throw new ValidationException("Sigorta ödeme tutarı pozitif olmalıdır.", "zeyilEkPrim");
         decimal rate = 1m;
-        await Fielded("kur", async () => rate = await rates.CozAsync(currency, r.Kur, DateTimeOffset.UtcNow, ct));
+        await Fielded("kur", async () => rate = await rates.ResolveAsync(currency, r.Kur, DateTimeOffset.UtcNow, ct));
         if (total * rate >= AracFinansOrtak.TutarUstSiniri) // F8.1a M1: base limit on the RESOLVED rate too
             throw new ValidationException("Ödeme tutarı × kur izin verilen büyüklüğü aşıyor.", currency == "TRY" ? "zeyilEkPrim" : "kur");
-        await Fielded("hesapId", () => accounts.CozAsync(r.HesapId, account, ct, currency));
+        await Fielded("hesapId", () => accounts.ResolveAsync(r.HesapId, account, ct, currency));
         try
         {
-            await reg.SigortaOdeAsync(id, account, r.ZeyilEkPrim ?? 0m, null, r.Kur,
+            await reg.PayInsuranceAsync(id, account, r.ZeyilEkPrim ?? 0m, null, r.Kur,
                 r.HesapId is { } h && h != Guid.Empty ? h : null, ct);
         }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException) && ex.Message == "Sigorta zaten ödendi.")
@@ -162,7 +162,7 @@ internal static partial class RegulationApi
         return TypedResults.Ok(d!);
     }
 
-    private static async Task<MukerrerIslemException> PolicyPaidAsync(IDbContextFactory<AppDbContext> dbf, InsurancePolicy p,
+    private static async Task<DuplicateOperationException> PolicyPaidAsync(IDbContextFactory<AppDbContext> dbf, InsurancePolicy p,
         InsurancePaymentRequest r, LedgerAccountType account, CancellationToken ct)
     {
         var trace = await LedgerTraceAsync(dbf, "SigortaOdeme", p.Id, ct);
@@ -171,7 +171,7 @@ internal static partial class RegulationApi
                    && trace.HesapId == wantRef;
         var total = p.Prim + p.ZeyilPrim;
         var belge = p.PoliceNo ?? p.Tip.ToString();
-        return new MukerrerIslemException(
+        return new DuplicateOperationException(
             string.Format(S.Tr, same ? PaymentAlreadySaved : OtherPaymentSaved, belge, S.Money(total), p.Currency),
             new MevcutIslem(p.Id, belge, total, p.Currency, same));
     }

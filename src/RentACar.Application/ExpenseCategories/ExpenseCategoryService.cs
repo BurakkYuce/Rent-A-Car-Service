@@ -29,7 +29,7 @@ public sealed class ExpenseCategoryService(IExpenseCategoryRepository repository
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu gider türü zaten var.");
 
         var category = new ExpenseCategory();
@@ -56,7 +56,7 @@ public sealed class ExpenseCategoryService(IExpenseCategoryRepository repository
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu gider türü zaten var.");
 
         void Update(ExpenseCategory category)

@@ -49,8 +49,8 @@ public static partial class AracApi
         s.MapGet("/sahip", async (string? q, int? limit, VehicleOwnerService o, VehicleService a, CancellationToken ct)
             => Oneri(q, limit, (await o.ListActiveAsync(ct)).Select(x => (x.Ad, (string?)x.Kod)),
                 (await a.ListAsync(ct)).Select(v => v.AracSahibi)));
-        s.MapGet("/varsayilan-grup", async (VarsayilanGrupCozucu c, CancellationToken ct)
-            => TypedResults.Ok(new VarsayilanGrupDto(await c.AdAsync(ct))));
+        s.MapGet("/varsayilan-grup", async (DefaultGroupResolver c, CancellationToken ct)
+            => TypedResults.Ok(new VarsayilanGrupDto(await c.NameAsync(ct))));
     }
 
     /// <summary>Tanımlılar önce (kodlu), sonra kayıtlarda geçen serbest değerler; ada göre tekil, sıralı, sınırlı.</summary>

@@ -46,13 +46,13 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
             AlimTarihi = Gun(9), FiloGirisTarih = Gun(9)
         });
         var cariId = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Faz79", Soyad = "Musteri" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Faz79", Soyad = "Musteri" });
 
         // Gider: araç gideri net 4.000 (KDV 0) → defter Borç Gider 4.000, AccountRef = araç.
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Arac, VehicleId = vehicleId, NetTutar = 4000m, KdvOrani = 0m,
-            Doviz = "TRY", Kur = 1m, OdemeYontemi = OdemeYontemi.Nakit, Aciklama = "Bakım"
+            Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit, Aciklama = "Bakım"
         });
 
         // Gelir: 4 gün × 2.500 = 10.000 brüt; KDV'siz fatura → defter Alacak Gelir 10.000.
@@ -61,7 +61,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
             MusteriId = cariId, VehicleId = vehicleId, BasTar = Gun(9), BitTar = Gun(5),
             GunlukUcret = 2500m, Kaynak = "WEB"
         });
-        await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rentalId, kdvRate: 0m);
+        await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rentalId, vatRate: 0m);
         return new Senaryo(vehicleId, cariId, rentalId);
     }
 
@@ -71,7 +71,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         {
             Kod = kod, Ad = "FAZ-79 tarife", AracGrupKod = "EKO",
             Gun1 = gun7, Gun2 = gun7, Gun3 = gun7, Gun4 = gun7, Gun5 = gun7, Gun6 = gun7, Gun7 = gun7,
-            OnayDurumu = TarifeOnayDurumu.Onayli, Aktif = true
+            OnayDurumu = TariffApprovalStatus.Onayli, Aktif = true
         });
 
     // ---------------------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var s = await KurAsync(sp);
 
-        var k = await sp.GetRequiredService<ReportService>().GetKarlilikAsync();
+        var k = await sp.GetRequiredService<ReportService>().GetProfitabilityAsync();
         var row = Assert.Single(k.Satirlar);
 
         // P&L — DEFTERDEN (elle oracle).
@@ -114,7 +114,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         var s = await KurAsync(sp);
         var rs = sp.GetRequiredService<ReportService>();
 
-        var once = await rs.GetKarlilikAsync();
+        var once = await rs.GetProfitabilityAsync();
 
         // Araç kartındaki referans alanları UÇUK değerlere çekilir + tarife eklenir (potansiyel gelir doğar).
         await sp.GetRequiredService<VehicleService>().UpdateAsync(s.VehicleId, new VehicleInput
@@ -125,7 +125,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         });
         await TarifeKurAsync(sp);
 
-        var sonra = await rs.GetKarlilikAsync();
+        var sonra = await rs.GetProfitabilityAsync();
 
         // KIRILGAN REGRESYON: para kolonları BİT-BİREBİR aynı.
         Assert.Equal(once.ToplamGelir, sonra.ToplamGelir);
@@ -160,10 +160,10 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Genel, NetTutar = 777m, KdvOrani = 0m,
-            Doviz = "TRY", Kur = 1m, OdemeYontemi = OdemeYontemi.Nakit
+            Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit
         });
 
-        var k = await sp.GetRequiredService<ReportService>().GetKarlilikAsync();
+        var k = await sp.GetRequiredService<ReportService>().GetProfitabilityAsync();
 
         // BAĞIMSIZ sorgu: ReportService/ReportRepository ÇAĞRILMADAN, doğrudan defterden.
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
@@ -196,7 +196,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         var s = await KurAsync(sp);
         await TarifeKurAsync(sp);
 
-        var row = Assert.Single((await sp.GetRequiredService<ReportService>().GetKarlilikAsync()).Satirlar);
+        var row = Assert.Single((await sp.GetRequiredService<ReportService>().GetProfitabilityAsync()).Satirlar);
 
         Assert.Equal("CDMR", row.Sipp);                 // araç kartı
         Assert.Equal("Merkez", row.Otopark);            // şube FK (yoksa metin)
@@ -213,7 +213,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
 
         // Potansiyel gelir: onaylı tarife Gün-7 = 800 × 10 sahiplik günü (elle).
         Assert.Equal(8000.00m, row.PotansiyelGelir);
-        Assert.Equal(8000.00m, (await sp.GetRequiredService<ReportService>().GetKarlilikAsync()).ToplamPotansiyelGelir);
+        Assert.Equal(8000.00m, (await sp.GetRequiredService<ReportService>().GetProfitabilityAsync()).ToplamPotansiyelGelir);
 
         // Cari bakiye: 10.000 fatura borcu, tahsilat yok → cari 10.000 borçlu (CARİ defterinden).
         Assert.Equal(10000m, row.CariBakiye);
@@ -228,9 +228,9 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         await KurAsync(sp);
 
-        var row = Assert.Single((await sp.GetRequiredService<ReportService>().GetKarlilikAsync()).Satirlar);
+        var row = Assert.Single((await sp.GetRequiredService<ReportService>().GetProfitabilityAsync()).Satirlar);
         Assert.Null(row.PotansiyelGelir);   // "Hesaplanmadı" — 0 yanıltıcı olurdu
-        Assert.Null((await sp.GetRequiredService<ReportService>().GetKarlilikAsync()).ToplamPotansiyelGelir);
+        Assert.Null((await sp.GetRequiredService<ReportService>().GetProfitabilityAsync()).ToplamPotansiyelGelir);
     }
 
     [Fact]
@@ -244,10 +244,10 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
         {
             Kod = "F79BEK", Ad = "Onaysız", AracGrupKod = "EKO", Gun7 = 5000m,
-            OnayDurumu = TarifeOnayDurumu.Bekliyor, Aktif = true
+            OnayDurumu = TariffApprovalStatus.Bekliyor, Aktif = true
         });
 
-        var row = Assert.Single((await sp.GetRequiredService<ReportService>().GetKarlilikAsync()).Satirlar);
+        var row = Assert.Single((await sp.GetRequiredService<ReportService>().GetProfitabilityAsync()).Satirlar);
         Assert.Null(row.PotansiyelGelir);
     }
 
@@ -264,15 +264,15 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         var vehicleId = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 KDV 79", Grup = "EKO", Sube = "Merkez", AlimTarihi = Gun(9), FiloGirisTarih = Gun(9) });
         var cariId = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Kdv", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kdv", Soyad = "Cari" });
         // 4 gün × 300 = 1.200 brüt, %20 KDV → net 1.000 + KDV 200 (elle).
         var rentalId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = cariId, VehicleId = vehicleId, BasTar = Gun(9), BitTar = Gun(5), GunlukUcret = 300m });
-        await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rentalId, kdvRate: 0.20m);
+        await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rentalId, vatRate: 0.20m);
 
         var rs = sp.GetRequiredService<ReportService>();
-        var kdvsiz = await rs.GetKarlilikAsync(kdvDurum: KdvDurum.Kdvsiz);
-        var dahil = await rs.GetKarlilikAsync(kdvDurum: KdvDurum.KdvDahil);
+        var kdvsiz = await rs.GetProfitabilityAsync(vatStatus: VatStatus.Kdvsiz);
+        var dahil = await rs.GetProfitabilityAsync(vatStatus: VatStatus.KdvDahil);
 
         Assert.Equal(1000m, kdvsiz.Satirlar[0].Gelir);              // defter NET (elle)
         Assert.Equal(kdvsiz.Satirlar[0].Gelir, dahil.Satirlar[0].Gelir);
@@ -283,7 +283,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         // KDV REFERANS kolonu her iki modda da aynı veriyi taşır (mod yalnız GÖSTERİMİ değiştirir).
         Assert.Equal(200m, dahil.Satirlar[0].HesaplananKdv);
         Assert.Equal(1200m, dahil.Satirlar[0].GelirKdvDahil);       // 1.000 + 200 (elle) — Gelir DEĞİL
-        Assert.Equal(KdvDurum.KdvDahil, dahil.KdvDurum);
+        Assert.Equal(VatStatus.KdvDahil, dahil.KdvDurum);
     }
 
     [Fact]
@@ -298,11 +298,11 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Arac, VehicleId = vehicleId, NetTutar = 1000m, KdvOrani = 0.20m,
-            Doviz = "TRY", Kur = 1m, OdemeYontemi = OdemeYontemi.Nakit
+            Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit
         });
 
         var row = Assert.Single((await sp.GetRequiredService<ReportService>()
-            .GetKarlilikAsync(kdvDurum: KdvDurum.KdvDahil)).Satirlar);
+            .GetProfitabilityAsync(vatStatus: VatStatus.KdvDahil)).Satirlar);
         Assert.Equal(1000m, row.Gider);
         Assert.Null(row.HesaplananKdv);     // alış KDV'si satış KDV kolonuna GİRMEZ
         Assert.Null(row.GelirKdvDahil);
@@ -321,10 +321,10 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         await KurAsync(sp);                       // Kaynak = WEB, SIPP = CDMR
 
         var rs = sp.GetRequiredService<ReportService>();
-        Assert.Single((await rs.GetKarlilikAsync(kaynak: "WEB")).Satirlar);
-        Assert.Empty((await rs.GetKarlilikAsync(kaynak: "ACENTA")).Satirlar);
-        Assert.Single((await rs.GetKarlilikAsync(sipp: "cdmr")).Satirlar);   // harf duyarsız
-        Assert.Empty((await rs.GetKarlilikAsync(sipp: "IDAR")).Satirlar);
+        Assert.Single((await rs.GetProfitabilityAsync(source: "WEB")).Satirlar);
+        Assert.Empty((await rs.GetProfitabilityAsync(source: "ACENTA")).Satirlar);
+        Assert.Single((await rs.GetProfitabilityAsync(sipp: "cdmr")).Satirlar);   // harf duyarsız
+        Assert.Empty((await rs.GetProfitabilityAsync(sipp: "IDAR")).Satirlar);
     }
 
     [Fact]
@@ -337,7 +337,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         await KurAsync(sp, "34 KAR 81");
 
         var rs = sp.GetRequiredService<ReportService>();
-        var otopark = await rs.GetKarlilikOzetAsync("otopark");
+        var otopark = await rs.GetProfitabilitySummaryAsync("otopark");
         var satir = Assert.Single(otopark.Satirlar);
         Assert.Equal("Merkez", satir.Boyut);
         Assert.Equal(2, satir.AracAdet);
@@ -349,7 +349,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         Assert.Equal(20000m, otopark.ToplamGelir);
         Assert.Equal(8000m, otopark.ToplamGider);
 
-        var sipp = await rs.GetKarlilikOzetAsync("sipp");
+        var sipp = await rs.GetProfitabilitySummaryAsync("sipp");
         Assert.Equal("CDMR", Assert.Single(sipp.Satirlar).Boyut);
         // Boyut değişse de P&L toplamı SABİT.
         Assert.Equal(otopark.ToplamNetKar, sipp.ToplamNetKar);
@@ -372,7 +372,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
             await TarifeKurAsync(a.ServiceProvider);
         }
         using var b = host.ScopeFor(tenantB);
-        var k = await b.ServiceProvider.GetRequiredService<ReportService>().GetKarlilikAsync();
+        var k = await b.ServiceProvider.GetRequiredService<ReportService>().GetProfitabilityAsync();
 
         Assert.Empty(k.Satirlar);
         Assert.Equal(0m, k.ToplamGelir);
@@ -394,7 +394,7 @@ public sealed class KarlilikGenislemeTests(PostgresFixture fx)
         // Rapor servisi yetki guard'ı taşımaz (yüzey Web/[Authorize] + export ViewReports'tadır);
         // FAZ-79 zenginleştirmesi PII/ManageUsers gerektiren bir yola SAPMAMALI — operatörde patlamamalı.
         using var op = host.ScopeFor(tenant, role: UserRole.Operator);
-        var k = await op.ServiceProvider.GetRequiredService<ReportService>().GetKarlilikAsync();
+        var k = await op.ServiceProvider.GetRequiredService<ReportService>().GetProfitabilityAsync();
         var row = Assert.Single(k.Satirlar);
         Assert.Equal(6000m, row.NetKar);
         Assert.Equal(8000.00m, row.PotansiyelGelir);

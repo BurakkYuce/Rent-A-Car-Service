@@ -26,7 +26,7 @@ public sealed class OtaKolonlariTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 OT 01" });
         var musteri = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ota", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ota", Soyad = "Cari" });
         var rez = sp.GetRequiredService<ReservationService>();
 
         var girdi = new BookingInput
@@ -65,7 +65,7 @@ public sealed class OtaKolonlariTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 OT 02" });
         var musteri = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Manuel", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Manuel", Soyad = "Cari" });
 
         var kiraId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {

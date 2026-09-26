@@ -26,7 +26,7 @@ public sealed class DashboardTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         var vId = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 DSH 01" });
-        var cId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Panel Müşteri" });
+        var cId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Panel Müşteri" });
         await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = cId, VehicleId = vId, BasTar = Gun, BitTar = Gun.AddDays(4), GunlukUcret = 100m });
         await sp.GetRequiredService<CashService>().CollectAsync(new CashInput

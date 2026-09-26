@@ -35,8 +35,8 @@ public static partial class CrmApi
 
     private static ProblemHttpResult ComplaintNotFound() => F5Ortak.Bulunamadi("Şikayet bulunamadı.");
 
-    private static readonly SiralamaHaritasi<ComplaintRow> ComplaintSort = SiralamaHaritasi<ComplaintRow>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<ComplaintRow> ComplaintSort = SortFieldMap<ComplaintRow>
+        .Create(r => r.Id)
         .Alan("tarih", r => r.Tarih).Alan("konu", r => r.Konu).Alan("durum", r => r.Durum).Alan("puan", r => r.Puan)
         .Alan("sikayetKanali", r => r.SikayetKanali).Alan("cikisOfisi", r => r.CikisOfisi).Alan("sozlesmeNo", r => r.SozlesmeNo)
         .Alan("plaka", r => r.Plaka);
@@ -55,15 +55,15 @@ public static partial class CrmApi
     }
 
     private static async Task<Ok<Sayfa<ComplaintRow>>> ListComplaints(
-        [AsParameters] ComplaintListFilter f, SikayetService complaints, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
+        [AsParameters] ComplaintListFilter f, ComplaintService complaints, ICurrentUser user, IDbContextFactory<AppDbContext> dbf,
         ILocationRepository locations, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         var search = F5Ortak.Nz(f.Ara);
         Sinirlar.Metin(search, 100, "ara", "Arama metni");
         var items = await complaints.SearchAsync(new SikayetFilter
         {
-            CariId = f.CariId, Ofis = F5Ortak.Nz(f.Ofis), Yer = F5Ortak.EnumAdi<SikayetYeri>(f.Yer, "yer"),
-            Kanal = F5Ortak.Nz(f.Kanal), Durum = F5Ortak.EnumAdi<SikayetDurum>(f.Durum, "durum"), Ara = search, EnFazla = 10_000,
+            CariId = f.CariId, Ofis = F5Ortak.Nz(f.Ofis), Yer = F5Ortak.EnumAdi<ComplaintLocation>(f.Yer, "yer"),
+            Kanal = F5Ortak.Nz(f.Kanal), Durum = F5Ortak.EnumAdi<ComplaintStatus>(f.Durum, "durum"), Ara = search, EnFazla = 10_000,
         }, ct);
         var inScope = await CrmScope.BuildAsync(user, dbf, locations, items.Select(x => (x.Sikayet.RentalId, x.Sikayet.CikisOfisi)), ct);
         var visible = items.Where(x => inScope(x.Sikayet.RentalId, x.Sikayet.CikisOfisi)).ToList();
@@ -87,12 +87,12 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Ok<ComplaintCardDto>, ProblemHttpResult>> GetComplaint(
-        Guid id, SikayetService complaints, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
+        Guid id, ComplaintService complaints, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
         CancellationToken ct)
         => await ComplaintCardAsync(id, complaints, user, dbf, locations, ct) is { } c ? TypedResults.Ok(c) : ComplaintNotFound();
 
     private static async Task<ComplaintCardDto?> ComplaintCardAsync(
-        Guid id, SikayetService complaints, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
+        Guid id, ComplaintService complaints, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
         CancellationToken ct)
     {
         var version = await complaints.GetVersionAsync(id, ct);
@@ -131,14 +131,14 @@ public static partial class CrmApi
         Sinirlar.Metin(r.SikayetKanali, 64, "sikayetKanali", "Şikayet kanalı");
         Sinirlar.Metin(r.CikisOfisi, 128, "cikisOfisi", "Çıkış ofisi");
         if (r.Puan is < 1 or > 5) throw new ValidationException("Puan 1 ile 5 arasında olmalıdır.", "puan");
-        TarihPolitikasi.ParaTarihi(r.Tarih, "Şikayet");
+        DatePolicy.MoneyDate(r.Tarih, "Şikayet");
         var input = new SikayetInput
         {
             CariId = r.CariId, Konu = r.Konu, Detay = r.Detay,
-            Durum = F5Ortak.EnumAdi<SikayetDurum>(r.Durum, "durum") ?? SikayetDurum.Acik,
+            Durum = F5Ortak.EnumAdi<ComplaintStatus>(r.Durum, "durum") ?? ComplaintStatus.Acik,
             Tarih = F5Ortak.Utc(r.Tarih), Cozum = r.Cozum, RentalId = r.RentalId == Guid.Empty ? null : r.RentalId,
             TeslimAlanPersonelId = r.TeslimAlanPersonelId, TeslimEdenPersonelId = r.TeslimEdenPersonelId, Puan = r.Puan,
-            SikayetKanali = r.SikayetKanali, SikayetYeri = F5Ortak.EnumAdi<SikayetYeri>(r.SikayetYeri, "sikayetYeri"),
+            SikayetKanali = r.SikayetKanali, SikayetYeri = F5Ortak.EnumAdi<ComplaintLocation>(r.SikayetYeri, "sikayetYeri"),
             CikisOfisi = r.CikisOfisi,
         };
         await CrmScope.RequireCustomerAsync(dbf, input.CariId, "cariId", ct);
@@ -149,7 +149,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Created<ComplaintCardDto>, ProblemHttpResult>> CreateComplaint(
-        ComplaintRequest request, SikayetService complaints, RentalService rentals, ICurrentUser user,
+        ComplaintRequest request, ComplaintService complaints, RentalService rentals, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, ILocationRepository locations, CancellationToken ct)
     {
         var input = await ComplaintInputAsync(request, user, rentals, dbf, locations, ct);
@@ -159,7 +159,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Ok<ComplaintCardDto>, ProblemHttpResult>> UpdateComplaint(
-        Guid id, ComplaintUpdateRequest request, SikayetService complaints, RentalService rentals, ICurrentUser user,
+        Guid id, ComplaintUpdateRequest request, ComplaintService complaints, RentalService rentals, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, ILocationRepository locations, CancellationToken ct)
     {
         var current = await complaints.GetAsync(id, ct);
@@ -173,7 +173,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteComplaint(
-        Guid id, SikayetService complaints, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
+        Guid id, ComplaintService complaints, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, ILocationRepository locations,
         CancellationToken ct)
     {
         var current = await complaints.GetAsync(id, ct);

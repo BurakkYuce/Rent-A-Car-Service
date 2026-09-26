@@ -30,7 +30,7 @@ public sealed class KalintiProjeksiyonTests(PostgresFixture fx)
         // Gözlenen oran: (810/1000)^(1/2) = 0.90 → 729.00 / 656.10 (elle).
         var v1 = await veh.CreateAsync(new VehicleInput
         { Plaka = "34 KL 01", AlimBedeli = 1000m, IkinciElDeger = 810m, AlimTarihi = simdi.AddYears(-2) });
-        var k1 = (await rs.GetAracKarneAsync(v1))!.Kalinti!;
+        var k1 = (await rs.GetVehicleScorecardAsync(v1))!.Kalinti!;
         Assert.Equal(0.90m, k1.YillikOran);
         Assert.True(k1.OranGozlenen);
         Assert.Equal(729.00m, k1.Deger12Ay);
@@ -39,7 +39,7 @@ public sealed class KalintiProjeksiyonTests(PostgresFixture fx)
         // Yaş < 1 yıl → varsayılan 0.85: 500×0.85=425.00, 425×0.85=361.25 (elle).
         var v2 = await veh.CreateAsync(new VehicleInput
         { Plaka = "34 KL 02", AlimBedeli = 1000m, IkinciElDeger = 500m, AlimTarihi = simdi.AddMonths(-6) });
-        var k2 = (await rs.GetAracKarneAsync(v2))!.Kalinti!;
+        var k2 = (await rs.GetVehicleScorecardAsync(v2))!.Kalinti!;
         Assert.Equal(0.85m, k2.YillikOran);
         Assert.False(k2.OranGozlenen);
         Assert.Equal(425.00m, k2.Deger12Ay);
@@ -47,7 +47,7 @@ public sealed class KalintiProjeksiyonTests(PostgresFixture fx)
 
         // İkinciEl yok → projeksiyon yok (null) — uydurma taban basılmaz.
         var v3 = await veh.CreateAsync(new VehicleInput { Plaka = "34 KL 03", AlimBedeli = 1000m });
-        Assert.Null((await rs.GetAracKarneAsync(v3))!.Kalinti);
+        Assert.Null((await rs.GetVehicleScorecardAsync(v3))!.Kalinti);
     }
 
     [Fact]
@@ -56,24 +56,24 @@ public sealed class KalintiProjeksiyonTests(PostgresFixture fx)
         var simdi = DateTimeOffset.UtcNow;
 
         // İkinciEl > Alım (enflasyonist piyasa): gözlenen oran >1 çıkar → 1.00'e SINIRLANIR (düz çizgi).
-        var artis = KalintiProjeksiyon.Hesapla(1000m, 1200m, simdi.AddYears(-2), simdi)!;
+        var artis = ResidualProjection.Calculate(1000m, 1200m, simdi.AddYears(-2), simdi)!;
         Assert.Equal(1.00m, artis.YillikOran);
         Assert.Equal(1200.00m, artis.Deger12Ay);
         Assert.Equal(1200.00m, artis.Deger24Ay);
 
         // Alım tarihi yok → yaş bilinmiyor → varsayılan 0.85 (gözlenen değil).
-        var tarihsiz = KalintiProjeksiyon.Hesapla(1000m, 800m, null, simdi)!;
+        var tarihsiz = ResidualProjection.Calculate(1000m, 800m, null, simdi)!;
         Assert.Equal(0.85m, tarihsiz.YillikOran);
         Assert.False(tarihsiz.OranGozlenen);
 
         // Alım bedeli yok → oran türetilemez → varsayılan; İkinciEl tabanıyla projeksiyon sürer.
-        var alimsiz = KalintiProjeksiyon.Hesapla(null, 400m, simdi.AddYears(-3), simdi)!;
+        var alimsiz = ResidualProjection.Calculate(null, 400m, simdi.AddYears(-3), simdi)!;
         Assert.Equal(0.85m, alimsiz.YillikOran);
         Assert.Equal(340.00m, alimsiz.Deger12Ay);
 
         // İkinciEl 0/negatif/yok → null.
-        Assert.Null(KalintiProjeksiyon.Hesapla(1000m, 0m, simdi.AddYears(-2), simdi));
-        Assert.Null(KalintiProjeksiyon.Hesapla(1000m, null, simdi.AddYears(-2), simdi));
+        Assert.Null(ResidualProjection.Calculate(1000m, 0m, simdi.AddYears(-2), simdi));
+        Assert.Null(ResidualProjection.Calculate(1000m, null, simdi.AddYears(-2), simdi));
     }
 
     [Fact]
@@ -93,12 +93,12 @@ public sealed class KalintiProjeksiyonTests(PostgresFixture fx)
         Task Gider(Guid v, decimal net) => giderler.CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Arac, VehicleId = v, NetTutar = net, KdvOrani = 0m,
-            Tarih = simdi.AddMonths(-2), OdemeYontemi = OdemeYontemi.Nakit
+            Tarih = simdi.AddMonths(-2), OdemeYontemi = PaymentMethod.Nakit
         });
         await Gider(v1, 500m);
         await Gider(v2, 100m);
 
-        var filo = await sp.GetRequiredService<ReportService>().GetFiloAnalizAsync();
+        var filo = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
         Assert.Equal(2, filo.Satirlar.Single(x => x.VehicleId == v1).TutSatSinyal);
         var aday = filo.TutSatAday!;
         Assert.Equal(1, aday.AracSayisi);                    // yalnız V1 (V2 sinyal 0)

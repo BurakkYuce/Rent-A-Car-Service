@@ -63,8 +63,8 @@ public sealed record FinancialAccountDto(Guid Id, string Kod, string Ad, string?
     public static FinancialAccountDto From(FinancialAccount a, string? surum) => new(a.Id, a.Kod, a.Ad, a.Tur, a.Doviz,
         a.Iban, a.HesapNo, a.Banka, a.Sube, a.HediyeCek, a.OzelKod, a.UyariMailListesi, a.Aktif, surum);
 
-    internal static readonly SiralamaHaritasi<FinancialAccountDto> Sort = SiralamaHaritasi<FinancialAccountDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("tur", x => x.Tur)
+    internal static readonly SortFieldMap<FinancialAccountDto> Sort = SortFieldMap<FinancialAccountDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("tur", x => x.Tur)
         .Alan("doviz", x => x.Doviz).Alan("banka", x => x.Banka).Alan("sube", x => x.Sube).Alan("aktif", x => x.Aktif);
 }
 

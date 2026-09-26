@@ -22,8 +22,8 @@ public static partial class AracKrediApi
         "Bu işlem anahtarıyla başka içerikte bir kredi kaydedilmiş (No {0}, {1} {2}); girdiğiniz kredi YAZILMADI. Kayıtları kontrol edin.";
 
     private static async Task<Created<AracKrediOlusturYaniti>> Olustur(
-        AracKrediIstegi i, HttpContext http, AracKrediService svc, IDbContextFactory<AppDbContext> dbf,
-        ICurrentUser kullanici, KurCozucu kurCozucu, CancellationToken ct)
+        AracKrediIstegi i, HttpContext http, VehicleLoanService svc, IDbContextFactory<AppDbContext> dbf,
+        ICurrentUser kullanici, ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         var doviz = AracFinansOrtak.Doviz(i.Doviz);
@@ -45,7 +45,7 @@ public static partial class AracKrediApi
         var bas = F5Ortak.Utc(i.BaslangicTarihi);
         AracFinansOrtak.Kur(i.Kur, doviz); // sınır + TRY'de kur = 1
         decimal kur = 0m;
-        await Alanli("kur", async () => kur = await kurCozucu.CozAsync(doviz, i.Kur, bas, ct));
+        await Alanli("kur", async () => kur = await kurCozucu.ResolveAsync(doviz, i.Kur, bas, ct));
         await AracFinansOrtak.CariVarAsync(dbf, i.CariId, "cariId", zorunlu: false, ct);
         await AracFinansOrtak.AracYazimAsync(dbf, kullanici, i.VehicleId, "vehicleId", zorunlu: false, ct);
 
@@ -58,7 +58,7 @@ public static partial class AracKrediApi
                 Doviz = doviz, Kur = kur, Aciklama = AracFinansOrtak.Nz(i.Aciklama), IslemAnahtari = anahtar,
             }, ct);
         }
-        catch (MukerrerIslemException ex) when (ex.Mevcut is null)
+        catch (DuplicateOperationException ex) when (ex.Existing is null)
         {
             // Yarış: aynı anahtarla eşzamanlı ikinci istek PK'ye çarptı → yazılmış kaydı bildir.
             if (await svc.GetAsync(anahtar, ct) is { } y) throw KrediMevcut(y, i, doviz);
@@ -69,13 +69,13 @@ public static partial class AracKrediApi
     }
 
     /// <summary>Aynı anahtarla yazılmış kredi: içerik birebir aynıysa kendi tekrarı, değilse "YAZILMADI".</summary>
-    private static MukerrerIslemException KrediMevcut(AracKredi m, AracKrediIstegi i, string doviz)
+    private static DuplicateOperationException KrediMevcut(AracKredi m, AracKrediIstegi i, string doviz)
     {
         var ayni = string.Equals(m.BankaAdi, AracFinansOrtak.Nz(i.BankaAdi), StringComparison.Ordinal)
                    && m.KrediTutari == i.KrediTutari && m.FaizOran == i.FaizOran && m.TaksitSayisi == i.TaksitSayisi
                    && m.Currency == doviz && m.VehicleId == BosIse(i.VehicleId) && m.CariId == BosIse(i.CariId);
         var tutar = m.KrediTutari.ToString("N2", Tr);
-        return new MukerrerIslemException(
+        return new DuplicateOperationException(
             string.Format(Tr, ayni ? KrediZatenKaydedildi : KrediAnahtarFarkli, m.No, tutar, m.Currency),
             new MevcutIslem(m.Id, m.No, m.KrediTutari, m.Currency, ayni));
     }
@@ -83,11 +83,11 @@ public static partial class AracKrediApi
     private static Guid? BosIse(Guid? g) => g is { } x && x != Guid.Empty ? x : null;
 
     private static async Task<Results<NoContent, ProblemHttpResult>> Iptal(
-        Guid id, AracKrediService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, CancellationToken ct)
+        Guid id, VehicleLoanService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, CancellationToken ct)
     {
         if (await KapsamliAsync(id, svc, dbf, kullanici, ct) is null) return Bulunamadi();
         // Yapısal: yalnız Aktif kredi, satır kilidi ARKASINDA (kapanmış kredi iptale düşmez; ödenmiş taksit geri alınmaz).
-        if (await svc.TaksitleriIptalEtAsync([id], ct) == 0)
+        if (await svc.CancelInstallmentsAsync([id], ct) == 0)
             throw new ValidationException("Kredi aktif değil (kapanmış ya da zaten iptal); iptal edilecek taksit yok.");
         return TypedResults.NoContent();
     }
@@ -95,7 +95,7 @@ public static partial class AracKrediApi
     public const int TopluIptalEnFazla = 500;
 
     private static async Task<Results<Ok<KrediTopluIptalYaniti>, ProblemHttpResult>> TopluIptal(
-        KrediTopluIptalIstegi istek, AracKrediService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici,
+        KrediTopluIptalIstegi istek, VehicleLoanService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici,
         CancellationToken ct)
     {
         var ids = (istek.Ids ?? []).Where(x => x != Guid.Empty).Distinct().ToList();
@@ -104,7 +104,7 @@ public static partial class AracKrediApi
             throw new ValidationException($"Tek seferde en fazla {TopluIptalEnFazla} kredi iptal edilebilir.", "ids");
         foreach (var id in ids) // hepsi var ve kapsamda olmalı — biri değilse HİÇBİRİ iptal edilmez
             if (await KapsamliAsync(id, svc, dbf, kullanici, ct) is null) return Bulunamadi();
-        var n = await svc.TaksitleriIptalEtAsync(ids, ct);
+        var n = await svc.CancelInstallmentsAsync(ids, ct);
         if (n == 0) throw new ValidationException("Seçilen kredilerin hiçbiri aktif değil; iptal edilecek taksit yok.", "ids");
         return TypedResults.Ok(new KrediTopluIptalYaniti(n));
     }

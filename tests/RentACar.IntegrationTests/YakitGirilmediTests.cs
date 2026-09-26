@@ -20,7 +20,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class YakitGirilmediTests(PostgresFixture fx)
 {
-    private static VehicleInput Arac(string plaka, FuelType? yakit, Vites vites = Vites.Manuel)
+    private static VehicleInput Arac(string plaka, FuelType? yakit, Transmission vites = Transmission.Manuel)
         => new()
         {
             Plaka = plaka, Marka = "Fiat", Tip = "Egea", Vites = vites, Yakit = yakit,
@@ -50,14 +50,14 @@ public sealed class YakitGirilmediTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         await vehicles.CreateAsync(Arac("34 YK 10", FuelType.Dizel));
         await vehicles.CreateAsync(Arac("34 YK 11", yakit: null));
 
         // İmza yakıtı da kapsıyor → iki AYRI küme. Aksi halde yakıtı bilinmeyen araç, dizel ilanının
         // içine karışır ve site "Dizel" diye yayınlardı.
-        var havuz = await svc.HavuzAsync();
+        var havuz = await svc.PoolAsync();
         Assert.Equal(2, havuz.Count);
 
         // Plaka SERVİSTE normalize ediliyor ("34 YK 11" → "34YK11"); ham metinle karşılaştırmak
@@ -77,12 +77,12 @@ public sealed class YakitGirilmediTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         await vehicles.CreateAsync(Arac("34 YK 20", yakit: null));
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
-        var satirlar = await svc.OnerilenOzelliklerAsync(ilanId);
+        var satirlar = await svc.SuggestedFeaturesAsync(ilanId);
         // Boş değerli bir "Yakıt" satırı sitede anlamsız görünürdü; satır HİÇ üretilmez.
         Assert.DoesNotContain(satirlar, x => x.Etiket == "Yakıt");
         Assert.Contains(satirlar, x => x.Etiket == "Vites");   // girilmiş alanlar yerinde
@@ -94,14 +94,14 @@ public sealed class YakitGirilmediTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         var id = await vehicles.CreateAsync(Arac("34 YK 30", yakit: null));
-        Assert.Equal("Fiat Egea Manuel", (await svc.HavuzAsync()).Single().Baslik);
+        Assert.Equal("Fiat Egea Manuel", (await svc.PoolAsync()).Single().Baslik);
 
         // Personel araç ekranından doğru yakıtı giriyor.
         await vehicles.UpdateAsync(id, Arac("34 YK 30", FuelType.Dizel));
 
-        Assert.Equal("Fiat Egea Manuel Dizel", (await svc.HavuzAsync()).Single().Baslik);
+        Assert.Equal("Fiat Egea Manuel Dizel", (await svc.PoolAsync()).Single().Baslik);
     }
 }

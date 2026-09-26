@@ -18,8 +18,8 @@ internal static partial class RegulationApi
 {
     // ------------------------------------------------------------------ sigorta
 
-    private static readonly SiralamaHaritasi<InsurancePolicyRow> PolicySort = SiralamaHaritasi<InsurancePolicyRow>
-        .Olustur(x => x.Id).Alan("plaka", x => x.Plaka).Alan("tip", x => x.Tip).Alan("bitis", x => x.Bitis)
+    private static readonly SortFieldMap<InsurancePolicyRow> PolicySort = SortFieldMap<InsurancePolicyRow>
+        .Create(x => x.Id).Alan("plaka", x => x.Plaka).Alan("tip", x => x.Tip).Alan("bitis", x => x.Bitis)
         .Alan("prim", x => x.Prim).Alan("kalan", x => x.Kalan).Alan("odendi", x => x.Odendi);
 
     private static async Task<Ok<Sayfa<InsurancePolicyRow>>> ListPolicies(
@@ -56,7 +56,7 @@ internal static partial class RegulationApi
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         if (await ScopedPolicyAsync(id, reg, dbf, user, ct) is not { } p) return null;
-        var zeyiller = (await reg.ListZeyilAsync(id, ct)).Select(EndorsementDto.From).ToList();
+        var zeyiller = (await reg.ListEndorsementsAsync(id, ct)).Select(EndorsementDto.From).ToList();
         var trace = await LedgerTraceAsync(dbf, "SigortaOdeme", id, ct);
         var actions = new RegulationActions(!p.Odendi && AuthExtensions.HasPermission(http.User, Permission.FinanceWrite),
             AuthExtensions.HasPermission(http.User, Permission.OperationsWrite));
@@ -98,7 +98,7 @@ internal static partial class RegulationApi
         catch (DbUpdateException ex) when (key is { } k2 && S.IsPrimaryKeyViolation(ex))
         {
             if (await ScopedPolicyAsync(k2, reg, dbf, user, ct) is { } won) throw PolicyDuplicate(won, r);
-            throw new MukerrerIslemException(AnahtarBaskaIslemde);
+            throw new DuplicateOperationException(AnahtarBaskaIslemde);
         }
         var d = await PolicyDetailAsync(id, http, reg, dbf, user, ct);
         return TypedResults.Created($"{Root}/sigortalar/{id}", d!);
@@ -107,11 +107,11 @@ internal static partial class RegulationApi
     public const string AnahtarBaskaIslemde =
         "Bu işlem anahtarı başka bir işlemde kullanılmış; kayıt yazılmadı. Kayıtları kontrol edip yeni işlem başlatın.";
 
-    private static MukerrerIslemException PolicyDuplicate(InsurancePolicy m, InsurancePolicyRequest r)
+    private static DuplicateOperationException PolicyDuplicate(InsurancePolicy m, InsurancePolicyRequest r)
     {
         var same = m.VehicleId == r.VehicleId && string.Equals(m.Tip.ToString(), r.Tip?.Trim(), StringComparison.OrdinalIgnoreCase)
                    && m.Prim == (r.Prim ?? 0m);
-        return new MukerrerIslemException($"Bu poliçe zaten kaydedildi ({m.PoliceNo ?? m.Tip.ToString()}); yeni kayıt yazılmadı.",
+        return new DuplicateOperationException($"Bu poliçe zaten kaydedildi ({m.PoliceNo ?? m.Tip.ToString()}); yeni kayıt yazılmadı.",
             new MevcutIslem(m.Id, m.PoliceNo ?? "", m.Prim, m.Currency, same));
     }
 
@@ -123,12 +123,12 @@ internal static partial class RegulationApi
         S.RecordAmount(r.Brut, "brut", allowNegative: true); S.RecordAmount(r.Net, "net", allowNegative: true);
         S.RecordAmount(r.FonVergi, "fonVergi", allowNegative: true);
         S.Text(r.ZeyilNo, 32, "zeyilNo"); S.Text(r.Tipi, 64, "tipi"); S.Text(r.Neden, 512, "neden");
-        var zid = await reg.AddZeyilAsync(new ZeyilInput
+        var zid = await reg.AddEndorsementAsync(new ZeyilInput
         {
             PolicyId = id, ZeyilNo = r.ZeyilNo, Tarih = S.Date(r.Tarih, "tarih"), Tanzim = S.Date(r.Tanzim, "tanzim"),
             Deger = r.Deger, Brut = r.Brut, Net = r.Net, FonVergi = r.FonVergi, Tipi = r.Tipi, Neden = r.Neden,
         }, ct);
-        var z = (await reg.ListZeyilAsync(id, ct)).First(x => x.Id == zid);
+        var z = (await reg.ListEndorsementsAsync(id, ct)).First(x => x.Id == zid);
         return TypedResults.Created($"{Root}/sigortalar/{id}", EndorsementDto.From(z));
     }
 
@@ -143,7 +143,7 @@ internal static partial class RegulationApi
             if (policyVehicle is null) return S.NotFound("Zeyil kaydı bulunamadı.");
             await S.RecordScopeAsync(dbf, user, policyVehicle, ct);
         }
-        await reg.DeleteZeyilAsync(id, ct);
+        await reg.DeleteEndorsementAsync(id, ct);
         return TypedResults.NoContent();
     }
 }

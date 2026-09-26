@@ -13,7 +13,7 @@ public interface ITenantSettingsVersionStore
     /// <summary>
     /// Satır kilidi + sürüm karşılaştırması + upsert TEK işlemde. Satır varsa <paramref name="expectedVersion"/> onun
     /// sürümüne eşit olmalı; satır yoksa <c>null</c> olmalı. Aksi halde
-    /// <see cref="Common.EszamanliDegisiklikException"/> ve hiçbir şey yazılmaz.
+    /// <see cref="Common.ConcurrentModificationException"/> ve hiçbir şey yazılmaz.
     /// </summary>
     Task UpsertAsync(Action<RentACar.Domain.Entities.TenantSettings> apply, string? expectedVersion, CancellationToken ct = default);
 }

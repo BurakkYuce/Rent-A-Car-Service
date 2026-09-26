@@ -55,15 +55,15 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         // Açılışta kalan = tutar (ELLE: 1000)
         Assert.Equal(1000m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
 
-        var s1 = await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
-            odeme: new RegulasyonOdemeInput { Tutar = 400m, EvrakNo = " EV-1 ", IslemYapan = "Ali", IslemAnahtari = Guid.NewGuid() });
+        var s1 = await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa,
+            payment: new RegulasyonOdemeInput { Tutar = 400m, EvrakNo = " EV-1 ", IslemYapan = "Ali", IslemAnahtari = Guid.NewGuid() });
         Assert.Equal(1, s1.Sira);
         Assert.Equal(400m, s1.Tutar);
         Assert.Equal(600m, s1.Kalan);      // ELLE: 1000 − 400
         Assert.False(s1.Odendi);
 
-        var s2 = await reg.MtvOdeAsync(mtv, LedgerAccountType.Banka,
-            odeme: new RegulasyonOdemeInput { Tutar = 600m, EvrakNo = "EV-2", IslemAnahtari = Guid.NewGuid() });
+        var s2 = await reg.PayMtvAsync(mtv, LedgerAccountType.Banka,
+            payment: new RegulasyonOdemeInput { Tutar = 600m, EvrakNo = "EV-2", IslemAnahtari = Guid.NewGuid() });
         Assert.Equal(2, s2.Sira);
         Assert.Equal(0m, s2.Kalan);        // ELLE: 600 − 600
         Assert.True(s2.Odendi);
@@ -73,7 +73,7 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         Assert.Equal(0m, rec.Kalan);
 
         // Ödeme geçmişi: iki satır, evrak numaraları BİRBİRİNİ EZMEDİ.
-        var gecmis = await reg.ListMtvOdemeAsync(mtv);
+        var gecmis = await reg.ListMtvPaymentsAsync(mtv);
         Assert.Equal(2, gecmis.Count);
         Assert.Equal("EV-1", gecmis[0].EvrakNo);        // trim
         Assert.Equal("Ali", gecmis[0].IslemYapan);
@@ -103,10 +103,10 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         Assert.Contains(satirlar, e => e.AccountType == LedgerAccountType.Banka);
 
         // Gelir-gider raporu toplamı: ELLE 1000.
-        Assert.Equal(1000m, (await sp.GetRequiredService<ReportService>().GetGelirGiderAsync()).GiderToplam);
+        Assert.Equal(1000m, (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GiderToplam);
 
         // Kapanmış kayda yeni ödeme YOK.
-        await Assert.ThrowsAsync<ValidationException>(() => reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa));
+        await Assert.ThrowsAsync<ValidationException>(() => reg.PayMtvAsync(mtv, LedgerAccountType.Kasa));
     }
 
     [Fact]
@@ -118,11 +118,11 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
         var mtv = await reg.AddMtvAsync(v, "2026/1", 2000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
 
-        var s = await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa);   // eski imza, tutar YOK
+        var s = await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa);   // eski imza, tutar YOK
         Assert.Equal(2000m, s.Tutar);
         Assert.Equal(0m, s.Kalan);
         Assert.True(s.Odendi);
-        Assert.Equal(2000m, (await sp.GetRequiredService<ReportService>().GetGelirGiderAsync()).GiderToplam);
+        Assert.Equal(2000m, (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GiderToplam);
     }
 
     [Fact]
@@ -133,23 +133,23 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         var (sp, v) = await SeedAsync(scope, "34 KM 03");
         var reg = sp.GetRequiredService<RegulationService>();
         var mtv = await reg.AddMtvAsync(v, "2026/1", 1000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, odeme: new RegulasyonOdemeInput { Tutar = 400m, IslemAnahtari = Guid.NewGuid() });
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = 400m, IslemAnahtari = Guid.NewGuid() });
 
         // Kalan 600 iken 700 ödemeye çalış → red.
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-            reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, odeme: new RegulasyonOdemeInput { Tutar = 700m, IslemAnahtari = Guid.NewGuid() }));
+            reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = 700m, IslemAnahtari = Guid.NewGuid() }));
         Assert.Contains("kalan bakiyeyi aşamaz", ex.Message);
 
         // Bakiye ve defter DEĞİŞMEDİ (ELLE: hâlâ 600 ve tek ödeme).
         Assert.Equal(600m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
-        Assert.Single(await reg.ListMtvOdemeAsync(mtv));
+        Assert.Single(await reg.ListMtvPaymentsAsync(mtv));
         Assert.Equal(2, (await DefterAsync(sp, "MtvOdeme")).Count);
 
         // Sıfır / negatif tutar da reddedilir.
         await Assert.ThrowsAsync<ValidationException>(() =>
-            reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, odeme: new RegulasyonOdemeInput { Tutar = 0m, IslemAnahtari = Guid.NewGuid() }));
+            reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = 0m, IslemAnahtari = Guid.NewGuid() }));
         await Assert.ThrowsAsync<ValidationException>(() =>
-            reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, odeme: new RegulasyonOdemeInput { Tutar = -100m }));
+            reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = -100m }));
         Assert.Equal(600m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
     }
 
@@ -163,23 +163,23 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         var mtv = await reg.AddMtvAsync(v, "2026/1", 1000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
         var anahtar = Guid.NewGuid();
 
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
-            odeme: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = anahtar });
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa,
+            payment: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = anahtar });
         Assert.Equal(700m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
 
         // AYNI anahtarla ikinci gönderim → kısmi unique index → tüm transaction geri alınır.
-        await Assert.ThrowsAsync<MukerrerIslemException>(() => reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
-            odeme: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = anahtar }));
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => reg.PayMtvAsync(mtv, LedgerAccountType.Kasa,
+            payment: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = anahtar }));
 
         // ELLE: kalan hâlâ 700, tek ödeme, 2 defter satırı — çift ödeme YAZILMADI.
         Assert.Equal(700m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
-        Assert.Single(await reg.ListMtvOdemeAsync(mtv));
+        Assert.Single(await reg.ListMtvPaymentsAsync(mtv));
         Assert.Equal(2, (await DefterAsync(sp, "MtvOdeme")).Count);
-        Assert.Equal(300m, (await sp.GetRequiredService<ReportService>().GetGelirGiderAsync()).GiderToplam);
+        Assert.Equal(300m, (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GiderToplam);
 
         // FARKLI anahtarla ikinci kısmi ödeme normal geçer.
-        var s = await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
-            odeme: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = Guid.NewGuid() });
+        var s = await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa,
+            payment: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = Guid.NewGuid() });
         Assert.Equal(400m, s.Kalan);
     }
 
@@ -195,15 +195,15 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         // ESKİ AÇIK: doviz="EUR" geçilince 1000 TL'lik MTV deftere 1000 EUR × kur yazılıyordu
         // (38.000 TL). Artık reddediliyor.
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-            reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, doviz: "EUR", kur: 38m));
+            reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, currency: "EUR", exchangeRate: 38m));
         Assert.Contains("TRY", ex.Message);
 
         Assert.Empty(await DefterAsync(sp, "MtvOdeme"));
         Assert.Equal(1000m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
 
         // Boş/null/try → TRY kabul.
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, doviz: null, odeme: new RegulasyonOdemeInput { Tutar = 1m, IslemAnahtari = Guid.NewGuid() });
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, doviz: "try", odeme: new RegulasyonOdemeInput { Tutar = 1m, IslemAnahtari = Guid.NewGuid() });
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, currency: null, payment: new RegulasyonOdemeInput { Tutar = 1m, IslemAnahtari = Guid.NewGuid() });
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, currency: "try", payment: new RegulasyonOdemeInput { Tutar = 1m, IslemAnahtari = Guid.NewGuid() });
         Assert.Equal(998m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
     }
 
@@ -223,8 +223,8 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         Assert.Equal(800m, (await reg.ListInspectionAsync()).Single(x => x.Id == insp).Kalan);
 
         // 1. ödeme: 200 ceza eklenir (borç 800 + 200 = 1000), 300 ödenir.
-        var s1 = await reg.MuayeneOdeAsync(insp, LedgerAccountType.Kasa, ceza: 200m,
-            odeme: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = Guid.NewGuid() });
+        var s1 = await reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, penalty: 200m,
+            payment: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = Guid.NewGuid() });
         Assert.Equal(300m, s1.Tutar);
         Assert.Equal(700m, s1.Kalan);      // ELLE: 800 + 200 − 300
         Assert.False(s1.Odendi);
@@ -234,7 +234,7 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         Assert.Equal(700m, rec1.Kalan);
 
         // 2. ödeme: cezasız, kalanın tamamı.
-        var s2 = await reg.MuayeneOdeAsync(insp, LedgerAccountType.Banka);
+        var s2 = await reg.PayInspectionAsync(insp, LedgerAccountType.Banka);
         Assert.Equal(700m, s2.Tutar);      // ELLE: kalanın tamamı
         Assert.Equal(0m, s2.Kalan);
         Assert.True(s2.Odendi);
@@ -248,9 +248,9 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
                 grup.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase));
         Assert.Equal([300m, 700m], satirlar.Where(e => e.Direction == LedgerDirection.Debit)
             .Select(e => e.Amount.Amount).OrderBy(x => x).ToArray());
-        Assert.Equal(1000m, (await sp.GetRequiredService<ReportService>().GetGelirGiderAsync()).GiderToplam);
+        Assert.Equal(1000m, (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GiderToplam);
 
-        var gecmis = await reg.ListMuayeneOdemeAsync(insp);
+        var gecmis = await reg.ListInspectionPaymentsAsync(insp);
         Assert.Equal(200m, gecmis[0].Ceza);
         Assert.Equal(0m, gecmis[1].Ceza);
     }
@@ -267,16 +267,16 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
             new DateTimeOffset(2028, 3, 1, 0, 0, 0, TimeSpan.Zero), 800m);
 
         // Eski imza: ceza 100 → tek seferde 900 ödenir (ELLE: 800 + 100).
-        var s = await reg.MuayeneOdeAsync(insp, LedgerAccountType.Kasa, ceza: 100m);
+        var s = await reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, penalty: 100m);
         Assert.Equal(900m, s.Tutar);
         Assert.True(s.Odendi);
-        Assert.Equal(900m, (await sp.GetRequiredService<ReportService>().GetGelirGiderAsync()).GiderToplam);
+        Assert.Equal(900m, (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GiderToplam);
 
         var rec = (await reg.ListInspectionAsync()).Single(x => x.Id == insp);
         Assert.Equal(100m, rec.Ceza);
         Assert.Equal(0m, rec.Kalan);
 
-        await Assert.ThrowsAsync<ValidationException>(() => reg.MuayeneOdeAsync(insp, LedgerAccountType.Kasa));
+        await Assert.ThrowsAsync<ValidationException>(() => reg.PayInspectionAsync(insp, LedgerAccountType.Kasa));
     }
 
     [Fact]
@@ -292,17 +292,17 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
 
         // Kalan 500, ceza yok → 600 aşım.
         await Assert.ThrowsAsync<ValidationException>(() =>
-            reg.MuayeneOdeAsync(insp, LedgerAccountType.Kasa, odeme: new RegulasyonOdemeInput { Tutar = 600m, IslemAnahtari = Guid.NewGuid() }));
+            reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = 600m, IslemAnahtari = Guid.NewGuid() }));
         Assert.Empty(await DefterAsync(sp, "MuayeneOdeme"));
 
         // Ceza 100 eklenirse tavan 600 olur → aynı tutar geçer.
-        await reg.MuayeneOdeAsync(insp, LedgerAccountType.Kasa, ceza: 100m,
-            odeme: new RegulasyonOdemeInput { Tutar = 600m, IslemAnahtari = Guid.NewGuid() });
+        await reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, penalty: 100m,
+            payment: new RegulasyonOdemeInput { Tutar = 600m, IslemAnahtari = Guid.NewGuid() });
         Assert.Equal(0m, (await reg.ListInspectionAsync()).Single(x => x.Id == insp).Kalan);
 
         // Çift gönderim: kayıt kapandığı için ikinci ödeme reddedilir.
         await Assert.ThrowsAsync<ValidationException>(() =>
-            reg.MuayeneOdeAsync(insp, LedgerAccountType.Kasa, odeme: new RegulasyonOdemeInput { Tutar = 1m, IslemAnahtari = Guid.NewGuid() }));
+            reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = 1m, IslemAnahtari = Guid.NewGuid() }));
         Assert.Equal(2, (await DefterAsync(sp, "MuayeneOdeme")).Count);
     }
 
@@ -314,7 +314,7 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         var (sp, v) = await SeedAsync(scope, "34 IM 01");
         var reg = sp.GetRequiredService<RegulationService>();
         var mtv = await reg.AddMtvAsync(v, "2026/1", 500m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, odeme: new RegulasyonOdemeInput { Tutar = 100m, IslemAnahtari = Guid.NewGuid() });
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = 100m, IslemAnahtari = Guid.NewGuid() });
 
         // racar_app'e UPDATE/DELETE grant'i VERİLMEDİ → mali belge yapısal olarak değişmez.
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -342,15 +342,15 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
             new DateTimeOffset(2028, 3, 1, 0, 0, 0, TimeSpan.Zero), 500m);
 
         var gelecek = DateTimeOffset.UtcNow.AddYears(50);
-        await Assert.ThrowsAsync<ValidationException>(() => reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, odemeTarih: gelecek));
-        await Assert.ThrowsAsync<ValidationException>(() => reg.MuayeneOdeAsync(insp, LedgerAccountType.Kasa, odemeTarih: gelecek));
+        await Assert.ThrowsAsync<ValidationException>(() => reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, paymentDate: gelecek));
+        await Assert.ThrowsAsync<ValidationException>(() => reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, paymentDate: gelecek));
 
         Assert.Empty(await DefterAsync(sp, "MtvOdeme"));
         Assert.Empty(await DefterAsync(sp, "MuayeneOdeme"));
         Assert.Equal(1000m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
 
         // Geçmiş tarih SERBEST (gerçek ödeme sonradan girilebilir).
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, odemeTarih: DateTimeOffset.UtcNow.AddDays(-10));
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, paymentDate: DateTimeOffset.UtcNow.AddDays(-10));
         Assert.Equal(0m, (await reg.ListMtvAsync()).Single(x => x.Id == mtv).Kalan);
     }
 
@@ -367,16 +367,16 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         var mtv = await reg.AddMtvAsync(v, "2026/1", 1000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
 
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-            reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, odeme: new RegulasyonOdemeInput { Tutar = 400m }));
+            reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = 400m }));
         Assert.Contains("işlem anahtarı zorunludur", ex.Message);
         Assert.Empty(await DefterAsync(sp, "MtvOdeme"));
 
         // Boş GUID de anahtar sayılmaz.
-        await Assert.ThrowsAsync<ValidationException>(() => reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
-            odeme: new RegulasyonOdemeInput { Tutar = 400m, IslemAnahtari = Guid.Empty }));
+        await Assert.ThrowsAsync<ValidationException>(() => reg.PayMtvAsync(mtv, LedgerAccountType.Kasa,
+            payment: new RegulasyonOdemeInput { Tutar = 400m, IslemAnahtari = Guid.Empty }));
 
         // Tam ödeme (Tutar yok) anahtarsız çalışır — eski davranış korunuyor.
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa);
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa);
         Assert.True((await reg.ListMtvAsync()).Single(x => x.Id == mtv).Odendi);
     }
 
@@ -391,8 +391,8 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
         var mtv = await reg.AddMtvAsync(v, "2026/1", 1000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
-            odeme: new RegulasyonOdemeInput { Tutar = 0.00004m, IslemAnahtari = Guid.NewGuid() }));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => reg.PayMtvAsync(mtv, LedgerAccountType.Kasa,
+            payment: new RegulasyonOdemeInput { Tutar = 0.00004m, IslemAnahtari = Guid.NewGuid() }));
         Assert.Contains("pozitif olmalıdır", ex.Message);
         Assert.Empty(await DefterAsync(sp, "MtvOdeme"));
     }
@@ -407,13 +407,13 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         var (sp, v) = await SeedAsync(scope, "34 GC 01");
         var reg = sp.GetRequiredService<RegulationService>();
         var mtv = await reg.AddMtvAsync(v, "2026/1", 1000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
-            odeme: new RegulasyonOdemeInput { Tutar = 400m, EvrakNo = "EV-1", IslemAnahtari = Guid.NewGuid() });
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Banka,
-            odeme: new RegulasyonOdemeInput { Tutar = 600m, EvrakNo = "EV-2", IslemAnahtari = Guid.NewGuid() });
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa,
+            payment: new RegulasyonOdemeInput { Tutar = 400m, EvrakNo = "EV-1", IslemAnahtari = Guid.NewGuid() });
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Banka,
+            payment: new RegulasyonOdemeInput { Tutar = 600m, EvrakNo = "EV-2", IslemAnahtari = Guid.NewGuid() });
 
         Assert.True((await reg.ListMtvAsync()).Single(x => x.Id == mtv).Odendi);
-        var hepsi = await reg.ListMtvOdemeHepsiAsync();
+        var hepsi = await reg.ListAllMtvPaymentsAsync();
         Assert.Equal(2, hepsi.Count);
         Assert.Equal(["EV-1", "EV-2"], hepsi.OrderBy(x => x.Sira).Select(x => x.EvrakNo ?? "").ToArray());
 
@@ -422,12 +422,12 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         var insp = await reg.AddInspectionAsync(v,
             new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2028, 3, 1, 0, 0, 0, TimeSpan.Zero), 800m);
-        await reg.MuayeneOdeAsync(insp, LedgerAccountType.Kasa, ceza: 300m,
-            odeme: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = Guid.NewGuid() });
+        await reg.PayInspectionAsync(insp, LedgerAccountType.Kasa, penalty: 300m,
+            payment: new RegulasyonOdemeInput { Tutar = 300m, IslemAnahtari = Guid.NewGuid() });
         var rec = (await reg.ListInspectionAsync()).Single(x => x.Id == insp);
         Assert.Equal(800m, rec.Kalan);
         Assert.Equal(rec.Ucret, rec.Kalan);                       // eski filtrenin kör noktası
-        Assert.Single(await reg.ListMuayeneOdemeHepsiAsync());     // yine de görünüyor
+        Assert.Single(await reg.ListAllInspectionPaymentsAsync());     // yine de görünüyor
     }
 
     [Fact]
@@ -443,8 +443,8 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
         var (sp, v) = await SeedAsync(scope, "34 IM 02");
         var reg = sp.GetRequiredService<RegulationService>();
         var mtv = await reg.AddMtvAsync(v, "2026/1", 500m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
-        await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa,
-            odeme: new RegulasyonOdemeInput { Tutar = 100m, IslemAnahtari = Guid.NewGuid() });
+        await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa,
+            payment: new RegulasyonOdemeInput { Tutar = 100m, IslemAnahtari = Guid.NewGuid() });
 
         await using var owner = new Npgsql.NpgsqlConnection(fx.OwnerConnectionString);
         await owner.OpenAsync();
@@ -475,14 +475,14 @@ public sealed class RegulasyonKismiOdemeTests(PostgresFixture fx)
             var (sp, v) = await SeedAsync(s1, "34 TZ 01");
             var reg = sp.GetRequiredService<RegulationService>();
             mtv = await reg.AddMtvAsync(v, "2026/1", 1000m, new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero));
-            await reg.MtvOdeAsync(mtv, LedgerAccountType.Kasa, odeme: new RegulasyonOdemeInput { Tutar = 400m, IslemAnahtari = Guid.NewGuid() });
+            await reg.PayMtvAsync(mtv, LedgerAccountType.Kasa, payment: new RegulasyonOdemeInput { Tutar = 400m, IslemAnahtari = Guid.NewGuid() });
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var reg2 = s2.ServiceProvider.GetRequiredService<RegulationService>();
         Assert.Empty(await reg2.ListMtvAsync());
-        Assert.Empty(await reg2.ListMtvOdemeAsync(mtv));
-        await Assert.ThrowsAsync<ValidationException>(() => reg2.MtvOdeAsync(mtv, LedgerAccountType.Kasa));
+        Assert.Empty(await reg2.ListMtvPaymentsAsync(mtv));
+        await Assert.ThrowsAsync<ValidationException>(() => reg2.PayMtvAsync(mtv, LedgerAccountType.Kasa));
 
         // Kaynak tenant'ta bakiye bozulmadı.
         using var s1b = host.ScopeFor(t1);

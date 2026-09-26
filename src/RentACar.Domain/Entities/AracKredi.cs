@@ -41,7 +41,7 @@ public class AracKredi : ITenantOwned, IAuditable
     public string Currency { get; set; } = "TRY";
     public decimal Kur { get; set; } = 1m;
 
-    public KrediDurum Durum { get; set; } = KrediDurum.Aktif;
+    public LoanStatus Durum { get; set; } = LoanStatus.Aktif;
     public string? Aciklama { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

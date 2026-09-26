@@ -73,7 +73,7 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<ReservationSourceService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(new ReservationSourceInput { Kod = "X", Ad = "Yetkisiz" }));
     }
 
@@ -165,7 +165,7 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
         var pasif = await svc.CreateAsync(new ReservationSourceInput { Kod = "P1", Ad = "Pasif" });
         await svc.UpdateAsync(pasif, new ReservationSourceInput { Kod = "P1", Ad = "Pasif", Aktif = false });
 
-        var adet = await svc.OranlariYansitAsync(kaynak);
+        var adet = await svc.ReflectRatesAsync(kaynak);
         Assert.Equal(2, adet);                                 // ELLE: yalnız B1 + B2
 
         foreach (var id in new[] { bos1, bos2 })
@@ -206,7 +206,7 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
         { Kod = "D1", Ad = "Dolu", KiraOrani = 30m, HizmetOrani = 30m, DropOrani = 30m });
 
         await svc.ListAsync();                                 // cache'i ISIT — yansıtma sonrası bayat kalmamalı
-        Assert.Equal(1, await svc.OranlariYansitAsync(kaynak));
+        Assert.Equal(1, await svc.ReflectRatesAsync(kaynak));
 
         var d = await svc.GetAsync(dolu);
         Assert.Null(d!.KiraOrani);
@@ -230,14 +230,14 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
 
         // Yetkisiz rol yansıtamaz (OperationsWrite).
         using (var muh = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe))
-            await Assert.ThrowsAsync<YetkiYokException>(
-                () => muh.ServiceProvider.GetRequiredService<ReservationSourceService>().OranlariYansitAsync(kaynak));
+            await Assert.ThrowsAsync<NoPermissionException>(
+                () => muh.ServiceProvider.GetRequiredService<ReservationSourceService>().ReflectRatesAsync(kaynak));
 
         // BAŞKA tenant'ın kaynağı GÖRÜNMEZ → "bulunamadı" (çapraz-tenant yansıtma imkânsız).
         using var baska = host.ScopeFor(Guid.NewGuid());
         var svc = baska.ServiceProvider.GetRequiredService<ReservationSourceService>();
         await svc.CreateAsync(new ReservationSourceInput { Kod = "X", Ad = "Yabancı", KiraOrani = 99m });
-        await Assert.ThrowsAsync<ValidationException>(() => svc.OranlariYansitAsync(kaynak));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ReflectRatesAsync(kaynak));
 
         // Diğer tenant'ın kaydı da etkilenmedi.
         using var geri = host.ScopeFor(tenant);
@@ -265,7 +265,7 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
             .CreateAsync(new RentACar.Application.RateMatrices.RateMatrixInput
             {
                 Kod = "EKO-WEB", Ad = "Eko Web", Kanal = "WEB", AracGrupKod = "EKO",
-                Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, OnayDurumu = TarifeOnayDurumu.Onayli
+                Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, OnayDurumu = TariffApprovalStatus.Onayli
             });
         var kaynak = await kaynaklar.CreateAsync(new ReservationSourceInput { Kod = "WEB", Ad = "Web Sitesi" });
         await kaynaklar.CreateAsync(new ReservationSourceInput { Kod = "TEL", Ad = "Telefon" });
@@ -292,7 +292,7 @@ public sealed class ReservationSourceTests(PostgresFixture fx)
             Kod = "WEB", Ad = "Web Sitesi", Aktif = true, Tedarikci = "Acente",
             KiraOrani = 50m, HizmetOrani = 50m, DropOrani = 50m
         });
-        await kaynaklar.OranlariYansitAsync(kaynak);
+        await kaynaklar.ReflectRatesAsync(kaynak);
 
         var sonra = await fiyat.PriceAsync(Istek());
         Assert.Equal(once.Gun, sonra.Gun);

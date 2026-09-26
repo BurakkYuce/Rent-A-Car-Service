@@ -88,28 +88,28 @@ public static partial class TanimApi
 
 public sealed record AccessoryDto(Guid Id, string Kod, string Ad, string? Aciklama, bool Aktif, string? Surum) : IDefinitionRow
 {
-    internal static readonly SiralamaHaritasi<AccessoryDto> Sort = SiralamaHaritasi<AccessoryDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("aktif", x => x.Aktif);
+    internal static readonly SortFieldMap<AccessoryDto> Sort = SortFieldMap<AccessoryDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("aktif", x => x.Aktif);
 }
 public sealed record AccessoryRequest(string? Kod, string? Ad, string? Aciklama, bool Aktif = true, string? Surum = null) : IDefinitionRequest;
 
 public sealed record CurrencyDto(Guid Id, string Kod, string Ad, string? Sembol, string? Ulke, bool Aktif, string? Surum) : IDefinitionRow
 {
-    internal static readonly SiralamaHaritasi<CurrencyDto> Sort = SiralamaHaritasi<CurrencyDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("ulke", x => x.Ulke).Alan("aktif", x => x.Aktif);
+    internal static readonly SortFieldMap<CurrencyDto> Sort = SortFieldMap<CurrencyDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("ulke", x => x.Ulke).Alan("aktif", x => x.Aktif);
 }
 public sealed record CurrencyRequest(string? Kod, string? Ad, string? Sembol, string? Ulke, bool Aktif = true, string? Surum = null) : IDefinitionRequest;
 
 public sealed record CustomCodeDto(Guid Id, string Kod, string Ad, string? Aciklama, string? Turu, bool Aktif, string? Surum) : IDefinitionRow
 {
-    internal static readonly SiralamaHaritasi<CustomCodeDto> Sort = SiralamaHaritasi<CustomCodeDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("turu", x => x.Turu).Alan("aktif", x => x.Aktif);
+    internal static readonly SortFieldMap<CustomCodeDto> Sort = SortFieldMap<CustomCodeDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("turu", x => x.Turu).Alan("aktif", x => x.Aktif);
 }
 public sealed record CustomCodeRequest(string? Kod, string? Ad, string? Aciklama, string? Turu, bool Aktif = true, string? Surum = null) : IDefinitionRequest;
 
 public sealed record ExpenseCategoryDto(Guid Id, string Kod, string Ad, string? Tur, bool Aktif, string? Surum) : IDefinitionRow
 {
-    internal static readonly SiralamaHaritasi<ExpenseCategoryDto> Sort = SiralamaHaritasi<ExpenseCategoryDto>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("tur", x => x.Tur).Alan("aktif", x => x.Aktif);
+    internal static readonly SortFieldMap<ExpenseCategoryDto> Sort = SortFieldMap<ExpenseCategoryDto>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("tur", x => x.Tur).Alan("aktif", x => x.Aktif);
 }
 public sealed record ExpenseCategoryRequest(string? Kod, string? Ad, string? Tur, bool Aktif = true, string? Surum = null) : IDefinitionRequest;

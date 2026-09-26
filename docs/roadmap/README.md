@@ -69,7 +69,7 @@ Bedeli: tek CI'da iki araç zinciri (.NET + Node) ve `src/RentACar.Frontend` iç
 
 | Yüzey | Korunacak sözleşme |
 |---|---|
-| Domain / Application / Infrastructure iş mantığı | Değişmez. Yalnız eklemeli: `YetkiYokException`, `MukerrerIslemException`, `ValidationException.Alan`, liste filtrelerine sayfa/sıralama, `TenantSettings.YeniArayuzPilot` (F1.2), `TabloDuzenleri` (F3.5, RLS'li). **Açık güvenlik istisnası:** `SearchService`'e `BranchScope` eklenir (F1.6). Bugün kapsam yok, Blazor `/ara` da düzelir |
+| Domain / Application / Infrastructure iş mantığı | Değişmez. Yalnız eklemeli: `NoPermissionException`, `DuplicateOperationException`, `ValidationException.Alan`, liste filtrelerine sayfa/sıralama, `TenantSettings.YeniArayuzPilot` (F1.2), `TabloDuzenleri` (F3.5, RLS'li). **Açık güvenlik istisnası:** `SearchService`'e `BranchScope` eklenir (F1.6). Bugün kapsam yok, Blazor `/ara` da düzelir |
 | Defter, RLS, tenant izolasyonu, para kuralları, `IslemAnahtari` (uuid) deseni | Dokunulmaz. Her uçta çift gönderim **bugünkü sonucu** verir (bazıları red, bazıları sessiz idempotent başarı; F1.4 envanteri). Sunucunun deterministik anahtarları (`TahsilatAnahtar`, `RowKey`) header'dan önceliklidir |
 | `RentACar.Api` (harici JWT API) | Mevcut 409 eşlemeleri (`conflict`/`duplicate`) değişmez. Yalnız eklenir: `YetkiYok` → 403, `Mukerrer` → 409 |
 | `RentACar.PublicSite` | Blazor'da kalır |
@@ -87,7 +87,7 @@ Bedeli: tek CI'da iki araç zinciri (.NET + Node) ve `src/RentACar.Frontend` iç
 | İddia | Sonuç | Etkisi |
 |---|---|---|
 | 148 `@page`, 91 uç dosyası, 334 `MapPost`, 0 `EditForm` | ✔ | Faz boyutları, veri kaybının kök nedeni |
-| Kira formu 24 servis inject ediyor; `FormVarsayilanCozucu` dahil | ✔ `KiraForm.razor:6-28,270-271` | F4.1 |
+| Kira formu 24 servis inject ediyor; `FormDefaultResolver` dahil | ✔ `KiraForm.razor:6-28,270-271` | F4.1 |
 | Kira formunun sorgu sözleşmesini (`varac`, `vfrom`, `vto`, `vgrup`, `musteriId`) Blazor'da kalan sayfalar kullanıyor; uç yönlendirmeleri `#sekme=` taşıyor | ✔ `KiraForm.razor:230-234`, `MusaitlikArama.razor:324-330`, `FleetStatus.razor:165`, `BookingEndpoints.cs:336-379` | SPA aynı parametreleri ve `#sekme=`'yi destekler (F4.3); yönlendirme sorgu + fragment korur |
 | Sayfa önekini paylaşan GET uçları (PDF, hesap, müsaitlik, makbuz) | ✔ `PdfEndpoints.cs:34-67`, `BookingEndpoints.cs:177,214,355` | Harita yalnız silinen `@page` şablonlarından |
 | Cookie `racar.session`; challenge `/login`'e 302 | ✔ `Program.cs:167-194` | `/app` anonim olmalı, yoksa `/login` → `/app/giris` → `/login` döngüsü |
@@ -97,7 +97,7 @@ Bedeli: tek CI'da iki araç zinciri (.NET + Node) ve `src/RentACar.Frontend` iç
 | Çift gönderimde davranış tek tip değil. Red: `CashRepository.cs:159-166,273-278`. Sessiz başarı: depozito `CashRepository.cs:349-362`, `ExpenseRepository.cs:124-128` (null), `LedgerPoster.cs:46-51` (no-op), fatura (mevcut id). Karışık catch'ler: `CashRepository:159` (anahtar + ters kayıt), `RegulationRepository:97-103`, `InvoiceRepository:292-300` | ✔ (ilk dördü okundu) | F1.4 envanteri uç başına "200 mü 409 mu" der; sınıflandırma `PostgresException.ConstraintName` ile |
 | `TahsilatAnahtar` deterministik, ekran yüklenirken üretiliyor (kira + bakiye + işlem sayısı) | ✔ `TahsilatAnahtar.cs:19-24`, `Home.razor:116`, `RentalList.razor:138` | Panel/liste DTO'su anahtarı taşır, SPA geri gönderir; header bunu ezemez |
 | `RentACar.Api` çakışmaya zaten 409 dönüyor (`conflict`, `duplicate`) | ✔ `ExceptionHandlingMiddleware.cs:12,24-30` | `/api/ui`'da `kod: cakisma` (409, yenileme yok) ≠ `mukerrer` |
-| Yetki reddi düz `ValidationException` ile: `PermissionGuard.cs:17,29`, `BranchScope.cs:42`, `ScreenPermissionService.cs:141` | ✔ | Üçü de `YetkiYokException` |
+| Yetki reddi düz `ValidationException` ile: `PermissionGuard.cs:17,29`, `BranchScope.cs:42`, `ScreenPermissionService.cs:141` | ✔ | Üçü de `NoPermissionException` |
 | `SearchService` "Yetki gerektirmez"; `SearchRepository` şube kapsamı yok. `ListSecimAsync` yetkisiz ve sınırsız, tüm müşteri adlarını dönüyor (KVKK: ad kişisel veridir) | ✔ `SearchService.cs:5`, `CustomerService.cs:37-38` | F1.6: arama → `BranchScope`; seçim uçları typeahead (`q`, `limit ≤ 20`) + `IzinMetadata` |
 | `InvoiceService` List/Search/Get/ListByRental korumasız | ✔ `InvoiceService.cs:33-57` | Alt kayıt uçları üst kaydın kapsamından geçer |
 | `yayinla.sh` root ister ve repo checkout'ından derler; tek VPS'te Postgres de var; kurulum yalnız runtime kuruyor ve `if ! command -v dotnet` ile korunuyor | ✔ `yayinla.sh:33,63`, `kurulum.sh:50-54` | Sunucuda npm yok (CI artifact); SDK kontrolü `dotnet --list-sdks` ile |
@@ -133,8 +133,8 @@ Rent-A-Car-Service/
 **İmzalar**
 
 - **Backend kayıtları ve istisnalar:**
-  - `sealed class YetkiYokException(string mesaj) : ValidationException(mesaj)`
-  - `sealed class MukerrerIslemException(string mesaj) : ValidationException(mesaj)`
+  - `sealed class NoPermissionException(string mesaj) : ValidationException(mesaj)`
+  - `sealed class DuplicateOperationException(string mesaj) : ValidationException(mesaj)`
   - `ValidationException(string mesaj, string? alan = null)`
   - `record ListeIstegi(int Sayfa = 1, int Boyut = 50, string? Sirala = null)`, en fazla 200
   - `record Sayfa<T>(IReadOnlyList<T> Kayitlar, int Toplam, int SayfaNo, int Boyut)`

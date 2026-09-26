@@ -9,7 +9,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// RLS ile otomatik. Yazma yolları TEK SaveChanges kullanır — sihirbaz yarıda kalırsa filo
 /// yarı-ilanlı kalmamalı.
 /// </summary>
-public sealed class WebIlanRepository(IDbContextFactory<AppDbContext> factory) : IWebIlanRepository
+public sealed class WebIlanRepository(IDbContextFactory<AppDbContext> factory) : IWebListingRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -55,13 +55,13 @@ public sealed class WebIlanRepository(IDbContextFactory<AppDbContext> factory) :
         return id is { } g ? await FindAsync(g, ct) : null;
     }
 
-    public async Task<IReadOnlyList<string>> ListSluglarAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> ListSlugsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.WebIlanlar.AsNoTracking().Select(i => i.Slug).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<WebIlan>> FindByAnahtarAsync(string anahtar, CancellationToken ct = default)
+    public async Task<IReadOnlyList<WebIlan>> FindByKeyAsync(string anahtar, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.WebIlanlar.AsNoTracking()
@@ -69,7 +69,7 @@ public sealed class WebIlanRepository(IDbContextFactory<AppDbContext> factory) :
             .OrderBy(i => i.CreatedAtUtc).ToListAsync(ct);
     }
 
-    public async Task CreateWithUyelikAsync(
+    public async Task CreateWithMembershipAsync(
         IReadOnlyList<(WebIlan Ilan, bool Yeni, IReadOnlyList<Guid> AracIdler)> gruplar, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -115,7 +115,7 @@ public sealed class WebIlanRepository(IDbContextFactory<AppDbContext> factory) :
     /// <summary>Kardeş = AYNI eşleşme anahtarına sahip, HÂLÂ TASLAK olan diğer ilanlar. Yayındaki bir
     /// ilanın fiyatı buradan DEĞİŞTİRİLMEZ — "ayrı" modda 12 taslak yaratılır, fiyat hepsine iner;
     /// sonradan tek tek düzenlenenler yayında olduğu için korunur.</summary>
-    public async Task<int> KardeslereFiyatKopyalaAsync(Guid kaynakIlanId, CancellationToken ct = default)
+    public async Task<int> CopyPriceToSiblingsAsync(Guid kaynakIlanId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var kaynak = await db.WebIlanlar.AsNoTracking().FirstOrDefaultAsync(i => i.Id == kaynakIlanId, ct);
@@ -136,7 +136,7 @@ public sealed class WebIlanRepository(IDbContextFactory<AppDbContext> factory) :
         return kardesler.Count;
     }
 
-    public async Task ReplaceOzelliklerAsync(
+    public async Task ReplaceFeaturesAsync(
         Guid ilanId, IReadOnlyList<WebIlanOzellik> satirlar, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -159,7 +159,7 @@ public sealed class WebIlanRepository(IDbContextFactory<AppDbContext> factory) :
         return true;
     }
 
-    public async Task<IReadOnlyList<Vehicle>> ListIlansizAraclarAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<Vehicle>> ListVehiclesWithoutListingAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Vehicles.AsNoTracking().Where(v => v.WebIlanId == null)

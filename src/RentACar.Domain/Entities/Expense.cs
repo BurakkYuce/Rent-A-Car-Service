@@ -50,7 +50,7 @@ public class Expense : ITenantOwned, IAuditable, IBranchScoped
     public string Currency { get; set; } = "TRY";
     public decimal Kur { get; set; } = 1m;
 
-    public OdemeYontemi OdemeYontemi { get; set; } = OdemeYontemi.Nakit;
+    public PaymentMethod OdemeYontemi { get; set; } = PaymentMethod.Nakit;
     /// <summary>Nakit/Banka ödemede karşı hesap (Kasa/Banka).</summary>
     public LedgerAccountType KasaBankaHesap { get; set; } = LedgerAccountType.Kasa;
 

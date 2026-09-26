@@ -36,8 +36,8 @@ public static partial class CrmApi
 
     private static ProblemHttpResult LegalNotFound() => F5Ortak.Bulunamadi("Hukuk dosyası bulunamadı.");
 
-    private static readonly SiralamaHaritasi<LegalFileRow> LegalSort = SiralamaHaritasi<LegalFileRow>
-        .Olustur(r => r.Id)
+    private static readonly SortFieldMap<LegalFileRow> LegalSort = SortFieldMap<LegalFileRow>
+        .Create(r => r.Id)
         .Alan("dosyaNo", r => r.DosyaNo).Alan("tarih", r => r.Tarih).Alan("tur", r => r.Tur).Alan("durum", r => r.Durum)
         .Alan("tutar", r => r.Tutar).Alan("tahsilat", r => r.Tahsilat).Alan("kalan", r => r.Kalan).Alan("avukat", r => r.Avukat);
 
@@ -55,7 +55,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Ok<Sayfa<LegalFileRow>>> ListLegalFiles(
-        [AsParameters] LegalFileListFilter f, HukukDosyaService files, IDbContextFactory<AppDbContext> dbf,
+        [AsParameters] LegalFileListFilter f, LegalCaseService files, IDbContextFactory<AppDbContext> dbf,
         int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         Sinirlar.Metin(f.Ara, 100, "ara", "Arama metni");
@@ -65,8 +65,8 @@ public static partial class CrmApi
         var items = await files.SearchAsync(new HukukDosyaFilter
         {
             CariId = f.CariId, Bas = min, Bit = max, FaturaNo = F5Ortak.Nz(f.FaturaNo), DosyaNo = F5Ortak.Nz(f.DosyaNo),
-            Ara = F5Ortak.Nz(f.Ara), Tur = F5Ortak.EnumAdi<HukukTuru>(f.Tur, "tur"),
-            Durum = F5Ortak.EnumAdi<HukukDurum>(f.Durum, "durum"), EnFazla = 10_000,
+            Ara = F5Ortak.Nz(f.Ara), Tur = F5Ortak.EnumAdi<LegalType>(f.Tur, "tur"),
+            Durum = F5Ortak.EnumAdi<LegalStatus>(f.Durum, "durum"), EnFazla = 10_000,
         }, ct);
         var rows = await LegalRowsAsync(dbf, items.Select(x => x.Dosya).ToList(), ct);
         return TypedResults.Ok(F5Ortak.Sayfala(rows, LegalSort, sayfa, boyut, sirala));
@@ -86,10 +86,10 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Ok<LegalFileCardDto>, ProblemHttpResult>> GetLegalFile(
-        Guid id, HukukDosyaService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        Guid id, LegalCaseService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
         => await LegalCardAsync(id, files, dbf, ct) is { } c ? TypedResults.Ok(c) : LegalNotFound();
 
-    private static async Task<LegalFileCardDto?> LegalCardAsync(Guid id, HukukDosyaService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+    private static async Task<LegalFileCardDto?> LegalCardAsync(Guid id, LegalCaseService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var version = await files.GetVersionAsync(id, ct);
         var h = await files.GetAsync(id, ct);
@@ -112,8 +112,8 @@ public static partial class CrmApi
         await CrmScope.RequireCustomerAsync(dbf, r.CariId, "cariId", ct);
         return new HukukDosyaInput
         {
-            DosyaNo = r.DosyaNo, CariId = r.CariId, Tur = F5Ortak.EnumAdi<HukukTuru>(r.Tur, "tur") ?? HukukTuru.Dava,
-            Avukat = r.Avukat, Tutar = r.Tutar, Durum = F5Ortak.EnumAdi<HukukDurum>(r.Durum, "durum") ?? HukukDurum.Acik,
+            DosyaNo = r.DosyaNo, CariId = r.CariId, Tur = F5Ortak.EnumAdi<LegalType>(r.Tur, "tur") ?? LegalType.Dava,
+            Avukat = r.Avukat, Tutar = r.Tutar, Durum = F5Ortak.EnumAdi<LegalStatus>(r.Durum, "durum") ?? LegalStatus.Acik,
             Tarih = F5Ortak.Utc(r.Tarih), Aciklama = r.Aciklama, Aktif = r.Aktif, FaturaNoTemp = r.FaturaNoTemp,
             AvukatTel = r.AvukatTel, AvukatMail = r.AvukatMail, Avukat2Ad = r.Avukat2Ad, Avukat2Tel = r.Avukat2Tel,
             Avukat2Mail = r.Avukat2Mail, Tahsilat = r.Tahsilat,
@@ -121,7 +121,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Created<LegalFileCardDto>, ProblemHttpResult>> CreateLegalFile(
-        LegalFileRequest request, HukukDosyaService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        LegalFileRequest request, LegalCaseService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var id = await files.CreateAsync(await LegalInputAsync(request, dbf, ct), ct);
         return await LegalCardAsync(id, files, dbf, ct) is { } c
@@ -129,7 +129,7 @@ public static partial class CrmApi
     }
 
     private static async Task<Results<Ok<LegalFileCardDto>, ProblemHttpResult>> UpdateLegalFile(
-        Guid id, LegalFileUpdateRequest request, HukukDosyaService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        Guid id, LegalFileUpdateRequest request, LegalCaseService files, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         if (await files.GetAsync(id, ct) is null) return LegalNotFound();
         if (string.IsNullOrWhiteSpace(request.Surum))
@@ -138,6 +138,6 @@ public static partial class CrmApi
         return await LegalCardAsync(id, files, dbf, ct) is { } c ? TypedResults.Ok(c) : LegalNotFound();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteLegalFile(Guid id, HukukDosyaService files, CancellationToken ct)
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteLegalFile(Guid id, LegalCaseService files, CancellationToken ct)
         => await files.DeleteAsync(id, ct) ? TypedResults.NoContent() : LegalNotFound();
 }

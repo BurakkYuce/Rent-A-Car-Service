@@ -22,14 +22,14 @@ public interface IInvoiceRepository
     Task<IReadOnlyList<Invoice>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default);
 
     /// <summary>Verilen kaynak fatura için zaten bir iade faturası kesilmiş mi? (idempotency ön-kontrol)</summary>
-    Task<bool> IadeExistsForAsync(Guid kaynakFaturaId, CancellationToken ct = default);
+    Task<bool> RefundExistsForAsync(Guid sourceInvoiceId, CancellationToken ct = default);
 
     /// <summary>Bir kira için fark-hesabı durumu TEK ATOMİK snapshot'ta (RepeatableRead): (a) faturalanmış NET
     /// BRÜT = base+fark (Iptal + iade-faturası hariç) − iade brütü; (b) kesilmiş fark SAYISI (iade dahil = sıra
     /// sayacı). İkisi AYNI snapshot'tan okunur → eşzamanlı fark isteklerinde faturalanan/sıra TUTARLI (TOCTOU
     /// yok): ya ikisi de fark-öncesi (aynı sıra → unique index çakışır) ya ikisi de fark-sonrası (fark=0 red).
     /// Sıradaki fark sıra no = FarkSayisi + 1 (idempotency doğal anahtarı; adversarial Kritik-1 + V6).</summary>
-    Task<(decimal FaturalananBrut, int FarkSayisi)> GetFarkStateAsync(Guid rentalId, CancellationToken ct = default);
+    Task<(decimal FaturalananBrut, int FarkSayisi)> GetDifferenceStateAsync(Guid rentalId, CancellationToken ct = default);
 
     /// <summary>
     /// Fatura + satırlar + DENGELİ defter kümesini TEK transaction'da işler. No boşluksuz
@@ -44,6 +44,6 @@ public interface IInvoiceRepository
     /// KaynakKiraFarkSira unique index ikinci savunma).</summary>
     /// <returns>Kesilen faturanın id'si; dönem kilidin arkasında zaten Kesildi ise (çift gönderim)
     /// MEVCUT faturanın id'si (F1.4 — sıralı ve eşzamanlı ikinci istek aynı sessiz başarıyı alır).</returns>
-    Task<Guid> PostDonemAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
-        Guid donemId, decimal kesilenTutar, decimal beklenenFaturalanan, CancellationToken ct = default);
+    Task<Guid> PostPeriodAsync(Invoice invoice, IReadOnlyList<AccountLedgerEntry> entries,
+        Guid periodId, decimal issuedAmount, decimal expectedInvoiced, CancellationToken ct = default);
 }

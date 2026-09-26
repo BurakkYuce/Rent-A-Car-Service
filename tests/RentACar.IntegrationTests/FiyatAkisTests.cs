@@ -29,7 +29,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
             {
                 Kod = "EKO-BASE", Ad = "Eko Baz", AracGrupKod = "EKO", // Kanal null → booking akışı (kanalsız) eşleşir
                 Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, Gun4 = 875m, Gun5 = 850m, Gun6 = 825m, Gun7 = 800m,
-                OnayDurumu = matrisOnayli ? TarifeOnayDurumu.Onayli : TarifeOnayDurumu.Bekliyor
+                OnayDurumu = matrisOnayli ? TariffApprovalStatus.Onayli : TariffApprovalStatus.Bekliyor
             });
         return vehicleId;
     }
@@ -95,7 +95,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var vehicleId = await SeedVehicleWithMatrixAsync(scope.ServiceProvider, matris: false);
         await scope.ServiceProvider.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
-        { Kod = "EUR-M", Ad = "Euro", AracGrupKod = "EKO", Gun5 = 100m, ParaBirimi = "EUR", OnayDurumu = TarifeOnayDurumu.Onayli });
+        { Kod = "EUR-M", Ad = "Euro", AracGrupKod = "EKO", Gun5 = 100m, ParaBirimi = "EUR", OnayDurumu = TariffApprovalStatus.Onayli });
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
         var id = await rentals.CreateDirectAsync(Booking(vehicleId, cari: await TestCari.YeniAsync(scope.ServiceProvider), manuelUcret: 0m));
@@ -114,7 +114,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         {
             Kod = "WEB-M", Ad = "Web", AracGrupKod = "EKO", Kanal = "WEB",
             Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, Gun4 = 875m, Gun5 = 850m, Gun6 = 825m, Gun7 = 800m,
-            OnayDurumu = TarifeOnayDurumu.Onayli
+            OnayDurumu = TariffApprovalStatus.Onayli
         });
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
@@ -132,7 +132,7 @@ public sealed class FiyatAkisTests(PostgresFixture fx)
         var vehicleId = await SeedVehicleWithMatrixAsync(scope.ServiceProvider, matris: false);
         // Eşleşen ama gün-kademesi BOŞ matris (tüm Gun null).
         await scope.ServiceProvider.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
-        { Kod = "EMPTY-M", Ad = "Boş", AracGrupKod = "EKO", OnayDurumu = TarifeOnayDurumu.Onayli });
+        { Kod = "EMPTY-M", Ad = "Boş", AracGrupKod = "EKO", OnayDurumu = TariffApprovalStatus.Onayli });
         // Aynı gruba eski RateCard 333 (fallback'e DÜŞMEMELİ çünkü matris eşleşti).
         await scope.ServiceProvider.GetRequiredService<RateCardService>().CreateAsync(new RateCardInput
         { Kod = "RC-EKO", Ad = "Eski", Grup = "EKO", MinGun = 1, MaxGun = 999, GunlukUcret = 333m, Doviz = "TRY", Aktif = true });

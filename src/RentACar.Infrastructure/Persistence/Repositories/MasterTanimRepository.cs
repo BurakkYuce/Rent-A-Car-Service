@@ -6,14 +6,14 @@ using RentACar.Domain.Common;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>
-/// <see cref="IMasterTanimRepository{T}"/> generic gövdesi (denetim O12d — 10 birebir-kopya reponun
+/// <see cref="IMasterDefinitionRepository{T}"/> generic gövdesi (denetim O12d — 10 birebir-kopya reponun
 /// ortak tabanı): kısa-ömürlü context'ler (factory), AsNoTracking, <c>db.Set&lt;T&gt;()</c>.
 /// Tenant izolasyonu RLS + query filter ile otomatik. Kod benzersizliği DB unique index ile;
 /// ihlal (23505) → adTekil ile entity-özgü ValidationException ("'X' kodlu marka zaten var.").
 /// Alt sınıflar İNCEDİR: yalnız factory + adTekil geçirip somut IXRepository'yi işaretler.
 /// </summary>
 public abstract class MasterTanimRepository<T>(IDbContextFactory<AppDbContext> factory, string adTekil)
-    : IMasterTanimRepository<T> where T : class, IMasterTanim
+    : IMasterDefinitionRepository<T> where T : class, IMasterDefinition
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
     private readonly string _adTekil = adTekil;
@@ -36,7 +36,7 @@ public abstract class MasterTanimRepository<T>(IDbContextFactory<AppDbContext> f
         return await db.Set<T>().AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();

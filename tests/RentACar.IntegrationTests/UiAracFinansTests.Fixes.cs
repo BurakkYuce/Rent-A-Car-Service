@@ -12,17 +12,17 @@ public sealed partial class UiAracFinansTests
     /// Bekliyor→Onaylandı, Bekliyor→TeslimAlındı, Onaylandı→TeslimAlındı, Bekliyor→İptal, Onaylandı→İptal.
     /// Aynı duruma geçiş no-op (200). Geri kalan her çift 409 cakisma (TeslimAlındı ve İptal terminal).
     /// </summary>
-    private static readonly HashSet<(SiparisDurum From, SiparisDurum To)> AllowedOrderTransitions =
+    private static readonly HashSet<(OrderStatus From, OrderStatus To)> AllowedOrderTransitions =
     [
-        (SiparisDurum.Bekliyor, SiparisDurum.Onaylandi), (SiparisDurum.Bekliyor, SiparisDurum.TeslimAlindi),
-        (SiparisDurum.Onaylandi, SiparisDurum.TeslimAlindi), (SiparisDurum.Bekliyor, SiparisDurum.Iptal),
-        (SiparisDurum.Onaylandi, SiparisDurum.Iptal),
+        (OrderStatus.Bekliyor, OrderStatus.Onaylandi), (OrderStatus.Bekliyor, OrderStatus.TeslimAlindi),
+        (OrderStatus.Onaylandi, OrderStatus.TeslimAlindi), (OrderStatus.Bekliyor, OrderStatus.Iptal),
+        (OrderStatus.Onaylandi, OrderStatus.Iptal),
     ];
 
-    private static readonly (SiparisDurum To, string Action, string Flag)[] OrderActions =
+    private static readonly (OrderStatus To, string Action, string Flag)[] OrderActions =
     [
-        (SiparisDurum.Onaylandi, "onayla", "onayla"), (SiparisDurum.TeslimAlindi, "teslim-al", "teslimAl"),
-        (SiparisDurum.Iptal, "iptal", "iptal"),
+        (OrderStatus.Onaylandi, "onayla", "onayla"), (OrderStatus.TeslimAlindi, "teslim-al", "teslimAl"),
+        (OrderStatus.Iptal, "iptal", "iptal"),
     ];
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed partial class UiAracFinansTests
     {
         var o = await OrtamKurAsync();
         var s = await GirisAsync(o, Kim.OperatorA);
-        foreach (var from in Enum.GetValues<SiparisDurum>())
+        foreach (var from in Enum.GetValues<OrderStatus>())
         {
             // Yetki bayrakları oracle ile aynı olmalı (tek kaynak).
             var probe = await OrderInStateAsync(o, from);
@@ -59,7 +59,7 @@ public sealed partial class UiAracFinansTests
         var o = await OrtamKurAsync();
         var tab1 = await GirisAsync(o, Kim.OperatorA);
         var tab2 = await GirisAsync(o, Kim.OperatorA);
-        var id = await OrderInStateAsync(o, SiparisDurum.Onaylandi);
+        var id = await OrderInStateAsync(o, OrderStatus.Onaylandi);
         await Json(await Gonder(tab1, HttpMethod.Post, $"{Siparis}/{id}/teslim-al"));
         await ProblemBekle(await Gonder(tab2, HttpMethod.Post, $"{Siparis}/{id}/onayla"), HttpStatusCode.Conflict, "cakisma");
         await ProblemBekle(await Gonder(tab2, HttpMethod.Post, $"{Siparis}/{id}/iptal"), HttpStatusCode.Conflict, "cakisma");
@@ -68,7 +68,7 @@ public sealed partial class UiAracFinansTests
         Assert.False(d.GetProperty("yetkiler").GetProperty("teslimAl").GetBoolean());
     }
 
-    private async Task<Guid> OrderInStateAsync(Ortam o, SiparisDurum state)
+    private async Task<Guid> OrderInStateAsync(Ortam o, OrderStatus state)
     {
         var order = new AracSiparis { No = "SP-T" + Guid.NewGuid().ToString("N")[..8], Tedarikci = "Bayi", Adet = 1, BirimFiyat = 10m, Durum = state };
         await VeriYazAsync(o.TenantId, db => db.AracSiparisleri.Add(order));

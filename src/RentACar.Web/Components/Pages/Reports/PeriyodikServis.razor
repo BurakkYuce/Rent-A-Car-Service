@@ -85,7 +85,7 @@ aralığı (Servis Tanımları). Hedefsiz araçlar "tanım yok" olarak listeleni
 
     protected override async Task OnInitializedAsync()
     {
-        _rows = await Reports.GetPeriyodikServisAsync(new PeriyodikServisFilter
+        _rows = await Reports.GetPeriodicServiceAsync(new PeriyodikServisFilter
         {
             Plaka = Plaka, Sube = Sube,
             Aktif = bool.TryParse(Durum, out var a) ? a : null,

@@ -140,7 +140,7 @@ public sealed partial class UiTanimTests
         await WriteAsync(env.TenantId, db =>
         {
             db.FinancialAccounts.Add(new FinancialAccount { Kod = "BNK1", Ad = "Ziraat TL", Banka = "Ziraat" });
-            db.Customers.Add(new Customer { Tip = RentACar.Domain.Enums.CariType.Bireysel, Ad = "Ece", Soyad = "Kaya", OzelKod = "VIP" });
+            db.Customers.Add(new Customer { Tip = RentACar.Domain.Enums.CustomerType.Bireysel, Ad = "Ece", Soyad = "Kaya", OzelKod = "VIP" });
         });
         await ExpectProblem(await Send(op, HttpMethod.Delete, $"{V1}/bankalar/{bank}"), HttpStatusCode.BadRequest, "dogrulama");
         await ExpectProblem(await Send(op, HttpMethod.Delete, $"{V1}/ozel-kodlar/{code}"), HttpStatusCode.BadRequest, "dogrulama");

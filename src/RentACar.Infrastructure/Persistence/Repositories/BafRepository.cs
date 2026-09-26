@@ -48,7 +48,7 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
         if (filtre.Lokasyon is { } lok)
         {
             // Şubelerden biri boşsa kayıt HİÇBİR kovaya girmez — bilinmeyeni "aynı" saymak yanlış bilgi olurdu.
-            q = lok == RentACar.Application.Baflar.BafLokasyon.AyniOfis
+            q = lok == RentACar.Application.Baflar.BafLocation.AyniOfis
                 ? q.Where(x => x.Sube != null && x.DonusSube != null && x.Sube == x.DonusSube)
                 : q.Where(x => x.Sube != null && x.DonusSube != null && x.Sube != x.DonusSube);
         }
@@ -57,7 +57,7 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
         {
             // Baf'ta plaka kolonu YOK (VehicleId var) → Vehicles alt-sorgusu. Plaka DB'de boşluksuz-büyük
             // harf saklanır → arama terimi de AYNI kuraldan geçer (tek kural, kopya yok).
-            var pl = RentACar.Application.Vehicles.VehicleService.PlakaAnahtar(filtre.Plaka);
+            var pl = RentACar.Application.Vehicles.VehicleService.PlateKey(filtre.Plaka);
             q = q.Where(x => db.Vehicles.Any(v => v.Id == x.VehicleId && EF.Functions.ILike(v.Plaka, $"%{pl}%")));
         }
 
@@ -76,19 +76,19 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.Baf, ct);
+            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Baf, ct);
             db.Baflar.Add(row);
             try { await db.SaveChangesAsync(ct); }
             catch (DbUpdateException ex) when (PkIhlali.Mi(ex)) // F6.1b: Id = işlem anahtarı → çift gönderim
             {
                 await tx.RollbackAsync(ct);
-                throw new RentACar.Application.Common.MukerrerIslemException(PkIhlali.Mesaj);
+                throw new RentACar.Application.Common.DuplicateOperationException(PkIhlali.Mesaj);
             }
             await tx.CommitAsync(ct);
         }, ct);
     }
 
-    public async Task<bool> TeslimAlAsync(Guid id, int donusKm, int? donusYakit, DateTimeOffset donusTarihi,
+    public async Task<bool> ReceiveAsync(Guid id, int donusKm, int? donusYakit, DateTimeOffset donusTarihi,
         string? donusSube, TimeOnly? donusSaat, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -100,24 +100,24 @@ public sealed class BafRepository(IDbContextFactory<AppDbContext> factory) : IBa
         // FAZ-18: boş geçilirse MEVCUT değer korunur (kısmi güncelleme sıfırlamaya dönüşmesin).
         if (!string.IsNullOrWhiteSpace(donusSube)) row.DonusSube = donusSube.Trim();
         if (donusSaat is { } ds) row.DonusSaat = ds;
-        row.Durum = BafDurum.Kapandi;
+        row.Durum = BafStatus.Kapandi;
         row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return true;
     }
 
-    public async Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var row = await db.Baflar.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (row is null) return false;
-        row.Durum = BafDurum.Iptal;
+        row.Durum = BafStatus.Iptal;
         row.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return true;
     }
 
-    public Task<bool> KilitliGuncelleAsync(Guid id, Action<Baf> apply, CancellationToken ct = default)
+    public Task<bool> UpdateLockedAsync(Guid id, Action<Baf> apply, CancellationToken ct = default)
         => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Baflar, id, beklenenSurum: null,
             (db, k, c) => db.Baflar.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 }

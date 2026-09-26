@@ -248,7 +248,7 @@
             Bit = ParseGun(Bit)?.AddDays(1).AddTicks(-1)   // bitiş günü DAHİL
         });
         // PII'siz seçim listesi (ListAsync tüm müşterilerin TC/ehliyetini çözerdi).
-        _cariler = await Customers.ListSecimAsync();
+        _cariler = await Customers.ListForSelectAsync();
 
         // Süzgeç seçenekleri VERİDEN türetilir (sabit liste bakımı unutulur).
         var tumu = await Invoices.SearchAsync();

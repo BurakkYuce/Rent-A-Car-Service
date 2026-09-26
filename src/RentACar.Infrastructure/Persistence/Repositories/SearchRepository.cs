@@ -55,7 +55,7 @@ public sealed class SearchRepository(IDbContextFactory<AppDbContext> factory) : 
 
         // F11.1b güvenlik M5 (KVKK, #280 kuralı): adı anonimleştirilmiş cari GERÇEK adıyla eşleşmez — yalnız görünen
         // etiketiyle; başlık etiket, alt satır boş, sıra da etiketten (sıra gerçek adı sızdırmasın).
-        var label = Application.Customers.CariAnonimlik.AdEtiketi;
+        var label = Application.Customers.CustomerAnonymity.NameLabel;
         var cariler = await db.Customers.AsNoTracking()
             .Where(c => c.AnonimAd
                 ? EF.Functions.ILike(label, like)

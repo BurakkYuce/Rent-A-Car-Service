@@ -58,7 +58,7 @@ public sealed class UiKiraPanelSurumTests(WebFixture fx)
             await db.SaveChangesAsync();
         }
         await fx.PilotYapAsync(tenantId, true);
-        var musteri = new Customer { Tip = CariType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz" };
+        var musteri = new Customer { Tip = CustomerType.Bireysel, Ad = "Deniz", Soyad = "Yılmaz" };
         await VeriYazAsync(tenantId, db => db.Customers.Add(musteri));
         return new Ortam(tenantId, kod, kullanici, sifre, musteri.Id);
     }
@@ -170,7 +170,7 @@ public sealed class UiKiraPanelSurumTests(WebFixture fx)
         var g1 = Govde(bayat);
         g1["aciklama"] = "bayat sekme";
         var p = await ProblemBekle(await Gonder(s1, HttpMethod.Put, $"{Kira}/{id}", g1), HttpStatusCode.Conflict, UiHata.Cakisma);
-        Assert.Equal(EszamanliDegisiklikException.KiraMesaji, p.GetProperty("detail").GetString());
+        Assert.Equal(ConcurrentModificationException.RentalMessage, p.GetProperty("detail").GetString());
         var db = await KiraOkuAsync(s1, id);
         Assert.Equal(300m, db.GetProperty("dropUcreti").GetDecimal());
         Assert.Equal(JsonValueKind.Null, db.GetProperty("aciklama").ValueKind);
@@ -201,8 +201,8 @@ public sealed class UiKiraPanelSurumTests(WebFixture fx)
     {
         var o = await OrtamKurAsync();
         var s = await GirisAsync(o);
-        var ikinci = new Customer { Tip = CariType.Bireysel, Ad = "İkinci", Soyad = "Sürücü" };
-        var serbest = new Customer { Tip = CariType.Bireysel, Ad = "Serbest", Soyad = "Cari" };
+        var ikinci = new Customer { Tip = CustomerType.Bireysel, Ad = "İkinci", Soyad = "Sürücü" };
+        var serbest = new Customer { Tip = CustomerType.Bireysel, Ad = "Serbest", Soyad = "Cari" };
         await VeriYazAsync(o.TenantId, db => { db.Customers.Add(ikinci); db.Customers.Add(serbest); });
         var id = await KiraAcAsync(s, o, Simdi().AddHours(12));
         var g = Govde(await KiraOkuAsync(s, id));

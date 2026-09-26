@@ -44,7 +44,7 @@ public static class BranchApi
         g.MapGet("/{id:guid}/hizmetler", async Task<Results<Ok<IReadOnlyList<BranchServiceDto>>, ProblemHttpResult>> (Guid id, BranchService s, CancellationToken ct)
             => await s.GetAsync(id, ct) is null
                 ? NotFound()
-                : TypedResults.Ok<IReadOnlyList<BranchServiceDto>>((await s.ListHizmetlerAsync(id, ct))
+                : TypedResults.Ok<IReadOnlyList<BranchServiceDto>>((await s.ListServicesAsync(id, ct))
                     .Select(h => new BranchServiceDto(h.Id, h.HizmetAdi, h.Aciklama)).ToList()));
 
         g.MapPost("/{id:guid}/hizmetler", async Task<Results<Created<BranchServiceDto>, ProblemHttpResult>> (Guid id, BranchServiceRequest b, BranchService s, CancellationToken ct) =>
@@ -52,19 +52,19 @@ public static class BranchApi
             if (await s.GetAsync(id, ct) is null) return NotFound();
             Sinirlar.Metin(b.HizmetAdi, 128, "hizmetAdi", "Hizmet adı");
             Sinirlar.Metin(b.Aciklama, 512, "aciklama", "Açıklama");
-            var hid = await s.AddHizmetAsync(new SubeUcretsizHizmetInput { SubeId = id, HizmetAdi = b.HizmetAdi ?? "", Aciklama = b.Aciklama }, ct);
-            var row = (await s.ListHizmetlerAsync(id, ct)).First(h => h.Id == hid);
+            var hid = await s.AddServiceAsync(new SubeUcretsizHizmetInput { SubeId = id, HizmetAdi = b.HizmetAdi ?? "", Aciklama = b.Aciklama }, ct);
+            var row = (await s.ListServicesAsync(id, ct)).First(h => h.Id == hid);
             return TypedResults.Created($"{UiApiExtensions.V1}/subeler/{id}/hizmetler/{hid}", new BranchServiceDto(row.Id, row.HizmetAdi, row.Aciklama));
         }).AlanlariEsle([("Hizmet adı", "hizmetAdi")]);
 
         // The service id alone identifies the row; it must belong to the branch in the path (no cross-branch delete).
         g.MapDelete("/{id:guid}/hizmetler/{hizmetId:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, Guid hizmetId, BranchService s, CancellationToken ct)
-            => (await s.ListHizmetlerAsync(id, ct)).Any(h => h.Id == hizmetId) && await s.RemoveHizmetAsync(hizmetId, ct)
+            => (await s.ListServicesAsync(id, ct)).Any(h => h.Id == hizmetId) && await s.RemoveServiceAsync(hizmetId, ct)
                 ? TypedResults.NoContent()
                 : F5Ortak.Bulunamadi("Hizmet bulunamadı."));
 
         g.MapGet("/birlestir/onizleme", async Task<Results<Ok<BranchMergePreviewDto>, ProblemHttpResult>> (Guid kaynakId, Guid hedefId, BranchService s, CancellationToken ct)
-            => await s.BirlestirOnizleAsync(kaynakId, hedefId, ct) is { } p
+            => await s.PreviewMergeAsync(kaynakId, hedefId, ct) is { } p
                 ? TypedResults.Ok(new BranchMergePreviewDto(p.KaynakAd, p.HedefAd,
                     p.Etkilenen.Select(e => new BranchMergeCountDto(e.Tablo, e.Adet)).ToList(), p.Toplam))
                 : NotFound());
@@ -72,7 +72,7 @@ public static class BranchApi
         g.MapPost("/birlestir", async Task<Ok<BranchMergeResultDto>> (BranchMergeRequest b, BranchService s, CancellationToken ct) =>
         {
             if (b.Onay is not true) throw new ValidationException("Birleştirme geri alınamaz; onaylayın.", "onay");
-            return TypedResults.Ok(new BranchMergeResultDto(await s.BirlestirAsync(b.KaynakId ?? Guid.Empty, b.HedefId ?? Guid.Empty, ct)));
+            return TypedResults.Ok(new BranchMergeResultDto(await s.MergeAsync(b.KaynakId ?? Guid.Empty, b.HedefId ?? Guid.Empty, ct)));
         }).AlanlariEsle([("Kaynak ve hedef şube farklı", "hedefId"), ("Kaynak ve hedef şube seçilmelidir", "kaynakId"),
             ("Kaynak şube", "kaynakId"), ("Hedef şube", "hedefId")]);
     }
@@ -95,7 +95,7 @@ public static class BranchApi
     {
         if (id is not { } v) return;
         var a = await s.GetAsync(v, ct) ?? throw new ValidationException($"{label} bulunamadı.", field);
-        if (HesapCozucu.TuruCoz(a.Tur) != kind)
+        if (AccountResolver.ResolveType(a.Tur) != kind)
             throw new ValidationException($"{label} {kind} türünde olmalıdır.", field);
     }
 

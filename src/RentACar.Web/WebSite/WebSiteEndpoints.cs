@@ -30,17 +30,17 @@ public static class WebSiteEndpoints
             .AntiforgeryByEnv();
 
         // ---- Adım 1: araç seçimi → TASLAK ilan(lar) ----
-        grp.MapPost("/ilan/olustur", async (WebIlanService svc, HttpRequest req) =>
+        grp.MapPost("/ilan/olustur", async (WebListingService svc, HttpRequest req) =>
         {
             var ayri = req.Form["mod"].ToString() == "ayri"; // varsayılan: beraber
             try
             {
                 // Beraber modda form İMZA gönderir (bir satır = bir model kümesi), ayrı modda ARAÇ ID'si.
                 var ilanId = ayri
-                    ? await svc.AdimBirAsync(
+                    ? await svc.StepOneAsync(
                         [.. req.Form["aracId"].Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty)],
-                        beraber: false)
-                    : await svc.AdimBirImzaAsync([.. req.Form["imza"].Select(s => s ?? "").Where(s => s.Length > 0)]);
+                        together: false)
+                    : await svc.StepOneSignatureAsync([.. req.Form["imza"].Select(s => s ?? "").Where(s => s.Length > 0)]);
                 return Sonuc.Tamam($"/web-sitesi/ilan/{ilanId}/fiyat", "Kayıt oluşturuldu.");
             }
             catch (ValidationException ex)
@@ -50,12 +50,12 @@ public static class WebSiteEndpoints
         });
 
         // ---- Adım 2: fiyat ----
-        grp.MapPost("/ilan/{id:guid}/fiyat/kaydet", async (WebIlanService svc, Guid id, HttpRequest req) =>
+        grp.MapPost("/ilan/{id:guid}/fiyat/kaydet", async (WebListingService svc, Guid id, HttpRequest req) =>
         {
             var f = req.Form;
             try
             {
-                await svc.AdimIkiAsync(id,
+                await svc.StepTwoAsync(id,
                     FormParse.Dec(FormParse.Str(f, "gunlukFiyat")) ?? 0m,
                     FormParse.Dec(FormParse.Str(f, "haftalikToplam")),
                     FormParse.Dec(FormParse.Str(f, "aylikToplam")),
@@ -66,7 +66,7 @@ public static class WebSiteEndpoints
         });
 
         // ---- Adım 3: teknik özellikler → YAYINDA ----
-        grp.MapPost("/ilan/{id:guid}/ozellikler/kaydet", async (WebIlanService svc, Guid id, HttpRequest req) =>
+        grp.MapPost("/ilan/{id:guid}/ozellikler/kaydet", async (WebListingService svc, Guid id, HttpRequest req) =>
         {
             var f = req.Form;
             // Satırlar paralel dizilerle gelir: etiket[i] / deger[i] / gorunur (checkbox → index listesi).
@@ -87,7 +87,7 @@ public static class WebSiteEndpoints
             {
                 // false = özellikler kaydedildi ama FOTOĞRAF olmadığı için taslakta kaldı. Sessizce
                 // "yayınlandı" demek yalan olurdu: vitrin fotosuz ilanı hiç göstermiyor.
-                if (await svc.AdimUcAsync(id, satirlar))
+                if (await svc.StepThreeAsync(id, satirlar))
                     return Results.Redirect("/web-sitesi?ok=1");
                 return Results.Redirect($"/web-sitesi/ilan/{id}/ozellikler?hata="
                     + Uri.EscapeDataString("Özellikler kaydedildi. Yayınlamak için en az bir fotoğraf ekleyin — "
@@ -100,38 +100,38 @@ public static class WebSiteEndpoints
         // Vitrinin yayın şartlarından biri "üye araçlardan en az birinin fotoğrafı var". Sihirbazda
         // yükleme yolu OLMADIĞI için personel, hub'daki "Foto yok" teşhisini görüp de çaresine
         // ulaşamıyordu (tek yol araç düzenleme ekranıydı). Yol artık sihirbazın içinde.
-        grp.MapPost("/ilan/{id:guid}/foto", async (WebIlanService svc, Guid id, IFormFile? foto) =>
+        grp.MapPost("/ilan/{id:guid}/foto", async (WebListingService svc, Guid id, IFormFile? foto) =>
         {
             var geri = $"/web-sitesi/ilan/{id}/ozellikler";
             if (foto is null || foto.Length == 0) return Results.Redirect(geri);
             using var ms = new MemoryStream();
             await foto.CopyToAsync(ms);
-            try { await svc.FotoEkleAsync(id, ms.ToArray()); return Results.Redirect(geri); }
+            try { await svc.AddPhotoAsync(id, ms.ToArray()); return Results.Redirect(geri); }
             catch (ValidationException ex) { return Geri(geri, ex); }
         }).WithMetadata(new RequestSizeLimitAttribute(3_000_000)); // 2 MB foto + multipart payı (araç ucuyla aynı)
 
         grp.MapPost("/ilan/{id:guid}/foto/{vehicleId:guid}/{photoId:guid}/sil",
-            async (WebIlanService svc, Guid id, Guid vehicleId, Guid photoId) =>
+            async (WebListingService svc, Guid id, Guid vehicleId, Guid photoId) =>
         {
             var geri = $"/web-sitesi/ilan/{id}/ozellikler";
-            try { await svc.FotoSilAsync(id, vehicleId, photoId); return Results.Redirect(geri); }
+            try { await svc.DeletePhotoAsync(id, vehicleId, photoId); return Results.Redirect(geri); }
             catch (ValidationException ex) { return Geri(geri, ex); }
         });
 
         // ---- Yönetim ----
-        grp.MapPost("/ilan/{id:guid}/durum", async (WebIlanService svc, Guid id, [FromForm] string durum) =>
+        grp.MapPost("/ilan/{id:guid}/durum", async (WebListingService svc, Guid id, [FromForm] string durum) =>
         {
             try
             {
-                await svc.SetDurumAsync(id, durum == "pasif" ? WebIlanDurum.Pasif : WebIlanDurum.Yayinda);
+                await svc.SetStatusAsync(id, durum == "pasif" ? WebIlanDurum.Pasif : WebIlanDurum.Yayinda);
                 return Results.Redirect("/web-sitesi?ok=1");
             }
             catch (ValidationException ex) { return Geri("/web-sitesi", ex); }
         });
 
-        grp.MapPost("/ilan/{id:guid}/sil", async (WebIlanService svc, Guid id) =>
+        grp.MapPost("/ilan/{id:guid}/sil", async (WebListingService svc, Guid id) =>
         {
-            try { await svc.SilAsync(id); return Results.Redirect("/web-sitesi?ok=1"); }
+            try { await svc.DeleteAsync(id); return Results.Redirect("/web-sitesi?ok=1"); }
             catch (ValidationException ex) { return Geri("/web-sitesi", ex); }
         });
 

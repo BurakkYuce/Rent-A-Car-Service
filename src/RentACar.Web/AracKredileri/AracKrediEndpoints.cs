@@ -17,7 +17,7 @@ public static class AracKrediEndpoints
     {
         var grp = app.MapGroup("/arac-kredi").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (AracKrediService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (VehicleLoanService svc, HttpRequest req) =>
         {
             var f = req.Form;
             string? S(string k) { var v = f[k].ToString(); return string.IsNullOrWhiteSpace(v) ? null : v; }
@@ -41,24 +41,24 @@ public static class AracKrediEndpoints
         // Adversarial 1.3 M2: taksit artık DEFTER yazar → FinanceWrite grubu (Muhasebe erişir;
         // grubun geri kalanı — create/iptal/toplu-iptal — OperationsWrite kalır).
         var fin = app.MapGroup("/arac-kredi").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
-        fin.MapPost("/taksit-ode", async (AracKrediService svc, HttpRequest req, [FromForm] Guid id,
+        fin.MapPost("/taksit-ode", async (VehicleLoanService svc, HttpRequest req, [FromForm] Guid id,
             [FromForm] string? hesap, [FromForm] string? islemAnahtari, [FromForm] string? hesapId) =>
-            await Durum(req, () => svc.TaksitOdeAsync(id,
+            await Durum(req, () => svc.PayInstallmentAsync(id,
                 string.Equals(hesap, "Banka", StringComparison.OrdinalIgnoreCase) ? Domain.Enums.LedgerAccountType.Banka : Domain.Enums.LedgerAccountType.Kasa,
                 null, FormParse.Id(islemAnahtari), FormParse.Id(hesapId))));   // FAZ-50
 
-        grp.MapPost("/iptal", async (AracKrediService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Durum(req, () => svc.IptalAsync(id))).RequirePermission(Permission.OperationsDelete);
+        grp.MapPost("/iptal", async (VehicleLoanService svc, HttpRequest req, [FromForm] Guid id) =>
+            await Durum(req, () => svc.CancelAsync(id))).RequirePermission(Permission.OperationsDelete);
 
         // FAZ-13 — toplu "Taksitleri İptal Et". Seçim checkbox'ları tablo satırlarının İÇİNDE ama
         // form= attribute'üyle tablonun DIŞINDAKİ bu forma bağlı (satırlarda zaten form var; iç içe
         // form HTML'de yasak). Deftere yazmaz → OperationsWrite grubunda.
-        grp.MapPost("/taksit-iptal", async (AracKrediService svc, HttpRequest req) =>
+        grp.MapPost("/taksit-iptal", async (VehicleLoanService svc, HttpRequest req) =>
         {
             var ids = req.Form["id"].Select(FormParse.Id).OfType<Guid>().ToList();
             return await Durum(req, async () =>
             {
-                var n = await svc.TaksitleriIptalEtAsync(ids);
+                var n = await svc.CancelInstallmentsAsync(ids);
                 // Hiç satır etkilenmediyse sessiz başarı yanıltıcı olur (kullanıcı "iptal ettim"
                 // sanır): seçilenlerin hepsi zaten kapalı/iptalse bunu söyle.
                 if (n == 0) throw new ValidationException("Seçilen kredilerin hiçbiri aktif değil; iptal edilecek taksit yok.");

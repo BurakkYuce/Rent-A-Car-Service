@@ -33,7 +33,7 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         return await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 
-    public async Task<Branch?> FindByAdAsync(string ad, CancellationToken ct = default)
+    public async Task<Branch?> FindByNameAsync(string ad, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Tenant-scoped (query filter + RLS) + EXACT case-insensitive eşleşme (adversarial M2: ILike pattern
@@ -46,7 +46,7 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();
@@ -108,21 +108,21 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
 
     // ---- FAZ-23: şubeye özel ücretsiz hizmet ----
 
-    public async Task<IReadOnlyList<SubeUcretsizHizmet>> ListHizmetlerAsync(Guid subeId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<SubeUcretsizHizmet>> ListServicesAsync(Guid subeId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SubeUcretsizHizmetler.AsNoTracking()
             .Where(x => x.SubeId == subeId).OrderBy(x => x.HizmetAdi).ToListAsync(ct);
     }
 
-    public async Task AddHizmetAsync(SubeUcretsizHizmet row, CancellationToken ct = default)
+    public async Task AddServiceAsync(SubeUcretsizHizmet row, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         db.SubeUcretsizHizmetler.Add(row);
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<bool> RemoveHizmetAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> RemoveServiceAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var row = await db.SubeUcretsizHizmetler.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -140,7 +140,7 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
     // Bu yüzden AŞAĞIDAKİ LİSTE, şubeye referans veren TÜM tabloları kapsar. Yeni bir tablo
     // şube referansı eklerse buraya da eklenmelidir (SubeBirlestirmeKapsamTests bunu kilitler).
 
-    public async Task<IReadOnlyList<(string Tablo, int Adet)>> BirlestirSayimAsync(
+    public async Task<IReadOnlyList<(string Tablo, int Adet)>> MergeCountAsync(
         Guid kaynakId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -198,7 +198,7 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         return sonuc;
     }
 
-    public async Task<int> BirlestirAsync(Guid kaynakId, Guid hedefId, CancellationToken ct = default)
+    public async Task<int> MergeAsync(Guid kaynakId, Guid hedefId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var kaynak = await db.Branches.FirstOrDefaultAsync(b => b.Id == kaynakId, ct)

@@ -41,7 +41,7 @@ public sealed class PdfExportService
                 p.Size(PageSizes.A4);
                 p.Margin(24);
                 p.DefaultTextStyle(t => t.FontSize(8).FontColor("#111827"));
-                var pb = string.Equals(RentACar.Application.Kur.KurService.NormalizeKod(s.Doviz), "TRY",
+                var pb = string.Equals(RentACar.Application.Kur.ExchangeRateService.NormalizeCode(s.Doviz), "TRY",
                     StringComparison.OrdinalIgnoreCase) ? "TL" : (s.Doviz ?? "TL");
                 string DT(DateTimeOffset? d) => d is { } x ? x.LocalDateTime.ToString("dd.MM.yyyy") : "";
                 string Sa(DateTimeOffset? d) => d is { } x ? x.LocalDateTime.ToString("HH:mm") : "";
@@ -54,7 +54,7 @@ public sealed class PdfExportService
                     ["FirmaUnvan"] = s.FirmaUnvan, ["FirmaMarka"] = s.FirmaMarka, ["FirmaVergiNo"] = s.FirmaVergiNo,
                     ["BelgeNo"] = s.SozlesmeNo, ["Tarih"] = s.BasTar.LocalDateTime.ToString("dd.MM.yyyy")
                 };
-                string Metin(string? sablon, string varsayilan) => SablonToken.Uygula(sablon ?? varsayilan, tk) ?? varsayilan;
+                string Metin(string? sablon, string varsayilan) => TemplateToken.Apply(sablon ?? varsayilan, tk) ?? varsayilan;
 
                 // ---- ÜST BAŞLIK ----
                 p.Header().Row(r =>
@@ -63,7 +63,7 @@ public sealed class PdfExportService
                     {
                         if (s.FirmaLogo is { Length: > 0 } logo)
                             c.Item().PaddingBottom(3).Height(38).AlignLeft().Image(logo).FitHeight(); // PR-C firma logosu
-                        c.Item().Text(Metin(s.SablonBaslik, BelgeSablonVarsayilan.SozlesmeBaslik)).FontSize(11).Bold();
+                        c.Item().Text(Metin(s.SablonBaslik, DocumentTemplateDefaults.ContractTitle)).FontSize(11).Bold();
                         if (s.FirmaTel is not null) c.Item().Text($"OFİS TEL : {s.FirmaTel}").FontSize(8).SemiBold();
                         if (s.FirmaMobilTel is not null) c.Item().Text($"MOBİL TEL : {s.FirmaMobilTel}").FontSize(8).SemiBold();
                         if (s.FirmaAdres is not null) c.Item().Text(s.FirmaAdres).FontSize(8).SemiBold();
@@ -170,9 +170,9 @@ public sealed class PdfExportService
                     col.Item().PaddingTop(2).Row(r =>
                     {
                         r.RelativeItem().Border(0.75f).BorderColor(Line).Padding(4)
-                            .Text(Metin(s.SablonHukukiSol, BelgeSablonVarsayilan.SozlesmeHukukiSol)).FontSize(7);
+                            .Text(Metin(s.SablonHukukiSol, DocumentTemplateDefaults.ContractLegalLeft)).FontSize(7);
                         r.RelativeItem().BorderVertical(0.75f).BorderRight(0.75f).BorderColor(Line).Padding(4)
-                            .Text(Metin(s.SablonHukukiSag, BelgeSablonVarsayilan.SozlesmeHukukiSag)).FontSize(7);
+                            .Text(Metin(s.SablonHukukiSag, DocumentTemplateDefaults.ContractLegalRight)).FontSize(7);
                     });
 
                     // ========== EK KOŞULLAR (FAZ 4.4 — kira-özel şartlar; varsa basılır) ==========
@@ -283,9 +283,9 @@ public sealed class PdfExportService
                 p.Margin(40);
                 p.DefaultTextStyle(t => t.FontSize(9).FontColor("#111827"));
                 var tk = MarkaTokenlari(marka, inv.No, $"{inv.Tarih:dd.MM.yyyy}");
-                var baslik = SablonToken.Uygula(sablon?.Baslik, tk)
-                    ?? (inv.IadeMi ? "İADE FATURASI" : BelgeSablonVarsayilan.FaturaBaslik);
-                var altBilgi = SablonToken.Uygula(sablon?.AltBilgi, tk)
+                var baslik = TemplateToken.Apply(sablon?.Baslik, tk)
+                    ?? (inv.IadeMi ? "İADE FATURASI" : DocumentTemplateDefaults.InvoiceTitle);
+                var altBilgi = TemplateToken.Apply(sablon?.AltBilgi, tk)
                     ?? $"{marka.Marka ?? marka.Unvan ?? ""} — {inv.No}";
                 p.Header().Element(h => MarkaBaslik(h, marka, baslik, inv.No,
                     $"Tarih: {inv.Tarih:dd.MM.yyyy}" + (inv.VadeTarihi is { } v ? $"  ·  Vade: {v:dd.MM.yyyy}" : "")));
@@ -315,8 +315,8 @@ public sealed class PdfExportService
                 p.DefaultTextStyle(t => t.FontSize(10).FontColor("#111827"));
                 var makbuzTip = tx.Tip == RentACar.Domain.Enums.CashTransactionType.Tahsilat ? "TAHSİLAT MAKBUZU" : "ÖDEME MAKBUZU";
                 var tk = MarkaTokenlari(marka, tx.No, $"{tx.Tarih:dd.MM.yyyy}");
-                var baslik = SablonToken.Uygula(sablon?.Baslik, tk) ?? makbuzTip;
-                var altBilgi = SablonToken.Uygula(sablon?.AltBilgi, tk) ?? $"{marka.Marka ?? marka.Unvan ?? ""} — {tx.No}";
+                var baslik = TemplateToken.Apply(sablon?.Baslik, tk) ?? makbuzTip;
+                var altBilgi = TemplateToken.Apply(sablon?.AltBilgi, tk) ?? $"{marka.Marka ?? marka.Unvan ?? ""} — {tx.No}";
                 p.Header().Element(h => MarkaBaslik(h, marka, baslik, tx.No, $"Tarih: {tx.Tarih:dd.MM.yyyy}"));
                 p.Content().PaddingVertical(16).Column(col =>
                 {

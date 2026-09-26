@@ -75,7 +75,7 @@
     <label>Onay
         <select name="durum">
             <option value="">— tümü —</option>
-            @foreach (var d in Enum.GetValues<TarifeOnayDurumu>()) { <option value="@d" selected="@(d.ToString() == Durum)">@d</option> }
+            @foreach (var d in Enum.GetValues<TariffApprovalStatus>()) { <option value="@d" selected="@(d.ToString() == Durum)">@d</option> }
         </select>
     </label>
     <button type="submit">Filtrele</button>
@@ -83,8 +83,8 @@
 </form>
 
 <p class="muted small">@_rows.Count satır@(FiltreVar ? " (filtreli)" : "") ·
-    @_rows.Count(r => r.OnayDurumu == TarifeOnayDurumu.Bekliyor) bekleyen ·
-    @_rows.Count(r => r.OnayDurumu == TarifeOnayDurumu.Onayli) onaylı</p>
+    @_rows.Count(r => r.OnayDurumu == TariffApprovalStatus.Bekliyor) bekleyen ·
+    @_rows.Count(r => r.OnayDurumu == TariffApprovalStatus.Onayli) onaylı</p>
 
 @if (!string.IsNullOrWhiteSpace(Kanal))
 {
@@ -141,7 +141,7 @@
                 <td class="num">@Para(r.Gun7)</td>
                 <td>@(r.ParaBirimi ?? "—")</td>
                 <td>
-                    <span class="status-pill @(r.OnayDurumu == TarifeOnayDurumu.Onayli ? "sp-success" : "sp-warn")">@r.OnayDurumu</span>
+                    <span class="status-pill @(r.OnayDurumu == TariffApprovalStatus.Onayli ? "sp-success" : "sp-warn")">@r.OnayDurumu</span>
                 </td>
                 <td>@(r.Aktif ? "Aktif" : "Pasif")</td>
             </tr>
@@ -172,7 +172,7 @@
     /// şube/onay filtresini tanımadığı için aksi hâlde ekran ile eylem ayrışırdı (adversarial M1).
     /// Onay filtresi "Bekliyor" ise ekran zaten tam olarak silinecek kümeyi gösterir → serbest.</summary>
     private bool SilmeKutusuGorunur => string.IsNullOrWhiteSpace(Sube)
-        && (string.IsNullOrWhiteSpace(Durum) || Durum == nameof(TarifeOnayDurumu.Bekliyor));
+        && (string.IsNullOrWhiteSpace(Durum) || Durum == nameof(TariffApprovalStatus.Bekliyor));
 
     private static string Tarih(DateTimeOffset? d) => d?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—";
     private static string Para(decimal? v) => v is { } x ? x.ToString("N2") : "—";
@@ -196,7 +196,7 @@
             q = q.Where(r => string.Equals(r.Kanal?.Trim(), Kanal.Trim(), StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(Sube))
             q = q.Where(r => string.Equals(r.Sube?.Trim(), Sube.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (Enum.TryParse<TarifeOnayDurumu>(Durum, out var d))
+        if (Enum.TryParse<TariffApprovalStatus>(Durum, out var d))
             q = q.Where(r => r.OnayDurumu == d);
         _rows = q.OrderBy(r => r.Kod).ToList();
 
@@ -204,6 +204,6 @@
         // ayrı bir sayım yazsaydı, kural değiştiğinde iki sayı sessizce ayrışır ve kullanıcı
         // yanlış sayıyı onaylardı. Yüklem SAF olduğu için ikinci bir DB okuması gerekmez:
         // filtresiz liste zaten elimizde (adversarial L4 — sayfa tek okuma yapar).
-        _silinecek = hepsi.Count(r => RateMatrixService.SilmeAdayi(r, Kanal));
+        _silinecek = hepsi.Count(r => RateMatrixService.DeletionCandidate(r, Kanal));
     }
 }

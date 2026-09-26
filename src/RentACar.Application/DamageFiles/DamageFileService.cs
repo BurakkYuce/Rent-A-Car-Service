@@ -31,33 +31,33 @@ public sealed class DamageFileService(IDamageFileRepository repository)
             AcilisTarihi = input.AcilisTarihi ?? DateTimeOffset.UtcNow,
             Aciklama = input.Aciklama,
             TahminiTutar = input.TahminiTutar,
-            Durum = HasarDurum.Acik
+            Durum = DamageStatus.Acik
         };
         await _repository.CreateAsync(file, ct);
         return file.Id;
     }
 
     /// <summary>Açık → Onayda (onaya gönder).</summary>
-    public Task<bool> OnayaGonderAsync(Guid id, CancellationToken ct = default)
-        => Transition(id, HasarDurum.Onayda, from: [HasarDurum.Acik], note: null, ct);
+    public Task<bool> SendForApprovalAsync(Guid id, CancellationToken ct = default)
+        => Transition(id, DamageStatus.Onayda, from: [DamageStatus.Acik], note: null, ct);
 
     /// <summary>Onayda → Onaylandi.</summary>
-    public Task<bool> OnaylaAsync(Guid id, string? not = null, CancellationToken ct = default)
-        => Transition(id, HasarDurum.Onaylandi, from: [HasarDurum.Onayda], note: not, ct);
+    public Task<bool> ApproveAsync(Guid id, string? not = null, CancellationToken ct = default)
+        => Transition(id, DamageStatus.Onaylandi, from: [DamageStatus.Onayda], note: not, ct);
 
     /// <summary>Onayda → Reddedildi.</summary>
-    public Task<bool> ReddetAsync(Guid id, string? not = null, CancellationToken ct = default)
-        => Transition(id, HasarDurum.Reddedildi, from: [HasarDurum.Onayda], note: not, ct);
+    public Task<bool> RejectAsync(Guid id, string? not = null, CancellationToken ct = default)
+        => Transition(id, DamageStatus.Reddedildi, from: [DamageStatus.Onayda], note: not, ct);
 
     /// <summary>Onaylandi/Reddedildi → Kapali (dosyayı kapat).</summary>
-    public Task<bool> KapatAsync(Guid id, CancellationToken ct = default)
-        => Transition(id, HasarDurum.Kapali, from: [HasarDurum.Onaylandi, HasarDurum.Reddedildi], note: null, ct);
+    public Task<bool> CloseAsync(Guid id, CancellationToken ct = default)
+        => Transition(id, DamageStatus.Kapali, from: [DamageStatus.Onaylandi, DamageStatus.Reddedildi], note: null, ct);
 
     private Task<bool> Transition(
-        Guid id, HasarDurum to, HasarDurum[] from, string? note, CancellationToken ct)
+        Guid id, DamageStatus to, DamageStatus[] from, string? note, CancellationToken ct)
         // F6.1b: geçiş çiti satır kilidinin ALTINDA (önce kilitsiz UpdateAsync — eşzamanlı onayla + reddet ikisi de
         // "Onayda" görüp son yazan kazanıyordu). Semantik aynı; Blazor yolu da bu kilitten yararlanır.
-        => _repository.KilitliGuncelleAsync(id, f =>
+        => _repository.UpdateLockedAsync(id, f =>
         {
             if (Array.IndexOf(from, f.Durum) < 0)
                 throw new ValidationException($"'{f.Durum}' durumundan '{to}' durumuna geçilemez.");

@@ -36,9 +36,9 @@ public static class ListExportEndpoints
         grp.MapGet("/{liste}", async (string liste, string? format, HttpRequest req,
             VehicleService vs, CustomerService cs, InvoiceService inv,
             PenaltyService ps, ExpenseService es, CashService cash,
-            VehicleSaleService vss, AracSiparisService asp, AracKrediService akr, BafService baf,
-            RentalService rs, ReservationService rez, LocationService loc, DropTanimService drop,
-            FiloKiralamaService fks, VadeService vade, HukukDosyaService hukuk,
+            VehicleSaleService vss, VehicleOrderService asp, VehicleLoanService akr, BafService baf,
+            RentalService rs, ReservationService rez, LocationService loc, DropDefinitionService drop,
+            FleetRentalService fks, DueService vade, LegalCaseService hukuk,
             ReportExportService ex, PdfExportService pdf) =>
         {
             // Cari ekstre parametreli (cariId) → switch dışında; carinin defter satır-detayı + yürüyen bakiye.
@@ -91,7 +91,7 @@ public static class ListExportEndpoints
                     })),
                 // FAZ-67: export ekranla AYNI kaynaktan (cari adı/kodu çözümlü) ve ekrandaki
                 // süzgeçlerle beslenir — "gördüğün = indirdiğin".
-                "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.SearchIslemlerAsync(new CashFilter
+                "nakit-islemler" => ListExportCatalog.NakitIslemler(await cash.SearchTransactionsAsync(new CashFilter
                 {
                     Ara = NullIfEmpty(req.Query["q"].ToString()),
                     Tip = Enum.TryParse<CashTransactionType>(req.Query["tip"].ToString(), out var nkTip) ? nkTip : null,
@@ -111,7 +111,7 @@ public static class ListExportEndpoints
                         Ara = NullIfEmpty(req.Query["araF"].ToString()),
                         Arac = NullIfEmpty(req.Query["aracF"].ToString()),
                         DosyaNo = NullIfEmpty(req.Query["dosyaF"].ToString()),
-                        Durum = Enum.TryParse<SiparisDurum>(req.Query["durumF"].ToString(), out var sd) ? sd : null,
+                        Durum = Enum.TryParse<OrderStatus>(req.Query["durumF"].ToString(), out var sd) ? sd : null,
                         Bas = FormParse.Date(req.Query["bas"].ToString()),
                         Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1)
                     }),
@@ -124,7 +124,7 @@ public static class ListExportEndpoints
                         CariId = FormParse.Id(req.Query["cariF"].ToString()),
                         Plaka = NullIfEmpty(req.Query["plakaF"].ToString()),
                         DosyaNo = NullIfEmpty(req.Query["dosyaF"].ToString()),
-                        Durum = Enum.TryParse<KrediDurum>(req.Query["durumF"].ToString(), out var kd) ? kd : null,
+                        Durum = Enum.TryParse<LoanStatus>(req.Query["durumF"].ToString(), out var kd) ? kd : null,
                         Bas = FormParse.Date(req.Query["bas"].ToString()),
                         Bit = FormParse.Date(req.Query["bit"].ToString())?.AddDays(1).AddTicks(-1)
                     }),
@@ -160,8 +160,8 @@ public static class ListExportEndpoints
                     FaturaNo = NullIfEmpty(req.Query["faturaNo"].ToString()),
                     DosyaNo = NullIfEmpty(req.Query["dosyaNo"].ToString()),
                     Ara = NullIfEmpty(req.Query["ara"].ToString()),
-                    Tur = Enum.TryParse<HukukTuru>(req.Query["tur"].ToString(), out var ht) ? ht : null,
-                    Durum = Enum.TryParse<HukukDurum>(req.Query["durum"].ToString(), out var hd) ? hd : null
+                    Tur = Enum.TryParse<LegalType>(req.Query["tur"].ToString(), out var ht) ? ht : null,
+                    Durum = Enum.TryParse<LegalStatus>(req.Query["durum"].ToString(), out var hd) ? hd : null
                 })),
                 _ => null
             };
@@ -172,7 +172,7 @@ public static class ListExportEndpoints
         // Personel export AYRI grup — HASSAS PII (TC + maaş) → ManageUsers (Admin) gate'i (ViewReports YETMEZ).
         // KVKK: docs/ops/kvkk-export-notu.md. decrypt cipher'ları bellekte çözer; erişim Serilog request-log'unda izlenir.
         var personel = app.MapGroup("/listeler/export-personel").RequirePermission(Permission.ManageUsers);
-        personel.MapGet("/", async (PersonelService ps, ISecretProtector secrets, ReportExportService ex, PdfExportService pdf, string? format) =>
+        personel.MapGet("/", async (PersonnelService ps, ISecretProtector secrets, ReportExportService ex, PdfExportService pdf, string? format) =>
         {
             var t = ListExportCatalog.Personel(await ps.ListAsync(), c => secrets.Unprotect(c));
             return ExportFile(t, format, ex, pdf, "personel");

@@ -132,7 +132,7 @@ public sealed class LokasyonDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
 
         // Saf fonksiyon — DB gerekmez.
-        var n = LocationService.HaftaNormalize(
+        var n = LocationService.NormalizeWeek(
         [
             new GunSaat { Gun = 3, Acilis = "  ", Kapanis = null },   // saat yok → kapalı
             new GunSaat { Gun = 0, Acilis = "08:00" },                // geçersiz gün → düşer
@@ -183,7 +183,7 @@ public sealed class LokasyonDerinlikTests(PostgresFixture fx)
         }
 
         using var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
             muh.ServiceProvider.GetRequiredService<LocationService>().CreateAsync(Dolu("YENI", "Yetkisiz")));
     }
 }

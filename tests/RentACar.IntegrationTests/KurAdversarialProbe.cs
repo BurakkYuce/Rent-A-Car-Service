@@ -107,12 +107,12 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         // ELLE oracle: USD=34.50, EUR=45, USD>TL, EUR→USD = 45/30*100 (ama USD 34.50 kullanalım)
         await SeedRawAsync(scope, K("USD", 34.50m), K("EUR", 45m));
-        var kur = scope.ServiceProvider.GetRequiredService<KurService>();
+        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
 
-        Assert.Equal(3450m, await kur.CevirAsync(100m, "USD", "TL", Cuma));      // 100×34.50
-        Assert.Equal(100m, await kur.CevirAsync(3450m, "TL", "USD", Cuma));      // ters: 3450/34.50
+        Assert.Equal(3450m, await kur.ConvertAsync(100m, "USD", "TL", Cuma));      // 100×34.50
+        Assert.Equal(100m, await kur.ConvertAsync(3450m, "TL", "USD", Cuma));      // ters: 3450/34.50
         // EUR→USD: 100 EUR = 4500 TL = 4500/34.50 USD ≈ 130.4347826...
-        var eurUsd = await kur.CevirAsync(100m, "EUR", "USD", Cuma);
+        var eurUsd = await kur.ConvertAsync(100m, "EUR", "USD", Cuma);
         Assert.Equal(4500m / 34.50m, eurUsd);
         Assert.True(eurUsd > 100m); // EUR TL'de USD'den değerli → >100 USD
     }
@@ -124,7 +124,7 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         await SeedRawAsync(scope, K("ZZZ", 30m, birim: 0)); // bozuk birim
-        var kur = scope.ServiceProvider.GetRequiredService<KurService>();
+        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
         Assert.Equal(30m, await kur.GetRateAsync("ZZZ", Cuma)); // 30 / (0→1) = 30, patlamaz
     }
 
@@ -135,7 +135,7 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         await SeedRawAsync(scope, K("NEG", -5m), K("ZER", 0m));
-        var kur = scope.ServiceProvider.GetRequiredService<KurService>();
+        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
         await Assert.ThrowsAsync<ValidationException>(() => kur.GetRateAsync("NEG", Cuma));
         await Assert.ThrowsAsync<ValidationException>(() => kur.GetRateAsync("ZER", Cuma));
     }
@@ -147,9 +147,9 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         await SeedRawAsync(scope, K("USD", satis: 34.50m, alis: 34.00m));
-        var kur = scope.ServiceProvider.GetRequiredService<KurService>();
-        Assert.Equal(34.50m, await kur.GetRateAsync("USD", Cuma, KurTuru.Satis));
-        Assert.Equal(34.00m, await kur.GetRateAsync("USD", Cuma, KurTuru.Alis));
+        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
+        Assert.Equal(34.50m, await kur.GetRateAsync("USD", Cuma, ExchangeRateType.Satis));
+        Assert.Equal(34.00m, await kur.GetRateAsync("USD", Cuma, ExchangeRateType.Alis));
     }
 
     // ---- 4. GELECEK TARİH → en yeni ≤ tarih ----
@@ -159,7 +159,7 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         await SeedRawAsync(scope, K("USD", 34.50m));
-        var kur = scope.ServiceProvider.GetRequiredService<KurService>();
+        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
         Assert.Equal(34.50m, await kur.GetRateAsync("USD", Cuma.AddYears(1))); // gelecek → en son bilinen
     }
 
@@ -170,8 +170,8 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         await SeedRawAsync(scope, K("USD", 34.50m)); // TCMB 07-03
-        var sabit = scope.ServiceProvider.GetRequiredService<SabitKurService>();
-        var kur = scope.ServiceProvider.GetRequiredService<KurService>();
+        var sabit = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
+        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
 
         var bas = new DateTimeOffset(2026, 7, 4, 0, 0, 0, TimeSpan.Zero);
         var bit = new DateTimeOffset(2026, 7, 6, 0, 0, 0, TimeSpan.Zero);
@@ -190,8 +190,8 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         await SeedRawAsync(scope, K("USD", 34.50m));
-        var sabit = scope.ServiceProvider.GetRequiredService<SabitKurService>();
-        var kur = scope.ServiceProvider.GetRequiredService<KurService>();
+        var sabit = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
+        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
 
         // Kullanıcı "Bitiş = 2026-07-03" seçer (date-picker → gün başı UTC).
         var bitGun = new DateTimeOffset(2026, 7, 3, 0, 0, 0, TimeSpan.Zero);
@@ -214,10 +214,10 @@ public sealed class KurServiceAdversarialProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         await SeedRawAsync(scope, K("USD", 34.505050m));
-        var kur = scope.ServiceProvider.GetRequiredService<KurService>();
+        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
         Assert.Equal(34.505050m, await kur.GetRateAsync("USD", Cuma)); // 6 dp korunur
         // Büyük tutar taşmıyor
-        Assert.Equal(1_000_000m * 34.505050m, await kur.CevirAsync(1_000_000m, "USD", "TL", Cuma));
+        Assert.Equal(1_000_000m * 34.505050m, await kur.ConvertAsync(1_000_000m, "USD", "TL", Cuma));
     }
 }
 
@@ -247,13 +247,13 @@ public sealed class SabitKurCrossTenantProbe(PostgresFixture fx)
 
         Guid aId;
         using (var sa = host.ScopeFor(a))
-            aId = await sa.ServiceProvider.GetRequiredService<SabitKurService>()
+            aId = await sa.ServiceProvider.GetRequiredService<FixedExchangeRateService>()
                 .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
 
         using (var sb = host.ScopeFor(b))
         {
-            var repoB = sb.ServiceProvider.GetRequiredService<ISabitKurRepository>();
-            var svcB = sb.ServiceProvider.GetRequiredService<SabitKurService>();
+            var repoB = sb.ServiceProvider.GetRequiredService<IPinnedRateRepository>();
+            var svcB = sb.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
             // OKUMA: B, A'nın id'sini bulamaz
             Assert.Null(await repoB.FindAsync(aId));
@@ -268,16 +268,16 @@ public sealed class SabitKurCrossTenantProbe(PostgresFixture fx)
             Assert.False(await repoB.UpdateAsync(sahte));
 
             // ÇEVİRİM: B, A'nın 40'ını görmez → TCMB 34.50
-            Assert.Equal(34.50m, await sb.ServiceProvider.GetRequiredService<KurService>().GetRateAsync("USD", Cuma));
+            Assert.Equal(34.50m, await sb.ServiceProvider.GetRequiredService<ExchangeRateService>().GetRateAsync("USD", Cuma));
         }
 
         // A hâlâ 40 (B hiçbir şey bozamadı)
         using (var sa = host.ScopeFor(a))
         {
-            var s = await sa.ServiceProvider.GetRequiredService<ISabitKurRepository>().FindAsync(aId);
+            var s = await sa.ServiceProvider.GetRequiredService<IPinnedRateRepository>().FindAsync(aId);
             Assert.NotNull(s);
             Assert.Equal(40m, s!.Kur);
-            Assert.Equal(40m, await sa.ServiceProvider.GetRequiredService<KurService>().GetRateAsync("USD", Cuma));
+            Assert.Equal(40m, await sa.ServiceProvider.GetRequiredService<ExchangeRateService>().GetRateAsync("USD", Cuma));
         }
     }
 
@@ -290,7 +290,7 @@ public sealed class SabitKurCrossTenantProbe(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using (var s0 = host.ScopeFor(a)) await SeedUsdAsync(s0);
         using (var sa = host.ScopeFor(a))
-            await sa.ServiceProvider.GetRequiredService<SabitKurService>()
+            await sa.ServiceProvider.GetRequiredService<FixedExchangeRateService>()
                 .UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
 
         // racar_app bağlantısı + B'nin GUC'u → A'nın satırı görünmemeli

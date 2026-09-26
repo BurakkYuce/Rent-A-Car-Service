@@ -25,7 +25,7 @@ public sealed class FiyatKuralTests(PostgresFixture fx)
         {
             Kod = "EKO-WK", Ad = "Eko", AracGrupKod = "EKO",
             Gun1 = 100m, Gun2 = 100m, Gun3 = 100m, Gun4 = 100m, Gun5 = 100m, Gun6 = 100m, Gun7 = 100m,
-            OnayDurumu = TarifeOnayDurumu.Onayli
+            OnayDurumu = TariffApprovalStatus.Onayli
         });
     }
 

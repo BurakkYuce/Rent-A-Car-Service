@@ -26,10 +26,10 @@ public sealed partial class UiSystemSecurityTests
         var svc = scope.ServiceProvider.GetRequiredService<LocationService>();
 
         var move = new LocationInput { Kod = "OTB", Ad = "Otogar B", Sube = "SubeA", Aktif = true };
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.UpdateAsync(office.Id, move));
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.UpdateAsync(office.Id, move, "1"));
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.DeleteAsync(office.Id));
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(new LocationInput { Kod = "NEW", Ad = "Yeni B", Sube = "SubeB", Aktif = true }));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.UpdateAsync(office.Id, move));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.UpdateAsync(office.Id, move, "1"));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteAsync(office.Id));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(new LocationInput { Kod = "NEW", Ad = "Yeni B", Sube = "SubeB", Aktif = true }));
 
         var row = await _kit.ReadAsync(e.TenantId, db => db.Locations.AsNoTracking().SingleAsync(x => x.Id == office.Id));
         Assert.Equal("SubeB", row.Sube);

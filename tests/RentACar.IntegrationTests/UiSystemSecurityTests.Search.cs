@@ -12,8 +12,8 @@ public sealed partial class UiSystemSecurityTests
     {
         var e = await _kit.SetupAsync();
         var tag = Random("zq");
-        var hidden = new Customer { Tip = CariType.Bireysel, Ad = tag + "gizli", Soyad = "Saklı", AnonimAd = true };
-        var visible = new Customer { Tip = CariType.Bireysel, Ad = tag + "acik", Soyad = "Görünür" };
+        var hidden = new Customer { Tip = CustomerType.Bireysel, Ad = tag + "gizli", Soyad = "Saklı", AnonimAd = true };
+        var visible = new Customer { Tip = CustomerType.Bireysel, Ad = tag + "acik", Soyad = "Görünür" };
         await _kit.WriteAsync(e.TenantId, db => { db.Customers.Add(hidden); db.Customers.Add(visible); });
         var op = await _kit.LoginAsync(e, Who.OperatorA);
 

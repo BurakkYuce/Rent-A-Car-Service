@@ -75,10 +75,10 @@ public sealed class KiraFormVm
 
     // ---- FAZ-82: tenant form varsayılanları (yalnız ÖN-DOLDURMA; kaydedilen değer daima formdan gelir) ----
     /// <summary>Teslim (çıkış) formundaki "Çıkış Yakıt" ön-değeri. Ayar yoksa
-    /// <see cref="RentACar.Application.TenantSettings.FormVarsayilanCozucu.YakitVarsayilan"/> (8) —
+    /// <see cref="RentACar.Application.TenantSettings.FormDefaultResolver.DefaultFuel"/> (8) —
     /// yani sayfaya gömülü olan eski sabit.</summary>
     public int TenantVarsayilanYakit { get; set; }
-        = RentACar.Application.TenantSettings.FormVarsayilanCozucu.YakitVarsayilan;
+        = RentACar.Application.TenantSettings.FormDefaultResolver.DefaultFuel;
 
     /// <summary>Yeni kira formundaki "Hesaplama Tipi" dropdown'ının ön-seçili değeri; null = "—"
     /// (bugünkü davranış). Düzenleme modunda KULLANILMAZ — orada alan zaten salt-okunur.</summary>
@@ -106,7 +106,7 @@ public sealed class KiraFormVm
     public static readonly string[] FaturalamaTipleri = ["Müşteri Ödemeli", "Full Credit", "Extralar Müşteriye Ait", "Drop Dahil", "Diğer"];
     // FAZ-82: liste artık Application'daki TEK kaynaktan gelir. Kopya kalsaydı, tenant varsayılanı o
     // listeye karşı doğrulandığı için en küçük yazım sapması ön-seçimi sessizce hiç eşleşmez yapardı.
-    public static readonly string[] FiyatTurleri = RentACar.Application.Pricing.FiyatTuruSecenek.Hepsi;
+    public static readonly string[] FiyatTurleri = RentACar.Application.Pricing.PriceTypeOption.All;
     public static readonly string[] Dovizler = ["TL", "EURO", "USD"];
     /// <summary>FAZ-47 — Ödeme Şekli ComboBox önerileri (seç-veya-yaz; serbest metin de kabul edilir).
     /// BİLGİ alanıdır: gerçek tahsilat Kasa/Banka akışından geçer, bu seçim deftere yazmaz.</summary>

@@ -38,7 +38,7 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
             Kod = "EKO-WEB", Ad = "Eko Web", Kanal = "WEB", AracGrupKod = "EKO",
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m,
             Gun6 = 1000m, Gun7 = 1000m, GunHaftalik = 900m, GunAylik = 800m,
-            OnayDurumu = TarifeOnayDurumu.Onayli
+            OnayDurumu = TariffApprovalStatus.Onayli
         };
         ayarla(input);
         return await sp.GetRequiredService<RateMatrixService>().CreateAsync(input);

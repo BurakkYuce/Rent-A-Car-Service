@@ -10,7 +10,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// IBrokerYasakRepository: kısa-ömürlü context'ler (factory). Tenant izolasyonu RLS + query filter ile
 /// otomatik. Kod benzersizliği DB unique index ile; ihlal (23505) ValidationException.
 /// </summary>
-public sealed class BrokerYasakRepository(IDbContextFactory<AppDbContext> factory) : IBrokerYasakRepository
+public sealed class BrokerYasakRepository(IDbContextFactory<AppDbContext> factory) : IBrokerBanRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -32,7 +32,7 @@ public sealed class BrokerYasakRepository(IDbContextFactory<AppDbContext> factor
         return await db.BrokerYasaklar.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();

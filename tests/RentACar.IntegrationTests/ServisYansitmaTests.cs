@@ -19,19 +19,19 @@ public sealed class ServisYansitmaTests(PostgresFixture fx)
 {
     private static async Task<(IServiceProvider sp, Guid svcId, Guid cari)> Seed(
         IServiceScope scope, string plaka, decimal maliyet = 1000m, decimal kusur = 0.5m,
-        HasarSorumlu sorumlu = HasarSorumlu.Musteri)
+        DamageResponsible sorumlu = DamageResponsible.Musteri)
     {
         var sp = scope.ServiceProvider;
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
-        var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Rücu Cari" });
+        var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rücu Cari" });
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = v, Tip = ServisTipi.Ariza, GirisKm = 0, HasarSorumlu = sorumlu, KusurOrani = kusur,
+            VehicleId = v, Tip = ServiceType.Ariza, GirisKm = 0, HasarSorumlu = sorumlu, KusurOrani = kusur,
             Lines = [new ServiceLineInput { Aciklama = "Tampon", Tutar = maliyet }]
         });
-        await svc.BaslatAsync(id);
-        await svc.TamamlaAsync(id, cikisKm: 100);
+        await svc.StartAsync(id);
+        await svc.CompleteAsync(id, pickupKm: 100);
         return (sp, id, cari);
     }
 
@@ -43,10 +43,10 @@ public sealed class ServisYansitmaTests(PostgresFixture fx)
         var (sp, svcId, cari) = await Seed(scope, "34 SV 01");
         var svc = sp.GetRequiredService<ServiceRecordService>();
 
-        await svc.YansitAsync(svcId, cari);
+        await svc.ReflectAsync(svcId, cari);
 
-        Assert.Equal(500m, await sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari)); // 1000 × 0.5
-        var gg = await sp.GetRequiredService<ReportService>().GetGelirGiderAsync();
+        Assert.Equal(500m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari)); // 1000 × 0.5
+        var gg = await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync();
         Assert.Equal(500m, gg.GelirToplam);
         Assert.Equal(0m, gg.GiderToplam);
 
@@ -54,7 +54,7 @@ public sealed class ServisYansitmaTests(PostgresFixture fx)
         Assert.True(rec.Yansitildi);
         Assert.Equal(500m, rec.YansitilanTutar);
 
-        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() => svc.YansitAsync(svcId, cari));
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() => svc.ReflectAsync(svcId, cari));
     }
 
     [Fact]
@@ -62,9 +62,9 @@ public sealed class ServisYansitmaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, svcId, cari) = await Seed(scope, "34 SV 02", sorumlu: HasarSorumlu.Sirket);
+        var (sp, svcId, cari) = await Seed(scope, "34 SV 02", sorumlu: DamageResponsible.Sirket);
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<ServiceRecordService>().YansitAsync(svcId, cari));
+            () => sp.GetRequiredService<ServiceRecordService>().ReflectAsync(svcId, cari));
     }
 
     [Fact]
@@ -73,8 +73,8 @@ public sealed class ServisYansitmaTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (sp, svcId, cari) = await Seed(scope, "34 SV 03");
-        await sp.GetRequiredService<DonemKilidiService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<ServiceRecordService>().YansitAsync(svcId, cari));
+            () => sp.GetRequiredService<ServiceRecordService>().ReflectAsync(svcId, cari));
     }
 }

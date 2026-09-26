@@ -33,7 +33,7 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
 
     private static Task<Guid> CariAsync(IServiceScope s, string ad)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
 
     private static Task<Guid> HesapAsync(IServiceScope s, string kod, string ad, string tur, string? iban = null)
         => s.ServiceProvider.GetRequiredService<FinancialAccountService>()
@@ -73,7 +73,7 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
 
         await expenses.CreateAsync(new ExpenseInput
         {
-            NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit,
+            NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit,
             FinansalHesapId = kasa, EvrakNo = "EVR-7", Sube = "Kadıköy"
         });
 
@@ -101,7 +101,7 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
         { CariId = cari, Tutar = 300m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
         await expenses.CreateAsync(new ExpenseInput
         {
-            NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = OdemeYontemi.Nakit,
+            NetTutar = 100m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit,
             FinansalHesapId = kasa, Sube = "Kadıköy"
         });
         await cash.PayAsync(new CashInput
@@ -112,21 +112,21 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
 
         // İşlem türü: yalnız tahsilat.
         var tahsilat = Assert.Single(await reports.GetAccountLedgerAsync(
-            LedgerAccountType.Kasa, islemTuru: "Tahsilat"));
+            LedgerAccountType.Kasa, transactionType: "Tahsilat"));
         Assert.Equal(300m, tahsilat.Borc);
 
         // Şube: yalnız künyesinde Kadıköy yazan gider. Künyesi OLMAYAN satırlar gizlenir —
         // "şubesi bilinmeyen" ile "o şubeye ait" karıştırılmaz.
-        var subeli = Assert.Single(await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, sube: "Kadıköy"));
+        var subeli = Assert.Single(await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, branch: "Kadıköy"));
         Assert.Equal(100m, subeli.Alacak);
 
         // Döviz: hepsi TRY → 3; olmayan dövizde 0.
-        Assert.Equal(3, (await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, doviz: "TRY")).Count);
-        Assert.Empty(await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, doviz: "USD"));
+        Assert.Equal(3, (await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, currency: "TRY")).Count);
+        Assert.Empty(await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, currency: "USD"));
 
         // Boş süzgeç daraltmaz.
         Assert.Equal(3, (await reports.GetAccountLedgerAsync(
-            LedgerAccountType.Kasa, doviz: "", islemTuru: "", sube: "")).Count);
+            LedgerAccountType.Kasa, currency: "", transactionType: "", branch: "")).Count);
     }
 
     [Fact]
@@ -146,13 +146,13 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
         await cash.PayAsync(new CashInput
         { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
 
-        var ozetOnce = await reports.GetKasaBankaSummaryAsync();
+        var ozetOnce = await reports.GetCashBankSummaryAsync();
         // Elle: 300 − 100 = 200.
         Assert.Equal(200m, ozetOnce.KasaBakiye);
 
         // Süzgeçli liste yalnız 1 satır gösterse de özet AYNI kalır.
-        Assert.Single(await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, islemTuru: "Odeme"));
-        var ozetSonra = await reports.GetKasaBankaSummaryAsync();
+        Assert.Single(await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, transactionType: "Odeme"));
+        var ozetSonra = await reports.GetCashBankSummaryAsync();
         Assert.Equal(ozetOnce.KasaBakiye, ozetSonra.KasaBakiye);
         Assert.Equal(200m, ozetSonra.KasaBakiye);
     }
@@ -184,7 +184,7 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
         Assert.Equal(200m, devirsiz[0].YuruyenBakiye);
 
         // Devir AÇIK: başta devir satırı (500) + hareket; kapanış 700.
-        var devirli = await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, from: bas, devir: true);
+        var devirli = await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, from: bas, carryForward: true);
         Assert.Equal(2, devirli.Count);
         Assert.True(devirli[0].DevirMi);
         Assert.Equal(500m, devirli[0].YuruyenBakiye);
@@ -213,7 +213,7 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
 
         // A hesabıyla süzülünce devir YALNIZ A'nın 500'ü olmalı (1400 değil), kapanış 600.
         var satirlar = await reports.GetAccountLedgerAsync(
-            LedgerAccountType.Kasa, from: Gun(-1), hesapId: a, devir: true);
+            LedgerAccountType.Kasa, from: Gun(-1), accountId: a, carryForward: true);
         Assert.Equal(500m, satirlar[0].YuruyenBakiye);
         Assert.Equal(600m, satirlar[^1].YuruyenBakiye);
     }
@@ -231,7 +231,7 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
         await cash.CollectAsync(new CashInput
         { CariId = cari, Tutar = 250m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
 
-        var satirlar = await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, devir: true);
+        var satirlar = await reports.GetAccountLedgerAsync(LedgerAccountType.Kasa, carryForward: true);
         Assert.DoesNotContain(satirlar, x => x.DevirMi);
         Assert.Equal(250m, Assert.Single(satirlar).YuruyenBakiye);
     }
@@ -260,7 +260,7 @@ public sealed class KasaBankaHareketTests(PostgresFixture fx)
         Assert.Empty(await reports2.GetAccountLedgerAsync(LedgerAccountType.Kasa));
         // Devir açıkken satır ÜRETİLİR ama açılış bakiyesi SIFIRDIR — başka tenant'ın 400'ü
         // devire de sızmaz (devir kendi tenant'ının geçmişini toplar).
-        var devirli = await reports2.GetAccountLedgerAsync(LedgerAccountType.Kasa, devir: true, from: Gun(-1));
+        var devirli = await reports2.GetAccountLedgerAsync(LedgerAccountType.Kasa, carryForward: true, from: Gun(-1));
         Assert.True(Assert.Single(devirli).DevirMi);
         Assert.Equal(0m, devirli[0].YuruyenBakiye);
     }

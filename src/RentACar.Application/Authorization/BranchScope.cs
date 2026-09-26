@@ -24,9 +24,9 @@ public static class BranchScope
     public static BranchFilter EffectiveFilter(ICurrentUser user)
     {
         if (user.Role != UserRole.Operator) return default;
-        var ad = string.IsNullOrWhiteSpace(user.AssignedBranch) ? null : user.AssignedBranch!.Trim();
+        var name = string.IsNullOrWhiteSpace(user.AssignedBranch) ? null : user.AssignedBranch!.Trim();
         var id = user.AssignedBranchId;
-        return ad is null && id is null ? default : new BranchFilter(id, ad);
+        return name is null && id is null ? default : new BranchFilter(id, name);
     }
 
     /// <summary>Eski metin-tabanlı filtre — C3'e dek liste çağrıları bunu kullanır (delege; davranış aynı).</summary>
@@ -36,30 +36,30 @@ public static class BranchScope
     /// Geçiş kuralı: Unrestricted → serbest; iki FK de doluysa FK eşitliği TEK BAŞINA karar verir
     /// (yeniden-adlandırma kurtarması kalır, FK-uyuşmaz∧metin-eşit sızıntısı [F2] kapanır);
     /// FK'lardan biri boşsa metin Ordinal-eşit → geç (FK'sız kayıt/claim'siz oturum); aksi red.</summary>
-    public static void RequireInScope(ICurrentUser user, Guid? kayitSubeId, string? kayitSubeOfis)
+    public static void RequireInScope(ICurrentUser user, Guid? recordBranchId, string? recordBranchOffice)
     {
-        if (!InScope(EffectiveFilter(user), kayitSubeId, kayitSubeOfis))
-            throw new YetkiYokException("Bu kayıt şube kapsamınız dışında.");
+        if (!InScope(EffectiveFilter(user), recordBranchId, recordBranchOffice))
+            throw new NoPermissionException("Bu kayıt şube kapsamınız dışında.");
     }
 
     /// <summary>TEK kural (C3): guard, bellek-içi liste filtresi ve SQL şablonu hep bundan türetilir.
     /// C5: iki FK de dolu → FK eşitliği tek başına; aksi halde metin-eşit (Ordinal). Unrestricted → true.
     /// Ön koşul ampirik doğrulandı (2026-07-15, dev DB): FK-uyuşmaz∧metin-eşleşir sayacı 0
     /// (interceptor/backfill FK'yı AYNI metinden türettiğinden yapısal; yalnız rename-çakışması üretir).</summary>
-    public static bool InScope(BranchFilter f, Guid? kayitSubeId, string? kayitMetin)
+    public static bool InScope(BranchFilter f, Guid? recordBranchId, string? recordText)
     {
         if (f.Unrestricted) return true;
-        if (f.SubeId is Guid cid && kayitSubeId is Guid kid) return cid == kid;
+        if (f.SubeId is Guid cid && recordBranchId is Guid kid) return cid == kid;
         return f.SubeAd is not null &&
-               string.Equals(f.SubeAd, kayitMetin?.Trim(), StringComparison.Ordinal);
+               string.Equals(f.SubeAd, recordText?.Trim(), StringComparison.Ordinal);
     }
 
     /// <summary>Ham User alanlarından metin kapsamı (ICS feed gibi ICurrentUser'sız yollar için —
     /// CalendarFeedService'teki el-klonunu kaldırır; kural TEK yerde).</summary>
-    public static string? EffectiveText(UserRole? rol, string? atanmisSube)
-        => rol == UserRole.Operator && !string.IsNullOrWhiteSpace(atanmisSube) ? atanmisSube!.Trim() : null;
+    public static string? EffectiveText(UserRole? rol, string? assignedBranch)
+        => rol == UserRole.Operator && !string.IsNullOrWhiteSpace(assignedBranch) ? assignedBranch!.Trim() : null;
 
     /// <summary>Eski 1-arg overload — mevcut çağrı yerleri C3/C4'te FK'lı overload'a taşınana dek delege.</summary>
-    public static void RequireInScope(ICurrentUser user, string? kayitSubeOfis)
-        => RequireInScope(user, kayitSubeId: null, kayitSubeOfis);
+    public static void RequireInScope(ICurrentUser user, string? recordBranchOffice)
+        => RequireInScope(user, recordBranchId: null, recordBranchOffice);
 }

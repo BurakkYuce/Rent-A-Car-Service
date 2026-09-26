@@ -51,7 +51,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
     /// <summary>Seçim listesi — PII kolonlarına HİÇ dokunmaz (Decrypt çağrılmaz, cipher okunmaz).
     /// Görünen ad kuralı tek kaynaktan gelsin diye projeksiyon geçici Customer'a sarılıp
     /// <c>DisplayName</c> okunur (kural kopyalanmaz).</summary>
-    public async Task<IReadOnlyList<CariSecim>> ListSecimAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<CariSecim>> ListForSelectAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var rows = await db.Customers.AsNoTracking()
@@ -66,7 +66,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
 
     /// <summary>F1.6 sınırlı seçim araması — PII kolonlarına HİÇ dokunmaz; Türkçe katlamalı
     /// (<see cref="TrSql"/>) ad+soyad+ünvan araması; en çok <paramref name="limit"/> satır.</summary>
-    public async Task<IReadOnlyList<CariSecimSatiri>> SecimAraAsync(string katlanmisTerim, int limit, CancellationToken ct = default)
+    public async Task<IReadOnlyList<CariSecimSatiri>> SearchSelectionAsync(string katlanmisTerim, int limit, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Customers.AsNoTracking();
@@ -76,13 +76,13 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         if (katlanmisTerim.Length > 0)
             q = q.Where(TrSql.Icerir<Customer>(
                 c => c.AnonimAd
-                    ? CariAnonimlik.AdEtiketi
+                    ? CustomerAnonymity.NameLabel
                     : (c.Ad ?? "") + " " + (c.Soyad ?? "") + " " + (c.Unvan ?? ""), katlanmisTerim));
         var rows = await q
             // #280 KVKK L-1: the sort key follows the DISPLAYED name — an anonymised customer sorts by the label
             // (ties by Id), never by its real Unvan/Ad/Soyad; otherwise its position leaks the real name.
             .OrderBy(c => c.Tip)
-            .ThenBy(c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan)
+            .ThenBy(c => c.AnonimAd ? CustomerAnonymity.NameLabel : c.Unvan)
             .ThenBy(c => c.AnonimAd ? null : c.Ad)
             .ThenBy(c => c.AnonimAd ? null : c.Soyad)
             .ThenBy(c => c.Id)
@@ -95,8 +95,8 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
             .ToList();
     }
 
-    /// <summary>F4.3b kimlikle tek seçim satırı — PII kolonlarına dokunmaz (bkz. <see cref="SecimAraAsync"/>).</summary>
-    public async Task<CariSecimSatiri?> SecimGetirAsync(Guid id, CancellationToken ct = default)
+    /// <summary>F4.3b kimlikle tek seçim satırı — PII kolonlarına dokunmaz (bkz. <see cref="SearchSelectionAsync"/>).</summary>
+    public async Task<CariSecimSatiri?> GetSelectionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var r = await db.Customers.AsNoTracking()
@@ -118,7 +118,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
             // #283 KVKK M1: an anonymised name is searchable only by its displayed label (never by the real
             // Ad/Soyad/Unvan — prefix probing would rebuild it); M3: an individual's tax number may be the TC, so
             // it is never matched with ILIKE (TC search stays exact-match via the blind index).
-            var label = CariAnonimlik.AdEtiketi;
+            var label = CustomerAnonymity.NameLabel;
             q = q.Where(c =>
                 (!c.AnonimAd && c.Ad != null && EF.Functions.ILike(c.Ad, term))
                 || (!c.AnonimAd && c.Soyad != null && EF.Functions.ILike(c.Soyad, term))
@@ -127,7 +127,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
                 || (tcHash != null && c.TcKimlikHash == tcHash)
                 // #295 H1 / L-A: a tax number carrying exactly 11 digits (legacy TC in VergiNo, also formatted as
                 // "123 456 789 01" / "123-45678901" / trailing space) is shown masked → not ILIKE-probeable.
-                || (c.Tip != CariType.Bireysel && c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)
+                || (c.Tip != CustomerType.Bireysel && c.VergiNo != null && EF.Functions.ILike(c.VergiNo, term)
                     && !Regex.IsMatch(c.VergiNo, ElevenDigitsPattern)));
         }
         if (filter.Tip is { } tip) q = q.Where(c => c.Tip == tip);
@@ -148,7 +148,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         var total = await q.CountAsync(ct);
         var items = await q
             .OrderBy(c => c.Tip)
-            .ThenBy(c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan) // #283 M1: displayed-name order
+            .ThenBy(c => c.AnonimAd ? CustomerAnonymity.NameLabel : c.Unvan) // #283 M1: displayed-name order
             .ThenBy(c => c.AnonimAd ? null : c.Ad)
             .ThenBy(c => c.Id)
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
@@ -165,7 +165,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         var total = await q.CountAsync(ct);
         // F7.1 + #283 M1: the default order follows the DISPLAYED name (an anonymised row sorts by the label, ties by Id).
         var sorted = filter.Siralama is { } s ? s(q) : q.OrderBy(c => c.Tip)
-            .ThenBy(c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan)
+            .ThenBy(c => c.AnonimAd ? CustomerAnonymity.NameLabel : c.Unvan)
             .ThenBy(c => c.AnonimAd ? null : c.Ad)
             .ThenBy(c => c.Id);
         var page = await sorted
@@ -233,7 +233,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
         return found.ToHashSet();
     }
 
-    public async Task<bool> TcKimlikHashExistsAsync(string tcHash, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> NationalIdHashExistsAsync(string tcHash, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Customers.AsNoTracking()
@@ -241,7 +241,7 @@ public sealed class CustomerRepository(IDbContextFactory<AppDbContext> factory, 
             .AnyAsync(ct);
     }
 
-    public async Task<bool> VergiNoExistsAsync(string vergiNo, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> TaxNoExistsAsync(string vergiNo, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Customers.AsNoTracking()

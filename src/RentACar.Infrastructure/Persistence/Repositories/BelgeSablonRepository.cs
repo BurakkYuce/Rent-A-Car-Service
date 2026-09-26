@@ -8,7 +8,7 @@ using Entity = RentACar.Domain.Entities.BelgeSablon;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>IBelgeSablonRepository implementasyonu — marka-özel PDF metin şablonu master CRUD.</summary>
-public sealed class BelgeSablonRepository(IDbContextFactory<AppDbContext> factory) : IBelgeSablonRepository
+public sealed class BelgeSablonRepository(IDbContextFactory<AppDbContext> factory) : IDocumentTemplateRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -19,7 +19,7 @@ public sealed class BelgeSablonRepository(IDbContextFactory<AppDbContext> factor
             .OrderBy(c => c.BelgeTuru).ThenBy(c => c.Ad).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<Entity>> ListByTuruAsync(BelgeTuru turu, bool yalnizAktif, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Entity>> ListByTypeAsync(BelgeTuru turu, bool yalnizAktif, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.BelgeSablonlari.AsNoTracking().Where(c => c.BelgeTuru == turu);
@@ -40,7 +40,7 @@ public sealed class BelgeSablonRepository(IDbContextFactory<AppDbContext> factor
             .FirstOrDefaultAsync(c => c.BelgeTuru == turu && c.VarsayilanMi && c.Aktif, ct);
     }
 
-    public async Task<bool> AdExistsAsync(BelgeTuru turu, string ad, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> NameExistsAsync(BelgeTuru turu, string ad, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.BelgeSablonlari.AsNoTracking()

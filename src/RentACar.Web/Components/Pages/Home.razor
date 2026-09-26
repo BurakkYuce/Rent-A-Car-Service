@@ -4,10 +4,10 @@
 @inject CustomerService Customers
 @inject RentalService Rentals
 @inject ReservationService Reservations
-@inject VadeService Vade
+@inject DueService Vade
 @inject DashboardService Dashboard
 @inject RentACar.Application.Reporting.ReportService Reports
-@inject RentACar.Application.Crm.SikayetService Sikayet
+@inject RentACar.Application.Crm.ComplaintService Sikayet
 @inject RentACar.Application.Finance.CashService Cash
 @inject RentACar.Application.PublicSite.PublicBookingRequestService SiteTalepleri
 @inject RentACar.Infrastructure.Persistence.TenantStatusCache TenantDurum
@@ -116,7 +116,7 @@
                         <form method="post" action="/finans/tahsilat" class="tahsil-mini"><AntiforgeryToken />
                             <input type="hidden" name="cariId" value="@context.CariId" />
                             <input type="hidden" name="rentalId" value="@context.RentalId" />
-                            <input type="hidden" name="doviz" value="@RentACar.Application.Kur.KurService.NormalizeKod(context.Doviz)" />
+                            <input type="hidden" name="doviz" value="@RentACar.Application.Kur.ExchangeRateService.NormalizeCode(context.Doviz)" />
                             <input type="hidden" name="islemAnahtari" value="@RentACar.Web.Finance.TahsilatAnahtar.Uret(context.RentalId.Value, context.Bakiye, context.IslemSayisi)" />
                             @* HAM seçim (etkin değil): varsayılanla "gec"te açılmış pano seçimsiz kalır ve
                                aynı kuralla yine "gec"te açılır (tahsilat kira durumunu değiştirmez). Etkin
@@ -258,7 +258,7 @@
         // tahsilat formu için kimlik/bakiye/döviz + işlem SAYISI (deterministik anahtar bileşeni,
         // TahsilatAnahtar açıklaması) taşınır.
         var acikKira = rentals.Where(r => r.Durum == RentalStatus.Kirada && r.GercekDonusTar is null).ToList();
-        var islemSayilari = await Cash.GetRentalIslemSayilariAsync(acikKira.Select(r => r.Id).ToList());
+        var islemSayilari = await Cash.GetRentalTransactionCountsAsync(acikKira.Select(r => r.Id).ToList());
         List<DcRow> DonusRows(Func<DateTime, bool> pred) => acikKira
             .Where(r => pred(r.BitTar.LocalDateTime.Date))
             .OrderBy(r => r.BitTar)
@@ -289,27 +289,27 @@
         try
         {
             if (TenantCtx.TenantId is { } tid && await TenantDurum.WebSitesiModuluAsync(tid))
-                _siteTalep = await SiteTalepleri.OzetAsync();
+                _siteTalep = await SiteTalepleri.SummaryAsync();
         }
         catch { _siteTalep = null; }
 
         // Vade kademeleri (tür × bucket).
         var vade = await Vade.GetAllAsync();
         (int, int, int) Tier(string tur) => (
-            vade.Count(v => v.Tur == tur && v.Bucket == VadeBucket.YediGun),
-            vade.Count(v => v.Tur == tur && v.Bucket == VadeBucket.OtuzGun),
-            vade.Count(v => v.Tur == tur && v.Bucket == VadeBucket.Gecmis));
+            vade.Count(v => v.Tur == tur && v.Bucket == DueBucket.YediGun),
+            vade.Count(v => v.Tur == tur && v.Bucket == DueBucket.OtuzGun),
+            vade.Count(v => v.Tur == tur && v.Bucket == DueBucket.Gecmis));
         _trafik = Tier("Trafik");
         _kasko = Tier("Kasko");
         _muayene = Tier("Muayene");
 
-        var servis = await Reports.GetPeriyodikServisAsync();
+        var servis = await Reports.GetPeriodicServiceAsync();
         _kmGecenBakim = servis.Count(s => s.KalanKm < 0);
 
         var warnings = await Vade.GetWarningsAsync();
-        _gecmis = warnings.Count(w => w.Bucket == VadeBucket.Gecmis);
-        _yakin = warnings.Count(w => w.Bucket != VadeBucket.Gecmis);
-        _acikSikayet = (await Sikayet.ListAsync()).Count(s => s.Durum == RentACar.Domain.Enums.SikayetDurum.Acik);
+        _gecmis = warnings.Count(w => w.Bucket == DueBucket.Gecmis);
+        _yakin = warnings.Count(w => w.Bucket != DueBucket.Gecmis);
+        _acikSikayet = (await Sikayet.ListAsync()).Count(s => s.Durum == RentACar.Domain.Enums.ComplaintStatus.Acik);
 
         // FAZ 6.2 — filo KPI + gelir trendi yalnız mali yetkili rollere YÜKLENİR (görünürlük zaten
         // AuthorizeView'da; operatörde ağır filo-analiz sorgusu hiç koşmasın).
@@ -317,8 +317,8 @@
         _finansYetkili = user is not null && (user.IsInRole("Admin") || user.IsInRole("Yonetici") || user.IsInRole("Muhasebe"));
         if (_finansYetkili)
         {
-            _havuz = (await Reports.GetFiloAnalizAsync()).HavuzKpi;
-            _trend = await Reports.GetAylikGelirTrendAsync(6);
+            _havuz = (await Reports.GetFleetAnalysisAsync()).HavuzKpi;
+            _trend = await Reports.GetMonthlyRevenueTrendAsync(6);
         }
     }
 }

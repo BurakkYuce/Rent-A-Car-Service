@@ -81,7 +81,7 @@ public sealed class IyzicoCanliSandboxTests
     [IyzicoCanliFact]
     public async Task Provizyon_sayfasi_gercekten_acilir()
     {
-        var sonuc = await Servis().BaslatAsync(Istek(provizyon: true));
+        var sonuc = await Servis().StartAsync(Istek(provizyon: true));
 
         Assert.True(sonuc.Ok, sonuc.Hata);
         Assert.False(string.IsNullOrWhiteSpace(sonuc.Token));
@@ -91,7 +91,7 @@ public sealed class IyzicoCanliSandboxTests
     [IyzicoCanliFact]
     public async Task Tahsilat_sayfasi_gercekten_acilir()
     {
-        var sonuc = await Servis().BaslatAsync(Istek(provizyon: false));
+        var sonuc = await Servis().StartAsync(Istek(provizyon: false));
 
         Assert.True(sonuc.Ok, sonuc.Hata);
         Assert.False(string.IsNullOrWhiteSpace(sonuc.OdemeSayfasiUrl));
@@ -102,10 +102,10 @@ public sealed class IyzicoCanliSandboxTests
     {
         // Sayfa açıldı ama müşteri ödemedi: sonuç sorgusu "başarılı" DEMEMELİ. Bu, adaptörün
         // status(sorgu) ile paymentStatus(ödeme) ayrımını gerçek yanıt üzerinde kanıtlar.
-        var baslat = await Servis().BaslatAsync(Istek(provizyon: true));
+        var baslat = await Servis().StartAsync(Istek(provizyon: true));
         Assert.True(baslat.Ok, baslat.Hata);
 
-        var sonuc = await Servis().SonucAsync(baslat.Token!);
+        var sonuc = await Servis().ResultAsync(baslat.Token!);
         Assert.False(sonuc.Ok);
         Assert.False(string.IsNullOrWhiteSpace(sonuc.Hata));
     }
@@ -113,7 +113,7 @@ public sealed class IyzicoCanliSandboxTests
     [IyzicoCanliFact]
     public async Task Gecersiz_jeton_gurultulu_reddedilir()
     {
-        var sonuc = await Servis().SonucAsync("olmayan-jeton-" + Guid.NewGuid().ToString("N"));
+        var sonuc = await Servis().ResultAsync("olmayan-jeton-" + Guid.NewGuid().ToString("N"));
 
         Assert.False(sonuc.Ok);
         Assert.False(string.IsNullOrWhiteSpace(sonuc.Hata));
@@ -125,14 +125,14 @@ public sealed class IyzicoCanliSandboxTests
         var svc = Servis();
         var sahteId = "999999999";
 
-        var kapat = await svc.KapatAsync(sahteId, 100m, "85.34.78.112");
+        var kapat = await svc.CloseAsync(sahteId, 100m, "85.34.78.112");
         Assert.False(kapat.Success);
         Assert.False(string.IsNullOrWhiteSpace(kapat.Error));
 
-        var iptal = await svc.IptalAsync(sahteId, "85.34.78.112");
+        var iptal = await svc.CancelAsync(sahteId, "85.34.78.112");
         Assert.False(iptal.Success);
 
-        var iade = await svc.IadeAsync(sahteId, 100m, "85.34.78.112");
+        var iade = await svc.RefundAsync(sahteId, 100m, "85.34.78.112");
         Assert.False(iade.Success);
     }
 }

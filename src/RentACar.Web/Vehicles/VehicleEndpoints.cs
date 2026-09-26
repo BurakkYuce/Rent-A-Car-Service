@@ -48,7 +48,7 @@ public static class VehicleEndpoints
         {
             try
             {
-                await svc.ManuelKmGirAsync(id,
+                await svc.EnterManualKmAsync(id,
                     FormParse.Int(km) ?? throw new ValidationException("KM zorunludur."));
                 return Sonuc.Tamam($"/araclar/{id}", "Kilometre kaydedildi.");
             }
@@ -74,12 +74,12 @@ public static class VehicleEndpoints
         Sipp = FormParse.Str(f, "sipp"),
         Renk = FormParse.Str(f, "renk"),
         ModelYili = FormParse.Int(FormParse.Str(f, "modelYili")),
-        Vites = ParseEnum<Vites>(FormParse.Str(f, "vites")),
+        Vites = ParseEnum<Transmission>(FormParse.Str(f, "vites")),
         SasiNo = FormParse.Str(f, "sasiNo"),
         MotorNo = FormParse.Str(f, "motorNo"),
         Sube = FormParse.Str(f, "sube"),
         Durum = ParseEnum<VehicleStatus>(FormParse.Str(f, "durum")) ?? VehicleStatus.Musait,
-        FiloDurum = ParseEnum<FiloStatus>(FormParse.Str(f, "filoDurum")),
+        FiloDurum = ParseEnum<FleetLifecycleStatus>(FormParse.Str(f, "filoDurum")),
         Km = FormParse.Int(FormParse.Str(f, "km")) ?? 0,
         // PR-21: boş seçim artık NULL ("belirtilmedi"); eskiden sessizce Benzin'e düşüyordu.
         Yakit = ParseEnum<FuelType>(FormParse.Str(f, "yakit")),

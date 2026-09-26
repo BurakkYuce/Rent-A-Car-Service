@@ -38,7 +38,7 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         var bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Tetik", Soyad = "Musteri" });
+        { Tip = CustomerType.Bireysel, Ad = "Tetik", Soyad = "Musteri" });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
             MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90),
@@ -62,19 +62,19 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
 
         // Ayarlar'a HİÇ DOKUNULMUYOR → DonemselFaturalamaJob ve DonemselOtomatikTahsilat KAPALI
         // (varsayılan). Job bu tenant'ta hiçbir şey kesmez; elle tetik yine de çalışmalı.
         await DonemliKiraAsync(sp, "34 OT 01");
 
-        var adaylar = await svc.AdaylarAsync();
+        var adaylar = await svc.CandidatesAsync();
         // ELLE: 65 gün geçmiş → ilk iki ay-çıpalı dönem vadesi gelmiş.
         Assert.Equal(2, adaylar.Count);
         Assert.All(adaylar, a => Assert.True(a.DonemBit <= DateTimeOffset.UtcNow));
 
-        var sonuc = await svc.CalistirAsync(
-            [.. adaylar.Select(a => (a.RentalId, a.DonemSira))], tahsilatYap: true, LedgerAccountType.Kasa);
+        var sonuc = await svc.RunAsync(
+            [.. adaylar.Select(a => (a.RentalId, a.DonemSira))], doCollection: true, LedgerAccountType.Kasa);
 
         Assert.Equal(2, sonuc.Kesilen);
         Assert.Equal(2, sonuc.Tahsilat);
@@ -84,7 +84,7 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         Assert.Equal(borc, alacak);                 // DENGE
 
         // Aynı dönemler artık aday DEĞİL (Kesildi).
-        Assert.Empty(await svc.AdaylarAsync());
+        Assert.Empty(await svc.CandidatesAsync());
     }
 
     [Fact]
@@ -93,17 +93,17 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
         await DonemliKiraAsync(sp, "34 OT 02");
 
-        var adaylar = await svc.AdaylarAsync();
+        var adaylar = await svc.CandidatesAsync();
         var secim = adaylar.Select(a => (a.RentalId, a.DonemSira)).ToList();
-        Assert.Equal(2, (await svc.CalistirAsync(secim, true, LedgerAccountType.Kasa)).Kesilen);
+        Assert.Equal(2, (await svc.RunAsync(secim, true, LedgerAccountType.Kasa)).Kesilen);
 
         var (borc1, _) = await DefterAsync(sp);
 
         // AYNI seçim tekrar: dönemler artık aday değil → hepsi ATLANIR, defter DEĞİŞMEZ.
-        var ikinci = await svc.CalistirAsync(secim, true, LedgerAccountType.Kasa);
+        var ikinci = await svc.RunAsync(secim, true, LedgerAccountType.Kasa);
         Assert.Equal(0, ikinci.Kesilen);
         Assert.Equal(2, ikinci.Atlananlar.Count);
 
@@ -118,18 +118,18 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
         var (kira, cari) = await DonemliKiraAsync(sp, "34 OT 03");
 
-        var adaylar = await svc.AdaylarAsync();
-        var sonuc = await svc.CalistirAsync(
-            [.. adaylar.Select(a => (a.RentalId, a.DonemSira))], tahsilatYap: false, LedgerAccountType.Kasa);
+        var adaylar = await svc.CandidatesAsync();
+        var sonuc = await svc.RunAsync(
+            [.. adaylar.Select(a => (a.RentalId, a.DonemSira))], doCollection: false, LedgerAccountType.Kasa);
 
         Assert.Equal(2, sonuc.Kesilen);
         Assert.Equal(0, sonuc.Tahsilat);
 
         // Fatura kesildi → cari BORÇLANDI; tahsilat yazılmadığı için bakiye borçlu kalmalı.
-        Assert.True(await sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari) > 0m);
+        Assert.True(await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari) > 0m);
 
         var (borc, alacak) = await DefterAsync(sp);
         Assert.Equal(borc, alacak);
@@ -141,14 +141,14 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
         await DonemliKiraAsync(sp, "34 OT 04");
 
         var (borcOnce, _) = await DefterAsync(sp);
 
         // UYDURMA seçim: var olmayan kira / var olmayan dönem sırası.
-        var sonuc = await svc.CalistirAsync(
-            [(Guid.NewGuid(), 1), (Guid.NewGuid(), 99)], tahsilatYap: true, LedgerAccountType.Kasa);
+        var sonuc = await svc.RunAsync(
+            [(Guid.NewGuid(), 1), (Guid.NewGuid(), 99)], doCollection: true, LedgerAccountType.Kasa);
         Assert.Equal(0, sonuc.Kesilen);
         Assert.Equal(2, sonuc.Atlananlar.Count);    // sessizce yutulmadı
 
@@ -163,26 +163,26 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
 
         var (k1, _) = await DonemliKiraAsync(sp, "34 OT 05");
         await DonemliKiraAsync(sp, "34 OT 06");
 
-        var hepsi = await svc.AdaylarAsync();
+        var hepsi = await svc.CandidatesAsync();
         Assert.Equal(4, hepsi.Count);               // ELLE: 2 kira × 2 vadesi geçmiş dönem
 
         // Sözleşme no filtresi: yalnız o kiranın dönemleri.
         var no = hepsi.First(a => a.RentalId == k1).SozlesmeNo;
-        var tek = await svc.AdaylarAsync(new OtomatikTahsilatFiltre { SozlesmeNo = no });
+        var tek = await svc.CandidatesAsync(new OtomatikTahsilatFiltre { SozlesmeNo = no });
         Assert.Equal(2, tek.Count);
         Assert.All(tek, a => Assert.Equal(k1, a.RentalId));
 
         // Vade aralığı: hiçbir dönemin bitmediği gelecek pencere → boş.
-        Assert.Empty(await svc.AdaylarAsync(new OtomatikTahsilatFiltre
+        Assert.Empty(await svc.CandidatesAsync(new OtomatikTahsilatFiltre
         { VadeMin = DateTimeOffset.UtcNow.AddDays(1) }));
 
         // Yalnız bakiyeli: henüz fatura kesilmediği için cari bakiye 0 → hiçbiri.
-        Assert.Empty(await svc.AdaylarAsync(new OtomatikTahsilatFiltre { SadeceBakiyeli = true }));
+        Assert.Empty(await svc.CandidatesAsync(new OtomatikTahsilatFiltre { SadeceBakiyeli = true }));
     }
 
     [Fact]
@@ -195,24 +195,24 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         // Operatör FinanceWrite taşımaz → ne listeyi görebilir ne çalıştırabilir.
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
         {
-            var svc = op.ServiceProvider.GetRequiredService<OtomatikTahsilatService>();
-            await Assert.ThrowsAsync<YetkiYokException>(() => svc.AdaylarAsync());
-            await Assert.ThrowsAsync<YetkiYokException>(
-                () => svc.CalistirAsync([(Guid.NewGuid(), 1)], true, LedgerAccountType.Kasa));
+            var svc = op.ServiceProvider.GetRequiredService<AutoCollectionService>();
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.CandidatesAsync());
+            await Assert.ThrowsAsync<NoPermissionException>(
+                () => svc.RunAsync([(Guid.NewGuid(), 1)], true, LedgerAccountType.Kasa));
         }
 
         using var mh = host.ScopeFor(tenant, Guid.NewGuid(), "mh", UserRole.Muhasebe);
-        var m = mh.ServiceProvider.GetRequiredService<OtomatikTahsilatService>();
-        Assert.Equal(2, (await m.AdaylarAsync()).Count);
+        var m = mh.ServiceProvider.GetRequiredService<AutoCollectionService>();
+        Assert.Equal(2, (await m.CandidatesAsync()).Count);
 
         // Boş seçim ve üst sınır gürültülü reddedilir.
-        await Assert.ThrowsAsync<ValidationException>(() => m.CalistirAsync([], true, LedgerAccountType.Kasa));
-        var cok = Enumerable.Range(0, OtomatikTahsilatService.MaxSecim + 1)
+        await Assert.ThrowsAsync<ValidationException>(() => m.RunAsync([], true, LedgerAccountType.Kasa));
+        var cok = Enumerable.Range(0, AutoCollectionService.MaxSelection + 1)
             .Select(i => (Guid.NewGuid(), i)).ToList();
-        await Assert.ThrowsAsync<ValidationException>(() => m.CalistirAsync(cok, true, LedgerAccountType.Kasa));
+        await Assert.ThrowsAsync<ValidationException>(() => m.RunAsync(cok, true, LedgerAccountType.Kasa));
         // Kasa/Banka dışı hesap reddedilir (gelir/gider hesabına tahsilat yazılamaz).
         await Assert.ThrowsAsync<ValidationException>(
-            () => m.CalistirAsync([(Guid.NewGuid(), 1)], true, LedgerAccountType.Gelir));
+            () => m.RunAsync([(Guid.NewGuid(), 1)], true, LedgerAccountType.Gelir));
     }
 
     /// <summary>
@@ -228,7 +228,7 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
 
         // ELLE: iki uzun kira — biri opt-in AÇIK, biri KAPALI. İkisinin de dönem planı var
         // (plan uzunluk kuralıyla kurulur, bayrakla değil).
@@ -236,20 +236,20 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         var bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 OT 10" });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "OptIn", Soyad = "Kapali" });
+        { Tip = CustomerType.Bireysel, Ad = "OptIn", Soyad = "Kapali" });
         var kapali = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
             MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90),
             GunlukUcret = 100m, DonemselFaturalama = false
         });
 
-        var adaylar = await svc.AdaylarAsync();
+        var adaylar = await svc.CandidatesAsync();
         Assert.All(adaylar, a => Assert.Equal(acik, a.RentalId));   // KAPALI kira listede YOK
         Assert.Equal(2, adaylar.Count);
 
         // Uydurma POST ile kapalı kirayı zorlamak da işe yaramaz: aday çiti reddeder.
         var (borcOnce, _) = await DefterAsync(sp);
-        var sonuc = await svc.CalistirAsync([(kapali, 1)], tahsilatYap: true, LedgerAccountType.Kasa);
+        var sonuc = await svc.RunAsync([(kapali, 1)], doCollection: true, LedgerAccountType.Kasa);
         Assert.Equal(0, sonuc.Kesilen);
         Assert.Single(sonuc.Atlananlar);
 
@@ -266,19 +266,19 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
         var (kira, _) = await DonemliKiraAsync(sp, "34 OT 11");
 
-        var ilk = (await svc.AdaylarAsync()).First();
+        var ilk = (await svc.CandidatesAsync()).First();
 
         // Aynı dönemin tahsilatını ÖNCE manuel yoldan al (deterministik anahtar tüketilir).
-        await sp.GetRequiredService<DonemTahsilatService>()
-            .KesVeTahsilEtAsync(ilk.RentalId, ilk.DonemSira, true, LedgerAccountType.Kasa);
+        await sp.GetRequiredService<PeriodCollectionService>()
+            .IssueAndCollectAsync(ilk.RentalId, ilk.DonemSira, true, LedgerAccountType.Kasa);
 
         var kasaOnce = (await sp.GetRequiredService<CashService>().ListAsync()).Count;
 
         // Şimdi elle tetik AYNI dönemi çalıştırsın: fatura zaten kesildiği için aday da değil.
-        var sonuc = await svc.CalistirAsync([(ilk.RentalId, ilk.DonemSira)], true, LedgerAccountType.Kasa);
+        var sonuc = await svc.RunAsync([(ilk.RentalId, ilk.DonemSira)], true, LedgerAccountType.Kasa);
         var kasaSonra = (await sp.GetRequiredService<CashService>().ListAsync()).Count;
 
         Assert.Equal(kasaOnce, kasaSonra);              // yeni tahsilat YAZILMADI
@@ -293,16 +293,16 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
         await DonemliKiraAsync(sp, "34 OT 12");
         await DonemliKiraAsync(sp, "34 OT 13");
 
-        var adaylar = await svc.AdaylarAsync();
+        var adaylar = await svc.CandidatesAsync();
         // Her kiranın YALNIZ 2. dönemini seç → sıralı kesim kuralı ikisini de reddeder.
         var ikinciler = adaylar.Where(a => a.DonemSira == 2).ToList();
         Assert.Equal(2, ikinciler.Count);
 
-        var sonuc = await svc.CalistirAsync(
+        var sonuc = await svc.RunAsync(
             [.. ikinciler.Select(a => (a.RentalId, a.DonemSira))], true, LedgerAccountType.Kasa);
 
         Assert.Equal(0, sonuc.Kesilen);
@@ -319,6 +319,6 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using (var a = host.ScopeFor(Guid.NewGuid())) await DonemliKiraAsync(a.ServiceProvider, "34 OT 08");
 
         using var b = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await b.ServiceProvider.GetRequiredService<OtomatikTahsilatService>().AdaylarAsync());
+        Assert.Empty(await b.ServiceProvider.GetRequiredService<AutoCollectionService>().CandidatesAsync());
     }
 }

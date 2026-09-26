@@ -36,7 +36,7 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         var bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Probe", Soyad = "Musteri" });
+        { Tip = CustomerType.Bireysel, Ad = "Probe", Soyad = "Musteri" });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
             MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90),
@@ -74,7 +74,7 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         // Kullanıcı bu kirayı periyodik faturalamaya SOKMADI (job ona asla dokunmaz).
         var (kira, _) = await KiraAsync(sp, "34 PB 01", donemsel: false);
 
-        var benim = (await sp.GetRequiredService<OtomatikTahsilatService>().AdaylarAsync())
+        var benim = (await sp.GetRequiredService<AutoCollectionService>().CandidatesAsync())
             .Where(a => a.RentalId == kira).ToList();
 
         Assert.Empty(benim); // BULGU: 2 dönem listeleniyor
@@ -91,15 +91,15 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
         var (kira, _) = await KiraAsync(sp, "34 PB 02", donemsel: false);
 
-        var adaylar = (await svc.AdaylarAsync()).Where(a => a.RentalId == kira).ToList();
+        var adaylar = (await svc.CandidatesAsync()).Where(a => a.RentalId == kira).ToList();
         Assert.Empty(adaylar);   // opt-in KAPALI kira aday değil
 
         // Uydurma POST ile ZORLAMA denemesi de reddedilmeli — aday çiti son savunma.
         var (borcOnce, _, faturaOnce, kasaOnce) = await DefterAsync(sp);
-        var sonuc = await svc.CalistirAsync([(kira, 1), (kira, 2)], true, LedgerAccountType.Kasa);
+        var sonuc = await svc.RunAsync([(kira, 1), (kira, 2)], true, LedgerAccountType.Kasa);
         var (borc, alacak, fatura, kasa) = await DefterAsync(sp);
 
         Assert.Equal(borc, alacak);
@@ -121,7 +121,7 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
         var (kira, cari) = await KiraAsync(sp, "34 PB 03");
 
         // Dönem 1'in deterministik tahsilat anahtarı önceden tüketilmiş (çift-submit kalıntısı).
@@ -133,7 +133,7 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         });
 
         var kasaOnce = (await DefterAsync(sp)).Kasa;
-        var sonuc = await svc.CalistirAsync([(kira, 1)], true, LedgerAccountType.Kasa);
+        var sonuc = await svc.RunAsync([(kira, 1)], true, LedgerAccountType.Kasa);
         var kasaSonra = (await DefterAsync(sp)).Kasa;
 
         Assert.Equal(kasaOnce, kasaSonra);   // hiç yeni tahsilat yazılmadı (idempotent yutma)
@@ -154,13 +154,13 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
 
         var (k1, _) = await KiraAsync(sp, "34 PB 04");
         var (k2, _) = await KiraAsync(sp, "34 PB 05");
 
         // İki AYRI sözleşmenin 2. dönemi (1. dönemler hâlâ Planlandi → sıralı-kesim reddi).
-        var sonuc = await svc.CalistirAsync([(k1, 2), (k2, 2)], true, LedgerAccountType.Kasa);
+        var sonuc = await svc.RunAsync([(k1, 2), (k2, 2)], true, LedgerAccountType.Kasa);
 
         Assert.Equal(0, sonuc.Kesilen);
         Assert.Equal(2, sonuc.Atlananlar.Count);
@@ -179,16 +179,16 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
         await KiraAsync(sp, "34 PB 06");
 
         // 25 uydurma seçim → 25 atlanan.
         var secim = Enumerable.Range(1, 25).Select(i => (Guid.NewGuid(), i)).ToList();
-        var sonuc = await svc.CalistirAsync(secim, true, LedgerAccountType.Kasa);
+        var sonuc = await svc.RunAsync(secim, true, LedgerAccountType.Kasa);
         Assert.Equal(25, sonuc.Atlananlar.Count);
 
         // Web ucunun kullandığı SAF kural: ilk 10 + "… ve N kayıt daha" sayacı.
-        var goster = OtomatikTahsilatService.AtlananGoster(sonuc.Atlananlar);
+        var goster = AutoCollectionService.ShowSkipped(sonuc.Atlananlar);
         Assert.True(goster.Count == 11 && goster[^1].Contains("15"),
             $"BULGU: {sonuc.Atlananlar.Count} atlanan üretildi, kullanıcıya giden liste " +
             $"{goster.Count} satır ve son satır '{goster[^1]}' — gizlenen sayısı söylenmiyor.");
@@ -215,20 +215,20 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<OtomatikTahsilatService>();
+        var svc = sp.GetRequiredService<AutoCollectionService>();
         var (kira, _) = await KiraAsync(sp, "34 PB 07");
 
         // Dönem 1 başarılı, dönem 2'de ValidationException (sıralı değil değil — ikisi de aday).
         // Burada asimetrinin ÖLÇÜLEBİLİR yüzü: ValidationException yakalanır (kesilen=2 olur),
         // ama tür daraltması yüzünden DİĞER hata sınıfları partiyi düşürür.
-        var sonuc = await svc.CalistirAsync([(kira, 1), (kira, 2)], true, LedgerAccountType.Kasa);
+        var sonuc = await svc.RunAsync([(kira, 1), (kira, 2)], true, LedgerAccountType.Kasa);
         Assert.Equal(2, sonuc.Kesilen);
 
         // Job'un yakalama genişliği ile manuel yolunki AYNI olmalı (tek kopya ilkesi).
         var jobKaynak = await File.ReadAllTextAsync(Path.Combine(RepoKok(),
             "src/RentACar.Infrastructure/Persistence/DonemFaturaUretici.cs"));
         var manuelKaynak = await File.ReadAllTextAsync(Path.Combine(RepoKok(),
-            "src/RentACar.Application/FaturaDonemleri/OtomatikTahsilatService.cs"));
+            "src/RentACar.Application/FaturaDonemleri/AutoCollectionService.cs"));
         Assert.True(
             jobKaynak.Contains("catch (Exception ex) when (ex is not OperationCanceledException)")
             && manuelKaynak.Contains("catch (Exception ex) when (ex is not OperationCanceledException)"),
@@ -256,18 +256,18 @@ public sealed class Faz30AdversarialKilitTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await sp.GetRequiredService<SabitKurService>()
+        await sp.GetRequiredService<FixedExchangeRateService>()
             .UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
 
         await KiraAsync(sp, "34 PB 08");                    // TRY 9000
         await KiraAsync(sp, "34 PB 09", doviz: "EUR");      // EUR 9000
 
-        var adaylar = await sp.GetRequiredService<OtomatikTahsilatService>().AdaylarAsync();
+        var adaylar = await sp.GetRequiredService<AutoCollectionService>().CandidatesAsync();
         var dovizler = adaylar.Select(a => a.Doviz).Distinct().OrderBy(x => x).ToList();
         Assert.Equal(["EUR", "TRY"], dovizler);             // senaryo gerçekten karışık dövizli
 
         // Ekranın kullandığı SAF kural: döviz KIRILIMLI toplam — tek birimsiz sayı YOK.
-        var kirilim = OtomatikTahsilatService.DovizToplamlari(adaylar);
+        var kirilim = AutoCollectionService.CurrencyTotals(adaylar);
         Assert.True(kirilim.Count == 2,
             $"BULGU: ekran {kirilim.Count} satırda topluyor — karışık dövizli aday listesinde " +
             "tek toplam anlamsız olurdu.");

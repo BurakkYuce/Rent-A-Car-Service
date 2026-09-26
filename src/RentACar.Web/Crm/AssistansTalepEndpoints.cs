@@ -13,13 +13,13 @@ public static class AssistansTalepEndpoints
     {
         var grp = app.MapGroup("/assistans").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (AssistansTalepService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (AssistanceRequestService svc, HttpRequest req) =>
             await Run(req, () => svc.CreateAsync(Build(req.Form))));
 
-        grp.MapPost("/update", async (AssistansTalepService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (AssistanceRequestService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(req, () => svc.UpdateAsync(id, Build(req.Form))));
 
-        grp.MapPost("/delete", async (AssistansTalepService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (AssistanceRequestService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(req, () => svc.DeleteAsync(id)));
 
         return app;

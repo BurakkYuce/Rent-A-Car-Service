@@ -10,7 +10,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// IKdvRateRepository: kısa-ömürlü context'ler (factory). Tenant izolasyonu RLS + query
 /// filter ile otomatik. Kod benzersizliği DB unique index ile; ihlal (23505) ValidationException.
 /// </summary>
-public sealed class KdvRateRepository(IDbContextFactory<AppDbContext> factory) : IKdvRateRepository
+public sealed class KdvRateRepository(IDbContextFactory<AppDbContext> factory) : IVatRateRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -32,7 +32,7 @@ public sealed class KdvRateRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.KdvOranlari.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();

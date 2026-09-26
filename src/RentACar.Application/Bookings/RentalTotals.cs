@@ -14,9 +14,9 @@ public static class RentalTotals
         => c.Tutar + c.FazlaKmBedeli + c.YakitBedeli + c.UzatmaBedeli;
 
     /// <summary>GenelToplam + Bakiye'yi baz brüt + ek hizmet brütü toplamına göre günceller.</summary>
-    public static void Recompute(RentalContract c, decimal ekHizmetToplam)
+    public static void Recompute(RentalContract c, decimal addOnTotal)
     {
-        c.GenelToplam = BaseGross(c) + ekHizmetToplam;
+        c.GenelToplam = BaseGross(c) + addOnTotal;
         c.Bakiye = c.GenelToplam - c.Tahsilat;
     }
 }

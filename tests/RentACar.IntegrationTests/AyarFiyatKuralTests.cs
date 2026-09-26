@@ -29,10 +29,10 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
 {
     private static Task<Guid> CariAsync(IServiceProvider sp, string ad = "Ayar") =>
         sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
 
     private static Task SabitKurAsync(IServiceProvider sp, string kod, decimal kur)
-        => sp.GetRequiredService<SabitKurService>().UpsertAsync(new SabitKurInput { Kod = kod, Kur = kur, Aktif = true });
+        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = kod, Kur = kur, Aktif = true });
 
     // ---------------------------------------------------------------- Grup 3: alanlar + doğrulama
 
@@ -182,10 +182,10 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var coz = scope.ServiceProvider.GetRequiredService<FormVarsayilanCozucu>();
+        var coz = scope.ServiceProvider.GetRequiredService<FormDefaultResolver>();
 
-        Assert.Equal(8, await coz.CikisYakitAsync());   // ELLE: sayfaya gömülü olan eski sabit
-        Assert.Null(await coz.FiyatTuruAsync());        // "—" (seçilmemiş)
+        Assert.Equal(8, await coz.PickupFuelAsync());   // ELLE: sayfaya gömülü olan eski sabit
+        Assert.Null(await coz.PriceTypeAsync());        // "—" (seçilmemiş)
     }
 
     [Fact]
@@ -199,9 +199,9 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
             VarsayilanYakitSeviyesi = 4, VarsayilanFiyatTuru = "Otomatik"
         });
 
-        var coz = sp.GetRequiredService<FormVarsayilanCozucu>();
-        Assert.Equal(4, await coz.CikisYakitAsync());
-        Assert.Equal("Otomatik", await coz.FiyatTuruAsync());
+        var coz = sp.GetRequiredService<FormDefaultResolver>();
+        Assert.Equal(4, await coz.PickupFuelAsync());
+        Assert.Equal("Otomatik", await coz.PriceTypeAsync());
     }
 
     /// <summary>Elle DB düzenlemesi/eski veri ile aralık dışı ya da motorun tanımadığı bir değer
@@ -222,9 +222,9 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
             s.VarsayilanFiyatTuru = "Gunluk";   // motorun tanımadığı yazım
         });
 
-        var coz = sp.GetRequiredService<FormVarsayilanCozucu>();
-        Assert.Equal(8, await coz.CikisYakitAsync());
-        Assert.Null(await coz.FiyatTuruAsync());
+        var coz = sp.GetRequiredService<FormDefaultResolver>();
+        Assert.Equal(8, await coz.PickupFuelAsync());
+        Assert.Null(await coz.PriceTypeAsync());
     }
 
     /// <summary>Çözücü ADMIN kapısı ARKASINDA DEĞİLDİR: rezervasyon/teklif/kira formları operatör
@@ -239,8 +239,8 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
                 .SaveAsync(new TenantSettingsModel { VarsayilanYakitSeviyesi = 3 });
 
         using var op = host.ScopeFor(tenant, role: UserRole.Operator);
-        Assert.Equal(3, await op.ServiceProvider.GetRequiredService<FormVarsayilanCozucu>().CikisYakitAsync());
-        await Assert.ThrowsAsync<YetkiYokException>(
+        Assert.Equal(3, await op.ServiceProvider.GetRequiredService<FormDefaultResolver>().PickupFuelAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => op.ServiceProvider.GetRequiredService<TenantSettingsService>().GetAsync());
     }
 
@@ -282,14 +282,14 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var coz = scope.ServiceProvider.GetRequiredService<KurCozucu>();
+        var coz = scope.ServiceProvider.GetRequiredService<ExchangeRateResolver>();
 
-        Assert.Equal(5.5m, await coz.CozAsync("EUR", 5.5m, null));   // ELLE: verilen kur
-        Assert.Equal(1m, await coz.CozAsync("TRY", null, null));     // ELLE: TRY → 1
+        Assert.Equal(5.5m, await coz.ResolveAsync("EUR", 5.5m, null));   // ELLE: verilen kur
+        Assert.Equal(1m, await coz.ResolveAsync("TRY", null, null));     // ELLE: TRY → 1
         // Ayar satırı VAR ama kilit kapalı → yine aynen kabul.
         await scope.ServiceProvider.GetRequiredService<TenantSettingsService>()
             .SaveAsync(new TenantSettingsModel { FirmaUnvan = "Kilitsiz", KurElleGirisKilitli = false });
-        Assert.Equal(5.5m, await coz.CozAsync("EUR", 5.5m, null));
+        Assert.Equal(5.5m, await coz.ResolveAsync("EUR", 5.5m, null));
     }
 
     [Fact]
@@ -301,14 +301,14 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
         await sp.GetRequiredService<TenantSettingsService>()
             .SaveAsync(new TenantSettingsModel { KurElleGirisKilitli = true });
         await SabitKurAsync(sp, "EUR", 40m);
-        var coz = sp.GetRequiredService<KurCozucu>();
+        var coz = sp.GetRequiredService<ExchangeRateResolver>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => coz.CozAsync("EUR", 5.5m, null));
+        await Assert.ThrowsAsync<ValidationException>(() => coz.ResolveAsync("EUR", 5.5m, null));
         // Pozitiflik guard'ından ÖNCE reddediliyor: 0/negatif kur da aynı kilit mesajıyla düşer.
-        await Assert.ThrowsAsync<ValidationException>(() => coz.CozAsync("EUR", 0m, null));
+        await Assert.ThrowsAsync<ValidationException>(() => coz.ResolveAsync("EUR", 0m, null));
         // Otomatik yol (kur boş) BOZULMAZ — kilit yalnız ELLE girişi kapatır.
-        Assert.Equal(40m, await coz.CozAsync("EUR", null, null));    // ELLE: sabit kur 40
-        Assert.Equal(1m, await coz.CozAsync("TRY", null, null));
+        Assert.Equal(40m, await coz.ResolveAsync("EUR", null, null));    // ELLE: sabit kur 40
+        Assert.Equal(1m, await coz.ResolveAsync("TRY", null, null));
     }
 
     /// <summary>
@@ -330,11 +330,11 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
 
         await Assert.ThrowsAsync<ValidationException>(
             () => cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "EUR", Kur = 35m }));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
         Assert.Empty(await cash.ListAsync());
 
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "EUR" });
-        Assert.Equal(-4000m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(-4000m, await cash.GetAccountBalanceAsync(cari));
     }
 
     /// <summary>
@@ -363,8 +363,8 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
             new CashInput { CariId = c2, Tutar = 100m, Doviz = "EUR", Kur = 35m }
         ]));
         Assert.StartsWith("Satır 2:", hata.Message);
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(c1));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(c2));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(c1));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(c2));
         Assert.Empty(await cash.ListAsync());
 
         // Kursuz toplu yol BOZULMAZ — elle: 100 EUR × 40 = 4000 (her iki cari).
@@ -373,8 +373,8 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
             new CashInput { CariId = c1, Tutar = 100m, Doviz = "EUR" },
             new CashInput { CariId = c2, Tutar = 100m, Doviz = "EUR" }
         ]);
-        Assert.Equal(-4000m, await cash.GetCariBalanceAsync(c1));
-        Assert.Equal(-4000m, await cash.GetCariBalanceAsync(c2));
+        Assert.Equal(-4000m, await cash.GetAccountBalanceAsync(c1));
+        Assert.Equal(-4000m, await cash.GetAccountBalanceAsync(c2));
 
         // Toplu GİDER de aynı kapıdan geçer.
         var giderler = sp.GetRequiredService<ExpenseService>();
@@ -398,7 +398,7 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
         var cash = sp.GetRequiredService<CashService>();
 
         await cash.BatchCollectAsync([new CashInput { CariId = cari, Tutar = 100m, Doviz = "EUR", Kur = 35m }]);
-        Assert.Equal(-3500m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(-3500m, await cash.GetAccountBalanceAsync(cari));
 
         var hata = await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync(
         [
@@ -406,7 +406,7 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
             new CashInput { CariId = cari, Tutar = 10m, Doviz = "EUR", Kur = 0m }
         ]));
         Assert.StartsWith("Satır 2:", hata.Message);
-        Assert.Equal(-3500m, await cash.GetCariBalanceAsync(cari)); // atomik: değişmedi
+        Assert.Equal(-3500m, await cash.GetAccountBalanceAsync(cari)); // atomik: değişmedi
     }
 
     /// <summary>Tenant izolasyonu (racar_app + RLS): t1'in kilidi t2'yi bağlamaz, t2'nin ayar satırı
@@ -424,10 +424,10 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
             await Assert.ThrowsAsync<ValidationException>(
-                () => s1.ServiceProvider.GetRequiredService<KurCozucu>().CozAsync("EUR", 7m, null));
+                () => s1.ServiceProvider.GetRequiredService<ExchangeRateResolver>().ResolveAsync("EUR", 7m, null));
 
         using var s2 = host.ScopeFor(t2);
-        Assert.Equal(7m, await s2.ServiceProvider.GetRequiredService<KurCozucu>().CozAsync("EUR", 7m, null));
+        Assert.Equal(7m, await s2.ServiceProvider.GetRequiredService<ExchangeRateResolver>().ResolveAsync("EUR", 7m, null));
         Assert.False((await s2.ServiceProvider.GetRequiredService<TenantSettingsService>().GetAsync()).KurElleGirisKilitli);
     }
 
@@ -459,12 +459,12 @@ public sealed class AyarFiyatKuralTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
 
         using var muhasebe = host.ScopeFor(tenant, role: UserRole.Muhasebe);
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => muhasebe.ServiceProvider.GetRequiredService<TenantSettingsService>()
                 .SaveAsync(new TenantSettingsModel { KurElleGirisKilitli = true }));
 
         using var op = host.ScopeFor(tenant, role: UserRole.Operator);
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => op.ServiceProvider.GetRequiredService<TenantSettingsService>()
                 .SaveAsync(new TenantSettingsModel { VarsayilanYakitSeviyesi = 2 }));
     }

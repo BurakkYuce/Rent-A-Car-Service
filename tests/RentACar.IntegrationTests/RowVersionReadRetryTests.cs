@@ -53,17 +53,17 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
     {
         var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var staff = await sp.GetRequiredService<PersonelService>().CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ali", Soyad = "Test" });
+        var staff = await sp.GetRequiredService<PersonnelService>().CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ali", Soyad = "Test" });
         var day = DateOnly.FromDateTime(TestZaman.GunSonra(20).UtcDateTime);
-        var id = await sp.GetRequiredService<PersonelVardiyaService>().CreateAsync(new VardiyaInput
+        var id = await sp.GetRequiredService<StaffShiftService>().CreateAsync(new VardiyaInput
         {
             PersonelId = staff, Tarih = day, BaslangicSaat = new TimeOnly(8, 0), BitisSaat = new TimeOnly(12, 0), Aciklama = "ilk",
         });
         return (scope, id);
     }
 
-    private static PersonelVardiyaService ShiftService(IServiceProvider sp, IRowVersionStore store)
-        => new(sp.GetRequiredService<IPersonelVardiyaRepository>(), sp.GetRequiredService<IPersonelRepository>(),
+    private static StaffShiftService ShiftService(IServiceProvider sp, IRowVersionStore store)
+        => new(sp.GetRequiredService<IPersonnelShiftRepository>(), sp.GetRequiredService<IPersonnelRepository>(),
             sp.GetRequiredService<IBranchRepository>(), sp.GetRequiredService<ICurrentUser>(), store);
 
     [Fact]
@@ -104,8 +104,8 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
         Assert.NotEqual(await inner.GetVersionAsync<PersonelVardiya>(id), version);
 
         // Bu sürümle tam değiştirme 409 (güvenli yön); kayıt değişmez.
-        var real = scope.ServiceProvider.GetRequiredService<PersonelVardiyaService>();
-        await Assert.ThrowsAsync<EszamanliDegisiklikException>(() => real.UpdateVersionedAsync(id, new VardiyaInput
+        var real = scope.ServiceProvider.GetRequiredService<StaffShiftService>();
+        await Assert.ThrowsAsync<ConcurrentModificationException>(() => real.UpdateVersionedAsync(id, new VardiyaInput
         {
             PersonelId = row.Vardiya.PersonelId, Tarih = row.Vardiya.Tarih,
             BaslangicSaat = new TimeOnly(9, 0), BitisSaat = new TimeOnly(10, 0), Aciklama = "bayat",
@@ -115,7 +115,7 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
 
     // ---------------- Sabit kur (FinanceHubApi.Rates → SabitKurService.ListWithVersionsAsync) ----------------
 
-    private sealed class RateWriter(ISabitKurRepository inner, Guid target, bool everyRead) : ISabitKurRepository
+    private sealed class RateWriter(IPinnedRateRepository inner, Guid target, bool everyRead) : IPinnedRateRepository
     {
         public int Reads { get; private set; }
         public int Writes { get; private set; }
@@ -138,8 +138,8 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
         public Task<SabitKur?> FindAsync(Guid id, CancellationToken ct = default) => inner.FindAsync(id, ct);
         public Task<SabitKur?> GetActiveAsync(string kod, DateTimeOffset tarih, CancellationToken ct = default)
             => inner.GetActiveAsync(kod, tarih, ct);
-        public Task<bool> KodExistsAsync(string kod, Guid? excludeId, CancellationToken ct = default)
-            => inner.KodExistsAsync(kod, excludeId, ct);
+        public Task<bool> CodeExistsAsync(string kod, Guid? excludeId, CancellationToken ct = default)
+            => inner.CodeExistsAsync(kod, excludeId, ct);
         public Task CreateAsync(SabitKur sabit, CancellationToken ct = default) => inner.CreateAsync(sabit, ct);
         public Task<bool> UpdateAsync(SabitKur sabit, CancellationToken ct = default) => inner.UpdateAsync(sabit, ct);
         public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default) => inner.DeleteAsync(id, ct);
@@ -150,7 +150,7 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
     private static async Task<(IServiceScope Scope, Guid Id)> RateAsync(TestHost host)
     {
         var scope = host.ScopeFor(Guid.NewGuid());
-        var id = await scope.ServiceProvider.GetRequiredService<SabitKurService>()
+        var id = await scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>()
             .CreateAsync(new SabitKurInput { Kod = "USD", Kur = 30m, Aktif = true });
         return (scope, id);
     }
@@ -161,10 +161,10 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var (scope, id) = await RateAsync(host);
         using var _ = scope;
-        var inner = scope.ServiceProvider.GetRequiredService<ISabitKurRepository>();
+        var inner = scope.ServiceProvider.GetRequiredService<IPinnedRateRepository>();
         var writer = new RateWriter(inner, id, everyRead: false);
 
-        var pair = Assert.Single(await new SabitKurService(writer, scope.ServiceProvider.GetRequiredService<ICurrentUser>())
+        var pair = Assert.Single(await new FixedExchangeRateService(writer, scope.ServiceProvider.GetRequiredService<ICurrentUser>())
             .ListWithVersionsAsync());
 
         Assert.Equal(1, writer.Writes);
@@ -172,7 +172,7 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
         Assert.Equal(31m, pair.Row.Kur);                                   // elle: yazım 1 → 30+1
         Assert.Equal(await inner.GetVersionAsync(id), pair.Version);
         // Dönen sürümle PUT geçer (tutarlı çift).
-        Assert.True(await scope.ServiceProvider.GetRequiredService<SabitKurService>()
+        Assert.True(await scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>()
             .UpdateAsync(id, new SabitKurInput { Kur = 32m, Aktif = true }, pair.Version));
     }
 
@@ -182,10 +182,10 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var (scope, id) = await RateAsync(host);
         using var _ = scope;
-        var inner = scope.ServiceProvider.GetRequiredService<ISabitKurRepository>();
+        var inner = scope.ServiceProvider.GetRequiredService<IPinnedRateRepository>();
         var writer = new RateWriter(inner, id, everyRead: true);
 
-        var pair = Assert.Single(await new SabitKurService(writer, scope.ServiceProvider.GetRequiredService<ICurrentUser>())
+        var pair = Assert.Single(await new FixedExchangeRateService(writer, scope.ServiceProvider.GetRequiredService<ICurrentUser>())
             .ListWithVersionsAsync());
 
         // Elle: 6 okuma = 6 yazım; deneme 3'te satır yazım 5 sonrası (35), dönen sürüm yazım 5 ÖNCESİ.
@@ -194,8 +194,8 @@ public sealed class RowVersionReadRetryTests(PostgresFixture fx)
         Assert.Equal(35m, pair.Row.Kur);
         Assert.NotEqual(await inner.GetVersionAsync(id), pair.Version);
 
-        var real = scope.ServiceProvider.GetRequiredService<SabitKurService>();
-        await Assert.ThrowsAsync<EszamanliDegisiklikException>(() =>
+        var real = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
+        await Assert.ThrowsAsync<ConcurrentModificationException>(() =>
             real.UpdateAsync(id, new SabitKurInput { Kur = 99m, Aktif = true }, pair.Version));
         Assert.Equal(36m, (await real.GetAsync(id))!.Kur);                 // son yazım (6) korunur
     }

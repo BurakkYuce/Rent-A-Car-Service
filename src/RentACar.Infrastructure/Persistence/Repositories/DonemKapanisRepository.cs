@@ -20,11 +20,11 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// YALNIZ P&amp;L kapatılır (Gelir/Gider → DonemSonucu); KDV/Kasa/Banka/Cari (bilanço) dokunulmaz. Tutarlar
 /// base-TL, 4 haneye yuvarlı; fiş DENGELİ kurulur (Σ SignedBase = 0 by construction). Değişmez defter: ekle-yalnız.
 /// </summary>
-public sealed class DonemKapanisRepository(IDbContextFactory<AppDbContext> factory) : IDonemKapanisRepository
+public sealed class DonemKapanisRepository(IDbContextFactory<AppDbContext> factory) : IPeriodClosingRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task KapatAsync(DateTimeOffset kapanisTarihi, CancellationToken ct = default)
+    public async Task CloseAsync(DateTimeOffset kapanisTarihi, CancellationToken ct = default)
     {
         // Kapanış anı = kapanış gününün İSTANBUL gün sonu, UTC (o günün tüm kayıtları dahil). F8.1a adversarial M2:
         // kilit karşılaştırması (PeriodLock) İstanbul günüyle yapılır; fiş aynı günün sonunu kapatmalı.

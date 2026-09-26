@@ -62,7 +62,7 @@ public sealed class CezaOdemeInput
 /// <summary>Kısmi ödeme sonucu — satır ve başlık kalanları AYRI raporlanır (tutarlılık gözle görünür).</summary>
 public sealed record CezaOdemeSonuc(
     Guid OdemeId, Guid SatirId, int Sira, decimal Tutar,
-    decimal SatirKalan, decimal CezaKalan, CezaDurum Durum);
+    decimal SatirKalan, decimal CezaKalan, PenaltyStatus Durum);
 
 /// <summary>Ceza listesi filtresi (canlı ceza_listesi.aspx paritesi). Boş alanlar süzmez.</summary>
 public sealed class PenaltyFilter
@@ -75,15 +75,15 @@ public sealed class PenaltyFilter
     public DateTimeOffset? Bas { get; set; }
     /// <summary>Tebliğ tarihi üst sınırı (GÜN DAHİL — gün sonuna kadar).</summary>
     public DateTimeOffset? Bit { get; set; }
-    public CezaDurum? Durum { get; set; }
+    public PenaltyStatus? Durum { get; set; }
     /// <summary>Ödeme durumu süzgeci.</summary>
-    public CezaOdemeDurum? OdemeDurum { get; set; }
+    public PenaltyPaymentStatus? OdemeDurum { get; set; }
     /// <summary>İşlem şubesi (tam eşleşme, case-insensitive).</summary>
     public string? IslemSube { get; set; }
 }
 
 /// <summary>Ödeme durumu süzgeci — tutarlardan TÜRETİLİR (ayrı bir kolon değil).</summary>
-public enum CezaOdemeDurum
+public enum PenaltyPaymentStatus
 {
     Odenmemis = 0,
     Kismi = 1,

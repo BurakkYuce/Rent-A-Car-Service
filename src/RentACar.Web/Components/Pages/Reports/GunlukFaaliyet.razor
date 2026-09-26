@@ -89,7 +89,7 @@
             : new DateTimeOffset(DateTimeOffset.Now.Date, TimeSpan.Zero);
         _gun = parsed;
         GunStr ??= parsed.ToString("yyyy-MM-dd");
-        _data = await Reports.GetGunlukFaaliyetAsync(parsed, Sube);
+        _data = await Reports.GetDailyActivityAsync(parsed, Sube);
         _subeOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
     }
 }

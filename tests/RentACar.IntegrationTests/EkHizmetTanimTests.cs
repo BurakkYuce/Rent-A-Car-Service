@@ -21,7 +21,7 @@ public sealed class EkHizmetTanimTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
 
         var id = await svc.CreateAsync(In("gps", "Navigasyon", 50m, 0.20m));
         var got = await svc.GetAsync(id);
@@ -36,7 +36,7 @@ public sealed class EkHizmetTanimTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
 
         await svc.CreateAsync(In("BEBEK", "Bebek Koltuğu"));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(In("bebek", "Tekrar")));
@@ -47,7 +47,7 @@ public sealed class EkHizmetTanimTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(In("", "Ad")));            // kod yok
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(In("X", "")));             // ad yok
@@ -60,7 +60,7 @@ public sealed class EkHizmetTanimTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
+        var svc = scope.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
 
         var a = await svc.CreateAsync(In("A", "A hizmet"));
         await svc.CreateAsync(In("B", "B hizmet"));
@@ -77,8 +77,8 @@ public sealed class EkHizmetTanimTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        var svc = scope.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(In("X", "Yetkisiz")));
+        var svc = scope.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(In("X", "Yetkisiz")));
     }
 
     [Fact]
@@ -88,9 +88,9 @@ public sealed class EkHizmetTanimTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
         using (var s1 = host.ScopeFor(t1))
-            await s1.ServiceProvider.GetRequiredService<EkHizmetTanimService>().CreateAsync(In("T1", "Tenant1"));
+            await s1.ServiceProvider.GetRequiredService<AddOnDefinitionService>().CreateAsync(In("T1", "Tenant1"));
         using var s2 = host.ScopeFor(t2);
-        var svc2 = s2.ServiceProvider.GetRequiredService<EkHizmetTanimService>();
+        var svc2 = s2.ServiceProvider.GetRequiredService<AddOnDefinitionService>();
         Assert.Empty(await svc2.ListAsync());
         await svc2.CreateAsync(In("T1", "Tenant2")); // aynı kod farklı tenant'ta serbest
         Assert.Single(await svc2.ListAsync());

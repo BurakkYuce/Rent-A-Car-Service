@@ -78,10 +78,10 @@
         try
         {
             _b = await Showcase.GetBrandingAsync();
-            _telLink = TelefonLink.Tel(_b.Tel);
-            _mobilLink = TelefonLink.Tel(_b.MobilTel);
+            _telLink = PhoneLink.Tel(_b.Tel);
+            _mobilLink = PhoneLink.Tel(_b.MobilTel);
             // WhatsApp numarası yoksa MOBİL numaraya düş (firmaların çoğu aynı numarayı kullanıyor).
-            _waLink = TelefonLink.Wa(
+            _waLink = PhoneLink.Wa(
                 string.IsNullOrWhiteSpace(_b.WhatsApp) ? _b.MobilTel : _b.WhatsApp,
                 $"Merhaba, {_b.Marka} araç kiralama hakkında bilgi almak istiyorum.");
         }

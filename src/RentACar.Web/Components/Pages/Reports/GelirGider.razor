@@ -86,7 +86,7 @@
     {
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
-        _data = await Reports.GetGelirGiderAsync(from, to);
+        _data = await Reports.GetRevenueExpenseAsync(from, to);
     }
 
     private static DateTimeOffset? ParseDate(string? s)

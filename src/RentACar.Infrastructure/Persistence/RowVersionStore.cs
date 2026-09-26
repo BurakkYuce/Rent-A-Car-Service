@@ -51,7 +51,7 @@ public sealed class RowVersionStore(IDbContextFactory<AppDbContext> factory) : I
                 var current = await ReadAsync<T>(db, id, ct);
                 if (current is null) return false;
                 if (!string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
-                    throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+                    throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
                 var entity = await db.Set<T>().FirstOrDefaultAsync(x => EF.Property<Guid>(x, "Id") == id, ct);
                 if (entity is null) return false;
                 apply(entity);

@@ -32,7 +32,7 @@ public sealed class VehicleTypeRepository(IDbContextFactory<AppDbContext> factor
         return await db.VehicleTypes.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();
@@ -89,7 +89,7 @@ public sealed class VehicleTypeRepository(IDbContextFactory<AppDbContext> factor
         }
     }
 
-    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.AracTipleri, id, ct);

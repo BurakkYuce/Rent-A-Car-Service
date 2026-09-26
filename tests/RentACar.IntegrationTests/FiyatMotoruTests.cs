@@ -34,7 +34,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         {
             Kod = "EKO-WEB", Ad = "Eko Web", Kanal = "WEB", AracGrupKod = "EKO",
             Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, Gun4 = 875m, Gun5 = 850m, Gun6 = 825m, Gun7 = 800m,
-            OnayDurumu = tarifeOnayli ? TarifeOnayDurumu.Onayli : TarifeOnayDurumu.Bekliyor
+            OnayDurumu = tarifeOnayli ? TariffApprovalStatus.Onayli : TariffApprovalStatus.Bekliyor
         });
 
         var rr = sp.GetRequiredService<RentalRuleService>();
@@ -189,7 +189,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         await vg.CreateAsync(new VehicleGroupInput { Kod = "EKO", Ad = "Ekonomik" });
         var rm = scope.ServiceProvider.GetRequiredService<RateMatrixService>();
         await rm.CreateAsync(new RateMatrixInput
-        { Kod = "EKO-UP", Ad = "Üst", Kanal = "WEB", AracGrupKod = "EKO", Gun7 = 800m, OnayDurumu = TarifeOnayDurumu.Onayli });
+        { Kod = "EKO-UP", Ad = "Üst", Kanal = "WEB", AracGrupKod = "EKO", Gun7 = 800m, OnayDurumu = TariffApprovalStatus.Onayli });
         var engine = scope.ServiceProvider.GetRequiredService<RentalQuoteEngine>();
 
         // 3 gün → kademe 3 boş; aşağı yok → YUKARI en yakın dolu = Gün7 = 800. Baz = 800×3 = 2400 (sıfır DEĞİL).
@@ -229,7 +229,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         {
             Kod = "FLAT", Ad = "Düz", Kanal = "WEB", AracGrupKod = "EKO",
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m, Gun6 = 1000m, Gun7 = 1000m,
-            OnayDurumu = TarifeOnayDurumu.Onayli
+            OnayDurumu = TariffApprovalStatus.Onayli
         });
         var rr = scope.ServiceProvider.GetRequiredService<RentalRuleService>();
         await rr.CreateAsync(new RentalRuleInput { Kod = "FREE3", Ad = "3 Hediye Gün", Kanal = "WEB", AracGrupKod = "EKO", HediyeGun = 3 });
@@ -258,7 +258,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         {
             Kod = "FLAT", Ad = "Düz", Kanal = "WEB", AracGrupKod = "EKO",
             Gun1 = 100m, Gun2 = 100m, Gun3 = 100m, Gun4 = 100m, Gun5 = 100m, Gun6 = 100m, Gun7 = 100m,
-            OnayDurumu = TarifeOnayDurumu.Onayli
+            OnayDurumu = TariffApprovalStatus.Onayli
         });
         var cp = scope.ServiceProvider.GetRequiredService<CoverageProductService>();
         await cp.CreateAsync(new CoverageProductInput

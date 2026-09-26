@@ -70,10 +70,10 @@ public sealed class MaliyetHesapInput
     public decimal EnflasyonOran { get; set; }
 
     /// <summary>
-    /// Finansman yöntemi. <see cref="KrediHesaplamaSekli.Rotatif"/> güvenli-red ile karşılanır
+    /// Finansman yöntemi. <see cref="LoanCalculationMethod.Rotatif"/> güvenli-red ile karşılanır
     /// (formül kararı beklemede — KARARLAR.md FAZ-74).
     /// </summary>
-    public KrediHesaplamaSekli KrediHesaplamaSekli { get; set; } = KrediHesaplamaSekli.EsitTaksitli;
+    public LoanCalculationMethod KrediHesaplamaSekli { get; set; } = LoanCalculationMethod.EsitTaksitli;
 
     /// <summary>
     /// Kaç araçlık teklif. Hesap ARAÇ BAŞINA yapılır; filo toplamları sonuçta AYRI alanlarda
@@ -83,7 +83,7 @@ public sealed class MaliyetHesapInput
 }
 
 /// <summary>Gider kaleminin dönem içindeki tekrar biçimi.</summary>
-public enum MaliyetKalemPeriyot
+public enum CostItemPeriod
 {
     /// <summary>Yıllık tutar — döneme birim/12 × ay sayısı olarak yayılır.</summary>
     Yillik = 0,
@@ -99,7 +99,7 @@ public enum MaliyetKalemPeriyot
 /// satır-bazlı yuvarlama, toplamı sonradan yuvarlama yok).
 /// </summary>
 public sealed record MaliyetGiderKalem(
-    string Ad, MaliyetKalemPeriyot Periyot, decimal Birim, decimal DonemTutar);
+    string Ad, CostItemPeriod Periyot, decimal Birim, decimal DonemTutar);
 
 /// <summary>
 /// Maliyet hesabı sonucu (salt-hesap; deftere/bakiyeye yazmaz).

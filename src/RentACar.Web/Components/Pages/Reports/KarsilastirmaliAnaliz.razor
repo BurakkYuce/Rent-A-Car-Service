@@ -73,7 +73,7 @@
                 <td>@sat.Kirilim</td>
                 @foreach (var ay in _d.AyAnahtarlari)
                 {
-                    var v = sat.Ay(ay);
+                    var v = sat.Month(ay);
                     <td class="num">@(v == 0m ? "" : v.ToString("N0"))</td>
                 }
                 <td class="num"><strong>@sat.Toplam.ToString("N0")</strong></td>
@@ -85,7 +85,7 @@
                 <td><strong>Toplam</strong></td>
                 @foreach (var ay in _d.AyAnahtarlari)
                 {
-                    <td class="num"><strong>@_d.AyToplami(ay).ToString("N0")</strong></td>
+                    <td class="num"><strong>@_d.MonthTotal(ay).ToString("N0")</strong></td>
                 }
                 <td class="num"><strong>@_d.GenelToplam.ToString("N0")</strong></td>
             </tr>
@@ -119,7 +119,7 @@
     protected override async Task OnInitializedAsync()
     {
         _ofisler = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
-        _d = await Reports.GetKarsilastirmaliAnalizAsync(new KarsilastirmaliAnalizFilter
+        _d = await Reports.GetComparativeAnalysisAsync(new KarsilastirmaliAnalizFilter
         {
             Tablo = Tablo ?? "Kira",
             VeriTuru = Veri ?? "Adet",

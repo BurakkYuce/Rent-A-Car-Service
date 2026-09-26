@@ -44,8 +44,8 @@ public static class TeklifApi
         return g;
     }
 
-    private static readonly SiralamaHaritasi<TeklifListeSatiri> Harita = SiralamaHaritasi<TeklifListeSatiri>
-        .Olustur(t => t.Id)
+    private static readonly SortFieldMap<TeklifListeSatiri> Harita = SortFieldMap<TeklifListeSatiri>
+        .Create(t => t.Id)
         .Alan("no", t => t.No)
         .Alan("musteri", t => t.MusteriAd)
         .Alan("plaka", t => t.Plaka)
@@ -115,7 +115,7 @@ public static class TeklifApi
         Sinirlar.Metin(istek.DonusOfisi, 64, "donusOfisi", "Dönüş ofisi");
         Sinirlar.Metin(istek.Aciklama, 1024, "aciklama", "Açıklama");
         Sinirlar.Metin(istek.FiyatTuru, 64, "fiyatTuru", "Fiyat türü");
-        TarihPolitikasi.KiraBitis(istek.BasTar, istek.BitTar); // teklif → rezervasyon → kira zinciri
+        DatePolicy.RentalEnd(istek.BasTar, istek.BitTar); // teklif → rezervasyon → kira zinciri
         await F5Ortak.CikisOfisiKapsamiAsync(lokasyonlar, kullanici, istek.CikisOfisi, ct);
         // Müşteri/araç varlık kontrolü QuotationService.CreateAsync girişinde (BookingPartyCheck; tek kural).
         var id = await teklifler.CreateAsync(new QuotationInput
@@ -157,7 +157,7 @@ public static class TeklifApi
         {
             rezId = await teklifler.AcceptAsync(id, ct);
         }
-        catch (EszamanliDegisiklikException ex) when (ex.Message == EszamanliDegisiklikException.TeklifKabulMesaji)
+        catch (ConcurrentModificationException ex) when (ex.Message == ConcurrentModificationException.QuotationAcceptMessage)
         {
             // #271 L3: tekrar (yanıtı kaybolan ya da eşzamanlı ikinci kabul) 409 cakisma alır; gövde ZATEN açılmış
             // rezervasyonu söyler ki SPA kullanıcıyı ona götürsün (ikinci rezervasyon açılmaz — yapısal çit aynen).
@@ -181,7 +181,7 @@ public static class TeklifApi
         {
             return await rezervasyonlar.GetAsync(rid, ct) is { } r ? (r.Id, r.ReservationNo) : null;
         }
-        catch (YetkiYokException) { return null; }
+        catch (NoPermissionException) { return null; }
     }
 }
 

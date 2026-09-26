@@ -15,12 +15,12 @@ public static partial class MusteriTaksitApi
 {
     /// <summary>Plan: kimlikler anahtardan TÜRETİLİR (1. satır = anahtar); ikinci gönderim hiçbir satır yazmaz.</summary>
     private static async Task<Results<Created<TaksitPlanYaniti>, ProblemHttpResult>> Plan(
-        TaksitPlanIstegi i, HttpContext http, MusteriTaksitService svc, IDbContextFactory<AppDbContext> dbf,
-        ICurrentUser kullanici, KurCozucu kurCozucu, CancellationToken ct)
+        TaksitPlanIstegi i, HttpContext http, CustomerInstallmentService svc, IDbContextFactory<AppDbContext> dbf,
+        ICurrentUser kullanici, ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
-        if (i.TaksitSayisi is < 1 or > MusteriTaksitService.MaxTaksit)
-            throw new ValidationException($"Taksit sayısı 1 ile {MusteriTaksitService.MaxTaksit} arasında olmalıdır.", "taksitSayisi");
+        if (i.TaksitSayisi is < 1 or > CustomerInstallmentService.MaxInstallments)
+            throw new ValidationException($"Taksit sayısı 1 ile {CustomerInstallmentService.MaxInstallments} arasında olmalıdır.", "taksitSayisi");
         await PlanMevcutAsync(anahtar, i, svc, dbf, ct); // (1) ÖNCE mevcut plan
 
         AracFinansOrtak.Tutar(i.ToplamTutar, "toplamTutar", scale: 2);
@@ -31,29 +31,29 @@ public static partial class MusteriTaksitApi
         int adet;
         try
         {
-            adet = await svc.PlanUretAsync(new TaksitPlanInput
+            adet = await svc.GeneratePlanAsync(new TaksitPlanInput
             {
                 CariId = i.CariId, VehicleId = BosIse(i.VehicleId), VehicleSaleId = BosIse(i.VehicleSaleId),
                 ToplamTutar = i.ToplamTutar, TaksitSayisi = i.TaksitSayisi, IlkVade = ilk, Currency = doviz, Kur = kur,
                 Aciklama = AracFinansOrtak.Nz(i.Aciklama), IslemAnahtari = anahtar,
             }, ct);
         }
-        catch (MukerrerIslemException ex) when (ex.Mevcut is null)
+        catch (DuplicateOperationException ex) when (ex.Existing is null)
         {
             await PlanMevcutAsync(anahtar, i, svc, dbf, ct);
             throw;
         }
-        var ids = Enumerable.Range(1, adet).Select(s => MusteriTaksitService.PlanSatirId(anahtar, s)).ToList();
+        var ids = Enumerable.Range(1, adet).Select(s => CustomerInstallmentService.PlanLineId(anahtar, s)).ToList();
         return TypedResults.Created($"{Kok}/{anahtar}", new TaksitPlanYaniti(adet, ids));
     }
 
     /// <summary>Aynı anahtarla yazılmış plan: <c>ayniIcerik</c> = aynı cari/araç/döviz, aynı adet ve aynı toplam.</summary>
-    private static async Task PlanMevcutAsync(Guid anahtar, TaksitPlanIstegi i, MusteriTaksitService svc,
+    private static async Task PlanMevcutAsync(Guid anahtar, TaksitPlanIstegi i, CustomerInstallmentService svc,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         if (await svc.GetAsync(anahtar, ct) is not { } ilk) return;
-        var olasi = Enumerable.Range(1, MusteriTaksitService.MaxTaksit)
-            .Select(s => MusteriTaksitService.PlanSatirId(anahtar, s)).ToList();
+        var olasi = Enumerable.Range(1, CustomerInstallmentService.MaxInstallments)
+            .Select(s => CustomerInstallmentService.PlanLineId(anahtar, s)).ToList();
         await using var db = await dbf.CreateDbContextAsync(ct);
         var satirlar = await db.MusteriTaksitleri.AsNoTracking().Where(t => olasi.Contains(t.Id))
             .Select(t => t.TaksitTutari).ToListAsync(ct);
@@ -66,32 +66,32 @@ public static partial class MusteriTaksitApi
     }
 
     private static async Task<Results<Ok<MusteriTaksitSatiri>, ProblemHttpResult>> Guncelle(
-        Guid id, MusteriTaksitIstegi i, MusteriTaksitService svc, IDbContextFactory<AppDbContext> dbf,
-        ICurrentUser kullanici, KurCozucu kurCozucu, CancellationToken ct)
+        Guid id, MusteriTaksitIstegi i, CustomerInstallmentService svc, IDbContextFactory<AppDbContext> dbf,
+        ICurrentUser kullanici, ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         if (await KapsamliAsync(id, svc, dbf, kullanici, ct) is null) return Bulunamadi(); // kapsam durumdan ÖNCE
         var surum = AracFinansOrtak.Surum(i.Surum);
         var girdi = await GirdiAsync(i, dbf, kullanici, kurCozucu, ct); // yeni araç da kapsamda olmalı
-        if (!await svc.UpdateSurumluAsync(id, girdi, surum, ct)) return Bulunamadi();
+        if (!await svc.UpdateVersionedAsync(id, girdi, surum, ct)) return Bulunamadi();
         return await DtoAsync(id, svc, dbf, kullanici, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
     private static async Task<Results<Ok<MusteriTaksitSatiri>, ProblemHttpResult>> Odendi(
-        Guid id, TaksitOdendiIstegi? istek, MusteriTaksitService svc, IDbContextFactory<AppDbContext> dbf,
+        Guid id, TaksitOdendiIstegi? istek, CustomerInstallmentService svc, IDbContextFactory<AppDbContext> dbf,
         ICurrentUser kullanici, CancellationToken ct)
     {
         if (await KapsamliAsync(id, svc, dbf, kullanici, ct) is not { } checkedRow) return Bulunamadi();
         var tarih = F5Ortak.Utc(istek?.OdemeTarihi);
-        Alanli("odemeTarihi", () => TarihPolitikasi.ParaTarihi(tarih, "Taksit ödeme"));
-        if (!await svc.OdemeIsaretleKilitliAsync(id, true, tarih, ct, SameVehicleGuard(checkedRow.VehicleId))) return Bulunamadi();
+        Alanli("odemeTarihi", () => DatePolicy.MoneyDate(tarih, "Taksit ödeme"));
+        if (!await svc.MarkPaidLockedAsync(id, true, tarih, ct, SameVehicleGuard(checkedRow.VehicleId))) return Bulunamadi();
         return await DtoAsync(id, svc, dbf, kullanici, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
     private static async Task<Results<Ok<MusteriTaksitSatiri>, ProblemHttpResult>> GeriAl(
-        Guid id, MusteriTaksitService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, CancellationToken ct)
+        Guid id, CustomerInstallmentService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser kullanici, CancellationToken ct)
     {
         if (await KapsamliAsync(id, svc, dbf, kullanici, ct) is not { } checkedRow) return Bulunamadi();
-        if (!await svc.OdemeIsaretleKilitliAsync(id, false, null, ct, SameVehicleGuard(checkedRow.VehicleId))) return Bulunamadi();
+        if (!await svc.MarkPaidLockedAsync(id, false, null, ct, SameVehicleGuard(checkedRow.VehicleId))) return Bulunamadi();
         return await DtoAsync(id, svc, dbf, kullanici, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
@@ -102,6 +102,6 @@ public static partial class MusteriTaksitApi
     private static Action<MusteriTaksit> SameVehicleGuard(Guid? checkedVehicleId) => row =>
     {
         if (row.VehicleId != checkedVehicleId)
-            throw new EszamanliDegisiklikException(EszamanliDegisiklikException.KayitMesaji);
+            throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
     };
 }

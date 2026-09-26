@@ -139,7 +139,7 @@
         var gun = ParseDate(Gun) ?? new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
         GunEtiket = gun.ToString("dd.MM.yyyy");
 
-        _rows = await Reports.GetAracGunlukDurumAsync(gun, new AracGunlukDurumFilter
+        _rows = await Reports.GetVehicleDailyStatusAsync(gun, new AracGunlukDurumFilter
         {
             Plaka = Plaka, Grup = Grup, Sipp = Sipp, AracSahibi = AracSahibi, Ofis = Ofis
         });

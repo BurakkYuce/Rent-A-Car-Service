@@ -46,7 +46,7 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
             var svc = op.ServiceProvider.GetRequiredService<ReservationService>();
             rezId = await svc.CreateAsync(Rez(arac, cari));
 
-            var ex = await Assert.ThrowsAsync<YetkiYokException>(() => svc.CancelAsync(rezId));
+            var ex = await Assert.ThrowsAsync<NoPermissionException>(() => svc.CancelAsync(rezId));
             Assert.Contains("OperationsDelete", ex.Message);
         }
 
@@ -65,9 +65,9 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
 
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
             scope.ServiceProvider.GetRequiredService<VehicleService>().DeleteAsync(Guid.NewGuid()));
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
             scope.ServiceProvider.GetRequiredService<CustomerService>().DeleteAsync(Guid.NewGuid()));
     }
 
@@ -83,7 +83,7 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<ServiceRecordService>();
 
-        var ex = await Assert.ThrowsAsync<YetkiYokException>(() => svc.IptalAsync(Guid.NewGuid()));
+        var ex = await Assert.ThrowsAsync<NoPermissionException>(() => svc.CancelAsync(Guid.NewGuid()));
         Assert.Contains("OperationsDelete", ex.Message);
     }
 
@@ -111,7 +111,7 @@ public sealed class IzinInceltmeTests(PostgresFixture fx)
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator))
         {
             var cash = op.ServiceProvider.GetRequiredService<CashService>();
-            var ex = await Assert.ThrowsAsync<YetkiYokException>(() => cash.ReverseAsync(islemId));
+            var ex = await Assert.ThrowsAsync<NoPermissionException>(() => cash.ReverseAsync(islemId));
             Assert.Contains("FinanceReverse", ex.Message);
         }
     }

@@ -22,7 +22,7 @@ public sealed class ReservationSourceInput
     // KURAL BAYRAKLARI (uygulanır) ile BİLGİ ALANLARI (hesaba girmez) ayrımı entity'de
     // gerekçesiyle yazılıdır (ReservationSource.cs).
 
-    public RezKaynakGrubu? KaynakGrubu { get; set; }
+    public ReservationSourceGroup? KaynakGrubu { get; set; }
 
     // KURAL — gerçekten uygulanır
     public bool Uzatamaz { get; set; }

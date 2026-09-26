@@ -22,9 +22,9 @@ public sealed class DokumTasimaTests(PostgresFixture fx)
     private static async Task<(Guid m, Guid v)> SeedAsync(IServiceProvider sp, string plaka)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Grup = "B" });
-        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Dok", Soyad = "M" });
+        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Dok", Soyad = "M" });
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
-        { Kod = "DK-B", Ad = "DK", AracGrupKod = "B", ParaBirimi = "TRY", Gun1 = 300m, Gun2 = 280m, Gun3 = 240m, OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t" });
+        { Kod = "DK-B", Ad = "DK", AracGrupKod = "B", ParaBirimi = "TRY", Gun1 = 300m, Gun2 = 280m, Gun3 = 240m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t" });
         await sp.GetRequiredService<RentalRuleService>().CreateAsync(new RentalRuleInput
         { Kod = "DK-R", Ad = "DK", AracGrupKod = "B", HediyeGun = 1, Iskonto = 10m });
         return (m, v);
@@ -50,7 +50,7 @@ public sealed class DokumTasimaTests(PostgresFixture fx)
 
         // Rez → Kira dönüşümü: döküm de taşınır (PR4b L2 boşluğu kapandı).
         var kiraId = await res.ConvertToRentalAsync(rezId);
-        var s = await sp.GetRequiredService<SozlesmeService>().GetAsync(kiraId);
+        var s = await sp.GetRequiredService<ContractService>().GetAsync(kiraId);
         Assert.Equal(432m, s!.Tutar);        // para (zaten korunuyordu)
         Assert.Equal(1, s.HediyeGun);        // döküm ARTIK taşınıyor
         Assert.Equal(2, s.FaturalananGun);

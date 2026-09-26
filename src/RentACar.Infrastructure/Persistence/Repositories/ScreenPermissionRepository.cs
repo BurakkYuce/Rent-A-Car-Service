@@ -20,7 +20,7 @@ public sealed class ScreenPermissionRepository(IDbContextFactory<AppDbContext> f
         return await db.EkranYetkileri.AsNoTracking().OrderBy(r => r.EkranKodu).ToListAsync(ct);
     }
 
-    public async Task<ScreenPermission?> FindByKodAsync(string ekranKodu, CancellationToken ct = default)
+    public async Task<ScreenPermission?> FindByCodeAsync(string ekranKodu, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.EkranYetkileri.AsNoTracking().FirstOrDefaultAsync(r => r.EkranKodu == ekranKodu, ct);

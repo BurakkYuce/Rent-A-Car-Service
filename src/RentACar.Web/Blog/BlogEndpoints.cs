@@ -34,11 +34,11 @@ public static class BlogEndpoints
             if (kapak is null || kapak.Length == 0) return Sonuc.Hata("/blog-yonetim", "Kapak görseli seçilmedi.");
             using var ms = new MemoryStream();
             await kapak.CopyToAsync(ms);
-            return await Run(() => svc.SetKapakAsync(id, ms.ToArray()));
+            return await Run(() => svc.SetCoverAsync(id, ms.ToArray()));
         }).WithMetadata(new RequestSizeLimitAttribute(3_000_000)); // 2 MB cap + multipart payı (PR-3 deseni)
 
         write.MapPost("/{id:guid}/kapak-sil", async (Guid id, BlogService svc) =>
-            await Run(() => svc.SetKapakAsync(id, null)));
+            await Run(() => svc.SetCoverAsync(id, null)));
 
         // Staff kapak önizlemesi — taslak dahil (public uç AYRI, Durum=Yayinda filtreli).
         var read = app.MapGroup("/blog-yonetim").RequireAuthorization();

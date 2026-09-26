@@ -32,7 +32,7 @@ public sealed class VehicleSegmentRepository(IDbContextFactory<AppDbContext> fac
         return await db.VehicleSegments.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();
@@ -89,7 +89,7 @@ public sealed class VehicleSegmentRepository(IDbContextFactory<AppDbContext> fac
         }
     }
 
-    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.Segmentler, id, ct);

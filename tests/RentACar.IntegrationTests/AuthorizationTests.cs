@@ -64,16 +64,16 @@ public sealed class FinanceAuthorizationTests(PostgresFixture fx)
         var sales = scope.ServiceProvider.GetRequiredService<VehicleSaleService>();
         var penalties = scope.ServiceProvider.GetRequiredService<PenaltyService>();
 
-        await Assert.ThrowsAsync<YetkiYokException>(() => cash.CollectAsync(
+        await Assert.ThrowsAsync<NoPermissionException>(() => cash.CollectAsync(
             new CashInput { CariId = Guid.NewGuid(), Tutar = 100m }));
-        await Assert.ThrowsAsync<YetkiYokException>(() => expenses.CreateAsync(
-            new ExpenseInput { NetTutar = 100m, OdemeYontemi = OdemeYontemi.Nakit }));
-        await Assert.ThrowsAsync<YetkiYokException>(() => sales.CreateAsync(
+        await Assert.ThrowsAsync<NoPermissionException>(() => expenses.CreateAsync(
+            new ExpenseInput { NetTutar = 100m, OdemeYontemi = PaymentMethod.Nakit }));
+        await Assert.ThrowsAsync<NoPermissionException>(() => sales.CreateAsync(
             new VehicleSaleInput { VehicleId = Guid.NewGuid(), AliciCariId = Guid.NewGuid(), SatisNet = 100m }));
 
         // Ceza KAYDI operasyoneldir (serbest), ama YANSITMA finanstır → reddedilir.
         var pid = await penalties.CreateAsync(new PenaltyInput { CezaTuru = "Hız", CariId = Guid.NewGuid(), Tutar = 100m });
-        await Assert.ThrowsAsync<YetkiYokException>(() => penalties.YansitAsync(pid));
+        await Assert.ThrowsAsync<NoPermissionException>(() => penalties.ReflectAsync(pid));
     }
 
     // Muhasebe (FinanceWrite VAR) finansal yazma yapabilir.

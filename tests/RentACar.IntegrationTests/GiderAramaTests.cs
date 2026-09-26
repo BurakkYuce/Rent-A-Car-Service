@@ -35,8 +35,8 @@ public sealed class GiderAramaTests(PostgresFixture fx)
 
         var v1 = await veh.CreateAsync(new VehicleInput { Plaka = "34 AA 01" });
         var v2 = await veh.CreateAsync(new VehicleInput { Plaka = "06 BB 02" });
-        var t1 = await cust.CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "Alfa Servis" });
-        var t2 = await cust.CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "Beta Sigorta" });
+        var t1 = await cust.CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Alfa Servis" });
+        var t2 = await cust.CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Beta Sigorta" });
 
         var a = await exp.CreateAsync(new ExpenseInput
         {

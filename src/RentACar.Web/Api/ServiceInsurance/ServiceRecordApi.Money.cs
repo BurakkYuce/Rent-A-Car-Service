@@ -49,9 +49,9 @@ internal static partial class ServiceRecordApi
         bool ok;
         try
         {
-            ok = await svc.KalemEkleAsync(id, LineInput(r, key), ct);
+            ok = await svc.AddItemAsync(id, LineInput(r, key), ct);
         }
-        catch (MukerrerIslemException ex) when (ex.Mevcut is null)
+        catch (DuplicateOperationException ex) when (ex.Existing is null)
         {
             await ExistingLineAsync(dbf, key, id, r, ct); // race: the lock let the first one in — report it
             throw;
@@ -67,11 +67,11 @@ internal static partial class ServiceRecordApi
         await using var db = await dbf.CreateDbContextAsync(ct);
         var l = await db.Set<ServiceLine>().AsNoTracking().FirstOrDefaultAsync(x => x.Id == key, ct);
         if (l is null) return;
-        if (l.ServiceRecordId != recordId) throw new MukerrerIslemException(OtherOperation);
+        if (l.ServiceRecordId != recordId) throw new DuplicateOperationException(OtherOperation);
         var same = l.Aciklama == (r.Aciklama ?? "").Trim() && l.BirimFiyat == r.BirimFiyat && l.Indirim == r.Indirim
                    && l.KdvOran == r.KdvOran && (r.Tutar is not { } t || l.Tutar == t)
                    && (r.Miktar is not { } q || l.Miktar == q);
-        throw new MukerrerIslemException(
+        throw new DuplicateOperationException(
             same ? "Bu kalem zaten eklendi; yeni kalem yazılmadı."
                  : "Bu işlem anahtarıyla başka içerikte bir kalem eklenmiş; girdiğiniz kalem YAZILMADI. Kaydı kontrol edin.",
             new MevcutIslem(l.Id, l.Aciklama, l.Tutar, "TRY", same));
@@ -88,7 +88,7 @@ internal static partial class ServiceRecordApi
         await AracFinansOrtak.CariVarAsync(dbf, r.CariId, "cariId", zorunlu: true, ct);
         try
         {
-            await svc.YansitAsync(id, r.CariId!.Value, ct: ct);
+            await svc.ReflectAsync(id, r.CariId!.Value, ct: ct);
         }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException) && ex.Message == "Servis maliyeti zaten yansıtıldı.")
         {
@@ -98,10 +98,10 @@ internal static partial class ServiceRecordApi
         return TypedResults.Ok((await DetailAsync(id, http, svc, dbf, user, ct))!);
     }
 
-    private static MukerrerIslemException Reflected(ServiceRecord rec, ServiceReflectRequest r)
+    private static DuplicateOperationException Reflected(ServiceRecord rec, ServiceReflectRequest r)
     {
         var same = rec.YansitilanCariId == r.CariId;
-        return new MukerrerIslemException(
+        return new DuplicateOperationException(
             same ? $"Servis maliyeti zaten yansıtıldı (No {rec.No}, {S.Money(rec.YansitilanTutar)} TRY); yeni kayıt yazılmadı."
                  : $"Servis maliyeti başka bir cariye yansıtılmış (No {rec.No}); girdiğiniz yansıtma YAZILMADI.",
             new MevcutIslem(rec.Id, rec.No, rec.YansitilanTutar, "TRY", same));

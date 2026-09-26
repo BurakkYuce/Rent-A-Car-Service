@@ -16,16 +16,16 @@ public sealed class DashboardService(ReportService report)
 {
     private readonly ReportService _report = report;
 
-    public async Task<DashboardDto> GetAsync(DateTimeOffset gun, CancellationToken ct = default)
+    public async Task<DashboardDto> GetAsync(DateTimeOffset day, CancellationToken ct = default)
     {
-        var filo = await _report.GetFleetUtilizationAsync(ct);
-        var gunluk = await _report.GetGunlukFaaliyetAsync(gun, ct: ct);
-        var kb = await _report.GetKasaBankaSummaryAsync(ct: ct);   // tüm zaman bakiye
-        var tf = await _report.GetTahsilatFaturaAsync(ct: ct);     // tüm zaman fatura-tahsilat farkı
+        var fleet = await _report.GetFleetUtilizationAsync(ct);
+        var daily = await _report.GetDailyActivityAsync(day, ct: ct);
+        var kb = await _report.GetCashBankSummaryAsync(ct: ct);   // tüm zaman bakiye
+        var tf = await _report.GetCollectionInvoiceAsync(ct: ct);     // tüm zaman fatura-tahsilat farkı
 
         return new DashboardDto(
-            filo.AktifKira, filo.Toplam, filo.Musait, filo.Kirada,
-            gunluk.Cikis, gunluk.Donus, gunluk.TahsilatAdet, gunluk.TahsilatTutar,
+            fleet.AktifKira, fleet.Toplam, fleet.Musait, fleet.Kirada,
+            daily.Cikis, daily.Donus, daily.TahsilatAdet, daily.TahsilatTutar,
             kb.KasaBakiye, kb.BankaBakiye, tf.Fark);
     }
 }

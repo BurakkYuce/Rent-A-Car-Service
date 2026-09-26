@@ -3,7 +3,7 @@
 @using RentACar.Application.WebSite
 @using RentACar.Domain.Common
 @using RentACar.Infrastructure.Persistence
-@inject WebIlanService Ilanlar
+@inject WebListingService Ilanlar
 @inject ITenantContext Tenant
 @inject TenantStatusCache Durum
 
@@ -73,6 +73,6 @@ else
         _modul = Tenant.TenantId is { } t && await Durum.WebSitesiModuluAsync(t);
         if (!_modul) return;
         _detay = await Ilanlar.GetAsync(Id);
-        if (_detay is not null) _kardesSayisi = await Ilanlar.KardesTaslakSayisiAsync(Id);
+        if (_detay is not null) _kardesSayisi = await Ilanlar.SiblingDraftCountAsync(Id);
     }
 }

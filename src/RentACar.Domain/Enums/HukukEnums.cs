@@ -1,7 +1,7 @@
 namespace RentACar.Domain.Enums;
 
 /// <summary>Hukuk dosyası türü.</summary>
-public enum HukukTuru
+public enum LegalType
 {
     Dava = 0,
     Icra = 1,
@@ -9,7 +9,7 @@ public enum HukukTuru
 }
 
 /// <summary>Hukuk dosyası durumu.</summary>
-public enum HukukDurum
+public enum LegalStatus
 {
     Acik = 0,
     Beklemede = 1,

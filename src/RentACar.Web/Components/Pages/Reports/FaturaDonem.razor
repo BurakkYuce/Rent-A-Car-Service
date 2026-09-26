@@ -184,12 +184,12 @@ else
 
         if (!KiraSekmesi)
         {
-            _rows = await Reports.GetFaturaDonemAsync(from, to);
+            _rows = await Reports.GetInvoicePeriodAsync(from, to);
             return;
         }
 
         _subeler = await Branches.ListActiveAsync();
-        _kiraRows = await Reports.GetKiraFaturaDurumAsync(from, to, new KiraFaturaDurumFilter
+        _kiraRows = await Reports.GetRentalInvoiceStatusAsync(from, to, new KiraFaturaDurumFilter
         {
             Q = string.IsNullOrWhiteSpace(Q) ? null : Q,
             Faturalanan = FaturaDurum switch { "yok" => false, "var" => true, _ => null },

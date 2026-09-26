@@ -28,7 +28,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         IServiceProvider sp, string plaka, string ad, string? tel)
     {
         var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = ad, CepTel = tel });
+        { Tip = CustomerType.Kurumsal, Unvan = ad, CepTel = tel });
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = cari, VehicleId = arac, BasTar = T0, BitTar = T0.AddDays(5), GunlukUcret = 1000m });
@@ -42,7 +42,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var (kira, arac, _) = await KiraAsync(sp, "34 AS 01", "Alfa A.Ş.", "05551112233");
-        var svc = sp.GetRequiredService<AssistansTalepService>();
+        var svc = sp.GetRequiredService<AssistanceRequestService>();
 
         var id = await svc.CreateAsync(new AssistansInput
         {
@@ -73,7 +73,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var (kira, _, _) = await KiraAsync(sp, "34 AS 02", "Beta A.Ş.", "05551112233");
-        var svc = sp.GetRequiredService<AssistansTalepService>();
+        var svc = sp.GetRequiredService<AssistanceRequestService>();
 
         // Çağrıyı ikinci sürücü yapıyor: telefon FARKLI, ad farklı. Otomatik doldurma bunu ezmemeli.
         var id = await svc.CreateAsync(new AssistansInput
@@ -90,7 +90,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<AssistansTalepService>();
+        var svc = s.ServiceProvider.GetRequiredService<AssistanceRequestService>();
 
         var id = await svc.CreateAsync(new AssistansInput
         { Mesaj = "Sözleşmesi bulunamadı, plaka 34 XX 99", Plaka = "34 xx 99", CepTel = "05551110000" });
@@ -106,7 +106,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<AssistansTalepService>();
+        var svc = s.ServiceProvider.GetRequiredService<AssistanceRequestService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new AssistansInput { Mesaj = "   " }));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(
@@ -125,7 +125,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<AssistansTalepService>();
+        var svc = sp.GetRequiredService<AssistanceRequestService>();
 
         // ELLE: 3 talep.
         await svc.CreateAsync(new AssistansInput
@@ -167,7 +167,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<AssistansTalepService>();
+        var svc = s.ServiceProvider.GetRequiredService<AssistanceRequestService>();
         var id = await svc.CreateAsync(new AssistansInput { Mesaj = "Yolda kaldık", Plaka = "34 GU 01" });
 
         Assert.True(await svc.UpdateAsync(id, new AssistansInput
@@ -189,12 +189,12 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         Guid id;
         using (var s1 = host.ScopeFor(t1))
-            id = await s1.ServiceProvider.GetRequiredService<AssistansTalepService>()
+            id = await s1.ServiceProvider.GetRequiredService<AssistanceRequestService>()
                 .CreateAsync(new AssistansInput { Mesaj = "Gizli çağrı", Plaka = "34 GZ 01" });
 
         using (var s2 = host.ScopeFor(Guid.NewGuid()))
         {
-            var svc2 = s2.ServiceProvider.GetRequiredService<AssistansTalepService>();
+            var svc2 = s2.ServiceProvider.GetRequiredService<AssistanceRequestService>();
             Assert.Empty(await svc2.SearchAsync());
             Assert.Empty(await svc2.SearchAsync(new AssistansFilter { Plaka = "34GZ01" }));
             Assert.Null(await svc2.GetAsync(id));
@@ -203,12 +203,12 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
 
         // Muhasebe rolünde OperationsWrite yok → yazma kapalı.
         using var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
-            muh.ServiceProvider.GetRequiredService<AssistansTalepService>()
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
+            muh.ServiceProvider.GetRequiredService<AssistanceRequestService>()
                 .CreateAsync(new AssistansInput { Mesaj = "Yetkisiz" }));
 
         // Kaynak tenant'ta kayıt duruyor.
         using var s1b = host.ScopeFor(t1);
-        Assert.NotNull(await s1b.ServiceProvider.GetRequiredService<AssistansTalepService>().GetAsync(id));
+        Assert.NotNull(await s1b.ServiceProvider.GetRequiredService<AssistanceRequestService>().GetAsync(id));
     }
 }

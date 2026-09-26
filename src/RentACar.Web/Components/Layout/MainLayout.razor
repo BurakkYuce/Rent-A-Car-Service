@@ -1,5 +1,5 @@
 @inherits LayoutComponentBase
-@inject RentACar.Application.Notifications.BildirimService Bildirimler
+@inject RentACar.Application.Notifications.InAppNotificationService Bildirimler
 @inject NavigationManager Nav
 @inject RentACar.Domain.Common.ITenantContext Tenant
 @inject RentACar.Infrastructure.Persistence.TenantStatusCache TenantDurum
@@ -225,7 +225,7 @@
         // sayaç 0 gösterilir; menü hiçbir koşulda sayfayı düşürmemeli.
         if (_webSitesiModulu)
         {
-            try { _yeniTalep = (await Talepler.OzetAsync()).Yeni; }
+            try { _yeniTalep = (await Talepler.SummaryAsync()).Yeni; }
             catch { _yeniTalep = 0; }
         }
 

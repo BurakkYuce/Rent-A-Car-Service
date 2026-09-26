@@ -16,7 +16,7 @@
     <form method="post" action="/cariler/create" class="grid-form"><AntiforgeryToken />
         <label>Tür
             <select name="tip">
-                @foreach (var t in Enum.GetValues<CariType>())
+                @foreach (var t in Enum.GetValues<CustomerType>())
                 {
                     <option value="@t">@t</option>
                 }
@@ -50,7 +50,7 @@
     <input name="q" value="@Q" placeholder="Ad / ünvan / TC / vergi no ara" />
     <select name="tip">
         <option value="">Tür (tümü)</option>
-        @foreach (var t in Enum.GetValues<CariType>())
+        @foreach (var t in Enum.GetValues<CustomerType>())
         {
             <option value="@t" selected="@(Tip == t.ToString())">@t</option>
         }
@@ -109,7 +109,7 @@
             <tr>
                 <td data-etiket="Tür">@c.Tip</td>
                 <td class="kart-baslik"><a href="/cariler/@c.Id">@c.DisplayName</a></td>
-                <td data-etiket="TC / Vergi No">@(c.Tip == CariType.Bireysel ? c.TcKimlik : c.VergiNo)</td>
+                <td data-etiket="TC / Vergi No">@(c.Tip == CustomerType.Bireysel ? c.TcKimlik : c.VergiNo)</td>
                 <td data-etiket="Telefon">@c.CepTel</td>
                 <td>@(c.Gsm2 ?? "—")</td>
                 <td>@(c.Ilce ?? "—")</td>
@@ -177,7 +177,7 @@
         _page = await Customers.SearchRowsAsync(new CustomerFilter
         {
             Query = string.IsNullOrWhiteSpace(Q) ? null : Q,
-            Tip = Enum.TryParse<CariType>(Tip, out var t) ? t : null,
+            Tip = Enum.TryParse<CustomerType>(Tip, out var t) ? t : null,
             IysIzinli = Iys switch { "true" => true, "false" => false, _ => null },
             Uyari = UyariF == "true" ? true : null,
             KaraListe = Kara == "true" ? true : null,

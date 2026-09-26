@@ -27,7 +27,7 @@ namespace RentACar.IntegrationTests;
 public sealed class WebIlanSihirbazTests(PostgresFixture fx)
 {
     private static VehicleInput Arac(string plaka, string marka = "Fiat", string tip = "Egea",
-        Vites vites = Vites.Manuel, FuelType yakit = FuelType.Dizel, int? yil = 2023,
+        Transmission vites = Transmission.Manuel, FuelType yakit = FuelType.Dizel, int? yil = 2023,
         string? renk = null, string? grup = null, int? vitrinAdet = null) => new()
         {
             Plaka = plaka, Marka = marka, Tip = tip, Vites = vites, Yakit = yakit,
@@ -49,15 +49,15 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         for (var i = 1; i <= 4; i++) await EkleAsync(s, Arac($"34 EGE {i:000}"));
 
-        var havuz = await svc.HavuzAsync();
+        var havuz = await svc.PoolAsync();
         var kume = Assert.Single(havuz);
         Assert.Equal(4, kume.Araclar.Count);
 
-        await svc.AdimBirImzaAsync([kume.Imza]);
+        await svc.StepOneSignatureAsync([kume.Imza]);
 
         var ilan = Assert.Single(await svc.ListAsync());
         Assert.Equal(4, ilan.AracSayisi); // 4 araç, 1 kart
@@ -68,11 +68,11 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         var araclar = new List<Guid>();
         for (var i = 1; i <= 3; i++) araclar.Add(await EkleAsync(s, Arac($"34 AYR {i:000}")));
 
-        await svc.AdimBirAsync(araclar, beraber: false);
+        await svc.StepOneAsync(araclar, together: false);
 
         var ilanlar = await svc.ListAsync();
         Assert.Equal(3, ilanlar.Count);
@@ -84,13 +84,13 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         await EkleAsync(s, Arac("34 TRK 001", marka: "FIAT"));
         await EkleAsync(s, Arac("34 TRK 002", marka: "Fıat")); // noktasız ı — ToLowerInvariant KAÇIRIR
         await EkleAsync(s, Arac("34 TRK 003", marka: "fiat"));
 
-        var kume = Assert.Single(await svc.HavuzAsync());
+        var kume = Assert.Single(await svc.PoolAsync());
         Assert.Equal(3, kume.Araclar.Count); // üçü de AYNI küme
     }
 
@@ -99,13 +99,13 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
-        await EkleAsync(s, Arac("34 VTS 001", vites: Vites.Manuel));
-        await EkleAsync(s, Arac("34 VTS 002", vites: Vites.Otomatik));
+        await EkleAsync(s, Arac("34 VTS 001", vites: Transmission.Manuel));
+        await EkleAsync(s, Arac("34 VTS 002", vites: Transmission.Otomatik));
 
         // Kullanıcının kendi örneği: "Fiat Egea Manuel Dizel" — vites imzada.
-        Assert.Equal(2, (await svc.HavuzAsync()).Count);
+        Assert.Equal(2, (await svc.PoolAsync()).Count);
     }
 
     [Fact]
@@ -113,13 +113,13 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         await EkleAsync(s, Arac("34 YIL 001", yil: 2022));
         await EkleAsync(s, Arac("34 YIL 002", yil: 2023));
 
         // Yıl imzada YOK (kart enflasyonu olmasın) — aralık olarak gösterilir.
-        var kume = Assert.Single(await svc.HavuzAsync());
+        var kume = Assert.Single(await svc.PoolAsync());
         Assert.Equal("2022–2023", kume.YilAralik);
     }
 
@@ -128,15 +128,15 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         await EkleAsync(s, Arac("34 IKZ 001"));
-        var imza = (await svc.HavuzAsync()).Single().Imza;
-        var ilkIlan = await svc.AdimBirImzaAsync([imza]);
+        var imza = (await svc.PoolAsync()).Single().Imza;
+        var ilkIlan = await svc.StepOneSignatureAsync([imza]);
 
         // Sonradan aynı modelden bir araç daha alındı ve yayınlandı.
         await EkleAsync(s, Arac("34 IKZ 002"));
-        var ikinciIlan = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        var ikinciIlan = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
         // Çok-şubeli tenant'ta iki operatör aynı modeli yayınlarsa sitede İKİ ÖZDEŞ KART çıkardı.
         Assert.Equal(ilkIlan, ikinciIlan);
@@ -149,13 +149,13 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         await EkleAsync(s, Arac("34 HVZ 001"));
-        await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
-        Assert.Empty(await svc.HavuzAsync());
-        Assert.Equal(0, await svc.IlansizAracSayisiAsync());
+        Assert.Empty(await svc.PoolAsync());
+        Assert.Equal(0, await svc.UnlistedVehicleCountAsync());
     }
 
     [Fact]
@@ -163,11 +163,11 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
 
         // Form'dan gelen id'ye güvenilmez: whitelist havuzdan doğrulanır.
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.AdimBirAsync([Guid.NewGuid()], beraber: false));
+            () => svc.StepOneAsync([Guid.NewGuid()], together: false));
     }
 
     // ---- Adım 2: fiyat ----
@@ -177,12 +177,12 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         var araclar = new List<Guid>();
         for (var i = 1; i <= 3; i++) araclar.Add(await EkleAsync(s, Arac($"34 FYT {i:000}")));
 
-        var ilanId = await svc.AdimBirAsync(araclar, beraber: false); // 3 ayrı taslak
-        var kopyalanan = await svc.AdimIkiAsync(ilanId, 1500m, 9000m, 32000m, kdvDahil: true);
+        var ilanId = await svc.StepOneAsync(araclar, together: false); // 3 ayrı taslak
+        var kopyalanan = await svc.StepTwoAsync(ilanId, 1500m, 9000m, 32000m, vatIncluded: true);
 
         Assert.Equal(2, kopyalanan); // kullanıcı kararı: "tek kez doldur, hepsine kopyala"
         Assert.All(await svc.ListAsync(), i => Assert.Equal(1500m, i.GunlukFiyat));
@@ -193,11 +193,11 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 SFR 001"));
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.AdimIkiAsync(ilanId, 0m, null, null, true));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.StepTwoAsync(ilanId, 0m, null, null, true));
     }
 
     // ---- Adım 3: teknik özellikler ----
@@ -207,13 +207,13 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await s.ServiceProvider.GetRequiredService<VehicleGroupService>()
             .CreateAsync(new VehicleGroupInput { Kod = "EKO", Ad = "Ekonomi", KoltukSayisi = 5, KapiSayisi = 4 });
         await EkleAsync(s, Arac("34 OZL 001", grup: "Ekonomi", renk: "Beyaz"));
 
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
-        var satirlar = await svc.OnerilenOzelliklerAsync(ilanId);
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
+        var satirlar = await svc.SuggestedFeaturesAsync(ilanId);
 
         Assert.Contains(satirlar, x => x.Etiket == "Marka" && x.Deger == "Fiat");
         Assert.Contains(satirlar, x => x.Etiket == "Vites" && x.Deger == "Manuel");
@@ -226,12 +226,12 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 RNK 001", renk: "Beyaz"));
         await EkleAsync(s, Arac("34 RNK 002", renk: "Siyah"));
 
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
-        var satirlar = await svc.OnerilenOzelliklerAsync(ilanId);
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
+        var satirlar = await svc.SuggestedFeaturesAsync(ilanId);
 
         // "İlk aracın rengi"ni yazmak, site Beyaz derken müşteriye siyah araç vermek olurdu.
         Assert.DoesNotContain(satirlar, x => x.Etiket == "Renk");
@@ -243,13 +243,13 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 YAY 001"));
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
-        await svc.AdimIkiAsync(ilanId, 1500m, null, null, true);
-        await svc.FotoEkleAsync(ilanId, TinyPng);              // yayın şartı
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
+        await svc.StepTwoAsync(ilanId, 1500m, null, null, true);
+        await svc.AddPhotoAsync(ilanId, TinyPng);              // yayın şartı
 
-        Assert.True(await svc.AdimUcAsync(ilanId, [
+        Assert.True(await svc.StepThreeAsync(ilanId, [
             new OzellikSatiri("Marka", "Fiat"),
             new OzellikSatiri("Bluetooth", "Var"),            // "+" ile eklenen özel satır
             new OzellikSatiri("Gizli", "Değer", Gorunur: false),
@@ -272,12 +272,12 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 FOT 001"));
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
-        await svc.AdimIkiAsync(ilanId, 1500m, null, null, true);
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
+        await svc.StepTwoAsync(ilanId, 1500m, null, null, true);
 
-        Assert.False(await svc.AdimUcAsync(ilanId, [new OzellikSatiri("Marka", "Fiat")]));
+        Assert.False(await svc.StepThreeAsync(ilanId, [new OzellikSatiri("Marka", "Fiat")]));
 
         var d = await svc.GetAsync(ilanId);
         Assert.Equal(WebIlanDurum.Taslak, d!.Ilan.Durum);            // yayına ALINMADI
@@ -285,8 +285,8 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
         Assert.Contains("Foto yok", (await svc.ListAsync()).Single().Eksikler);
 
         // Fotoğraf eklenince aynı çağrı yayına alır (çare erişilebilir).
-        await svc.FotoEkleAsync(ilanId, TinyPng);
-        Assert.True(await svc.AdimUcAsync(ilanId, [new OzellikSatiri("Marka", "Fiat")]));
+        await svc.AddPhotoAsync(ilanId, TinyPng);
+        Assert.True(await svc.StepThreeAsync(ilanId, [new OzellikSatiri("Marka", "Fiat")]));
         Assert.Equal(WebIlanDurum.Yayinda, (await svc.GetAsync(ilanId))!.Ilan.Durum);
     }
 
@@ -295,15 +295,15 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         for (var i = 1; i <= 4; i++) await EkleAsync(s, Arac($"34 KAP {i:000}"));
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
-        await svc.FotoEkleAsync(ilanId, TinyPng);
-        await svc.FotoEkleAsync(ilanId, TinyPng);
+        await svc.AddPhotoAsync(ilanId, TinyPng);
+        await svc.AddPhotoAsync(ilanId, TinyPng);
 
         // 4 araçlık ilana 2 foto: İKİSİ DE AYNI araçta (vitrin tek kart gösteriyor, tek kapak yeter).
-        var fotolar = await svc.FotolarAsync(ilanId);
+        var fotolar = await svc.PhotosAsync(ilanId);
         Assert.Equal(2, fotolar.Count);
         Assert.Single(fotolar.Select(f => f.VehicleId).Distinct());
     }
@@ -313,25 +313,25 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 UYE 001"));
         var yabanciArac = await EkleAsync(s, Arac("34 UYE 002", tip: "Fiorino"));
         await s.ServiceProvider.GetRequiredService<VehiclePhotoService>().AddAsync(yabanciArac, TinyPng);
 
-        var ilanId = await svc.AdimBirImzaAsync(
-            [(await svc.HavuzAsync()).Single(k => k.Baslik.Contains("Egea")).Imza]);
-        await svc.FotoEkleAsync(ilanId, TinyPng);
+        var ilanId = await svc.StepOneSignatureAsync(
+            [(await svc.PoolAsync()).Single(k => k.Baslik.Contains("Egea")).Imza]);
+        await svc.AddPhotoAsync(ilanId, TinyPng);
         var yabanciFoto = (await s.ServiceProvider.GetRequiredService<VehiclePhotoService>()
             .ListMetaAsync(yabanciArac)).Single();
 
         // İlan id'si üzerinden BAŞKA aracın fotoğrafı silinemez (yetki var, hedef yanlış).
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.FotoSilAsync(ilanId, yabanciArac, yabanciFoto.Id));
+            () => svc.DeletePhotoAsync(ilanId, yabanciArac, yabanciFoto.Id));
 
         // Kendi fotoğrafı silinir.
-        var kendi = Assert.Single(await svc.FotolarAsync(ilanId));
-        await svc.FotoSilAsync(ilanId, kendi.VehicleId, kendi.PhotoId);
-        Assert.Empty(await svc.FotolarAsync(ilanId));
+        var kendi = Assert.Single(await svc.PhotosAsync(ilanId));
+        await svc.DeletePhotoAsync(ilanId, kendi.VehicleId, kendi.PhotoId);
+        Assert.Empty(await svc.PhotosAsync(ilanId));
     }
 
     [Fact]
@@ -339,16 +339,16 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 SNR 001"));
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
-        var cokSatir = Enumerable.Range(0, OzellikSnapshot.MaxSatir + 1)
+        var cokSatir = Enumerable.Range(0, FeatureSnapshot.MaxRows + 1)
             .Select(i => new OzellikSatiri($"E{i}", $"D{i}")).ToList();
-        await Assert.ThrowsAsync<ValidationException>(() => svc.AdimUcAsync(ilanId, cokSatir));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.StepThreeAsync(ilanId, cokSatir));
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.AdimUcAsync(ilanId,
-            [new OzellikSatiri(new string('x', OzellikSnapshot.MaxEtiket + 1), "d")]));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.StepThreeAsync(ilanId,
+            [new OzellikSatiri(new string('x', FeatureSnapshot.MaxLabel + 1), "d")]));
     }
 
     [Fact]
@@ -356,12 +356,12 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 BOS 001"));
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
         // "+ Özellik ekle" ile açılan boş satırlar doldurulmadan gönderilebilir.
-        await svc.AdimUcAsync(ilanId, [
+        await svc.StepThreeAsync(ilanId, [
             new OzellikSatiri("Marka", "Fiat"),
             new OzellikSatiri("  ", "  "),
             new OzellikSatiri("Etiket", "   "),
@@ -377,9 +377,9 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 EKS 001"));
-        await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
         var satir = Assert.Single(await svc.ListAsync());
         Assert.False(satir.Yayinda);
@@ -393,12 +393,12 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 ADT 001", vitrinAdet: 10));
         await EkleAsync(s, Arac("34 ADT 002"));             // null → 1
         await EkleAsync(s, Arac("34 ADT 003", vitrinAdet: 2));
 
-        await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
         var satir = Assert.Single(await svc.ListAsync());
         Assert.Equal(3, satir.AracSayisi);
@@ -410,14 +410,14 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         await EkleAsync(s, Arac("34 SIL 001"));
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
 
-        await svc.SilAsync(ilanId);
+        await svc.DeleteAsync(ilanId);
 
         Assert.Empty(await svc.ListAsync());
-        Assert.Equal(1, await svc.IlansizAracSayisiAsync()); // araç silinmedi, yalnız yayından kalktı
+        Assert.Equal(1, await svc.UnlistedVehicleCountAsync()); // araç silinmedi, yalnız yayından kalktı
     }
 
     [Fact]
@@ -425,11 +425,11 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<WebIlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<WebListingService>();
         var araclar = s.ServiceProvider.GetRequiredService<VehicleService>();
         var aracId = await EkleAsync(s, Arac("34 BYT 001", renk: "Beyaz"));
-        var ilanId = await svc.AdimBirImzaAsync([(await svc.HavuzAsync()).Single().Imza]);
-        await svc.AdimUcAsync(ilanId, await svc.OnerilenOzelliklerAsync(ilanId));
+        var ilanId = await svc.StepOneSignatureAsync([(await svc.PoolAsync()).Single().Imza]);
+        await svc.StepThreeAsync(ilanId, await svc.SuggestedFeaturesAsync(ilanId));
 
         Assert.False((await svc.ListAsync()).Single().OzellikBayat);
 
@@ -449,8 +449,8 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(tenant)) await EkleAsync(admin, Arac("34 YTK 001"));
 
         using var muhasebe = host.ScopeFor(tenant, role: UserRole.Muhasebe); // OperationsWrite YOK
-        await Assert.ThrowsAsync<YetkiYokException>(
-            () => muhasebe.ServiceProvider.GetRequiredService<WebIlanService>().HavuzAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(
+            () => muhasebe.ServiceProvider.GetRequiredService<WebListingService>().PoolAsync());
     }
 
     [Fact]
@@ -462,12 +462,12 @@ public sealed class WebIlanSihirbazTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
         {
-            var svc1 = s1.ServiceProvider.GetRequiredService<WebIlanService>();
+            var svc1 = s1.ServiceProvider.GetRequiredService<WebListingService>();
             await EkleAsync(s1, Arac("34 IZO 001"));
-            await svc1.AdimBirImzaAsync([(await svc1.HavuzAsync()).Single().Imza]);
+            await svc1.StepOneSignatureAsync([(await svc1.PoolAsync()).Single().Imza]);
         }
 
         using var s2 = host.ScopeFor(t2);
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<WebIlanService>().ListAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<WebListingService>().ListAsync());
     }
 }

@@ -4,7 +4,7 @@
 @inject LocationService Locations
 @inject RentACar.Application.Finance.CashService Cash
 @inject ReservationSourceService Kaynaklar
-@inject PersonelService Personeller
+@inject PersonnelService Personeller
 @inject VehicleService Vehicles
 
 <PageTitle>Kira Sözleşmeleri — RentPro</PageTitle>
@@ -134,7 +134,7 @@
                             <form method="post" action="/finans/tahsilat" class="tahsil-mini"><AntiforgeryToken />
                                 <input type="hidden" name="cariId" value="@r.MusteriId" />
                                 <input type="hidden" name="rentalId" value="@r.Id" />
-                                <input type="hidden" name="doviz" value="@RentACar.Application.Kur.KurService.NormalizeKod(r.Doviz)" />
+                                <input type="hidden" name="doviz" value="@RentACar.Application.Kur.ExchangeRateService.NormalizeCode(r.Doviz)" />
                                 <input type="hidden" name="islemAnahtari" value="@RentACar.Web.Finance.TahsilatAnahtar.Uret(r.Id, r.Bakiye, IslemSayisi(r.Id))" />
                                 <input type="hidden" name="donus" value="/kiralar" />
                                 <input type="hidden" name="aciklama" value="Hızlı tahsilat (liste) — @r.SozlesmeNo" />
@@ -210,8 +210,8 @@
             BaslangicMax = DateTimeOffset.TryParse(BasMax, out var mx) ? mx.AddDays(1).AddSeconds(-1) : null,
             Ofis = string.IsNullOrWhiteSpace(Ofis) ? null : Ofis,
             // FAZ-46 — hepsi opsiyonel; boş bırakılırsa sorgu eskisiyle BİREBİR aynı kalır.
-            TarihTuru = Enum.TryParse<TarihListesiTuru>(TarihTuru, out var tt) ? tt : null,
-            OfisDurum = Enum.TryParse<OfisDurumu>(OfisDurum, out var od) ? od : null,
+            TarihTuru = Enum.TryParse<DateListType>(TarihTuru, out var tt) ? tt : null,
+            OfisDurum = Enum.TryParse<OfficeStatus>(OfisDurum, out var od) ? od : null,
             SahipGrup = string.IsNullOrWhiteSpace(Sahip) ? null : Sahip,
             AracGrubu = string.IsNullOrWhiteSpace(Grup) ? null : Grup,
             RezKaynak = string.IsNullOrWhiteSpace(Kaynak) ? null : Kaynak,
@@ -222,6 +222,6 @@
         var tahsilEdilebilir = _rows.Where(r => r.Bakiye > 0m && r.Durum != RentalStatus.Iptal)
             .Select(r => r.Id).ToList();
         if (tahsilEdilebilir.Count > 0)
-            _islemSayilari = await Cash.GetRentalIslemSayilariAsync(tahsilEdilebilir);
+            _islemSayilari = await Cash.GetRentalTransactionCountsAsync(tahsilEdilebilir);
     }
 }

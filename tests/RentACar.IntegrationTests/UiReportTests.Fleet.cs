@@ -140,23 +140,23 @@ public sealed partial class UiReportTests
         using var scope = host.ScopeFor(e.TenantId);
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
 
-        var tf = await svc.GetTahsilatFaturaAsync();
+        var tf = await svc.GetCollectionInvoiceAsync();
         var tfApi = (await GetJson(s, Rapor + "/tahsilat-fatura")).GetProperty("ozet");
         Assert.Equal(tf.TahsilatToplam, Dec(tfApi, "tahsilatToplam"));
         Assert.Equal(3000m, Dec(tfApi, "tahsilatToplam")); // elle: tek tahsilat 3000
         Assert.Equal(tf.FaturaToplam, Dec(tfApi, "faturaToplam"));
 
-        var kdv = await svc.GetKdvListesiAsync();
+        var kdv = await svc.GetVatListAsync();
         Assert.Equal(kdv.ToplamKdv, Dec((await GetJson(s, Rapor + "/kdv-listesi")).GetProperty("ozet"), "toplamKdv"));
-        var ek = await svc.GetEkHizmetRaporuAsync();
+        var ek = await svc.GetAddOnReportAsync();
         Assert.Equal(ek.ToplamBrut, Dec((await GetJson(s, Rapor + "/ek-hizmet")).GetProperty("ozet"), "toplamBrut"));
-        var hs = await svc.GetKasaBankaSummaryAsync();
+        var hs = await svc.GetCashBankSummaryAsync();
         Assert.Equal(hs.KasaBakiye, Dec((await GetJson(s, Rapor + "/kasa-banka")).GetProperty("ozet").GetProperty("toplam"), "kasaBakiye"));
-        var ka = await svc.GetKarsilastirmaliAnalizAsync();
+        var ka = await svc.GetComparativeAnalysisAsync();
         Assert.Equal(ka.GenelToplam, Dec((await GetJson(s, Rapor + "/karsilastirmali-analiz")).GetProperty("ozet"), "genelToplam"));
         var fo = await svc.GetFleetUtilizationAsync();
         Assert.Equal(fo.Satildi, (await GetJson(s, Rapor + "/filo")).GetProperty("ozet").GetProperty("durum").GetProperty("satildi").GetInt32());
-        var ps = await svc.GetPeriyodikServisAsync();
+        var ps = await svc.GetPeriodicServiceAsync();
         Assert.Equal(ps.Count, (await GetJson(s, Rapor + "/periyodik-servis")).GetProperty("satirlar").GetProperty("toplam").GetInt32());
     }
 }

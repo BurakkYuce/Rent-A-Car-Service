@@ -29,7 +29,7 @@ public sealed class MusaitlikFiyatTests(PostgresFixture fx)
         {
             Kod = "EKO-M", Ad = "Eko", AracGrupKod = "EKO",
             Gun1 = 100m, Gun2 = 100m, Gun3 = 100m, Gun4 = 100m, Gun5 = 100m, Gun6 = 100m, Gun7 = 100m,
-            OnayDurumu = TarifeOnayDurumu.Onayli
+            OnayDurumu = TariffApprovalStatus.Onayli
         });
         await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MS 01", Grup = "EKO", Durum = VehicleStatus.Musait });
 

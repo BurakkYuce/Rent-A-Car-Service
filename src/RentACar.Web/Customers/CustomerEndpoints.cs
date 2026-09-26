@@ -47,7 +47,7 @@ public static class CustomerEndpoints
 
     private static CustomerInput Build(IFormCollection f) => new()
     {
-        Tip = ParseEnum<CariType>(FormParse.Str(f, "tip")) ?? CariType.Bireysel,
+        Tip = ParseEnum<CustomerType>(FormParse.Str(f, "tip")) ?? CustomerType.Bireysel,
         Ad = FormParse.Str(f, "ad"),
         Soyad = FormParse.Str(f, "soyad"),
         TcKimlik = FormParse.Str(f, "tcKimlik"),

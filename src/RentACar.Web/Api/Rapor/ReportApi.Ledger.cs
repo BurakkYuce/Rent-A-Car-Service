@@ -31,7 +31,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var data = await reports.GetGelirGiderAsync(p.FromUtc, p.ToUtc, ct);
+        var data = await reports.GetRevenueExpenseAsync(p.FromUtc, p.ToUtc, ct);
         return TypedResults.Ok(new ReportSummaryResult<GelirGiderDto>(p.ToDto(), data,
             ReportExport.Links(http, user, "gelir-gider", ReportExport.Period(p))));
     }
@@ -76,10 +76,10 @@ public static partial class ReportApi
             : string.Equals(f.Hesap.Trim(), "Kasa", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Kasa
             : throw new ValidationException("Geçersiz hesap değeri. İzin verilenler: Kasa, Banka.", "hesap");
 
-        var toplam = await reports.GetKasaBankaSummaryAsync(p.FromUtc, p.ToUtc, ct);
-        var hesapOzet = await reports.GetHesapBazliOzetAsync(p.FromUtc, p.ToUtc, ct);
+        var toplam = await reports.GetCashBankSummaryAsync(p.FromUtc, p.ToUtc, ct);
+        var hesapOzet = await reports.GetAccountBasedSummaryAsync(p.FromUtc, p.ToUtc, ct);
         var satirlar = await reports.GetAccountLedgerAsync(tur, p.FromUtc, p.ToUtc, f.HesapId, ct,
-            doviz: F(f.Doviz), islemTuru: F(f.Tur), sube: F(f.Sube), devir: f.Devir == true);
+            currency: F(f.Doviz), transactionType: F(f.Tur), branch: F(f.Sube), carryForward: f.Devir == true);
         var tumu = await reports.GetAccountLedgerAsync(tur, p.FromUtc, p.ToUtc, ct: ct);
         var adlar = (await accounts.ListAsync(ct)).ToDictionary(h => h.Id, h => h.Ad);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);

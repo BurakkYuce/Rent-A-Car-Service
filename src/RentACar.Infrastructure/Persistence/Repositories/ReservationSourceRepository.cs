@@ -11,7 +11,7 @@ public sealed class ReservationSourceRepository(IDbContextFactory<AppDbContext> 
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<int> OranlariYansitAsync(Guid haricId, decimal? kiraOrani, decimal? hizmetOrani,
+    public async Task<int> ReflectRatesAsync(Guid haricId, decimal? kiraOrani, decimal? hizmetOrani,
         decimal? dropOrani, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

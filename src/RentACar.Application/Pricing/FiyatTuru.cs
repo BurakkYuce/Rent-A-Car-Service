@@ -13,18 +13,18 @@ namespace RentACar.Application.Pricing;
 /// <para>NOT: <c>null</c> ile "Otomatik" AYNI ŞEY DEĞİLDİR — null'da manuel ücret kazanır, "Otomatik"te
 /// tarife motoru kazanır. Liste yalnız GEÇERLİ metinleri tanımlar; "seçilmemiş" hâli null'dır.</para>
 /// </summary>
-public static class FiyatTuruSecenek
+public static class PriceTypeOption
 {
     /// <summary>Geçerli fiyat türü metinleri (canlı referans sistem parite sırası; UI dropdown'ları da bu sırayı kullanır).</summary>
-    public static readonly string[] Hepsi =
+    public static readonly string[] All =
         ["Otomatik", "KDV Dahil Günlük", "Günlük", "KDV Dahil Toplam", "Toplam"];
 
     /// <summary>Boş/whitespace → null; listede varsa KANONİK yazımıyla (büyük/küçük harf duyarsız eşleşme)
     /// döner; listede yoksa null döner (çağıran isterse reddeder).</summary>
-    public static string? Normalize(string? deger)
+    public static string? Normalize(string? value)
     {
-        if (string.IsNullOrWhiteSpace(deger)) return null;
-        var v = deger.Trim();
-        return Hepsi.FirstOrDefault(x => string.Equals(x, v, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var v = value.Trim();
+        return All.FirstOrDefault(x => string.Equals(x, v, StringComparison.OrdinalIgnoreCase));
     }
 }

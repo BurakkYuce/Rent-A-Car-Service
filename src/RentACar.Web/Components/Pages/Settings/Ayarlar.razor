@@ -81,7 +81,7 @@
         <label>Varsayılan Fiyat Türü
             <select name="varsayilanFiyatTuru">
                 <option value="">(Seçilmemiş — bugünkü davranış)</option>
-                @foreach (var o in RentACar.Application.Pricing.FiyatTuruSecenek.Hepsi)
+                @foreach (var o in RentACar.Application.Pricing.PriceTypeOption.All)
                 {
                     <option value="@o" selected="@(o == _m.VarsayilanFiyatTuru)">@o</option>
                 }
@@ -89,7 +89,7 @@
         </label>
         <label>Varsayılan Çıkış Yakıt Seviyesi (0-12)
             <input name="varsayilanYakitSeviyesi" type="number" min="0" max="12" value="@_m.VarsayilanYakitSeviyesi"
-                   placeholder="@RentACar.Application.TenantSettings.FormVarsayilanCozucu.YakitVarsayilan" />
+                   placeholder="@RentACar.Application.TenantSettings.FormDefaultResolver.DefaultFuel" />
         </label>
         <label class="check"><input type="checkbox" name="kurElleGirisKilitli" value="true" checked="@_m.KurElleGirisKilitli" /> Kur elle girilemesin (daima tanımlı/TCMB kuru)</label>
         <p class="muted small">Kur kilidi açıkken tahsilat, ödeme, virman, gider, depozito, ceza, MTV,
@@ -339,8 +339,8 @@
         <button type="submit">Logoyu Yükle</button>
     </form>
     <p class="muted small">Yalnız <strong>PNG</strong> (şeffaf zemin gerekiyor). En az
-        <strong>@LogoKurallari.OnerilenGenislik px</strong> genişlik önerilir;
-        <strong>@LogoKurallari.YokSayilanGenislik px altı yok sayılır</strong> ve yerine firma adı basılır.</p>
+        <strong>@LogoValidationRules.RecommendedWidth px</strong> genişlik önerilir;
+        <strong>@LogoValidationRules.IgnoredWidth px altı yok sayılır</strong> ve yerine firma adı basılır.</p>
     <form method="post" action="/ayarlar/logo-sil"
           data-confirm="Firma logosu kaldırılsın mı? Kayıtlı logo dosyası silinir (geri getirmek için yeniden yüklemek gerekir); fatura, makbuz ve kira sözleşmesi logosuz, yalnız firma adıyla basılır."><AntiforgeryToken />
         <button type="submit" class="btn-secondary">Logoyu Kaldır</button>
@@ -415,8 +415,8 @@
     {
         _m = await Settings.GetAsync();
         // PR-A: yüklü logonun baskıya uygunluğu (aynı kural platform panelinde de kullanılıyor).
-        _logo = _m.LogoBytes is { Length: > 0 } b ? LogoKurallari.Degerlendir(b) : null;
+        _logo = _m.LogoBytes is { Length: > 0 } b ? LogoValidationRules.Evaluate(b) : null;
         _gruplar = await AracGruplari.ListActiveAsync();
-        _gonderimler = await Settings.ListWhatsAppGonderimAsync();
+        _gonderimler = await Settings.ListWhatsAppDispatchesAsync();
     }
 }

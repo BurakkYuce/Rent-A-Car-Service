@@ -29,7 +29,7 @@ public sealed class KiraInlineMusteriTests(PostgresFixture fx)
 
         // Kira ekranı akışı: mevcut cari SEÇİLMEDİ → yeni müşteri oluştur → kira ona bağlanır.
         var custId = await customers.CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "İnline", Soyad = "Müşteri", CepTel = "5551234567" });
+        { Tip = CustomerType.Bireysel, Ad = "İnline", Soyad = "Müşteri", CepTel = "5551234567" });
         var rentalId = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = custId, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
 
@@ -49,10 +49,10 @@ public sealed class KiraInlineMusteriTests(PostgresFixture fx)
 
         // Ünvan verildiğinde kurumsal cari (kira ekranı inline oluşturma bunu Tip=Kurumsal yapar).
         var id = await customers.CreateAsync(new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = "Yüce Kurumsal A.Ş.", VergiNo = "1234567890" });
+        { Tip = CustomerType.Kurumsal, Unvan = "Yüce Kurumsal A.Ş.", VergiNo = "1234567890" });
         var c = await customers.GetAsync(id);
         Assert.NotNull(c);
-        Assert.Equal(CariType.Kurumsal, c!.Tip);
+        Assert.Equal(CustomerType.Kurumsal, c!.Tip);
         Assert.Equal("Yüce Kurumsal A.Ş.", c.Unvan);
     }
 }

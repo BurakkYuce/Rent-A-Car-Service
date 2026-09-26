@@ -18,7 +18,7 @@ namespace RentACar.Application.Blog;
 /// </summary>
 public sealed class BlogService(IBlogRepository repository, ICurrentUser currentUser)
 {
-    private const long MaxKapakBytes = 2 * 1024 * 1024; // 2 MB — VehiclePhoto ile aynı
+    private const long MaxCoverBytes = 2 * 1024 * 1024; // 2 MB — VehiclePhoto ile aynı
 
     // ---- Staff ----
 
@@ -35,9 +35,9 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
     }
 
     /// <summary>Arama sonucu açıklamasının pratik üst sınırı (Google ~155-160 karakterde kırpar).</summary>
-    public const int MetaAciklamaMax = 160;
+    public const int MaxMetaDescription = 160;
     /// <summary>Arama başlığının pratik üst sınırı (~60 karakterden sonrası kırpılır).</summary>
-    public const int SeoBaslikMax = 70;
+    public const int MaxSeoTitle = 70;
 
     /// <summary>
     /// SEO alanlarını normalize eder ve UZUNLUK sınırlarını uygular.
@@ -47,7 +47,7 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
     /// (arama motoru kırpar, içerik kaybolmaz) ve yazarın metnini sessizce kesmek ya da kaydını
     /// reddetmek gerçek bir hatayı değil bir stil tercihini dayatmak olurdu.</para>
     /// </summary>
-    private static void SeoUygula(BlogPost p, BlogInput input)
+    private static void ApplySeo(BlogPost p, BlogInput input)
     {
         static string? T(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
 
@@ -60,8 +60,8 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
 
         // Anahtar kelimeler: virgülle ayrılır, uçlar kırpılır, BOŞLAR ve TEKRARLAR atılır.
         // Tekrar ayıklaması Türkçe-duyarlı: "Antalya" ile "antalya" AYNI kelimedir.
-        p.AnahtarKelimeler = T(input.AnahtarKelimeler) is { } ham
-            ? string.Join(", ", ham
+        p.AnahtarKelimeler = T(input.AnahtarKelimeler) is { } raw
+            ? string.Join(", ", raw
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .DistinctBy(TurkishText.Normalize))
             : null;
@@ -70,19 +70,19 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
     public async Task<Guid> CreateAsync(BlogInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
-        var (baslik, icerik, ozet) = Normalize(input);
-        var slug = await ResolveSlugAsync(input.Slug, baslik, excludeId: null, ct);
+        var (title, content, summary) = Normalize(input);
+        var slug = await ResolveSlugAsync(input.Slug, title, excludeId: null, ct);
 
         var post = new BlogPost
         {
-            Baslik = baslik,
+            Baslik = title,
             Slug = slug,
-            Ozet = ozet,
-            Icerik = icerik,
+            Ozet = summary,
+            Icerik = content,
             Durum = input.Durum,
             YayinTarihi = input.Durum == BlogPostDurum.Yayinda ? DateTimeOffset.UtcNow : null,
         };
-        SeoUygula(post, input);
+        ApplySeo(post, input);
         await repository.AddAsync(post, ct);
         return post.Id;
     }
@@ -90,24 +90,24 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
     public async Task<bool> UpdateAsync(Guid id, BlogInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
-        var (baslik, icerik, ozet) = Normalize(input);
+        var (title, content, summary) = Normalize(input);
 
-        var mevcut = await repository.FindAsync(id, ct);
-        if (mevcut is null) return false;
+        var existing = await repository.FindAsync(id, ct);
+        if (existing is null) return false;
 
         // Slug DONMUŞ mu? Bir kez yayınlandıysa (YayinTarihi dolu) değiştirilemez — mevcut linkler/sitemap kırılmasın.
-        var slug = mevcut.YayinTarihi is not null
-            ? mevcut.Slug
-            : await ResolveSlugAsync(input.Slug, baslik, excludeId: id, ct);
+        var slug = existing.YayinTarihi is not null
+            ? existing.Slug
+            : await ResolveSlugAsync(input.Slug, title, excludeId: id, ct);
 
         return await repository.UpdateAsync(id, p =>
         {
-            p.Baslik = baslik;
+            p.Baslik = title;
             p.Slug = slug;
-            p.Ozet = ozet;
-            p.Icerik = icerik;
+            p.Ozet = summary;
+            p.Icerik = content;
             p.Durum = input.Durum;
-            SeoUygula(p, input);
+            ApplySeo(p, input);
             // İLK yayında damgalanır; sonraki düzenlemelerde KORUNUR (yeniden yayınlamak tarihi ileri atmaz).
             if (input.Durum == BlogPostDurum.Yayinda && p.YayinTarihi is null) p.YayinTarihi = DateTimeOffset.UtcNow;
             p.UpdatedAtUtc = DateTimeOffset.UtcNow;
@@ -116,28 +116,28 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
 
     /// <summary>
     /// F11.1b — tam değiştirme, iyimser eşzamanlılıkla: satır kilitlenir, <paramref name="expectedVersion"/> kilit
-    /// altında karşılaştırılır (uyuşmazlık <see cref="EszamanliDegisiklikException"/>). Slug dondurma kuralı
+    /// altında karşılaştırılır (uyuşmazlık <see cref="ConcurrentModificationException"/>). Slug dondurma kuralı
     /// <see cref="UpdateAsync(Guid, BlogInput, CancellationToken)"/> ile aynı; "yayınlandı mı" KİLİTLİ satırdan okunur.
     /// </summary>
     public async Task<bool> UpdateAsync(Guid id, BlogInput input, string expectedVersion, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
-        var (baslik, icerik, ozet) = Normalize(input);
+        var (title, content, summary) = Normalize(input);
 
-        var mevcut = await repository.FindAsync(id, ct);
-        if (mevcut is null) return false;
-        var yeniSlug = mevcut.YayinTarihi is not null
-            ? mevcut.Slug
-            : await ResolveSlugAsync(input.Slug, baslik, excludeId: id, ct);
+        var existing = await repository.FindAsync(id, ct);
+        if (existing is null) return false;
+        var newSlug = existing.YayinTarihi is not null
+            ? existing.Slug
+            : await ResolveSlugAsync(input.Slug, title, excludeId: id, ct);
 
         return await repository.UpdateAsync(id, expectedVersion, p =>
         {
-            p.Baslik = baslik;
-            if (p.YayinTarihi is null) p.Slug = yeniSlug; // yayınlanmış yazının adresi DONAR
-            p.Ozet = ozet;
-            p.Icerik = icerik;
+            p.Baslik = title;
+            if (p.YayinTarihi is null) p.Slug = newSlug; // yayınlanmış yazının adresi DONAR
+            p.Ozet = summary;
+            p.Icerik = content;
             p.Durum = input.Durum;
-            SeoUygula(p, input);
+            ApplySeo(p, input);
             if (input.Durum == BlogPostDurum.Yayinda && p.YayinTarihi is null) p.YayinTarihi = DateTimeOffset.UtcNow;
             p.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
@@ -158,7 +158,7 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
 
     /// <summary>Kapak yükle — `VehiclePhotoService.AddAsync` ile AYNI doğrulama/thumbnail yolu
     /// (paylaşılan ImageValidation/ImageProcessing). `null` bytes → kapağı kaldırır.</summary>
-    public async Task<bool> SetKapakAsync(Guid id, byte[]? bytes, CancellationToken ct = default)
+    public async Task<bool> SetCoverAsync(Guid id, byte[]? bytes, CancellationToken ct = default)
     {
         PermissionGuard.Require(currentUser, Permission.OperationsWrite);
 
@@ -171,7 +171,7 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
 
         var kind = ImageValidation.Detect(bytes);
         if (kind == ImageKind.Unknown) throw new ValidationException("PNG, JPEG veya WebP yükleyin.");
-        if (bytes.Length > MaxKapakBytes) throw new ValidationException("Kapak görseli en fazla 2 MB olabilir.");
+        if (bytes.Length > MaxCoverBytes) throw new ValidationException("Kapak görseli en fazla 2 MB olabilir.");
 
         var thumb = ImageProcessing.TryCreateThumbnail(bytes); // başarısızsa null — yükleme yine tamamlanır
         return await repository.UpdateAsync(id, p =>
@@ -205,17 +205,17 @@ public sealed class BlogService(IBlogRepository repository, ICurrentUser current
 
     private static (string Baslik, string Icerik, string? Ozet) Normalize(BlogInput input)
     {
-        var baslik = (input.Baslik ?? string.Empty).Trim();
-        var icerik = (input.Icerik ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(baslik)) throw new ValidationException("Başlık zorunludur.");
-        if (string.IsNullOrWhiteSpace(icerik)) throw new ValidationException("İçerik zorunludur.");
-        var ozet = string.IsNullOrWhiteSpace(input.Ozet) ? null : input.Ozet.Trim();
-        return (baslik, icerik, ozet);
+        var title = (input.Baslik ?? string.Empty).Trim();
+        var content = (input.Icerik ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(title)) throw new ValidationException("Başlık zorunludur.");
+        if (string.IsNullOrWhiteSpace(content)) throw new ValidationException("İçerik zorunludur.");
+        var summary = string.IsNullOrWhiteSpace(input.Ozet) ? null : input.Ozet.Trim();
+        return (title, content, summary);
     }
 
-    private async Task<string> ResolveSlugAsync(string? istenen, string baslik, Guid? excludeId, CancellationToken ct)
+    private async Task<string> ResolveSlugAsync(string? requested, string title, Guid? excludeId, CancellationToken ct)
     {
-        var slug = Slugify(string.IsNullOrWhiteSpace(istenen) ? baslik : istenen);
+        var slug = Slugify(string.IsNullOrWhiteSpace(requested) ? title : requested);
         if (slug.Length == 0) throw new ValidationException("Başlıktan geçerli bir adres üretilemedi — adresi elle girin.");
         if (await repository.SlugExistsAsync(slug, excludeId, ct))
             throw new ValidationException($"'{slug}' adresli bir yazı zaten var.");

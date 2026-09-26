@@ -1,15 +1,15 @@
 @page "/dokumanlar"
 @attribute [Authorize]
 @using RentACar.Application.FirmaDokumanlar
-@inject FirmaDokumanService DokumanServisi
+@inject CompanyFileService DokumanServisi
 
 <PageTitle>Dokümanlar — RentPro</PageTitle>
 
 <div class="page-head"><h1>Dokümanlar</h1></div>
 <p class="muted small">Firmanızın kendi PDF belgeleri: sahada çıktı alınması gereken boş sözleşme
     nüshası, teslim/hasar formu, ruhsat örneği, vekaletname… Yalnız <strong>PDF</strong> kabul edilir,
-    dosya başına en fazla <strong>@(FirmaDokumanService.MaxBayt / (1024 * 1024)) MB</strong> ve toplam
-    <strong>@FirmaDokumanService.MaxDokuman belge</strong> saklanabilir.<br />
+    dosya başına en fazla <strong>@(CompanyFileService.MaxBytes / (1024 * 1024)) MB</strong> ve toplam
+    <strong>@CompanyFileService.MaxDocuments belge</strong> saklanabilir.<br />
     RentPro'nun sizinle paylaştığı belgeler için <a href="/firma-belgeleri">Firma Belgeleri</a>
     sayfasına bakın — orası salt okunurdur, burası sizin yüklediklerinizdir.</p>
 
@@ -17,11 +17,11 @@
 @if (!string.IsNullOrEmpty(Hata)) { <p class="error">@Hata</p> }
 
 <AuthorizeView Policy="izin:OperationsWrite" Context="yazCtx">
-    @if (_satirlar.Count >= FirmaDokumanService.MaxDokuman)
+    @if (_satirlar.Count >= CompanyFileService.MaxDocuments)
     {
         @* Sınır dolduğunda formu göstermiyoruz; ama asıl dayatma SERVİSTE ve DB'de (yuva unique
            index + CHECK) — bu yalnız kullanıcıya nazik bir uyarı. *@
-        <p class="warn">Belge sınırına ulaşıldı (@FirmaDokumanService.MaxDokuman/@FirmaDokumanService.MaxDokuman).
+        <p class="warn">Belge sınırına ulaşıldı (@CompanyFileService.MaxDocuments/@CompanyFileService.MaxDocuments).
             Yeni belge yüklemek için aşağıdakilerden birini silin.</p>
     }
     else
@@ -92,5 +92,5 @@ else
 
     private IReadOnlyList<FirmaDokumanSatiri> _satirlar = [];
 
-    protected override async Task OnInitializedAsync() => _satirlar = await DokumanServisi.ListeleAsync();
+    protected override async Task OnInitializedAsync() => _satirlar = await DokumanServisi.ListAsync();
 }

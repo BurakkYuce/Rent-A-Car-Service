@@ -58,7 +58,7 @@ public sealed class AcceptanceTests(PostgresFixture fx)
         Assert.True(await rentals.DeliverAsync(rentalId, 1000, 8));
 
         // 5) Dönüş: 1 gün geç + 100 fazla km → uzatma 100 + fazla km 200 → GenelToplam 700
-        Assert.True(await rentals.ReturnAsync(rentalId, donusKm: 1500, donusYakit: 8, gercekDonus: bit.AddDays(1)));
+        Assert.True(await rentals.ReturnAsync(rentalId, returnKm: 1500, returnFuel: 8, actualReturn: bit.AddDays(1)));
         rental = await rentals.GetAsync(rentalId);
         Assert.Equal(RentalStatus.Tamamlandi, rental!.Durum);
         Assert.Equal(200m, rental.FazlaKmBedeli); // (1500-1000-400)=100 × 2
@@ -68,7 +68,7 @@ public sealed class AcceptanceTests(PostgresFixture fx)
 
         // 6) Fatura kes (GenelToplam 700 KDV-dahil → Borç Cari 700) → cari bakiye +700
         await invoices.CreateFromRentalAsync(rentalId);
-        Assert.Equal(700m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(700m, await cash.GetAccountBalanceAsync(cari));
 
         // 7) Nakit tahsilat 700 (kiraya bağlı) → Alacak Cari 700
         await cash.CollectAsync(new CashInput { CariId = cari, RentalId = rentalId, Tutar = 700m });
@@ -77,7 +77,7 @@ public sealed class AcceptanceTests(PostgresFixture fx)
         rental = await rentals.GetAsync(rentalId);
         Assert.Equal(700m, rental!.Tahsilat);
         Assert.Equal(0m, rental.Bakiye);
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
 
         // 9) Dönüş sonrası araç tekrar müsait → yeniden kiralanabilir
         var rentalId2 = await rentals.CreateDirectAsync(Input());

@@ -24,11 +24,11 @@ namespace RentACar.Web.Api.Finans;
 /// <item><c>POST tahsilat</c> ← <c>/finans/tahsilat</c> · <see cref="CashService.CollectAsync"/> (envanter E01)</item>
 /// <item><c>POST odeme</c> ← <c>/finans/odeme</c> · <see cref="CashService.PayAsync"/> (E02)</item>
 /// <item><c>POST fatura</c> ← <c>/finans/fatura</c> · <see cref="InvoiceService.CreateFromRentalAsync"/> (E15)</item>
-/// <item><c>POST donem-fatura</c> ← <c>/finans/donem-fatura</c> · <see cref="DonemTahsilatService.KesVeTahsilEtDetayAsync"/> (E18/E19)</item>
-/// <item><c>POST dis-hizmet</c> ← <c>/finans/dis-hizmet</c> · <see cref="DisHizmetService.CreateAsync"/> (E33)</item>
-/// <item><c>POST dis-hizmet/{id}/iptal</c> ← <c>/finans/dis-hizmet-iptal</c> · <see cref="DisHizmetService.IptalEtAsync"/> (E34, FinanceReverse)</item>
-/// <item><c>POST depozito/al</c> ← <c>/depozito/al</c> · <see cref="DepozitoService.AlAsync"/> (E09)</item>
-/// <item><c>POST depozito/irat</c> ← <c>/depozito/irat</c> · <see cref="DepozitoService.IratAsync"/> (E12)</item>
+/// <item><c>POST donem-fatura</c> ← <c>/finans/donem-fatura</c> · <see cref="PeriodCollectionService.IssueAndCollectDetailAsync"/> (E18/E19)</item>
+/// <item><c>POST dis-hizmet</c> ← <c>/finans/dis-hizmet</c> · <see cref="OutsourcedServiceService.CreateAsync"/> (E33)</item>
+/// <item><c>POST dis-hizmet/{id}/iptal</c> ← <c>/finans/dis-hizmet-iptal</c> · <see cref="OutsourcedServiceService.CancelAsync"/> (E34, FinanceReverse)</item>
+/// <item><c>POST depozito/al</c> ← <c>/depozito/al</c> · <see cref="DepositService.GetAsync"/> (E09)</item>
+/// <item><c>POST depozito/irat</c> ← <c>/depozito/irat</c> · <see cref="DepositService.ForfeitAsync"/> (E12)</item>
 /// </list>
 ///
 /// <para><b>İzin:</b> grup <see cref="Permission.FinanceWrite"/> (Blazor <c>/finans</c> ve <c>/depozito</c> grupları
@@ -132,7 +132,7 @@ public static class FinansApi
     {
         LedgerAccountType? filtre = string.IsNullOrWhiteSpace(tur) ? null : Hesap(tur, "tur");
         var liste = (await hesaplar.ListActiveAsync(ct))
-            .Select(h => (Hesap: h, Tur: HesapCozucu.TuruCoz(h.Tur)))
+            .Select(h => (Hesap: h, Tur: AccountResolver.ResolveType(h.Tur)))
             .Where(x => filtre is null || x.Tur == filtre)
             .Select(x => new FinansHesapOgesi(x.Hesap.Id, HesapEtiketi(x.Hesap, x.Tur), x.Hesap.Kod, x.Hesap.Ad,
                 x.Tur?.ToString(), string.IsNullOrWhiteSpace(x.Hesap.Doviz) ? null : x.Hesap.Doviz))
@@ -141,7 +141,7 @@ public static class FinansApi
     }
 
     private static async Task<Ok<FinansIslemYaniti>> Tahsilat(
-        TahsilatIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, KurCozucu kurCozucu,
+        TahsilatIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, ExchangeRateResolver kurCozucu,
         CancellationToken ct)
     {
         // Deterministik anahtar kiraya özgüdür (kira + bakiye + işlem sayısı); kirasız ya da boş gelmesi istemci hatası.
@@ -154,7 +154,7 @@ public static class FinansApi
         // 5. tur LOW-3: açık kurun kuralları (elle giriş kilidi, pozitiflik, TRY'de kur=1) anahtar/mükerrer
         // kontrolünden ÖNCE: TRY'de kur≠1 tekrarı "farklı içerik" 409'u değil, yazılabilir olmayan istek olarak 400.
         if (istek.Kur is not null)
-            await kurCozucu.CozAsync(girdi.Doviz, girdi.Kur, girdi.Tarih, ct);
+            await kurCozucu.ResolveAsync(girdi.Doviz, girdi.Kur, girdi.Tarih, ct);
         if (istek.TahsilatAnahtar is { } gelen)
         {
             // F4.4 adversarial HIGH-1: ÖNCE bu anahtarla yazılmış kayıt aranır. Kaybolan yanıttan sonraki DOĞRU
@@ -173,7 +173,7 @@ public static class FinansApi
     }
 
     private static async Task<Ok<FinansIslemYaniti>> Odeme(
-        OdemeIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, KurCozucu kurCozucu,
+        OdemeIstegi istek, HttpContext http, CashService kasa, RentalService kiralar, ExchangeRateResolver kurCozucu,
         CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
@@ -194,23 +194,23 @@ public static class FinansApi
         var kira = await KiraKapsamdaAsync(kiralar, istek.KiraId, ct);
         var vergi = new InvoiceTaxInfo(istek.Otv, istek.TevkifatOran, istek.TevkifatTutar, istek.DamgaVergisi,
             istek.IadeMi, istek.ManuelMi);
-        return TypedResults.Ok(new FinansIslemYaniti(await faturalar.CreateFromRentalAsync(kira.Id, vergi: vergi, ct: ct)));
+        return TypedResults.Ok(new FinansIslemYaniti(await faturalar.CreateFromRentalAsync(kira.Id, tax: vergi, ct: ct)));
     }
 
     private static async Task<Ok<DonemFaturaYaniti>> DonemFatura(
-        DonemFaturaIstegi istek, DonemTahsilatService donem, RentalService kiralar, CancellationToken ct)
+        DonemFaturaIstegi istek, PeriodCollectionService donem, RentalService kiralar, CancellationToken ct)
     {
         // Yapısal + deterministik (E18/E19): fatura Kesildi → mevcut id; tahsilat RowKey(kira, sıra). Başlık kullanılmaz.
         if (istek.DonemSira < 1) throw new ValidationException("Dönem sırası 1 ya da daha büyük olmalıdır.", "donemSira");
         var hesap = istek.Tahsilat ? Hesap(istek.Hesap, "hesap") : LedgerAccountType.Kasa; // tahsilatsızda kullanılmaz
         var kira = await KiraKapsamdaAsync(kiralar, istek.KiraId, ct);
-        var (faturaId, yazildi) = await donem.KesVeTahsilEtDetayAsync(kira.Id, istek.DonemSira, istek.Tahsilat, hesap, ct);
+        var (faturaId, yazildi) = await donem.IssueAndCollectDetailAsync(kira.Id, istek.DonemSira, istek.Tahsilat, hesap, ct);
         return TypedResults.Ok(new DonemFaturaYaniti(faturaId, yazildi,
             istek.Tahsilat && !yazildi ? OncedenAlinanTahsilat : null));
     }
 
     private static async Task<Ok<FinansIslemYaniti>> DisHizmet(
-        DisHizmetIstegi istek, HttpContext http, DisHizmetService svc, RentalService kiralar, CancellationToken ct)
+        DisHizmetIstegi istek, HttpContext http, OutsourcedServiceService svc, RentalService kiralar, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         if (istek.CariId == Guid.Empty) throw new ValidationException("Tedarikçi cari seçilmelidir.", "cariId");
@@ -244,15 +244,15 @@ public static class FinansApi
         return TypedResults.Ok(new FinansIslemYaniti(id));
     }
 
-    private static async Task<NoContent> DisHizmetIptal(Guid id, DisHizmetService svc, CancellationToken ct)
+    private static async Task<NoContent> DisHizmetIptal(Guid id, OutsourcedServiceService svc, CancellationToken ct)
     {
         // Yapısal (E34): Durum kilit içinde yeniden denetlenir; ikinci iptal servisten 400. Kapsam serviste.
-        await svc.IptalEtAsync(id, ct);
+        await svc.CancelAsync(id, ct);
         return TypedResults.NoContent();
     }
 
     private static async Task<Ok<FinansIslemYaniti>> DepozitoAl(
-        DepozitoAlIstegi istek, HttpContext http, DepozitoService depozito, KurCozucu kurCozucu, CancellationToken ct)
+        DepozitoAlIstegi istek, HttpContext http, DepositService depozito, ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         Cari(istek.CariId);
@@ -263,13 +263,13 @@ public static class FinansApi
         BazSiniri(istek.Tutar, istek.Kur);
         // F8.1a adversarial M1: kur boşsa ÇÖZÜLECEK kura da baz sınırı.
         await FinansHub.FinanceHubApi.ResolvedBaseLimitAsync(kurCozucu, istek.Tutar, doviz, istek.Kur, null, ct);
-        var id = await depozito.AlAsync(istek.CariId, istek.Tutar, hesap, doviz, istek.Kur,
-            tarih: null, islemAnahtari: anahtar, hesapId: istek.HesapId, ct: ct);
+        var id = await depozito.GetAsync(istek.CariId, istek.Tutar, hesap, doviz, istek.Kur,
+            date: null, operationKey: anahtar, accountId: istek.HesapId, ct: ct);
         return TypedResults.Ok(new FinansIslemYaniti(id));
     }
 
     private static async Task<Ok<FinansIslemYaniti>> DepozitoIrat(
-        DepozitoIratIstegi istek, HttpContext http, DepozitoService depozito, RentalService kiralar, KurCozucu kurCozucu,
+        DepozitoIratIstegi istek, HttpContext http, DepositService depozito, RentalService kiralar, ExchangeRateResolver kurCozucu,
         CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
@@ -282,8 +282,8 @@ public static class FinansApi
         Metin(istek.Aciklama, 512, "aciklama");
         // Kira atfı başka şubenin aracına gelir yazmasın: kapsam kapısı. Kira–cari eşleşmesini repo çiti zorlar.
         if (istek.KiraId is { } kiraId) await KiraKapsamdaAsync(kiralar, kiraId, ct);
-        var id = await depozito.IratAsync(istek.CariId, istek.Tutar, doviz, istek.Kur, istek.KiraId,
-            tarih: null, islemAnahtari: anahtar, aciklama: istek.Aciklama, ct: ct);
+        var id = await depozito.ForfeitAsync(istek.CariId, istek.Tutar, doviz, istek.Kur, istek.KiraId,
+            date: null, operationKey: anahtar, description: istek.Aciklama, ct: ct);
         return TypedResults.Ok(new FinansIslemYaniti(id));
     }
 
@@ -309,7 +309,7 @@ public static class FinansApi
         Metin(aciklama, 512, "aciklama");
         if (CashKanal.TryNormalize(kanal) is null)
             throw new ValidationException($"Geçersiz kanal: '{kanal}'. İzin verilenler: {string.Join(", ", CashKanal.Hepsi)}.", "kanal");
-        Alanli("tarih", () => TarihPolitikasi.ParaTarihi(tarih, "İşlem"));
+        Alanli("tarih", () => DatePolicy.MoneyDate(tarih, "İşlem"));
 
         RentalContract? kira = null;
         if (kiraId is { } kid)
@@ -357,13 +357,13 @@ public static class FinansApi
 
     private static async Task TahsilatAnahtariGuncelAsync(Guid gelen, RentalContract kira, CashService kasa, CancellationToken ct)
     {
-        var sayilar = await kasa.GetRentalIslemSayilariAsync([kira.Id], ct);
+        var sayilar = await kasa.GetRentalTransactionCountsAsync([kira.Id], ct);
         var islemSayisi = sayilar.TryGetValue(kira.Id, out var n) ? n : 0;
         var sade = decimal.Parse(kira.Bakiye.ToString("0.############################", CultureInfo.InvariantCulture),
             CultureInfo.InvariantCulture);
         if (gelen != TahsilatAnahtar.Uret(kira.Id, kira.Bakiye, islemSayisi)
             && gelen != TahsilatAnahtar.Uret(kira.Id, sade, islemSayisi))
-            throw new MukerrerIslemException(BayatAnahtarMesaji);
+            throw new DuplicateOperationException(BayatAnahtarMesaji);
     }
 
     /// <summary>Kaybolan yanıttan sonraki tekrar: aynı <c>tahsilatAnahtar</c> ile bu kiraya yazılmış tahsilat.</summary>
@@ -388,17 +388,17 @@ public static class FinansApi
     /// ("… YAZILMADI").
     /// <para>F4.4 L-1: kur/açıklama/kanal da karşılaştırılır — yalnız tutar/hesap aynı diye kurunu ya da açıklamasını
     /// değiştirmiş tekrar "zaten kaydedildi" deyip formu silmesin (yazılan kayıt kullanıcının son niyeti DEĞİL).
-    /// Kur boşsa sunucunun o an çözeceği kur (<see cref="KurCozucu"/>; TRY=1) karşılaştırılır; çözülemezse güvenli
+    /// Kur boşsa sunucunun o an çözeceği kur (<see cref="ExchangeRateResolver"/>; TRY=1) karşılaştırılır; çözülemezse güvenli
     /// taraf "aynı değil". Kur <c>numeric(19,6)</c> saklandığı için karşılaştırma 6 haneye yuvarlanmış değerle.
     /// Açıklama boş/boşluk = yok; kenar boşlukları yok sayılır. Kanal servisle aynı kuralla normalize edilir.</para>
     /// </summary>
     private static async Task ZatenKaydedildiyseAsync(
-        Guid anahtar, RentalContract kira, CashInput gelen, CashService kasa, KurCozucu kurCozucu, CancellationToken ct)
+        Guid anahtar, RentalContract kira, CashInput gelen, CashService kasa, ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
-        if (await kasa.IslemAnahtariylaBulAsync(anahtar, ct) is not { } t
+        if (await kasa.FindByOperationKeyAsync(anahtar, ct) is not { } t
             || t.RentalId != kira.Id || t.Tip != CashTransactionType.Tahsilat)
             return;
-        var gelenDoviz = KurService.NormalizeKodStrict(gelen.Doviz);
+        var gelenDoviz = ExchangeRateService.NormalizeCodeStrict(gelen.Doviz);
         var ayni = t.Amount.Amount == gelen.Tutar
                    && string.Equals(t.Amount.Currency, gelenDoviz, StringComparison.OrdinalIgnoreCase)
                    && t.KarsiHesap == gelen.Hesap
@@ -412,7 +412,7 @@ public static class FinansApi
             ? string.Format(Tr, ZatenKaydedildiMesaji, t.No, mevcutTutar, t.Amount.Currency)
             : string.Format(Tr, BaskaTahsilatYazildiMesaji, t.No, mevcutTutar, t.Amount.Currency,
                 gelen.Tutar.ToString("N2", Tr), gelenDoviz);
-        throw new MukerrerIslemException(mesaj, new MevcutIslem(t.Id, t.No, t.Amount.Amount, t.Amount.Currency, ayni));
+        throw new DuplicateOperationException(mesaj, new MevcutIslem(t.Id, t.No, t.Amount.Amount, t.Amount.Currency, ayni));
     }
 
     /// <summary>5. tur LOW-3: açık işlem tarihi kayıttakiyle aynı mı. Boş tarih = "şimdi" (servis yazım anını koyar) —
@@ -426,13 +426,13 @@ public static class FinansApi
 
     /// <summary>L-1: gelen isteğin kuru (açık ya da o an çözülecek) kayıttaki kurla aynı mı (6 hane).</summary>
     private static async Task<bool> AyniKurAsync(
-        decimal kayitKuru, string doviz, CashInput gelen, KurCozucu kurCozucu, CancellationToken ct)
+        decimal kayitKuru, string doviz, CashInput gelen, ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         decimal kur;
         if (gelen.Kur is { } acik) kur = acik;
         else
         {
-            try { kur = await kurCozucu.CozAsync(doviz, null, gelen.Tarih, ct); }
+            try { kur = await kurCozucu.ResolveAsync(doviz, null, gelen.Tarih, ct); }
             catch (ValidationException) { return false; } // çözülemeyen kur: güvenli taraf (form silinmez)
         }
         return Math.Round(kur, 6, MidpointRounding.AwayFromZero) == Math.Round(kayitKuru, 6, MidpointRounding.AwayFromZero);
@@ -500,7 +500,7 @@ public static class FinansApi
     {
         if (string.IsNullOrWhiteSpace(doviz)) return "TRY";
         string kod = "";
-        Alanli("doviz", () => kod = KurService.NormalizeKodStrict(doviz));
+        Alanli("doviz", () => kod = ExchangeRateService.NormalizeCodeStrict(doviz));
         return kod;
     }
 

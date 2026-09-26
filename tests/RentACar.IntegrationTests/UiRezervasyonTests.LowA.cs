@@ -23,8 +23,8 @@ public sealed partial class UiRezervasyonTests
     private async Task<(Customer Anonim, Customer Acik, string Soyad)> AnonimCarilerAsync(Ortam o)
     {
         var soyad = "Saklı" + Guid.NewGuid().ToString("N")[..6];
-        var anonim = new Customer { Tip = CariType.Bireysel, Ad = "Zeynep", Soyad = soyad, CepTel = "05320000011", AnonimAd = true };
-        var acik = new Customer { Tip = CariType.Bireysel, Ad = "Zeynep", Soyad = soyad + "x", CepTel = "05320000012" };
+        var anonim = new Customer { Tip = CustomerType.Bireysel, Ad = "Zeynep", Soyad = soyad, CepTel = "05320000011", AnonimAd = true };
+        var acik = new Customer { Tip = CustomerType.Bireysel, Ad = "Zeynep", Soyad = soyad + "x", CepTel = "05320000012" };
         await VeriYazAsync(o.TenantId, db => db.Customers.AddRange(anonim, acik));
         return (anonim, acik, soyad);
     }
@@ -95,9 +95,9 @@ public sealed partial class UiRezervasyonTests
     public async Task LowA_secim_musteri_siralamasi_anonimin_gercek_adini_sizdirmaz()
     {
         var o = await OrtamKurAsync();
-        var anonimA = new Customer { Tip = CariType.Bireysel, Ad = "Aaaahmet", Soyad = "Test", AnonimAd = true };
-        var acik = new Customer { Tip = CariType.Bireysel, Ad = "Kkkenan", Soyad = "Test" };
-        var anonimZ = new Customer { Tip = CariType.Bireysel, Ad = "Zzzzafer", Soyad = "Test", AnonimAd = true };
+        var anonimA = new Customer { Tip = CustomerType.Bireysel, Ad = "Aaaahmet", Soyad = "Test", AnonimAd = true };
+        var acik = new Customer { Tip = CustomerType.Bireysel, Ad = "Kkkenan", Soyad = "Test" };
+        var anonimZ = new Customer { Tip = CustomerType.Bireysel, Ad = "Zzzzafer", Soyad = "Test", AnonimAd = true };
         await VeriYazAsync(o.TenantId, db => db.Customers.AddRange(anonimA, acik, anonimZ));
         var s = await GirisAsync(o, Kim.OperatorA);
 

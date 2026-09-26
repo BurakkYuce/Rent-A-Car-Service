@@ -114,7 +114,7 @@ public static class TenantSettingsEndpoints
             // PR-A: kural TEK kaynakta (LogoKurallari) — tür + bayt + ölçü. Servis de AYNI kuralı
             // uyguluyor (derinlik); buradaki kontrol kullanıcıya hızlı/anlaşılır hata vermek için.
             // NOT: JPEG artık kabul edilmiyor — PNG-only (şeffaf zemin), bilinçli daraltma.
-            if (RentACar.Application.Common.LogoKurallari.Reddet(bytes) is { } logoHata)
+            if (RentACar.Application.Common.LogoValidationRules.Reject(bytes) is { } logoHata)
                 return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString(logoHata));
             await svc.SetLogoAsync(bytes);
             return Results.Redirect("/ayarlar?ok=1");
@@ -195,14 +195,14 @@ public static class TenantSettingsEndpoints
         // tek dürüst cevabı gerçek bir gönderimdir. SMTP'de yapılandırma TENANT satırındadır, bu yüzden
         // kapı config'te değil ayarın kendisinde: BildirimKanaliService ayar eksikse açık hata döndürür.
         grp.MapPost("/smtp-test", async (HttpRequest req,
-            RentACar.Application.Integrations.BildirimKanaliService kanal) =>
+            RentACar.Application.Integrations.NotificationChannelService kanal) =>
         {
             var alici = req.Form["testMail"].ToString().Trim();
             if (string.IsNullOrWhiteSpace(alici))
                 return Results.Redirect("/ayarlar?hata=" + Uri.EscapeDataString("Test için bir e-posta adresi girin."));
 
             var zaman = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm");
-            var sonuc = await kanal.EpostaGonderAsync(
+            var sonuc = await kanal.SendEmailAsync(
                 alici,
                 "RentPro e-posta testi",
                 $"<p>RentPro test mesajı — {zaman} UTC.</p><p>Bu mesajı aldıysanız e-posta yapılandırmanız çalışıyor.</p>",
@@ -220,7 +220,7 @@ public static class TenantSettingsEndpoints
         // girer; yoksa StubSmsService kalır ve o artık DÜRÜSTÇE false döner (sahte başarı yok).
         // Yine de "neden gitmedi" sorusuna net cevap vermek için yapılandırma ayrıca kontrol edilir.
         grp.MapPost("/sms-test", async (HttpRequest req,
-            RentACar.Application.Integrations.BildirimKanaliService kanal,
+            RentACar.Application.Integrations.NotificationChannelService kanal,
             RentACar.Application.Integrations.ISmsService sms, IConfiguration cfg) =>
         {
             var no = req.Form["testSmsNo"].ToString().Trim();
@@ -236,7 +236,7 @@ public static class TenantSettingsEndpoints
             // test, gerçek kod yolunu denemeli.
             var mesaj = $"RentPro test mesaji - {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm} UTC. "
                       + "Bu mesajı aldıysanız SMS yapılandırmanız çalışıyor.";
-            var baslik = await kanal.SmsBaslikAsync();
+            var baslik = await kanal.SmsHeaderAsync();
             var twilioSvc = sms as RentACar.Web.Integrations.TwilioSmsService;
             var (ok, mesajSid) = twilioSvc is not null
                 ? await twilioSvc.GonderAsync(no, mesaj, baslik)

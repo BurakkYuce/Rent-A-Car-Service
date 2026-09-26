@@ -2,7 +2,7 @@
 @using RentACar.Application.Common
 @using RentACar.Application.Fleet
 @using RentACar.Application.SiteIcerik
-@inject SiteIcerikService Icerik
+@inject SiteContentService Icerik
 @inject FleetShowcaseService Showcase
 
 @* PR-16 — sık sorulan sorular. Açılır-kapanır liste `<details>`/`<summary>` ile: JS GEREKMEZ
@@ -31,7 +31,7 @@
             {
                 <details class="sss">
                     <summary>@k.Soru</summary>
-                    @foreach (var p in IcerikMetni.Paragraflar(k.Cevap))
+                    @foreach (var p in ContentText.Paragraphs(k.Cevap))
                     {
                         <p>@p</p>
                     }
@@ -59,7 +59,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _sorular = await Icerik.YayindakiSssAsync();
+        _sorular = await Icerik.PublishedFaqAsync();
         try
         {
             _branding = await Showcase.GetBrandingAsync();

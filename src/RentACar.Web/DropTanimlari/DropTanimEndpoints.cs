@@ -13,12 +13,12 @@ public static class DropTanimEndpoints
     {
         var grp = app.MapGroup("/drop-tanimlari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (DropTanimService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (DropDefinitionService svc, HttpRequest req) =>
             await Run(req, () => svc.CreateAsync(Build(req.Form, aktif: true))));
 
         // FAZ-22: düzenleme ucu YOKTU — kullanıcı bir satırın ücretini değiştirmek için silip
         // yeniden eklemek zorundaydı.
-        grp.MapPost("/update", async (DropTanimService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (DropDefinitionService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(req, () =>
             {
                 // Adversarial M8: alan HİÇ gelmezse eskiden sessizce false yazılıyordu → satır
@@ -30,7 +30,7 @@ public static class DropTanimEndpoints
                     aktif: string.Equals(req.Form["aktif"].ToString(), "true", StringComparison.OrdinalIgnoreCase)));
             }));
 
-        grp.MapPost("/delete", async (DropTanimService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (DropDefinitionService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(req, () => svc.DeleteAsync(id)));
 
         return app;

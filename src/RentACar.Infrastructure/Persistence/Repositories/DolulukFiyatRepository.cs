@@ -8,7 +8,7 @@ using RentACar.Domain.Enums;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>IDolulukFiyatKuralRepository implementasyonu (FAZ 3.A7) — master CRUD deseni.</summary>
-public sealed class DolulukFiyatKuralRepository(IDbContextFactory<AppDbContext> factory) : IDolulukFiyatKuralRepository
+public sealed class DolulukFiyatKuralRepository(IDbContextFactory<AppDbContext> factory) : IOccupancyPriceRuleRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -32,7 +32,7 @@ public sealed class DolulukFiyatKuralRepository(IDbContextFactory<AppDbContext> 
         return await db.DolulukFiyatKurallari.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.DolulukFiyatKurallari.AsNoTracking()
@@ -93,7 +93,7 @@ public sealed class DolulukFiyatKuralRepository(IDbContextFactory<AppDbContext> 
 /// </summary>
 public sealed class OccupancyProvider(IDbContextFactory<AppDbContext> factory) : IOccupancyProvider
 {
-    public async Task<decimal?> GetGrupDolulukYuzdeAsync(
+    public async Task<decimal?> GetGroupOccupancyPercentAsync(
         string grupKod, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {
         var kod = grupKod.Trim();

@@ -66,11 +66,11 @@ public sealed partial class UiCustomerApiTests
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(e.TenantId, Guid.NewGuid(), "opA", UserRole.Operator, "SubeA");
         var sp = scope.ServiceProvider;
-        await Assert.ThrowsAsync<YetkiYokException>(() => sp.GetRequiredService<SikayetService>()
+        await Assert.ThrowsAsync<NoPermissionException>(() => sp.GetRequiredService<ComplaintService>()
             .UpdateAsync(complaint, new SikayetInput { CariId = cust, Konu = "X", RentalId = rentalB.RentalId }));
-        await Assert.ThrowsAsync<YetkiYokException>(() => sp.GetRequiredService<SikayetService>().DeleteAsync(complaint));
-        await Assert.ThrowsAsync<YetkiYokException>(() => sp.GetRequiredService<AnketService>().DeleteAsync(survey));
-        await Assert.ThrowsAsync<YetkiYokException>(() => sp.GetRequiredService<AssistansTalepService>().DeleteAsync(assistance));
+        await Assert.ThrowsAsync<NoPermissionException>(() => sp.GetRequiredService<ComplaintService>().DeleteAsync(complaint));
+        await Assert.ThrowsAsync<NoPermissionException>(() => sp.GetRequiredService<SurveyService>().DeleteAsync(survey));
+        await Assert.ThrowsAsync<NoPermissionException>(() => sp.GetRequiredService<AssistanceRequestService>().DeleteAsync(assistance));
         Assert.True(await ReadAsync(e.TenantId, db => db.Sikayetler.AnyAsync(x => x.Id == complaint)));
 
         // Kendi şubesindeki operatör aynı Blazor ucuyla güncelleyebilir (kemer yetkiliyi durdurmaz).
@@ -110,7 +110,7 @@ public sealed partial class UiCustomerApiTests
     {
         var e = await SetupAsync();
         var birth = new DateTimeOffset(1980, 5, 17, 0, 0, 0, TimeSpan.Zero);
-        var c = new Customer { Tip = CariType.Bireysel, Ad = "Belge", Soyad = "Gizli", DogumTarihi = birth, AnonimBelge = true };
+        var c = new Customer { Tip = CustomerType.Bireysel, Ad = "Belge", Soyad = "Gizli", DogumTarihi = birth, AnonimBelge = true };
         await WriteAsync(e.TenantId, db => db.Customers.Add(c));
         await RentalAsync(e, c.Id, "SubeA");
 
@@ -130,7 +130,7 @@ public sealed partial class UiCustomerApiTests
         // Blazor CRM analizi aynı rapor kaynağından okur: maske kaynakta.
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(e.TenantId);
-        var rows = await scope.ServiceProvider.GetRequiredService<ReportService>().GetMusteriSegmentAsync(new MusteriSegmentFilter());
+        var rows = await scope.ServiceProvider.GetRequiredService<ReportService>().GetCustomerSegmentAsync(new MusteriSegmentFilter());
         Assert.Null(Assert.Single(rows, r => r.CariId == c.Id).DogumTarihi);
     }
 }

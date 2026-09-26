@@ -71,7 +71,7 @@
     <label>Ceza Durumu
         <select name="durum">
             <option value="">— tümü —</option>
-            @foreach (var d in Enum.GetValues<CezaDurum>())
+            @foreach (var d in Enum.GetValues<PenaltyStatus>())
             {
                 <option value="@d" selected="@(d.ToString() == Durum)">@d</option>
             }
@@ -80,7 +80,7 @@
     <label>Ödeme Durumu
         <select name="odeme">
             <option value="">— tümü —</option>
-            @foreach (var o in Enum.GetValues<CezaOdemeDurum>())
+            @foreach (var o in Enum.GetValues<PenaltyPaymentStatus>())
             {
                 <option value="@o" selected="@(o.ToString() == Odeme)">@o</option>
             }
@@ -137,14 +137,14 @@
                 <td>@Sekil(row)</td>
                 <td data-etiket="Durum">@p.Durum</td>
                 <td class="kart-aksiyon">
-                    @if (p.Durum == CezaDurum.Yeni && p.CariId is not null)
+                    @if (p.Durum == PenaltyStatus.Yeni && p.CariId is not null)
                     {
                         <form method="post" action="/cezalar/yansit" class="inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@p.Id" />
                             <button type="submit">Yansıt</button>
                         </form>
                     }
-                    @if (p.Durum == CezaDurum.Yeni && p.OdenenTutar == 0m)
+                    @if (p.Durum == PenaltyStatus.Yeni && p.OdenenTutar == 0m)
                     {
                         @* Yetki çiti: uç grup kapısından DAHA DAR izin istiyor (UcIzinKapsamaTests) — kapılanmazsa 403 → /yetkisiz. *@
                         <AuthorizeView Policy="izin:OperationsDelete" Context="iptalCtx">
@@ -159,7 +159,7 @@
                     }
                 </td>
             </tr>
-            @if (p.Durum != CezaDurum.Iptal && row.Satirlar.Count > 0)
+            @if (p.Durum != PenaltyStatus.Iptal && row.Satirlar.Count > 0)
             {
                 <tr class="detail-row">
                     <td colspan="20">
@@ -260,8 +260,8 @@
             // Takvim günü: alt sınır günün başı, üst sınır repository'de GÜN DAHİL genişletilir.
             Bas = Gun(Bas),
             Bit = Gun(Bit),
-            Durum = Enum.TryParse<CezaDurum>(Durum, out var d) ? d : null,
-            OdemeDurum = Enum.TryParse<CezaOdemeDurum>(Odeme, out var o) ? o : null,
+            Durum = Enum.TryParse<PenaltyStatus>(Durum, out var d) ? d : null,
+            OdemeDurum = Enum.TryParse<PenaltyPaymentStatus>(Odeme, out var o) ? o : null,
             IslemSube = Sube
         };
         _rows = await Penalties.ListRowsAsync(filter);

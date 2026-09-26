@@ -32,7 +32,7 @@ public sealed class MegaFormKucuklerTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 01" });
         var musteri = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ops", Soyad = "Cari" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ops", Soyad = "Cari" });
         var rentals = sp.GetRequiredService<RentalService>();
 
         var girdi = Kira(musteri, arac);
@@ -60,7 +60,7 @@ public sealed class MegaFormKucuklerTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 02" });
         var musteri = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Riskli", Soyad = "Cari", RiskLimiti = 100m });
+        { Tip = CustomerType.Bireysel, Ad = "Riskli", Soyad = "Cari", RiskLimiti = 100m });
         // Borç 150 (elle): manuel fatura → Borç Cari 150 > limit 100.
         await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
         { CariId = musteri, NetTutar = 150m, KdvOrani = 0m, Aciklama = "borç" });
@@ -87,9 +87,9 @@ public sealed class MegaFormKucuklerTests(PostgresFixture fx)
             var sp = seed.ServiceProvider;
             arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 03" });
             riskli = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-            { Tip = CariType.Bireysel, Ad = "Riskli2", Soyad = "Cari", RiskLimiti = 100m });
+            { Tip = CustomerType.Bireysel, Ad = "Riskli2", Soyad = "Cari", RiskLimiti = 100m });
             limitsiz = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-            { Tip = CariType.Bireysel, Ad = "Limitsiz", Soyad = "Cari" }); // RiskLimiti 0 → guard yok
+            { Tip = CustomerType.Bireysel, Ad = "Limitsiz", Soyad = "Cari" }); // RiskLimiti 0 → guard yok
             await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
             { CariId = riskli, NetTutar = 150m, KdvOrani = 0m, Aciklama = "borç" });
         }
@@ -117,14 +117,14 @@ public sealed class MegaFormKucuklerTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 04" });
         var musteri = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Ek", Soyad = "Kosul" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ek", Soyad = "Kosul" });
         var rentals = sp.GetRequiredService<RentalService>();
 
         var girdi = Kira(musteri, arac);
         girdi.EkKosullar = "Araç yurt dışına çıkarılamaz.";
         var id = await rentals.CreateDirectAsync(girdi);
 
-        var view = await sp.GetRequiredService<SozlesmeService>().GetAsync(id);
+        var view = await sp.GetRequiredService<ContractService>().GetAsync(id);
         Assert.Equal("Araç yurt dışına çıkarılamaz.", view!.EkKosullar); // PDF/print aynı view-model'den basar
     }
 }

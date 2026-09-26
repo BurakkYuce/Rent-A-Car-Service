@@ -236,12 +236,12 @@
 
         // Tüm şubelerin ücretsiz hizmetleri tek listede (şube sayısı azdır).
         var hepsi = new List<SubeUcretsizHizmet>();
-        foreach (var b in _list) hepsi.AddRange(await Branches.ListHizmetlerAsync(b.Id));
+        foreach (var b in _list) hepsi.AddRange(await Branches.ListServicesAsync(b.Id));
         _hizmetler = hepsi;
 
         // Birleştirme ÖNİZLEMESİ yalnız iki şube seçiliyken hesaplanır; yazma YAPMAZ.
         if (Guid.TryParse(Kaynak, out var k) && Guid.TryParse(Hedef, out var h) && k != h)
-            _onizleme = await Branches.BirlestirOnizleAsync(k, h);
+            _onizleme = await Branches.PreviewMergeAsync(k, h);
 
         // Seç-veya-yaz önerileri: mevcut şube kayıtlarından distinct İl/İlçe.
         _ilOpts = _list.Select(s => s.Il).Where(x => !string.IsNullOrWhiteSpace(x))

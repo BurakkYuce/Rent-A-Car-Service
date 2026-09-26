@@ -18,7 +18,7 @@ public sealed class CrmTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<AnketService>();
+        var svc = scope.ServiceProvider.GetRequiredService<SurveyService>();
 
         var id = await svc.CreateAsync(new AnketInput { Puan = 9, Yorum = "Memnun", Kaynak = "Web" });
         var a = await svc.GetAsync(id);
@@ -38,16 +38,16 @@ public sealed class CrmTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<SikayetService>();
+        var svc = scope.ServiceProvider.GetRequiredService<ComplaintService>();
 
         var id = await svc.CreateAsync(new SikayetInput { Konu = "Geç teslim", Detay = "Araç geç geldi" });
         var s = await svc.GetAsync(id);
         Assert.Equal("Geç teslim", s!.Konu);
-        Assert.Equal(SikayetDurum.Acik, s.Durum);
+        Assert.Equal(ComplaintStatus.Acik, s.Durum);
 
-        Assert.True(await svc.UpdateAsync(id, new SikayetInput { Konu = "Geç teslim", Durum = SikayetDurum.Cozuldu, Cozum = "Özür + indirim" }));
+        Assert.True(await svc.UpdateAsync(id, new SikayetInput { Konu = "Geç teslim", Durum = ComplaintStatus.Cozuldu, Cozum = "Özür + indirim" }));
         var s2 = await svc.GetAsync(id);
-        Assert.Equal(SikayetDurum.Cozuldu, s2!.Durum);
+        Assert.Equal(ComplaintStatus.Cozuldu, s2!.Durum);
         Assert.Equal("Özür + indirim", s2.Cozum);
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new SikayetInput { Konu = "  " }));
@@ -62,13 +62,13 @@ public sealed class CrmTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
         {
-            await s1.ServiceProvider.GetRequiredService<AnketService>().CreateAsync(new AnketInput { Puan = 5 });
-            await s1.ServiceProvider.GetRequiredService<SikayetService>().CreateAsync(new SikayetInput { Konu = "X" });
+            await s1.ServiceProvider.GetRequiredService<SurveyService>().CreateAsync(new AnketInput { Puan = 5 });
+            await s1.ServiceProvider.GetRequiredService<ComplaintService>().CreateAsync(new SikayetInput { Konu = "X" });
         }
 
         using var s2 = host.ScopeFor(t2);
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<AnketService>().ListAsync());
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<SikayetService>().ListAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<SurveyService>().ListAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<ComplaintService>().ListAsync());
     }
 
     [Fact]
@@ -76,9 +76,9 @@ public sealed class CrmTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), role: UserRole.Muhasebe); // OperationsWrite yok
-        await Assert.ThrowsAsync<YetkiYokException>(
-            () => scope.ServiceProvider.GetRequiredService<AnketService>().CreateAsync(new AnketInput { Puan = 5 }));
-        await Assert.ThrowsAsync<YetkiYokException>(
-            () => scope.ServiceProvider.GetRequiredService<SikayetService>().CreateAsync(new SikayetInput { Konu = "X" }));
+        await Assert.ThrowsAsync<NoPermissionException>(
+            () => scope.ServiceProvider.GetRequiredService<SurveyService>().CreateAsync(new AnketInput { Puan = 5 }));
+        await Assert.ThrowsAsync<NoPermissionException>(
+            () => scope.ServiceProvider.GetRequiredService<ComplaintService>().CreateAsync(new SikayetInput { Konu = "X" }));
     }
 }

@@ -2,7 +2,7 @@
 @using RentACar.Application.Common
 @using RentACar.Application.Fleet
 @using RentACar.Application.SiteIcerik
-@inject SiteIcerikService Icerik
+@inject SiteContentService Icerik
 @inject FleetShowcaseService Showcase
 
 @* PR-16 — firmanın yazdığı içerik sayfası, KÖK adreste (/hakkimizda).
@@ -40,7 +40,7 @@
             @* MarkupString KULLANILMAZ: @p normal bir Razor ifadesi olduğu için otomatik HTML-encode
                edilir. İçerik düz metin saklandığından personel gövdeye <script> yazsa ekranda METİN
                görünür — XSS risk sınıfı tasarım gereği yok (blog ile aynı kural, IcerikMetni ortak). *@
-            @foreach (var p in IcerikMetni.Paragraflar(_sayfa.Govde))
+            @foreach (var p in ContentText.Paragraphs(_sayfa.Govde))
             {
                 <p>@p</p>
             }
@@ -76,7 +76,7 @@
             return;
         }
 
-        _sayfa = await Icerik.SayfaAsync(Slug);
+        _sayfa = await Icerik.PageAsync(Slug);
         if (_sayfa is null && Http is not null)
             Http.Response.StatusCode = StatusCodes.Status404NotFound; // GERÇEK 404 (soft-404 değil)
 

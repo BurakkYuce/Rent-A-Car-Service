@@ -31,7 +31,7 @@ public sealed class DonemFaturaKesTests(PostgresFixture fx)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "DF", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "DF", Soyad = "M" });
         return await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
             MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bit, GunlukUcret = 100m,
@@ -50,10 +50,10 @@ public sealed class DonemFaturaKesTests(PostgresFixture fx)
         var repo = sp.GetRequiredService<IInvoiceRepository>();
 
         // Sıra dışı kesim reddi: önce D1.
-        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateDonemFaturasiAsync(id, 2));
+        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreatePeriodInvoiceAsync(id, 2));
 
         // D1: 3100 brüt → 2583,33 net + 516,67 KDV (elle, %20).
-        var f1 = await invoices.CreateDonemFaturasiAsync(id, 1);
+        var f1 = await invoices.CreatePeriodInvoiceAsync(id, 1);
         var inv1 = (await repo.FindAsync(f1))!;
         Assert.Equal(3100m, inv1.GenelToplam);
         Assert.Equal(2583.33m, inv1.NetTutar);
@@ -61,15 +61,15 @@ public sealed class DonemFaturaKesTests(PostgresFixture fx)
         Assert.Contains("Dönem 1", inv1.Lines.Count > 0 ? inv1.Lines[0].Aciklama : "");
 
         // İdempotent: aynı dönem tekrar → AYNI fatura Id (yeni fatura yok).
-        Assert.Equal(f1, await invoices.CreateDonemFaturasiAsync(id, 1));
+        Assert.Equal(f1, await invoices.CreatePeriodInvoiceAsync(id, 1));
 
         // D2 + D3 → Σ = 9000 kuruş-birebir; dönem satırları Kesildi + iz.
-        var f2 = await invoices.CreateDonemFaturasiAsync(id, 2);
-        var f3 = await invoices.CreateDonemFaturasiAsync(id, 3);
+        var f2 = await invoices.CreatePeriodInvoiceAsync(id, 2);
+        var f3 = await invoices.CreatePeriodInvoiceAsync(id, 3);
         Assert.Equal(2800m, (await repo.FindAsync(f2))!.GenelToplam);
         Assert.Equal(3100m, (await repo.FindAsync(f3))!.GenelToplam);
-        var donemler = await sp.GetRequiredService<IFaturaDonemRepository>().ListForRentalAsync(id);
-        Assert.All(donemler, d => Assert.Equal(FaturaDonemDurum.Kesildi, d.Durum));
+        var donemler = await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(id);
+        Assert.All(donemler, d => Assert.Equal(InvoicePeriodStatus.Kesildi, d.Durum));
         Assert.Equal(9000m, donemler.Sum(d => d.KesilenTutar ?? 0m));
 
         // Tam faturalandı: normal fatura kesimi temiz red (fark 0).
@@ -91,18 +91,18 @@ public sealed class DonemFaturaKesTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
 
         var repo = sp.GetRequiredService<IInvoiceRepository>();
-        var f1 = await invoices.CreateDonemFaturasiAsync(id, 1);
-        var f2 = await invoices.CreateDonemFaturasiAsync(id, 2);
+        var f1 = await invoices.CreatePeriodInvoiceAsync(id, 1);
+        var f2 = await invoices.CreatePeriodInvoiceAsync(id, 2);
         var kesilen12 = (await repo.FindAsync(f1))!.GenelToplam + (await repo.FindAsync(f2))!.GenelToplam;
 
         // Dönüş: toplam limit 9000; 9750 km → 750 aşım × 2 = 1500 (elle).
-        await rentals.DeliverAsync(id, cikisKm: 0, cikisYakit: 8);
-        await rentals.ReturnAsync(id, donusKm: 9750, donusYakit: 8, bas.AddDays(90));
+        await rentals.DeliverAsync(id, pickupKm: 0, pickupFuel: 8);
+        await rentals.ReturnAsync(id, returnKm: 9750, returnFuel: 8, bas.AddDays(90));
         Assert.Equal(10500m, (await rentals.GetAsync(id))!.GenelToplam);
 
         // D3: tahakkuk cap'i BAZ brütten (9000) — dönüş ücreti dönem tahakkukuna GİRMEZ.
         // (Dönem günleri now-göreli aylara bağlı → D3 = 9000 − D1 − D2 kalan-yöntemi invaryantı.)
-        var f3 = await invoices.CreateDonemFaturasiAsync(id, 3);
+        var f3 = await invoices.CreatePeriodInvoiceAsync(id, 3);
         Assert.Equal(9000m - kesilen12, (await repo.FindAsync(f3))!.GenelToplam);
 
         // Kalan delta (dönüş bedeli 1500) NORMAL "Fatura Kes" ile — kompozisyon bedava.
@@ -121,14 +121,14 @@ public sealed class DonemFaturaKesTests(PostgresFixture fx)
 
         // Önce NORMAL tam fatura (9000) kesilir → dönem tahakkuku kalmaz.
         await invoices.CreateFromRentalAsync(id);
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateDonemFaturasiAsync(id, 1));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => invoices.CreatePeriodInvoiceAsync(id, 1));
         Assert.Contains("ATLANDI", ex.Message);
 
         // Kalıcı iz + ikinci deneme "atlanmış" reddi (sessiz tekrar yok).
-        var d1 = (await sp.GetRequiredService<IFaturaDonemRepository>().ListForRentalAsync(id))
+        var d1 = (await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(id))
             .Single(d => d.DonemSira == 1);
-        Assert.Equal(FaturaDonemDurum.Atlandi, d1.Durum);
-        var ex2 = await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateDonemFaturasiAsync(id, 1));
+        Assert.Equal(InvoicePeriodStatus.Atlandi, d1.Durum);
+        var ex2 = await Assert.ThrowsAsync<ValidationException>(() => invoices.CreatePeriodInvoiceAsync(id, 1));
         Assert.Contains("atlanmış", ex2.Message);
     }
 
@@ -150,10 +150,10 @@ public sealed class DonemFaturaKesTests(PostgresFixture fx)
             var basefat = Task.Run(async () =>
             { try { await invoices.CreateFromRentalAsync(id); } catch (ValidationException) { } });
             var donem = Task.Run(async () =>
-            { try { await invoices.CreateDonemFaturasiAsync(id, 1); } catch (ValidationException) { } });
+            { try { await invoices.CreatePeriodInvoiceAsync(id, 1); } catch (ValidationException) { } });
             await Task.WhenAll(basefat, donem);
 
-            var (faturalanan, _) = await repo.GetFarkStateAsync(id);
+            var (faturalanan, _) = await repo.GetDifferenceStateAsync(id);
             Assert.True(faturalanan is 3100m or 9000m,
                 $"iterasyon {i}: faturalanan {faturalanan} — çift faturalama ya da sıfır kesim");
         }
@@ -184,18 +184,18 @@ public sealed class DonemFaturaKesTests(PostgresFixture fx)
         // 9900×31/90 = 3410,00 → SNAPSHOT %10'dan ayrışır: net 3100,00 + KDV 310,00 (elle).
         var id = await KiraAsync(sp, "34 DF 04", Bas, Bas.AddDays(90), fiyatTuru: "Günlük");
         var invoices = sp.GetRequiredService<InvoiceService>();
-        var f1 = await invoices.CreateDonemFaturasiAsync(id, 1);
+        var f1 = await invoices.CreatePeriodInvoiceAsync(id, 1);
         var inv = (await sp.GetRequiredService<IInvoiceRepository>().FindAsync(f1))!;
         Assert.Equal(3410.00m, inv.GenelToplam);
         Assert.Equal(3100.00m, inv.NetTutar);
         Assert.Equal(310.00m, inv.KdvTutar);
 
         // Net-modda farklı oran parametresi → guard reddi (CreateFromRentalAsync ile birebir).
-        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateDonemFaturasiAsync(id, 2, kdvRate: 0.20m));
+        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreatePeriodInvoiceAsync(id, 2, vatRate: 0.20m));
 
         // İptal kira reddi.
         var iptal = await KiraAsync(sp, "34 DF 05", Bas, Bas.AddDays(90));
         await sp.GetRequiredService<RentalService>().CancelAsync(iptal);
-        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateDonemFaturasiAsync(iptal, 1));
+        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreatePeriodInvoiceAsync(iptal, 1));
     }
 }

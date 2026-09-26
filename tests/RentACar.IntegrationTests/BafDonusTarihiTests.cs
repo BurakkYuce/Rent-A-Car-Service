@@ -33,7 +33,7 @@ public sealed class BafDonusTarihiTests(PostgresFixture fx)
 
         // Geçmişte bir teslim: personel bugün giriyor ama olay dün oldu.
         var dun = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-1).AddHours(14);
-        Assert.True(await svc.TeslimAlAsync(id, donusKm: 10_500, donusYakit: 7, donusTarihi: dun));
+        Assert.True(await svc.ReceiveAsync(id, returnKm: 10_500, returnFuel: 7, returnDate: dun));
 
         var b = await svc.GetAsync(id);
         Assert.Equal(dun, b!.DonusTarihi);
@@ -49,7 +49,7 @@ public sealed class BafDonusTarihiTests(PostgresFixture fx)
         var id = await BafAsync(s.ServiceProvider, "34 BF 02");
 
         var once = DateTimeOffset.UtcNow.AddSeconds(-5);
-        Assert.True(await svc.TeslimAlAsync(id, donusKm: 10_400, donusYakit: null));
+        Assert.True(await svc.ReceiveAsync(id, returnKm: 10_400, returnFuel: null));
 
         var b = await svc.GetAsync(id);
         Assert.NotNull(b!.DonusTarihi);

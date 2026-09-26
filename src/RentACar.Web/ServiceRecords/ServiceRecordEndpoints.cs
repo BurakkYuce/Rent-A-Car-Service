@@ -26,9 +26,9 @@ public static class ServiceRecordEndpoints
             var input = new ServiceRecordInput
             {
                 VehicleId = FormParse.Id(FormParse.Str(f, "vehicleId")) ?? Guid.Empty,
-                Tip = Enum.TryParse<ServisTipi>(FormParse.Str(f, "tip"), out var tip) ? tip : ServisTipi.Periyodik,
+                Tip = Enum.TryParse<ServiceType>(FormParse.Str(f, "tip"), out var tip) ? tip : ServiceType.Periyodik,
                 GirisKm = FormParse.Int(FormParse.Str(f, "girisKm")) ?? 0,
-                HasarSorumlu = Enum.TryParse<HasarSorumlu>(FormParse.Str(f, "hasarSorumlu"), out var hs) ? hs : HasarSorumlu.Yok,
+                HasarSorumlu = Enum.TryParse<DamageResponsible>(FormParse.Str(f, "hasarSorumlu"), out var hs) ? hs : DamageResponsible.Yok,
                 KusurOrani = FormParse.Dec(FormParse.Str(f, "kusurOrani")),
                 // Checkbox: işaretliyse "on"/"true" gelir, işaretsizse alan HİÇ gelmez.
                 Rezervasyon = FormParse.Str(f, "rezervasyon") is not null
@@ -47,29 +47,29 @@ public static class ServiceRecordEndpoints
             var id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty;
             var input = new ServiceRecordBilgiInput();
             BilgiOku(input, f);
-            return await Run(() => svc.BilgiGuncelleAsync(id, input), "İşlem tamamlandı.");
+            return await Run(() => svc.UpdateInfoAsync(id, input), "İşlem tamamlandı.");
         });
 
         // FAZ-16 — Rezerve → Açık ("Servise Al").
         grp.MapPost("/servise-al", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] string? girisKm)
-            => Run(() => svc.ServiseAlAsync(id, FormParse.Int(girisKm)), "İşlem tamamlandı."));
+            => Run(() => svc.TakeIntoServiceAsync(id, FormParse.Int(girisKm)), "İşlem tamamlandı."));
 
-        grp.MapPost("/baslat", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.BaslatAsync(id), "İşlem tamamlandı."));
+        grp.MapPost("/baslat", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.StartAsync(id), "İşlem tamamlandı."));
         grp.MapPost("/tamamla", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] int cikisKm, [FromForm] string? sonrakiBakimKm)
-            => Run(() => svc.TamamlaAsync(id, cikisKm, FormParse.Int(sonrakiBakimKm)), "Tamamlandı."));
-        grp.MapPost("/iptal", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.IptalAsync(id), "İşlem iptal edildi.")).RequirePermission(Permission.OperationsDelete);
+            => Run(() => svc.CompleteAsync(id, cikisKm, FormParse.Int(sonrakiBakimKm)), "Tamamlandı."));
+        grp.MapPost("/iptal", (ServiceRecordService svc, [FromForm] Guid id) => Run(() => svc.CancelAsync(id), "İşlem iptal edildi.")).RequirePermission(Permission.OperationsDelete);
         grp.MapPost("/kalem", async (ServiceRecordService svc, HttpRequest req) =>
         {
             var f = req.Form;
             var id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty;
             var kalem = KalemOku(f, FormParse.Str(f, "aciklama") ?? string.Empty);
-            return await Run(() => svc.KalemEkleAsync(id, kalem), "İşlem tamamlandı.");
+            return await Run(() => svc.AddItemAsync(id, kalem), "İşlem tamamlandı.");
         });
 
         // Servis maliyeti rücu/yansıtma→defter (roadmap J4): FinanceWrite (mali işlem).
         var ode = app.MapGroup("/servis-yansitma").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
         ode.MapPost("/yansit", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] Guid cariId)
-            => Run(() => svc.YansitAsync(id, cariId), "Yansıtma yapıldı."));
+            => Run(() => svc.ReflectAsync(id, cariId), "Yansıtma yapıldı."));
 
         return app;
     }
@@ -101,7 +101,7 @@ public static class ServiceRecordEndpoints
         b.Odeme = FormParse.Dec(FormParse.Str(f, "odeme"));
         b.OdemeDoviz = FormParse.Str(f, "odemeDoviz");
         b.OdemeKur = FormParse.Dec(FormParse.Str(f, "odemeKur"));
-        b.OdemeTuru = Enum.TryParse<OdemeYontemi>(FormParse.Str(f, "odemeTuru"), out var oy) ? oy : null;
+        b.OdemeTuru = Enum.TryParse<PaymentMethod>(FormParse.Str(f, "odemeTuru"), out var oy) ? oy : null;
         b.KasaKodu = FormParse.Str(f, "kasaKodu");
         b.HesapNo = FormParse.Str(f, "hesapNo");
 

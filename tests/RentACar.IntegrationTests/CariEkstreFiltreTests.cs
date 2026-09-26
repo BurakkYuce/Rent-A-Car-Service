@@ -29,7 +29,7 @@ public sealed class CariEkstreFiltreTests(PostgresFixture fx)
 
     private static async Task<Guid> CariAsync(IServiceScope s, string ad = "Ekstre", string soyad = "Testi")
         => await s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = soyad });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = soyad });
 
     /// <summary>
     /// Defter satırını DOĞRUDAN yazar. Neden servis değil: tahsilat/gider servisleri tarihi "şimdi"ye
@@ -90,7 +90,7 @@ public sealed class CariEkstreFiltreTests(PostgresFixture fx)
         Assert.Equal(0m, sonuc.Devir);
         Assert.Equal(4, sonuc.Satirlar.Count);
         Assert.Equal(2100m, sonuc.Satirlar.Sum(e => e.SignedBase));      // elle: 1000−400+3000−1500
-        Assert.Equal(2100m, await cash.GetCariBalanceAsync(cari));        // bakiye ile birebir
+        Assert.Equal(2100m, await cash.GetAccountBalanceAsync(cari));        // bakiye ile birebir
         // Tarihe göre ARTAN sıralama (eski davranış).
         Assert.True(sonuc.Satirlar.Zip(sonuc.Satirlar.Skip(1)).All(p => p.First.EntryDateUtc <= p.Second.EntryDateUtc));
         // Boş filtre nesnesi de daraltmamalı.

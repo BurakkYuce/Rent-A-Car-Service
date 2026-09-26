@@ -5,7 +5,7 @@
 @using RentACar.Domain.Common
 @using RentACar.Domain.Entities
 @using RentACar.Infrastructure.Persistence
-@inject WebIlanService Ilanlar
+@inject WebListingService Ilanlar
 @inject ITenantContext Tenant
 @inject TenantStatusCache Durum
 
@@ -142,6 +142,6 @@ else
         if (!_modul) return;
 
         _satirlar = await Ilanlar.ListAsync(); // foto durumu servis içinde TEK toplu sorguyla
-        _ilansiz = await Ilanlar.IlansizAracSayisiAsync();
+        _ilansiz = await Ilanlar.UnlistedVehicleCountAsync();
     }
 }

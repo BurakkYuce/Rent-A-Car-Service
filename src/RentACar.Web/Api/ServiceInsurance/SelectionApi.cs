@@ -30,7 +30,7 @@ internal static class SelectionApi
                 CancellationToken ct)
             => TypedResults.Ok(Filter((await s.ListActiveAsync(ct)).Select(x => new SecimOgesi(x.Id, x.Ad, x.Kod)), q, limit)))
             .RequirePermission(Permission.OperationsWrite);
-        g.MapGet("/tarife-grubu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, TarifeGrubuService s,
+        g.MapGet("/tarife-grubu", async Task<Ok<IReadOnlyList<SecimOgesi>>> (string? q, int? limit, TariffGroupService s,
                 CancellationToken ct)
             => TypedResults.Ok(Filter((await s.ListActiveAsync(ct)).Select(x => new SecimOgesi(x.Id, x.Ad, x.Kod)), q, limit)))
             .RequirePermission(Permission.OperationsWrite);
@@ -49,7 +49,7 @@ internal static class SelectionApi
 
     private static IReadOnlyList<SecimOgesi> Filter(IEnumerable<SecimOgesi> items, string? q, int? limit)
     {
-        var n = Math.Clamp(limit ?? SecimService.AzamiLimit, 1, SecimService.AzamiLimit);
+        var n = Math.Clamp(limit ?? SelectionService.MaxLimit, 1, SelectionService.MaxLimit);
         var text = F5Ortak.Nz(q);
         return items.Where(i => text is null || i.Etiket.Contains(text, StringComparison.CurrentCultureIgnoreCase)
                                 || (i.Kod?.Contains(text, StringComparison.CurrentCultureIgnoreCase) ?? false))

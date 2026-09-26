@@ -101,7 +101,7 @@ public sealed class OdemeDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         // O5 (KurSnapshot): FX kira oluşturma kur ister → EUR sabit kuru seed (metadata testini etkilemez).
-        await scope.ServiceProvider.GetRequiredService<RentACar.Application.Kur.SabitKurService>()
+        await scope.ServiceProvider.GetRequiredService<RentACar.Application.Kur.FixedExchangeRateService>()
             .UpsertAsync(new RentACar.Application.Kur.SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
         var vehicleId = await scope.ServiceProvider.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 OD 04" });

@@ -6,10 +6,10 @@ public sealed class HukukDosyaInput
 {
     public string? DosyaNo { get; set; }
     public Guid? CariId { get; set; }
-    public HukukTuru Tur { get; set; } = HukukTuru.Dava;
+    public LegalType Tur { get; set; } = LegalType.Dava;
     public string? Avukat { get; set; }
     public decimal Tutar { get; set; }
-    public HukukDurum Durum { get; set; } = HukukDurum.Acik;
+    public LegalStatus Durum { get; set; } = LegalStatus.Acik;
     public DateTimeOffset? Tarih { get; set; }
     public string? Aciklama { get; set; }
     public bool Aktif { get; set; } = true;

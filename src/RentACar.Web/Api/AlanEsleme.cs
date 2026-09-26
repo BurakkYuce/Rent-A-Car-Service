@@ -9,7 +9,7 @@ namespace RentACar.Web.Api;
 /// (JSON camelCase) eşler → ProblemDetails <c>errors[alan]</c> ve SPA hatayı alanın altında gösterir.
 /// <list type="bullet">
 /// <item>YALNIZ tam tip <see cref="ValidationException"/> ve alanı BOŞ olan eşlenir: alt tipler
-/// (<see cref="YetkiYokException"/>, <see cref="MukerrerIslemException"/>, çakışma istisnaları) kodlarını
+/// (<see cref="NoPermissionException"/>, <see cref="DuplicateOperationException"/>, çakışma istisnaları) kodlarını
 /// (403/409) korur; servisin kendisi alan verdiyse ona dokunulmaz.</item>
 /// <item>Eşleşme <b>önek</b> ve Ordinal: mesajın başı sabit metin, sonu değişken (tutar/limit) olabilir.</item>
 /// <item>Eşleşmeyen mesaj alansız 400 kalır (form üstü genel hata) — yanlış alana düşürmekten iyidir.</item>

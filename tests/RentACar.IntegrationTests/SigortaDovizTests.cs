@@ -31,12 +31,12 @@ public sealed class SigortaDovizTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
 
         // küçük harf "eur" → servis normalize → "EUR"
-        var pol = await reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1000m, "POL-EUR", "Sig", null, doviz: "eur");
+        var pol = await reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1000m, "POL-EUR", "Sig", null, currencyCode: "eur");
 
         await using (var db = await factory.CreateDbContextAsync())
             Assert.Equal("EUR", (await db.InsurancePolicies.AsNoTracking().SingleAsync(x => x.Id == pol)).Currency);
 
-        await reg.SigortaOdeAsync(pol, LedgerAccountType.Kasa, kur: 40m);
+        await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa, exchangeRate: 40m);
 
         await using (var db = await factory.CreateDbContextAsync())
         {
@@ -66,9 +66,9 @@ public sealed class SigortaDovizTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
 
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
-            reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1000m, "P", "S", null, doviz: "ABCD")); // 4 hane
+            reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1000m, "P", "S", null, currencyCode: "ABCD")); // 4 hane
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
-            reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1000m, "P", "S", null, doviz: "xyz"));  // bilinmeyen
+            reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1000m, "P", "S", null, currencyCode: "xyz"));  // bilinmeyen
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class SigortaDovizTests(PostgresFixture fx)
         await using (var db = await factory.CreateDbContextAsync())
             Assert.Equal("TRY", (await db.InsurancePolicies.AsNoTracking().SingleAsync(x => x.Id == pol)).Currency);
 
-        await reg.SigortaOdeAsync(pol, LedgerAccountType.Kasa); // kur default 1
+        await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa); // kur default 1
 
         await using (var db = await factory.CreateDbContextAsync())
         {

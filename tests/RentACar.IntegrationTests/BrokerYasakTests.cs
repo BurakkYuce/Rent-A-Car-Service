@@ -19,7 +19,7 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BrokerYasakService>();
+        var svc = scope.ServiceProvider.GetRequiredService<BrokerBanService>();
 
         var bas = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var bit = new DateTimeOffset(2026, 9, 30, 0, 0, 0, TimeSpan.Zero);
@@ -47,7 +47,7 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BrokerYasakService>();
+        var svc = scope.ServiceProvider.GetRequiredService<BrokerBanService>();
 
         await svc.CreateAsync(new BrokerYasakInput { Kod = "Y1", Ad = "Yasak 1", TumSatisKapali = true });
         await Assert.ThrowsAsync<ValidationException>(
@@ -59,7 +59,7 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BrokerYasakService>();
+        var svc = scope.ServiceProvider.GetRequiredService<BrokerBanService>();
 
         // Ne MinGun ne TumSatisKapali → kural anlamsız, reddedilir.
         await Assert.ThrowsAsync<ValidationException>(
@@ -74,7 +74,7 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BrokerYasakService>();
+        var svc = scope.ServiceProvider.GetRequiredService<BrokerBanService>();
 
         await Assert.ThrowsAsync<ValidationException>(
             () => svc.CreateAsync(new BrokerYasakInput { Kod = "NEG", Ad = "Negatif", MinGun = -1 }));
@@ -95,7 +95,7 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<BrokerYasakService>();
+        var svc = scope.ServiceProvider.GetRequiredService<BrokerBanService>();
 
         var a = await svc.CreateAsync(new BrokerYasakInput { Kod = "A", Ad = "A", TumSatisKapali = true });
         await svc.CreateAsync(new BrokerYasakInput { Kod = "B", Ad = "B", TumSatisKapali = true });
@@ -112,8 +112,8 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        var svc = scope.ServiceProvider.GetRequiredService<BrokerYasakService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        var svc = scope.ServiceProvider.GetRequiredService<BrokerBanService>();
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(new BrokerYasakInput { Kod = "X", Ad = "Yetkisiz", TumSatisKapali = true }));
     }
 
@@ -125,11 +125,11 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using (var s1 = host.ScopeFor(t1))
-            await s1.ServiceProvider.GetRequiredService<BrokerYasakService>()
+            await s1.ServiceProvider.GetRequiredService<BrokerBanService>()
                 .CreateAsync(new BrokerYasakInput { Kod = "T1", Ad = "Tenant1", TumSatisKapali = true });
 
         using var s2 = host.ScopeFor(t2);
-        var svc2 = s2.ServiceProvider.GetRequiredService<BrokerYasakService>();
+        var svc2 = s2.ServiceProvider.GetRequiredService<BrokerBanService>();
         Assert.Empty(await svc2.ListAsync());
         await svc2.CreateAsync(new BrokerYasakInput { Kod = "T1", Ad = "Tenant2", TumSatisKapali = true });
         Assert.Single(await svc2.ListAsync());

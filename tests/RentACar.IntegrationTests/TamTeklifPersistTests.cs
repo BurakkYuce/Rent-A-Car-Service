@@ -26,11 +26,11 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         IServiceProvider sp, string plaka, int? hediyeGun = null, decimal? iskonto = null, decimal? hsOran = null)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Grup = "B" });
-        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "TT", Soyad = "M" });
+        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "TT", Soyad = "M" });
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
         {
             Kod = "TT-B", Ad = "TT B", AracGrupKod = "B", ParaBirimi = "TRY",
-            Gun1 = 300m, Gun2 = 280m, Gun3 = 240m, OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+            Gun1 = 300m, Gun2 = 280m, Gun3 = 240m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
         if (hediyeGun is not null || iskonto is not null || hsOran is not null)
             await sp.GetRequiredService<RentalRuleService>().CreateAsync(new RentalRuleInput
@@ -84,7 +84,7 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         // Fatura kes → defter brütü sözleşme Tutar'ı (432) ile birebir; iskonto ÇİFT sayılmaz.
         await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(id);
         // Cari borç = 432 (iskonto zaten Tutar'da; ayrı satır/çifte yok).
-        Assert.Equal(432m, await sp.GetRequiredService<CashService>().GetCariBalanceAsync(m));
+        Assert.Equal(432m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(m));
     }
 
     [Fact]
@@ -100,8 +100,8 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         Assert.Equal(648m, c0!.Tutar);
 
         // Dönüş: limit 300, kat edilen 500 → fazla 200 × 2 = 400 (dönüş-zamanı, create'teki tahminle ilgisiz).
-        await rentals.DeliverAsync(id, cikisKm: 1000, cikisYakit: 8);
-        await rentals.ReturnAsync(id, donusKm: 1500, donusYakit: 8, Bas.AddDays(3));
+        await rentals.DeliverAsync(id, pickupKm: 1000, pickupFuel: 8);
+        await rentals.ReturnAsync(id, returnKm: 1500, returnFuel: 8, Bas.AddDays(3));
         var c = await rentals.GetAsync(id);
         Assert.Equal(400m, c!.FazlaKmBedeli);           // dönüş-zamanı gerçek aşım
         Assert.Equal(648m + 400m, c.GenelToplam);       // iskontolu baz (648) + gerçek fazla (400) — çift-sayım yok
@@ -152,9 +152,9 @@ public sealed class TamTeklifPersistTests(PostgresFixture fx)
         var cmt = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
         while (cmt.DayOfWeek != DayOfWeek.Saturday) cmt = cmt.AddDays(1);
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 TT 05", Grup = "B" });
-        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "HS", Soyad = "M" });
+        var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "HS", Soyad = "M" });
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
-        { Kod = "HS-B", Ad = "HS", AracGrupKod = "B", ParaBirimi = "TRY", Gun1 = 100m, Gun2 = 100m, Gun3 = 100m, OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t" });
+        { Kod = "HS-B", Ad = "HS", AracGrupKod = "B", ParaBirimi = "TRY", Gun1 = 100m, Gun2 = 100m, Gun3 = 100m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t" });
         await sp.GetRequiredService<RentalRuleService>().CreateAsync(new RentalRuleInput
         { Kod = "HS-R", Ad = "HS", AracGrupKod = "B", HaftaSonuFarkOran = 50m });
 

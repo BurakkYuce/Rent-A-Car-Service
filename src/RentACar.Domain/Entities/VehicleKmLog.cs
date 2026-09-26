@@ -17,7 +17,7 @@ public class VehicleKmLog : ITenantOwned, IAuditable
     public Guid VehicleId { get; set; }
     public DateTimeOffset Tarih { get; set; }
     public int Km { get; set; }
-    public KmLogKaynak Kaynak { get; set; }
+    public KmLogSource Kaynak { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }

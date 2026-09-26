@@ -15,7 +15,7 @@ namespace RentACar.Web.Api.ServiceInsurance;
 
 /// <summary>
 /// F9.1 — <c>/fiyat-hesapla</c>, <c>/maliyet-hesapla</c>, <c>/maliyet-teklifleri</c>, <c>/tarife-aktar</c>. Hesaplar SUNUCU
-/// motorundan (<see cref="RentalQuoteEngine"/>, <see cref="MaliyetHesapService"/>); hiçbiri deftere yazmaz.
+/// motorundan (<see cref="RentalQuoteEngine"/>, <see cref="CostCalculationService"/>); hiçbiri deftere yazmaz.
 /// <para><b>İzin:</b> fiyat hesapla OperationsWrite ∨ ViewReports (Blazor sayfası dört role açıktı, POST ViewReports
 /// istiyordu → operatör 403 alıyordu); maliyet hesapla/teklif yazma FinanceWrite (maliyet/kâr marjı ticari sır),
 /// teklif okuma FinanceWrite ∨ ViewReports; tarife aktar ManageUsers (toplu fiyat yazımı; Blazor ile aynı).</para>
@@ -85,7 +85,7 @@ internal static partial class PricingApi
     private static readonly (string, string)[] CostRules = CostFieldRules("");
 
     private static Ok<CostResultDto> Cost(CostInputDto r)
-        => TypedResults.Ok(CostResultDto.From(MaliyetHesapService.Hesapla(CostInput(r, ""))));
+        => TypedResults.Ok(CostResultDto.From(CostCalculationService.Calculate(CostInput(r, ""))));
 
     /// <summary>Request → service input. Amounts: 2 decimals and below 10^15; rates (fractions): 4 decimals, |x| &lt; 1000.</summary>
     internal static MaliyetHesapInput CostInput(CostInputDto r, string prefix)
@@ -115,8 +115,8 @@ internal static partial class PricingApi
             FaizOran = r.FaizOran ?? 0m, KkdfOran = r.KkdfOran ?? d.KkdfOran, BsmvOran = r.BsmvOran ?? d.BsmvOran,
             DamgaOran = r.DamgaOran ?? 0m, KarMarji = r.KarMarji ?? d.KarMarji, KdvOran = r.KdvOran ?? d.KdvOran,
             EnflasyonOran = r.EnflasyonOran ?? 0m,
-            KrediHesaplamaSekli = F5Ortak.EnumAdi<KrediHesaplamaSekli>(r.KrediHesaplamaSekli, prefix + "krediHesaplamaSekli")
-                                  ?? KrediHesaplamaSekli.EsitTaksitli,
+            KrediHesaplamaSekli = F5Ortak.EnumAdi<LoanCalculationMethod>(r.KrediHesaplamaSekli, prefix + "krediHesaplamaSekli")
+                                  ?? LoanCalculationMethod.EsitTaksitli,
             AracSayisi = r.AracSayisi ?? 1, KaskoYillik = r.KaskoYillik ?? 0m, TrafikSigortasiYillik = r.TrafikSigortasiYillik ?? 0m,
             MtvYillik = r.MtvYillik ?? 0m, BakimYillik = r.BakimYillik ?? 0m, LastikYillik = r.LastikYillik ?? 0m,
             LastikKisYillik = r.LastikKisYillik ?? 0m, AracTakipYillik = r.AracTakipYillik ?? 0m,

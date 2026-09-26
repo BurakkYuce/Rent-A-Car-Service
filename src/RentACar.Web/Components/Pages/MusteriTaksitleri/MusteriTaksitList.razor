@@ -1,7 +1,7 @@
 @page "/musteri-taksit"
 @attribute [Authorize(Policy = "izin:FinanceWrite")]
 @using RentACar.Domain.Enums
-@inject MusteriTaksitService Taksitler
+@inject CustomerInstallmentService Taksitler
 @inject CustomerService Cariler
 @inject VehicleService Araclar
 
@@ -35,7 +35,7 @@
     <label>Durum
         <select name="durumF">
             <option value="">— tümü —</option>
-            @foreach (var d in Enum.GetValues<TaksitDurum>()) { <option value="@d" selected="@(d.ToString() == DurumF)">@d</option> }
+            @foreach (var d in Enum.GetValues<InstallmentStatus>()) { <option value="@d" selected="@(d.ToString() == DurumF)">@d</option> }
         </select>
     </label>
     <label>Vade Baş.<input name="min" type="date" value="@Min" /></label>
@@ -76,7 +76,7 @@
                 <td class="num muted">@t.Kur.ToString("N4")</td>
                 <td class="num">@t.TutarBaz.ToString("N2")</td>
                 <td>
-                    @if (t.Durum == TaksitDurum.Odendi)
+                    @if (t.Durum == InstallmentStatus.Odendi)
                     {
                         <span class="status-pill sp-success">Ödendi</span>
                     }
@@ -94,9 +94,9 @@
                 <td>
                     <form method="post" action="/musteri-taksit/odeme" class="inline"><AntiforgeryToken />
                         <input type="hidden" name="id" value="@t.Id" />
-                        <input type="hidden" name="geriAl" value="@(t.Durum == TaksitDurum.Odendi ? "true" : "false")" />
+                        <input type="hidden" name="geriAl" value="@(t.Durum == InstallmentStatus.Odendi ? "true" : "false")" />
                         @Gizli
-                        <button type="submit" class="btn-secondary">@(t.Durum == TaksitDurum.Odendi ? "Geri Al" : "Ödendi")</button>
+                        <button type="submit" class="btn-secondary">@(t.Durum == InstallmentStatus.Odendi ? "Geri Al" : "Ödendi")</button>
                     </form>
                     <a href="@Geri(t.Id)" class="link">Düzenle</a>
                     <form method="post" action="/musteri-taksit/delete" class="inline" data-confirm="Taksit silinsin mi?"><AntiforgeryToken />
@@ -132,7 +132,7 @@
     <label>Kur<input name="kur" type="number" step="0.0001" min="0.0001" value="@Inv(_edit?.Kur ?? 1m)" /></label>
     <label>Durum
         <select name="durum">
-            @foreach (var d in Enum.GetValues<TaksitDurum>()) { <option value="@d" selected="@(_edit?.Durum == d)">@d</option> }
+            @foreach (var d in Enum.GetValues<InstallmentStatus>()) { <option value="@d" selected="@(_edit?.Durum == d)">@d</option> }
         </select>
     </label>
     <label>Ödeme Tarihi<input name="odemeTarihi" type="date" value="@(_edit?.OdemeTarihi?.UtcDateTime.ToString("yyyy-MM-dd"))" /></label>
@@ -161,7 +161,7 @@
         </select>
     </label>
     <label>Toplam Tutar<input name="toplamTutar" type="number" step="0.01" min="0.01" required /></label>
-    <label>Taksit Sayısı<input name="taksitSayisi" type="number" min="1" max="@MusteriTaksitService.MaxTaksit" required value="12" /></label>
+    <label>Taksit Sayısı<input name="taksitSayisi" type="number" min="1" max="@CustomerInstallmentService.MaxInstallments" required value="12" /></label>
     <label>İlk Vade<input name="ilkVade" type="date" required /></label>
     <label>Döviz<input name="currency" maxlength="3" value="TRY" /></label>
     <label>Kur<input name="kur" type="number" step="0.0001" min="0.0001" value="1" /></label>
@@ -220,13 +220,13 @@
         {
             CariId = Guid.TryParse(CariF, out var c) ? c : null,
             VehicleId = Guid.TryParse(AracF, out var v) ? v : null,
-            Durum = Enum.TryParse<TaksitDurum>(DurumF, out var d) ? d : null,
+            Durum = Enum.TryParse<InstallmentStatus>(DurumF, out var d) ? d : null,
             VadeMin = DateTimeOffset.TryParse(Min, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : null,
             // Bitiş günü DAHİL.
             VadeMax = DateTimeOffset.TryParse(Max, out var b) ? new DateTimeOffset(b.Date, TimeSpan.Zero).AddDays(1).AddTicks(-1) : null,
             SadeceGecikmis = Gecikmis == "true" ? true : null
         });
-        _ozet = MusteriTaksitService.Ozet(_list);
+        _ozet = CustomerInstallmentService.Summary(_list);
 
         _cariler = await Cariler.ListAsync();
         _araclar = await Araclar.ListAsync();

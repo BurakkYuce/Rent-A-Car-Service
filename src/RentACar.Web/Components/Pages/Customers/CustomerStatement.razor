@@ -228,7 +228,7 @@ else
         if (_customer is null) return;
 
         // Üstteki bakiye HER ZAMAN filtresizdir: carinin gerçek bakiyesi filtreye göre değişmez.
-        _balance = await Cash.GetCariBalanceAsync(Id);
+        _balance = await Cash.GetAccountBalanceAsync(Id);
 
         // Açılır liste seçenekleri TÜM hareketlerden (filtreliden türetilseydi bir seçim
         // yapıldıktan sonra diğer seçenekler kaybolurdu).

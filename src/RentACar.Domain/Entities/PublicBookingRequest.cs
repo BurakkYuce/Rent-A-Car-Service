@@ -40,7 +40,7 @@ public static class TalepDurumu
              or PublicBookingRequestDurum.Kayip;
 
     /// <summary>Hâlâ üzerinde çalışılan durumlar (claim edilebilir, durumu değiştirilebilir).</summary>
-    public static bool Aktif(PublicBookingRequestDurum d) => !Terminal(d);
+    public static bool IsActive(PublicBookingRequestDurum d) => !Terminal(d);
 
     /// <summary>Ekranda gösterim sırası — enum numaralarından BAĞIMSIZ (bkz. append-only kuralı).</summary>
     public static readonly PublicBookingRequestDurum[] GosterimSirasi =
@@ -53,7 +53,7 @@ public static class TalepDurumu
         PublicBookingRequestDurum.Kayip,
     ];
 
-    public static string Etiket(PublicBookingRequestDurum d) => d switch
+    public static string Label(PublicBookingRequestDurum d) => d switch
     {
         PublicBookingRequestDurum.Yeni => "Yeni",
         PublicBookingRequestDurum.Iletisimde => "İletişimde",

@@ -39,11 +39,11 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
     public Task<IReadOnlyList<PenaltyRow>> ListRowsAsync(PenaltyFilter? filter = null, CancellationToken ct = default)
         => _repository.ListRowsAsync(filter, ct);
 
-    public Task<IReadOnlyList<PenaltySatir>> ListSatirAsync(Guid penaltyId, CancellationToken ct = default)
-        => _repository.ListSatirAsync(penaltyId, ct);
+    public Task<IReadOnlyList<PenaltySatir>> ListLinesAsync(Guid penaltyId, CancellationToken ct = default)
+        => _repository.ListLinesAsync(penaltyId, ct);
 
-    public Task<IReadOnlyList<PenaltyOdeme>> ListOdemeAsync(Guid penaltyId, CancellationToken ct = default)
-        => _repository.ListOdemeAsync(penaltyId, ct);
+    public Task<IReadOnlyList<PenaltyOdeme>> ListPaymentsAsync(Guid penaltyId, CancellationToken ct = default)
+        => _repository.ListPaymentsAsync(penaltyId, ct);
 
     /// <summary>Bir kiraya bağlı cezalar — kira formu "Ceza/Geçişler" alt-sekmesi (salt-okuma).</summary>
     public Task<IReadOnlyList<Penalty>> ListByRentalAsync(Guid rentalId, CancellationToken ct = default)
@@ -57,64 +57,64 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
 
         // KALEMLER: verilmediyse başlık tutarı TEK kalem olarak maddeleştirilir. Böylece
         // "satırsız ceza" özel durumu hiç doğmaz ve Tutar == Σ Satır.Tutar KOŞULSUZ geçerlidir.
-        List<PenaltySatirInput> girdiler = input.Satirlar.Count > 0
+        List<PenaltySatirInput> inputs = input.Satirlar.Count > 0
             ? input.Satirlar
             : [new PenaltySatirInput { Tutar = input.Tutar, Sebep = input.Sebep }];
-        if (girdiler.Count > 20) throw new ValidationException("Bir cezaya en fazla 20 kalem girilebilir.");
+        if (inputs.Count > 20) throw new ValidationException("Bir cezaya en fazla 20 kalem girilebilir.");
 
-        var satirlar = new List<PenaltySatir>();
-        var sira = 1;
-        foreach (var g in girdiler)
+        var rows = new List<PenaltySatir>();
+        var order = 1;
+        foreach (var g in inputs)
         {
             if (g.Tutar <= 0) throw new ValidationException("Ceza kalemi tutarı pozitif olmalıdır.");
             // numeric(19,4) tavanı: guard'sız crafted POST DbUpdateException ile 500 üretir
             // (kullanıcıya anlamsız hata + log gürültüsü). Ödeme yolu ayrıca kalanla sınırlı.
             if (g.Tutar >= 1_000_000_000_000m)
                 throw new ValidationException("Ceza kalemi tutarı makul sınırların dışında.");
-            satirlar.Add(new PenaltySatir
+            rows.Add(new PenaltySatir
             {
-                Sira = sira++,
-                Tutar = Yuvarla(g.Tutar),
+                Sira = order++,
+                Tutar = Round(g.Tutar),
                 Sebep = Trim(g.Sebep),
                 Odenen = 0m,
-                Kalan = Yuvarla(g.Tutar)
+                Kalan = Round(g.Tutar)
             });
         }
-        var toplam = Yuvarla(satirlar.Sum(s => s.Tutar));
-        if (toplam <= 0) throw new ValidationException("Ceza tutarı pozitif olmalıdır.");
+        var total = Round(rows.Sum(s => s.Tutar));
+        if (total <= 0) throw new ValidationException("Ceza tutarı pozitif olmalıdır.");
 
-        var teblig = input.TebligTarihi ?? DateTimeOffset.UtcNow;
+        var notification = input.TebligTarihi ?? DateTimeOffset.UtcNow;
         var penalty = new Penalty
         {
             CezaTuru = input.CezaTuru.Trim(),
-            TebligTarihi = teblig,
-            VadeTarihi = teblig.AddDays(input.VadeGun),
+            TebligTarihi = notification,
+            VadeTarihi = notification.AddDays(input.VadeGun),
             VehicleId = input.VehicleId,
             CariId = input.CariId,
             RentalId = input.RentalId,
-            Tutar = toplam,
+            Tutar = total,
             // Başlık sebebi: tek kalemde kalemin sebebi, çok kalemde kullanıcının girdiği özet
             // (yoksa kalem sebepleri birleştirilir — liste ekranı boş görünmesin).
-            Sebep = Trim(input.Sebep) ?? Ozet(satirlar),
-            Durum = CezaDurum.Yeni,
+            Sebep = Trim(input.Sebep) ?? Summary(rows),
+            Durum = PenaltyStatus.Yeni,
             OdenenTutar = 0m,
-            Kalan = toplam,
+            Kalan = total,
             Saat = Trim(input.Saat),
             Yer = Trim(input.Yer),
             CepTel = Trim(input.CepTel),
             MakbuzNo = Trim(input.MakbuzNo),
             IslemSube = Trim(input.IslemSube)
         };
-        await _repository.CreateAsync(penalty, satirlar, ct);
+        await _repository.CreateAsync(penalty, rows, ct);
         return penalty.Id;
     }
 
     /// <summary>Cezayı müşteriye yansıt (Borç Cari / Alacak Gelir). Yalnız Yeni ceza, cari zorunlu.</summary>
-    public async Task<bool> YansitAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> ReflectAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
         var penalty = await _repository.FindAsync(id, ct) ?? throw new ValidationException("Ceza bulunamadı.");
-        if (penalty.Durum != CezaDurum.Yeni)
+        if (penalty.Durum != PenaltyStatus.Yeni)
             throw new ValidationException("Yalnız 'Yeni' durumundaki ceza yansıtılabilir.");
         if (penalty.CariId is null || penalty.CariId == Guid.Empty)
             throw new ValidationException("Yansıtma için müşteri (cari) seçilmelidir.");
@@ -145,37 +145,37 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
     /// parametresi bilinçli olarak YOKTUR (FAZ-14'te "EUR geçilince deftere kur ile şişmiş
     /// tutar yazılıyordu" hatası bu şekilde yapısal olarak kapatıldı).</para>
     /// </summary>
-    public async Task<CezaOdemeSonuc> KismiOdeAsync(Guid penaltyId, CezaOdemeInput odeme, CancellationToken ct = default)
+    public async Task<CezaOdemeSonuc> PayPartialAsync(Guid penaltyId, CezaOdemeInput payment, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.FinanceWrite);
-        ArgumentNullException.ThrowIfNull(odeme);
-        if (odeme.SatirId == Guid.Empty) throw new ValidationException("Ödenecek ceza kalemi seçilmelidir.");
-        if (odeme.Tutar is <= 0m) throw new ValidationException("Ödeme tutarı pozitif olmalıdır.");
-        if (odeme.Hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
+        ArgumentNullException.ThrowIfNull(payment);
+        if (payment.SatirId == Guid.Empty) throw new ValidationException("Ödenecek ceza kalemi seçilmelidir.");
+        if (payment.Tutar is <= 0m) throw new ValidationException("Ödeme tutarı pozitif olmalıdır.");
+        if (payment.Hesap is not (LedgerAccountType.Kasa or LedgerAccountType.Banka))
             throw new ValidationException("Ödeme hesabı Kasa veya Banka olmalıdır.");
 
-        TarihPolitikasi.ParaTarihi(odeme.Tarih, "Ceza ödeme");   // gelecek tarihli para kaydı yok
-        var tarih = odeme.Tarih ?? DateTimeOffset.UtcNow;
-        await _lock.EnsureOpenAsync(tarih, ct);                  // dönem kilidi: kapalı döneme ödeme yok
+        DatePolicy.MoneyDate(payment.Tarih, "Ceza ödeme");   // gelecek tarihli para kaydı yok
+        var date = payment.Tarih ?? DateTimeOffset.UtcNow;
+        await _lock.EnsureOpenAsync(date, ct);                  // dönem kilidi: kapalı döneme ödeme yok
 
-        return await _repository.PostOdemeAsync(penaltyId, odeme.SatirId, (ceza, satir, kalan, sira) =>
+        return await _repository.PostPaymentAsync(penaltyId, payment.SatirId, (penalty, row, remaining, order) =>
         {
             // Tutar verilmediyse kalemin KALANI (kilidin arkasında okunmuş gerçek değer).
-            var tutar = Yuvarla(odeme.Tutar ?? kalan);
-            var money = new Money(tutar, "TRY", 1m);
-            var desc = $"Ceza ödeme {ceza.No} kalem {satir.Sira} (#{sira})";
-            var satirOdeme = new PenaltyOdeme
+            var amount = Round(payment.Tutar ?? remaining);
+            var money = new Money(amount, "TRY", 1m);
+            var desc = $"Ceza ödeme {penalty.No} kalem {row.Sira} (#{order})";
+            var linePayment = new PenaltyOdeme
             {
-                PenaltyId = penaltyId, SatirId = satir.Id, Sira = sira, Tutar = tutar, Tarih = tarih,
-                Hesap = odeme.Hesap,
+                PenaltyId = penaltyId, SatirId = row.Id, Sira = order, Tutar = amount, Tarih = date,
+                Hesap = payment.Hesap,
                 // DETERMİNİSTİK anahtar + MONOTON bileşen (sira). Değer/tarih anlık görüntüsü
                 // kullanılsaydı aynı kaleme aynı tutarlı iki MEŞRU ödeme çakışırdı.
                 Anahtar = string.Create(CultureInfo.InvariantCulture,
-                    $"ceza:{penaltyId}:satir:{satir.Id}:odeme:{sira}"),
-                IslemAnahtari = odeme.IslemAnahtari == Guid.Empty ? null : odeme.IslemAnahtari,
-                KasaKodu = Trim(odeme.KasaKodu), HesapNo = Trim(odeme.HesapNo),
-                MakbuzNo = Trim(odeme.MakbuzNo), IslemYapan = Trim(odeme.IslemYapan),
-                Aciklama = Trim(odeme.Aciklama)
+                    $"ceza:{penaltyId}:satir:{row.Id}:odeme:{order}"),
+                IslemAnahtari = payment.IslemAnahtari == Guid.Empty ? null : payment.IslemAnahtari,
+                KasaKodu = Trim(payment.KasaKodu), HesapNo = Trim(payment.HesapNo),
+                MakbuzNo = Trim(payment.MakbuzNo), IslemYapan = Trim(payment.IslemYapan),
+                Aciklama = Trim(payment.Aciklama)
             };
             // SourceId = ÖDEMENİN id'si → kısmi unique index (TenantId, SourceType, SourceId,
             // Direction) her ödemeyi tekilleştirir (ödeme başına 1 borç + 1 alacak).
@@ -183,19 +183,19 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
             [
                 new AccountLedgerEntry
                 {
-                    EntryDateUtc = tarih, AccountType = LedgerAccountType.Gider, AccountRef = ceza.VehicleId,
+                    EntryDateUtc = date, AccountType = LedgerAccountType.Gider, AccountRef = penalty.VehicleId,
                     Direction = LedgerDirection.Debit, Amount = money,
-                    SourceType = "CezaOdeme", SourceId = satirOdeme.Id, Description = desc
+                    SourceType = "CezaOdeme", SourceId = linePayment.Id, Description = desc
                 },
                 new AccountLedgerEntry
                 {
-                    EntryDateUtc = tarih, AccountType = odeme.Hesap, AccountRef = null,
+                    EntryDateUtc = date, AccountType = payment.Hesap, AccountRef = null,
                     Direction = LedgerDirection.Credit, Amount = money,
-                    SourceType = "CezaOdeme", SourceId = satirOdeme.Id, Description = desc
+                    SourceType = "CezaOdeme", SourceId = linePayment.Id, Description = desc
                 }
             ];
-            return (satirOdeme, entries);
-        }, ct, odeme.IslemAnahtari == Guid.Empty ? null : odeme.IslemAnahtari);
+            return (linePayment, entries);
+        }, ct, payment.IslemAnahtari == Guid.Empty ? null : payment.IslemAnahtari);
     }
 
     /// <summary>
@@ -206,27 +206,27 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
     /// <para><b>Yetki DEĞİŞTİ (bilinçli):</b> artık defter yazdığı için OperationsWrite değil
     /// FinanceWrite ister — yansıtmayla aynı kural (para yolu = FinanceWrite).</para>
     /// </summary>
-    public async Task<bool> OdeAsync(Guid id, LedgerAccountType hesap = LedgerAccountType.Kasa,
-        DateTimeOffset? tarih = null, string? makbuzNo = null, string? islemYapan = null,
+    public async Task<bool> PayAsync(Guid id, LedgerAccountType account = LedgerAccountType.Kasa,
+        DateTimeOffset? date = null, string? receiptNo = null, string? performedBy = null,
         CancellationToken ct = default)
     {
-        var satirlar = await _repository.ListSatirAsync(id, ct);
-        if (satirlar.Count == 0) throw new ValidationException("Ceza bulunamadı.");
-        var acik = satirlar.Where(s => s.Kalan > 0m).ToList();
-        if (acik.Count == 0) throw new ValidationException("Ceza zaten ödendi.");
+        var rows = await _repository.ListLinesAsync(id, ct);
+        if (rows.Count == 0) throw new ValidationException("Ceza bulunamadı.");
+        var open = rows.Where(s => s.Kalan > 0m).ToList();
+        if (open.Count == 0) throw new ValidationException("Ceza zaten ödendi.");
 
-        foreach (var s in acik)
+        foreach (var s in open)
         {
-            await KismiOdeAsync(id, new CezaOdemeInput
+            await PayPartialAsync(id, new CezaOdemeInput
             {
-                SatirId = s.Id, Tutar = null, Hesap = hesap, Tarih = tarih,
-                MakbuzNo = makbuzNo, IslemYapan = islemYapan
+                SatirId = s.Id, Tutar = null, Hesap = account, Tarih = date,
+                MakbuzNo = receiptNo, IslemYapan = performedBy
             }, ct);
         }
         return true;
     }
 
-    public Task<bool> IptalAsync(Guid id, CancellationToken ct = default)
+    public Task<bool> CancelAsync(Guid id, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsDelete); // adversarial L1 + inceltme
         // #286 adversarial M1: iptal kilitsiz okuyup yazıyordu — eşzamanlı ödeme/yansıtmayla "İptal ama defteri duran"
@@ -235,22 +235,22 @@ public sealed class PenaltyService(IPenaltyRepository repository, ICurrentUser c
         // ödemesi olan ceza iptal EDİLEMEZ (400); otomatik ters kayıt yok.
         return _repository.UpdateLockedAsync(id, p =>
         {
-            if (p.Durum == CezaDurum.Yansitildi) throw new ValidationException("Yansıtılmış ceza iptal edilemez (ters kayıt gerekir).");
+            if (p.Durum == PenaltyStatus.Yansitildi) throw new ValidationException("Yansıtılmış ceza iptal edilemez (ters kayıt gerekir).");
             // FAZ-60 adversarial: ödemesi olan ceza da iptal EDİLEMEZ — defterde gider/kasa
             // hareketi var; iptal onları ters kayıtsız görünmez kılardı (sessiz para kaybı).
             if (p.OdenenTutar > 0m) throw new ValidationException("Ödemesi olan ceza iptal edilemez (ters kayıt gerekir).");
-            p.Durum = CezaDurum.Iptal;
+            p.Durum = PenaltyStatus.Iptal;
             p.UpdatedAtUtc = DateTimeOffset.UtcNow;
         }, ct);
     }
 
-    private static decimal Yuvarla(decimal x) => decimal.Round(x, 4, MidpointRounding.AwayFromZero);
+    private static decimal Round(decimal x) => decimal.Round(x, 4, MidpointRounding.AwayFromZero);
     private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-    private static string? Ozet(IReadOnlyList<PenaltySatir> satirlar)
+    private static string? Summary(IReadOnlyList<PenaltySatir> rows)
     {
-        var parcalar = satirlar.Select(s => s.Sebep).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
-        if (parcalar.Count == 0) return null;
-        var ozet = string.Join(" + ", parcalar);
-        return ozet.Length <= 512 ? ozet : ozet[..512];
+        var parts = rows.Select(s => s.Sebep).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+        if (parts.Count == 0) return null;
+        var summary = string.Join(" + ", parts);
+        return summary.Length <= 512 ? summary : summary[..512];
     }
 }

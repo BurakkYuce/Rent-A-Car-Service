@@ -16,12 +16,12 @@ namespace RentACar.Application.VehicleSales;
 /// </summary>
 public sealed class VehicleSaleService(
     IVehicleSaleRepository repository, ICurrentUser currentUser, IPeriodLockGuard periodLock,
-    RentACar.Application.Kur.KurCozucu kurCozucu)
+    RentACar.Application.Kur.ExchangeRateResolver exchangeRateResolver)
 {
     private readonly IVehicleSaleRepository _repository = repository;
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly IPeriodLockGuard _lock = periodLock;
-    private readonly RentACar.Application.Kur.KurCozucu _kurCozucu = kurCozucu;
+    private readonly RentACar.Application.Kur.ExchangeRateResolver _exchangeRateResolver = exchangeRateResolver;
 
     public Task<IReadOnlyList<VehicleSale>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -31,11 +31,11 @@ public sealed class VehicleSaleService(
     /// rollerin hepsi arayabilsin diye izin OR'lanır (Muhasebe'de FinanceWrite/ViewReports,
     /// Operatör'de yalnız OperationsWrite vardır — tek izin istemek Operatör'de 500 üretirdi).
     /// </summary>
-    public Task<IReadOnlyList<VehicleSale>> SearchAsync(VehicleSaleFilter? filtre = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<VehicleSale>> SearchAsync(VehicleSaleFilter? filter = null, CancellationToken ct = default)
     {
         PermissionGuard.RequireAny(_currentUser,
             Permission.FinanceWrite, Permission.ViewReports, Permission.OperationsWrite);
-        return _repository.SearchAsync(filtre ?? new VehicleSaleFilter(), ct);
+        return _repository.SearchAsync(filter ?? new VehicleSaleFilter(), ct);
     }
 
     public Task<VehicleSale?> GetAsync(Guid id, CancellationToken ct = default)
@@ -54,13 +54,13 @@ public sealed class VehicleSaleService(
             throw new ValidationException("Liste fiyatı para birimi 3 harfli olmalıdır (TRY/USD/EUR).");
 
         // Kur çözümü (1.1): açık kur (>0 guard çözücüde) aynen; boş → TRY=1 / döviz KurService (yoksa net red).
-        var cozulenKur = await _kurCozucu.CozAsync(input.Doviz, input.Kur, input.Tarih, ct);
+        var resolvedRate = await _exchangeRateResolver.ResolveAsync(input.Doviz, input.Kur, input.Tarih, ct);
         // #286 adversarial M2: net KURUŞA sabitlenir ve kontrol YUVARLAMADAN SONRA yapılır. Önce ham net (333,333)
         // Gelir bacağına, kuruşa yuvarlanmış net + KDV Cari bacağına yazılıyor → küme dengesiz, iç hata mesajı dışarı
         // sızıyordu; 0,004 net ise 0,00 tutarlı satış belgesi üretirdi.
-        var net = KdvMath.RoundGross(input.SatisNet);
+        var net = VatMath.RoundGross(input.SatisNet);
         if (net <= 0) throw new ValidationException("Satış tutarı kuruşa yuvarlandığında pozitif olmalıdır.");
-        var (kdv, gross) = KdvMath.FromNet(net, input.KdvOrani);
+        var (vat, gross) = VatMath.FromNet(net, input.KdvOrani);
         var sale = new VehicleSale
         {
             VehicleId = input.VehicleId,
@@ -69,12 +69,12 @@ public sealed class VehicleSaleService(
             NoterNo = input.NoterNo,
             SatisNet = net,
             KdvOrani = input.KdvOrani,
-            KdvTutar = kdv,
+            KdvTutar = vat,
             GenelToplam = gross,
             // #279 N1 sınıfı (gider düzeltmesiyle aynı): "TL" ham yazılınca kur TRY=1 çözülürken defter "TL"
             // dövizinde kalıyordu (cari bakiyesi döviz bazında ayrışır). Saklanabilir ISO koda indirgenir.
-            Currency = RentACar.Application.Kur.KurService.NormalizeKodStrict(input.Doviz),
-            Kur = cozulenKur,
+            Currency = RentACar.Application.Kur.ExchangeRateService.NormalizeCodeStrict(input.Doviz),
+            Kur = resolvedRate,
             Aciklama = input.Aciklama,
             HedefFiyat = input.HedefFiyat,
             // FAZ-28 ihale/noter bilgileri
@@ -97,7 +97,7 @@ public sealed class VehicleSaleService(
             SatisiVerildi = input.SatisiVerildi,
             YevmiyeNumarasi = string.IsNullOrWhiteSpace(input.YevmiyeNumarasi) ? null : input.YevmiyeNumarasi.Trim(),
             Aciklama2 = string.IsNullOrWhiteSpace(input.Aciklama2) ? null : input.Aciklama2.Trim(),
-            Durum = SatisDurum.Tamamlandi
+            Durum = SaleStatus.Tamamlandi
         };
         await _lock.EnsureOpenAsync(sale.Tarih, ct); // dönem kilidi: kapalı tarihe araç satışı postlanamaz
 

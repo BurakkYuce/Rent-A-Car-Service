@@ -18,8 +18,8 @@ public sealed record EndorsementListRow(Guid Id, Guid PolicyId, Guid VehicleId, 
 
 internal static partial class RegulationApi
 {
-    private static readonly SiralamaHaritasi<EndorsementListRow> EndorsementSort = SiralamaHaritasi<EndorsementListRow>
-        .Olustur(x => x.Id).Alan("plaka", x => x.Plaka).Alan("zeyilNo", x => x.ZeyilNo).Alan("tarih", x => x.Tarih)
+    private static readonly SortFieldMap<EndorsementListRow> EndorsementSort = SortFieldMap<EndorsementListRow>
+        .Create(x => x.Id).Alan("plaka", x => x.Plaka).Alan("zeyilNo", x => x.ZeyilNo).Alan("tarih", x => x.Tarih)
         .Alan("deger", x => x.Deger).Alan("brut", x => x.Brut).Alan("net", x => x.Net).Alan("tipi", x => x.Tipi);
 
     /// <summary>
@@ -36,7 +36,7 @@ internal static partial class RegulationApi
         var policies = await S.VisibleAsync(dbf, user, await reg.ListInsuranceAsync(ct), p => p.VehicleId, ct);
         var byId = policies.ToDictionary(p => p.Id);
         var plates = await S.PlatesAsync(dbf, policies.Select(p => p.VehicleId), ct);
-        var rows = (await reg.ListZeyilHepsiAsync(ct))
+        var rows = (await reg.ListAllEndorsementsAsync(ct))
             .Where(z => byId.ContainsKey(z.PolicyId) && (min is null || z.Tarih >= min) && (max is null || z.Tarih <= max)
                         && (S.Nz(tipi) is not { } t || string.Equals(z.Tipi?.Trim(), t, StringComparison.OrdinalIgnoreCase)))
             .Select(z =>

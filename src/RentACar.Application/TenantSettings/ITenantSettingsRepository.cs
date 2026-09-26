@@ -11,5 +11,5 @@ public interface ITenantSettingsRepository
     Task UpsertAsync(Action<RentACar.Domain.Entities.TenantSettings> apply, CancellationToken ct = default);
 
     /// <summary>Son WhatsApp gönderimleri (en yeni önce) — ayarlar görünürlüğü ("neden özet gelmiyor").</summary>
-    Task<IReadOnlyList<WhatsAppGonderim>> ListWhatsAppGonderimAsync(int take = 7, CancellationToken ct = default);
+    Task<IReadOnlyList<WhatsAppGonderim>> ListWhatsAppDispatchesAsync(int take = 7, CancellationToken ct = default);
 }

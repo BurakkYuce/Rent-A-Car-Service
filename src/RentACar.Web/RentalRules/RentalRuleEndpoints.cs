@@ -51,17 +51,17 @@ public static class RentalRuleEndpoints
         // ---- FAZ-46 ----
         TalepBas = FormParse.Date(FormParse.Str(f, "talepBas")),
         TalepBit = FormParse.Date(FormParse.Str(f, "talepBit")),
-        PromosyonTuru = Enum.TryParse<PromosyonTuru>(FormParse.Str(f, "promosyonTuru"), out var pt) ? pt : null,
-        KuponGecerlilik = Enum.TryParse<KuponGecerlilik>(FormParse.Str(f, "kuponGecerlilik"), out var kg) ? kg : null,
-        HesaplamaTipi = Enum.TryParse<HesaplamaTipi>(FormParse.Str(f, "hesaplamaTipi"), out var ht) ? ht : null,
+        PromosyonTuru = Enum.TryParse<PromotionType>(FormParse.Str(f, "promosyonTuru"), out var pt) ? pt : null,
+        KuponGecerlilik = Enum.TryParse<CouponValidity>(FormParse.Str(f, "kuponGecerlilik"), out var kg) ? kg : null,
+        HesaplamaTipi = Enum.TryParse<CalculationType>(FormParse.Str(f, "hesaplamaTipi"), out var ht) ? ht : null,
         HizliIslem = FormParse.Str(f, "hizliIslem") is "true" or "True" or "on",
         // 7 ayrı checkbox aynı adla gelir → virgülle birleştirilir; servis normalize/doğrular.
         HaftaGunKisiti = f["haftaGun"].Count == 0 ? null : string.Join(',', f["haftaGun"].ToArray()),
         // FAZ-73: form artık DURUMU gönderir; Aktif bayrağı servis tarafında ondan TÜRETİLİR
         // (tek senkron noktası). Durum gelmezse eski "aktif" alanına düşülür — geriye uyum.
-        TarihTipi = Enum.TryParse<KuralTarihTipi>(FormParse.Str(f, "tarihTipi"), out var tt)
-            ? tt : KuralTarihTipi.Rezervasyon,
-        KampanyaDurum = Enum.TryParse<KampanyaDurum>(FormParse.Str(f, "kampanyaDurum"), out var kd)
+        TarihTipi = Enum.TryParse<RuleDateType>(FormParse.Str(f, "tarihTipi"), out var tt)
+            ? tt : RuleDateType.Rezervasyon,
+        KampanyaDurum = Enum.TryParse<CampaignStatus>(FormParse.Str(f, "kampanyaDurum"), out var kd)
             ? kd : null,
         Aktif = (FormParse.Str(f, "aktif") ?? "true") is "true" or "True"
     };

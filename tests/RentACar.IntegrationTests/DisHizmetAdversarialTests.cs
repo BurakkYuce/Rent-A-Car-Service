@@ -36,9 +36,9 @@ namespace RentACar.IntegrationTests;
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Musteri", Soyad = "P" });
+        { Tip = CustomerType.Bireysel, Ad = "Musteri", Soyad = "P" });
         var t = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Kurumsal, Unvan = "Probe Tedarikçi AŞ" });
+        { Tip = CustomerType.Kurumsal, Unvan = "Probe Tedarikçi AŞ" });
         var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m });
         return (kira, v, t);
@@ -51,19 +51,19 @@ namespace RentACar.IntegrationTests;
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (kira, arac, tedarikci) = await KurAsync(sp, "34 PR 03");
-        var svc = sp.GetRequiredService<DisHizmetService>();
+        var svc = sp.GetRequiredService<OutsourcedServiceService>();
         var rs = sp.GetRequiredService<ReportService>();
 
         var id = await svc.CreateAsync(Girdi(kira, tedarikci)); // 1000 + %10
-        var gg1 = await rs.GetGelirGiderAsync();
+        var gg1 = await rs.GetRevenueExpenseAsync();
         Assert.Equal(100m, gg1.GelirToplam);
         Assert.Equal(1000m, gg1.GiderToplam);
 
-        await svc.IptalEtAsync(id);
-        var gg2 = await rs.GetGelirGiderAsync();
+        await svc.CancelAsync(id);
+        var gg2 = await rs.GetRevenueExpenseAsync();
         Assert.Equal(0m, gg2.GelirToplam);                 // gelir netleşiyor mu?
         Assert.Equal(0m, gg2.GiderToplam);                 // GİDER netleşiyor mu? (şüpheli: Debit-only)
-        var karlilik = await rs.GetKarlilikAsync();
+        var karlilik = await rs.GetProfitabilityAsync();
         Assert.Equal(gg2.GiderToplam, karlilik.ToplamGider); // raporlar-arası mutabakat
     }
 
@@ -77,18 +77,18 @@ namespace RentACar.IntegrationTests;
         {
             var sp = sa.ServiceProvider;
             (kiraA, _, tedarikciA) = await KurAsync(sp, "34 PR 07");
-            kayitA = await sp.GetRequiredService<DisHizmetService>().CreateAsync(Girdi(kiraA, tedarikciA));
+            kayitA = await sp.GetRequiredService<OutsourcedServiceService>().CreateAsync(Girdi(kiraA, tedarikciA));
         }
 
         using (var sb = host.ScopeFor(b))
         {
-            var svcB = sb.ServiceProvider.GetRequiredService<DisHizmetService>();
+            var svcB = sb.ServiceProvider.GetRequiredService<OutsourcedServiceService>();
             Assert.Empty(await svcB.ListForRentalAsync(kiraA));                       // görünmez
-            await Assert.ThrowsAsync<ValidationException>(() => svcB.IptalEtAsync(kayitA)); // iptal edemez
+            await Assert.ThrowsAsync<ValidationException>(() => svcB.CancelAsync(kayitA)); // iptal edemez
             // B, A'nın kirasına kayıt açamaz (RLS/null)
             Guid tedB;
             var t = await sb.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(
-                new CustomerInput { Tip = CariType.Kurumsal, Unvan = "B Tedarikçi" });
+                new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "B Tedarikçi" });
             tedB = t;
             await Assert.ThrowsAsync<ValidationException>(() => svcB.CreateAsync(Girdi(kiraA, tedB)));
         }

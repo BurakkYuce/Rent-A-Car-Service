@@ -17,7 +17,7 @@ public sealed class FinancialAccountService(
     private readonly ICurrentUser _currentUser = currentUser;
     private readonly ITenantCache _cache = cache;
 
-    private const string AktifCacheKey = "finansal-hesap:aktif";
+    private const string ActiveCacheKey = "finansal-hesap:aktif";
 
     public Task<IReadOnlyList<FinancialAccount>> ListAsync(CancellationToken ct = default)
         => _repository.ListAsync(ct);
@@ -29,7 +29,7 @@ public sealed class FinancialAccountService(
     /// TTL'e güvenmek "hesabı ekledim, listede yok" ile sonuçlanırdı.
     /// </summary>
     public Task<IReadOnlyList<FinancialAccount>> ListActiveAsync(CancellationToken ct = default)
-        => _cache.GetOrCreateAsync(AktifCacheKey, () => _repository.ListActiveAsync(ct), ct);
+        => _cache.GetOrCreateAsync(ActiveCacheKey, () => _repository.ListActiveAsync(ct), ct);
 
     public Task<FinancialAccount?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -39,13 +39,13 @@ public sealed class FinancialAccountService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu hesap zaten var.");
 
         var account = new FinancialAccount();
         Apply(account, n);
         await _repository.CreateAsync(account, ct);
-        _cache.Invalidate(AktifCacheKey);
+        _cache.Invalidate(ActiveCacheKey);
         return account.Id;
     }
 
@@ -67,7 +67,7 @@ public sealed class FinancialAccountService(
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu hesap zaten var.");
 
         void Update(FinancialAccount account)
@@ -83,7 +83,7 @@ public sealed class FinancialAccountService(
         }
         finally
         {
-            _cache.Invalidate(AktifCacheKey);
+            _cache.Invalidate(ActiveCacheKey);
         }
     }
 
@@ -98,9 +98,9 @@ public sealed class FinancialAccountService(
         if (await _repository.HasLedgerHistoryAsync(id, ct))
             throw new ValidationException(
                 "Bu hesapta defter hareketi var; silinemez. Kullanımdan kaldırmak için 'Aktif' işaretini kaldırın.");
-        var silindi = await _repository.DeleteAsync(id, ct);
-        _cache.Invalidate(AktifCacheKey);
-        return silindi;
+        var deleted = await _repository.DeleteAsync(id, ct);
+        _cache.Invalidate(ActiveCacheKey);
+        return deleted;
     }
 
     private static void Validate(FinancialAccountInput n)
@@ -112,7 +112,7 @@ public sealed class FinancialAccountService(
         // ("POS", boş) bırakıldığında aynı hesap iki ayrı defter türünde kullanılıp bakiyesi
         // ikiye bölünüyordu. Serbest metin YAZIMI korunuyor (ör. "Banka - Vadesiz") ama
         // Kasa/Banka'ya çözülmesi şart.
-        if (HesapCozucu.TuruCoz(n.Tur) is null)
+        if (AccountResolver.ResolveType(n.Tur) is null)
             throw new ValidationException("Hesap türü zorunludur ve Kasa ya da Banka olmalıdır.");
         if (n.Doviz is { Length: > 0 } d && d.Length != 3)
             throw new ValidationException("Döviz kodu 3 harf olmalıdır (ör. TRY, USD).");

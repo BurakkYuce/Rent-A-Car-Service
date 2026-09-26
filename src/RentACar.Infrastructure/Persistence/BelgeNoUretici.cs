@@ -20,15 +20,15 @@ public static class BelgeNoUretici
     /// ayrışabilir.
     /// </param>
     public static async Task<string> UretAsync(
-        AppDbContext db, Guid tenantId, BelgeNoTuru tur, CancellationToken ct, DateTimeOffset? simdi = null)
+        AppDbContext db, Guid tenantId, DocumentNoType tur, CancellationToken ct, DateTimeOffset? simdi = null)
     {
         // KRİTİK: gün TEK KEZ hesaplanır ve hem sayaç anahtarını hem numara metnini besler.
         // İki kez hesaplanırsa gece yarısına denk gelen bir çağrıda anahtar bir güne, metin başka
         // güne düşer; ertesi gün aynı numara İKİNCİ kez üretilir ve unique index ihlali (ya da daha
         // kötüsü: iki farklı belgede aynı numara) doğar.
         var gun = TenantGun.Gun(simdi ?? DateTimeOffset.UtcNow);
-        var n = await SequenceAllocator.NextAsync(db, tenantId, BelgeNo.SayacAnahtari(tur, gun), ct);
-        return BelgeNo.Bicimle(tur, gun, n);
+        var n = await SequenceAllocator.NextAsync(db, tenantId, DocumentNo.CounterKey(tur, gun), ct);
+        return DocumentNo.Format(tur, gun, n);
     }
 
     /// <summary>
@@ -51,14 +51,14 @@ public static class BelgeNoUretici
         // bu yüzden "ayar yok" normal bir durumdur ve fatura kesmeyi engellememelidir.
         // Ayar DOLU ama biçimsizse sessizce varsayılana kaçılmaz — kullanıcı bilerek bir şey
         // yazmış, yanlış seriyle fatura kesmektense gürültülü reddedilir.
-        var seriKodu = string.IsNullOrWhiteSpace(ayar) ? BelgeNo.VarsayilanSeri : ayar;
-        if (!BelgeNo.SeriGecerliMi(seriKodu))
+        var seriKodu = string.IsNullOrWhiteSpace(ayar) ? DocumentNo.DefaultSeries : ayar;
+        if (!DocumentNo.IsSeriesValid(seriKodu))
             throw new InvalidOperationException(
                 $"Fatura seri kodu geçersiz: '{ayar}'. Tam 3 karakter olmalı ve yalnız büyük harf " +
                 "(A-Z) veya rakam içermelidir (Türkçe karakter kabul edilmez). Ayarlar ekranından düzeltin.");
 
         var yil = TenantGun.Gun(simdi ?? DateTimeOffset.UtcNow).Year;
-        var n = await SequenceAllocator.NextAsync(db, tenantId, BelgeNo.FaturaSayacAnahtari(seriKodu!, yil), ct);
-        return BelgeNo.FaturaBicimle(seriKodu!, yil, n);
+        var n = await SequenceAllocator.NextAsync(db, tenantId, DocumentNo.InvoiceCounterKey(seriKodu!, yil), ct);
+        return DocumentNo.FormatInvoice(seriKodu!, yil, n);
     }
 }

@@ -33,9 +33,9 @@ public sealed class SigortaOdemeTests(PostgresFixture fx)
         var (sp, polId) = await Seed(scope, "34 SG 01");
         var reg = sp.GetRequiredService<RegulationService>();
 
-        await reg.SigortaOdeAsync(polId, LedgerAccountType.Kasa, zeyilEkPrim: 300m);
+        await reg.PayInsuranceAsync(polId, LedgerAccountType.Kasa, endorsementExtraPremium: 300m);
 
-        var gg = await sp.GetRequiredService<ReportService>().GetGelirGiderAsync();
+        var gg = await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync();
         Assert.Equal(1500m, gg.GiderToplam);   // 1200 prim + 300 zeyil (elle oracle)
         Assert.Equal(0m, gg.GelirToplam);
 
@@ -44,7 +44,7 @@ public sealed class SigortaOdemeTests(PostgresFixture fx)
         Assert.Equal(300m, rec.ZeyilPrim);
 
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => reg.SigortaOdeAsync(polId, LedgerAccountType.Kasa));
+            () => reg.PayInsuranceAsync(polId, LedgerAccountType.Kasa));
     }
 
     [Fact]
@@ -53,8 +53,8 @@ public sealed class SigortaOdemeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (sp, polId) = await Seed(scope, "34 SG 02");
-        await sp.GetRequiredService<DonemKilidiService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<RegulationService>().SigortaOdeAsync(polId, LedgerAccountType.Kasa));
+            () => sp.GetRequiredService<RegulationService>().PayInsuranceAsync(polId, LedgerAccountType.Kasa));
     }
 }

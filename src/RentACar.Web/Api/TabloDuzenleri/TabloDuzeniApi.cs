@@ -9,7 +9,7 @@ namespace RentACar.Web.Api.TabloDuzenleri;
 /// sütun sırası/görünürlüğü/genişliği + sıralama. <c>GET</c> kayıtlı düzeni (yoksa <c>duzen: null</c>, 404
 /// DEĞİL), <c>PUT</c> upsert, <c>DELETE</c> varsayılana dönüş (204; kayıt yoksa da 204).
 /// <para><b>İzin kapısı yok (bilinçli):</b> düzen iş verisi değil, oturumun kendi tercihi; kullanıcı
-/// kimliği İSTEKTEN değil OTURUMDAN gelir (<see cref="TabloDuzeniService"/>) — uçta kullanıcı parametresi
+/// kimliği İSTEKTEN değil OTURUMDAN gelir (<see cref="TableLayoutService"/>) — uçta kullanıcı parametresi
 /// yoktur, başkasının düzenine erişim ifade edilemez. Tenant izolasyonu EF filtresi + FORCE RLS.</para>
 /// </summary>
 public static class TabloDuzeniApi
@@ -22,18 +22,18 @@ public static class TabloDuzeniApi
     {
         var g = v1.MapGroup("/tablo-duzenleri").WithTags("Tablo");
 
-        g.MapGet("/{tabloKodu}", async Task<Ok<TabloDuzeniYaniti>> (string tabloKodu, TabloDuzeniService s, CancellationToken ct)
-                => TypedResults.Ok(await s.GetirAsync(tabloKodu, ct)))
+        g.MapGet("/{tabloKodu}", async Task<Ok<TabloDuzeniYaniti>> (string tabloKodu, TableLayoutService s, CancellationToken ct)
+                => TypedResults.Ok(await s.FetchAsync(tabloKodu, ct)))
             .IzinMuaf(Gerekce);
 
         g.MapPut("/{tabloKodu}", async Task<Ok<TabloDuzeniYaniti>> (
-                    string tabloKodu, TabloDuzeniVerisi govde, TabloDuzeniService s, CancellationToken ct)
-                => TypedResults.Ok(await s.KaydetAsync(tabloKodu, govde, ct)))
+                    string tabloKodu, TabloDuzeniVerisi govde, TableLayoutService s, CancellationToken ct)
+                => TypedResults.Ok(await s.SaveAsync(tabloKodu, govde, ct)))
             .IzinMuaf(Gerekce);
 
-        g.MapDelete("/{tabloKodu}", async Task<NoContent> (string tabloKodu, TabloDuzeniService s, CancellationToken ct) =>
+        g.MapDelete("/{tabloKodu}", async Task<NoContent> (string tabloKodu, TableLayoutService s, CancellationToken ct) =>
             {
-                await s.SifirlaAsync(tabloKodu, ct);
+                await s.ResetAsync(tabloKodu, ct);
                 return TypedResults.NoContent();
             })
             .IzinMuaf(Gerekce);

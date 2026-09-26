@@ -16,7 +16,7 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Api.AracFinans;
 
 /// <summary>
-/// <c>/api/ui/v1/arac-siparisleri/*</c> (F6.1b) — araç sipariş/tedarik (<see cref="AracSiparisService"/>). DEFTERE YAZMAZ.
+/// <c>/api/ui/v1/arac-siparisleri/*</c> (F6.1b) — araç sipariş/tedarik (<see cref="VehicleOrderService"/>). DEFTERE YAZMAZ.
 /// <para><b>İzin:</b> okuma OperationsWrite ∨ FinanceWrite ∨ ViewReports; yazma OperationsWrite (Blazor grubu; iptal
 /// dahil). Siparişin aracı henüz filoda yok → şube kapsamı yok (Blazor ile aynı; kiracı geneli).</para>
 /// <para><b>Çift gönderim:</b> oluşturma <c>Idempotency-Key</c> ister (Id = anahtar). Durum geçişleri KİLİT ALTINDA;
@@ -37,12 +37,12 @@ public static class AracSiparisApi
         g.MapPost("", Olustur).AlanlariEsle(Kurallar).RequirePermission(Permission.OperationsWrite)
             .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         g.MapPut("/{id:guid}", Guncelle).AlanlariEsle(Kurallar).RequirePermission(Permission.OperationsWrite);
-        g.MapPost("/{id:guid}/onayla", (Guid id, HttpContext h, AracSiparisService s, IDbContextFactory<AppDbContext> d, CancellationToken ct)
-            => Durum(id, SiparisDurum.Onaylandi, h, s, d, ct)).RequirePermission(Permission.OperationsWrite);
-        g.MapPost("/{id:guid}/teslim-al", (Guid id, HttpContext h, AracSiparisService s, IDbContextFactory<AppDbContext> d, CancellationToken ct)
-            => Durum(id, SiparisDurum.TeslimAlindi, h, s, d, ct)).RequirePermission(Permission.OperationsWrite);
-        g.MapPost("/{id:guid}/iptal", (Guid id, HttpContext h, AracSiparisService s, IDbContextFactory<AppDbContext> d, CancellationToken ct)
-            => Durum(id, SiparisDurum.Iptal, h, s, d, ct)).RequirePermission(Permission.OperationsWrite);
+        g.MapPost("/{id:guid}/onayla", (Guid id, HttpContext h, VehicleOrderService s, IDbContextFactory<AppDbContext> d, CancellationToken ct)
+            => Durum(id, OrderStatus.Onaylandi, h, s, d, ct)).RequirePermission(Permission.OperationsWrite);
+        g.MapPost("/{id:guid}/teslim-al", (Guid id, HttpContext h, VehicleOrderService s, IDbContextFactory<AppDbContext> d, CancellationToken ct)
+            => Durum(id, OrderStatus.TeslimAlindi, h, s, d, ct)).RequirePermission(Permission.OperationsWrite);
+        g.MapPost("/{id:guid}/iptal", (Guid id, HttpContext h, VehicleOrderService s, IDbContextFactory<AppDbContext> d, CancellationToken ct)
+            => Durum(id, OrderStatus.Iptal, h, s, d, ct)).RequirePermission(Permission.OperationsWrite);
         return g;
     }
 
@@ -58,13 +58,13 @@ public static class AracSiparisApi
 
     private static ProblemHttpResult Bulunamadi() => F5Ortak.Bulunamadi("Sipariş bulunamadı.");
 
-    private static readonly SiralamaHaritasi<AracSiparisSatiri> Harita = SiralamaHaritasi<AracSiparisSatiri>
-        .Olustur(s => s.Id)
+    private static readonly SortFieldMap<AracSiparisSatiri> Harita = SortFieldMap<AracSiparisSatiri>
+        .Create(s => s.Id)
         .Alan("no", s => s.No).Alan("tedarikci", s => s.Tedarikci).Alan("siparisTarihi", s => s.SiparisTarihi)
         .Alan("beklenenTeslim", s => s.BeklenenTeslim).Alan("toplam", s => s.Toplam).Alan("durum", s => s.Durum);
 
     private static async Task<Ok<Sayfa<AracSiparisSatiri>>> Liste(
-        HttpContext http, AracSiparisService svc, IDbContextFactory<AppDbContext> dbf, Guid? cariId, string? ara,
+        HttpContext http, VehicleOrderService svc, IDbContextFactory<AppDbContext> dbf, Guid? cariId, string? ara,
         string? arac, string? dosyaNo, string? durum, DateOnly? bas, DateOnly? bit, int? sayfa, int? boyut,
         string? sirala, CancellationToken ct)
     {
@@ -73,7 +73,7 @@ public static class AracSiparisApi
         var liste = await svc.SearchAsync(new AracSiparisFilter
         {
             CariId = cariId, Ara = F5Ortak.Nz(ara), Arac = F5Ortak.Nz(arac), DosyaNo = F5Ortak.Nz(dosyaNo),
-            Durum = F5Ortak.EnumAdi<SiparisDurum>(durum, "durum"), Bas = min, Bit = max,
+            Durum = F5Ortak.EnumAdi<OrderStatus>(durum, "durum"), Bas = min, Bit = max,
         }, ct);
         var cariler = await F5Ortak.CarilerAsync(dbf,
             liste.Where(s => s.TedarikciCariId is not null).Select(s => s.TedarikciCariId!.Value), ct);
@@ -87,16 +87,16 @@ public static class AracSiparisApi
 
     /// <summary>Durum bayrakları servisin TEK geçiş tablosundan (adversarial M1: ayrı kopya teslim sonrası "onayla"yı
     /// açık bırakmıştı). Liste satırı (F6.2b) ve detay AYNI kuralı kullanır.</summary>
-    private static AracSiparisYetkileri Yetkiler(SiparisDurum durum, bool yaz) => new(
-        yaz && durum != SiparisDurum.Iptal,
-        yaz && AracSiparisService.IsTransitionAllowed(durum, SiparisDurum.Onaylandi),
-        yaz && AracSiparisService.IsTransitionAllowed(durum, SiparisDurum.TeslimAlindi),
-        yaz && AracSiparisService.IsTransitionAllowed(durum, SiparisDurum.Iptal));
+    private static AracSiparisYetkileri Yetkiler(OrderStatus durum, bool yaz) => new(
+        yaz && durum != OrderStatus.Iptal,
+        yaz && VehicleOrderService.IsTransitionAllowed(durum, OrderStatus.Onaylandi),
+        yaz && VehicleOrderService.IsTransitionAllowed(durum, OrderStatus.TeslimAlindi),
+        yaz && VehicleOrderService.IsTransitionAllowed(durum, OrderStatus.Iptal));
 
-    private static async Task<AracSiparisDto?> DtoAsync(Guid id, HttpContext http, AracSiparisService svc,
+    private static async Task<AracSiparisDto?> DtoAsync(Guid id, HttpContext http, VehicleOrderService svc,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var surum = await svc.SurumAsync(id, ct); // alanlardan ÖNCE
+        var surum = await svc.VersionAsync(id, ct); // alanlardan ÖNCE
         var s = await svc.GetAsync(id, ct);
         if (s is null) return null;
         var cari = s.TedarikciCariId is { } c ? F5Ortak.CariAdi(await F5Ortak.CarilerAsync(dbf, [c], ct), c) : null;
@@ -105,12 +105,12 @@ public static class AracSiparisApi
     }
 
     private static async Task<Results<Ok<AracSiparisDto>, ProblemHttpResult>> Detay(
-        Guid id, HttpContext http, AracSiparisService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        Guid id, HttpContext http, VehicleOrderService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
         => await DtoAsync(id, http, svc, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
 
     /// <summary>Uç sınırları + varlık (tedarikçi cari, kredi bu kiracıda) + TRY'de kur = 1.</summary>
     private static async Task<AracSiparisInput> GirdiAsync(AracSiparisIstegi i, IDbContextFactory<AppDbContext> dbf,
-        KurCozucu kurCozucu, CancellationToken ct)
+        ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         AracFinansOrtak.Tutar(i.BirimFiyat, "birimFiyat", sifirSerbest: true);
         AracFinansOrtak.BilgiTutari(i.PiyasaFiyat, "piyasaFiyat");
@@ -119,7 +119,7 @@ public static class AracSiparisApi
         var doviz = AracFinansOrtak.Doviz(i.Doviz);
         AracFinansOrtak.Kur(i.Kur, doviz);
         decimal kur;
-        try { kur = await kurCozucu.CozAsync(doviz, i.Kur, F5Ortak.Utc(i.SiparisTarihi), ct); }
+        try { kur = await kurCozucu.ResolveAsync(doviz, i.Kur, F5Ortak.Utc(i.SiparisTarihi), ct); }
         catch (ValidationException ex) when (ex.GetType() == typeof(ValidationException) && ex.Alan is null)
         { throw new ValidationException(ex.Message, "kur"); }
         await AracFinansOrtak.CariVarAsync(dbf, i.TedarikciCariId, "tedarikciCariId", zorunlu: false, ct);
@@ -136,27 +136,27 @@ public static class AracSiparisApi
     public const string AnahtarFarkli =
         "Bu işlem anahtarıyla başka içerikte bir sipariş kaydedilmiş (No {0}, {1} {2}); girdiğiniz sipariş YAZILMADI.";
 
-    private static MukerrerIslemException Mevcut(AracSiparis m, AracSiparisIstegi i)
+    private static DuplicateOperationException Mevcut(AracSiparis m, AracSiparisIstegi i)
     {
         var doviz = AracFinansOrtak.Doviz(i.Doviz); // yazımla AYNI normalizasyon (L1: birebir tekrar ayniIcerik=true)
         var ayni = string.Equals(m.Tedarikci, i.Tedarikci?.Trim(), StringComparison.Ordinal) && m.Adet == (i.Adet ?? 1)
                    && m.BirimFiyat == i.BirimFiyat && m.Currency == doviz;
         var toplam = m.Adet * m.BirimFiyat;
-        return new MukerrerIslemException(
+        return new DuplicateOperationException(
             string.Format(Tr, ayni ? ZatenKaydedildi : AnahtarFarkli, m.No, toplam.ToString("N2", Tr), m.Currency),
             new MevcutIslem(m.Id, m.No, toplam, m.Currency, ayni));
     }
 
     private static async Task<Created<AracSiparisOlusturYaniti>> Olustur(
-        AracSiparisIstegi i, HttpContext http, AracSiparisService svc, IDbContextFactory<AppDbContext> dbf,
-        KurCozucu kurCozucu, CancellationToken ct)
+        AracSiparisIstegi i, HttpContext http, VehicleOrderService svc, IDbContextFactory<AppDbContext> dbf,
+        ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         var anahtar = IdempotencyBasligi.ZorunluAnahtar(http);
         if (await svc.GetAsync(anahtar, ct) is { } m) throw Mevcut(m, i); // (1) ÖNCE mevcut kayıt
         var girdi = await GirdiAsync(i, dbf, kurCozucu, ct);
         girdi.IslemAnahtari = anahtar;
         try { await svc.CreateAsync(girdi, ct); }
-        catch (MukerrerIslemException ex) when (ex.Mevcut is null)
+        catch (DuplicateOperationException ex) when (ex.Existing is null)
         {
             if (await svc.GetAsync(anahtar, ct) is { } y) throw Mevcut(y, i);
             throw;
@@ -166,21 +166,21 @@ public static class AracSiparisApi
     }
 
     private static async Task<Results<Ok<AracSiparisDto>, ProblemHttpResult>> Guncelle(
-        Guid id, AracSiparisIstegi i, HttpContext http, AracSiparisService svc, IDbContextFactory<AppDbContext> dbf,
-        KurCozucu kurCozucu, CancellationToken ct)
+        Guid id, AracSiparisIstegi i, HttpContext http, VehicleOrderService svc, IDbContextFactory<AppDbContext> dbf,
+        ExchangeRateResolver kurCozucu, CancellationToken ct)
     {
         if (await svc.GetAsync(id, ct) is null) return Bulunamadi();
         var surum = AracFinansOrtak.Surum(i.Surum);
         var girdi = await GirdiAsync(i, dbf, kurCozucu, ct);
-        if (!await svc.UpdateSurumluAsync(id, girdi, surum, ct)) return Bulunamadi();
+        if (!await svc.UpdateVersionedAsync(id, girdi, surum, ct)) return Bulunamadi();
         return await DtoAsync(id, http, svc, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 
     private static async Task<Results<Ok<AracSiparisDto>, ProblemHttpResult>> Durum(
-        Guid id, SiparisDurum durum, HttpContext http, AracSiparisService svc, IDbContextFactory<AppDbContext> dbf,
+        Guid id, OrderStatus durum, HttpContext http, VehicleOrderService svc, IDbContextFactory<AppDbContext> dbf,
         CancellationToken ct)
     {
-        if (!await svc.DurumDegistirAsync(id, durum, ct)) return Bulunamadi();
+        if (!await svc.ChangeStatusAsync(id, durum, ct)) return Bulunamadi();
         return await DtoAsync(id, http, svc, dbf, ct) is { } d ? TypedResults.Ok(d) : Bulunamadi();
     }
 }

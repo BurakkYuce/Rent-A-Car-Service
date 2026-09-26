@@ -89,7 +89,7 @@ public class VehicleGroup : ITenantOwned, IAuditable
     /// <summary>Grubun tipik yakıt türü (bilgi/filtre amaçlı; aracın kendi yakıtı ayrıdır).</summary>
     public FuelType? YakitTuru { get; set; }
     /// <summary>Grubun tipik vitesi (bilgi/filtre amaçlı; aracın kendi vitesi ayrıdır).</summary>
-    public Vites? Vites { get; set; }
+    public Transmission? Vites { get; set; }
     /// <summary>Dış entegrasyon eşleme kodu (broker/OTA kanal kodu).</summary>
     public string? EntegrasyonKod1 { get; set; }
     /// <summary>Web sitesi/kanal tarafındaki grup kimliği.</summary>

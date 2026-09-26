@@ -12,7 +12,7 @@ public sealed partial class UiCustomerApiTests
     {
         var c = new Customer
         {
-            Tip = CariType.Bireysel, Ad = "Can", Soyad = surname, CepTel = "05551234567", Email = "can@example.com",
+            Tip = CustomerType.Bireysel, Ad = "Can", Soyad = surname, CepTel = "05551234567", Email = "can@example.com",
             AnonimAd = anonymous, AnonimTelefon = anonymous, AnonimMail = anonymous,
         };
         await WriteAsync(e.TenantId, db => db.Customers.Add(c));

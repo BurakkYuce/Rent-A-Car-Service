@@ -22,11 +22,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SiteIcerikTests(PostgresFixture fx)
 {
-    private static SiteIcerikService Svc(TestHost host, Guid tenantId, out IServiceScope scope,
+    private static SiteContentService Svc(TestHost host, Guid tenantId, out IServiceScope scope,
         UserRole role = UserRole.Admin)
     {
         scope = host.ScopeFor(tenantId, role: role);
-        return scope.ServiceProvider.GetRequiredService<SiteIcerikService>();
+        return scope.ServiceProvider.GetRequiredService<SiteContentService>();
     }
 
     private static SayfaIcerikInput Girdi(string baslik = "Hakkımızda", string govde = "Birinci paragraf.\n\nİkinci paragraf.",
@@ -41,8 +41,8 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var svc = Svc(host, Guid.NewGuid(), out var scope); using (scope)
         {
-            await svc.KaydetAsync(Girdi("Şoför Kılavuzu ve İç Düzen"));
-            var s = Assert.Single(await svc.ListeleAsync());
+            await svc.SaveAsync(Girdi("Şoför Kılavuzu ve İç Düzen"));
+            var s = Assert.Single(await svc.ListAsync());
             // ToLowerInvariant "İ"yi kaçırırdı; TurkishText.Slugify doğru indirger.
             Assert.Equal("sofor-kilavuzu-ve-ic-duzen", s.Slug);
         }
@@ -61,9 +61,9 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         var svc = Svc(host, Guid.NewGuid(), out var scope); using (scope)
         {
             var ex = await Assert.ThrowsAsync<ValidationException>(
-                () => svc.KaydetAsync(Girdi("Deneme", slug: slug)));
+                () => svc.SaveAsync(Girdi("Deneme", slug: slug)));
             Assert.Contains("sistem tarafından kullanılıyor", ex.Message);
-            Assert.Empty(await svc.ListeleAsync());   // hiç kayıt açılmadı
+            Assert.Empty(await svc.ListAsync());   // hiç kayıt açılmadı
         }
     }
 
@@ -83,12 +83,12 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
             "araclar", "blog", "blog-kapak", "cok-istek", "dogrulama", "foto", "iletisim",
             "musaitlik", "not-found", "rezervasyon-talebi", "sss", "talep-alindi",
         ];
-        Assert.All(slugSekilliKokRotalar, r => Assert.Contains(r, SiteIcerikService.RezerveSluglar));
+        Assert.All(slugSekilliKokRotalar, r => Assert.Contains(r, SiteContentService.ReservedSlugs));
 
         // DEĞİŞMEZ: hiçbir slug nokta içeremez → noktalı rotalar gölgelenemez.
         Assert.All(["robots.txt", "sitemap.xml", "a.b.c"],
             r => Assert.DoesNotContain('.', TurkishText.Slugify(r)));
-        Assert.DoesNotContain(SiteIcerikService.RezerveSluglar, r => r.Contains('.'));
+        Assert.DoesNotContain(SiteContentService.ReservedSlugs, r => r.Contains('.'));
     }
 
     [Fact]
@@ -97,12 +97,12 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var svc = Svc(host, Guid.NewGuid(), out var scope); using (scope)
         {
-            var id = await svc.KaydetAsync(Girdi("Hakkımızda"));
-            await Assert.ThrowsAsync<ValidationException>(() => svc.KaydetAsync(Girdi("Hakkımızda")));
+            var id = await svc.SaveAsync(Girdi("Hakkımızda"));
+            await Assert.ThrowsAsync<ValidationException>(() => svc.SaveAsync(Girdi("Hakkımızda")));
 
             // Aynı sayfayı yeniden kaydetmek (slug değişmedi) SORUN DEĞİL.
-            await svc.KaydetAsync(Girdi("Hakkımızda", govde: "Güncellendi.", id: id));
-            var s = Assert.Single(await svc.ListeleAsync());
+            await svc.SaveAsync(Girdi("Hakkımızda", govde: "Güncellendi.", id: id));
+            var s = Assert.Single(await svc.ListAsync());
             Assert.Equal("hakkimizda", s.Slug);
         }
     }
@@ -113,12 +113,12 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var svc = Svc(host, Guid.NewGuid(), out var scope); using (scope)
         {
-            await Assert.ThrowsAsync<ValidationException>(() => svc.KaydetAsync(Girdi("   ")));
-            await Assert.ThrowsAsync<ValidationException>(() => svc.KaydetAsync(Girdi(govde: "  ")));
+            await Assert.ThrowsAsync<ValidationException>(() => svc.SaveAsync(Girdi("   ")));
+            await Assert.ThrowsAsync<ValidationException>(() => svc.SaveAsync(Girdi(govde: "  ")));
             await Assert.ThrowsAsync<ValidationException>(
-                () => svc.KaydetAsync(Girdi(govde: new string('x', SiteIcerikService.MaxGovde + 1))));
+                () => svc.SaveAsync(Girdi(govde: new string('x', SiteContentService.MaxBody + 1))));
             // Slug'lanınca hiçbir harf kalmayan başlık: adres üretilemez.
-            await Assert.ThrowsAsync<ValidationException>(() => svc.KaydetAsync(Girdi("!!! ???")));
+            await Assert.ThrowsAsync<ValidationException>(() => svc.SaveAsync(Girdi("!!! ???")));
         }
     }
 
@@ -130,15 +130,15 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var svc = Svc(host, Guid.NewGuid(), out var scope); using (scope)
         {
-            var id = await svc.KaydetAsync(Girdi("Kiralama Koşulları", yayinda: true));
-            Assert.NotNull(await svc.SayfaAsync("kiralama-kosullari"));
-            Assert.Single(await svc.YayindakiSayfalarAsync());
+            var id = await svc.SaveAsync(Girdi("Kiralama Koşulları", yayinda: true));
+            Assert.NotNull(await svc.PageAsync("kiralama-kosullari"));
+            Assert.Single(await svc.PublishedPagesAsync());
 
-            await svc.YayinDurumuAsync(id, yayinda: false);
+            await svc.PublishStatusAsync(id, published: false);
 
-            Assert.Null(await svc.SayfaAsync("kiralama-kosullari"));   // uç 404 döner
-            Assert.Empty(await svc.YayindakiSayfalarAsync());          // footer/sitemap'te yok
-            Assert.Single(await svc.ListeleAsync());                   // …ama yönetimde duruyor
+            Assert.Null(await svc.PageAsync("kiralama-kosullari"));   // uç 404 döner
+            Assert.Empty(await svc.PublishedPagesAsync());          // footer/sitemap'te yok
+            Assert.Single(await svc.ListAsync());                   // …ama yönetimde duruyor
         }
     }
 
@@ -148,11 +148,11 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var svc = Svc(host, Guid.NewGuid(), out var scope); using (scope)
         {
-            var id = await svc.KaydetAsync(Girdi("Geçici"));
-            await svc.SilAsync(id);
-            Assert.Empty(await svc.ListeleAsync());
-            Assert.Null(await svc.SayfaAsync("gecici"));
-            await Assert.ThrowsAsync<ValidationException>(() => svc.SilAsync(id)); // ikinci silme
+            var id = await svc.SaveAsync(Girdi("Geçici"));
+            await svc.DeleteAsync(id);
+            Assert.Empty(await svc.ListAsync());
+            Assert.Null(await svc.PageAsync("gecici"));
+            await Assert.ThrowsAsync<ValidationException>(() => svc.DeleteAsync(id)); // ikinci silme
         }
     }
 
@@ -166,15 +166,15 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         var a = Svc(host, t1, out var s1); using (s1)
-            await a.KaydetAsync(Girdi("Hakkımızda", govde: "T1 metni."));
+            await a.SaveAsync(Girdi("Hakkımızda", govde: "T1 metni."));
 
         var b = Svc(host, t2, out var s2); using (s2)
         {
             // Aynı slug'ı BİLSE bile göremez (EF filter + RLS) — üstelik kendisi de aynı slug'ı açabilir.
-            Assert.Null(await b.SayfaAsync("hakkimizda"));
-            Assert.Empty(await b.ListeleAsync());
-            await b.KaydetAsync(Girdi("Hakkımızda", govde: "T2 metni."));
-            Assert.Equal("T2 metni.", (await b.SayfaAsync("hakkimizda"))!.Govde);
+            Assert.Null(await b.PageAsync("hakkimizda"));
+            Assert.Empty(await b.ListAsync());
+            await b.SaveAsync(Girdi("Hakkımızda", govde: "T2 metni."));
+            Assert.Equal("T2 metni.", (await b.PageAsync("hakkimizda"))!.Govde);
 
             // racar_app + FORCE RLS: filtre kaldırılsa DA yabancı satır gelmez.
             var f = s2.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -184,7 +184,7 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
 
         // T1'in metni bozulmadı.
         var a2 = Svc(host, t1, out var s3); using (s3)
-            Assert.Equal("T1 metni.", (await a2.SayfaAsync("hakkimizda"))!.Govde);
+            Assert.Equal("T1 metni.", (await a2.PageAsync("hakkimizda"))!.Govde);
     }
 
     // ---- SSS ----
@@ -195,11 +195,11 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var svc = Svc(host, Guid.NewGuid(), out var scope); using (scope)
         {
-            await svc.SssKaydetAsync(new SssInput(null, "Depozito var mı?", "Evet.", 1, true));
-            await svc.SssKaydetAsync(new SssInput(null, "Taslak soru", "Henüz hazır değil.", 2, false));
+            await svc.SaveFaqAsync(new SssInput(null, "Depozito var mı?", "Evet.", 1, true));
+            await svc.SaveFaqAsync(new SssInput(null, "Taslak soru", "Henüz hazır değil.", 2, false));
 
-            Assert.Equal(2, (await svc.SssListeAsync()).Count);              // yönetim
-            var yayin = Assert.Single(await svc.YayindakiSssAsync());        // site
+            Assert.Equal(2, (await svc.ListFaqAsync()).Count);              // yönetim
+            var yayin = Assert.Single(await svc.PublishedFaqAsync());        // site
             Assert.Equal("Depozito var mı?", yayin.Soru);
         }
     }
@@ -210,12 +210,12 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var svc = Svc(host, Guid.NewGuid(), out var scope); using (scope)
         {
-            await svc.SssKaydetAsync(new SssInput(null, "İkinci", "B", 2, true));
-            await svc.SssKaydetAsync(new SssInput(null, "Birinci", "A", 1, true));
-            Assert.Equal(["Birinci", "İkinci"], (await svc.YayindakiSssAsync()).Select(x => x.Soru));
+            await svc.SaveFaqAsync(new SssInput(null, "İkinci", "B", 2, true));
+            await svc.SaveFaqAsync(new SssInput(null, "Birinci", "A", 1, true));
+            Assert.Equal(["Birinci", "İkinci"], (await svc.PublishedFaqAsync()).Select(x => x.Soru));
 
-            await Assert.ThrowsAsync<ValidationException>(() => svc.SssKaydetAsync(new SssInput(null, " ", "A", 0, true)));
-            await Assert.ThrowsAsync<ValidationException>(() => svc.SssKaydetAsync(new SssInput(null, "S", " ", 0, true)));
+            await Assert.ThrowsAsync<ValidationException>(() => svc.SaveFaqAsync(new SssInput(null, " ", "A", 0, true)));
+            await Assert.ThrowsAsync<ValidationException>(() => svc.SaveFaqAsync(new SssInput(null, "S", " ", 0, true)));
         }
     }
 
@@ -228,16 +228,16 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         var tenantId = Guid.NewGuid();
 
         var admin = Svc(host, tenantId, out var s1); using (s1)
-            await admin.KaydetAsync(Girdi("Hakkımızda"));
+            await admin.SaveAsync(Girdi("Hakkımızda"));
 
         var muhasebe = Svc(host, tenantId, out var s2, UserRole.Muhasebe); using (s2)
         {
-            await Assert.ThrowsAsync<YetkiYokException>(() => muhasebe.KaydetAsync(Girdi("Yeni")));
-            await Assert.ThrowsAsync<YetkiYokException>(() => muhasebe.ListeleAsync());
+            await Assert.ThrowsAsync<NoPermissionException>(() => muhasebe.SaveAsync(Girdi("Yeni")));
+            await Assert.ThrowsAsync<NoPermissionException>(() => muhasebe.ListAsync());
 
             // OKUMA yolu guard'sız: halka açık siteyi anonim ziyaretçi çağırıyor, orada rol yok.
-            Assert.NotNull(await muhasebe.SayfaAsync("hakkimizda"));
-            Assert.Single(await muhasebe.YayindakiSayfalarAsync());
+            Assert.NotNull(await muhasebe.PageAsync("hakkimizda"));
+            Assert.Single(await muhasebe.PublishedPagesAsync());
         }
     }
 
@@ -255,12 +255,12 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
         var svc = Svc(host, Guid.NewGuid(), out var scope); using (scope)
         {
             const string kotu = "<script>alert(1)</script>\n\nİkinci <b>paragraf</b>.";
-            await svc.KaydetAsync(Girdi("Deneme", govde: kotu));
+            await svc.SaveAsync(Girdi("Deneme", govde: kotu));
 
-            var s = await svc.SayfaAsync("deneme");
+            var s = await svc.PageAsync("deneme");
             Assert.Equal(kotu, s!.Govde);                       // ham metin bozulmadan saklandı
 
-            var p = IcerikMetni.Paragraflar(s.Govde);
+            var p = ContentText.Paragraphs(s.Govde);
             Assert.Equal(2, p.Count);
             Assert.Equal("<script>alert(1)</script>", p[0]);    // etiket METİN olarak taşınıyor
             Assert.Equal("İkinci <b>paragraf</b>.", p[1]);
@@ -270,10 +270,10 @@ public sealed class SiteIcerikTests(PostgresFixture fx)
     [Fact]
     public void Paragraflar_bos_girdiyi_ve_CRLF_yi_dogru_isler()
     {
-        Assert.Empty(IcerikMetni.Paragraflar(null));
-        Assert.Empty(IcerikMetni.Paragraflar("   "));
-        Assert.Equal(["A", "B"], IcerikMetni.Paragraflar("A\r\n\r\nB"));
-        Assert.Equal(["A", "B"], IcerikMetni.Paragraflar("\n\nA\n\n\n\nB\n\n"));
-        Assert.Equal(["Tek satır"], IcerikMetni.Paragraflar("Tek satır"));
+        Assert.Empty(ContentText.Paragraphs(null));
+        Assert.Empty(ContentText.Paragraphs("   "));
+        Assert.Equal(["A", "B"], ContentText.Paragraphs("A\r\n\r\nB"));
+        Assert.Equal(["A", "B"], ContentText.Paragraphs("\n\nA\n\n\n\nB\n\n"));
+        Assert.Equal(["Tek satır"], ContentText.Paragraphs("Tek satır"));
     }
 }

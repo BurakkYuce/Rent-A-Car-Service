@@ -31,7 +31,7 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var g = ReportPeriod.ValidateDay(gun, "gun") ?? ReportPeriod.Today;
-        var satirlar = await reports.GetAracGunlukDurumAsync(ReportPeriod.Anchor(g), new AracGunlukDurumFilter
+        var satirlar = await reports.GetVehicleDailyStatusAsync(ReportPeriod.Anchor(g), new AracGunlukDurumFilter
         {
             Ofis = F(ofis), Grup = F(grup), Sipp = F(sipp), AracSahibi = F(aracSahibi), Plaka = F(plaka),
         }, ct);
@@ -48,8 +48,8 @@ public static partial class ReportApi
             ])));
     }
 
-    private static readonly SiralamaHaritasi<AracGunlukDurumRow> VehicleDailyMap = SiralamaHaritasi<AracGunlukDurumRow>
-        .Olustur(r => r.RentalId).Alan("plaka", r => r.Plaka).Alan("sozlesmeNo", r => r.SozlesmeNo)
+    private static readonly SortFieldMap<AracGunlukDurumRow> VehicleDailyMap = SortFieldMap<AracGunlukDurumRow>
+        .Create(r => r.RentalId).Alan("plaka", r => r.Plaka).Alan("sozlesmeNo", r => r.SozlesmeNo)
         .Alan("gunlukToplam", r => r.GunlukToplam).Alan("basTar", r => r.BasTar);
 
     // ------------------------------------------------------------------ servis maliyet özeti
@@ -71,8 +71,8 @@ public static partial class ReportApi
             ReportExport.Links(http, user, "servis-ozet", ReportExport.Period(p))));
     }
 
-    private static readonly SiralamaHaritasi<ServiceCostRow> ServiceCostMap = SiralamaHaritasi<ServiceCostRow>
-        .Olustur(r => r.VehicleId).Alan("plaka", r => r.Plaka).Alan("tip", r => r.Tip).Alan("toplam", r => r.Toplam)
+    private static readonly SortFieldMap<ServiceCostRow> ServiceCostMap = SortFieldMap<ServiceCostRow>
+        .Create(r => r.VehicleId).Alan("plaka", r => r.Plaka).Alan("tip", r => r.Tip).Alan("toplam", r => r.Toplam)
         .Alan("adet", r => r.Adet);
 
     // ------------------------------------------------------------------ rezervasyon kaynağı
@@ -88,7 +88,7 @@ public static partial class ReportApi
         var p = q.Validate();
         var tt = DateKinds.FirstOrDefault(k => string.Equals(k, F(tarihTipi) ?? "Cikis", StringComparison.OrdinalIgnoreCase))
             ?? throw new ValidationException($"Geçersiz tarihTipi. İzin verilenler: {string.Join(", ", DateKinds)}.", "tarihTipi");
-        var rows = await reports.GetRezervasyonKaynakAsync(new RezervasyonKaynakFilter
+        var rows = await reports.GetReservationSourceAsync(new RezervasyonKaynakFilter
         {
             Bas = p.FromUtc, Bit = p.ToUtc, TarihTipi = tt, Ofis = F(ofis), Grup = F(grup), IptalleriDahilEt = iptal == true,
         }, ct);
@@ -105,13 +105,13 @@ public static partial class ReportApi
     /// <summary>Otomatik servis koşu günlüğü (servis tavanı 500) + iş başına son koşu. <c>hatali=true</c> yalnız başarısızlar.</summary>
     private static async Task<Ok<ReportResult<IReadOnlyList<JobRunRow>, JobRunRow>>> JobRuns(
         [AsParameters] ReportPeriodQuery q, string? job, bool? hatali, [AsParameters] ReportPageQuery page,
-        JobCalismaLogService logs, ICurrentUser user, CancellationToken ct)
+        JobRunLogService logs, ICurrentUser user, CancellationToken ct)
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
         static JobRunRow Row(Domain.Entities.JobCalismaLog l)
             => new(l.Id, l.JobAdi, l.BaslangicUtc, l.BitisUtc, l.SureMs, l.Basarili, l.SonucSayisi, l.Detay);
-        var son = (await logs.SonKosularAsync(ct)).OrderBy(s => s.JobAdi, StringComparer.Ordinal).Select(Row).ToList();
+        var son = (await logs.LastRunsAsync(ct)).OrderBy(s => s.JobAdi, StringComparer.Ordinal).Select(Row).ToList();
         var rows = (await logs.ListAsync(new JobCalismaLogFilter
         {
             JobAdi = F(job), Bas = p.FromUtc, Bit = p.ToUtc, YalnizHatali = hatali == true ? true : null,
@@ -120,7 +120,7 @@ public static partial class ReportApi
             page.Apply(rows, JobRunMap), null));
     }
 
-    private static readonly SiralamaHaritasi<JobRunRow> JobRunMap = SiralamaHaritasi<JobRunRow>
-        .Olustur(r => r.Id).Alan("baslangic", r => r.BaslangicUtc).Alan("jobAdi", r => r.JobAdi)
+    private static readonly SortFieldMap<JobRunRow> JobRunMap = SortFieldMap<JobRunRow>
+        .Create(r => r.Id).Alan("baslangic", r => r.BaslangicUtc).Alan("jobAdi", r => r.JobAdi)
         .Alan("sureMs", r => r.SureMs);
 }

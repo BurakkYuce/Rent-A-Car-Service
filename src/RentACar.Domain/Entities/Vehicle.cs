@@ -37,7 +37,7 @@ public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
     /// <summary>Model yılı (opsiyonel).</summary>
     public int? ModelYili { get; set; }
 
-    public Vites? Vites { get; set; }
+    public Transmission? Vites { get; set; }
 
     public string? SasiNo { get; set; }
 
@@ -56,7 +56,7 @@ public class Vehicle : ITenantOwned, IAuditable, IBranchScoped
     public VehicleStatus Durum { get; set; } = VehicleStatus.Musait;
 
     /// <summary>Filo yaşam döngüsü statüsü (stok/havuz/tahsis…); operasyonel <see cref="Durum"/>'dan ayrı.</summary>
-    public FiloStatus? FiloDurum { get; set; }
+    public FleetLifecycleStatus? FiloDurum { get; set; }
 
     public int Km { get; set; }
 

@@ -7,7 +7,7 @@ public interface IVehicleSaleRepository
     Task<IReadOnlyList<VehicleSale>> ListAsync(CancellationToken ct = default);
 
     /// <summary>FAZ-18 — filtreli liste (tarih aralığı / durum / devir bayrağı / plaka / alıcı / ofis). Salt-okur.</summary>
-    Task<IReadOnlyList<VehicleSale>> SearchAsync(VehicleSaleFilter filtre, CancellationToken ct = default);
+    Task<IReadOnlyList<VehicleSale>> SearchAsync(VehicleSaleFilter filter, CancellationToken ct = default);
 
     Task<VehicleSale?> FindAsync(Guid id, CancellationToken ct = default);
 

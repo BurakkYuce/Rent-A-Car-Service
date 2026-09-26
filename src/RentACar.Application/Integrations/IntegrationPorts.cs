@@ -4,10 +4,10 @@ namespace RentACar.Application.Integrations;
 
 public interface ISmsService
 {
-    /// <param name="gonderen">Gönderen kimliği (alfanümerik başlık ya da numara). Tenant'ın kendi
+    /// <param name="sender">Gönderen kimliği (alfanümerik başlık ya da numara). Tenant'ın kendi
     /// başlığı (<c>TenantSettings.SmsBaslik</c>) buraya geçer; boşsa sağlayıcı varsayılanı kullanılır.
     /// Not: alfanümerik başlık Türkiye'de operatör kaydı ister — kayıtsız başlık teslim edilmez.</param>
-    Task<bool> SendAsync(string phone, string message, string? gonderen = null, CancellationToken ct = default);
+    Task<bool> SendAsync(string phone, string message, string? sender = null, CancellationToken ct = default);
 }
 
 // ───────────────────────── E-posta (bildirim omurgası) ─────────────────────────
@@ -28,7 +28,7 @@ public sealed record EpostaSonuc(bool Ok, string? Hata);
 /// </summary>
 public interface IEmailSender
 {
-    Task<EpostaSonuc> SendAsync(SmtpAyar ayar, EpostaMesaj mesaj, CancellationToken ct = default);
+    Task<EpostaSonuc> SendAsync(SmtpAyar setting, EpostaMesaj message, CancellationToken ct = default);
 }
 
 public interface IWhatsAppService
@@ -107,24 +107,24 @@ public sealed record PosResult(bool Success, string? TxRef, string? Error);
 /// üstümüze alırdı.</para>
 ///
 /// <para><b>Sonuç ASLA istemciden okunmaz:</b> müşteri dönüş adresine ne gönderirse göndersin,
-/// gerçek durum <see cref="SonucAsync"/> ile SUNUCUDAN sorulur.</para>
+/// gerçek durum <see cref="ResultAsync"/> ile SUNUCUDAN sorulur.</para>
 /// </summary>
 public interface IPosService
 {
     /// <summary>Barındırılan ödeme sayfasını açar (provizyon ya da tahsilat).</summary>
-    Task<PosBaslatSonuc> BaslatAsync(PosOdemeIstegi istek, CancellationToken ct = default);
+    Task<PosBaslatSonuc> StartAsync(PosOdemeIstegi request, CancellationToken ct = default);
 
     /// <summary>Dönüş sonrası gerçek sonucu sağlayıcıdan sorar.</summary>
-    Task<PosDurumSonuc> SonucAsync(string token, CancellationToken ct = default);
+    Task<PosDurumSonuc> ResultAsync(string token, CancellationToken ct = default);
 
     /// <summary>Provizyonu kapatır (bloke tutarı tahsile çevirir). Kısmi tutar desteklenir.</summary>
-    Task<PosResult> KapatAsync(string odemeId, decimal tutar, string ip, CancellationToken ct = default);
+    Task<PosResult> CloseAsync(string paymentId, decimal amount, string ip, CancellationToken ct = default);
 
     /// <summary>Ödemeyi/provizyonu iptal eder (aynı gün; bloke çözülür).</summary>
-    Task<PosResult> IptalAsync(string odemeId, string ip, CancellationToken ct = default);
+    Task<PosResult> CancelAsync(string paymentId, string ip, CancellationToken ct = default);
 
     /// <summary>Tahsil edilmiş tutarı iade eder (kısmi olabilir).</summary>
-    Task<PosResult> IadeAsync(string islemId, decimal tutar, string ip, CancellationToken ct = default);
+    Task<PosResult> RefundAsync(string transactionId, decimal amount, string ip, CancellationToken ct = default);
 }
 
 // ───────────────────────── Regülasyon (Faz 3) ─────────────────────────
@@ -134,7 +134,7 @@ public sealed record KabisBildirim(string SozlesmeNo, string Plaka, string TcKim
 public interface IKabisService
 {
     /// <summary>Kira sözleşmesi emniyet bildirimi.</summary>
-    Task<bool> BildirAsync(KabisBildirim bildirim, CancellationToken ct = default);
+    Task<bool> NotifyAsync(KabisBildirim notification, CancellationToken ct = default);
 }
 
 public sealed record TollCrossing(DateTimeOffset Zaman, string Gecis, decimal Tutar);
@@ -142,5 +142,5 @@ public sealed record TollCrossing(DateTimeOffset Zaman, string Gecis, decimal Tu
 public interface IHgsService
 {
     Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(
-        string plaka, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+        string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 }

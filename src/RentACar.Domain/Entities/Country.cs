@@ -7,7 +7,7 @@ namespace RentACar.Domain.Entities;
 /// Tenant-owned + auditable. Cari/sürücü uyruğu ve adres formlarındaki Ülke açılır listesini besler
 /// (additive — serbest metin alan string kalır).
 /// </summary>
-public class Country : ITenantOwned, IAuditable, IMasterTanim
+public class Country : ITenantOwned, IAuditable, IMasterDefinition
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

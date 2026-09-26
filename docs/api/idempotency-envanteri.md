@@ -14,7 +14,7 @@ Tabloyu değiştiren PR testi de değiştirmek zorunda.
 
 | Sonuç | HTTP (`/api/ui`, F1.1 `UiHata`) | Harici `RentACar.Api` |
 |---|---|---|
-| **409 mükerrer** (`MukerrerIslemException`) | 409 `mukerrer` → SPA kaydı yeniden yükler | 409 `duplicate_submission` |
+| **409 mükerrer** (`DuplicateOperationException`) | 409 `mukerrer` → SPA kaydı yeniden yükler | 409 `duplicate_submission` |
 | **400 doğrulama** (`ValidationException`) | 400 `dogrulama` | 400 `validation` |
 | **Sessiz** | 200 (ilk işlemin sonucu ya da no-op) | 200/201 |
 
@@ -23,7 +23,7 @@ Tabloyu değiştiren PR testi de değiştirmek zorunda.
 Adversarial MEDIUM-1 düzeltmesi: sessiz başarı veren her satırda kayıtlı işlemin **hedefi ve tutarı** gelen istekle karşılaştırılır.
 
 - **Aynıysa:** sessiz başarı.
-- **Farklıysa:** **409** `MukerrerIslemException.FarkliIcerikMesaji` = "Bu işlem anahtarı farklı içerikle zaten kullanılmış; işlem daha önce kaydedilmiş olabilir. Yeniden göndermeden önce kayıtları kontrol edin." Hiçbir şey yazılmaz.
+- **Farklıysa:** **409** `DuplicateOperationException.FarkliIcerikMesaji` = "Bu işlem anahtarı farklı içerikle zaten kullanılmış; işlem daha önce kaydedilmiş olabilir. Yeniden göndermeden önce kayıtları kontrol edin." Hiçbir şey yazılmaz.
 
 Önceden aynı anahtar başka cari/tutarla gelince ikinci isteğin parası yazılmıyordu ama kullanıcıya "başarılı" dönüyordu.
 
@@ -57,22 +57,22 @@ Kural yarış yolunda da geçerli:
 | E06 | `CashService.TransferAsync` (kasa↔banka virman) `CashService.cs:401` | IslemAnahtari → `SourceId` + künye `KasaVirmanBilgi.Id`; `IX_AccountLedgerEntries_Virman_Idem` | Aynı içerik: **sessiz** no-op. Farklı tutar/yön/hesap: **409** farklı içerik (`LedgerPoster.cs:46`, F1.4 MEDIUM-1; önceden her unique ihlali sessizce yutuluyordu). Künye PK'si başka kiracıda: 400 | kısıt + içerik karşılaştırma | doğrulandı (test E06, M4) |
 | E07 | `CashService.TransferBetweenCariAsync` `CashService.cs:475` | IslemAnahtari → `SourceId` + `CariVirmanBilgi.Id`; `IX_AccountLedgerEntries_CariVirman_Idem` | Aynı içerik: **sessiz**. Başka cari/tutar: **409** farklı içerik | kısıt + içerik karşılaştırma | doğrulandı (test E07, M4) |
 | E08 | `CashService.ReverseAsync` `CashService.cs:530` | Yapısal `IX_CashTransactions_TenantId_TersAlinanId` + ön-kontrol | **409** "Bu işlem zaten ters kaydedilmiş." **F1.4 değişikliği** (önce: sıralı 400, yarışta 409). Ters kaydın tersi iş kuralı: 400 | ön-kontrol + kısıt, aynı tip ve metin | doğrulandı (test, eşzamanlı + Api) |
-| E09 | `DepozitoService.AlAsync` `Finance/DepozitoService.cs:33` | IslemAnahtari → `SourceId`; `IX_AccountLedgerEntries_Depozito_Idem` (SourceType DAHİL — türler arası tekilliği index DEĞİL kod sağlar, aşağıya bak) | Aynı içerik: **sessiz**, aynı id (= anahtar). Başka cari/tutar/hesap: **409** farklı içerik. **Anahtar TÜM depozito türlerinde tekil (#299 L2):** aynı anahtarla başka türde (al ↔ iade/mahsup/irat) küme varsa **409** `mukerrer` + `mevcut{id, belgeNo = işlem türü, tutar, doviz, ayniIcerik:false}`, hiçbir şey yazılmaz (önce: iade al'ın anahtarıyla 200 ve aynı id dönüp İKİNCİ kümeyi yazıyordu) | anahtar kilidi (`depozito-anahtar:{tenant}:{anahtar}`, cari kilidinden ÖNCE) + türler arası anahtar araması + içerik (kilit içi ve yarış catch'i) | doğrulandı (test E09; türler arası servis `E09_E11_Depozito_anahtari_TURLER_ARASI_…`, Api `Deposit_key_is_unique_across_deposit_operation_types`, eşzamanlı `Concurrent_cross_type_requests_with_one_key_write_exactly_once`; başka kiracının irat anahtarı 400 `E12_Depozito_irat_BASKA_KIRACININ_…`) |
-| E10 | `DepozitoService.IadeAsync` `DepozitoService.cs:47` | E09 ile aynı | Aynı içerik: **sessiz**, tamamı iade edilse de (önce: tam iadenin tekrarı bakiye çitinde 400). Başka cari/tutar/hesap: **409** farklı içerik. Farklı carilerin aynı anahtarla yarışı: biri yazılır, diğeri 409 | anahtar önce + içerik (`CashRepository.cs:317`, `:402`) | doğrulandı (test E10, M2 sıralı + eşzamanlı) |
-| E11 | `DepozitoService.MahsupAsync` `DepozitoService.cs:58` | E09 ile aynı | E10 ile aynı kural (türler arası anahtar kuralı E09'daki gibi E10–E12'de de geçerli) | anahtar önce + içerik | doğrulandı (test E11) |
-| E12 | `DepozitoService.IratAsync` `DepozitoService.cs:67` | IslemAnahtari → `SourceId` + `DepozitoIrat.Id` | E10 ile aynı kural; ayrıca başka kira atfı → **409**. Başka kiracının Id'sine çarpan anahtar: 400 | anahtar önce + içerik + kira | doğrulandı (test E12, M6) |
-| E13 | `BakiyeDuzeltmeService.AdjustAsync` `Finance/BakiyeDuzeltmeService.cs:75` | IslemAnahtari → `SourceId`; `IX_AccountLedgerEntries_BakiyeDuzeltme_Idem` | Aynı içerik: **sessiz**, aynı id. Başka cari/yön/tutar: **409** farklı içerik | kısıt + içerik karşılaştırma (`LedgerPoster`) | doğrulandı (test E13, M4) |
+| E09 | `DepositService.AlAsync` `Finance/DepositService.cs:33` | IslemAnahtari → `SourceId`; `IX_AccountLedgerEntries_Depozito_Idem` (SourceType DAHİL — türler arası tekilliği index DEĞİL kod sağlar, aşağıya bak) | Aynı içerik: **sessiz**, aynı id (= anahtar). Başka cari/tutar/hesap: **409** farklı içerik. **Anahtar TÜM depozito türlerinde tekil (#299 L2):** aynı anahtarla başka türde (al ↔ iade/mahsup/irat) küme varsa **409** `mukerrer` + `mevcut{id, belgeNo = işlem türü, tutar, doviz, ayniIcerik:false}`, hiçbir şey yazılmaz (önce: iade al'ın anahtarıyla 200 ve aynı id dönüp İKİNCİ kümeyi yazıyordu) | anahtar kilidi (`depozito-anahtar:{tenant}:{anahtar}`, cari kilidinden ÖNCE) + türler arası anahtar araması + içerik (kilit içi ve yarış catch'i) | doğrulandı (test E09; türler arası servis `E09_E11_Depozito_anahtari_TURLER_ARASI_…`, Api `Deposit_key_is_unique_across_deposit_operation_types`, eşzamanlı `Concurrent_cross_type_requests_with_one_key_write_exactly_once`; başka kiracının irat anahtarı 400 `E12_Depozito_irat_BASKA_KIRACININ_…`) |
+| E10 | `DepositService.IadeAsync` `DepositService.cs:47` | E09 ile aynı | Aynı içerik: **sessiz**, tamamı iade edilse de (önce: tam iadenin tekrarı bakiye çitinde 400). Başka cari/tutar/hesap: **409** farklı içerik. Farklı carilerin aynı anahtarla yarışı: biri yazılır, diğeri 409 | anahtar önce + içerik (`CashRepository.cs:317`, `:402`) | doğrulandı (test E10, M2 sıralı + eşzamanlı) |
+| E11 | `DepositService.MahsupAsync` `DepositService.cs:58` | E09 ile aynı | E10 ile aynı kural (türler arası anahtar kuralı E09'daki gibi E10–E12'de de geçerli) | anahtar önce + içerik | doğrulandı (test E11) |
+| E12 | `DepositService.IratAsync` `DepositService.cs:67` | IslemAnahtari → `SourceId` + `DepozitoIrat.Id` | E10 ile aynı kural; ayrıca başka kira atfı → **409**. Başka kiracının Id'sine çarpan anahtar: 400 | anahtar önce + içerik + kira | doğrulandı (test E12, M6) |
+| E13 | `BalanceAdjustmentService.AdjustAsync` `Finance/BalanceAdjustmentService.cs:75` | IslemAnahtari → `SourceId`; `IX_AccountLedgerEntries_BakiyeDuzeltme_Idem` | Aynı içerik: **sessiz**, aynı id. Başka cari/yön/tutar: **409** farklı içerik | kısıt + içerik karşılaştırma (`LedgerPoster`) | doğrulandı (test E13, M4) |
 | E14 | `InvoiceService.CreateManualAsync` `Finance/InvoiceService.cs:445` | IslemAnahtari = **fatura PK'si** (`PK_Invoices`) | Aynı içerik (cari, net, KDV): **sessiz**, mevcut fatura id'si. Başka cari ya da tutar: **409** farklı içerik. Bu kural hem sıralı ön-kontrolde hem yarış yolunda geçerli. Önce ön-kontrol her durumda ilk faturanın id'sini sessizce dönüyordu (P1). Yarışı kaybeden istek ise PK'ye çarpıp 400 "Kira zaten faturalanmış." alıyordu. Id başka kiracıdaysa 400 "İşlem anahtarı başka bir kayıtla çakıştı" (`InvoiceRepository.cs:251`) | ön-kontrol + PK + içerik | doğrulandı (test E14, M1 sıralı + eşzamanlı, A2b) |
 | E15 | `InvoiceService.CreateFromRentalAsync` `InvoiceService.cs:118` | Yapısal `IX_Invoices_TenantId_RentalId` + fark sırası `(KaynakKiraId, KaynakKiraFarkSira)` + kira danışma kilidi | **400** "Kira zaten tam faturalanmış (yeni ek bedel yok)." (yarışta "Kira bu sırada faturalandı…", tip aynı: `ValidationException`). Dönüş sonrası yeni bedel varsa ikinci çağrı meşru fark faturasıdır | kilit + kısıt | doğrulandı (test, eşzamanlı dahil) |
 | E16 | `InvoiceService.BatchCreateFromRentalsAsync` `InvoiceService.cs:84` | E15'e devreder (atomik değil, bilinçli) | **Sessiz**: yeni belge yok, her kira "atlananlar" listesine yazılır | E15 | doğrulandı (test) |
 | E17 | `InvoiceService.CreateIadeAsync` `InvoiceService.cs:516` | Yapısal `IX_Invoices_TenantId_KaynakFaturaId` + ön-kontrol | **400** "Bu fatura zaten iade edilmiş." (yarışta da aynı metin) | ön-kontrol + kısıt | doğrulandı (test) |
 | E18 | `InvoiceService.CreateDonemFaturasiAsync` `InvoiceService.cs:273` | Yapısal: dönem durumu + `(KaynakKiraId, KaynakKiraFarkSira)` + kira danışma kilidi | **Sessiz**, mevcut fatura id'si. **F1.4 değişikliği**: yarışı kaybeden istek 400 ("Kira faturaları bu sırada değişti" / "kesilecek tahakkuk kalmadı") alıyordu; artık kilit içinde Kesildi görülür ve aynı id döner (`InvoiceRepository.cs:325`). Açık verilen KDV oranı mevcut faturanınkinden farklıysa **409** farklı içerik (`InvoiceService.cs:366`) | kilit içi durum + oran karşılaştırma | doğrulandı (test E18 eşzamanlı, M7) |
-| E19 | `DonemTahsilatService.KesVeTahsilEtDetayAsync` `FaturaDonemleri/FaturaDonemFiles.cs:70` | E18 + deterministik `RowKey(kiraId, dönemSıra)` | **Sessiz**: aynı fatura, `TahsilatYazildi = false`. Başka hesapla tekrar edilirse de tahsilat yazılmaz ama bu gizlenmez: çağıran "tahsilat daha önce alınmış" bildirir. **Low-B (R04):** `RowKey`'li kayıt bu kiranın tahsilatı ama tutarı/dövizi/kuru dönem faturasından FARKLIYSA (Blazor ham anahtarla önden alınmış) **409** `mukerrer` + `mevcut{ayniIcerik=false}`; fatura kesilmiş, dönem tahsilatı yazılmamış | E18 + E01 + içerik karşılaştırma | doğrulandı (test, `LowTemizligiBTests.R04_*`) |
-| E20 | `OtomatikTahsilatService.CalistirAsync` `FaturaDonemleri/OtomatikTahsilatService.cs:90` | Aday çiti (yalnız Planlandi) + E19 | **Sessiz**: `Kesilen = 0, Tahsilat = 0`, her dönem atlananlarda | aday listesi | doğrulandı (test) |
+| E19 | `PeriodCollectionService.KesVeTahsilEtDetayAsync` `FaturaDonemleri/FaturaDonemFiles.cs:70` | E18 + deterministik `RowKey(kiraId, dönemSıra)` | **Sessiz**: aynı fatura, `TahsilatYazildi = false`. Başka hesapla tekrar edilirse de tahsilat yazılmaz ama bu gizlenmez: çağıran "tahsilat daha önce alınmış" bildirir. **Low-B (R04):** `RowKey`'li kayıt bu kiranın tahsilatı ama tutarı/dövizi/kuru dönem faturasından FARKLIYSA (Blazor ham anahtarla önden alınmış) **409** `mukerrer` + `mevcut{ayniIcerik=false}`; fatura kesilmiş, dönem tahsilatı yazılmamış | E18 + E01 + içerik karşılaştırma | doğrulandı (test, `LowTemizligiBTests.R04_*`) |
+| E20 | `AutoCollectionService.CalistirAsync` `FaturaDonemleri/AutoCollectionService.cs:90` | Aday çiti (yalnız Planlandi) + E19 | **Sessiz**: `Kesilen = 0, Tahsilat = 0`, her dönem atlananlarda | aday listesi | doğrulandı (test) |
 | E21 | `ExpenseService.CreateAsync` (tekil gider) `Expenses/ExpenseService.cs:41` | **Önce yoktu.** F1.4: `ExpenseInput.IslemAnahtari` → mevcut `IX_Expenses_TenantId_IslemAnahtari` (kolon ve index zaten vardı, migration yok) + repo'ya catch (`ExpenseRepository.cs:174`) | Anahtarlı: **409** "Bu gider zaten kaydedilmiş (çift gönderim)." · anahtarsız: iki ayrı gider (bugünkü Blazor formu anahtar göndermiyor) | kısıt | doğrulandı (test) |
 | E22 | `ExpenseService.BatchCreateAsync` `ExpenseService.cs:57` | Deterministik `RowKey(parti, i)` (E21 index) | **409** "Bu toplu gider zaten kaydedilmiş." | kısıt | doğrulandı (test) |
 | E23 | `ExpenseService.OdemeEkleAsync` (gider ödeme takibi, deftere yazmaz) `ExpenseService.cs:109` | Deterministik `gider:{id}:odeme:{sıra}` + IslemAnahtari `IX_GiderOdemeleri_TenantId_IslemAnahtari` | Aynı gider + aynı tutar: **sessiz** `null`, kalanın tamamı ödense de (önce: tam ödemenin tekrarı 400 "kalanı yok"). Başka gider/tutar: **409** farklı içerik (P4; önce sessiz `null`). Farklı giderlerin aynı anahtarla yarışı: biri yazılır, diğeri 409 | anahtar önce + içerik (`ExpenseRepository.cs:80`, `:150`) | doğrulandı (test E23, M3 sıralı + eşzamanlı) |
-| E24 | `GelenEFaturaService.GiderlestirAsync` `GelenEFaturalar/GelenEFaturaService.cs:198` | Deterministik `RowKey(faturaId, i)` (E21 index) + ön-kontrol | **409** "'…' ETTN'li fatura zaten giderleştirilmiş." **F1.4 değişikliği** (önce: sıralı 400, yarışta 409) | ön-kontrol + kısıt | doğrulandı (test) |
+| E24 | `IncomingEInvoiceService.GiderlestirAsync` `GelenEFaturalar/IncomingEInvoiceService.cs:198` | Deterministik `RowKey(faturaId, i)` (E21 index) + ön-kontrol | **409** "'…' ETTN'li fatura zaten giderleştirilmiş." **F1.4 değişikliği** (önce: sıralı 400, yarışta 409) | ön-kontrol + kısıt | doğrulandı (test) |
 | E25 | `PenaltyService.YansitAsync` `Penalties/PenaltyService.cs:113` | Yapısal: `Durum = Yeni` + `FOR UPDATE` | **400** "Yalnız 'Yeni' durumundaki ceza yansıtılabilir." **F1.4 değişikliği**: yarışı kaybeden istek önce sessizce `false` dönüyordu (Blazor "başarılı" gösteriyordu); artık aynı 400 (`PenaltyRepository.cs:169`) | kilit içi durum | doğrulandı (test, eşzamanlı dahil) |
 | E26 | `PenaltyService.KismiOdeAsync` `PenaltyService.cs:148` | IslemAnahtari `IX_PenaltyOdemeleri_TenantId_IslemAnahtari` + deterministik `ceza:…:odeme:{sıra}` + danışma kilidi | Anahtarlı: **409** "Bu ceza ödemesi zaten kaydedilmiş (çift gönderim)." (tam ödemede de). **F1.4 değişikliği** (önce: tam ödemenin tekrarı 400 "ödenecek bakiye yok"). Anahtarsız tam ödemenin tekrarı 400; anahtarsız kısmi tekrar ikinci ödemedir | anahtar önce (`PenaltyRepository.cs:207`) | doğrulandı (test: tam + kısmi) |
 | E27 | `RegulationService.MtvOdeAsync` `Regulation/RegulationService.cs:148` | IslemAnahtari `IX_MtvOdemeleri_TenantId_IslemAnahtari` (kısmi ödemede zorunlu) + yapısal `Odendi` + `FOR UPDATE` | Anahtarlı: **409** "Bu MTV ödemesi zaten kaydedilmiş (çift gönderim)." (tam ödemede de). **F1.4 değişikliği** (önce: kaydı kapatan ödemenin tekrarı 400). Anahtarsız tam ödemenin tekrarı **400** "MTV zaten ödendi." | anahtar önce (`RegulationRepository.cs:63`) | doğrulandı (test: anahtarlı tam, kısmi, anahtarsız) |
@@ -80,14 +80,14 @@ Kural yarış yolunda da geçerli:
 | E29 | `RegulationService.SigortaOdeAsync` `RegulationService.cs:326` | Yapısal: `Odendi` + `SourceId = poliçeId` `IX_AccountLedgerEntries_SigortaOdeme_Idem` | **400** "Sigorta zaten ödendi." (yarışta da aynı metin, catch düz `ValidationException`) | ön-kontrol + kısıt | doğrulandı (test) |
 | E30 | `ServiceRecordService.YansitAsync` `ServiceRecords/ServiceRecordService.cs:165` | Yapısal: `Yansitildi` + `SourceId = servisId` `IX_AccountLedgerEntries_ServisYansitma_Idem` | **400** "Servis maliyeti zaten yansıtıldı." (yarışta aynı) | ön-kontrol + kısıt | doğrulandı (test) |
 | E31 | `HgsReflectionService.ReflectAsync` `Hgs/HgsReflectionService.cs:24` | Deterministik `SourceId = MD5(cari, plaka, dönem)`; `IX_AccountLedgerEntries_TenantId_SourceType_SourceId_Direction` | Aynı tutar: **sessiz**, aynı sonuç, ikinci yazım yok. Aynı dönem, farklı geçiş tutarı: **409** farklı içerik (önce sessizce yutuluyordu, fark hiç borçlandırılmıyordu) | kısıt + içerik karşılaştırma (`LedgerPoster`) | doğrulandı (test E31, M5) |
-| E32 | `AracKrediService.TaksitOdeAsync` `AracKredileri/AracKrediService.cs:74` | IslemAnahtari → `Expense.IslemAnahtari` (E21 index) + `FOR UPDATE` | Anahtarlı: **409** "Bu taksit ödemesi zaten kaydedilmiş (çift gönderim)." — son taksitte de. **F1.4 değişikliği** (önce: ara taksitte 400 [catch `IdempotencyKisiti`'ye bağlı değildi], son taksitte sessiz `false`). Anahtarsız: sonraki taksidi öder; hepsi ödendiyse `false` | anahtar önce (`AracKrediRepository.cs:87`) | doğrulandı (test: ara + son taksit) |
-| E33 | `DisHizmetService.CreateAsync` `DisHizmetler/DisHizmetFiles.cs:66` | IslemAnahtari `IX_DisHizmetAlimlari_TenantId_IslemAnahtari` | **409** "Bu dış hizmet kaydı zaten girilmiş (çift gönderim)." | kısıt | doğrulandı (test) |
-| E34 | `DisHizmetService.IptalEtAsync` `DisHizmetFiles.cs:121` | Yapısal `Durum` (kilit içi yeniden kontrol) | **400** "Kayıt zaten iptal edilmiş." (yarışta "…(eşzamanlı istek)", tip aynı) | ön-kontrol + kilit | doğrulandı (test) |
+| E32 | `VehicleLoanService.TaksitOdeAsync` `AracKredileri/VehicleLoanService.cs:74` | IslemAnahtari → `Expense.IslemAnahtari` (E21 index) + `FOR UPDATE` | Anahtarlı: **409** "Bu taksit ödemesi zaten kaydedilmiş (çift gönderim)." — son taksitte de. **F1.4 değişikliği** (önce: ara taksitte 400 [catch `IdempotencyKisiti`'ye bağlı değildi], son taksitte sessiz `false`). Anahtarsız: sonraki taksidi öder; hepsi ödendiyse `false` | anahtar önce (`AracKrediRepository.cs:87`) | doğrulandı (test: ara + son taksit) |
+| E33 | `OutsourcedServiceService.CreateAsync` `DisHizmetler/DisHizmetFiles.cs:66` | IslemAnahtari `IX_DisHizmetAlimlari_TenantId_IslemAnahtari` | **409** "Bu dış hizmet kaydı zaten girilmiş (çift gönderim)." | kısıt | doğrulandı (test) |
+| E34 | `OutsourcedServiceService.IptalEtAsync` `DisHizmetFiles.cs:121` | Yapısal `Durum` (kilit içi yeniden kontrol) | **400** "Kayıt zaten iptal edilmiş." (yarışta "…(eşzamanlı istek)", tip aynı) | ön-kontrol + kilit | doğrulandı (test) |
 | E35 | `VehicleSaleService.CreateAsync` `VehicleSales/VehicleSaleService.cs:44` | Yapısal: araç `Satildi` + `IX_VehicleSales_TenantId_VehicleId` (Durum = Tamamlandı) | **400** "Araç zaten satılmış." (yarışta aynı) | kilit içi + kısıt | doğrulandı (test) |
-| E36 | `DonemKapanisFisiService.KapatAsync` `Periods/DonemKapanisFisiService.cs:42` | Yapısal: kapanış tarihi + kiracı danışma kilidi (`DonemKapanisRepository.cs:27`) | **400** "Dönem zaten … tarihine kapalı. …" (yarışta aynı metin) | ön-kontrol + kilit | doğrulandı (test) |
+| E36 | `PeriodClosingVoucherService.KapatAsync` `Periods/PeriodClosingVoucherService.cs:42` | Yapısal: kapanış tarihi + kiracı danışma kilidi (`DonemKapanisRepository.cs:27`) | **400** "Dönem zaten … tarihine kapalı. …" (yarışta aynı metin) | ön-kontrol + kilit | doğrulandı (test) |
 | E37 | `RentalAddOnService.AddAsync` `RentalAddOns/RentalAddOnService.cs:30` (Low-B) | IslemAnahtari (yalnız `/api/ui` ucu; başlık ZORUNLU) + kısmi unique `IX_RentalAddOns_TenantId_IslemAnahtari` + kira satır kilidi altında yeniden arama | **409** `mukerrer` her durumda (kalem kira toplamını değiştirir; sessiz başarı yok). Bu kiranın kalemiyse `mevcut{id, belgeNo=ad, tutar=brüt, doviz=TRY, ayniIcerik}` (tanım + miktar birebir → `true`); başka kiranın kalemiyse `mevcut` yok. Blazor ve SYS-* sistem kalemleri anahtarsız (davranış değişmedi) | kapsam → anahtar (ön-kontrol) → iş kuralları; kilit altı yeniden kontrol; kısıt | doğrulandı (test `LowTemizligiBUiTests.Ek_hizmet_*`, eşzamanlı 6 istek) |
 
-**Kapsam dışı (para yazmaz, listelendi):** `MusteriTaksitService.OdemeIsaretleAsync` (`MusteriTaksitleri/MusteriTaksitFiles.cs:134`, takip bayrağı; tekrar aynı durumu yazar), `RentalService.ProvizyonAlAsync` (`Bookings/RentalService.cs:379`, manuel provizyon izi, deftere yazmaz), `IPosService` (henüz para yoluna bağlı değil). `RentACar.Api` (harici JWT API) tahsilat/ödeme/virman uçları anahtar almıyor; Non-Goals gereği değiştirilmedi.
+**Kapsam dışı (para yazmaz, listelendi):** `CustomerInstallmentService.OdemeIsaretleAsync` (`MusteriTaksitleri/MusteriTaksitFiles.cs:134`, takip bayrağı; tekrar aynı durumu yazar), `RentalService.ProvizyonAlAsync` (`Bookings/RentalService.cs:379`, manuel provizyon izi, deftere yazmaz), `IPosService` (henüz para yoluna bağlı değil). `RentACar.Api` (harici JWT API) tahsilat/ödeme/virman uçları anahtar almıyor; Non-Goals gereği değiştirilmedi.
 
 ## `/api/ui` için anahtar seçimi (F1.2+ uçları)
 
@@ -103,7 +103,7 @@ input.IslemAnahtari = IdempotencyBasligi.Anahtar(ctx);
 `ZorunluAnahtar` kullanılmalı: anahtarsız çağrı her seferinde yeni işlemdir (E01, E21). Başlıksız bir SPA isteği çift yazıma açık kalır.
 
 - `Web/Common/IdempotencyBasligi.cs`: `Idempotency-Key` başlığını okur, kiracı ve kullanıcıyı **oturum claim'lerinden** alır.
-- `Application/Common/IslemAnahtariTuretici.cs`: `UUIDv5(2adf1c10-4f5c-4c27-bad3-3294d841ee0c, "{tenantId}|{userId}|{başlık}")`. Ad alanı sabittir, asla değişmez.
+- `Application/Common/OperationKeyDeriver.cs`: `UUIDv5(2adf1c10-4f5c-4c27-bad3-3294d841ee0c, "{tenantId}|{userId}|{başlık}")`. Ad alanı sabittir, asla değişmez.
 - Öncelik (`Sec`): deterministik anahtar ▸ başlıktan türetilen ▸ `null`. Başlık deterministik anahtarı ezemez.
 - Başlık 16–128 karakter, yalnız görünür ASCII. Biçimsiz ya da çok değerli başlık 400 (`errors["Idempotency-Key"]`), deterministik anahtar olsa bile.
 - İstemci değeri hiçbir zaman doğrudan anahtar ya da PK olmaz.
@@ -138,7 +138,7 @@ bakiye + güncel işlem sayısıyla `TahsilatAnahtar.Uret` üzerinden YENİDEN h
 ya da sade "300" kabul). Eşit değilse 409 `mukerrer`: ya ekran açıldıktan sonra kirada işlem oldu (bayat; SPA kaydı
 yeniden yükler ve yeni anahtarı alır) ya da anahtar bu kiraya ait değil (başka kiranın ya da başka bir işlemin
 tahmin edilebilir anahtarı — ör. dönem tahsilatının `RowKey`'i). Ham değer anahtar olarak korunur: Blazor pano/kira
-listesi ile SPA aynı anahtara düşer. Ek çit: `DonemTahsilatService` "zaten kaydedilmiş" dalında `RowKey`'li kaydın
+listesi ile SPA aynı anahtara düşer. Ek çit: `PeriodCollectionService` "zaten kaydedilmiş" dalında `RowKey`'li kaydın
 bu kiranın tahsilatı olduğunu doğrular; değilse sessiz no-op yerine 400 (fatura kesilmiş, tahsilat yazılmamış).
 
 Uç katmanının servise EKLEDİĞİ giriş kuralları (hepsi yazmadan önce 400/403):
@@ -155,9 +155,9 @@ Uç katmanının servise EKLEDİĞİ giriş kuralları (hepsi yazmadan önce 400
   409 yerine 400 alır — LOW-1 ile aynı sınıf, para etkisi yok.
 
 Servis düzeyinde (Blazor da kapsanır):
-- **HIGH-1:** `KurCozucu` temel para (TRY) işleminde açık kur ≠ 1'i reddeder (`ValidationException(…, "kur")`).
+- **HIGH-1:** `ExchangeRateResolver` temel para (TRY) işleminde açık kur ≠ 1'i reddeder (`ValidationException(…, "kur")`).
   Önce 100 TRY @5 kabul ediliyor, baz 500'e şişiyordu (kira Tahsilat, cari, kasa).
-- **MEDIUM-2:** `CashService` tahsilat/ödeme ve `DepozitoService` al/iade/irat carinin kiracıda var olduğunu
+- **MEDIUM-2:** `CashService` tahsilat/ödeme ve `DepositService` al/iade/irat carinin kiracıda var olduğunu
   doğrular (`errors.cariId`); rastgele ya da başka kiracının cari kimliğine yetim defter kümesi yazılmaz.
 - **L1:** depozito al/iade hesap seçiminde hesap-döviz çiti (tahsilattaki FAZ-50 M4 gibi).
 
@@ -228,14 +228,14 @@ Kilit: `tests/RentACar.IntegrationTests/UiAracFinansTests*.cs`. Uç kodu: `Web/A
 |---|---|---|---|
 | `POST arac-kredileri/{id}/taksit-ode` | E32 | başlık zorunlu; gövdede `sira` (ödenecek taksit) | Önce aynı anahtarla yazılmış gider aranır → 409 `mukerrer` + `mevcut{…, ayniIcerik}` (sıra, hesap türü, hesap, açık tarih). SONRA bayatlık: `sira ≠ OdenenTaksit+1` kilit altında → 409 `cakisma` (iki sekme iki taksit ödemez). Anahtar başka işlemin ise `mevcut`suz 409 |
 | `POST arac-kredileri` | yeni | başlık zorunlu → kredi **Id** | aynı içerik 409 `mevcut.ayniIcerik=true`; farklı içerik `false`; yarışta PK ihlali → 409 |
-| `POST musteri-taksitleri`, `…/plan` | yeni (deftere yazmaz) | başlık zorunlu → Id; planda Id'ler anahtardan türetilir (`MusteriTaksitService.PlanSatirId`) | 409 `mukerrer` + `mevcut` (planda tutar = plan toplamı); yarım plan yazılmaz |
+| `POST musteri-taksitleri`, `…/plan` | yeni (deftere yazmaz) | başlık zorunlu → Id; planda Id'ler anahtardan türetilir (`CustomerInstallmentService.PlanSatirId`) | 409 `mukerrer` + `mevcut` (planda tutar = plan toplamı); yarım plan yazılmaz |
 | `POST musteri-taksitleri/{id}/odendi` | kapsam dışı satırın kilitli hali | yok (yapısal) | ödenmiş taksit → 409 `mukerrer` + `mevcut` (tarih sessizce ezilmez) |
 | `POST arac-siparisleri` | yeni (deftere yazmaz) | başlık zorunlu → Id | 409 `mukerrer` + `mevcut` (tutar = adet × birim fiyat) |
 | `POST baflar`, `POST hasar-dosyalari` | yeni (para yok) | başlık isteğe bağlı → Id | başlıkla 409; başlıksız bağımsız kayıt |
 | durum geçişleri (sipariş, BAF, hasar, filo delta) | yapısal | yok | satır kilidi altında durum çiti (`SatirSurumu`); PUT'lar zorunlu `surum` → 409 `cakisma` |
 
-TRY işlemde açık kur ≠ 1 uçta 400 (`errors.kur`); dövizde boş kur `KurCozucu` ile çözülür. Taksit ödemesinde hesap-döviz
-çiti artık uygulanıyor (`HesapCozucu.CozAsync(…, kredi.Currency)`).
+TRY işlemde açık kur ≠ 1 uçta 400 (`errors.kur`); dövizde boş kur `ExchangeRateResolver` ile çözülür. Taksit ödemesinde hesap-döviz
+çiti artık uygulanıyor (`AccountResolver.CozAsync(…, kredi.Currency)`).
 
 ### `/api/ui/v1` servis / sigorta / fiyat uç eşlemesi (F9.1)
 
@@ -251,7 +251,7 @@ Kilit: `tests/RentACar.IntegrationTests/UiServiceInsuranceTests*.cs`. Uç kodu: 
 | tanım PUT'ları (tarifeler, tarife matrisi, gruplar, ürünler, kurallar, broker, ek hizmet, servis tanımı), `PUT servisler/{id}/bilgi`, `PUT maliyet-teklifleri/{id}` | yapısal | yok | zorunlu `surum`; kilit altında karşılaştırma (`IRowVersionStore`) → 409 `cakisma` |
 
 Ödemelerde tutar en çok 2 ondalık, 0 ve negatif red; MTV/muayene yalnız TRY (hesap-döviz çiti TRY); sigortada TRY'de
-kur ≠ 1 red, döviz poliçede boş kur `KurCozucu`, `(prim + zeyil) × çözülen kur` < 10^15 ve hesap-döviz çiti poliçe dövizi.
+kur ≠ 1 red, döviz poliçede boş kur `ExchangeRateResolver`, `(prim + zeyil) × çözülen kur` < 10^15 ve hesap-döviz çiti poliçe dövizi.
 
 ### `/api/ui/v1` finans belge uç eşlemesi (F8.1b)
 
@@ -280,8 +280,8 @@ entegrasyonu yapılandırılmamışken 400 döner (dürüst stub).
 
 - **LOW-2 (e-Fatura hayalet gönderimi):** dönem faturası yarışında kaybeden istek `eInvoice.SendAsync`'i (`InvoiceService.cs:353`) çağırıyor. Bu çağrı, `PostDonemAsync` mevcut id'yi dönmeden **önce** yapılıyor. Stub bugün `false` döndüğü için etkisi yok. Gerçek GİB bağlanınca yazılmayan bir fatura için ETTN alınır. **Gerçek e-Fatura açılmadan önce düzeltilmeli:** gönderimi commit'ten sonraya taşı ya da yalnız yazılan faturada yap. Aynı desen kira/fark faturası yarışında da (`CreateFromRentalAsync` / `PostFarkFaturasiAsync`) geçerli.
 - **LOW-1 (anahtardan önce çalışan doğrulamalar):** bazı servis doğrulamaları anahtar kontrolünden önce çalışıyor:
-  - `AracKrediService.cs:84`: iptal kredi;
-  - `AracKrediService.cs:86`: tarih politikası;
+  - `VehicleLoanService.cs:84`: iptal kredi;
+  - `VehicleLoanService.cs:86`: tarih politikası;
   - `PenaltyService.cs:157/159`: tarih politikası ve dönem kilidi.
 
   Arada durum değişirse (kredi iptal edildi, dönem kapandı) anahtarlı tekrar 409 yerine 400 alır. Para etkisi yok: hiçbir şey yazılmaz.

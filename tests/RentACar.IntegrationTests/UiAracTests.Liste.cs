@@ -65,7 +65,7 @@ public sealed partial class UiAracTests
         await AracAsync(o, pb, sube: "SubeB");
         // Anonim adlı + anonim telefonlu cari, A aracında AKTİF kirada (oracle: gerçek ad/telefon hiçbir yüzeyde görünmez).
         var anonim = new RentACar.Domain.Entities.Customer
-        { Tip = CariType.Bireysel, Ad = "Gizli", Soyad = "Kisi", CepTel = "05329998877", AnonimAd = true, AnonimTelefon = true };
+        { Tip = CustomerType.Bireysel, Ad = "Gizli", Soyad = "Kisi", CepTel = "05329998877", AnonimAd = true, AnonimTelefon = true };
         await VeriYazAsync(o.TenantId, db =>
         {
             db.Customers.Add(anonim);

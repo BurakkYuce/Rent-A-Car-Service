@@ -104,7 +104,7 @@ public sealed class BranchTests(PostgresFixture fx)
         // Yönetici operasyon/finans yazabilir ama ManageUsers yok → şube yönetemez.
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "yon", UserRole.Yonetici);
         var svc = scope.ServiceProvider.GetRequiredService<BranchService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(new BranchInput { Kod = "X", Ad = "Yetkisiz" }));
     }
 

@@ -18,7 +18,7 @@ public sealed class KdvRateTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<KdvRateService>();
+        var svc = scope.ServiceProvider.GetRequiredService<VatRateService>();
 
         var id = await svc.CreateAsync(new KdvRateInput { Kod = "kdv20", Ad = "Genel %20", Oran = 0.20m });
         var got = await svc.GetAsync(id);
@@ -33,7 +33,7 @@ public sealed class KdvRateTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<KdvRateService>();
+        var svc = scope.ServiceProvider.GetRequiredService<VatRateService>();
 
         await svc.CreateAsync(new KdvRateInput { Kod = "KDV10", Ad = "İndirimli %10", Oran = 0.10m });
         await Assert.ThrowsAsync<ValidationException>(
@@ -45,7 +45,7 @@ public sealed class KdvRateTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<KdvRateService>();
+        var svc = scope.ServiceProvider.GetRequiredService<VatRateService>();
 
         await Assert.ThrowsAsync<ValidationException>(
             () => svc.CreateAsync(new KdvRateInput { Kod = "X", Ad = "Yüksek", Oran = 1.5m }));
@@ -58,7 +58,7 @@ public sealed class KdvRateTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<KdvRateService>();
+        var svc = scope.ServiceProvider.GetRequiredService<VatRateService>();
 
         var a = await svc.CreateAsync(new KdvRateInput { Kod = "A", Ad = "A", Oran = 0.20m });
         await svc.CreateAsync(new KdvRateInput { Kod = "B", Ad = "B", Oran = 0.10m });
@@ -75,7 +75,7 @@ public sealed class KdvRateTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<KdvRateService>();
+        var svc = scope.ServiceProvider.GetRequiredService<VatRateService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new KdvRateInput { Kod = "", Ad = "Ad", Oran = 0.20m }));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new KdvRateInput { Kod = "X", Ad = "  ", Oran = 0.20m }));
@@ -86,7 +86,7 @@ public sealed class KdvRateTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var svc = scope.ServiceProvider.GetRequiredService<KdvRateService>();
+        var svc = scope.ServiceProvider.GetRequiredService<VatRateService>();
 
         var id = await svc.CreateAsync(new KdvRateInput { Kod = "DEL", Ad = "Silinecek", Oran = 0.20m });
         Assert.True(await svc.DeleteAsync(id));
@@ -98,8 +98,8 @@ public sealed class KdvRateTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        var svc = scope.ServiceProvider.GetRequiredService<KdvRateService>();
-        await Assert.ThrowsAsync<YetkiYokException>(
+        var svc = scope.ServiceProvider.GetRequiredService<VatRateService>();
+        await Assert.ThrowsAsync<NoPermissionException>(
             () => svc.CreateAsync(new KdvRateInput { Kod = "X", Ad = "Yetkisiz", Oran = 0.20m }));
     }
 
@@ -111,11 +111,11 @@ public sealed class KdvRateTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using (var s1 = host.ScopeFor(t1))
-            await s1.ServiceProvider.GetRequiredService<KdvRateService>()
+            await s1.ServiceProvider.GetRequiredService<VatRateService>()
                 .CreateAsync(new KdvRateInput { Kod = "T1", Ad = "Tenant1", Oran = 0.20m });
 
         using var s2 = host.ScopeFor(t2);
-        var svc2 = s2.ServiceProvider.GetRequiredService<KdvRateService>();
+        var svc2 = s2.ServiceProvider.GetRequiredService<VatRateService>();
         Assert.Empty(await svc2.ListAsync());
         // Aynı kod farklı tenant'ta serbest.
         await svc2.CreateAsync(new KdvRateInput { Kod = "T1", Ad = "Tenant2", Oran = 0.10m });

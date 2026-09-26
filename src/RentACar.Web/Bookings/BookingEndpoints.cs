@@ -96,7 +96,7 @@ public static class BookingEndpoints
 
         kira.MapPost("/create", async (RentalService svc, CustomerService customers,
             RentACar.Application.RentalAddOns.RentalAddOnService addOns,
-            RentACar.Application.EkHizmetler.EkHizmetTanimService ekTanimlar, HttpRequest req,
+            RentACar.Application.EkHizmetler.AddOnDefinitionService ekTanimlar, HttpRequest req,
             [FromForm] string? musteriId, [FromForm] Guid vehicleId,
             [FromForm] DateTimeOffset basTar, [FromForm] DateTimeOffset bitTar,
             [FromForm] string? gunlukUcret, [FromForm] string? cikisOfisi, [FromForm] string? donusOfisi,
@@ -174,7 +174,7 @@ public static class BookingEndpoints
         // (PricingService/RentalQuoteEngine) tek hesap kaynağı → önizleme == kayıt. GET → antiforgery'ye
         // takılmaz (middleware yalnız unsafe metodları doğrular); RequirePermission grup mirasıyla korunur.
         // ek formatı: "tanimId:miktar,tanimId:miktar".
-        kira.MapGet("/hesapla", async (KiraHesapService svc,
+        kira.MapGet("/hesapla", async (RentalCalculationService svc,
             string? vehicleId, DateTimeOffset basTar, DateTimeOffset bitTar,
             string? gunlukUcret, string? fiyatTuru, string? doviz, string? cikisOfisi,
             string? ek, string? rentalId, string? musteriId, string? kampanyaKodu, string? ikinciSurucuId,
@@ -182,7 +182,7 @@ public static class BookingEndpoints
         {
             try
             {
-                var sonuc = await svc.HesaplaAsync(new KiraHesapIstek(
+                var sonuc = await svc.CalculateAsync(new KiraHesapIstek(
                     VehicleId: FormParse.Id(vehicleId),
                     BasTar: basTar, BitTar: bitTar,
                     GunlukUcret: FormParse.Dec(gunlukUcret),
@@ -376,7 +376,7 @@ public static class BookingEndpoints
         // sisteme girmez); deftere yazmaz. Yok→Alindi→(Kapandi|IadeEdildi) guard'ları serviste.
         kira.MapPost("/provizyon-al", async (RentalService svc, [FromForm] Guid id) =>
         {
-            try { await svc.ProvizyonAlAsync(id); return Sonuc.Tamam($"/kiralar/{id}", "Provizyon alındı.", "#sekme=ayrintilar"); }
+            try { await svc.TakePreAuthAsync(id); return Sonuc.Tamam($"/kiralar/{id}", "Provizyon alındı.", "#sekme=ayrintilar"); }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=ayrintilar"); }
         });
 
@@ -385,7 +385,7 @@ public static class BookingEndpoints
         {
             try
             {
-                await svc.ProvizyonKapatAsync(id, FormParse.Dec(kapamaTutar), iade is "true" or "on");
+                await svc.ClosePreAuthAsync(id, FormParse.Dec(kapamaTutar), iade is "true" or "on");
                 return Sonuc.Tamam($"/kiralar/{id}", "Provizyon güncellendi.", "#sekme=ayrintilar");
             }
             catch (ValidationException ex) { return Results.Redirect($"/kiralar/{id}?hata={Uri.EscapeDataString(ex.Message)}#sekme=ayrintilar"); }
@@ -406,7 +406,7 @@ public static class BookingEndpoints
             throw new ValidationException("Müşteri seçin ya da yeni müşteri bilgilerini girin (en az Ad veya Ünvan).");
         return await customers.CreateAsync(new CustomerInput
         {
-            Tip = string.IsNullOrWhiteSpace(unvan) ? RentACar.Domain.Enums.CariType.Bireysel : RentACar.Domain.Enums.CariType.Kurumsal,
+            Tip = string.IsNullOrWhiteSpace(unvan) ? RentACar.Domain.Enums.CustomerType.Bireysel : RentACar.Domain.Enums.CustomerType.Kurumsal,
             Ad = ad,
             Soyad = FormParse.Str(form, "yeniSoyad"),
             Unvan = unvan,

@@ -16,7 +16,7 @@ public static partial class WebsiteApi
 
     /// <summary>
     /// Blog yönetimi (Blazor <c>BlogList</c>/<c>BlogOnizleme</c>). İçerik düz metindir; önizleme HTML değil blok listesi
-    /// döner (sitedeki <see cref="IcerikMetni.Bloklar"/> kuralının aynısı). Kapak içerikten tür tespitiyle (PNG/JPEG/WebP)
+    /// döner (sitedeki <see cref="ContentText.Blocks"/> kuralının aynısı). Kapak içerikten tür tespitiyle (PNG/JPEG/WebP)
     /// ve 2 MB sınırıyla serviste doğrulanır.
     /// </summary>
     private static void MapBlog(RouteGroupBuilder v1)
@@ -65,7 +65,7 @@ public static partial class WebsiteApi
         g.MapDelete("/{id:guid}/kapak", async Task<Results<Ok<BlogDetailDto>, ProblemHttpResult>> (
             Guid id, BlogService s, CancellationToken ct) =>
         {
-            if (!await s.SetKapakAsync(id, null, ct)) return SystemApiCommon.NotFound("Yazı bulunamadı.");
+            if (!await s.SetCoverAsync(id, null, ct)) return SystemApiCommon.NotFound("Yazı bulunamadı.");
             return await BlogAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Yazı bulunamadı.");
         });
 
@@ -85,7 +85,7 @@ public static partial class WebsiteApi
         if (kapak.Length > UploadRequestLimit) throw new ValidationException("Kapak görseli en fazla 2 MB olabilir.", "kapak");
         using var ms = new MemoryStream();
         await kapak.CopyToAsync(ms, ct);
-        if (!await s.SetKapakAsync(id, ms.ToArray(), ct)) return SystemApiCommon.NotFound("Yazı bulunamadı.");
+        if (!await s.SetCoverAsync(id, ms.ToArray(), ct)) return SystemApiCommon.NotFound("Yazı bulunamadı.");
         return await BlogAsync(id, s, ct) is { } d
             ? TypedResults.Created($"{BlogRoot}/{id}/kapak", d) : SystemApiCommon.NotFound("Yazı bulunamadı.");
     }
@@ -159,12 +159,12 @@ public static partial class WebsiteApi
             p.AltBaslik, p.SeoBaslik, p.MetaAciklama, p.AnahtarKelimeler, p.Yazar, p.KapakAlt, p.AramaDisi);
         var description = !string.IsNullOrWhiteSpace(p.MetaAciklama) ? p.MetaAciklama
             : !string.IsNullOrWhiteSpace(p.Ozet) ? p.Ozet
-            : IcerikMetni.Ozet(p.Icerik);
+            : ContentText.Summary(p.Icerik);
         return new BlogPreviewDto(p.Id, p.Durum.ToString(), "/blog/" + p.Slug, p.Baslik, p.AltBaslik, detail.AramaBasligi,
             description, detail.Kelimeler, p.AramaDisi,
-            IcerikMetni.Bloklar(p.Icerik).Select(b => new ContentBlockDto(b.Tur.ToString(), b.Metin)).ToList());
+            ContentText.Blocks(p.Icerik).Select(b => new ContentBlockDto(b.Tur.ToString(), b.Metin)).ToList());
     }
 
-    private static readonly SiralamaHaritasi<BlogRowDto> BlogSort = SiralamaHaritasi<BlogRowDto>
-        .Olustur(x => x.Id).Alan("baslik", x => x.Baslik).Alan("durum", x => x.Durum).Alan("yayinTarihi", x => x.YayinTarihi);
+    private static readonly SortFieldMap<BlogRowDto> BlogSort = SortFieldMap<BlogRowDto>
+        .Create(x => x.Id).Alan("baslik", x => x.Baslik).Alan("durum", x => x.Durum).Alan("yayinTarihi", x => x.YayinTarihi);
 }

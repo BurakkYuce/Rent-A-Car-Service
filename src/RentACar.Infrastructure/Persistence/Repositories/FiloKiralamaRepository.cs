@@ -8,7 +8,7 @@ using RentACar.Domain.Common;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Filo kiralama kalıcılığı (roadmap L1). CreateAsync boşluksuz No (FK-000001) tahsis eder.</summary>
-public sealed class FiloKiralamaRepository(IDbContextFactory<AppDbContext> factory) : IFiloKiralamaRepository
+public sealed class FiloKiralamaRepository(IDbContextFactory<AppDbContext> factory) : IFleetRentalRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -68,13 +68,13 @@ public sealed class FiloKiralamaRepository(IDbContextFactory<AppDbContext> facto
         => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.FiloKiralamalar, id, beklenenSurum,
             (db, k, c) => db.FiloKiralamalar.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 
-    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.FiloKiralamalar, id, ct);
     }
 
-    public async Task<(Guid? SubeId, string? Sube)?> AracSubesiAsync(Guid vehicleId, CancellationToken ct = default)
+    public async Task<(Guid? SubeId, string? Sube)?> VehicleBranchAsync(Guid vehicleId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var v = await db.Vehicles.AsNoTracking().Where(x => x.Id == vehicleId)
@@ -94,14 +94,14 @@ public sealed class FiloKiralamaRepository(IDbContextFactory<AppDbContext> facto
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.FiloKiralama, ct);
+            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.FiloKiralama, ct);
             db.FiloKiralamalar.Add(row);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }, ct);
     }
 
-    public async Task<bool> SetDurumAsync(Guid id, FiloKiraDurum durum, CancellationToken ct = default)
+    public async Task<bool> SetStatusAsync(Guid id, FleetRentalStatus durum, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var row = await db.FiloKiralamalar.FirstOrDefaultAsync(x => x.Id == id, ct);

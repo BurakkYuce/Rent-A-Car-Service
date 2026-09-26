@@ -47,7 +47,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
 
     private static Task<Guid> CariAsync(IServiceScope s, string ad)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
 
     private static Task<Guid> AracAsync(IServiceScope s, string plaka)
         => s.ServiceProvider.GetRequiredService<VehicleService>()
@@ -140,7 +140,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
 
         var cari = await CariAsync(scope, "Mega");
         var arac = await AracAsync(scope, "34 MF 01");
-        var personel = await sp.GetRequiredService<PersonelService>()
+        var personel = await sp.GetRequiredService<PersonnelService>()
             .CreateAsync(new PersonelInput { Kod = "P1", Ad = "Teslim", Soyad = "Eden" });
 
         // CREATE yolu: ödeme şekli + misafir 2. sürücü formdan gelir.
@@ -205,7 +205,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
 
         var cari = await CariAsync(scope, "Para");
         var arac = await AracAsync(scope, "34 MF 02");
-        var personel = await sp.GetRequiredService<PersonelService>()
+        var personel = await sp.GetRequiredService<PersonnelService>()
             .CreateAsync(new PersonelInput { Kod = "P2", Ad = "Para", Soyad = "Personel" });
 
         // 1. senaryo: yeni alanlar BOŞ — elle kurulan oracle (3 gün × 100 = 300).
@@ -299,7 +299,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
             i.IkinciSurucuSerbestEhliyetSinifi = "B";
         });
 
-        var view = (await sp.GetRequiredService<SozlesmeService>().GetAsync(id))!;
+        var view = (await sp.GetRequiredService<ContractService>().GetAsync(id))!;
         Assert.Equal("Misafir Sürücü", view.IkinciSurucuAd);
         Assert.Equal("B", view.IkinciEhliyetSinifi);
         // TC / ehliyet NUMARASI misafir katmanında hiç tutulmaz → belgede de boş.
@@ -309,7 +309,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         // 2. sürücü hiç girilmemiş kirada satır HİÇ görünmez (boşluk basılmaz).
         var arac2 = await AracAsync(scope, "34 MF 09"); // aynı araç+tarih çakışır → ayrı araç
         var tek = await KiraAsync(scope, cari, arac2);
-        Assert.Null((await sp.GetRequiredService<SozlesmeService>().GetAsync(tek))!.IkinciSurucuAd);
+        Assert.Null((await sp.GetRequiredService<ContractService>().GetAsync(tek))!.IkinciSurucuAd);
     }
 
     // ------------------------------------------------------------------ işlem şube (türetilmiş)
@@ -363,21 +363,21 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         {
             cari = await CariAsync(admin, "Op");
             arac = await AracAsync(admin, "34 MF 05");
-            personel = await admin.ServiceProvider.GetRequiredService<PersonelService>()
+            personel = await admin.ServiceProvider.GetRequiredService<PersonnelService>()
                 .CreateAsync(new PersonelInput { Kod = "P3", Ad = "Ofis", Soyad = "Görevlisi" });
             kira = await KiraAsync(admin, cari, arac);
         }
 
         using var op = host.ScopeFor(tenant, userId: Guid.NewGuid(), userName: "operator", role: UserRole.Operator);
         var sp = op.ServiceProvider;
-        var personeller = sp.GetRequiredService<PersonelService>();
+        var personeller = sp.GetRequiredService<PersonnelService>();
 
         // Mega-formun kullandığı yol: PII'siz seçim projeksiyonu — Operatör'de ÇALIŞIR.
         var secim = await personeller.ListForSelectAsync();
         Assert.Contains(secim, p => p.Id == personel);
 
         // Eski yol (ManageUsers'lı tam liste) Operatör'de PATLAR — dropdown asla buna bağlanmamalı.
-        await Assert.ThrowsAsync<YetkiYokException>(() => personeller.ListAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() => personeller.ListAsync());
 
         // Operatör teslim-eden personeli atayabilir (OperationsWrite yeter).
         var rentals = sp.GetRequiredService<RentalService>();
@@ -408,7 +408,7 @@ public sealed class KiraMegaFormDerinlikTests(PostgresFixture fx)
         using var muh = host.ScopeFor(tenant, userId: Guid.NewGuid(), userName: "muhasebe", role: UserRole.Muhasebe);
         var form = FormDurumu(mevcut);
         form.OdemeSekli = "Nakit";
-        await Assert.ThrowsAsync<YetkiYokException>(() =>
+        await Assert.ThrowsAsync<NoPermissionException>(() =>
             muh.ServiceProvider.GetRequiredService<RentalService>().UpdateOpenAsync(kira, form));
     }
 

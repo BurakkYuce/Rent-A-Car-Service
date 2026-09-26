@@ -63,9 +63,9 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         await PostBalancedAsync(scope, LedgerAccountType.Gelir, LedgerDirection.Credit, 1000m, "EUR", 30m, IsTarih);
 
-        await scope.ServiceProvider.GetRequiredService<DonemKapanisFisiService>().KapatAsync(Kapanis);
+        await scope.ServiceProvider.GetRequiredService<PeriodClosingVoucherService>().CloseAsync(Kapanis);
 
-        var mizan = await scope.ServiceProvider.GetRequiredService<ReportService>().GetMizanAsync();
+        var mizan = await scope.ServiceProvider.GetRequiredService<ReportService>().GetTrialBalanceAsync();
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gelir));          // base-TL TAM sıfır
         Assert.Equal(-30000m, Bakiye(mizan, LedgerAccountType.DonemSonucu)); // net base-TL
         Assert.Equal(0m, mizan.Sum(m => m.Bakiye));                        // denge
@@ -84,9 +84,9 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         await PostBalancedAsync(scope, LedgerAccountType.Gelir, LedgerDirection.Credit, 123.4567m, "EUR", 1.000001m, IsTarih);
 
         var rapor = scope.ServiceProvider.GetRequiredService<ReportService>();
-        await scope.ServiceProvider.GetRequiredService<DonemKapanisFisiService>().KapatAsync(Kapanis);
+        await scope.ServiceProvider.GetRequiredService<PeriodClosingVoucherService>().CloseAsync(Kapanis);
 
-        var mizan = await rapor.GetMizanAsync();
+        var mizan = await rapor.GetTrialBalanceAsync();
         var gelirKalan = Bakiye(mizan, LedgerAccountType.Gelir);
 
         Assert.True(Math.Abs(gelirKalan) < 0.0001m, $"Gelir artığı kuruş-altı olmalı, bulunan {gelirKalan}");
@@ -104,9 +104,9 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
         { CariId = await Cari(sp), NetTutar = 1000m, KdvOrani = 0m, Tarih = IsTarih });
 
-        await sp.GetRequiredService<DonemKapanisFisiService>().KapatAsync(Kapanis);
+        await sp.GetRequiredService<PeriodClosingVoucherService>().CloseAsync(Kapanis);
 
-        var mizan = await sp.GetRequiredService<ReportService>().GetMizanAsync();
+        var mizan = await sp.GetRequiredService<ReportService>().GetTrialBalanceAsync();
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gelir));
         Assert.Equal(-1000m, Bakiye(mizan, LedgerAccountType.DonemSonucu)); // yalnız kâr
         Assert.Equal(0m, mizan.Sum(m => m.Bakiye));
@@ -119,11 +119,11 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 400m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = IsTarih });
+        { Tip = ExpenseType.Genel, NetTutar = 400m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit, Tarih = IsTarih });
 
-        await sp.GetRequiredService<DonemKapanisFisiService>().KapatAsync(Kapanis);
+        await sp.GetRequiredService<PeriodClosingVoucherService>().CloseAsync(Kapanis);
 
-        var mizan = await sp.GetRequiredService<ReportService>().GetMizanAsync();
+        var mizan = await sp.GetRequiredService<ReportService>().GetTrialBalanceAsync();
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gider));
         Assert.Equal(400m, Bakiye(mizan, LedgerAccountType.DonemSonucu)); // zarar → Borç bakiye +
         Assert.Equal(0m, mizan.Sum(m => m.Bakiye));
@@ -140,11 +140,11 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
         { CariId = cari, NetTutar = 500m, KdvOrani = 0m, Tarih = IsTarih });
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 500m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = IsTarih });
+        { Tip = ExpenseType.Genel, NetTutar = 500m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit, Tarih = IsTarih });
 
-        await sp.GetRequiredService<DonemKapanisFisiService>().KapatAsync(Kapanis);
+        await sp.GetRequiredService<PeriodClosingVoucherService>().CloseAsync(Kapanis);
 
-        var mizan = await sp.GetRequiredService<ReportService>().GetMizanAsync();
+        var mizan = await sp.GetRequiredService<ReportService>().GetTrialBalanceAsync();
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gelir));
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gider));
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.DonemSonucu));
@@ -172,7 +172,7 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
             await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
             { CariId = cari, NetTutar = 1000m, KdvOrani = 0m, Tarih = IsTarih });
             await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-            { Tip = ExpenseType.Genel, NetTutar = 300m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = IsTarih });
+            { Tip = ExpenseType.Genel, NetTutar = 300m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit, Tarih = IsTarih });
         }
 
         using var s1 = host.ScopeFor(tenant);
@@ -180,13 +180,13 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         var exceptions = new List<Exception>();
         async Task Kapat(IServiceScope s)
         {
-            try { await s.ServiceProvider.GetRequiredService<DonemKapanisFisiService>().KapatAsync(Kapanis); }
+            try { await s.ServiceProvider.GetRequiredService<PeriodClosingVoucherService>().CloseAsync(Kapanis); }
             catch (Exception ex) { lock (exceptions) exceptions.Add(ex); }
         }
         await Task.WhenAll(Kapat(s1), Kapat(s2));
 
         using var verify = host.ScopeFor(tenant);
-        var mizan = await verify.ServiceProvider.GetRequiredService<ReportService>().GetMizanAsync();
+        var mizan = await verify.ServiceProvider.GetRequiredService<ReportService>().GetTrialBalanceAsync();
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gelir));
         Assert.Equal(-700m, Bakiye(mizan, LedgerAccountType.DonemSonucu)); // −1400 DEĞİL
         Assert.Equal(0m, mizan.Sum(m => m.Bakiye));
@@ -216,13 +216,13 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         var errs = new List<Exception>();
         async Task Kapat(IServiceScope s, DateTimeOffset d)
         {
-            try { await s.ServiceProvider.GetRequiredService<DonemKapanisFisiService>().KapatAsync(d); }
+            try { await s.ServiceProvider.GetRequiredService<PeriodClosingVoucherService>().CloseAsync(d); }
             catch (Exception ex) { lock (errs) errs.Add(ex); }
         }
         await Task.WhenAll(Kapat(s1, haziran29), Kapat(s2, Kapanis));
 
         using var verify = host.ScopeFor(tenant);
-        var mizan = await verify.ServiceProvider.GetRequiredService<ReportService>().GetMizanAsync();
+        var mizan = await verify.ServiceProvider.GetRequiredService<ReportService>().GetTrialBalanceAsync();
         var gelir = Bakiye(mizan, LedgerAccountType.Gelir);
         var ds = Bakiye(mizan, LedgerAccountType.DonemSonucu);
         await using var db = await Factory(verify).CreateDbContextAsync();
@@ -251,19 +251,19 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
         { CariId = cari, NetTutar = 1000m, KdvOrani = 0m, Tarih = IsTarih });
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, NetTutar = 300m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = OdemeYontemi.Nakit, Tarih = IsTarih });
+        { Tip = ExpenseType.Genel, NetTutar = 300m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit, Tarih = IsTarih });
         var rapor = sp.GetRequiredService<ReportService>();
 
-        var ggOnce = await rapor.GetGelirGiderAsync();
-        var karOnce = await rapor.GetKarlilikAsync();
+        var ggOnce = await rapor.GetRevenueExpenseAsync();
+        var karOnce = await rapor.GetProfitabilityAsync();
         // Ozet unattributed (VehicleId=null) geliri KAPSAMAZ (tasarım) → 0; leak testi ONCE==SONRA ile yapılır.
         var ozetOnce = new Dictionary<string, decimal>();
         foreach (var b in new[] { "grup", "sube", "segment" })
-            ozetOnce[b] = (await rapor.GetKarlilikOzetAsync(b)).ToplamNetKar;
+            ozetOnce[b] = (await rapor.GetProfitabilitySummaryAsync(b)).ToplamNetKar;
 
-        await sp.GetRequiredService<DonemKapanisFisiService>().KapatAsync(Kapanis);
+        await sp.GetRequiredService<PeriodClosingVoucherService>().CloseAsync(Kapanis);
 
-        var ggSonra = await rapor.GetGelirGiderAsync();
+        var ggSonra = await rapor.GetRevenueExpenseAsync();
         Assert.Equal(ggOnce.GelirToplam, ggSonra.GelirToplam);
         Assert.Equal(ggOnce.GiderToplam, ggSonra.GiderToplam);
         Assert.Equal(1000m, ggSonra.GelirToplam);
@@ -273,7 +273,7 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         Assert.DoesNotContain(ggSonra.GiderKirilim, k => k.SourceType == "DonemKapanis");
 
         // Karlılık toplamı + araç/(Atanmamış) satırları değişmemeli.
-        var karSonra = await rapor.GetKarlilikAsync();
+        var karSonra = await rapor.GetProfitabilityAsync();
         Assert.Equal(karOnce.ToplamNetKar, karSonra.ToplamNetKar);
         Assert.Equal(700m, karSonra.ToplamNetKar);
         Assert.Equal(1000m, karSonra.ToplamGelir);
@@ -282,12 +282,12 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         // Karlılık-özet (üç boyut): kapanış öncesi==sonrası (kapanış fişi sızmıyor).
         foreach (var boyut in new[] { "grup", "sube", "segment" })
         {
-            var ozet = await rapor.GetKarlilikOzetAsync(boyut);
+            var ozet = await rapor.GetProfitabilitySummaryAsync(boyut);
             Assert.Equal(ozetOnce[boyut], ozet.ToplamNetKar);
         }
 
         // Aylık trend: Haziran ayında gelir 1000 / gider 300 — kapanış etkilemez.
-        var trend = await rapor.GetAylikGelirGiderTrendAsync(1, new DateTimeOffset(2026, 6, 15, 0, 0, 0, TimeSpan.Zero));
+        var trend = await rapor.GetMonthlyRevenueExpenseTrendAsync(1, new DateTimeOffset(2026, 6, 15, 0, 0, 0, TimeSpan.Zero));
         Assert.Equal(1000m, trend[0].Gelir);
         Assert.Equal(300m, trend[0].Gider);
     }
@@ -305,22 +305,22 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var cari = await Cari(sp);
         var inv = sp.GetRequiredService<InvoiceService>();
-        var kapanis = sp.GetRequiredService<DonemKapanisFisiService>();
-        var donem = sp.GetRequiredService<DonemKilidiService>();
+        var kapanis = sp.GetRequiredService<PeriodClosingVoucherService>();
+        var donem = sp.GetRequiredService<PeriodLockService>();
         var rapor = sp.GetRequiredService<ReportService>();
 
         await inv.CreateManualAsync(new ManualInvoiceInput { CariId = cari, NetTutar = 1000m, KdvOrani = 0m, Tarih = IsTarih });
-        await kapanis.KapatAsync(Kapanis);
-        Assert.Equal(-1000m, Bakiye(await rapor.GetMizanAsync(), LedgerAccountType.DonemSonucu));
+        await kapanis.CloseAsync(Kapanis);
+        Assert.Equal(-1000m, Bakiye(await rapor.GetTrialBalanceAsync(), LedgerAccountType.DonemSonucu));
 
         // Kilidi aç, dönem İÇİNE yeni gelir 500 ekle (geçmişe düzeltme senaryosu).
         await donem.UnlockAsync();
         await inv.CreateManualAsync(new ManualInvoiceInput { CariId = cari, NetTutar = 500m, KdvOrani = 0m, Tarih = new DateTimeOffset(2026, 6, 15, 9, 0, 0, TimeSpan.Zero) });
 
         // AYNI tarihi tekrar kapat — HATA beklemeyiz (mevcut kilit yok, guard geçer).
-        await kapanis.KapatAsync(Kapanis);
+        await kapanis.CloseAsync(Kapanis);
 
-        var mizan = await rapor.GetMizanAsync();
+        var mizan = await rapor.GetTrialBalanceAsync();
         var gelir = Bakiye(mizan, LedgerAccountType.Gelir);
         var ds = Bakiye(mizan, LedgerAccountType.DonemSonucu);
         var kilit = await donem.GetClosingDateAsync();
@@ -342,19 +342,19 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var cari = await Cari(sp);
         var inv = sp.GetRequiredService<InvoiceService>();
-        var kapanis = sp.GetRequiredService<DonemKapanisFisiService>();
-        var donem = sp.GetRequiredService<DonemKilidiService>();
+        var kapanis = sp.GetRequiredService<PeriodClosingVoucherService>();
+        var donem = sp.GetRequiredService<PeriodLockService>();
         var rapor = sp.GetRequiredService<ReportService>();
 
         await inv.CreateManualAsync(new ManualInvoiceInput { CariId = cari, NetTutar = 1000m, KdvOrani = 0m, Tarih = IsTarih });
-        await kapanis.KapatAsync(Kapanis);
+        await kapanis.CloseAsync(Kapanis);
         await donem.UnlockAsync();
         await inv.CreateManualAsync(new ManualInvoiceInput { CariId = cari, NetTutar = 500m, KdvOrani = 0m, Tarih = new DateTimeOffset(2026, 6, 15, 9, 0, 0, TimeSpan.Zero) });
 
         // İLERİ tarihe kapat (temmuz 1) → yeni delta yakalanmalı.
-        await kapanis.KapatAsync(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero));
+        await kapanis.CloseAsync(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero));
 
-        var mizan = await rapor.GetMizanAsync();
+        var mizan = await rapor.GetTrialBalanceAsync();
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gelir));           // ileri tarih delta'yı toplar
         Assert.Equal(-1500m, Bakiye(mizan, LedgerAccountType.DonemSonucu)); // 1000 + 500
         Assert.Equal(0m, mizan.Sum(m => m.Bakiye));
@@ -381,13 +381,13 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         // Servis ön-kontrolünü (kilidin DIŞINDA) BİLEREK atlayıp doğrudan repo'yu çağırıyoruz — eşzamanlı
         // yarışta iki çağrının da ön-kontrolden geçtiği durumun birebir aynısı.
-        var repo = scope.ServiceProvider.GetRequiredService<IDonemKapanisRepository>();
-        await repo.KapatAsync(Kapanis); // önce GEÇ tarih (30 Haziran)
+        var repo = scope.ServiceProvider.GetRequiredService<IPeriodClosingRepository>();
+        await repo.CloseAsync(Kapanis); // önce GEÇ tarih (30 Haziran)
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => repo.KapatAsync(new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero))); // sonra ERKEN tarih → RED
+            () => repo.CloseAsync(new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero))); // sonra ERKEN tarih → RED
 
-        var mizan = await scope.ServiceProvider.GetRequiredService<ReportService>().GetMizanAsync();
+        var mizan = await scope.ServiceProvider.GetRequiredService<ReportService>().GetTrialBalanceAsync();
         Assert.Equal(0m, Bakiye(mizan, LedgerAccountType.Gelir));           // ÇİFT SAYIM YOK (bug'da +1000 idi)
         Assert.Equal(-1000m, Bakiye(mizan, LedgerAccountType.DonemSonucu)); // bug'da −2000 idi
         Assert.Equal(0m, mizan.Sum(m => m.Bakiye));
@@ -399,5 +399,5 @@ public sealed class DonemKapanisFisiAdversarialProbeTests(PostgresFixture fx)
     }
 
     private static Task<Guid> Cari(IServiceProvider sp)
-        => sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Probe" });
+        => sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Probe" });
 }

@@ -4,7 +4,7 @@
 @using RentACar.Application.Personnel
 @using RentACar.Domain.Enums
 @inject BafService Baflar
-@inject PersonelService Personeller
+@inject PersonnelService Personeller
 @inject VehicleService Vehicles
 @inject BranchService Subeler
 
@@ -34,7 +34,7 @@
     <label>Durum
         <select name="durumF">
             <option value="">— tümü —</option>
-            @foreach (var d in Enum.GetValues<BafDurum>())
+            @foreach (var d in Enum.GetValues<BafStatus>())
             {
                 <option value="@d" selected="@(d.ToString() == DurumF)">@d</option>
             }
@@ -43,7 +43,7 @@
     <label>Kullanım Amacı
         <select name="amacF">
             <option value="">— tümü —</option>
-            @foreach (var a in Enum.GetValues<BafKullanimAmaci>())
+            @foreach (var a in Enum.GetValues<BafUsagePurpose>())
             {
                 <option value="@a" selected="@(a.ToString() == AmacF)">@AmacAd(a)</option>
             }
@@ -95,7 +95,7 @@
         <label>Kullanım Amacı
             <select name="kullanimAmaci">
                 <option value="">—</option>
-                @foreach (var a in Enum.GetValues<BafKullanimAmaci>())
+                @foreach (var a in Enum.GetValues<BafUsagePurpose>())
                 {
                     <option value="@a">@AmacAd(a)</option>
                 }
@@ -135,7 +135,7 @@
                 <td>@(b.Onaylayan is Guid o ? PersName(o) : "—")</td>
                 <td>@b.Durum</td>
                 <td>
-                    @if (b.Durum == BafDurum.Acik)
+                    @if (b.Durum == BafStatus.Acik)
                     {
                         <form method="post" action="/baf/teslim-al" style="display:inline"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@b.Id" />
@@ -186,18 +186,18 @@
     private bool _filtreVar;
 
     /// <summary>Enum adı → okunur Türkçe etiket (canlı listedeki yazımlar).</summary>
-    private static string AmacAd(BafKullanimAmaci a) => a switch
+    private static string AmacAd(BafUsagePurpose a) => a switch
     {
-        BafKullanimAmaci.AracAyirma => "Araç Ayırma",
-        BafKullanimAmaci.AracDonusu => "Araç Dönüşü",
-        BafKullanimAmaci.AracTeslimati => "Araç Teslimatı",
-        BafKullanimAmaci.Yikama => "Yıkama",
-        BafKullanimAmaci.ServisBakim => "Servis / Bakım",
-        BafKullanimAmaci.Muayene => "Muayene",
-        BafKullanimAmaci.LastikDegisimi => "Lastik Değişimi",
-        BafKullanimAmaci.YakitIkmali => "Yakıt İkmali",
-        BafKullanimAmaci.SubelerArasiTransfer => "Şubeler Arası Transfer",
-        BafKullanimAmaci.PersonelKullanimi => "Personel Kullanımı",
+        BafUsagePurpose.AracAyirma => "Araç Ayırma",
+        BafUsagePurpose.AracDonusu => "Araç Dönüşü",
+        BafUsagePurpose.AracTeslimati => "Araç Teslimatı",
+        BafUsagePurpose.Yikama => "Yıkama",
+        BafUsagePurpose.ServisBakim => "Servis / Bakım",
+        BafUsagePurpose.Muayene => "Muayene",
+        BafUsagePurpose.LastikDegisimi => "Lastik Değişimi",
+        BafUsagePurpose.YakitIkmali => "Yakıt İkmali",
+        BafUsagePurpose.SubelerArasiTransfer => "Şubeler Arası Transfer",
+        BafUsagePurpose.PersonelKullanimi => "Personel Kullanımı",
         _ => "Diğer"
     };
 
@@ -208,9 +208,9 @@
         {
             PersonelId = Guid.TryParse(PersF, out var p) ? p : null,
             Plaka = PlakaF,
-            Durum = Enum.TryParse<BafDurum>(DurumF, out var d) ? d : null,
-            KullanimAmaci = Enum.TryParse<BafKullanimAmaci>(AmacF, out var a) ? a : null,
-            Lokasyon = Enum.TryParse<BafLokasyon>(LokF, out var l) ? l : null,
+            Durum = Enum.TryParse<BafStatus>(DurumF, out var d) ? d : null,
+            KullanimAmaci = Enum.TryParse<BafUsagePurpose>(AmacF, out var a) ? a : null,
+            Lokasyon = Enum.TryParse<BafLocation>(LokF, out var l) ? l : null,
             Ofis = OfisF
         };
         if (DateTimeOffset.TryParse(Bas, System.Globalization.CultureInfo.InvariantCulture,

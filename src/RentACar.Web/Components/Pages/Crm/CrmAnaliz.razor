@@ -98,11 +98,11 @@
     {
         // Seçenekler FİLTRESİZ kümeden — filtrelenmişten türetilseydi bir seçimden sonra
         // diğer kaynak/ofisler listeden düşer, kullanıcı geri dönemezdi.
-        var sec = await Reports.GetMusteriSegmentSecenekleriAsync();
+        var sec = await Reports.GetCustomerSegmentOptionsAsync();
         _kaynaklar = sec.Kaynaklar;
         _ofisler = sec.Ofisler;
 
-        _segment = await Reports.GetMusteriSegmentAsync(new MusteriSegmentFilter
+        _segment = await Reports.GetCustomerSegmentAsync(new MusteriSegmentFilter
         {
             Bas = FormParse.Date(Bas),
             // Gün sonuna genişlet: aksi halde bitiş günü seçildiğinde o günün kiraları düşerdi.
@@ -111,6 +111,6 @@
             RezKaynak = Kaynak,
             CikisOfis = Ofis
         });
-        _personel = await Reports.GetPersonelCalismaAsync();
+        _personel = await Reports.GetPersonnelWorkAsync();
     }
 }

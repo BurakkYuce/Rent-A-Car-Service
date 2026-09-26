@@ -17,7 +17,7 @@ public sealed class AracKrediFilter
     /// <summary>Dosya numarası parça eşleşmesi.</summary>
     public string? DosyaNo { get; set; }
 
-    public KrediDurum? Durum { get; set; }
+    public LoanStatus? Durum { get; set; }
 
     /// <summary>Başlangıç tarihi ≥ (dahil).</summary>
     public DateTimeOffset? Bas { get; set; }

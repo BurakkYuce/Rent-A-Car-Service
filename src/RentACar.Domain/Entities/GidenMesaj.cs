@@ -28,7 +28,7 @@ public class GidenMesaj : ITenantOwned
 
     /// <summary>Tür ADI olarak saklanır — enum sırası değişse de geçmiş kayıt anlamını korur.</summary>
     public string Tur { get; set; } = string.Empty;
-    public MesajKanal Kanal { get; set; }
+    public MessageChannel Kanal { get; set; }
 
     /// <summary>E-posta adresi ya da telefon numarası.</summary>
     public string Alici { get; set; } = string.Empty;
@@ -50,7 +50,7 @@ public class GidenMesaj : ITenantOwned
     /// </summary>
     public string? DegerlerJson { get; set; }
 
-    public GidenMesajDurum Durum { get; set; } = GidenMesajDurum.Kuyrukta;
+    public OutgoingMessageStatus Durum { get; set; } = OutgoingMessageStatus.Kuyrukta;
     public string? Hata { get; set; }
     public int DenemeSayisi { get; set; }
 

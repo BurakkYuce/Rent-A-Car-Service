@@ -25,7 +25,7 @@ public sealed class DonemUiTahsilatTests(PostgresFixture fx)
     {
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "DT", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "DT", Soyad = "M" });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(90), GunlukUcret = 100m });
         return (id, m);
@@ -38,21 +38,21 @@ public sealed class DonemUiTahsilatTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (kira, cari) = await KiraAsync(sp, "34 DT 01");
-        var svc = sp.GetRequiredService<DonemTahsilatService>();
+        var svc = sp.GetRequiredService<PeriodCollectionService>();
 
         // İki kez aynı istek (çift-tık/geri-tuşu): fatura idempotent + tahsilat RowKey'li no-op.
-        var f1 = await svc.KesVeTahsilEtAsync(kira, 1, tahsilatKaydi: true, LedgerAccountType.Kasa);
-        var f2 = await svc.KesVeTahsilEtAsync(kira, 1, tahsilatKaydi: true, LedgerAccountType.Kasa);
+        var f1 = await svc.IssueAndCollectAsync(kira, 1, collectionRecord: true, LedgerAccountType.Kasa);
+        var f2 = await svc.IssueAndCollectAsync(kira, 1, collectionRecord: true, LedgerAccountType.Kasa);
         Assert.Equal(f1, f2);
 
         // TEK fatura (D1 = 3100) — fark-state faturalananı 3100 (ikinci fatura yok).
         var repo = sp.GetRequiredService<IInvoiceRepository>();
         Assert.Equal(3100m, (await repo.FindAsync(f1))!.GenelToplam);
-        var (faturalanan, _) = await repo.GetFarkStateAsync(kira);
+        var (faturalanan, _) = await repo.GetDifferenceStateAsync(kira);
         Assert.Equal(3100m, faturalanan);
 
         // TEK tahsilat: cari bakiye 0 (borç 3100 == alacak 3100) — çift tahsilat -3100 yapardı.
-        var bakiye = await sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari);
+        var bakiye = await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari);
         Assert.Equal(0m, bakiye);
 
         // Kira tahsilat alanı işledi (RentalId bağlı tahsilat).
@@ -67,11 +67,11 @@ public sealed class DonemUiTahsilatTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var (kira, cari) = await KiraAsync(sp, "34 DT 02");
 
-        await sp.GetRequiredService<DonemTahsilatService>()
-            .KesVeTahsilEtAsync(kira, 1, tahsilatKaydi: false, LedgerAccountType.Kasa);
+        await sp.GetRequiredService<PeriodCollectionService>()
+            .IssueAndCollectAsync(kira, 1, collectionRecord: false, LedgerAccountType.Kasa);
 
         // Fatura borcu cariye işledi (3100), tahsilat YOK → bakiye 3100.
-        Assert.Equal(3100m, await sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari));
+        Assert.Equal(3100m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
         Assert.Equal(0m, (await sp.GetRequiredService<RentalService>().GetAsync(kira))!.Tahsilat);
     }
 }

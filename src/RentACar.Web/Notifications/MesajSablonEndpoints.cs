@@ -17,16 +17,16 @@ public static class MesajSablonEndpoints
             .RequirePermission(Permission.ManageUsers)
             .AntiforgeryByEnv();
 
-        grp.MapPost("/kaydet", async (HttpRequest req, MusteriBildirimService svc) =>
+        grp.MapPost("/kaydet", async (HttpRequest req, CustomerNotificationService svc) =>
         {
             var f = req.Form;
-            if (!Enum.TryParse<MesajTuru>(f["tur"].ToString(), out var tur)
-                || !Enum.TryParse<MesajKanal>(f["kanal"].ToString(), out var kanal))
+            if (!Enum.TryParse<MessageType>(f["tur"].ToString(), out var tur)
+                || !Enum.TryParse<MessageChannel>(f["kanal"].ToString(), out var kanal))
                 return Results.Redirect("/mesaj-sablonlari?hata=" + Uri.EscapeDataString("Geçersiz şablon türü ya da kanalı."));
 
             try
             {
-                await svc.SablonKaydetAsync(new MesajSablonInput
+                await svc.SaveTemplateAsync(new MesajSablonInput
                 {
                     Tur = tur,
                     Kanal = kanal,

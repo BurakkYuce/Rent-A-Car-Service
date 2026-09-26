@@ -9,7 +9,7 @@ public sealed class CustomerFilter
     public string? Query { get; set; }
     /// <summary>Query 11 haneli TC ise CustomerService'in doldurduğu HMAC özeti; repo bununla arar.</summary>
     public string? TcHash { get; set; }
-    public CariType? Tip { get; set; }
+    public CustomerType? Tip { get; set; }
     /// <summary>true → İYS izinli; false → izinsiz; null → tümü.</summary>
     public bool? IysIzinli { get; set; }
     /// <summary>true → uyarı bayraklı; null → tümü.</summary>

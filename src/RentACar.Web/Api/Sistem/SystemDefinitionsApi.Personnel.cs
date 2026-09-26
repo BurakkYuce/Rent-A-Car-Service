@@ -24,8 +24,8 @@ public static partial class SystemDefinitionsApi
         ("İşten çıkış", "iseCikis"), ("Doğum tarihi", "dogumTarihi"),
     ];
 
-    private static readonly SiralamaHaritasi<PersonnelListItem> PersonnelSort = SiralamaHaritasi<PersonnelListItem>
-        .Olustur(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("soyad", x => x.Soyad)
+    private static readonly SortFieldMap<PersonnelListItem> PersonnelSort = SortFieldMap<PersonnelListItem>
+        .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("soyad", x => x.Soyad)
         .Alan("sube", x => x.Sube).Alan("gorevTanimi", x => x.GorevTanimi).Alan("iseGiris", x => x.IseGiris)
         .Alan("aktif", x => x.Aktif);
 
@@ -33,22 +33,22 @@ public static partial class SystemDefinitionsApi
     {
         var g = v1.MapGroup("/personel").WithTags(SystemApiCommon.DefinitionsTag).RequirePermission(Permission.ManageUsers);
         g.MapGet("", async (int? sayfa, int? boyut, string? sirala, string? ara, bool? aktif, string? sube, string? gorevTanimi,
-            PersonelService s, CancellationToken ct) =>
+            PersonnelService s, CancellationToken ct) =>
         {
             var rows = await s.SearchAsync(new PersonelFilter { Ara = ara, Aktif = aktif, Sube = sube, GorevTanimi = gorevTanimi }, ct);
             var items = rows.Select(p => new PersonnelListItem(p.Id, p.Kod, p.Ad, p.Soyad, p.Sube, p.GorevTanimi, p.CepTel,
                 p.MailAdresi, p.IseGiris, p.IseCikis, p.Aktif)).ToList();
             return TypedResults.Ok(F5Ortak.Sayfala(items, PersonnelSort, sayfa, boyut, sirala));
         }).AlanlariEsle(F5Ortak.SiralamaKurallari);
-        g.MapGet("/{id:guid}", async Task<Results<Ok<PersonnelDto>, ProblemHttpResult>> (Guid id, PersonelService s, CancellationToken ct)
+        g.MapGet("/{id:guid}", async Task<Results<Ok<PersonnelDto>, ProblemHttpResult>> (Guid id, PersonnelService s, CancellationToken ct)
             => await PersonnelAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
-        g.MapPost("", async Task<Results<Created<PersonnelDto>, ProblemHttpResult>> (PersonnelRequest i, PersonelService s, CancellationToken ct) =>
+        g.MapPost("", async Task<Results<Created<PersonnelDto>, ProblemHttpResult>> (PersonnelRequest i, PersonnelService s, CancellationToken ct) =>
         {
             PersonnelLimits(i);
             var id = await s.CreateAsync(PersonnelInput(i), ct);
             return await PersonnelAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/personel/{id}", d) : SystemApiCommon.NotFound();
         }).AlanlariEsle(PersonnelRules);
-        g.MapPut("/{id:guid}", async Task<Results<Ok<PersonnelDto>, ProblemHttpResult>> (Guid id, PersonnelRequest i, PersonelService s, CancellationToken ct) =>
+        g.MapPut("/{id:guid}", async Task<Results<Ok<PersonnelDto>, ProblemHttpResult>> (Guid id, PersonnelRequest i, PersonnelService s, CancellationToken ct) =>
         {
             if (await s.GetDetailAsync(id, ct) is null) return SystemApiCommon.NotFound();
             SystemApiCommon.RequireVersion(i.Surum);
@@ -56,7 +56,7 @@ public static partial class SystemDefinitionsApi
             if (!await s.UpdateAsync(id, PersonnelInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
             return await PersonnelAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
         }).AlanlariEsle(PersonnelRules);
-        g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, PersonelService s, CancellationToken ct)
+        g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, PersonnelService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
     }
 
@@ -111,7 +111,7 @@ public static partial class SystemDefinitionsApi
     };
 
     /// <summary>Detay → DTO. TC değeri yalnız "tanımlı mı"ya indirgenir; düz metin DTO'ya hiç girmez.</summary>
-    private static async Task<PersonnelDto?> PersonnelAsync(Guid id, PersonelService s, CancellationToken ct)
+    private static async Task<PersonnelDto?> PersonnelAsync(Guid id, PersonnelService s, CancellationToken ct)
     {
         var version = await s.RowVersionAsync(id, ct);
         if (await s.GetDetailAsync(id, ct) is not { Ham: { } r } d) return null;

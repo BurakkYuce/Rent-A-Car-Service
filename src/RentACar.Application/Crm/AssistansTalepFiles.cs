@@ -9,9 +9,9 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.Crm;
 
 /// <summary>Assistans (yol yardım) talebi kalıcılığı — FAZ-44.</summary>
-public interface IAssistansTalepRepository
+public interface IAssistanceRequestRepository
 {
-    Task<IReadOnlyList<AssistansTalep>> SearchAsync(AssistansFilter filtre, CancellationToken ct = default);
+    Task<IReadOnlyList<AssistansTalep>> SearchAsync(AssistansFilter filter, CancellationToken ct = default);
     Task<AssistansTalep?> FindAsync(Guid id, CancellationToken ct = default);
     Task CreateAsync(AssistansTalep row, CancellationToken ct = default);
     Task<bool> UpdateAsync(Guid id, Action<AssistansTalep> apply, CancellationToken ct = default);
@@ -69,18 +69,18 @@ public sealed class AssistansInput
 /// sürücü, yoldaki bir yakını). Otomatik doldurma kullanıcının yazdığını ezseydi çağrı merkezinin
 /// elindeki tek doğru numara kaybolurdu.</para>
 /// </summary>
-public sealed class AssistansTalepService(
-    IAssistansTalepRepository repository, IBookingRepository bookings,
+public sealed class AssistanceRequestService(
+    IAssistanceRequestRepository repository, IBookingRepository bookings,
     ICustomerRepository customers, IVehicleRepository vehicles, ICurrentUser currentUser, CrmScopeGuard scope)
 {
-    private readonly IAssistansTalepRepository _repository = repository;
+    private readonly IAssistanceRequestRepository _repository = repository;
     private readonly IBookingRepository _bookings = bookings;
     private readonly ICustomerRepository _customers = customers;
     private readonly IVehicleRepository _vehicles = vehicles;
     private readonly ICurrentUser _currentUser = currentUser;
 
-    public Task<IReadOnlyList<AssistansTalep>> SearchAsync(AssistansFilter? filtre = null, CancellationToken ct = default)
-        => _repository.SearchAsync(filtre ?? new AssistansFilter(), ct);
+    public Task<IReadOnlyList<AssistansTalep>> SearchAsync(AssistansFilter? filter = null, CancellationToken ct = default)
+        => _repository.SearchAsync(filter ?? new AssistansFilter(), ct);
 
     public Task<AssistansTalep?> GetAsync(Guid id, CancellationToken ct = default)
         => _repository.FindAsync(id, ct);
@@ -89,7 +89,7 @@ public sealed class AssistansTalepService(
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var row = new AssistansTalep();
-        await UygulaAsync(row, input, fillContact: true, ct); // alan doğrulaması (mesaj) önce; kayıt henüz yazılmadı
+        await ApplyAsync(row, input, fillContact: true, ct); // alan doğrulaması (mesaj) önce; kayıt henüz yazılmadı
         await scope.RequireTargetAsync(input.RentalId, null, creating: true, ct); // r317 M1/L1 (assistansın ofisi yok)
         await _repository.CreateAsync(row, ct);
         return row.Id;
@@ -98,20 +98,20 @@ public sealed class AssistansTalepService(
     public async Task<bool> UpdateAsync(Guid id, AssistansInput input, CancellationToken ct = default)
     {
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
-        var mevcut = await _repository.FindAsync(id, ct);
-        if (mevcut is null) return false;
-        await scope.RequireUpdateAsync(mevcut.RentalId, null, input.RentalId, null, ct); // r317 M1
+        var existing = await _repository.FindAsync(id, ct);
+        if (existing is null) return false;
+        await scope.RequireUpdateAsync(existing.RentalId, null, input.RentalId, null, ct); // r317 M1
 
-        var kopya = new AssistansTalep { Id = mevcut.Id };
-        await UygulaAsync(kopya, input, RentalChanged(mevcut.RentalId, input.RentalId), ct);
+        var copy = new AssistansTalep { Id = existing.Id };
+        await ApplyAsync(copy, input, RentalChanged(existing.RentalId, input.RentalId), ct);
 
         return await _repository.UpdateAsync(id, r =>
         {
-            r.RentalId = kopya.RentalId;
-            r.Plaka = kopya.Plaka; r.AdSoyad = kopya.AdSoyad; r.CepTel = kopya.CepTel;
-            r.Zaman = kopya.Zaman; r.Mesaj = kopya.Mesaj; r.Sebep = kopya.Sebep;
-            r.YedekLastikMi = kopya.YedekLastikMi; r.AracHareketMi = kopya.AracHareketMi;
-            r.Kapandi = kopya.Kapandi; r.Cozum = kopya.Cozum;
+            r.RentalId = copy.RentalId;
+            r.Plaka = copy.Plaka; r.AdSoyad = copy.AdSoyad; r.CepTel = copy.CepTel;
+            r.Zaman = copy.Zaman; r.Mesaj = copy.Mesaj; r.Sebep = copy.Sebep;
+            r.YedekLastikMi = copy.YedekLastikMi; r.AracHareketMi = copy.AracHareketMi;
+            r.Kapandi = copy.Kapandi; r.Cozum = copy.Cozum;
         }, ct);
     }
 
@@ -123,7 +123,7 @@ public sealed class AssistansTalepService(
         if (current is null) return false;
         await scope.RequireUpdateAsync(current.RentalId, null, input.RentalId, null, ct); // r317 M1
         var copy = new AssistansTalep { Id = id };
-        await UygulaAsync(copy, input, RentalChanged(current.RentalId, input.RentalId), ct);
+        await ApplyAsync(copy, input, RentalChanged(current.RentalId, input.RentalId), ct);
         return await _repository.UpdateAsync(id, expectedVersion, r =>
         {
             r.RentalId = copy.RentalId;
@@ -152,46 +152,46 @@ public sealed class AssistansTalepService(
     }
 
     /// <summary>Doğrulama + snapshot doldurma. Yeni alan eklenirse UpdateAsync'e de eklenmeli.</summary>
-    private async Task UygulaAsync(AssistansTalep row, AssistansInput input, bool fillContact, CancellationToken ct)
+    private async Task ApplyAsync(AssistansTalep row, AssistansInput input, bool fillContact, CancellationToken ct)
     {
-        var mesaj = (input.Mesaj ?? "").Trim();
-        if (string.IsNullOrWhiteSpace(mesaj)) throw new ValidationException("Mesaj zorunludur.");
+        var message = (input.Mesaj ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(message)) throw new ValidationException("Mesaj zorunludur.");
 
         // Gelecek tarihli olay tutanağı olmaz (tarih politikası simetrisi).
-        TarihPolitikasi.ParaTarihi(input.Zaman, "Assistans talebi");
+        DatePolicy.MoneyDate(input.Zaman, "Assistans talebi");
 
-        string? plaka = Trim(input.Plaka);
-        string? ad = Trim(input.AdSoyad);
+        string? plate = Trim(input.Plaka);
+        string? name = Trim(input.AdSoyad);
         string? tel = Trim(input.CepTel);
 
         if (input.RentalId is Guid rid && rid != Guid.Empty)
         {
-            var kira = await _bookings.FindRentalAsync(rid, ct)
+            var rental = await _bookings.FindRentalAsync(rid, ct)
                 ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
             row.RentalId = rid;
 
             // KULLANICI DEĞERİ ÖNCELİKLİ — yalnız BOŞ alanlar sözleşmeden doldurulur.
-            plaka ??= (await _vehicles.FindAsync(kira.VehicleId, ct))?.Plaka;
+            plate ??= (await _vehicles.FindAsync(rental.VehicleId, ct))?.Plaka;
             // #295 L2: KVKK ile anonimleştirilmiş müşterinin adı/telefonu snapshot'a KOPYALANMAZ (ekranda gizli olacak bir
             // değeri çoğaltmak anonimleştirmeyi delerdi); bilinçli temizlenen alan da yeniden doldurulmaz.
             // #295b L-C: ad/telefon sözleşmeden YALNIZ oluşturmada ya da kira değişince doldurulur; aynı kiradaki
             // güncellemede boş alan boş kalır (temizlenen alan geri dolmaz).
-            var fillName = fillContact && ad is null && !input.ClearContactName;
+            var fillName = fillContact && name is null && !input.ClearContactName;
             var fillPhone = fillContact && tel is null && !input.ClearContactPhone;
             if (fillName || fillPhone)
             {
-                var m = await _customers.FindAsync(kira.MusteriId, ct);
-                if (fillName && m is { AnonimAd: false }) ad = m.DisplayName;
+                var m = await _customers.FindAsync(rental.MusteriId, ct);
+                if (fillName && m is { AnonimAd: false }) name = m.DisplayName;
                 if (fillPhone && m is { AnonimTelefon: false }) tel = m.CepTel;
             }
         }
         else row.RentalId = null;
 
-        row.Plaka = plaka is null ? null : PlakaNormalize(plaka);
-        row.AdSoyad = ad;
+        row.Plaka = plate is null ? null : NormalizePlate(plate);
+        row.AdSoyad = name;
         row.CepTel = tel;
         row.Zaman = input.Zaman ?? DateTimeOffset.UtcNow;
-        row.Mesaj = mesaj;
+        row.Mesaj = message;
         row.Sebep = Trim(input.Sebep);
         row.YedekLastikMi = input.YedekLastikMi;
         row.AracHareketMi = input.AracHareketMi;
@@ -200,8 +200,8 @@ public sealed class AssistansTalepService(
     }
 
     /// <summary>Plaka DB'de normalize saklanır (büyük harf, boşluksuz) — arama da öyle normalize eder.</summary>
-    public static string PlakaNormalize(string plaka)
-        => new(plaka.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+    public static string NormalizePlate(string plate)
+        => new(plate.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
 
     private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

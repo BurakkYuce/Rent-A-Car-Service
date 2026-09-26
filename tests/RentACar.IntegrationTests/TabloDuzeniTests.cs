@@ -43,7 +43,7 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         return u.Id;
     }
 
-    private static TabloDuzeniService Servis(IServiceScope s) => s.ServiceProvider.GetRequiredService<TabloDuzeniService>();
+    private static TableLayoutService Servis(IServiceScope s) => s.ServiceProvider.GetRequiredService<TableLayoutService>();
 
     private static void DuzenEsit(TabloDuzeniVerisi beklenen, TabloDuzeniVerisi? gelen)
     {
@@ -60,21 +60,21 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         var u = await KullaniciAsync(t);
         using var s = host.ScopeFor(t, u, role: UserRole.Operator);
 
-        var bos = await Servis(s).GetirAsync("kiralar.liste");
+        var bos = await Servis(s).FetchAsync("kiralar.liste");
         Assert.Equal("kiralar.liste", bos.TabloKodu);
         Assert.Null(bos.Duzen);
         Assert.Null(bos.GuncellemeUtc);
 
-        var kayit = await Servis(s).KaydetAsync("kiralar.liste", Ornek);
+        var kayit = await Servis(s).SaveAsync("kiralar.liste", Ornek);
         DuzenEsit(Ornek, kayit.Duzen);
         Assert.NotNull(kayit.GuncellemeUtc);
 
-        var okunan = await Servis(s).GetirAsync("kiralar.liste");
+        var okunan = await Servis(s).FetchAsync("kiralar.liste");
         DuzenEsit(Ornek, okunan.Duzen);
         Assert.Equal(kayit.GuncellemeUtc, okunan.GuncellemeUtc); // µs'ye kırpıldı → DB'den aynı an döner
 
         // Başka tablo kodu ayrı düzendir.
-        Assert.Null((await Servis(s).GetirAsync("kiralar.liste-2")).Duzen);
+        Assert.Null((await Servis(s).FetchAsync("kiralar.liste-2")).Duzen);
     }
 
     [Fact]
@@ -85,11 +85,11 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         var u = await KullaniciAsync(t);
         using var s = host.ScopeFor(t, u, role: UserRole.Operator);
 
-        await Servis(s).KaydetAsync("araclar", Ornek);
+        await Servis(s).SaveAsync("araclar", Ornek);
         var yeni = new TabloDuzeniVerisi([new("musteri", true, 200), new("plaka", false, null)], []);
-        await Servis(s).KaydetAsync("araclar", yeni);
+        await Servis(s).SaveAsync("araclar", yeni);
 
-        DuzenEsit(yeni, (await Servis(s).GetirAsync("araclar")).Duzen);
+        DuzenEsit(yeni, (await Servis(s).FetchAsync("araclar")).Duzen);
         await using var db = await s.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         Assert.Equal(1, await db.TabloDuzenleri.CountAsync(d => d.UserId == u && d.TabloKodu == "araclar"));
     }
@@ -103,22 +103,22 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         var b = await KullaniciAsync(t);
 
         using (var sa = host.ScopeFor(t, a, "a", UserRole.Admin))
-            await Servis(sa).KaydetAsync("cari.liste", Ornek);
+            await Servis(sa).SaveAsync("cari.liste", Ornek);
 
         var bDuzeni = new TabloDuzeniVerisi([new("unvan", true, 300)], [new("unvan", false)]);
         using (var sb = host.ScopeFor(t, b, "b", UserRole.Operator))
         {
-            Assert.Null((await Servis(sb).GetirAsync("cari.liste")).Duzen); // Admin'in düzeni operatöre SIZMAZ
-            await Servis(sb).KaydetAsync("cari.liste", bDuzeni);
-            await Servis(sb).SifirlaAsync("cari.liste");                    // B'nin sıfırlaması A'ya dokunmaz
-            Assert.Null((await Servis(sb).GetirAsync("cari.liste")).Duzen);
-            await Servis(sb).KaydetAsync("cari.liste", bDuzeni);
+            Assert.Null((await Servis(sb).FetchAsync("cari.liste")).Duzen); // Admin'in düzeni operatöre SIZMAZ
+            await Servis(sb).SaveAsync("cari.liste", bDuzeni);
+            await Servis(sb).ResetAsync("cari.liste");                    // B'nin sıfırlaması A'ya dokunmaz
+            Assert.Null((await Servis(sb).FetchAsync("cari.liste")).Duzen);
+            await Servis(sb).SaveAsync("cari.liste", bDuzeni);
         }
 
         using (var sa = host.ScopeFor(t, a, "a", UserRole.Admin))
-            DuzenEsit(Ornek, (await Servis(sa).GetirAsync("cari.liste")).Duzen);
+            DuzenEsit(Ornek, (await Servis(sa).FetchAsync("cari.liste")).Duzen);
         using (var sb = host.ScopeFor(t, b, "b", UserRole.Operator))
-            DuzenEsit(bDuzeni, (await Servis(sb).GetirAsync("cari.liste")).Duzen);
+            DuzenEsit(bDuzeni, (await Servis(sb).FetchAsync("cari.liste")).Duzen);
     }
 
     [Fact]
@@ -131,11 +131,11 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         var u2 = await KullaniciAsync(t2);
 
         using (var s1 = host.ScopeFor(t1, u1))
-            await Servis(s1).KaydetAsync("rlstest", Ornek);
+            await Servis(s1).SaveAsync("rlstest", Ornek);
 
         using (var s2 = host.ScopeFor(t2, u2))
         {
-            Assert.Null((await Servis(s2).GetirAsync("rlstest")).Duzen);
+            Assert.Null((await Servis(s2).FetchAsync("rlstest")).Duzen);
             var factory = s2.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             await using var db = await factory.CreateDbContextAsync();
             // EF filtresi atlansa da (ham SQL + IgnoreQueryFilters) RLS T1 satırını gizler.
@@ -174,7 +174,7 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         }
 
         using (var s1 = host.ScopeFor(t1, u1))
-            DuzenEsit(Ornek, (await Servis(s1).GetirAsync("rlstest")).Duzen); // T1 düzeni sağlam
+            DuzenEsit(Ornek, (await Servis(s1).FetchAsync("rlstest")).Duzen); // T1 düzeni sağlam
     }
 
     [Fact]
@@ -185,10 +185,10 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         var u = await KullaniciAsync(t);
         using var s = host.ScopeFor(t, u);
 
-        await Servis(s).SifirlaAsync("hic-yok");       // kayıt yokken no-op
-        await Servis(s).KaydetAsync("faturalar", Ornek);
-        await Servis(s).SifirlaAsync("faturalar");
-        var sonuc = await Servis(s).GetirAsync("faturalar");
+        await Servis(s).ResetAsync("hic-yok");       // kayıt yokken no-op
+        await Servis(s).SaveAsync("faturalar", Ornek);
+        await Servis(s).ResetAsync("faturalar");
+        var sonuc = await Servis(s).FetchAsync("faturalar");
         Assert.Null(sonuc.Duzen);
         Assert.Null(sonuc.GuncellemeUtc);
     }
@@ -206,12 +206,12 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
             var gorevler = Enumerable.Range(0, 4).Select(async i =>
             {
                 using var s = host.ScopeFor(t, u);
-                await Servis(s).KaydetAsync(kod, new TabloDuzeniVerisi([new("k" + i, true, null)], []));
+                await Servis(s).SaveAsync(kod, new TabloDuzeniVerisi([new("k" + i, true, null)], []));
             });
             await Task.WhenAll(gorevler); // UniqueViolation sızmaz: kaybeden güncellemeye döner
 
             using var oku = host.ScopeFor(t, u);
-            var duzen = (await Servis(oku).GetirAsync(kod)).Duzen;
+            var duzen = (await Servis(oku).FetchAsync(kod)).Duzen;
             Assert.NotNull(duzen);
             Assert.Single(duzen!.Sutunlar);
             await using var db = await oku.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
@@ -225,12 +225,12 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using (var s = host.ScopeFor(Guid.NewGuid(), userId: null))
         {
-            await Assert.ThrowsAsync<YetkiYokException>(() => Servis(s).GetirAsync("kiralar"));
-            await Assert.ThrowsAsync<YetkiYokException>(() => Servis(s).KaydetAsync("kiralar", Ornek));
-            await Assert.ThrowsAsync<YetkiYokException>(() => Servis(s).SifirlaAsync("kiralar"));
+            await Assert.ThrowsAsync<NoPermissionException>(() => Servis(s).FetchAsync("kiralar"));
+            await Assert.ThrowsAsync<NoPermissionException>(() => Servis(s).SaveAsync("kiralar", Ornek));
+            await Assert.ThrowsAsync<NoPermissionException>(() => Servis(s).ResetAsync("kiralar"));
         }
         using (var s = host.ScopeFor(tenantId: null, userId: Guid.NewGuid()))
-            await Assert.ThrowsAsync<YetkiYokException>(() => Servis(s).GetirAsync("kiralar"));
+            await Assert.ThrowsAsync<NoPermissionException>(() => Servis(s).FetchAsync("kiralar"));
     }
 
     public static TheoryData<string, TabloDuzeniVerisi?, string> GecersizGovdeler()
@@ -268,10 +268,10 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         var u = await KullaniciAsync(t);
         using var s = host.ScopeFor(t, u);
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => Servis(s).KaydetAsync("dogrulama", govde));
-        Assert.IsNotType<YetkiYokException>(ex);
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => Servis(s).SaveAsync("dogrulama", govde));
+        Assert.IsNotType<NoPermissionException>(ex);
         Assert.True(alan == ex.Alan, $"{ad}: beklenen alan {alan}, gelen {ex.Alan}");
-        Assert.Null((await Servis(s).GetirAsync("dogrulama")).Duzen);
+        Assert.Null((await Servis(s).FetchAsync("dogrulama")).Duzen);
     }
 
     [Theory]
@@ -290,9 +290,9 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         var u = await KullaniciAsync(t);
         using var s = host.ScopeFor(t, u);
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => Servis(s).GetirAsync(kod));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => Servis(s).FetchAsync(kod));
         Assert.Equal("tabloKodu", ex.Alan);
-        await Assert.ThrowsAsync<ValidationException>(() => Servis(s).KaydetAsync(kod, Ornek));
+        await Assert.ThrowsAsync<ValidationException>(() => Servis(s).SaveAsync(kod, Ornek));
     }
 
     [Fact]
@@ -308,8 +308,8 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         var kod = new string('a', 64);
         var duzen = new TabloDuzeniVerisi(sutunlar, siralama);
 
-        await Servis(s).KaydetAsync(kod, duzen);
-        DuzenEsit(duzen, (await Servis(s).GetirAsync(kod)).Duzen);
+        await Servis(s).SaveAsync(kod, duzen);
+        DuzenEsit(duzen, (await Servis(s).FetchAsync(kod)).Duzen);
     }
 }
 

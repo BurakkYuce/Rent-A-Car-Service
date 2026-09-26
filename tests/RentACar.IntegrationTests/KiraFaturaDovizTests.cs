@@ -35,7 +35,7 @@ public sealed class KiraFaturaDovizTests(PostgresFixture fx)
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var sabit = scope.ServiceProvider.GetRequiredService<SabitKurService>();
+        var sabit = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
 
         // Firma EUR'yu 40 TL sabitler (deterministik — TCMB'ye bağımlı olma; override çözümlenir).
         await sabit.UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
@@ -53,7 +53,7 @@ public sealed class KiraFaturaDovizTests(PostgresFixture fx)
         Assert.Equal(50m, inv.KdvTutar);
 
         // LEDGER otomatik TL: cari bakiye = 300 EUR × 40 = 12000 TL (kur YÖNÜ doğru).
-        Assert.Equal(12000m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(12000m, await cash.GetAccountBalanceAsync(cari));
 
         // Denge: Σ borç(base) == Σ alacak(base) (hepsi ×40 sonrası).
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -83,6 +83,6 @@ public sealed class KiraFaturaDovizTests(PostgresFixture fx)
         Assert.Equal("TRY", inv!.Currency);
         Assert.Equal(1m, inv.Kur);
         Assert.Equal(300m, inv.GenelToplam);
-        Assert.Equal(300m, await cash.GetCariBalanceAsync(cari)); // TL 1:1, değişmedi
+        Assert.Equal(300m, await cash.GetAccountBalanceAsync(cari)); // TL 1:1, değişmedi
     }
 }

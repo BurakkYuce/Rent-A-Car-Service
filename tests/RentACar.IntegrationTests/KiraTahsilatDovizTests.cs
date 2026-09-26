@@ -40,9 +40,9 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         // Kod NormalizeKod ile ISO'ya indirgenir (EURO→EUR, DOLAR→USD, TL/boş→TRY) — hangi döviz
         // etiketiyle çağrılırsa çağrılsın doğru koda sabit kur yazılsın diye. TRY baz para, kur istemez.
-        var isoKod = RentACar.Application.Kur.KurService.NormalizeKod(doviz);
+        var isoKod = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(doviz);
         if (isoKod != "TRY" && isoKod.Length == 3)
-            await sp.GetRequiredService<SabitKurService>()
+            await sp.GetRequiredService<FixedExchangeRateService>()
                 .UpsertAsync(new SabitKurInput { Kod = isoKod, Kur = 40m });
         var cari = await TestCari.YeniAsync(sp);
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
@@ -68,7 +68,7 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
         Assert.Equal(300m, c!.Tahsilat); // KİRA DÖVİZİNDE (eski bug: 12000 TL-baz birikirdi)
         Assert.Equal(0m, c.Bakiye);      // 300 − 300 (eski bug: −11700 "alacak")
         // Defter yine TL-baz doğru: cari bakiye 300×40 tahsilatla düşer (fatura yok → −12000).
-        Assert.Equal(-12000m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(-12000m, await cash.GetAccountBalanceAsync(cari));
     }
 
     [Fact]

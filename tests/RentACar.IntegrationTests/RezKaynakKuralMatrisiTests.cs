@@ -41,7 +41,7 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
     {
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
         var musteri = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Kural", Soyad = "Test" });
+        { Tip = CustomerType.Bireysel, Ad = "Kural", Soyad = "Test" });
         return (musteri, arac);
     }
 
@@ -275,14 +275,14 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var (m1, a1) = await TaraflarAsync(sp, "34 KM 13");
         var i1 = Istek(m1, a1, "KURUMSAL"); i1.Provizyon = 2000m;
         var yasakli = await rentals.CreateDirectAsync(i1);
-        await Assert.ThrowsAsync<ValidationException>(() => rentals.ProvizyonAlAsync(yasakli));
-        Assert.Equal(ProvizyonDurum.Yok, (await rentals.GetAsync(yasakli))!.ProvizyonDurum);
+        await Assert.ThrowsAsync<ValidationException>(() => rentals.TakePreAuthAsync(yasakli));
+        Assert.Equal(PreAuthStatus.Yok, (await rentals.GetAsync(yasakli))!.ProvizyonDurum);
 
         var (m2, a2) = await TaraflarAsync(sp, "34 KM 14");
         var i2 = Istek(m2, a2, "WEB"); i2.Provizyon = 2000m;
         var serbest = await rentals.CreateDirectAsync(i2);
-        Assert.True(await rentals.ProvizyonAlAsync(serbest));
-        Assert.Equal(ProvizyonDurum.Alindi, (await rentals.GetAsync(serbest))!.ProvizyonDurum);
+        Assert.True(await rentals.TakePreAuthAsync(serbest));
+        Assert.Equal(PreAuthStatus.Alindi, (await rentals.GetAsync(serbest))!.ProvizyonDurum);
     }
 
     /// <summary>En fazla gün: oluşturmada ve uzatmada aynı sınır; sınır içinde kalan işlem geçer.</summary>
@@ -451,14 +451,14 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
         {
             Kod = "EKO-WEB", Ad = "Eko Web", Kanal = "WEB", AracGrupKod = "EKO",
-            Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, OnayDurumu = TarifeOnayDurumu.Onayli
+            Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, OnayDurumu = TariffApprovalStatus.Onayli
         });
         var kid = await kaynaklar.CreateAsync(new ReservationSourceInput { Kod = "WEB", Ad = "Web Sitesi" });
 
         var arac = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 OR 49", Grup = "EKO" });
         var musteri = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Oran", Soyad = "Testi" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Oran", Soyad = "Testi" });
 
         BookingInput Talep() => new()
         {
@@ -476,7 +476,7 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         await kaynaklar.UpdateAsync(kid, new ReservationSourceInput
         {
             Kod = "WEB", Ad = "Web Sitesi", Aktif = true,
-            KaynakGrubu = RezKaynakGrubu.Acente,
+            KaynakGrubu = ReservationSourceGroup.Acente,
             KomisyonOrani = 90m, OnOdemeOrani = 80m, IndirimOrani = 75m, PuanOrani = 60m,
             KiraOrani = 50m, HizmetOrani = 50m, DropOrani = 50m,
             BebekKoltugu = 9999m, Navigasyon = 9999m, EkSurucu = 9999m, Wifi = 9999m,
@@ -515,7 +515,7 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
 
         var id = await svc.CreateAsync(new ReservationSourceInput
         {
-            Kod = "matris", Ad = "Matris Kaynağı", KaynakGrubu = RezKaynakGrubu.Broker,
+            Kod = "matris", Ad = "Matris Kaynağı", KaynakGrubu = ReservationSourceGroup.Broker,
             Uzatamaz = true, RezTarihleriDegisemez = true, ProvizyonYok = true,
             KmSinirsiz = true, AyniYonDrop = true, MaxGun = 30,
             MaliyetYansitma = true, MatrisErken = true, MatrisGecikme = true,
@@ -531,7 +531,7 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
 
         var g = await svc.GetAsync(id);
         Assert.Equal("MATRIS", g!.Kod);
-        Assert.Equal(RezKaynakGrubu.Broker, g.KaynakGrubu);
+        Assert.Equal(ReservationSourceGroup.Broker, g.KaynakGrubu);
         Assert.True(g.Uzatamaz); Assert.True(g.RezTarihleriDegisemez); Assert.True(g.ProvizyonYok);
         Assert.True(g.KmSinirsiz); Assert.True(g.AyniYonDrop);
         Assert.Equal(30, g.MaxGun);
@@ -616,7 +616,7 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var svc = scope.ServiceProvider.GetRequiredService<ReservationSourceService>();
 
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(new ReservationSourceInput
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(new ReservationSourceInput
         { Kod = "X", Ad = "Yetkisiz", Uzatamaz = true }));
     }
 }

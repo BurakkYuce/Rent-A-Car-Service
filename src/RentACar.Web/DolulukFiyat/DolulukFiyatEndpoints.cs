@@ -14,18 +14,18 @@ public static class DolulukFiyatEndpoints
     {
         var grp = app.MapGroup("/doluluk-kurallari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (DolulukFiyatKuralService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (OccupancyPriceRuleService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (DolulukFiyatKuralService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (OccupancyPriceRuleService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (DolulukFiyatKuralService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (OccupancyPriceRuleService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         // FAZ-73 — toplu kademe girişi (canlı doluluk_algoritma.aspx): ortak kapsam + 10 satır.
-        grp.MapPost("/toplu", async (DolulukFiyatKuralService svc, HttpRequest req) =>
-            await Run(() => svc.TopluCreateAsync(BuildToplu(req.Form)), "Toplu işlem uygulandı."));
+        grp.MapPost("/toplu", async (OccupancyPriceRuleService svc, HttpRequest req) =>
+            await Run(() => svc.BulkCreateAsync(BuildToplu(req.Form)), "Toplu işlem uygulandı."));
 
         return app;
     }

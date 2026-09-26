@@ -36,7 +36,7 @@ public sealed class SozlukDerinlikTests(PostgresFixture fx)
         {
             Kod = "EKO", Ad = "Ekonomik",
             ProvizyonDoviz = " eur ", Provizyon2Doviz = "usd",
-            YakitTuru = FuelType.Dizel, Vites = Vites.Otomatik,
+            YakitTuru = FuelType.Dizel, Vites = Transmission.Otomatik,
             EntegrasyonKod1 = " BRK-ECO ", WebId = "web-1", ServisId = "srv-1"
         });
 
@@ -45,7 +45,7 @@ public sealed class SozlukDerinlikTests(PostgresFixture fx)
         Assert.Equal("EUR", g!.ProvizyonDoviz);        // döviz kodu trim + büyük harf
         Assert.Equal("USD", g.Provizyon2Doviz);
         Assert.Equal(FuelType.Dizel, g.YakitTuru);
-        Assert.Equal(Vites.Otomatik, g.Vites);
+        Assert.Equal(Transmission.Otomatik, g.Vites);
         Assert.Equal("BRK-ECO", g.EntegrasyonKod1);    // trim
         Assert.Equal("web-1", g.WebId);
         Assert.Equal("srv-1", g.ServisId);
@@ -93,13 +93,13 @@ public sealed class SozlukDerinlikTests(PostgresFixture fx)
         await araclar.CreateAsync(new VehicleInput { Plaka = "34 SD 04", Grup = "Lüks" });
         await araclar.CreateAsync(new VehicleInput { Plaka = "34 SD 05" });
 
-        var sayilar = await gruplar.AracSayilariAsync();
+        var sayilar = await gruplar.VehicleCountsAsync();
         Assert.Equal(3, sayilar[eko]);
         Assert.Equal(1, sayilar[lux]);
 
         // Sayaç ile "eşleşmeyen değerler" paneli AYNI kuralı kullanmalı: 3+1 araç eşleşti,
         // geriye yalnız grubu BOŞ olan 1 araç kalır.
-        var eslesmeyen = await gruplar.ListUnmatchedGrupValuesAsync();
+        var eslesmeyen = await gruplar.ListUnmatchedGroupValuesAsync();
         Assert.Equal(1, eslesmeyen.Single(x => x.Bos).AracSayisi);
         Assert.DoesNotContain(eslesmeyen, x => !x.Bos);
     }
@@ -174,6 +174,6 @@ public sealed class SozlukDerinlikTests(PostgresFixture fx)
         using var s2 = host.ScopeFor(Guid.NewGuid());
         Assert.Empty(await s2.ServiceProvider.GetRequiredService<VehicleGroupService>().ListAsync());
         Assert.Empty(await s2.ServiceProvider.GetRequiredService<CurrencyService>().ListAsync());
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<VehicleGroupService>().AracSayilariAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<VehicleGroupService>().VehicleCountsAsync());
     }
 }

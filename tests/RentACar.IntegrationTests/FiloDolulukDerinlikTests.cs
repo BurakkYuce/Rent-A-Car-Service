@@ -24,7 +24,7 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
     private static DateTimeOffset D(int gun) => new(2026, 6, gun, 0, 0, 0, TimeSpan.Zero);
 
     private static Vehicle Arac(string plaka, string? sube, VehicleStatus durum,
-        string? grup = null, FiloStatus? filo = null)
+        string? grup = null, FleetLifecycleStatus? filo = null)
         => new() { Plaka = plaka, Sube = sube, Durum = durum, Grup = grup, FiloDurum = filo };
 
     private static RentalContract Kira(string no, Guid arac, DateTimeOffset bas, DateTimeOffset bit,
@@ -53,13 +53,13 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
                 Arac("34A002", "Sube A", VehicleStatus.Kirada),
                 Arac("34A003", "Sube A", VehicleStatus.Serviste),
                 Arac("34B001", "Sube B", VehicleStatus.Kirada),
-                Arac("34B002", "Sube B", VehicleStatus.Satildi, filo: FiloStatus.IkinciElSatis),
+                Arac("34B002", "Sube B", VehicleStatus.Satildi, filo: FleetLifecycleStatus.IkinciElSatis),
                 Arac("34X001", null, VehicleStatus.Pasif));
             await db.SaveChangesAsync();
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var r = await svc.GetFleetUtilizationBySubeAsync();
+        var r = await svc.GetFleetUtilizationByBranchAsync();
 
         Assert.Equal(3, r.Satirlar.Count);
         var a = r.Satirlar.Single(x => x.Sube == "Sube A");
@@ -120,7 +120,7 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         }
 
         var r = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetFleetUtilizationBySubeAsync();
+            .GetFleetUtilizationByBranchAsync();
 
         var a = r.Satirlar.Single(x => x.Sube == "Sube A");
         var b = r.Satirlar.Single(x => x.Sube == "Sube B");
@@ -140,18 +140,18 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
 
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var v1 = Arac("34A001", "Sube A", VehicleStatus.Musait, filo: FiloStatus.IkinciElSatis);
-            var v2 = Arac("34A002", "Sube A", VehicleStatus.Musait, filo: FiloStatus.Havuz);
+            var v1 = Arac("34A001", "Sube A", VehicleStatus.Musait, filo: FleetLifecycleStatus.IkinciElSatis);
+            var v2 = Arac("34A002", "Sube A", VehicleStatus.Musait, filo: FleetLifecycleStatus.Havuz);
             db.Vehicles.AddRange(v1, v2);
             db.Baflar.AddRange(
-                new Baf { No = "BAF-000001", VehicleId = v1.Id, Durum = BafDurum.Acik },
-                new Baf { No = "BAF-000002", VehicleId = v2.Id, Durum = BafDurum.Acik },
-                new Baf { No = "BAF-000003", VehicleId = v2.Id, Durum = BafDurum.Kapandi });
+                new Baf { No = "BAF-000001", VehicleId = v1.Id, Durum = BafStatus.Acik },
+                new Baf { No = "BAF-000002", VehicleId = v2.Id, Durum = BafStatus.Acik },
+                new Baf { No = "BAF-000003", VehicleId = v2.Id, Durum = BafStatus.Kapandi });
             await db.SaveChangesAsync();
         }
 
         var a = (await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetFleetUtilizationBySubeAsync()).Satirlar.Single(x => x.Sube == "Sube A");
+            .GetFleetUtilizationByBranchAsync()).Satirlar.Single(x => x.Sube == "Sube A");
 
         Assert.Equal(2, a.Baf);        // ELLE: 3 BAF'tan yalnız 2'si Açık
         Assert.Equal(1, a.Satilik);    // ELLE: 2 araçtan yalnız 1'i IkinciElSatis
@@ -181,8 +181,8 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var donem = await svc.GetDolulukAsync(D(1), D(10));
-        var gunluk = await svc.GetDolulukGunlukAsync(D(1), D(10));
+        var donem = await svc.GetOccupancyAsync(D(1), D(10));
+        var gunluk = await svc.GetOccupancyDailyAsync(D(1), D(10));
 
         Assert.Equal(8, donem.KiraGun);                       // ELLE: 5 + 3
         Assert.Equal(10, gunluk.DonemGun);
@@ -222,7 +222,7 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         }
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetDolulukGunlukAsync(D(1), D(2), DolulukBoyut.Sube);
+            .GetOccupancyDailyAsync(D(1), D(2), OccupancyDimension.Sube);
 
         Assert.Equal(4, g.Satirlar.Count);     // 2 gün × 2 şube
         var a1g = g.Satirlar.Single(x => x.Seri == "Sube A" && x.Gun == new DateOnly(2026, 6, 1));
@@ -240,7 +240,7 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
 
         // Gün toplamı yine kırılımsız toplamla aynı (kırılım kaybetmez).
         var duz = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetDolulukGunlukAsync(D(1), D(2));
+            .GetOccupancyDailyAsync(D(1), D(2));
         Assert.Equal(duz.ToplamKiraGun, g.ToplamKiraGun);
     }
 
@@ -262,7 +262,7 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         }
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetDolulukGunlukAsync(D(1), D(1), DolulukBoyut.AracGrubu);
+            .GetOccupancyDailyAsync(D(1), D(1), OccupancyDimension.AracGrubu);
 
         Assert.Equal(2, g.Satirlar.Count);   // EKO + (Atanmamış)
         var eko = g.Satirlar.Single(x => x.Seri == "EKO");
@@ -297,12 +297,12 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         }
 
         var g = await scope.ServiceProvider.GetRequiredService<ReportService>()
-            .GetDolulukGunlukAsync(D(1), D(1), DolulukBoyut.RezervasyonKaynagi);
+            .GetOccupancyDailyAsync(D(1), D(1), OccupancyDimension.RezervasyonKaynagi);
 
         // Seriler: Web, Telefon + kiraların ayrı kovası.
         var web = g.Satirlar.Single(x => x.Seri == "Web");
         var tel = g.Satirlar.Single(x => x.Seri == "Telefon");
-        var kira = g.Satirlar.Single(x => x.Seri == ReportService.TumFiloKira);
+        var kira = g.Satirlar.Single(x => x.Seri == ReportService.WholeFleetRental);
 
         Assert.Equal(4, web.AracSayisi);          // payda TÜM FİLO (kaynak filo bölüntüsü değil)
         Assert.Equal(1, web.RezGun);              // ELLE: kiraya çevrilen SAYILMADI
@@ -321,11 +321,11 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
 
-        var ters = await svc.GetDolulukGunlukAsync(D(10), D(1));
+        var ters = await svc.GetOccupancyDailyAsync(D(10), D(1));
         Assert.Equal(10, ters.DonemGun);          // boş sayfa yerine düzeltilir
 
-        var genis = await svc.GetDolulukGunlukAsync(D(1), D(1).AddYears(5));
-        Assert.Equal(ReportService.DolulukMaxGun, genis.DonemGun);
+        var genis = await svc.GetOccupancyDailyAsync(D(1), D(1).AddYears(5));
+        Assert.Equal(ReportService.MaxOccupancyDays, genis.DonemGun);
     }
 
     [Fact]
@@ -345,8 +345,8 @@ public sealed class FiloDolulukDerinlikTests(PostgresFixture fx)
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var svc = s2.ServiceProvider.GetRequiredService<ReportService>();
-        Assert.Empty((await svc.GetFleetUtilizationBySubeAsync()).Satirlar);
-        var g = await svc.GetDolulukGunlukAsync(D(1), D(5), DolulukBoyut.Sube);
+        Assert.Empty((await svc.GetFleetUtilizationByBranchAsync()).Satirlar);
+        var g = await svc.GetOccupancyDailyAsync(D(1), D(5), OccupancyDimension.Sube);
         Assert.Equal(0, g.ToplamKiraGun);
         Assert.DoesNotContain(g.Satirlar, x => x.Seri == "Gizli Sube");
     }

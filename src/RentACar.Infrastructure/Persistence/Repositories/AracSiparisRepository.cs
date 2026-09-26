@@ -10,7 +10,7 @@ using RentACar.Domain.Common;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>Araç sipariş kalıcılığı (roadmap L3). CreateAsync boşluksuz No (SP-000001) tahsis eder.</summary>
-public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factory) : IAracSiparisRepository
+public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factory) : IVehicleOrderRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -78,7 +78,7 @@ public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factor
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct); // No tahsisi atomik (boşluksuz)
-            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.AracSiparis, ct);
+            row.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.AracSiparis, ct);
             db.AracSiparisleri.Add(row);
             try
             {
@@ -94,7 +94,7 @@ public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factor
             catch (DbUpdateException ex) when (PkIhlali.Mi(ex)) // F6.1b: Id = işlem anahtarı → çift gönderim
             {
                 await tx.RollbackAsync(ct);
-                throw new MukerrerIslemException(PkIhlali.Mesaj);
+                throw new DuplicateOperationException(PkIhlali.Mesaj);
             }
             await tx.CommitAsync(ct);
         }, ct);
@@ -118,7 +118,7 @@ public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factor
         return true;
     }
 
-    public async Task<bool> SetDurumAsync(Guid id, SiparisDurum durum, CancellationToken ct = default)
+    public async Task<bool> SetStatusAsync(Guid id, OrderStatus durum, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var row = await db.AracSiparisleri.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -129,7 +129,7 @@ public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factor
         return true;
     }
 
-    public async Task<bool> KilitliGuncelleAsync(Guid id, string? beklenenSurum, Action<AracSiparis> apply,
+    public async Task<bool> UpdateLockedAsync(Guid id, string? beklenenSurum, Action<AracSiparis> apply,
         CancellationToken ct = default)
     {
         try
@@ -143,7 +143,7 @@ public sealed class AracSiparisRepository(IDbContextFactory<AppDbContext> factor
         }
     }
 
-    public async Task<string?> SurumAsync(Guid id, CancellationToken ct = default)
+    public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await SatirSurumu.OkuAsync(db, SatirSurumu.AracSiparisleri, id, ct);

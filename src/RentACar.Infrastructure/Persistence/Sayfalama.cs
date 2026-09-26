@@ -6,7 +6,7 @@ namespace RentACar.Infrastructure.Persistence;
 
 /// <summary>
 /// Liste sözleşmesinin (F1.3) EF Core uygulaması: filtrelenmiş sorgu + <see cref="ListeIstegi"/> +
-/// <see cref="SiralamaHaritasi{T}"/> → <see cref="Sayfa{T}"/>. Infrastructure'da yaşar çünkü
+/// <see cref="SortFieldMap{T}"/> → <see cref="Sayfa{T}"/>. Infrastructure'da yaşar çünkü
 /// <c>CountAsync</c>/<c>ToListAsync</c> EF'e bağlıdır; Application EF'e bağımlı değildir (sözleşme
 /// tipleri ve beyaz liste orada, sağlayıcıdan bağımsız).
 ///
@@ -23,7 +23,7 @@ public static class Sayfalama
 {
     /// <summary>Entity'lerin kendisini sayfalar.</summary>
     public static Task<Sayfa<T>> SayfalaAsync<T>(
-        this IQueryable<T> sorgu, ListeIstegi istek, SiralamaHaritasi<T> harita, CancellationToken ct = default)
+        this IQueryable<T> sorgu, ListeIstegi istek, SortFieldMap<T> harita, CancellationToken ct = default)
         => sorgu.SayfalaAsync(istek, harita, x => x, ct);
 
     /// <summary>
@@ -32,7 +32,7 @@ public static class Sayfalama
     /// göre de sıralanabilir.
     /// </summary>
     public static async Task<Sayfa<TSonuc>> SayfalaAsync<T, TSonuc>(
-        this IQueryable<T> sorgu, ListeIstegi istek, SiralamaHaritasi<T> harita,
+        this IQueryable<T> sorgu, ListeIstegi istek, SortFieldMap<T> harita,
         Expression<Func<T, TSonuc>> secici, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(sorgu);
@@ -41,7 +41,7 @@ public static class Sayfalama
         ArgumentNullException.ThrowIfNull(secici);
 
         // Geçersiz sıralama alanı COUNT'tan ÖNCE reddedilsin (boşa sorgu atılmasın).
-        var sirali = harita.Uygula(sorgu, istek.Sirala);
+        var sirali = harita.Apply(sorgu, istek.Sirala);
 
         var toplam = await sorgu.CountAsync(ct);
         if (istek.Atla >= toplam)

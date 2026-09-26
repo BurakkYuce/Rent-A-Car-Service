@@ -57,14 +57,14 @@ public static partial class CustomerApi
 
     // ================================================================== liste
 
-    private static readonly SiralamaHaritasi<Customer> SortMap = SiralamaHaritasi<Customer>
-        .Olustur(c => c.Id)
+    private static readonly SortFieldMap<Customer> SortMap = SortFieldMap<Customer>
+        .Create(c => c.Id)
         .Alan("tip", c => c.Tip)
         // #283 KVKK M1: keys follow the DISPLAYED value — an anonymised name sorts at the label, a hidden
         // address/soyad sorts as empty; otherwise the row position would leak the real value.
-        .Alan("ad", c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Ad)
+        .Alan("ad", c => c.AnonimAd ? CustomerAnonymity.NameLabel : c.Ad)
         .Alan("soyad", c => c.AnonimAd ? null : c.Soyad)
-        .Alan("unvan", c => c.AnonimAd ? CariAnonimlik.AdEtiketi : c.Unvan)
+        .Alan("unvan", c => c.AnonimAd ? CustomerAnonymity.NameLabel : c.Unvan)
         .Alan("il", c => c.AnonimAdres ? null : c.Il)
         .Alan("ilce", c => c.AnonimAdres ? null : c.Ilce)
         .Alan("kaynak", c => c.Kaynak)
@@ -94,14 +94,14 @@ public static partial class CustomerApi
         if (q is { Length: > 100 }) throw new ValidationException("Arama metni en fazla 100 karakter olabilir.", "q");
         var filter = new CustomerFilter
         {
-            Query = q, Tip = F5Ortak.EnumAdi<CariType>(f.Tip, "tip"), IysIzinli = f.IysIzinli, Uyari = f.Uyari,
+            Query = q, Tip = F5Ortak.EnumAdi<CustomerType>(f.Tip, "tip"), IysIzinli = f.IysIzinli, Uyari = f.Uyari,
             KaraListe = f.KaraListe, Pasif = f.Pasif, AracVerilmez = f.AracVerilmez,
             Page = request.Sayfa, PageSize = request.Boyut,
         };
         if (request.Sirala is { } s)
         {
-            SortMap.Uygula(Array.Empty<Customer>().AsQueryable(), s); // bilinmeyen alan → 400 errors[sirala], sorgudan ÖNCE
-            filter.Siralama = x => SortMap.Uygula(x, s);
+            SortMap.Apply(Array.Empty<Customer>().AsQueryable(), s); // bilinmeyen alan → 400 errors[sirala], sorgudan ÖNCE
+            filter.Siralama = x => SortMap.Apply(x, s);
         }
         var result = await customers.SearchRowsAsync(filter, ct);
         var rows = result.Items.Select(Row).ToList();

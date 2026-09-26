@@ -250,9 +250,9 @@ else
         DateTimeOffset? f = DateTimeOffset.TryParse(From, out var x) ? x : null;
         DateTimeOffset? t = DateTimeOffset.TryParse(To, out var y) ? y : null;
         if (IsOzet)
-            _ozet = await Reports.GetKarlilikOzetAsync(Boyut!, f, t);
+            _ozet = await Reports.GetProfitabilitySummaryAsync(Boyut!, f, t);
         else
-            _d = await Reports.GetKarlilikAsync(f, t, Sube, Grup, Plaka, Kaynak, Sipp,
-                KdvDahilMi ? KdvDurum.KdvDahil : KdvDurum.Kdvsiz);
+            _d = await Reports.GetProfitabilityAsync(f, t, Sube, Grup, Plaka, Kaynak, Sipp,
+                KdvDahilMi ? VatStatus.KdvDahil : VatStatus.Kdvsiz);
     }
 }

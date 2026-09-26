@@ -5,12 +5,12 @@ using RentACar.Domain.Entities;
 namespace RentACar.Application.CustomerGroups;
 
 /// <summary>
-/// Müşteri grubu master tanımı — <see cref="MasterTanimService{T}"/> ince alt sınıfı (O12d): doğrulama,
+/// Müşteri grubu master tanımı — <see cref="MasterDefinitionService{T}"/> ince alt sınıfı (O12d): doğrulama,
 /// kod benzersizliği, CRUD, OperationsWrite guard ve liste cache ("customer-groups") tabandan gelir;
 /// burada yalnız <see cref="CustomerGroupInput"/> (kod, ad, aktif) üçlüsüne açılır. Dış yüzey değişmedi.
 /// </summary>
 public sealed class CustomerGroupService(ICustomerGroupRepository repository, ICurrentUser currentUser, ITenantCache cache)
-    : MasterTanimService<CustomerGroup>(repository, currentUser, cache, "customer-groups", "müşteri grubu")
+    : MasterDefinitionService<CustomerGroup>(repository, currentUser, cache, "customer-groups", "müşteri grubu")
 {
     public Task<Guid> CreateAsync(CustomerGroupInput input, CancellationToken ct = default)
         => CreateCoreAsync(input.Kod, input.Ad, input.Aktif, ct);

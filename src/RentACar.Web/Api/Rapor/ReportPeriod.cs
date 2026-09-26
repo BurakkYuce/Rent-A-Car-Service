@@ -98,7 +98,7 @@ public sealed class ReportPageQuery
     /// <summary>(Sayfa − 1) × 200 int'i taşımasın.</summary>
     private const int MaxPage = 1_000_000;
 
-    public Sayfa<T> Apply<T>(IReadOnlyList<T> rows, SiralamaHaritasi<T> map)
+    public Sayfa<T> Apply<T>(IReadOnlyList<T> rows, SortFieldMap<T> map)
         => F5Ortak.Sayfala(rows, map, Math.Min(Sayfa ?? 1, MaxPage), Boyut, Sirala);
 }
 

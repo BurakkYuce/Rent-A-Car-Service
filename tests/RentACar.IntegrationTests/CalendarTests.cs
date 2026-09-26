@@ -21,7 +21,7 @@ public sealed class CalendarTests(PostgresFixture fx)
 
     private static async Task<Guid> Cari(IServiceScope s)
         => await s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Tak", Soyad = "Vim" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Tak", Soyad = "Vim" });
 
     private static async Task<Guid> Vehicle(IServiceScope s, string plaka)
         => await s.ServiceProvider.GetRequiredService<VehicleService>()

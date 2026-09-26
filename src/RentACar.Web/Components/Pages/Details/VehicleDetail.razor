@@ -90,7 +90,7 @@ else
             {
                 <tr><td>@k.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                     <td class="num">@k.Km.ToString("N0")</td>
-                    <td>@(k.Kaynak switch { KmLogKaynak.Donus => "Kira dönüşü", KmLogKaynak.Servis => "Servis çıkışı", _ => "Manuel" })</td></tr>
+                    <td>@(k.Kaynak switch { KmLogSource.Donus => "Kira dönüşü", KmLogSource.Servis => "Servis çıkışı", _ => "Manuel" })</td></tr>
             }
         </tbody>
     </table>
@@ -123,6 +123,6 @@ else
     protected override async Task OnInitializedAsync()
     {
         _d = await Details.GetVehicleAsync(Id);
-        if (_d is not null) _kmLoglari = await Vehicles.KmLoglariAsync(Id, 10);
+        if (_d is not null) _kmLoglari = await Vehicles.KmLogsAsync(Id, 10);
     }
 }

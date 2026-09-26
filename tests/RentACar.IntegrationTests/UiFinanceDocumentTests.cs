@@ -84,8 +84,8 @@ public sealed partial class UiFinanceDocumentTests(WebFixture fx)
         return await ReadAsync(tenantId, async sp =>
         {
             var customers = sp.GetRequiredService<CustomerService>();
-            var customer = await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Belge", Soyad = "Musteri" });
-            var supplier = await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Belge", Soyad = "Tedarikci" });
+            var customer = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Belge", Soyad = "Musteri" });
+            var supplier = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Belge", Soyad = "Tedarikci" });
             var vehicle = await VehicleAsync(sp, "SubeA");
             var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
             {
@@ -124,7 +124,7 @@ public sealed partial class UiFinanceDocumentTests(WebFixture fx)
         => DbAsync(e, db => db.AccountLedgerEntries.AsNoTracking().Where(x => x.SourceId == sourceId).ToListAsync());
 
     private Task<decimal> CustomerBalanceAsync(Env e, Guid cari)
-        => ReadAsync(e.TenantId, sp => sp.GetRequiredService<CashService>().GetCariBalanceAsync(cari));
+        => ReadAsync(e.TenantId, sp => sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
 
     /// <summary>Kiracının TÜM defter kümeleri dengeli: her (SourceType, SourceId) için Σ borç(baz) == Σ alacak(baz).</summary>
     private async Task AllLedgerBalancedAsync(Env e)

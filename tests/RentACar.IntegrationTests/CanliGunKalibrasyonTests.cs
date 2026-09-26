@@ -24,7 +24,7 @@ public sealed class CanliGunKalibrasyonTests
         new(2026, 9, 1, 10, 0, 0, TimeSpan.Zero);   // saf matematik; DB/tarih politikası yok
 
     private static int Gun(int gunFarki, int bitSaat, int bitDakika = 0)
-        => BookingMath.ComputeGun(Bas, Bas.AddDays(gunFarki)
+        => BookingMath.ComputeDays(Bas, Bas.AddDays(gunFarki)
             .AddHours(bitSaat - 10).AddMinutes(bitDakika));
 
     [Theory]

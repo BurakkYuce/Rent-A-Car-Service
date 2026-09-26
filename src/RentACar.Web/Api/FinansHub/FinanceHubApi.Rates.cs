@@ -23,9 +23,9 @@ public static partial class FinanceHubApi
     }
 
     private static async Task<Ok<RatesScreen>> GetRates(
-        KurService rates, SabitKurService fixedRates, CurrencyService currencies, CancellationToken ct)
+        ExchangeRateService rates, FixedExchangeRateService fixedRates, CurrencyService currencies, CancellationToken ct)
     {
-        var today = await rates.BugunKurlarAsync(ct);
+        var today = await rates.TodayRatesAsync(ct);
         // 2026-09-25: satır ve sürüm tutarlı çift (sürüm, satır, sürüm — #313 ShiftApi deseni). Önceden liste okunup
         // sürümler sonra okunuyordu: aradaki yazım yeni sürümü eski alanlarla eşleştiriyordu (TOCTOU).
         var fixedList = await fixedRates.ListWithVersionsAsync(ct);
@@ -34,7 +34,7 @@ public static partial class FinanceHubApi
             p.Row.Aktif, p.Version)).ToList();
         var codes = (await currencies.ListActiveAsync(ct)).Select(c => c.Kod)
             .Concat(today.Select(k => k.Kod)).Append("TRY")
-            .Select(KurService.NormalizeKod).Distinct(StringComparer.Ordinal).OrderBy(c => c, StringComparer.Ordinal).ToList();
+            .Select(ExchangeRateService.NormalizeCode).Distinct(StringComparer.Ordinal).OrderBy(c => c, StringComparer.Ordinal).ToList();
         return TypedResults.Ok(new RatesScreen(
             [.. today.Select(k => new CbrtRate(k.Kod, k.Ad, k.Birim, k.ForexAlis, k.ForexSatis, k.EfektifAlis, k.EfektifSatis,
                 DateOnly.FromDateTime(k.Tarih.UtcDateTime), activeCodes.Contains(k.Kod)))],
@@ -43,14 +43,14 @@ public static partial class FinanceHubApi
 
     /// <summary>Bilgi amaçlı çevirim (TL bazı üzerinden; yuvarlamaz). Kur bulunamazsa 400.</summary>
     private static async Task<Ok<ConversionResult>> ConvertAmount(
-        decimal tutar, string? kaynak, string? hedef, KurService rates, CancellationToken ct)
+        decimal tutar, string? kaynak, string? hedef, ExchangeRateService rates, CancellationToken ct)
     {
         if (Math.Abs(tutar) >= FinansApi.TutarUstSiniri) throw new ValidationException("Tutar çok büyük.", "tutar");
         var from = FinansApi.Doviz(kaynak);
         string to = "";
-        FinansApi.Alanli("hedef", () => to = KurService.NormalizeKodStrict(string.IsNullOrWhiteSpace(hedef) ? "TRY" : hedef));
+        FinansApi.Alanli("hedef", () => to = ExchangeRateService.NormalizeCodeStrict(string.IsNullOrWhiteSpace(hedef) ? "TRY" : hedef));
         decimal result = 0m;
-        try { result = await rates.CevirAsync(tutar, from, to, ct: ct); }
+        try { result = await rates.ConvertAsync(tutar, from, to, ct: ct); }
         catch (ValidationException ex) when (ex.Alan is null) { throw new ValidationException(ex.Message, "kaynak"); }
         // L2: tutar × kaynak kuru / hedef kuru decimal'ı taşabilir (ör. çok küçük hedef kur) — 500 değil 400.
         catch (OverflowException) { throw new ValidationException("Çevrilen tutar çok büyük.", "tutar"); }
@@ -70,7 +70,7 @@ public static partial class FinanceHubApi
     }
 
     private static async Task<Ok<CashOperationResult>> CreateFixedRate(
-        FixedRateCreateRequest req, SabitKurService fixedRates, CancellationToken ct)
+        FixedRateCreateRequest req, FixedExchangeRateService fixedRates, CancellationToken ct)
     {
         FixedRateInput(req.Kur, req.BasTar, req.BitTar);
         var id = await fixedRates.CreateAsync(new SabitKurInput
@@ -81,7 +81,7 @@ public static partial class FinanceHubApi
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> UpdateFixedRate(
-        Guid id, FixedRateUpdateRequest req, SabitKurService fixedRates, CancellationToken ct)
+        Guid id, FixedRateUpdateRequest req, FixedExchangeRateService fixedRates, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Surum))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden yükleyin.", "surum");
@@ -94,14 +94,14 @@ public static partial class FinanceHubApi
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteFixedRate(
-        Guid id, SabitKurService fixedRates, CancellationToken ct)
+        Guid id, FixedExchangeRateService fixedRates, CancellationToken ct)
         => await fixedRates.DeleteAsync(id, ct) ? TypedResults.NoContent() : F5Ortak.Bulunamadi("Sabit kur bulunamadı.");
 
     /// <summary>Sabit kur <c>numeric(19,6)</c>: pozitif, 6 ondalık, kolona sığan; pencere makul yıllarda.</summary>
     private static void FixedRateInput(decimal rate, DateOnly? start, DateOnly? end)
     {
         if (rate <= 0m) throw new ValidationException("Sabit kur 0'dan büyük olmalı.", "kur");
-        if (rate > SabitKurService.MaxRate) throw new ValidationException(SabitKurService.MaxRateMessage, "kur");
+        if (rate > FixedExchangeRateService.MaxRate) throw new ValidationException(FixedExchangeRateService.MaxRateMessage, "kur");
         RateScale(rate);
         foreach (var (d, field) in new[] { (start, "basTar"), (end, "bitTar") })
             if (d is { Year: < 2000 or > 2100 })

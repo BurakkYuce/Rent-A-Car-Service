@@ -38,11 +38,11 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         await AracAsync(sp, "34 FP 05", "EKO", durum: VehicleStatus.Pasif);
         await AracAsync(sp, "34 FP 06", "LUX");
 
-        var svc = sp.GetRequiredService<FiloPlanService>();
+        var svc = sp.GetRequiredService<FleetPlanService>();
         await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
         await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "LUX", HedefAdet = 1 });
 
-        var rows = await svc.ListWithSayimAsync();
+        var rows = await svc.ListWithCountAsync();
         var eko = rows.Single(x => x.Hedef.AracGrupAdi == "EKO");
         var lux = rows.Single(x => x.Hedef.AracGrupAdi == "LUX");
 
@@ -69,12 +69,12 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         await AracAsync(sp, "34 SP 03", "EKO", "CDAR");
         await AracAsync(sp, "34 SP 04", "LUX", "EDMR");
 
-        var svc = sp.GetRequiredService<FiloPlanService>();
+        var svc = sp.GetRequiredService<FleetPlanService>();
         await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 3 });                 // yalnız grup
         await svc.CreateAsync(new FiloPlanInput { Sipp = "edmr", HedefAdet = 3 });                        // yalnız sipp (küçük harf)
         await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", Sipp = "EDMR", HedefAdet = 3 });   // ikisi (AND)
 
-        var rows = await svc.ListWithSayimAsync();
+        var rows = await svc.ListWithCountAsync();
         Assert.Equal(3, rows.Single(x => x.Hedef.AracGrupAdi == "EKO" && x.Hedef.Sipp is null).Gerceklesen);
         Assert.Equal(3, rows.Single(x => x.Hedef.AracGrupAdi is null).Gerceklesen);   // SIPP normalize → EDMR
         Assert.Equal(2, rows.Single(x => x.Hedef.AracGrupAdi == "EKO" && x.Hedef.Sipp == "EDMR").Gerceklesen);
@@ -89,12 +89,12 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         await AracAsync(sp, "34 TR 01", "İş Araçları");
         await AracAsync(sp, "34 TR 02", "iş araçları");
 
-        var svc = sp.GetRequiredService<FiloPlanService>();
+        var svc = sp.GetRequiredService<FleetPlanService>();
         await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "İŞ ARAÇLARI", HedefAdet = 2 });
 
         // ELLE: iki yazım da aynı gruba sayılır (TurkishText — greenfield olduğu için doğru
         // karşılaştırıcı baştan seçildi).
-        Assert.Equal(2, Assert.Single(await svc.ListWithSayimAsync()).Gerceklesen);
+        Assert.Equal(2, Assert.Single(await svc.ListWithCountAsync()).Gerceklesen);
     }
 
     [Fact]
@@ -102,18 +102,18 @@ public sealed class FiloPlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<FiloPlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<FleetPlanService>();
         var id = await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 1 });
 
-        Assert.True(await svc.HedefDegistirAsync(id, +1));
+        Assert.True(await svc.ChangeTargetAsync(id, +1));
         Assert.Equal(2, (await svc.GetAsync(id))!.HedefAdet);
 
-        Assert.True(await svc.HedefDegistirAsync(id, -1));
-        Assert.True(await svc.HedefDegistirAsync(id, -1));
+        Assert.True(await svc.ChangeTargetAsync(id, -1));
+        Assert.True(await svc.ChangeTargetAsync(id, -1));
         Assert.Equal(0, (await svc.GetAsync(id))!.HedefAdet);
 
         // ELLE: 0'da bir daha azaltmak NEGATİFE düşürmez (negatif hedef "Fazla" kolonunu şişirirdi).
-        Assert.True(await svc.HedefDegistirAsync(id, -1));
+        Assert.True(await svc.ChangeTargetAsync(id, -1));
         Assert.Equal(0, (await svc.GetAsync(id))!.HedefAdet);
     }
 
@@ -122,7 +122,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<FiloPlanService>();
+        var svc = s.ServiceProvider.GetRequiredService<FleetPlanService>();
 
         // Grup ve SIPP ikisi de boş → TÜM filoyu sayan sessiz kural olurdu.
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
@@ -140,7 +140,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
 
         // Farklı DÖNEM serbest — plan dönemsel olabilir.
         await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", Donem = "2026-Q2", HedefAdet = 9 });
-        Assert.Equal(2, (await svc.ListWithSayimAsync()).Count);
+        Assert.Equal(2, (await svc.ListWithCountAsync()).Count);
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         Guid id;
         using (var s1 = host.ScopeFor(t1))
         {
-            var svc = s1.ServiceProvider.GetRequiredService<FiloPlanService>();
+            var svc = s1.ServiceProvider.GetRequiredService<FleetPlanService>();
             id = await svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 3 });
             Assert.True(await svc.UpdateAsync(id, new FiloPlanInput
             { AracGrupAdi = "LUX", Sipp = "cdar", Donem = " 2026-Q1 ", HedefAdet = 7, Aciklama = " not " }));
@@ -166,24 +166,24 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         // Muhasebe OKUYABİLİR (ViewReports) ama YAZAMAZ.
         using (var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe))
         {
-            var svc = muh.ServiceProvider.GetRequiredService<FiloPlanService>();
-            Assert.Single(await svc.ListWithSayimAsync());
-            await Assert.ThrowsAsync<YetkiYokException>(() => svc.HedefDegistirAsync(id, 1));
-            await Assert.ThrowsAsync<YetkiYokException>(() =>
+            var svc = muh.ServiceProvider.GetRequiredService<FleetPlanService>();
+            Assert.Single(await svc.ListWithCountAsync());
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.ChangeTargetAsync(id, 1));
+            await Assert.ThrowsAsync<NoPermissionException>(() =>
                 svc.CreateAsync(new FiloPlanInput { AracGrupAdi = "X", HedefAdet = 1 }));
         }
 
         // Operatör YAZABİLİR ve okuyabilir (ViewReports'u yok — RequireAny kilidi).
         using (var op = host.ScopeFor(t1, Guid.NewGuid(), "op", UserRole.Operator))
         {
-            var svc = op.ServiceProvider.GetRequiredService<FiloPlanService>();
-            Assert.Single(await svc.ListWithSayimAsync());
-            Assert.True(await svc.HedefDegistirAsync(id, 1));
+            var svc = op.ServiceProvider.GetRequiredService<FleetPlanService>();
+            Assert.Single(await svc.ListWithCountAsync());
+            Assert.True(await svc.ChangeTargetAsync(id, 1));
             Assert.True(await svc.DeleteAsync(id));
         }
 
         using var s1b = host.ScopeFor(t1);
-        Assert.Empty(await s1b.ServiceProvider.GetRequiredService<FiloPlanService>().ListWithSayimAsync());
+        Assert.Empty(await s1b.ServiceProvider.GetRequiredService<FleetPlanService>().ListWithCountAsync());
     }
 
     [Fact]
@@ -194,19 +194,19 @@ public sealed class FiloPlanTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             await AracAsync(s1.ServiceProvider, "34 TZ 01", "EKO");
-            await s1.ServiceProvider.GetRequiredService<FiloPlanService>()
+            await s1.ServiceProvider.GetRequiredService<FleetPlanService>()
                 .CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 1 });
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var sp = s2.ServiceProvider;
-        Assert.Empty(await sp.GetRequiredService<FiloPlanService>().ListWithSayimAsync());
+        Assert.Empty(await sp.GetRequiredService<FleetPlanService>().ListWithCountAsync());
 
         // Diğer tenant kendi hedefini kurduğunda SAYIM da yalnız kendi araçlarını görmeli.
         await AracAsync(sp, "34 TZ 02", "EKO");
-        await sp.GetRequiredService<FiloPlanService>()
+        await sp.GetRequiredService<FleetPlanService>()
             .CreateAsync(new FiloPlanInput { AracGrupAdi = "EKO", HedefAdet = 5 });
-        var row = Assert.Single(await sp.GetRequiredService<FiloPlanService>().ListWithSayimAsync());
+        var row = Assert.Single(await sp.GetRequiredService<FleetPlanService>().ListWithCountAsync());
         Assert.Equal(1, row.Gerceklesen);     // ELLE: kendi 1 aracı — diğer tenant'ınki sayılmadı
     }
 }
@@ -236,10 +236,10 @@ public sealed class MusaitlikSonKullanimTests(PostgresFixture fx)
 
         var m1 = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
             .CreateAsync(new RentACar.Application.Customers.CustomerInput
-            { Tip = CariType.Kurumsal, Unvan = "Eski Müşteri" });
+            { Tip = CustomerType.Kurumsal, Unvan = "Eski Müşteri" });
         var m2 = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
             .CreateAsync(new RentACar.Application.Customers.CustomerInput
-            { Tip = CariType.Kurumsal, Unvan = "Son Müşteri" });
+            { Tip = CustomerType.Kurumsal, Unvan = "Son Müşteri" });
 
         var kiralar = sp.GetRequiredService<RentACar.Application.Bookings.RentalService>();
         // ELLE: 30 gün önce dönen kira (eski), 10 gün önce dönen kira (son), gelecekte biten kira.
@@ -251,13 +251,13 @@ public sealed class MusaitlikSonKullanimTests(PostgresFixture fx)
         { MusteriId = m1, VehicleId = arac, BasTar = Now.AddDays(-1), BitTar = Now.AddDays(9), GunlukUcret = 100m });
 
         var svc = sp.GetRequiredService<RentACar.Application.Availability.AvailabilityService>();
-        var son = await svc.SonKullanimAsync([arac, bosArac]);
+        var son = await svc.LastUsageAsync([arac, bosArac]);
 
         Assert.True(son.ContainsKey(arac));
         Assert.False(son.ContainsKey(bosArac));      // hiç kiralanmamış → satır YOK
         Assert.Equal("Son Müşteri", son[arac].MusteriAd);   // ELLE: 10 gün önce dönen
         Assert.Equal(10, RentACar.Application.Availability.AvailabilityService
-            .BostaGun(son[arac].SonDonus, Now));            // ELLE: bugüne 10 gün
+            .IdleDays(son[arac].SonDonus, Now));            // ELLE: bugüne 10 gün
     }
 
     [Fact]
@@ -266,14 +266,14 @@ public sealed class MusaitlikSonKullanimTests(PostgresFixture fx)
         // Saf fonksiyon.
         var now = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
         Assert.Equal(0, RentACar.Application.Availability.AvailabilityService
-            .BostaGun(new DateTimeOffset(2026, 6, 15, 8, 0, 0, TimeSpan.Zero), now));   // aynı gün
+            .IdleDays(new DateTimeOffset(2026, 6, 15, 8, 0, 0, TimeSpan.Zero), now));   // aynı gün
         Assert.Equal(1, RentACar.Application.Availability.AvailabilityService
-            .BostaGun(new DateTimeOffset(2026, 6, 14, 23, 0, 0, TimeSpan.Zero), now));
+            .IdleDays(new DateTimeOffset(2026, 6, 14, 23, 0, 0, TimeSpan.Zero), now));
         Assert.Equal(30, RentACar.Application.Availability.AvailabilityService
-            .BostaGun(new DateTimeOffset(2026, 5, 16, 0, 0, 0, TimeSpan.Zero), now));
+            .IdleDays(new DateTimeOffset(2026, 5, 16, 0, 0, 0, TimeSpan.Zero), now));
         // Gelecek dönüş → negatif değil 0 (savunmacı).
         Assert.Equal(0, RentACar.Application.Availability.AvailabilityService
-            .BostaGun(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), now));
+            .IdleDays(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), now));
     }
 
     [Fact]
@@ -287,7 +287,7 @@ public sealed class MusaitlikSonKullanimTests(PostgresFixture fx)
             arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 SK 12" });
             var m = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
                 .CreateAsync(new RentACar.Application.Customers.CustomerInput
-                { Tip = CariType.Kurumsal, Unvan = "Gizli" });
+                { Tip = CustomerType.Kurumsal, Unvan = "Gizli" });
             await sp.GetRequiredService<RentACar.Application.Bookings.RentalService>()
                 .CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
                 { MusteriId = m, VehicleId = arac, BasTar = Now.AddDays(-5), BitTar = Now.AddDays(-2), GunlukUcret = 100m });
@@ -297,6 +297,6 @@ public sealed class MusaitlikSonKullanimTests(PostgresFixture fx)
         // Araç id'si bilinse bile başka tenant'ın kirası görünmemeli.
         Assert.Empty(await s2.ServiceProvider
             .GetRequiredService<RentACar.Application.Availability.AvailabilityService>()
-            .SonKullanimAsync([arac]));
+            .LastUsageAsync([arac]));
     }
 }

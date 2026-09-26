@@ -22,20 +22,20 @@ public sealed class HgsReflectionService(
     IHgsService hgs, ILedgerPoster ledger, IPeriodLockGuard periodLock, ICurrentUser currentUser)
 {
     public async Task<HgsReflectionResult> ReflectAsync(
-        Guid cariId, string plaka, DateTimeOffset from, DateTimeOffset to,
-        decimal hizmetOrani = 1.03m, CancellationToken ct = default)
+        Guid customerId, string plate, DateTimeOffset from, DateTimeOffset to,
+        decimal serviceRate = 1.03m, CancellationToken ct = default)
     {
         RentACar.Application.Authorization.PermissionGuard.Require(
             currentUser, RentACar.Application.Authorization.Permission.FinanceWrite);
-        if (cariId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
-        if (hizmetOrani <= 0) throw new ValidationException("Hizmet oranı pozitif olmalıdır.");
+        if (customerId == Guid.Empty) throw new ValidationException("Cari seçilmelidir.");
+        if (serviceRate <= 0) throw new ValidationException("Hizmet oranı pozitif olmalıdır.");
 
-        var crossings = await hgs.GetCrossingsAsync(plaka, from, to, ct);
-        var toplam = crossings.Sum(c => c.Tutar);
-        var yansitilan = Math.Round(toplam * hizmetOrani, 2, MidpointRounding.AwayFromZero);
+        var crossings = await hgs.GetCrossingsAsync(plate, from, to, ct);
+        var total = crossings.Sum(c => c.Tutar);
+        var reflected = Math.Round(total * serviceRate, 2, MidpointRounding.AwayFromZero);
 
-        if (yansitilan <= 0)
-            return new HgsReflectionResult(crossings.Count, toplam, 0m);
+        if (reflected <= 0)
+            return new HgsReflectionResult(crossings.Count, total, 0m);
 
         await periodLock.EnsureOpenAsync(DateTimeOffset.UtcNow, ct); // dönem kilidi: yansıtma bugün tarihli
 
@@ -43,33 +43,33 @@ public sealed class HgsReflectionService(
         // aynı yansıtmanın tekrarı (retry/çift-tık/batch yeniden-çalışma) defterde kısmi
         // unique index'e takılır ve LedgerPoster tarafından no-op olarak yutulur (çift
         // borçlanma olmaz). Farklı dönem/plaka → farklı SourceId → meşru ikinci yansıtma serbest.
-        var sourceId = DeterministicSourceId(cariId, plaka, from, to);
+        var sourceId = DeterministicSourceId(customerId, plate, from, to);
         await ledger.PostAsync(
         [
             new AccountLedgerEntry
             {
-                EntryDateUtc = DateTimeOffset.UtcNow, AccountType = LedgerAccountType.Cari, AccountRef = cariId,
-                Direction = LedgerDirection.Debit, Amount = new Money(yansitilan, "TRY", 1m),
-                SourceType = "Hgs", SourceId = sourceId, Description = $"HGS yansıtma {plaka}"
+                EntryDateUtc = DateTimeOffset.UtcNow, AccountType = LedgerAccountType.Cari, AccountRef = customerId,
+                Direction = LedgerDirection.Debit, Amount = new Money(reflected, "TRY", 1m),
+                SourceType = "Hgs", SourceId = sourceId, Description = $"HGS yansıtma {plate}"
             },
             new AccountLedgerEntry
             {
                 EntryDateUtc = DateTimeOffset.UtcNow, AccountType = LedgerAccountType.Gelir, AccountRef = null,
-                Direction = LedgerDirection.Credit, Amount = new Money(yansitilan, "TRY", 1m),
-                SourceType = "Hgs", SourceId = sourceId, Description = $"HGS yansıtma {plaka}"
+                Direction = LedgerDirection.Credit, Amount = new Money(reflected, "TRY", 1m),
+                SourceType = "Hgs", SourceId = sourceId, Description = $"HGS yansıtma {plate}"
             }
         ], ct);
 
-        return new HgsReflectionResult(crossings.Count, toplam, yansitilan);
+        return new HgsReflectionResult(crossings.Count, total, reflected);
     }
 
     /// <summary>
     /// (cari, plaka, dönem)'den deterministik GUID — idempotency anahtarı (kriptografik
     /// güvenlik amacı yok, yalnız kararlı kimlik). Tenant zaten unique index'in parçası.
     /// </summary>
-    private static Guid DeterministicSourceId(Guid cariId, string plaka, DateTimeOffset from, DateTimeOffset to)
+    private static Guid DeterministicSourceId(Guid customerId, string plate, DateTimeOffset from, DateTimeOffset to)
     {
-        var key = $"{cariId:N}|{(plaka ?? string.Empty).Trim().ToUpperInvariant()}|{from.UtcTicks}|{to.UtcTicks}";
+        var key = $"{customerId:N}|{(plate ?? string.Empty).Trim().ToUpperInvariant()}|{from.UtcTicks}|{to.UtcTicks}";
         var hash = MD5.HashData(Encoding.UTF8.GetBytes(key));
         return new Guid(hash);
     }

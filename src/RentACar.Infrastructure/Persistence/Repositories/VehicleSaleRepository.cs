@@ -42,7 +42,7 @@ public sealed class VehicleSaleRepository(IDbContextFactory<AppDbContext> factor
 
         if (!string.IsNullOrWhiteSpace(filtre.Plaka))
         {
-            var p = RentACar.Application.Vehicles.VehicleService.PlakaAnahtar(filtre.Plaka);
+            var p = RentACar.Application.Vehicles.VehicleService.PlateKey(filtre.Plaka);
             q = q.Where(x => db.Vehicles.Any(v => v.Id == x.VehicleId && EF.Functions.ILike(v.Plaka, $"%{p}%")));
         }
 
@@ -74,7 +74,7 @@ public sealed class VehicleSaleRepository(IDbContextFactory<AppDbContext> factor
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            sale.No = await BelgeNoUretici.UretAsync(db, db.TenantId, BelgeNoTuru.AracSatis, ct);
+            sale.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.AracSatis, ct);
             foreach (var entry in entries)
                 entry.Description = $"Araç satış {sale.No}";
 

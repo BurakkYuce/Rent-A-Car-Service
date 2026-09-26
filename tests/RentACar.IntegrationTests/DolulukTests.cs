@@ -39,7 +39,7 @@ public sealed class DolulukTests(PostgresFixture fx)
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var g = await svc.GetDolulukAsync(D(1), D(10));
+        var g = await svc.GetOccupancyAsync(D(1), D(10));
 
         Assert.Equal(2, g.AracSayisi);
         Assert.Equal(10, g.DonemGun);
@@ -65,7 +65,7 @@ public sealed class DolulukTests(PostgresFixture fx)
         }
 
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var g = await svc.GetDolulukAsync(D(1), D(10));
+        var g = await svc.GetOccupancyAsync(D(1), D(10));
 
         Assert.Equal(1, g.AracSayisi);
         Assert.Equal(10, g.DonemGun);
@@ -79,7 +79,7 @@ public sealed class DolulukTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var g = await svc.GetDolulukAsync(D(1), D(10));
+        var g = await svc.GetOccupancyAsync(D(1), D(10));
         Assert.Equal(0, g.AracSayisi);
         Assert.Equal(0, g.AracGun);
         Assert.Equal(0m, g.DolulukYuzde);
@@ -99,7 +99,7 @@ public sealed class DolulukTests(PostgresFixture fx)
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        var g = await s2.ServiceProvider.GetRequiredService<ReportService>().GetDolulukAsync(D(1), D(10));
+        var g = await s2.ServiceProvider.GetRequiredService<ReportService>().GetOccupancyAsync(D(1), D(10));
         Assert.Equal(0, g.AracSayisi);
         Assert.Equal(0, g.KiraGun);
     }

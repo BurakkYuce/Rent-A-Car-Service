@@ -15,13 +15,13 @@ public static class BrokerYasakEndpoints
     {
         var grp = app.MapGroup("/broker-yasaklari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (BrokerYasakService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (BrokerBanService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (BrokerYasakService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (BrokerBanService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (BrokerYasakService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (BrokerBanService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;

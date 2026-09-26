@@ -23,7 +23,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
 
     // Toplu yol artık cari varlığını denetler (tekil yolla aynı kural) → satırlar GERÇEK cari ister.
     private static Task<Guid> CariAsync(IServiceProvider sp, string ad) =>
-        sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad });
+        sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad });
 
     // ---- Toplu tahsilat ----
 
@@ -40,9 +40,9 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         await cash.BatchCollectAsync([Row(a, 1500m), Row(b, 2000m), Row(c, 500m)]);
 
         // Tahsilat → cari Alacak → bakiye negatif (senaryodan: −tutar her cari).
-        Assert.Equal(-1500m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(-2000m, await cash.GetCariBalanceAsync(b));
-        Assert.Equal(-500m, await cash.GetCariBalanceAsync(c));
+        Assert.Equal(-1500m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(-2000m, await cash.GetAccountBalanceAsync(b));
+        Assert.Equal(-500m, await cash.GetAccountBalanceAsync(c));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -68,12 +68,12 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         // 2. satır geçersiz (boş cari) → TÜM batch reddedilir, hiçbir şey yazılmaz.
         await Assert.ThrowsAsync<ValidationException>(
             () => cash.BatchCollectAsync([Row(a, 1500m), Row(Guid.Empty, 100m)]));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(a));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(a));
 
         // 2. satır tutar 0 → yine hep-ya-hiç.
         await Assert.ThrowsAsync<ValidationException>(
             () => cash.BatchCollectAsync([Row(a, 1500m), Row(Guid.NewGuid(), 0m)]));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(a));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(a));
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -91,9 +91,9 @@ public sealed class TopluFinansTests(PostgresFixture fx)
 
         await cash.BatchCollectAsync([Row(a, 1000m)], key);
         // Aynı anahtarla çift-submit → ikinci tüm batch'i geri alır (çift sayım yok).
-        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.BatchCollectAsync([Row(a, 1000m)], key));
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.BatchCollectAsync([Row(a, 1000m)], key));
 
-        Assert.Equal(-1000m, await cash.GetCariBalanceAsync(a)); // tek virman
+        Assert.Equal(-1000m, await cash.GetAccountBalanceAsync(a)); // tek virman
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         Assert.Equal(1, await db.CashTransactions.AsNoTracking().CountAsync());
@@ -114,7 +114,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => cash.BatchCollectAsync([Row(Guid.NewGuid(), 100m)]));
+        await Assert.ThrowsAsync<NoPermissionException>(() => cash.BatchCollectAsync([Row(Guid.NewGuid(), 100m)]));
     }
 
     // ---- Cari varlığı (DEVIR §6 Low: Blazor BatchCollect/BatchPay cari kontrolü yoktu) ----
@@ -146,7 +146,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
 
         // Hep-ya-hiç: geçerli 1. satır da yazılmadı — ne belge ne defter satırı.
         Assert.Equal((0, 0), await RowCountsAsync(sp));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(a));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(a));
     }
 
     [Theory]
@@ -189,8 +189,8 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         await cash.BatchPayAsync([Row(a, 300m), Row(b, 200m), Row(a, 50m)]);
 
         // Ödeme → Borç Cari → bakiye artar. ELLE: a = 300 + 50, b = 200; defter 3 × 2 satır, taraf toplamı 550.
-        Assert.Equal(350m, await cash.GetCariBalanceAsync(a));
-        Assert.Equal(200m, await cash.GetCariBalanceAsync(b));
+        Assert.Equal(350m, await cash.GetAccountBalanceAsync(a));
+        Assert.Equal(200m, await cash.GetAccountBalanceAsync(b));
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         var entries = await db.AccountLedgerEntries.AsNoTracking().ToListAsync();
         Assert.Equal(6, entries.Count);
@@ -203,7 +203,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
     private static ExpenseInput Gider(decimal net) => new()
     {
         Tip = ExpenseType.Genel, NetTutar = net, KdvOrani = 0.20m, Doviz = "TRY", Kur = 1m,
-        OdemeYontemi = OdemeYontemi.Nakit, Aciklama = "Toplu gider"
+        OdemeYontemi = PaymentMethod.Nakit, Aciklama = "Toplu gider"
     };
 
     [Fact]
@@ -245,7 +245,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         var key = Guid.NewGuid();
 
         await exp.BatchCreateAsync([Gider(1000m)], key);
-        await Assert.ThrowsAsync<MukerrerIslemException>(() => exp.BatchCreateAsync([Gider(1000m)], key));
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => exp.BatchCreateAsync([Gider(1000m)], key));
         Assert.Single(await exp.ListAsync());
     }
 
@@ -262,6 +262,6 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         }
 
         using var s2 = host.ScopeFor(t2);
-        Assert.Equal(0m, await s2.ServiceProvider.GetRequiredService<CashService>().GetCariBalanceAsync(a));
+        Assert.Equal(0m, await s2.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(a));
     }
 }

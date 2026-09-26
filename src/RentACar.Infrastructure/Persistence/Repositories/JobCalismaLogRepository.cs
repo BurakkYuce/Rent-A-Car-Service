@@ -8,7 +8,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// IJobCalismaLogRepository — salt okuma (yazımı <c>JobCalismaKaydedici</c> ham SQL ile yapar).
 /// Tenant izolasyonu RLS + merkezi query filter ile otomatik.
 /// </summary>
-public sealed class JobCalismaLogRepository(IDbContextFactory<AppDbContext> factory) : IJobCalismaLogRepository
+public sealed class JobCalismaLogRepository(IDbContextFactory<AppDbContext> factory) : IJobRunLogRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -35,7 +35,7 @@ public sealed class JobCalismaLogRepository(IDbContextFactory<AppDbContext> fact
         return await q.OrderByDescending(r => r.BaslangicUtc).Take(limit).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<JobCalismaLog>> SonKosularAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<JobCalismaLog>> LastRunsAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // İş adı başına EN YENİ satır. Az sayıda iş adı var → gruplu alt-sorgu yeterli.

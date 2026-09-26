@@ -59,7 +59,7 @@ public sealed class LedgerPoster(IDbContextFactory<AppDbContext> factory) : ILed
                 if (mevcut.Count == 0)
                     throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
                 if (!DefterKumesi.Ayni(mevcut, entries))
-                    throw MukerrerIslemException.FarkliIcerik();
+                    throw DuplicateOperationException.DifferentContent();
             }
         }, ct);
     }

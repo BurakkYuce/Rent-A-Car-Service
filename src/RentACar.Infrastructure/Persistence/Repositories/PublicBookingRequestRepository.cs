@@ -49,7 +49,7 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
         return etkilenen == 1;
     }
 
-    public async Task SetDonusenReservationAsync(Guid id, Guid reservationId, CancellationToken ct = default)
+    public async Task SetConvertedReservationAsync(Guid id, Guid reservationId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         await db.SiteTalepleri.Where(t => t.Id == id)
@@ -72,7 +72,7 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
 
     // ---- PR-17: filtre/sayfalama, sayaçlar, durum/atama/not ----
 
-    public async Task<(IReadOnlyList<PublicBookingRequest> Satirlar, int Toplam)> SayfaliAsync(
+    public async Task<(IReadOnlyList<PublicBookingRequest> Satirlar, int Toplam)> PagedAsync(
         PublicBookingRequestDurum? durum, string? ara, int sayfa, int boyut, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
@@ -96,14 +96,14 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
         return (satirlar, toplam);
     }
 
-    public async Task<int> YeniSayisiAsync(CancellationToken ct = default)
+    public async Task<int> NewCountAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SiteTalepleri.AsNoTracking()
             .CountAsync(t => t.Durum == PublicBookingRequestDurum.Yeni, ct);
     }
 
-    public async Task<DateTimeOffset?> EnEskiYeniAsync(CancellationToken ct = default)
+    public async Task<DateTimeOffset?> OldestNewAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SiteTalepleri.AsNoTracking()
@@ -111,7 +111,7 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
             .MinAsync(t => (DateTimeOffset?)t.CreatedAtUtc, ct);
     }
 
-    public async Task<bool> DurumDegistirAsync(Guid id, PublicBookingRequestDurum hedef, CancellationToken ct = default)
+    public async Task<bool> ChangeStatusAsync(Guid id, PublicBookingRequestDurum hedef, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Terminal satır DEĞİŞMEZ (atomik — oku-kontrol-yaz değil). Claim yüklemiyle aynı liste.
@@ -125,7 +125,7 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
         return etkilenen == 1;
     }
 
-    public async Task<bool> AtaAsync(Guid id, Guid? kullaniciId, string? ad, CancellationToken ct = default)
+    public async Task<bool> AssignAsync(Guid id, Guid? kullaniciId, string? ad, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var etkilenen = await db.SiteTalepleri.Where(t => t.Id == id)
@@ -136,14 +136,14 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
         return etkilenen == 1;
     }
 
-    public async Task NotEkleAsync(TalepNotu not, CancellationToken ct = default)
+    public async Task AddNoteAsync(TalepNotu not, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         db.TalepNotlari.Add(not);
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<IReadOnlyList<TalepNotu>> NotlarAsync(Guid talepId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<TalepNotu>> NotesAsync(Guid talepId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.TalepNotlari.AsNoTracking()
@@ -152,7 +152,7 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
             .ToListAsync(ct);
     }
 
-    public async Task<Dictionary<Guid, int>> NotSayilariAsync(
+    public async Task<Dictionary<Guid, int>> NoteCountsAsync(
         IReadOnlyCollection<Guid> talepIdler, CancellationToken ct = default)
     {
         if (talepIdler.Count == 0) return [];

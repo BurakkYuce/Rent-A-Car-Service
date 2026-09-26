@@ -28,7 +28,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 500m });
 
         // Tahsilat → Alacak Cari → bakiye -500 (müşteri alacaklı/avans).
-        Assert.Equal(-500m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(-500m, await cash.GetAccountBalanceAsync(cari));
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "USD", Kur = 30m });
 
         // 100 USD * 30 = 3000 base, Alacak → -3000.
-        Assert.Equal(-3000m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(-3000m, await cash.GetAccountBalanceAsync(cari));
     }
 
     [Fact]
@@ -54,10 +54,10 @@ public sealed class FinanceTests(PostgresFixture fx)
         var cari = await TestCari.YeniAsync(scope.ServiceProvider);
 
         var txId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 750m });
-        Assert.Equal(-750m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(-750m, await cash.GetAccountBalanceAsync(cari));
 
         await cash.ReverseAsync(txId);
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         var rental = await rent.GetAsync(rentalId);
         Assert.Equal(400m, rental!.Tahsilat);
         Assert.Equal(0m, rental.Bakiye);                 // sözleşme tahsil edildi
-        Assert.Equal(-400m, await cash.GetCariBalanceAsync(cari)); // faturasız → cari alacaklı
+        Assert.Equal(-400m, await cash.GetAccountBalanceAsync(cari)); // faturasız → cari alacaklı
     }
 
     [Fact]
@@ -128,11 +128,11 @@ public sealed class FinanceTests(PostgresFixture fx)
 
         var txId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 500m });
         await cash.ReverseAsync(txId);
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
 
         // İkinci ters kayıt reddedilmeli (idempotency) → bakiye bozulmaz. F1.4: mükerrer (409) tipi.
-        await Assert.ThrowsAsync<MukerrerIslemException>(() => cash.ReverseAsync(txId));
-        Assert.Equal(0m, await cash.GetCariBalanceAsync(cari));
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.ReverseAsync(txId));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public sealed class FinanceTests(PostgresFixture fx)
                 .CollectAsync(new CashInput { CariId = cari, Tutar = 999m });
 
         using var s2 = host.ScopeFor(t2);
-        var balance = await s2.ServiceProvider.GetRequiredService<CashService>().GetCariBalanceAsync(cari);
+        var balance = await s2.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cari);
         Assert.Equal(0m, balance); // T2 T1'in defterini göremez (RLS)
     }
 }

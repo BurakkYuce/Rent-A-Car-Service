@@ -27,7 +27,7 @@ internal static class ReportScope
     public static void RequireFirmWide(ICurrentUser user)
     {
         if (!BranchScope.EffectiveFilter(user).Unrestricted)
-            throw new YetkiYokException("Bu rapor firma genelidir; şube kapsamlı kullanıcıya kapalıdır.");
+            throw new NoPermissionException("Bu rapor firma genelidir; şube kapsamlı kullanıcıya kapalıdır.");
     }
 
     /// <summary>
@@ -46,9 +46,9 @@ internal static class ReportScope
             await using var db = await dbf.CreateDbContextAsync(ct);
             ad = await db.Branches.AsNoTracking().Where(b => b.Id == id).Select(b => b.Ad).FirstOrDefaultAsync(ct);
         }
-        if (ad is null) throw new YetkiYokException("Şube kapsamınız çözülemedi.");
+        if (ad is null) throw new NoPermissionException("Şube kapsamınız çözülemedi.");
         if (istenen is not null && !string.Equals(istenen, ad.Trim(), StringComparison.Ordinal))
-            throw new YetkiYokException("Bu şube kapsamınız dışında.");
+            throw new NoPermissionException("Bu şube kapsamınız dışında.");
         return ad.Trim();
     }
 

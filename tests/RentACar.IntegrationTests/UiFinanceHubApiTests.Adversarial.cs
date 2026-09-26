@@ -24,7 +24,7 @@ public sealed partial class UiFinanceHubApiTests
         // Sabit kur servis sınırının (≤ 1.000.000) üstü → 400, API ve servis (Blazor yolu) aynı.
         await Problem(await PostAsync(s, "/kurlar/sabit", new { kod = "XYZ", kur = 1_000_001m }), HttpStatusCode.BadRequest, "dogrulama", "kur");
         await Assert.ThrowsAsync<ValidationException>(() => ReadAsync(e, sp =>
-            sp.GetRequiredService<SabitKurService>().UpsertAsync(new SabitKurInput { Kod = "XYZ", Kur = 9_999_999_999_999m })));
+            sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "XYZ", Kur = 9_999_999_999_999m })));
 
         // Eski (sınır öncesi) veri: dev sabit kur doğrudan tabloda. Kursuz işlem ÇÖZÜLEN kurla baz sınırına takılır.
         await DbAsync(e, async db =>
@@ -43,8 +43,8 @@ public sealed partial class UiFinanceHubApiTests
 
         // Servis son savunması (Blazor dahil tüm yollar): 1000 × 10^13 = 10^16 ≥ 10^15 → yazımdan önce 400, defter boş.
         await Assert.ThrowsAsync<ValidationException>(() => ReadAsync(e, sp =>
-            sp.GetRequiredService<BakiyeDuzeltmeService>().AdjustAsync(new BakiyeDuzeltmeInput
-            { CariId = e.CustomerA, Tutar = 1000m, Yon = BakiyeDuzeltmeYonu.Borclandir, Doviz = "XYZ" })));
+            sp.GetRequiredService<BalanceAdjustmentService>().AdjustAsync(new BakiyeDuzeltmeInput
+            { CariId = e.CustomerA, Tutar = 1000m, Yon = BalanceAdjustmentDirection.Borclandir, Doviz = "XYZ" })));
         Assert.Equal(0, await DbAsync(e, db => db.AccountLedgerEntries.CountAsync()));
 
         foreach (var path in new[] { "/donem-kapanis", "/kasa/ozet", $"/cariler/{e.CustomerA}/bakiye",
@@ -105,7 +105,7 @@ public sealed partial class UiFinanceHubApiTests
         var vehicle = await sp.GetRequiredService<RentACar.Application.Vehicles.VehicleService>()
             .CreateAsync(new RentACar.Application.Vehicles.VehicleInput { Plaka = "34 JR " + Random.Shared.Next(1000, 9999) });
         var customer = await sp.GetRequiredService<RentACar.Application.Customers.CustomerService>()
-            .CreateAsync(new RentACar.Application.Customers.CustomerInput { Tip = CariType.Bireysel, Ad = "Job", Soyad = "Kilit" });
+            .CreateAsync(new RentACar.Application.Customers.CustomerInput { Tip = CustomerType.Bireysel, Ad = "Job", Soyad = "Kilit" });
         await sp.GetRequiredService<RentACar.Application.Bookings.RentalService>().CreateDirectAsync(new RentACar.Application.Bookings.BookingInput
         {
             MusteriId = customer, VehicleId = vehicle, BasTar = start, BitTar = start.AddDays(90), GunlukUcret = 100m, DonemselFaturalama = true,
@@ -114,7 +114,7 @@ public sealed partial class UiFinanceHubApiTests
         // Kilit günü D (İstanbul), uçla AYNI temsil: D'nin İstanbul gece yarısı (UTC'de önceki gün 21:00).
         var locked = PeriodLock.LocalDay(DateTimeOffset.UtcNow).AddDays(-2);
         var istanbul = TimeSpan.FromHours(3);
-        await sp.GetRequiredService<DonemKilidiService>().LockAsync(new DateTimeOffset(locked.ToDateTime(TimeOnly.MinValue), istanbul).ToUniversalTime());
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(locked.ToDateTime(TimeOnly.MinValue), istanbul).ToUniversalTime());
 
         async Task<RentACar.Infrastructure.Persistence.DonemFaturaUretici.Sonuc> RunAt(DateOnly day)
         {

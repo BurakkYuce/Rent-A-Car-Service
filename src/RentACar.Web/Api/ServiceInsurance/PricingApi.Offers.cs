@@ -31,14 +31,14 @@ internal static partial class PricingApi
         g.MapPost("", CreateOffer).AlanlariEsle(CostFieldRules("girdi.")).RequirePermission(Permission.FinanceWrite)
             .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         g.MapPut("/{id:guid}", UpdateOffer).AlanlariEsle(CostFieldRules("girdi.")).RequirePermission(Permission.FinanceWrite);
-        g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, MaliyetTeklifiService s, CancellationToken ct)
+        g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, CostQuotationService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : OfferNotFound()).RequirePermission(Permission.FinanceWrite);
     }
 
     private static ProblemHttpResult OfferNotFound() => S.NotFound("Maliyet teklifi bulunamadı.");
 
-    private static readonly SiralamaHaritasi<CostOfferRow> OfferSort = SiralamaHaritasi<CostOfferRow>
-        .Olustur(x => x.Id).Alan("kayitNo", x => x.KayitNo).Alan("baslik", x => x.Baslik).Alan("tarih", x => x.Tarih)
+    private static readonly SortFieldMap<CostOfferRow> OfferSort = SortFieldMap<CostOfferRow>
+        .Create(x => x.Id).Alan("kayitNo", x => x.KayitNo).Alan("baslik", x => x.Baslik).Alan("tarih", x => x.Tarih)
         .Alan("plaka", x => x.Plaka).Alan("teklifAylikNet", x => x.TeklifAylikNet).Alan("filoTeklifKdvli", x => x.FiloTeklifKdvli);
 
     private static async Task<List<CostOfferRow>> OfferRowsAsync(IDbContextFactory<AppDbContext> dbf, IReadOnlyList<MaliyetTeklifi> list,
@@ -51,7 +51,7 @@ internal static partial class PricingApi
 
     private static async Task<Ok<CostOfferList>> ListOffers(
         string? metin, string? plaka, Guid? cariId, DateOnly? bas, DateOnly? bit, decimal? fiyatMin, decimal? fiyatMax,
-        int? sayfa, int? boyut, string? sirala, MaliyetTeklifiService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        int? sayfa, int? boyut, string? sirala, CostQuotationService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var (min, max) = F5Ortak.GunAraligi(bas, bit);
         var list = await svc.SearchAsync(new MaliyetTeklifiFilter
@@ -60,21 +60,21 @@ internal static partial class PricingApi
             FiyatMin = fiyatMin, FiyatMax = fiyatMax,
         }, ct);
         var rows = await OfferRowsAsync(dbf, list, ct);
-        return TypedResults.Ok(new CostOfferList(F5Ortak.Sayfala(rows, OfferSort, sayfa, boyut, sirala), MaliyetTeklifiService.Ozet(list)));
+        return TypedResults.Ok(new CostOfferList(F5Ortak.Sayfala(rows, OfferSort, sayfa, boyut, sirala), CostQuotationService.Summary(list)));
     }
 
     private static async Task<Results<Ok<CostOfferDetail>, ProblemHttpResult>> OfferDetail(
-        Guid id, MaliyetTeklifiService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        Guid id, CostQuotationService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
         => await OfferDetailAsync(id, svc, dbf, ct) is { } d ? TypedResults.Ok(d) : OfferNotFound();
 
-    private static async Task<CostOfferDetail?> OfferDetailAsync(Guid id, MaliyetTeklifiService svc, IDbContextFactory<AppDbContext> dbf,
+    private static async Task<CostOfferDetail?> OfferDetailAsync(Guid id, CostQuotationService svc, IDbContextFactory<AppDbContext> dbf,
         CancellationToken ct)
     {
         var version = await svc.GetVersionAsync(id, ct); // BEFORE the fields
         if (await svc.GetAsync(id, ct) is not { } t) return null;
         var row = (await OfferRowsAsync(dbf, [t], ct))[0];
-        return new CostOfferDetail(row, t.Aciklama, CostInputDto.From(MaliyetTeklifiService.GirdiyeCevir(t)),
-            CostResultDto.From(t, MaliyetTeklifiService.Kalemler(t)), version);
+        return new CostOfferDetail(row, t.Aciklama, CostInputDto.From(CostQuotationService.ToInput(t)),
+            CostResultDto.From(t, CostQuotationService.Items(t)), version);
     }
 
     private static async Task<MaliyetTeklifiInput> OfferInputAsync(CostOfferRequest r, IDbContextFactory<AppDbContext> dbf,
@@ -99,7 +99,7 @@ internal static partial class PricingApi
     }
 
     private static async Task<Results<Created<CostOfferDetail>, ProblemHttpResult>> CreateOffer(
-        CostOfferRequest r, HttpContext http, MaliyetTeklifiService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        CostOfferRequest r, HttpContext http, CostQuotationService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var key = IdempotencyBasligi.Anahtar(http);
         if (key is { } k && await svc.GetAsync(k, ct) is { } m) throw OfferDuplicate(m, r); // (1) ÖNCE mevcut
@@ -112,20 +112,20 @@ internal static partial class PricingApi
         catch (DbUpdateException ex) when (key is { } k2 && S.IsPrimaryKeyViolation(ex))
         {
             if (await svc.GetAsync(k2, ct) is { } won) throw OfferDuplicate(won, r);
-            throw new MukerrerIslemException(RegulationApi.AnahtarBaskaIslemde);
+            throw new DuplicateOperationException(RegulationApi.AnahtarBaskaIslemde);
         }
         var d = await OfferDetailAsync(id, svc, dbf, ct);
         return TypedResults.Created($"{OffersRoot}/{id}", d!);
     }
 
-    private static MukerrerIslemException OfferDuplicate(MaliyetTeklifi m, CostOfferRequest r)
+    private static DuplicateOperationException OfferDuplicate(MaliyetTeklifi m, CostOfferRequest r)
         => new($"Bu teklif zaten kaydedildi ({m.KayitNo}); yeni kayıt yazılmadı.",
             new MevcutIslem(m.Id, m.KayitNo, m.FiloTeklifKdvli, "TRY",
                 m.Baslik == (r.Baslik ?? "").Trim() && m.AlisBedeli == (r.Girdi?.AlisBedeli ?? 0m)
                 && m.AracSayisi == (r.Girdi?.AracSayisi ?? 1)));
 
     private static async Task<Results<Ok<CostOfferDetail>, ProblemHttpResult>> UpdateOffer(
-        Guid id, CostOfferRequest r, MaliyetTeklifiService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
+        Guid id, CostOfferRequest r, CostQuotationService svc, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         if (await svc.GetAsync(id, ct) is null) return OfferNotFound();
         var version = AracFinansOrtak.Surum(r.Surum);

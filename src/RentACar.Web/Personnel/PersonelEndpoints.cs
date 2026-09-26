@@ -15,13 +15,13 @@ public static class PersonelEndpoints
     {
         var grp = app.MapGroup("/personel").RequirePermission(Permission.ManageUsers).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (PersonelService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (PersonnelService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (PersonelService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (PersonnelService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (PersonelService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (PersonnelService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;

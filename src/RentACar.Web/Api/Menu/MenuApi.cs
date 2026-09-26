@@ -40,7 +40,7 @@ public static class MenuApi
 
     private static async Task<Ok<MenuYaniti>> Menu(
         HttpContext http, ITenantContext tenant, TenantStatusCache durum,
-        BildirimService bildirimler, PublicBookingRequestService talepler, ILoggerFactory log, CancellationToken ct)
+        InAppNotificationService bildirimler, PublicBookingRequestService talepler, ILoggerFactory log, CancellationToken ct)
     {
         var webSitesi = tenant.TenantId is { } id && await durum.WebSitesiModuluAsync(id, ct);
         var ogeler = Gorunur(http.User, webSitesi).ToList();
@@ -60,7 +60,7 @@ public static class MenuApi
         }
         await Say(MenuKaydi.RozetOkunmamisBildirim, () => bildirimler.UnreadCountAsync(ct));
         // PR-17 ile aynı: talep sayacı yalnız Web Sitesi modülü açıkken sorulur.
-        if (webSitesi) await Say(MenuKaydi.RozetYeniTalep, async () => (await talepler.OzetAsync(ct)).Yeni);
+        if (webSitesi) await Say(MenuKaydi.RozetYeniTalep, async () => (await talepler.SummaryAsync(ct)).Yeni);
 
         return TypedResults.Ok(new MenuYaniti(
             ogeler.Select(o => new MenuOgesiYaniti(o.Rota, o.Etiket, o.Grup, o.Sira, o.Sahip, o.RozetKodu, o.HizliBaglanti)).ToList(),

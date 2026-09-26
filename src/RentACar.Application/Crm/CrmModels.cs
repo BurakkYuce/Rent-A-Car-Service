@@ -13,8 +13,8 @@ public sealed class AnketInput
 
     // ---- FAZ-42 ----
     public Guid? RentalId { get; set; }
-    public RentACar.Domain.Enums.AnketTuru? AnketTuru { get; set; }
-    public RentACar.Domain.Enums.AnketDurum Durum { get; set; } = RentACar.Domain.Enums.AnketDurum.Yapildi;
+    public RentACar.Domain.Enums.SurveyType? AnketTuru { get; set; }
+    public RentACar.Domain.Enums.SurveyStatus Durum { get; set; } = RentACar.Domain.Enums.SurveyStatus.Yapildi;
     /// <summary>Boş bırakılırsa sözleşmeden doldurulur (snapshot).</summary>
     public string? CikisOfisi { get; set; }
     /// <summary>Soru-cevap satırları. Boş liste = cevapsız anket (ör. "Yapılmadı").</summary>
@@ -34,8 +34,8 @@ public sealed class AnketCevapInput
 public sealed class AnketFilter
 {
     public Guid? CariId { get; set; }
-    public RentACar.Domain.Enums.AnketTuru? AnketTuru { get; set; }
-    public RentACar.Domain.Enums.AnketDurum? Durum { get; set; }
+    public RentACar.Domain.Enums.SurveyType? AnketTuru { get; set; }
+    public RentACar.Domain.Enums.SurveyStatus? Durum { get; set; }
     public DateTimeOffset? TarihMin { get; set; }
     public DateTimeOffset? TarihMax { get; set; }
     public string? CikisOfisi { get; set; }
@@ -49,7 +49,7 @@ public sealed class SikayetInput
     public Guid? CariId { get; set; }
     public string? Konu { get; set; }
     public string? Detay { get; set; }
-    public SikayetDurum Durum { get; set; } = SikayetDurum.Acik;
+    public ComplaintStatus Durum { get; set; } = ComplaintStatus.Acik;
     public DateTimeOffset? Tarih { get; set; }
     public string? Cozum { get; set; }
 
@@ -59,7 +59,7 @@ public sealed class SikayetInput
     public Guid? TeslimEdenPersonelId { get; set; }
     public int? Puan { get; set; }
     public string? SikayetKanali { get; set; }
-    public SikayetYeri? SikayetYeri { get; set; }
+    public ComplaintLocation? SikayetYeri { get; set; }
     public string? CikisOfisi { get; set; }
 }
 
@@ -77,10 +77,10 @@ public sealed class SikayetFilter
     public Guid? CariId { get; set; }
     /// <summary>Çıkış ofisi (tam eşleşme).</summary>
     public string? Ofis { get; set; }
-    public SikayetYeri? Yer { get; set; }
+    public ComplaintLocation? Yer { get; set; }
     /// <summary>Şikayet kanalı (tam eşleşme, harf duyarsız).</summary>
     public string? Kanal { get; set; }
-    public SikayetDurum? Durum { get; set; }
+    public ComplaintStatus? Durum { get; set; }
     /// <summary>Konu / detay / sözleşme no / plaka içinde geçen metin.</summary>
     public string? Ara { get; set; }
     public int EnFazla { get; set; } = 1000;

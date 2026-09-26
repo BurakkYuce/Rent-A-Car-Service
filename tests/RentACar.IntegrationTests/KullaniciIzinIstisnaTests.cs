@@ -22,31 +22,31 @@ public sealed class EffectivePermissionTests
     [Fact]
     public void Ek_izin_matris_disini_ACAR()
         => Assert.True(EffectivePermission.Has(UserRole.Operator, Permission.ViewReports,
-            ekIzinler: ["ViewReports"], yasakIzinler: []));
+            extraPermissions: ["ViewReports"], deniedPermissions: []));
 
     [Fact]
     public void Yasak_matristen_geleni_KESER()
         => Assert.False(EffectivePermission.Has(UserRole.Yonetici, Permission.FinanceReverse,
-            ekIzinler: [], yasakIzinler: ["FinanceReverse"]));
+            extraPermissions: [], deniedPermissions: ["FinanceReverse"]));
 
     [Fact]
     public void Yasak_ek_izinden_USTUNDUR()
         => Assert.False(EffectivePermission.Has(UserRole.Operator, Permission.ViewReports,
-            ekIzinler: ["ViewReports"], yasakIzinler: ["ViewReports"]));
+            extraPermissions: ["ViewReports"], deniedPermissions: ["ViewReports"]));
 
     [Fact]
     public void Yasak_admin_rolunu_bile_keser()
         => Assert.False(EffectivePermission.Has(UserRole.Admin, Permission.FinanceWrite,
-            ekIzinler: [], yasakIzinler: ["FinanceWrite"]));
+            extraPermissions: [], deniedPermissions: ["FinanceWrite"]));
 
     [Fact]
     public void Bilinmeyen_istisna_adi_yok_sayilir()
     {
         // Eski/bozuk claim yeni koda zarar veremez: ne açar ne kapatır.
         Assert.False(EffectivePermission.Has(UserRole.Operator, Permission.ViewReports,
-            ekIzinler: ["OlmayanIzin"], yasakIzinler: []));
+            extraPermissions: ["OlmayanIzin"], deniedPermissions: []));
         Assert.True(EffectivePermission.Has(UserRole.Operator, Permission.OperationsWrite,
-            ekIzinler: [], yasakIzinler: ["OlmayanIzin"]));
+            extraPermissions: [], deniedPermissions: ["OlmayanIzin"]));
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         var islem = await cash.CollectAsync(new CashInput { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 100m });
         // FinanceReverse yasak: aynı işlemin tersini ATAMAZ — tam da istenen "tek kişiden yalnız
         // ters-kayıt yetkisi alınabilsin" senaryosu.
-        var ex = await Assert.ThrowsAsync<YetkiYokException>(() => cash.ReverseAsync(islem));
+        var ex = await Assert.ThrowsAsync<NoPermissionException>(() => cash.ReverseAsync(islem));
         Assert.Contains("FinanceReverse", ex.Message);
     }
 
@@ -109,15 +109,15 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         // Yönetici (ManageUsers YOK) istisna listeleyemez/yazamaz.
         using (var yon = host.ScopeFor(tenant, Guid.NewGuid(), "yon", UserRole.Yonetici))
         {
-            var svc = yon.ServiceProvider.GetRequiredService<KullaniciIzinService>();
-            await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAsync());
-            await Assert.ThrowsAsync<YetkiYokException>(() => svc.SetAsync(Guid.NewGuid(), "ViewReports", true));
+            var svc = yon.ServiceProvider.GetRequiredService<UserPermissionService>();
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.ListAsync());
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.SetAsync(Guid.NewGuid(), "ViewReports", true));
         }
 
         // Admin KENDİ istisnasını değiştiremez (yetki yükseltme + kendini kilitleme aynı kapıda).
         using (var admin = host.ScopeFor(tenant, adminId, "admin", UserRole.Admin))
         {
-            var svc = admin.ServiceProvider.GetRequiredService<KullaniciIzinService>();
+            var svc = admin.ServiceProvider.GetRequiredService<UserPermissionService>();
             var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.SetAsync(adminId, "ViewReports", true));
             Assert.Contains("Kendi izin istisnanızı", ex.Message);
         }
@@ -135,13 +135,13 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         var hedefAdmin = await users.CreateAsync(new UserInput
         { UserName = "admin2", DisplayName = "İkinci Admin", Rol = UserRole.Admin, Password = "sifre123" });
 
-        var svc = scope.ServiceProvider.GetRequiredService<KullaniciIzinService>();
+        var svc = scope.ServiceProvider.GetRequiredService<UserPermissionService>();
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => svc.SetAsync(hedefAdmin, "ManageUsers", ver: false));
+            () => svc.SetAsync(hedefAdmin, "ManageUsers", give: false));
         Assert.Contains("alınamaz", ex.Message);
 
         // Ama Admin'e ViewReports YASAĞI konabilir (kilitlenme riski yok, bilinçli serbest).
-        await svc.SetAsync(hedefAdmin, "ViewReports", ver: false);
+        await svc.SetAsync(hedefAdmin, "ViewReports", give: false);
         Assert.Single(await svc.ListAsync());
     }
 
@@ -156,9 +156,9 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
         var hedef = await users.CreateAsync(new UserInput
         { UserName = "op1", DisplayName = "Operatör", Rol = UserRole.Operator, Password = "sifre123" });
 
-        var svc = scope.ServiceProvider.GetRequiredService<KullaniciIzinService>();
-        await svc.SetAsync(hedef, "ViewReports", ver: true);
-        await svc.SetAsync(hedef, "ViewReports", ver: false); // çevirme: UPDATE, ikinci satır DEĞİL
+        var svc = scope.ServiceProvider.GetRequiredService<UserPermissionService>();
+        await svc.SetAsync(hedef, "ViewReports", give: true);
+        await svc.SetAsync(hedef, "ViewReports", give: false); // çevirme: UPDATE, ikinci satır DEĞİL
 
         var satir = Assert.Single(await svc.ListAsync());
         Assert.False(satir.Ver); // son yazan kazandı
@@ -173,7 +173,7 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "admin", UserRole.Admin);
-        var svc = scope.ServiceProvider.GetRequiredService<KullaniciIzinService>();
+        var svc = scope.ServiceProvider.GetRequiredService<UserPermissionService>();
         await Assert.ThrowsAsync<ValidationException>(() => svc.SetAsync(Guid.NewGuid(), "SuperAdmin", true));
     }
 
@@ -202,9 +202,9 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
             hedef = await users.CreateAsync(new UserInput
             { UserName = "istisnali", DisplayName = "X", Rol = UserRole.Operator, Password = "sifre123" });
 
-            var svc = scope.ServiceProvider.GetRequiredService<KullaniciIzinService>();
-            await svc.SetAsync(hedef, "ViewReports", ver: true);
-            await svc.SetAsync(hedef, "OperationsWrite", ver: false);
+            var svc = scope.ServiceProvider.GetRequiredService<UserPermissionService>();
+            await svc.SetAsync(hedef, "ViewReports", give: true);
+            await svc.SetAsync(hedef, "OperationsWrite", give: false);
         }
 
         // Login kimliksiz scope'tan yapılır (gerçek hayattaki anonim istek — GUC yok):
@@ -232,13 +232,13 @@ public sealed class KullaniciIzinIstisnaTests(PostgresFixture fx)
             var users = a.ServiceProvider.GetRequiredService<UserService>();
             kullaniciA = await users.CreateAsync(new UserInput
             { UserName = "opA", DisplayName = "A", Rol = UserRole.Operator, Password = "sifre123" });
-            await a.ServiceProvider.GetRequiredService<KullaniciIzinService>()
+            await a.ServiceProvider.GetRequiredService<UserPermissionService>()
                 .SetAsync(kullaniciA, "ViewReports", true);
         }
 
         using (var b = host.ScopeFor(tenantB, Guid.NewGuid(), "adminB", UserRole.Admin))
         {
-            var svc = b.ServiceProvider.GetRequiredService<KullaniciIzinService>();
+            var svc = b.ServiceProvider.GetRequiredService<UserPermissionService>();
             // B tenant'ı A'nın istisnasını LİSTEDE göremez (repo tenant filtresi + RLS).
             Assert.Empty(await svc.ListAsync());
             // B, A'nın kullanıcısına istisna YAZAMAZ — kullanıcı B'nin tenant'ında bulunamaz.

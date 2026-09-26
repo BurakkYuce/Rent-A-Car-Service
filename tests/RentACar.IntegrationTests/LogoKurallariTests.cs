@@ -43,9 +43,9 @@ public sealed class LogoKurallariTests(PostgresFixture fx)
     [Fact]
     public void PngBoyut_IHDR_den_olculeri_okur()
     {
-        Assert.Equal((800, 240), PngBoyut.Oku(Png(800, 240)));
-        Assert.Null(PngBoyut.Oku(Jpeg()));            // PNG değil
-        Assert.Null(PngBoyut.Oku(new byte[10]));      // 24 bayttan kısa
+        Assert.Equal((800, 240), PngSize.Read(Png(800, 240)));
+        Assert.Null(PngSize.Read(Jpeg()));            // PNG değil
+        Assert.Null(PngSize.Read(new byte[10]));      // 24 bayttan kısa
     }
 
     [Theory]
@@ -56,20 +56,20 @@ public sealed class LogoKurallariTests(PostgresFixture fx)
     [InlineData(600, true)]    // öneri sınırı → uyarı YOK
     public void Degerlendir_baskiya_uygunluk_sinirlarini_uygular(int genislik, bool beklenenUygun)
     {
-        var d = LogoKurallari.Degerlendir(Png(genislik, genislik / 2 + 1));
+        var d = LogoValidationRules.Evaluate(Png(genislik, genislik / 2 + 1));
         Assert.Equal(beklenenUygun, d.BaskiyaUygun);
         Assert.Equal(genislik, d.Genislik);
         // 600 ve üstünde uyarı olmamalı; altında (basılsa da) uyarı OLMALI.
-        Assert.Equal(genislik >= LogoKurallari.OnerilenGenislik, d.Uyari is null);
+        Assert.Equal(genislik >= LogoValidationRules.RecommendedWidth, d.Uyari is null);
     }
 
     [Fact]
     public void Reddet_JPEG_ve_asiri_buyuk_olculeri_reddeder_PNG_i_gecirir()
     {
-        Assert.Null(LogoKurallari.Reddet(Png(800, 240)));                       // kabul
-        Assert.NotNull(LogoKurallari.Reddet(Jpeg()));                           // PNG-only daraltması
-        Assert.NotNull(LogoKurallari.Reddet(Png(2001, 500)));                   // ölçü üst sınırı
-        Assert.NotNull(LogoKurallari.Reddet(Png(800, 240, toplamBayt: 1_100_000))); // 1 MB üstü
+        Assert.Null(LogoValidationRules.Reject(Png(800, 240)));                       // kabul
+        Assert.NotNull(LogoValidationRules.Reject(Jpeg()));                           // PNG-only daraltması
+        Assert.NotNull(LogoValidationRules.Reject(Png(2001, 500)));                   // ölçü üst sınırı
+        Assert.NotNull(LogoValidationRules.Reject(Png(800, 240, toplamBayt: 1_100_000))); // 1 MB üstü
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class LogoKurallariTests(PostgresFixture fx)
         // sözleşmenin HİÇ basılamaması demek; bilinen-iyi davranışa (metin) düşülür.
         var bozuk = Png(800, 240);
         bozuk[13] = 0x00; // "IHDR" → bozuldu
-        var d = LogoKurallari.Degerlendir(bozuk);
+        var d = LogoValidationRules.Evaluate(bozuk);
         Assert.False(d.BaskiyaUygun);
         Assert.NotNull(d.Uyari);
     }
@@ -126,7 +126,7 @@ public sealed class LogoKurallariTests(PostgresFixture fx)
         Assert.NotNull((await ayarlar.GetAsync()).LogoBytes); // AYAR'da duruyor
 
         var rentalId = await KiraKurAsync(host, tenant);
-        var view = await s.ServiceProvider.GetRequiredService<SozlesmeService>().GetAsync(rentalId);
+        var view = await s.ServiceProvider.GetRequiredService<ContractService>().GetAsync(rentalId);
 
         // …ama PDF'e GİTMİYOR → mevcut metin fallback'i (firma markası/ünvanı) devreye giriyor.
         Assert.NotNull(view);
@@ -142,7 +142,7 @@ public sealed class LogoKurallariTests(PostgresFixture fx)
         await s.ServiceProvider.GetRequiredService<TenantSettingsService>().SetLogoAsync(Png(800, 240));
 
         var rentalId = await KiraKurAsync(host, tenant);
-        var view = await s.ServiceProvider.GetRequiredService<SozlesmeService>().GetAsync(rentalId);
+        var view = await s.ServiceProvider.GetRequiredService<ContractService>().GetAsync(rentalId);
 
         Assert.NotNull(view!.FirmaLogo);
     }
@@ -153,7 +153,7 @@ public sealed class LogoKurallariTests(PostgresFixture fx)
         using var s = host.ScopeFor(tenant);
         var cariId = await s.ServiceProvider.GetRequiredService<Application.Customers.CustomerService>()
             .CreateAsync(new Application.Customers.CustomerInput
-            { Tip = Domain.Enums.CariType.Bireysel, Ad = "Logo Testi", CepTel = "0555 000 00 01" });
+            { Tip = Domain.Enums.CustomerType.Bireysel, Ad = "Logo Testi", CepTel = "0555 000 00 01" });
         var aracId = await s.ServiceProvider.GetRequiredService<Application.Vehicles.VehicleService>()
             .CreateAsync(new Application.Vehicles.VehicleInput
             {

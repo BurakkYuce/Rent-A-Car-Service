@@ -22,10 +22,10 @@ public static class EffectivePermission
     /// <summary>Claim-düzeyi karar (web policy'leri ham claim listeleriyle çağırır).</summary>
     public static bool Has(
         UserRole? role, Permission permission,
-        IReadOnlyCollection<string> ekIzinler, IReadOnlyCollection<string> yasakIzinler)
+        IReadOnlyCollection<string> extraPermissions, IReadOnlyCollection<string> deniedPermissions)
     {
-        var ad = permission.ToString();
-        if (yasakIzinler.Contains(ad)) return false;                    // yasak her şeyi keser
-        return RolePermissions.Has(role, permission) || ekIzinler.Contains(ad);
+        var name = permission.ToString();
+        if (deniedPermissions.Contains(name)) return false;                    // yasak her şeyi keser
+        return RolePermissions.Has(role, permission) || extraPermissions.Contains(name);
     }
 }

@@ -14,7 +14,7 @@ public interface IRowVersionStore
 
     /// <summary>
     /// Row lock + version comparison + <paramref name="apply"/> in ONE transaction. Different version →
-    /// <see cref="EszamanliDegisiklikException"/> (409 <c>cakisma</c>), nothing is written. Missing row → <c>false</c>.
+    /// <see cref="ConcurrentModificationException"/> (409 <c>cakisma</c>), nothing is written. Missing row → <c>false</c>.
     /// A unique violation (natural key raced by another writer) becomes <see cref="ValidationException"/> with
     /// <paramref name="duplicateMessage"/>.
     /// </summary>

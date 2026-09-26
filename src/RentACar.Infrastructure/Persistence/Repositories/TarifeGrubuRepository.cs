@@ -10,7 +10,7 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// ITarifeGrubuRepository: kısa-ömürlü context'ler (factory). Tenant izolasyonu RLS + merkezi query
 /// filter ile otomatik. Kod benzersizliği DB unique index ile; ihlal (23505) ValidationException.
 /// </summary>
-public sealed class TarifeGrubuRepository(IDbContextFactory<AppDbContext> factory) : ITarifeGrubuRepository
+public sealed class TarifeGrubuRepository(IDbContextFactory<AppDbContext> factory) : ITariffGroupRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -32,7 +32,7 @@ public sealed class TarifeGrubuRepository(IDbContextFactory<AppDbContext> factor
         return await db.TarifeGruplari.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
-    public async Task<bool> KodExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var k = kod.Trim().ToUpperInvariant();

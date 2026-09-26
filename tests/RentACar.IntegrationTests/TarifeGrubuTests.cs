@@ -30,7 +30,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<TarifeGrubuService>();
+        var svc = s.ServiceProvider.GetRequiredService<TariffGroupService>();
 
         var id = await svc.CreateAsync(new TarifeGrubuInput
         { Kod = "brk-x", Ad = " Broker X ", Oran = 0.15m, KullaniciAdi = " brokerx ", Sifre = Sifre });
@@ -60,7 +60,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<TarifeGrubuService>();
+        var svc = sp.GetRequiredService<TariffGroupService>();
 
         var id = await svc.CreateAsync(new TarifeGrubuInput
         { Kod = "BRK1", Ad = "Broker 1", KullaniciAdi = "u1", Sifre = Sifre });
@@ -95,7 +95,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var svc = s.ServiceProvider.GetRequiredService<TarifeGrubuService>();
+        var svc = s.ServiceProvider.GetRequiredService<TariffGroupService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new TarifeGrubuInput { Kod = "", Ad = "X" }));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new TarifeGrubuInput { Kod = "K", Ad = "" }));
@@ -113,8 +113,8 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        var svc = s.ServiceProvider.GetRequiredService<TarifeGrubuService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(
+        var svc = s.ServiceProvider.GetRequiredService<TariffGroupService>();
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(
             new TarifeGrubuInput { Kod = "K", Ad = "Yetkisiz" }));
     }
 
@@ -125,11 +125,11 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         Guid id;
         using (var s1 = host.ScopeFor(t1))
-            id = await s1.ServiceProvider.GetRequiredService<TarifeGrubuService>()
+            id = await s1.ServiceProvider.GetRequiredService<TariffGroupService>()
                 .CreateAsync(new TarifeGrubuInput { Kod = "GIZLI", Ad = "Gizli Grup" });
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        var svc2 = s2.ServiceProvider.GetRequiredService<TarifeGrubuService>();
+        var svc2 = s2.ServiceProvider.GetRequiredService<TariffGroupService>();
         Assert.Empty(await svc2.ListAsync());
         Assert.Null(await svc2.GetAsync(id));                 // id bilinse bile görünmez
         Assert.False(await svc2.DeleteAsync(id));             // silinemez
@@ -145,7 +145,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var grup = await sp.GetRequiredService<TarifeGrubuService>()
+        var grup = await sp.GetRequiredService<TariffGroupService>()
             .CreateAsync(new TarifeGrubuInput { Kod = "BRK", Ad = "Broker" });
         var rates = sp.GetRequiredService<RateCardService>();
 
@@ -192,7 +192,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         Guid yabanciGrup;
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
-            yabanciGrup = await s1.ServiceProvider.GetRequiredService<TarifeGrubuService>()
+            yabanciGrup = await s1.ServiceProvider.GetRequiredService<TariffGroupService>()
                 .CreateAsync(new TarifeGrubuInput { Kod = "Y", Ad = "Yabancı" });
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
@@ -207,7 +207,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var gruplar = sp.GetRequiredService<TarifeGrubuService>();
+        var gruplar = sp.GetRequiredService<TariffGroupService>();
         var rates = sp.GetRequiredService<RateCardService>();
 
         var grup = await gruplar.CreateAsync(new TarifeGrubuInput { Kod = "BRK", Ad = "Broker" });

@@ -24,22 +24,22 @@ public static class SozlesmePaylasimEndpoints
             .RequirePermission(Permission.OperationsWrite)
             .AntiforgeryByEnv();
 
-        grp.MapPost("/{id:guid}/paylas", (Guid id, SozlesmeService sozlesme, PdfExportService pdf,
-            SozlesmePaylasimService paylasim, CancellationToken ct)
-            => Isle(id, sozlesme, pdf, ct, (no, bytes) => paylasim.PaylasAsync(id, no, bytes, ct)));
+        grp.MapPost("/{id:guid}/paylas", (Guid id, ContractService sozlesme, PdfExportService pdf,
+            ContractShareService paylasim, CancellationToken ct)
+            => Isle(id, sozlesme, pdf, ct, (no, bytes) => paylasim.ShareAsync(id, no, bytes, ct)));
 
         // Bayat anlık görüntüyü tazeler: ESKİ token ölür, YENİ token doğar. Otomatik yenileme
         // bilinçli yok — müşterinin elindeki belge sessizce değişmemeli.
-        grp.MapPost("/{id:guid}/paylas-yeni", (Guid id, SozlesmeService sozlesme, PdfExportService pdf,
-            SozlesmePaylasimService paylasim, CancellationToken ct)
-            => Isle(id, sozlesme, pdf, ct, (no, bytes) => paylasim.YeniSurumAsync(id, no, bytes, ct)));
+        grp.MapPost("/{id:guid}/paylas-yeni", (Guid id, ContractService sozlesme, PdfExportService pdf,
+            ContractShareService paylasim, CancellationToken ct)
+            => Isle(id, sozlesme, pdf, ct, (no, bytes) => paylasim.NewVersionAsync(id, no, bytes, ct)));
 
-        grp.MapPost("/{id:guid}/paylas-iptal", async (Guid id, SozlesmePaylasimService paylasim,
+        grp.MapPost("/{id:guid}/paylas-iptal", async (Guid id, ContractShareService paylasim,
             CancellationToken ct) =>
         {
             try
             {
-                var vardi = await paylasim.IptalEtAsync(id, ct);
+                var vardi = await paylasim.CancelAsync(id, ct);
                 return Sonra(id, vardi ? "Paylaşım linki iptal edildi." : "Aktif paylaşım linki yok.");
             }
             catch (ValidationException ex) { return Hata(id, ex); }
@@ -49,7 +49,7 @@ public static class SozlesmePaylasimEndpoints
     }
 
     /// <summary>Paylaş ve yeni-sürüm aynı zinciri kullanır; tek fark çağrılan servis metodu.</summary>
-    private static async Task<IResult> Isle(Guid id, SozlesmeService sozlesme, PdfExportService pdf,
+    private static async Task<IResult> Isle(Guid id, ContractService sozlesme, PdfExportService pdf,
         CancellationToken ct, Func<string, byte[], Task<PaylasimDurum>> islem)
     {
         try

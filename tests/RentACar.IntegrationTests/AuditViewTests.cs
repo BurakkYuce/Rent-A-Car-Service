@@ -23,7 +23,7 @@ public sealed class AuditViewTests(PostgresFixture fx)
         var customers = scope.ServiceProvider.GetRequiredService<CustomerService>();
         var vid = await vehicles.CreateAsync(new VehicleInput { Plaka = "34AUD01" });
         await vehicles.UpdateAsync(vid, new VehicleInput { Plaka = "34AUD01", Marka = "Güncel" });
-        await customers.CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Denet", Soyad = "Test" });
+        await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Denet", Soyad = "Test" });
 
         var audit = scope.ServiceProvider.GetRequiredService<AuditService>();
 
@@ -52,7 +52,7 @@ public sealed class AuditViewTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var audit = scope.ServiceProvider.GetRequiredService<AuditService>();
-        await Assert.ThrowsAsync<YetkiYokException>(() => audit.SearchAsync(new AuditFilter()));
+        await Assert.ThrowsAsync<NoPermissionException>(() => audit.SearchAsync(new AuditFilter()));
     }
 
     [Fact]

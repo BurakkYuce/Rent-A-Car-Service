@@ -32,7 +32,7 @@ public sealed class NakitIslemTests(PostgresFixture fx)
 
     private static Task<Guid> CariAsync(IServiceScope s, string ad, string? ozelKod = null)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = ad, Soyad = "Test", OzelKod = ozelKod });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test", OzelKod = ozelKod });
 
     private static Task<Guid> HesapAsync(IServiceScope s, string kod, string ad, string tur)
         => s.ServiceProvider.GetRequiredService<FinancialAccountService>()
@@ -87,7 +87,7 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         Assert.Contains(a, x => x.Tur == LedgerAccountType.Cari && x.Yon == LedgerDirection.Credit
                                 && x.Baz == 250m && x.Ref == cari);
         // Cari bakiye: 2 tahsilat × 250 → −500 (müşteri alacaklı).
-        Assert.Equal(-500m, await cash.GetCariBalanceAsync(cari));
+        Assert.Equal(-500m, await cash.GetAccountBalanceAsync(cari));
     }
 
     [Fact]
@@ -132,23 +132,23 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         { CariId = mehmet, Tutar = 120m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
 
         // Süzgeçsiz: 3.
-        Assert.Equal(3, (await cash.SearchIslemlerAsync()).Count);
+        Assert.Equal(3, (await cash.SearchTransactionsAsync()).Count);
         // Cari adı araması.
-        Assert.Equal(2, (await cash.SearchIslemlerAsync(new CashFilter { Ara = "Ahmet" })).Count);
+        Assert.Equal(2, (await cash.SearchTransactionsAsync(new CashFilter { Ara = "Ahmet" })).Count);
         // Özel kod araması.
-        Assert.Single(await cash.SearchIslemlerAsync(new CashFilter { Ara = "OZL-M" }));
+        Assert.Single(await cash.SearchTransactionsAsync(new CashFilter { Ara = "OZL-M" }));
         // Tip.
-        Assert.Single(await cash.SearchIslemlerAsync(new CashFilter { Tip = CashTransactionType.Odeme }));
+        Assert.Single(await cash.SearchTransactionsAsync(new CashFilter { Tip = CashTransactionType.Odeme }));
         // Hesap türü.
-        Assert.Equal(2, (await cash.SearchIslemlerAsync(new CashFilter { Hesap = LedgerAccountType.Kasa })).Count);
+        Assert.Equal(2, (await cash.SearchTransactionsAsync(new CashFilter { Hesap = LedgerAccountType.Kasa })).Count);
         // Spesifik hesap.
-        Assert.Single(await cash.SearchIslemlerAsync(new CashFilter { HesapId = banka }));
+        Assert.Single(await cash.SearchTransactionsAsync(new CashFilter { HesapId = banka }));
         // Kanal.
-        Assert.Single(await cash.SearchIslemlerAsync(new CashFilter { Kanal = "Mobil" }));
+        Assert.Single(await cash.SearchTransactionsAsync(new CashFilter { Kanal = "Mobil" }));
         // Tarih penceresi: son 7 gün → 10 gün önceki ödeme düşer.
-        Assert.Equal(2, (await cash.SearchIslemlerAsync(new CashFilter { Bas = Gun(-7) })).Count);
+        Assert.Equal(2, (await cash.SearchTransactionsAsync(new CashFilter { Bas = Gun(-7) })).Count);
         // Boş süzgeç daraltmaz.
-        Assert.Equal(3, (await cash.SearchIslemlerAsync(new CashFilter { Ara = "", Kanal = "" })).Count);
+        Assert.Equal(3, (await cash.SearchTransactionsAsync(new CashFilter { Ara = "", Kanal = "" })).Count);
     }
 
     [Fact]
@@ -162,7 +162,7 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         await cash.CollectAsync(new CashInput
         { CariId = cari, Tutar = 90m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
 
-        var satir = Assert.Single(await cash.SearchIslemlerAsync());
+        var satir = Assert.Single(await cash.SearchTransactionsAsync());
         Assert.Equal("Zeynep Test", satir.CariAd);
         Assert.Equal("OZL-Z", satir.CariKod);
         Assert.Equal(90m, satir.Islem.Amount.Amount);
@@ -185,9 +185,9 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         { CariId = cari, Tutar = 150m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
 
         // Elle: 400 − 150 = 250.
-        Assert.Equal(250m, (await reports.GetKasaBankaSummaryAsync()).KasaBakiye);
-        Assert.Single(await cash.SearchIslemlerAsync(new CashFilter { Tip = CashTransactionType.Odeme }));
-        Assert.Equal(250m, (await reports.GetKasaBankaSummaryAsync()).KasaBakiye);
+        Assert.Equal(250m, (await reports.GetCashBankSummaryAsync()).KasaBakiye);
+        Assert.Single(await cash.SearchTransactionsAsync(new CashFilter { Tip = CashTransactionType.Odeme }));
+        Assert.Equal(250m, (await reports.GetCashBankSummaryAsync()).KasaBakiye);
     }
 
     // ---------------------------------------------------------------- İzolasyon / yetki
@@ -210,13 +210,13 @@ public sealed class NakitIslemTests(PostgresFixture fx)
 
         // racar_app ile bağlanan T2 bağlamı T1'in işlemini ve cari adını GÖRMEZ.
         using var s2 = host.ScopeFor(t2);
-        Assert.Empty(await s2.ServiceProvider.GetRequiredService<CashService>().SearchIslemlerAsync());
+        Assert.Empty(await s2.ServiceProvider.GetRequiredService<CashService>().SearchTransactionsAsync());
         Assert.Empty(await s2.ServiceProvider.GetRequiredService<CashService>()
-            .SearchIslemlerAsync(new CashFilter { Ara = "T1 Gizli" }));
+            .SearchTransactionsAsync(new CashFilter { Ara = "T1 Gizli" }));
 
         // Operatör listeyi göremez (ViewReports yok).
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
-        await Assert.ThrowsAsync<YetkiYokException>(
-            () => op.ServiceProvider.GetRequiredService<CashService>().SearchIslemlerAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(
+            () => op.ServiceProvider.GetRequiredService<CashService>().SearchTransactionsAsync());
     }
 }

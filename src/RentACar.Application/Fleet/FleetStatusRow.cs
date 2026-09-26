@@ -21,7 +21,7 @@ public sealed class FleetStatusRow
     public string? Grup { get; init; }
     public string? Segment { get; init; }
     public string? Sipp { get; init; }
-    public Vites? Vites { get; init; }
+    public Transmission? Vites { get; init; }
     /// <summary>PR-21: null = "girilmedi" (araç kaydında yakıt seçilmemiş).</summary>
     public FuelType? Yakit { get; init; }
     public int Km { get; init; }
@@ -30,7 +30,7 @@ public sealed class FleetStatusRow
     /// <summary>Operasyonel durum (Boş/Kirada/Serviste…).</summary>
     public VehicleStatus Durum { get; init; }
     /// <summary>Filo yaşam döngüsü statüsü (stok/havuz/tahsis…).</summary>
-    public FiloStatus? FiloDurum { get; init; }
+    public FleetLifecycleStatus? FiloDurum { get; init; }
 
     // ---- FAZ-11: araç künyesinden operasyon kolonları (filtrelerle aynı alanlar) ----
     /// <summary>Araç pasife alındıysa gerekçesi (FAZ-10 alanı).</summary>
@@ -58,7 +58,7 @@ public sealed class FleetStatusRow
     public string? MusteriTel { get; init; }
     public DateTimeOffset? KiraBitTar { get; init; }
     public decimal? KiraBakiye { get; init; }
-    /// <summary>Kira bitişine kalan GÜN (negatif = gecikmiş). <see cref="KalanGun"/> ile hesaplanır.</summary>
+    /// <summary>Kira bitişine kalan GÜN (negatif = gecikmiş). <see cref="RemainingDays"/> ile hesaplanır.</summary>
     public int? KiraKalanGun { get; init; }
 
     // ---- Sıradaki rezervasyon (araç boşta olsa bile "yarın kime gidiyor" bilgisi) ----
@@ -91,6 +91,6 @@ public sealed class FleetStatusRow
     /// UTC tarih tabanına indirgemek hem kullanıcının "kaç gün kaldı" sezgisiyle hem de
     /// deterministik testle uyumlu.</para>
     /// </summary>
-    public static int KalanGun(DateTimeOffset bitTar, DateTimeOffset now)
+    public static int RemainingDays(DateTimeOffset bitTar, DateTimeOffset now)
         => (bitTar.UtcDateTime.Date - now.UtcDateTime.Date).Days;
 }

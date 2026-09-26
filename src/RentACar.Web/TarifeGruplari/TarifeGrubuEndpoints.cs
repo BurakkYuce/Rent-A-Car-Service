@@ -15,13 +15,13 @@ public static class TarifeGrubuEndpoints
     {
         var grp = app.MapGroup("/tarife-gruplari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
-        grp.MapPost("/create", async (TarifeGrubuService svc, HttpRequest req) =>
+        grp.MapPost("/create", async (TariffGroupService svc, HttpRequest req) =>
             await Run(() => svc.CreateAsync(Build(req.Form)), "Kayıt eklendi."));
 
-        grp.MapPost("/update", async (TarifeGrubuService svc, HttpRequest req, [FromForm] Guid id) =>
+        grp.MapPost("/update", async (TariffGroupService svc, HttpRequest req, [FromForm] Guid id) =>
             await Run(() => svc.UpdateAsync(id, Build(req.Form)), "Değişiklikler kaydedildi."));
 
-        grp.MapPost("/delete", async (TarifeGrubuService svc, [FromForm] Guid id) =>
+        grp.MapPost("/delete", async (TariffGroupService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
 
         return app;

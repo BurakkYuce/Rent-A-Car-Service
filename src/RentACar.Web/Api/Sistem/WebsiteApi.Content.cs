@@ -14,7 +14,7 @@ public static partial class WebsiteApi
 
     /// <summary>
     /// Halka açık site içerik sayfaları + SSS (Blazor <c>SiteIcerikYonetim</c>). Uzunluk sınırları, rezerve adresler ve
-    /// slug benzersizliği <see cref="SiteIcerikService"/>'tedir; uç yalnız alan eşlemesi + sürüm kapısı ekler.
+    /// slug benzersizliği <see cref="SiteContentService"/>'tedir; uç yalnız alan eşlemesi + sürüm kapısı ekler.
     /// </summary>
     private static void MapContent(RouteGroupBuilder v1)
     {
@@ -22,81 +22,81 @@ public static partial class WebsiteApi
             .RequirePermission(Permission.OperationsWrite).RequireWebSitesiModulu();
 
         // ---- sayfalar
-        g.MapGet("/sayfalar", async (int? sayfa, int? boyut, string? sirala, SiteIcerikService s, CancellationToken ct) =>
-            TypedResults.Ok(F5Ortak.Sayfala((await s.ListeleAsync(ct))
+        g.MapGet("/sayfalar", async (int? sayfa, int? boyut, string? sirala, SiteContentService s, CancellationToken ct) =>
+            TypedResults.Ok(F5Ortak.Sayfala((await s.ListAsync(ct))
                 .Select(p => new PageRowDto(p.Id, p.Slug, p.Baslik, p.Sira, p.Yayinda)).ToList(), PageSort, sayfa, boyut, sirala)))
             .AlanlariEsle(F5Ortak.SiralamaKurallari);
 
         g.MapGet("/sayfalar/{id:guid}", async Task<Results<Ok<PageDetailDto>, ProblemHttpResult>> (
-            Guid id, SiteIcerikService s, CancellationToken ct)
+            Guid id, SiteContentService s, CancellationToken ct)
             => await PageAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Sayfa bulunamadı."));
 
         g.MapPost("/sayfalar", async Task<Results<Created<PageDetailDto>, ProblemHttpResult>> (
-            PageRequest i, SiteIcerikService s, CancellationToken ct) =>
+            PageRequest i, SiteContentService s, CancellationToken ct) =>
         {
             PageLimits(i);
-            var id = await s.KaydetAsync(ToInput(null, i), ct);
+            var id = await s.SaveAsync(ToInput(null, i), ct);
             return await PageAsync(id, s, ct) is { } d
                 ? TypedResults.Created($"{ContentRoot}/sayfalar/{id}", d) : SystemApiCommon.NotFound("Sayfa bulunamadı.");
         }).AlanlariEsle(PageRules);
 
         g.MapPut("/sayfalar/{id:guid}", async Task<Results<Ok<PageDetailDto>, ProblemHttpResult>> (
-            Guid id, PageRequest i, SiteIcerikService s, CancellationToken ct) =>
+            Guid id, PageRequest i, SiteContentService s, CancellationToken ct) =>
         {
-            if (await s.GetirAsync(id, ct) is null) return SystemApiCommon.NotFound("Sayfa bulunamadı.");
+            if (await s.FetchAsync(id, ct) is null) return SystemApiCommon.NotFound("Sayfa bulunamadı.");
             SystemApiCommon.RequireVersion(i.Surum);
             PageLimits(i);
-            await s.KaydetAsync(ToInput(id, i), i.Surum, ct);
+            await s.SaveAsync(ToInput(id, i), i.Surum, ct);
             return await PageAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Sayfa bulunamadı.");
         }).AlanlariEsle(PageRules);
 
         g.MapPost("/sayfalar/{id:guid}/durum", async Task<Results<Ok<PageDetailDto>, ProblemHttpResult>> (
-            Guid id, PublishRequest i, SiteIcerikService s, CancellationToken ct) =>
+            Guid id, PublishRequest i, SiteContentService s, CancellationToken ct) =>
         {
-            if (await s.GetirAsync(id, ct) is null) return SystemApiCommon.NotFound("Sayfa bulunamadı.");
-            await s.YayinDurumuAsync(id, i.Yayinda, ct);
+            if (await s.FetchAsync(id, ct) is null) return SystemApiCommon.NotFound("Sayfa bulunamadı.");
+            await s.PublishStatusAsync(id, i.Yayinda, ct);
             return await PageAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Sayfa bulunamadı.");
         });
 
         g.MapDelete("/sayfalar/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
-            Guid id, SiteIcerikService s, CancellationToken ct) =>
+            Guid id, SiteContentService s, CancellationToken ct) =>
         {
-            if (await s.GetirAsync(id, ct) is null) return SystemApiCommon.NotFound("Sayfa bulunamadı.");
-            await s.SilAsync(id, ct);
+            if (await s.FetchAsync(id, ct) is null) return SystemApiCommon.NotFound("Sayfa bulunamadı.");
+            await s.DeleteAsync(id, ct);
             return TypedResults.NoContent();
         });
 
         // ---- SSS
-        g.MapGet("/sss", async (SiteIcerikService s, CancellationToken ct) =>
-            TypedResults.Ok<IReadOnlyList<FaqDto>>((await s.SssListeAsync(ct))
+        g.MapGet("/sss", async (SiteContentService s, CancellationToken ct) =>
+            TypedResults.Ok<IReadOnlyList<FaqDto>>((await s.ListFaqAsync(ct))
                 .Select(k => new FaqDto(k.Id, k.Soru, k.Cevap, k.Sira, k.Yayinda, null)).ToList()));
 
         g.MapGet("/sss/{id:guid}", async Task<Results<Ok<FaqDto>, ProblemHttpResult>> (
-            Guid id, SiteIcerikService s, CancellationToken ct)
+            Guid id, SiteContentService s, CancellationToken ct)
             => await FaqAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Soru bulunamadı."));
 
         g.MapPost("/sss", async Task<Results<Created<FaqDto>, ProblemHttpResult>> (
-            FaqRequest i, SiteIcerikService s, CancellationToken ct) =>
+            FaqRequest i, SiteContentService s, CancellationToken ct) =>
         {
-            var id = await s.SssKaydetAsync(new SssInput(null, i.Soru ?? "", i.Cevap ?? "", i.Sira, i.Yayinda), ct);
+            var id = await s.SaveFaqAsync(new SssInput(null, i.Soru ?? "", i.Cevap ?? "", i.Sira, i.Yayinda), ct);
             return await FaqAsync(id, s, ct) is { } d
                 ? TypedResults.Created($"{ContentRoot}/sss/{id}", d) : SystemApiCommon.NotFound("Soru bulunamadı.");
         }).AlanlariEsle(FaqRules);
 
         g.MapPut("/sss/{id:guid}", async Task<Results<Ok<FaqDto>, ProblemHttpResult>> (
-            Guid id, FaqRequest i, SiteIcerikService s, CancellationToken ct) =>
+            Guid id, FaqRequest i, SiteContentService s, CancellationToken ct) =>
         {
             if (await FaqAsync(id, s, ct) is null) return SystemApiCommon.NotFound("Soru bulunamadı.");
             SystemApiCommon.RequireVersion(i.Surum);
-            await s.SssKaydetAsync(new SssInput(id, i.Soru ?? "", i.Cevap ?? "", i.Sira, i.Yayinda), i.Surum, ct);
+            await s.SaveFaqAsync(new SssInput(id, i.Soru ?? "", i.Cevap ?? "", i.Sira, i.Yayinda), i.Surum, ct);
             return await FaqAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Soru bulunamadı.");
         }).AlanlariEsle(FaqRules);
 
         g.MapDelete("/sss/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
-            Guid id, SiteIcerikService s, CancellationToken ct) =>
+            Guid id, SiteContentService s, CancellationToken ct) =>
         {
             if (await FaqAsync(id, s, ct) is null) return SystemApiCommon.NotFound("Soru bulunamadı.");
-            await s.SssSilAsync(id, ct);
+            await s.DeleteFaqAsync(id, ct);
             return TypedResults.NoContent();
         });
     }
@@ -117,23 +117,23 @@ public static partial class WebsiteApi
         [("Soru zorunlu", "soru"), ("Soru en çok", "soru"), ("Cevap zorunlu", "cevap"), ("Cevap en çok", "cevap")];
 
     /// <summary>Sürüm alanlardan ÖNCE okunur.</summary>
-    private static async Task<PageDetailDto?> PageAsync(Guid id, SiteIcerikService s, CancellationToken ct)
+    private static async Task<PageDetailDto?> PageAsync(Guid id, SiteContentService s, CancellationToken ct)
     {
         var version = await s.VersionAsync(id, ct);
-        return await s.GetirAsync(id, ct) is { } p
+        return await s.FetchAsync(id, ct) is { } p
             ? new PageDetailDto(p.Id, p.Slug, p.Baslik, p.Govde, p.MetaAciklama, p.Sira, p.Yayinda, version)
             : null;
     }
 
-    private static async Task<FaqDto?> FaqAsync(Guid id, SiteIcerikService s, CancellationToken ct)
+    private static async Task<FaqDto?> FaqAsync(Guid id, SiteContentService s, CancellationToken ct)
     {
         var version = await s.FaqVersionAsync(id, ct);
-        return (await s.SssListeAsync(ct)).FirstOrDefault(k => k.Id == id) is { } k
+        return (await s.ListFaqAsync(ct)).FirstOrDefault(k => k.Id == id) is { } k
             ? new FaqDto(k.Id, k.Soru, k.Cevap, k.Sira, k.Yayinda, version)
             : null;
     }
 
-    private static readonly SiralamaHaritasi<PageRowDto> PageSort = SiralamaHaritasi<PageRowDto>
-        .Olustur(x => x.Id).Alan("baslik", x => x.Baslik).Alan("slug", x => x.Slug).Alan("sira", x => x.Sira)
+    private static readonly SortFieldMap<PageRowDto> PageSort = SortFieldMap<PageRowDto>
+        .Create(x => x.Id).Alan("baslik", x => x.Baslik).Alan("slug", x => x.Slug).Alan("sira", x => x.Sira)
         .Alan("yayinda", x => x.Yayinda);
 }

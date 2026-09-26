@@ -35,7 +35,7 @@ public sealed record ServiceLineDto(Guid Id, string Aciklama, decimal Tutar, dec
 {
     public static ServiceLineDto From(ServiceLine l)
     {
-        var h = ServisKalemHesap.Hesapla(l.Tutar, l.BirimFiyat, l.Miktar, l.KdvOran);
+        var h = ServiceItemCalculation.Calculate(l.Tutar, l.BirimFiyat, l.Miktar, l.KdvOran);
         return new(l.Id, l.Aciklama, l.Tutar, l.BirimFiyat, l.Miktar, l.Indirim, l.KdvOran, h.Brut, h.KdvTutar, h.GenelToplam);
     }
 }

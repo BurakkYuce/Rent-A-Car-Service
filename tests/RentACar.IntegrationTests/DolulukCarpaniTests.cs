@@ -34,14 +34,14 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         {
             Kod = "EKO-STD", Ad = "Eko", AracGrupKod = "EKO", ParaBirimi = "TRY",
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m,
-            OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+            OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
         var veh = sp.GetRequiredService<VehicleService>();
         var araclar = new List<Guid>();
         for (var i = 1; i <= 10; i++)
             araclar.Add(await veh.CreateAsync(new VehicleInput { Plaka = $"34 DK {i:00}", Grup = "EKO" }));
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Dolu", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "Dolu", Soyad = "M" });
         var rentals = sp.GetRequiredService<RentalService>();
         for (var i = 0; i < 8; i++)   // 8 araç tam 5 gün = 40 araç-gün
             await rentals.CreateDirectAsync(new BookingInput
@@ -52,7 +52,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
     }
 
     private static Task<Guid> KuralAsync(IServiceProvider sp, int esik, decimal carpan) =>
-        sp.GetRequiredService<DolulukFiyatKuralService>().CreateAsync(new DolulukFiyatKuralInput
+        sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
         { Kod = $"D{esik}", Ad = $"Doluluk {esik}", EsikYuzde = esik, CarpanYuzde = carpan });
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         var bosArac = await SeedFiloAsync(sp);
         await KuralAsync(sp, esik: 80, carpan: 15m);
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Rez", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "Rez", Soyad = "M" });
         var rez = sp.GetRequiredService<ReservationService>();
 
         BookingInput Girdi(int gun, string? aciklama = null) => new()
@@ -145,7 +145,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var bosArac = await SeedFiloAsync(sp);
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "Rez", Soyad = "K" });
+        { Tip = CustomerType.Bireysel, Ad = "Rez", Soyad = "K" });
         var rez = sp.GetRequiredService<ReservationService>();
 
         BookingInput Girdi(int gun) => new()
@@ -181,7 +181,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         {
             Kod = "EKO-STD", Ad = "Eko", AracGrupKod = "EKO", ParaBirimi = "TRY",
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m,
-            OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+            OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
         await KuralAsync(sp, esik: 60, carpan: 20m);
         var veh = sp.GetRequiredService<VehicleService>();
@@ -193,7 +193,7 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         await veh.CreateAsync(new VehicleInput { Plaka = "34 DP 03", Grup = "EKO", Durum = VehicleStatus.Satildi });
         await veh.CreateAsync(new VehicleInput { Plaka = "34 DP 04", Grup = "EKO", Durum = VehicleStatus.Pasif });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "P", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "P", Soyad = "M" });
 
         // B3: doluluk sinyali REZERVASYONLARDAN da gelir (ileri tarihli talebin ana kaynağı) —
         // düzeltme öncesi tam rezerve grup %0 görünüyordu.
@@ -223,22 +223,22 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
         {
             Kod = "EKO-STD", Ad = "Eko", AracGrupKod = "EKO", ParaBirimi = "TRY",
             Gun1 = 1000m, Gun2 = 1000m, Gun3 = 1000m, Gun4 = 1000m, Gun5 = 1000m,
-            OnayDurumu = TarifeOnayDurumu.Onayli, Onaylayan = "t"
+            OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
         await KuralAsync(sp, esik: 40, carpan: 15m);
         var veh = sp.GetRequiredService<VehicleService>();
         var v1 = await veh.CreateAsync(new VehicleInput { Plaka = "34 DE 01", Grup = "EKO" });
         await veh.CreateAsync(new VehicleInput { Plaka = "34 DE 02", Grup = "EKO" });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CariType.Bireysel, Ad = "E", Soyad = "M" });
+        { Tip = CustomerType.Bireysel, Ad = "E", Soyad = "M" });
         var rentals = sp.GetRequiredService<RentalService>();
 
         // 5 günlük kira ANINDA erken dönüşle kapanır (efektif bitiş = başlangıç günü) — planlı BitTar
         // hayalet doluluk üretmez: %0 → surge YOK (düzeltme öncesi %50 ≥ 40 → yanlış +%15).
         var id = await rentals.CreateDirectAsync(new BookingInput
         { MusteriId = m, VehicleId = v1, BasTar = Bas, BitTar = Bas.AddDays(5), GunlukUcret = 100m });
-        await rentals.DeliverAsync(id, cikisKm: 0, cikisYakit: 8);
-        await rentals.ReturnAsync(id, donusKm: 0, donusYakit: 8, Bas);
+        await rentals.DeliverAsync(id, pickupKm: 0, pickupFuel: 8);
+        await rentals.ReturnAsync(id, returnKm: 0, returnFuel: 8, Bas);
 
         var q = await sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
         { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(5) });
@@ -255,12 +255,12 @@ public sealed class DolulukCarpaniTests(PostgresFixture fx)
 
         // Servis katmanı 0..50 doğrular (kemer #1).
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<DolulukFiyatKuralService>().CreateAsync(new DolulukFiyatKuralInput
+            () => sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
             { Kod = "D99", Ad = "Aşırı", EsikYuzde = 80, CarpanYuzde = 70m }));
 
         // Servis atlanıp repo'dan yazılsa bile DB CHECK reddeder (pantolon askısı; şemadaki ilk CHECK).
         var id = await KuralAsync(sp, esik: 80, carpan: 15m);
-        var repo = sp.GetRequiredService<IDolulukFiyatKuralRepository>();
+        var repo = sp.GetRequiredService<IOccupancyPriceRuleRepository>();
         await Assert.ThrowsAsync<DbUpdateException>(
             () => repo.UpdateAsync(id, k => k.CarpanYuzde = 70m));
         // (Uygulama kemeri min(carpan,50) motorda ek savunma olarak durur — DB'ye 50 üstü giremediğinden

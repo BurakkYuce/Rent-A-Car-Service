@@ -9,7 +9,7 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// PR-10 — grubu belirtilmeden açılan aracın düşeceği varsayılan grup. Bağımsız oracle: beklenen
-/// değerler senaryodan kurulur (hangi grup tanımlıysa o), <see cref="VarsayilanGrupCozucu"/>'nün
+/// değerler senaryodan kurulur (hangi grup tanımlıysa o), <see cref="DefaultGroupResolver"/>'nün
 /// kendi mantığından türetilmez.
 ///
 /// Zincirin can alıcı noktası: eşleşme yoksa <b>null</b> döner — "ilk aktif grup" gibi bir fallback

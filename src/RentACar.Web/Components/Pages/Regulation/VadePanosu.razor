@@ -1,6 +1,6 @@
 @page "/vade"
 @attribute [Authorize]
-@inject VadeService Vade
+@inject DueService Vade
 @inject VehicleService Vehicles
 
 <PageTitle>Vade Uyarıları — RentPro</PageTitle>
@@ -58,19 +58,19 @@
         => string.IsNullOrWhiteSpace(PlakaFiltre)
            || Plaka(id).Replace(" ", "").Contains(PlakaFiltre.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
 
-    private static string BucketClass(VadeBucket b) => b switch
+    private static string BucketClass(DueBucket b) => b switch
     {
-        VadeBucket.Gecmis => "danger",
-        VadeBucket.YediGun => "danger",
-        VadeBucket.OtuzGun => "warn",
+        DueBucket.Gecmis => "danger",
+        DueBucket.YediGun => "danger",
+        DueBucket.OtuzGun => "warn",
         _ => ""
     };
 
-    private static string BucketLabel(VadeBucket b) => b switch
+    private static string BucketLabel(DueBucket b) => b switch
     {
-        VadeBucket.Gecmis => "Geçmiş",
-        VadeBucket.YediGun => "≤ 7 gün",
-        VadeBucket.OtuzGun => "≤ 30 gün",
+        DueBucket.Gecmis => "Geçmiş",
+        DueBucket.YediGun => "≤ 7 gün",
+        DueBucket.OtuzGun => "≤ 30 gün",
         _ => "İleri"
     };
 }

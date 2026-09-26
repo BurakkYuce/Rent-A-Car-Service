@@ -29,7 +29,7 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
     private static DateTimeOffset D(int y, int m, int g) => new(y, m, g, 0, 0, 0, TimeSpan.Zero);
 
     private static AracKredi Kredi(decimal tutar, decimal faiz, int taksit, DateTimeOffset bas,
-        int odenen = 0, KrediDurum durum = KrediDurum.Aktif) => new()
+        int odenen = 0, LoanStatus durum = LoanStatus.Aktif) => new()
     {
         No = "KR-TEST", BankaAdi = "Test Bank", KrediTutari = tutar, FaizOran = faiz,
         TaksitSayisi = taksit, BaslangicTarihi = bas, OdenenTaksit = odenen, Durum = durum
@@ -44,7 +44,7 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         // Plan 15.03.2026'da başlar → 12. (son) vade 11 ay sonra = 15.02.2027.
         var k = Kredi(12_000m, 0.10m, 12, D(2026, 3, 15));
 
-        var o = AracKrediService.Hesapla(k, D(2026, 5, 20));
+        var o = VehicleLoanService.Calculate(k, D(2026, 5, 20));
         Assert.Equal(1_200m, o.ToplamFaiz);
         Assert.Equal(13_200m, o.ToplamGeriOdeme);
         Assert.Equal(1_100m, o.AylikTaksit);
@@ -53,14 +53,14 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         Assert.Equal(1_100m, o.BuAyToplamTaksit);    // mayısta 15.05 vadesi var
 
         // Planda vadesi olmayan bir ay → 0 (kart "bu ay ödeme yok" der).
-        Assert.Equal(0m, AracKrediService.Hesapla(k, D(2028, 1, 10)).BuAyToplamTaksit);
+        Assert.Equal(0m, VehicleLoanService.Calculate(k, D(2028, 1, 10)).BuAyToplamTaksit);
     }
 
     [Fact]
     public void Son_taksit_kusurat_farkini_emer()
     {
         // ELLE: 10.000 / 3 = 3.333,333… → 3333,33 · 3333,33 · KALAN 3333,34; toplam TAM 10.000.
-        var o = AracKrediService.Hesapla(Kredi(10_000m, 0m, 3, D(2026, 4, 15)), D(2026, 4, 20));
+        var o = VehicleLoanService.Calculate(Kredi(10_000m, 0m, 3, D(2026, 4, 15)), D(2026, 4, 20));
         Assert.Equal(3_333.33m, o.AylikTaksit);
         Assert.Equal(3_333.34m, o.SonTaksitTutari);
         Assert.Equal(10_000m, o.Taksitler.Sum(t => t.Tutar));   // kuruş kayması YOK
@@ -76,9 +76,9 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         //  K3: İPTAL (100.000) → hiçbir toplama girmez
         var k1 = Kredi(12_000m, 0.10m, 12, D(2026, 3, 15));
         var k2 = Kredi(6_000m, 0m, 6, D(2026, 5, 15));
-        var k3 = Kredi(100_000m, 0.50m, 24, D(2026, 1, 15), durum: KrediDurum.Iptal);
+        var k3 = Kredi(100_000m, 0.50m, 24, D(2026, 1, 15), durum: LoanStatus.Iptal);
 
-        var p = AracKrediService.Pano([k1, k2, k3], D(2026, 5, 20));
+        var p = VehicleLoanService.Dashboard([k1, k2, k3], D(2026, 5, 20));
 
         Assert.Equal(1_200m, p.ToplamFaiz);                 // 1.200 + 0 (iptal hariç)
         Assert.Equal(19_200m, p.ToplamKrediBorcu);          // 13.200 + 6.000
@@ -90,7 +90,7 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
     [Fact]
     public void Pano_bos_kumede_sifir()
     {
-        var p = AracKrediService.Pano([], D(2026, 5, 20));
+        var p = VehicleLoanService.Dashboard([], D(2026, 5, 20));
         Assert.Equal(0m, p.ToplamFaiz);
         Assert.Equal(0m, p.ToplamKrediBorcu);
         Assert.Null(p.SonVadeGunu);
@@ -101,10 +101,10 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
     {
         // ELLE: 6.000 · 6 taksit faizsiz → aylık 1.000; 2 taksit ödenmiş → kalan 4.000.
         var k = Kredi(6_000m, 0m, 6, D(2026, 5, 15), odenen: 2);
-        Assert.Equal(4_000m, AracKrediService.Hesapla(k, D(2026, 5, 20)).KalanBakiye);
-        Assert.Equal(4_000m, AracKrediService.Pano([k], D(2026, 5, 20)).ToplamKrediBorcu);
+        Assert.Equal(4_000m, VehicleLoanService.Calculate(k, D(2026, 5, 20)).KalanBakiye);
+        Assert.Equal(4_000m, VehicleLoanService.Dashboard([k], D(2026, 5, 20)).ToplamKrediBorcu);
         // "Bu ayki taksit" o ayın YÜKÜMLÜLÜĞÜdür — ödenmiş olması kutuyu değiştirmez.
-        Assert.Equal(1_000m, AracKrediService.Pano([k], D(2026, 5, 20)).BuAyToplamTaksit);
+        Assert.Equal(1_000m, VehicleLoanService.Dashboard([k], D(2026, 5, 20)).BuAyToplamTaksit);
     }
 
     // ---------------------------------------------------------------- filtre (SearchAsync)
@@ -115,12 +115,12 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<AracKrediService>();
+        var svc = sp.GetRequiredService<VehicleLoanService>();
 
         var cariA = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Kredi", Soyad = "Cari A" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kredi", Soyad = "Cari A" });
         var cariB = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Kredi", Soyad = "Cari B" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kredi", Soyad = "Cari B" });
         var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KR 77" });
 
         // 3 kredi: yalnız BİRİ cariA'ya bağlı, yalnız BİRİ araca bağlı, dosya numaraları farklı.
@@ -156,8 +156,8 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         Assert.DoesNotContain(aralik, x => x.BankaAdi == "A Bank");
 
         // Durum filtresi
-        Assert.Equal(3, (await svc.SearchAsync(new AracKrediFilter { Durum = KrediDurum.Aktif })).Count);
-        Assert.Empty(await svc.SearchAsync(new AracKrediFilter { Durum = KrediDurum.Kapandi }));
+        Assert.Equal(3, (await svc.SearchAsync(new AracKrediFilter { Durum = LoanStatus.Aktif })).Count);
+        Assert.Empty(await svc.SearchAsync(new AracKrediFilter { Durum = LoanStatus.Kapandi }));
     }
 
     [Fact]
@@ -166,15 +166,15 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using (var a = host.ScopeFor(Guid.NewGuid()))
         {
-            await a.ServiceProvider.GetRequiredService<AracKrediService>().CreateAsync(new AracKrediInput
+            await a.ServiceProvider.GetRequiredService<VehicleLoanService>().CreateAsync(new AracKrediInput
             { BankaAdi = "Gizli Bank", DosyaNo = "DS-GIZLI", KrediTutari = 50_000m, TaksitSayisi = 6 });
         }
         // racar_app bağlantısı (fixture öyle kurulu) → RLS 2. tenant'a hiçbir satır sızdırmaz.
         using var b = host.ScopeFor(Guid.NewGuid());
-        var svc = b.ServiceProvider.GetRequiredService<AracKrediService>();
+        var svc = b.ServiceProvider.GetRequiredService<VehicleLoanService>();
         Assert.Empty(await svc.SearchAsync());
         Assert.Empty(await svc.SearchAsync(new AracKrediFilter { DosyaNo = "DS-GIZLI" }));
-        Assert.Equal(0m, AracKrediService.Pano(await svc.SearchAsync(), DateTimeOffset.UtcNow).ToplamKrediBorcu);
+        Assert.Equal(0m, VehicleLoanService.Dashboard(await svc.SearchAsync(), DateTimeOffset.UtcNow).ToplamKrediBorcu);
     }
 
     // ---------------------------------------------------------------- toplu "Taksitleri İptal Et"
@@ -185,7 +185,7 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<AracKrediService>();
+        var svc = sp.GetRequiredService<VehicleLoanService>();
 
         // A: aktif, hiç ödeme yok            → iptal edilmeli
         // B: 2 taksitin 2'si ödenmiş (Kapandi) → DOKUNULMAMALI
@@ -193,18 +193,18 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         var a = await svc.CreateAsync(new AracKrediInput { BankaAdi = "A", KrediTutari = 1_000m, TaksitSayisi = 4 });
         var b = await svc.CreateAsync(new AracKrediInput { BankaAdi = "B", KrediTutari = 2_000m, TaksitSayisi = 2 });
         var c = await svc.CreateAsync(new AracKrediInput { BankaAdi = "C", KrediTutari = 3_000m, TaksitSayisi = 4 });
-        await svc.TaksitOdeAsync(b);
-        await svc.TaksitOdeAsync(b);          // B kapandı (2/2) — 2 × 1.000 gider postlandı (elle)
-        await svc.IptalAsync(c);
+        await svc.PayInstallmentAsync(b);
+        await svc.PayInstallmentAsync(b);          // B kapandı (2/2) — 2 × 1.000 gider postlandı (elle)
+        await svc.CancelAsync(c);
 
         var giderOncesi = await sp.GetRequiredService<RentACar.Application.Expenses.ExpenseService>().ListAsync();
         Assert.Equal(2, giderOncesi.Count);
 
-        Assert.Equal(1, await svc.TaksitleriIptalEtAsync([a, b, c]));
+        Assert.Equal(1, await svc.CancelInstallmentsAsync([a, b, c]));
 
-        Assert.Equal(KrediDurum.Iptal, (await svc.GetAsync(a))!.Durum);
-        Assert.Equal(KrediDurum.Kapandi, (await svc.GetAsync(b))!.Durum);   // ödenmiş kredi geri alınmaz
-        Assert.Equal(KrediDurum.Iptal, (await svc.GetAsync(c))!.Durum);
+        Assert.Equal(LoanStatus.Iptal, (await svc.GetAsync(a))!.Durum);
+        Assert.Equal(LoanStatus.Kapandi, (await svc.GetAsync(b))!.Durum);   // ödenmiş kredi geri alınmaz
+        Assert.Equal(LoanStatus.Iptal, (await svc.GetAsync(c))!.Durum);
 
         // EN ÖNEMLİSİ: ödenmiş taksitlerin GİDER ve DEFTER kayıtları yerinde (para silinmez).
         var giderSonrasi = await sp.GetRequiredService<RentACar.Application.Expenses.ExpenseService>().ListAsync();
@@ -212,10 +212,10 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         Assert.Equal(2_000m, giderSonrasi.Sum(x => x.GenelToplam));
 
         // İptal olan krediye artık taksit ödenemez (çit satır kilidinin arkasında).
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TaksitOdeAsync(a));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.PayInstallmentAsync(a));
 
         // Boş seçim → net red (sessiz başarı yanıltıcı olurdu).
-        await Assert.ThrowsAsync<ValidationException>(() => svc.TaksitleriIptalEtAsync([]));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CancelInstallmentsAsync([]));
     }
 
     [Fact]
@@ -226,30 +226,30 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         Guid id;
         using (var admin = host.ScopeFor(tenant))
         {
-            id = await admin.ServiceProvider.GetRequiredService<AracKrediService>()
+            id = await admin.ServiceProvider.GetRequiredService<VehicleLoanService>()
                 .CreateAsync(new AracKrediInput { BankaAdi = "A", KrediTutari = 1_000m, TaksitSayisi = 4 });
         }
 
         // Muhasebe'de OperationsWrite YOK → toplu iptal reddedilmeli (okuma serbest).
         using (var muhasebe = host.ScopeFor(tenant, role: UserRole.Muhasebe))
         {
-            var svc = muhasebe.ServiceProvider.GetRequiredService<AracKrediService>();
+            var svc = muhasebe.ServiceProvider.GetRequiredService<VehicleLoanService>();
             Assert.Single(await svc.SearchAsync());
-            await Assert.ThrowsAsync<YetkiYokException>(() => svc.TaksitleriIptalEtAsync([id]));
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.CancelInstallmentsAsync([id]));
         }
 
         // İnceltme (2026-08-17): taksit İPTALİ artık OperationsDelete ister — operatör
         // (OperationsWrite'ı olsa da) REDDEDİLİR; Yönetici geçer.
         using (var op = host.ScopeFor(tenant, role: UserRole.Operator))
         {
-            await Assert.ThrowsAsync<YetkiYokException>(() => op.ServiceProvider
-                .GetRequiredService<AracKrediService>().TaksitleriIptalEtAsync([id]));
+            await Assert.ThrowsAsync<NoPermissionException>(() => op.ServiceProvider
+                .GetRequiredService<VehicleLoanService>().CancelInstallmentsAsync([id]));
         }
 
         using (var yon = host.ScopeFor(tenant, role: UserRole.Yonetici))
         {
-            Assert.Equal(1, await yon.ServiceProvider.GetRequiredService<AracKrediService>()
-                .TaksitleriIptalEtAsync([id]));
+            Assert.Equal(1, await yon.ServiceProvider.GetRequiredService<VehicleLoanService>()
+                .CancelInstallmentsAsync([id]));
         }
     }
 
@@ -261,11 +261,11 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var svc = sp.GetRequiredService<AracKrediService>();
+        var svc = sp.GetRequiredService<VehicleLoanService>();
         var rapor = sp.GetRequiredService<ReportService>();
 
         var cari = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Kurumsal, Unvan = "Kredi Bankası A.Ş." });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Kredi Bankası A.Ş." });
 
         // UÇUK bir kredi cariye bağlanır: 1.000.000 TL, %50 faiz.
         var id = await svc.CreateAsync(new AracKrediInput
@@ -275,15 +275,15 @@ public sealed class AracKrediZenginlestirmeTests(PostgresFixture fx)
         });
 
         // Özet kartlar dolu (ELLE: faiz 1.000.000 × 0,50 × 12/12 = 500.000).
-        var o = AracKrediService.Hesapla((await svc.GetAsync(id))!, D(2026, 4, 20));
+        var o = VehicleLoanService.Calculate((await svc.GetAsync(id))!, D(2026, 4, 20));
         Assert.Equal(500_000m, o.ToplamFaiz);
         Assert.Equal(1_500_000m, o.KalanBakiye);
 
         // …ama CARİ BAKİYESİ HİÇ OLUŞMADI: bakiye raporu boş (sıfır-bakiye cari listelenmez).
-        Assert.Empty(await rapor.GetCariBalancesAsync());
+        Assert.Empty(await rapor.GetAccountBalancesAsync());
 
         // Taksit ödendiğinde para Gider/Kasa'ya gider — cariye YİNE dokunulmaz.
-        Assert.True(await svc.TaksitOdeAsync(id));
-        Assert.Empty(await rapor.GetCariBalancesAsync());
+        Assert.True(await svc.PayInstallmentAsync(id));
+        Assert.Empty(await rapor.GetAccountBalancesAsync());
     }
 }

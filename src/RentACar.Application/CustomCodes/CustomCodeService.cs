@@ -29,7 +29,7 @@ public sealed class CustomCodeService(ICustomCodeRepository repository, ICurrent
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: null, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: null, ct))
             throw new ValidationException($"'{n.Kod}' kodlu özel kod zaten var.");
 
         var code = new CustomCode();
@@ -56,7 +56,7 @@ public sealed class CustomCodeService(ICustomCodeRepository repository, ICurrent
         PermissionGuard.Require(_currentUser, Permission.OperationsWrite);
         var n = Normalize(input);
         Validate(n);
-        if (await _repository.KodExistsAsync(n.Kod, excludeId: id, ct))
+        if (await _repository.CodeExistsAsync(n.Kod, excludeId: id, ct))
             throw new ValidationException($"'{n.Kod}' kodlu özel kod zaten var.");
 
         void Update(CustomCode code)

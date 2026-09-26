@@ -25,7 +25,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
     private static readonly DateOnly Gun = new(2026, 6, 15);   // Pazartesi (sabit — now'a bağlı değil)
 
     private static async Task<Guid> PersonelAsync(IServiceProvider sp, string kod, string ad, string? sube = null)
-        => await sp.GetRequiredService<PersonelService>().CreateAsync(new PersonelInput
+        => await sp.GetRequiredService<PersonnelService>().CreateAsync(new PersonelInput
         { Kod = kod, Ad = ad, Soyad = "Test", Sube = sube });
 
     private static async Task<Guid> SubeAsync(IServiceProvider sp, string ad)
@@ -46,7 +46,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         await SubeAsync(sp, "Merkez");
         var p = await PersonelAsync(sp, "P1", "Ali");
-        var svc = sp.GetRequiredService<PersonelVardiyaService>();
+        var svc = sp.GetRequiredService<StaffShiftService>();
 
         var id = await svc.CreateAsync(new VardiyaInput
         {
@@ -79,7 +79,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var p = await PersonelAsync(sp, "P1", "Gece");
-        var svc = sp.GetRequiredService<PersonelVardiyaService>();
+        var svc = sp.GetRequiredService<StaffShiftService>();
 
         var id = await svc.CreateAsync(V(p, Gun, "22:00", "06:00"));
         Assert.Equal(480, (await svc.GetAsync(id))!.SureDk);   // ELLE: 22->24 (120) + 0->6 (360) = 480
@@ -97,7 +97,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var p = await PersonelAsync(sp, "P1", "Ali");
         var q = await PersonelAsync(sp, "P2", "Veli");
-        var svc = sp.GetRequiredService<PersonelVardiyaService>();
+        var svc = sp.GetRequiredService<StaffShiftService>();
 
         await svc.CreateAsync(V(p, Gun, "08:00", "12:00"));
 
@@ -121,7 +121,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var p = await PersonelAsync(sp, "P1", "Gece");
-        var svc = sp.GetRequiredService<PersonelVardiyaService>();
+        var svc = sp.GetRequiredService<StaffShiftService>();
 
         await svc.CreateAsync(V(p, Gun, "22:00", "06:00"));           // 15'i 22:00 -> 16'sı 06:00
 
@@ -147,14 +147,14 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var ali = await PersonelAsync(sp, "P1", "Ali");
         var veli = await PersonelAsync(sp, "P2", "Veli");
-        var svc = sp.GetRequiredService<PersonelVardiyaService>();
+        var svc = sp.GetRequiredService<StaffShiftService>();
 
         // ELLE: 2 personel × 3 gün = 6 vardiya, hepsi 08:00-16:00 (480 dk).
         foreach (var p in new[] { ali, veli })
             for (var i = 0; i < 3; i++)
                 await svc.CreateAsync(V(p, Gun.AddDays(i), "08:00", "16:00"));
 
-        var m = await svc.MatrisAsync(new VardiyaFilter { Bas = Gun, Bit = Gun.AddDays(4) });
+        var m = await svc.MatrixAsync(new VardiyaFilter { Bas = Gun, Bit = Gun.AddDays(4) });
 
         Assert.Equal(5, m.Gunler.Count);            // sütunlar aralığın TAMAMI (2 boş gün dahil)
         Assert.Equal(Gun, m.Gunler[0]);
@@ -178,19 +178,19 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         // Saf fonksiyon — DB gerekmez.
         var bugun = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
 
-        var (b1, s1) = PersonelVardiyaService.Pencere(new VardiyaFilter());
+        var (b1, s1) = StaffShiftService.Window(new VardiyaFilter());
         Assert.Equal(bugun, b1);
         Assert.Equal(bugun.AddDays(6), s1);                       // ELLE: 7 günlük varsayılan
 
         // Ters aralık boş sayfa yerine düzeltilir.
-        var (b2, s2) = PersonelVardiyaService.Pencere(new VardiyaFilter { Bas = Gun.AddDays(5), Bit = Gun });
+        var (b2, s2) = StaffShiftService.Window(new VardiyaFilter { Bas = Gun.AddDays(5), Bit = Gun });
         Assert.Equal(Gun, b2);
         Assert.Equal(Gun.AddDays(5), s2);
 
         // 10 yıllık istek tavana kırpılır (personel×gün ızgarası patlamasın).
-        var (b3, s3) = PersonelVardiyaService.Pencere(new VardiyaFilter { Bas = Gun, Bit = Gun.AddYears(10) });
+        var (b3, s3) = StaffShiftService.Window(new VardiyaFilter { Bas = Gun, Bit = Gun.AddYears(10) });
         Assert.Equal(Gun, b3);
-        Assert.Equal(Gun.AddDays(PersonelVardiyaService.MaxGun - 1), s3);
+        Assert.Equal(Gun.AddDays(StaffShiftService.MaxDays - 1), s3);
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
             await SubeAsync(sp, "Sube B");
             ali = await PersonelAsync(sp, "P1", "Ali", "Sube B");     // KADROSU B'de
             veli = await PersonelAsync(sp, "P2", "Veli", "Sube B");
-            var svc = sp.GetRequiredService<PersonelVardiyaService>();
+            var svc = sp.GetRequiredService<StaffShiftService>();
             // ELLE: 2 vardiya A'da (biri kadrosu B olan Ali'nin), 1 vardiya B'de.
             await svc.CreateAsync(V(ali, Gun, "08:00", "16:00", "Sube A"));
             await svc.CreateAsync(V(veli, Gun, "08:00", "16:00", "Sube A"));
@@ -214,7 +214,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         }
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Sube A");
-        var opSvc = op.ServiceProvider.GetRequiredService<PersonelVardiyaService>();
+        var opSvc = op.ServiceProvider.GetRequiredService<StaffShiftService>();
         var rows = await opSvc.ListAsync(new VardiyaFilter { Bas = Gun, Bit = Gun.AddDays(3) });
 
         // ELLE: 2 — kapsam VARDİYANIN şubesine bakar; Ali'nin kadrosu B olsa da A'da çalıştığı
@@ -223,9 +223,9 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         Assert.All(rows, r => Assert.Equal("Sube A", r.Vardiya.Sube));
 
         // Operatör başka şubeye vardiya YAZAMAZ.
-        await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube B")));
+        await Assert.ThrowsAsync<NoPermissionException>(() => opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube B")));
         // 2026-09-25: kadrosu kapsam DIŞI personele kendi şubesinde de yazamaz (vardiya saatleri kehaneti).
-        await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube A")));
+        await Assert.ThrowsAsync<NoPermissionException>(() => opSvc.CreateAsync(V(ali, Gun.AddDays(5), "08:00", "16:00", "Sube A")));
         // Kadrosu kendi şubesinde olan personele yazabilir.
         Guid ayse;
         using (var admin = host.ScopeFor(tenant)) ayse = await PersonelAsync(admin.ServiceProvider, "P3", "Ayşe", "Sube A");
@@ -249,23 +249,23 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
             await SubeAsync(sp, "Sube B");
             veli = await PersonelAsync(sp, "P1", "Veli", "Sube B");
             nobody = await PersonelAsync(sp, "P2", "Serbest");              // şubesiz
-            shiftB = await sp.GetRequiredService<PersonelVardiyaService>().CreateAsync(V(veli, day, "09:00", "12:00", "Sube B"));
+            shiftB = await sp.GetRequiredService<StaffShiftService>().CreateAsync(V(veli, day, "09:00", "12:00", "Sube B"));
         }
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Sube A");
-        var opSvc = op.ServiceProvider.GetRequiredService<PersonelVardiyaService>();
+        var opSvc = op.ServiceProvider.GetRequiredService<StaffShiftService>();
 
-        var overlapping = await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(veli, day, "10:00", "11:00", "Sube A")));
-        var free = await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(veli, day, "14:00", "15:00", "Sube A")));
+        var overlapping = await Assert.ThrowsAsync<NoPermissionException>(() => opSvc.CreateAsync(V(veli, day, "10:00", "11:00", "Sube A")));
+        var free = await Assert.ThrowsAsync<NoPermissionException>(() => opSvc.CreateAsync(V(veli, day, "14:00", "15:00", "Sube A")));
         Assert.Equal(free.Message, overlapping.Message);
         Assert.Equal("Bu kayıt şube kapsamınız dışında.", overlapping.Message);
         // Şubesiz personel de kapsamlı operatör için kapsam dışı.
-        await Assert.ThrowsAsync<YetkiYokException>(() => opSvc.CreateAsync(V(nobody, day, "14:00", "15:00", "Sube A")));
+        await Assert.ThrowsAsync<NoPermissionException>(() => opSvc.CreateAsync(V(nobody, day, "14:00", "15:00", "Sube A")));
 
         // Admin (kapsamsız) aynı personele yazabilir; yalnız bir kayıt eklenir.
         using var admin2 = host.ScopeFor(tenant);
-        await admin2.ServiceProvider.GetRequiredService<PersonelVardiyaService>().CreateAsync(V(veli, day, "14:00", "15:00", "Sube B"));
-        var all = await admin2.ServiceProvider.GetRequiredService<PersonelVardiyaService>()
+        await admin2.ServiceProvider.GetRequiredService<StaffShiftService>().CreateAsync(V(veli, day, "14:00", "15:00", "Sube B"));
+        var all = await admin2.ServiceProvider.GetRequiredService<StaffShiftService>()
             .ListAsync(new VardiyaFilter { Bas = day, Bit = day });
         Assert.Equal(2, all.Count);
         Assert.Contains(all, r => r.Vardiya.Id == shiftB);
@@ -280,13 +280,13 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var day = DateOnly.FromDateTime(TestZaman.GunSonra(12).UtcDateTime);
         var p = await PersonelAsync(sp, "P1", "Ali");
-        var id = await sp.GetRequiredService<PersonelVardiyaService>().CreateAsync(V(p, day, "08:00", "12:00"));
+        var id = await sp.GetRequiredService<StaffShiftService>().CreateAsync(V(p, day, "08:00", "12:00"));
 
         var inner = sp.GetRequiredService<IRowVersionStore>();
         // İlk sürüm okumasının BAŞINDA başka bir oturum vardiyayı 10:00'a çeker (yarış penceresi deterministik kurulur).
         var racing = new WriteOnFirstVersionRead(inner, id);
-        var svc = new PersonelVardiyaService(
-            sp.GetRequiredService<IPersonelVardiyaRepository>(), sp.GetRequiredService<IPersonelRepository>(),
+        var svc = new StaffShiftService(
+            sp.GetRequiredService<IPersonnelShiftRepository>(), sp.GetRequiredService<IPersonnelRepository>(),
             sp.GetRequiredService<IBranchRepository>(), sp.GetRequiredService<ICurrentUser>(), racing);
 
         var pair = await svc.GetWithStaffAndVersionAsync(id);
@@ -333,13 +333,13 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
             await SubeAsync(sp, "Sube B");
             // Kadrosu A (operatörün kapsamında); B'de de vardiyası var — kapsam dışı ŞUBEDEKİ çakışma.
             ali = await PersonelAsync(sp, "P1", "Ali", "Sube A");
-            var svc = sp.GetRequiredService<PersonelVardiyaService>();
+            var svc = sp.GetRequiredService<StaffShiftService>();
             await svc.CreateAsync(V(ali, day, "09:30", "13:15", "Sube B"));   // kapsam dışı (operatör A'da)
             await svc.CreateAsync(V(ali, day, "15:00", "17:45", "Sube A"));   // kapsam içi
         }
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Sube A");
-        var opSvc = op.ServiceProvider.GetRequiredService<PersonelVardiyaService>();
+        var opSvc = op.ServiceProvider.GetRequiredService<StaffShiftService>();
 
         var hidden = await Assert.ThrowsAsync<ValidationException>(() => opSvc.CreateAsync(V(ali, day, "12:00", "14:00", "Sube A")));
         Assert.Equal("Bu personelin bu saatlerde başka bir şubede vardiyası var.", hidden.Message);
@@ -355,7 +355,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         // Admin (kapsamsız) kapsam dışı yok: B'deki satır için de ayrıntılı mesaj.
         using var admin2 = host.ScopeFor(tenant);
         var full = await Assert.ThrowsAsync<ValidationException>(() => admin2.ServiceProvider
-            .GetRequiredService<PersonelVardiyaService>().CreateAsync(V(ali, day, "12:00", "14:00", "Sube A")));
+            .GetRequiredService<StaffShiftService>().CreateAsync(V(ali, day, "12:00", "14:00", "Sube A")));
         Assert.Contains("09:30", full.Message);
     }
 
@@ -366,7 +366,7 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var p = await PersonelAsync(sp, "P1", "Ali");
-        var svc = sp.GetRequiredService<PersonelVardiyaService>();
+        var svc = sp.GetRequiredService<StaffShiftService>();
 
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(V(Guid.Empty, Gun, "08:00", "16:00")));
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(V(Guid.NewGuid(), Gun, "08:00", "16:00")));
@@ -386,14 +386,14 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(tenant))
         {
             p = await PersonelAsync(admin.ServiceProvider, "P1", "Ali");
-            await admin.ServiceProvider.GetRequiredService<PersonelVardiyaService>()
+            await admin.ServiceProvider.GetRequiredService<StaffShiftService>()
                 .CreateAsync(V(p, Gun, "08:00", "16:00"));
         }
 
         using var muh = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
-        var svc = muh.ServiceProvider.GetRequiredService<PersonelVardiyaService>();
+        var svc = muh.ServiceProvider.GetRequiredService<StaffShiftService>();
         Assert.Single(await svc.ListAsync(new VardiyaFilter { Bas = Gun, Bit = Gun }));   // ViewReports
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.CreateAsync(V(p, Gun.AddDays(1), "08:00", "16:00")));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(V(p, Gun.AddDays(1), "08:00", "16:00")));
     }
 
     [Fact]
@@ -406,14 +406,14 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         var kaynak = await SubeAsync(sp, "Sube A");
         var hedef = await SubeAsync(sp, "Sube B");
         var p = await PersonelAsync(sp, "P1", "Ali");
-        var svc = sp.GetRequiredService<PersonelVardiyaService>();
+        var svc = sp.GetRequiredService<StaffShiftService>();
         var id = await svc.CreateAsync(V(p, Gun, "08:00", "16:00", "Sube A"));
 
         var subeler = sp.GetRequiredService<BranchService>();
-        var onizleme = await subeler.BirlestirOnizleAsync(kaynak, hedef);
+        var onizleme = await subeler.PreviewMergeAsync(kaynak, hedef);
         Assert.Contains(onizleme!.Etkilenen, x => x.Tablo.StartsWith("Personel vardiyası"));
 
-        await subeler.BirlestirAsync(kaynak, hedef);
+        await subeler.MergeAsync(kaynak, hedef);
 
         var v = await svc.GetAsync(id);
         Assert.Equal("Sube B", v!.Sube);      // metin
@@ -429,20 +429,20 @@ public sealed class PersonelVardiyaTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var p = await PersonelAsync(s1.ServiceProvider, "P1", "Gizli");
-            id = await s1.ServiceProvider.GetRequiredService<PersonelVardiyaService>()
+            id = await s1.ServiceProvider.GetRequiredService<StaffShiftService>()
                 .CreateAsync(V(p, Gun, "08:00", "16:00"));
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        var svc = s2.ServiceProvider.GetRequiredService<PersonelVardiyaService>();
+        var svc = s2.ServiceProvider.GetRequiredService<StaffShiftService>();
         var f = new VardiyaFilter { Bas = Gun.AddDays(-30), Bit = Gun.AddDays(30) };
         Assert.Empty(await svc.ListAsync(f));
-        Assert.Empty((await svc.MatrisAsync(f)).Satirlar);
+        Assert.Empty((await svc.MatrixAsync(f)).Satirlar);
         Assert.Null(await svc.GetAsync(id));                  // id bilinse bile görünmez
         Assert.False(await svc.DeleteAsync(id));              // silinemez
 
         // Kaynak tenant'ta hâlâ duruyor (silinmediği kanıtlanır).
         using var s1b = host.ScopeFor(t1);
-        Assert.NotNull(await s1b.ServiceProvider.GetRequiredService<PersonelVardiyaService>().GetAsync(id));
+        Assert.NotNull(await s1b.ServiceProvider.GetRequiredService<StaffShiftService>().GetAsync(id));
     }
 }

@@ -114,7 +114,7 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         Guid reservationId;
         using (var staff = host.ScopeFor(tenantId))
             reservationId = await staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>()
-                .DonusturAsync(talep.Id, vehicleId);
+                .ConvertAsync(talep.Id, vehicleId);
 
         using var verify = host.ScopeFor(tenantId);
         var sonra = Assert.Single(await verify.ServiceProvider.GetRequiredService<PublicBookingRequestService>().ListAsync());
@@ -143,7 +143,7 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         Guid mevcutCariId;
         using (var staff = host.ScopeFor(tenantId))
             mevcutCariId = await staff.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(
-                new CustomerInput { Tip = CariType.Bireysel, Ad = "Eski Müşteri", CepTel = "05551112233" });
+                new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Eski Müşteri", CepTel = "05551112233" });
 
         using (var pub = host.ScopeFor(tenantId, role: null))
             await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(Input(tel: "0555 111 22 33"));
@@ -152,7 +152,7 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         Guid reservationId;
         using (var staff = host.ScopeFor(tenantId))
             reservationId = await staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>()
-                .DonusturAsync(talep.Id, vehicleId);
+                .ConvertAsync(talep.Id, vehicleId);
 
         using var verify = host.ScopeFor(tenantId);
         var factory = verify.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -180,8 +180,8 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var svc2 = s2.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
 
         var sonuclar = await Task.WhenAll(
-            Dene(() => svc1.DonusturAsync(talep.Id, vehicleId)),
-            Dene(() => svc2.DonusturAsync(talep.Id, vehicleId)));
+            Dene(() => svc1.ConvertAsync(talep.Id, vehicleId)),
+            Dene(() => svc2.ConvertAsync(talep.Id, vehicleId)));
 
         Assert.Single(sonuclar, r => r.Basarili);  // YALNIZ BİRİ geçer (atomik claim)
         Assert.Single(sonuclar, r => !r.Basarili);
@@ -221,7 +221,7 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         using (var staff = host.ScopeFor(tenantId))
             await Assert.ThrowsAnyAsync<ValidationException>(
                 () => staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>()
-                    .DonusturAsync(talep.Id, vehicleId));
+                    .ConvertAsync(talep.Id, vehicleId));
 
         var sonra = await TekTalepAsync(host, tenantId);
         Assert.Equal(PublicBookingRequestDurum.Yeni, sonra.Durum); // YARIM kalmadı — tekrar denenebilir
@@ -245,13 +245,13 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
 
         using var staff = host.ScopeFor(tenantId);
         var svc = staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
-        await svc.ReddetAsync(talep.Id);
+        await svc.RejectAsync(talep.Id);
 
         var sonra = Assert.Single(await svc.ListAsync());
         Assert.Equal(PublicBookingRequestDurum.Reddedildi, sonra.Durum);
         Assert.Null(sonra.DonusenReservationId);
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ReddetAsync(talep.Id)); // zaten işlenmiş
+        await Assert.ThrowsAsync<ValidationException>(() => svc.RejectAsync(talep.Id)); // zaten işlenmiş
     }
 
     [Fact]
@@ -266,9 +266,9 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
 
         using var staff = host.ScopeFor(tenantId);
         var svc = staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
-        await svc.ReddetAsync(talep.Id);
+        await svc.RejectAsync(talep.Id);
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.DonusturAsync(talep.Id, vehicleId));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ConvertAsync(talep.Id, vehicleId));
     }
 
     [Fact]
@@ -283,9 +283,9 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         using var muhasebe = host.ScopeFor(tenantId, role: UserRole.Muhasebe); // OperationsWrite YOK
         var svc = muhasebe.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
 
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ListAsync());
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.ReddetAsync(talep.Id));
-        await Assert.ThrowsAsync<YetkiYokException>(() => svc.DonusturAsync(talep.Id, Guid.NewGuid()));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.ListAsync());
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.RejectAsync(talep.Id));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.ConvertAsync(talep.Id, Guid.NewGuid()));
     }
 
     [Fact]

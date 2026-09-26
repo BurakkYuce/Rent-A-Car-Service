@@ -16,16 +16,16 @@ public sealed class IcerikMetniBlokTests
     [Fact]
     public void Iki_diyez_h2_uc_diyez_h3_uretir()
     {
-        var bloklar = IcerikMetni.Bloklar("Giriş cümlesi.\n\n## Ana Başlık\n\n### Alt Başlık\n\nSon söz.");
+        var bloklar = ContentText.Blocks("Giriş cümlesi.\n\n## Ana Başlık\n\n### Alt Başlık\n\nSon söz.");
 
         Assert.Equal(4, bloklar.Count);
-        Assert.Equal(IcerikMetni.BlokTuru.Paragraf, bloklar[0].Tur);
+        Assert.Equal(ContentText.BlockType.Paragraf, bloklar[0].Tur);
         Assert.Equal("Giriş cümlesi.", bloklar[0].Metin);
-        Assert.Equal(IcerikMetni.BlokTuru.Baslik2, bloklar[1].Tur);
+        Assert.Equal(ContentText.BlockType.Baslik2, bloklar[1].Tur);
         Assert.Equal("Ana Başlık", bloklar[1].Metin);       // işaretleyici AYIKLANIR
-        Assert.Equal(IcerikMetni.BlokTuru.Baslik3, bloklar[2].Tur);
+        Assert.Equal(ContentText.BlockType.Baslik3, bloklar[2].Tur);
         Assert.Equal("Alt Başlık", bloklar[2].Metin);
-        Assert.Equal(IcerikMetni.BlokTuru.Paragraf, bloklar[3].Tur);
+        Assert.Equal(ContentText.BlockType.Paragraf, bloklar[3].Tur);
     }
 
     /// <summary>
@@ -35,8 +35,8 @@ public sealed class IcerikMetniBlokTests
     [Fact]
     public void Satir_ortasindaki_diyez_baslik_URETMEZ()
     {
-        var blok = Assert.Single(IcerikMetni.Bloklar("Fiyat ## dahil değildir."));
-        Assert.Equal(IcerikMetni.BlokTuru.Paragraf, blok.Tur);
+        var blok = Assert.Single(ContentText.Blocks("Fiyat ## dahil değildir."));
+        Assert.Equal(ContentText.BlockType.Paragraf, blok.Tur);
         Assert.Equal("Fiyat ## dahil değildir.", blok.Metin);
     }
 
@@ -44,33 +44,33 @@ public sealed class IcerikMetniBlokTests
     [Fact]
     public void Bosluksuz_diyez_baslik_URETMEZ()
     {
-        var blok = Assert.Single(IcerikMetni.Bloklar("##EtiketGibi"));
-        Assert.Equal(IcerikMetni.BlokTuru.Paragraf, blok.Tur);
+        var blok = Assert.Single(ContentText.Blocks("##EtiketGibi"));
+        Assert.Equal(ContentText.BlockType.Paragraf, blok.Tur);
     }
 
     /// <summary>Aynı blok içindeki ardışık satırlar TEK paragrafta birleşir (yazarın niyeti).</summary>
     [Fact]
     public void Ayni_bloktaki_satirlar_tek_paragrafta_birlesir()
     {
-        var blok = Assert.Single(IcerikMetni.Bloklar("Birinci satır\nikinci satır"));
+        var blok = Assert.Single(ContentText.Blocks("Birinci satır\nikinci satır"));
         Assert.Equal("Birinci satır ikinci satır", blok.Metin);
     }
 
     [Fact]
     public void Bos_metin_bos_liste_doner()
     {
-        Assert.Empty(IcerikMetni.Bloklar(null));
-        Assert.Empty(IcerikMetni.Bloklar("   "));
+        Assert.Empty(ContentText.Blocks(null));
+        Assert.Empty(ContentText.Blocks("   "));
     }
 
     /// <summary>
-    /// Mevcut <see cref="IcerikMetni.Paragraflar"/> DEĞİŞMEDİ — SSS cevabı ve içerik sayfası onu
+    /// Mevcut <see cref="ContentText.Paragraphs"/> DEĞİŞMEDİ — SSS cevabı ve içerik sayfası onu
     /// kullanmaya devam ediyor; ara başlık davranışı oraya sızmamalı.
     /// </summary>
     [Fact]
     public void Paragraflar_davranisi_KORUNUR()
     {
-        var p = IcerikMetni.Paragraflar("## Başlık gibi\n\nikinci");
+        var p = ContentText.Paragraphs("## Başlık gibi\n\nikinci");
         Assert.Equal(2, p.Count);
         Assert.Equal("## Başlık gibi", p[0]);   // işaretleyici AYIKLANMAZ (eski davranış)
     }
@@ -81,7 +81,7 @@ public sealed class IcerikMetniBlokTests
     [Fact]
     public void Ozet_isaretleyicisiz_duz_metin_uretir()
         => Assert.Equal("Giriş. Ana Başlık Devamı.",
-            IcerikMetni.Ozet("Giriş.\n\n## Ana Başlık\n\nDevamı."));
+            ContentText.Summary("Giriş.\n\n## Ana Başlık\n\nDevamı."));
 
     /// <summary>
     /// Uzun metin KELİME ortasından kesilmez. Bağımsız oracle: 20 karakter sınırında
@@ -90,18 +90,18 @@ public sealed class IcerikMetniBlokTests
     [Fact]
     public void Ozet_kelime_ortasindan_kesmez()
     {
-        var ozet = IcerikMetni.Ozet("Antalya bölgesinde uzun dönem araç kiralama", 20);
+        var ozet = ContentText.Summary("Antalya bölgesinde uzun dönem araç kiralama", 20);
         Assert.Equal("Antalya bölgesinde…", ozet);
         Assert.DoesNotContain("uzu…", ozet);
     }
 
     [Fact]
     public void Ozet_sinirin_altindaki_metni_oldugu_gibi_doner()
-        => Assert.Equal("Kısa yazı.", IcerikMetni.Ozet("Kısa yazı.", 160));
+        => Assert.Equal("Kısa yazı.", ContentText.Summary("Kısa yazı.", 160));
 
     [Fact]
     public void Ozet_bos_metinde_null_doner()
-        => Assert.Null(IcerikMetni.Ozet("   "));
+        => Assert.Null(ContentText.Summary("   "));
 
     // ---------------------------------------------------------------- kelime sayısı (JSON-LD wordCount)
 
@@ -109,9 +109,9 @@ public sealed class IcerikMetniBlokTests
     /// Bağımsız oracle: "Giriş" + "Ana Başlık" (2) + "Son" = 4 kelime.</summary>
     [Fact]
     public void KelimeSayisi_isaretleyicileri_saymaz()
-        => Assert.Equal(4, IcerikMetni.KelimeSayisi("Giriş\n\n## Ana Başlık\n\nSon"));
+        => Assert.Equal(4, ContentText.WordCount("Giriş\n\n## Ana Başlık\n\nSon"));
 
     [Fact]
     public void KelimeSayisi_bos_metinde_sifir()
-        => Assert.Equal(0, IcerikMetni.KelimeSayisi(null));
+        => Assert.Equal(0, ContentText.WordCount(null));
 }

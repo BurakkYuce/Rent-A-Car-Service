@@ -7,7 +7,7 @@ namespace RentACar.Domain.Entities;
 /// Tenant-owned + auditable. Araç formundaki serbest-metin Marka alanını açılır listeden besler;
 /// Vehicle.Marka kolonu STRING kalır (FK YOK — additive).
 /// </summary>
-public class Brand : ITenantOwned, IAuditable, IMasterTanim
+public class Brand : ITenantOwned, IAuditable, IMasterDefinition
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

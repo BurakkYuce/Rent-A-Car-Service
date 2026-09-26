@@ -18,7 +18,7 @@ public static class ModulesApi
     {
         // Personel — PII'siz liste; ManageUsers (yalnız Admin).
         app.MapGroup("/api/v1/personel").WithTags("Personel").RequirePermission(Permission.ManageUsers)
-            .MapGet("/", async (PersonelService svc, CancellationToken ct) =>
+            .MapGet("/", async (PersonnelService svc, CancellationToken ct) =>
                 Results.Ok((await svc.ListAsync(ct)).Select(p => new
                 {
                     p.Id, p.Kod, p.Ad, p.Soyad, p.Sube, p.Aktif, p.IseGiris, p.IseCikis, p.SurucuBelgeNo
@@ -26,7 +26,7 @@ public static class ModulesApi
 
         // Hukuk — OperationsWrite.
         app.MapGroup("/api/v1/legal").WithTags("Legal").RequirePermission(Permission.OperationsWrite)
-            .MapGet("/", async (HukukDosyaService svc, CancellationToken ct) =>
+            .MapGet("/", async (LegalCaseService svc, CancellationToken ct) =>
                 Results.Ok((await svc.ListAsync(ct)).Select(h => new
                 {
                     h.Id, h.DosyaNo, Tur = h.Tur.ToString(), h.Avukat, h.Tutar, Durum = h.Durum.ToString(), h.Tarih, h.Aktif
@@ -34,14 +34,14 @@ public static class ModulesApi
 
         // CRM — OperationsWrite.
         var crm = app.MapGroup("/api/v1/crm").WithTags("Crm").RequirePermission(Permission.OperationsWrite);
-        crm.MapGet("/anketler", async (AnketService svc, CancellationToken ct) =>
+        crm.MapGet("/anketler", async (SurveyService svc, CancellationToken ct) =>
             Results.Ok((await svc.ListAsync(ct)).Select(a => new { a.Id, a.Puan, a.Yorum, a.Kaynak, a.Tarih })));
-        crm.MapGet("/sikayetler", async (SikayetService svc, CancellationToken ct) =>
+        crm.MapGet("/sikayetler", async (ComplaintService svc, CancellationToken ct) =>
             Results.Ok((await svc.ListAsync(ct)).Select(s => new { s.Id, s.Konu, Durum = s.Durum.ToString(), s.Tarih, s.Cozum })));
 
         // Dönem kapanışı durumu — FinanceWrite.
         app.MapGroup("/api/v1/donem-kapanis").WithTags("DonemKapanis").RequirePermission(Permission.FinanceWrite)
-            .MapGet("/", async (DonemKilidiService svc, CancellationToken ct) =>
+            .MapGet("/", async (PeriodLockService svc, CancellationToken ct) =>
                 Results.Ok(new { kapanisTarihi = await svc.GetClosingDateAsync(ct) }));
 
         return app;

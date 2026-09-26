@@ -12,7 +12,7 @@ public sealed class RentalUpdateInput
 {
     /// <summary>
     /// F4.3 adversarial F2 — iyimser eşzamanlılık: istemcinin okuduğu kira sürümü (<c>xmin</c>). Doluysa yazma,
-    /// satır kilidi ALTINDA güncel sürümle karşılaştırılır; farklıysa <see cref="Common.EszamanliDegisiklikException"/>
+    /// satır kilidi ALTINDA güncel sürümle karşılaştırılır; farklıysa <see cref="Common.ConcurrentModificationException"/>
     /// (hiçbir şey yazılmaz). <c>null</c> = denetim yok (Blazor formu — değişmedi).
     /// </summary>
     public string? BeklenenSurum { get; set; }
@@ -106,5 +106,5 @@ public sealed record KiraDonusOnizleme(
     int UzatmaGun = 0, decimal UzatmaBedeli = 0m,
     decimal EkHizmetToplam = 0m, decimal YeniGenelToplam = 0m, decimal Kalan = 0m)
 {
-    public static KiraDonusOnizleme Hatali(string mesaj) => new(false, mesaj);
+    public static KiraDonusOnizleme Invalid(string message) => new(false, message);
 }

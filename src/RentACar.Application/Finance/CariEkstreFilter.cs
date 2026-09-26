@@ -45,7 +45,7 @@ public sealed class CariEkstreFilter
 /// </summary>
 public sealed record CariEkstreSonuc(decimal Devir, IReadOnlyList<AccountLedgerEntry> Satirlar)
 {
-    public static readonly CariEkstreSonuc Bos = new(0m, []);
+    public static readonly CariEkstreSonuc Empty = new(0m, []);
 }
 
 

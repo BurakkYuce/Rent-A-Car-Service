@@ -1,6 +1,6 @@
 @page "/hukuk"
 @attribute [Authorize(Policy = "izin:OperationsWrite")]
-@inject HukukDosyaService Hukuk
+@inject LegalCaseService Hukuk
 @inject CustomerService Cariler
 @using System.Globalization
 @using RentACar.Application.Legal
@@ -40,13 +40,13 @@
     <label>Tür
         <select name="tur">
             <option value="">— tümü —</option>
-            @foreach (var t in Enum.GetValues<HukukTuru>()) { <option value="@t" selected="@(t.ToString() == Tur)">@t</option> }
+            @foreach (var t in Enum.GetValues<LegalType>()) { <option value="@t" selected="@(t.ToString() == Tur)">@t</option> }
         </select>
     </label>
     <label>Durum
         <select name="durum">
             <option value="">— tümü —</option>
-            @foreach (var d in Enum.GetValues<HukukDurum>()) { <option value="@d" selected="@(d.ToString() == Durum)">@d</option> }
+            @foreach (var d in Enum.GetValues<LegalStatus>()) { <option value="@d" selected="@(d.ToString() == Durum)">@d</option> }
         </select>
     </label>
     <label>Ara<input name="ara" value="@Ara" placeholder="avukat / açıklama" /></label>
@@ -54,7 +54,7 @@
     @if (FiltreVar) { <a class="link" href="/hukuk">Temizle</a> }
 </form>
 
-<p class="muted small">@_rows.Count dosya · @_rows.Count(x => x.Dosya.Durum == HukukDurum.Acik) açık ·
+<p class="muted small">@_rows.Count dosya · @_rows.Count(x => x.Dosya.Durum == LegalStatus.Acik) açık ·
     toplam tutar @Toplam(_rows.Sum(x => x.Dosya.Tutar)) · tahsilat @Toplam(_rows.Sum(x => x.Dosya.Tahsilat ?? 0m)) ·
     kalan @Toplam(_rows.Sum(x => x.Dosya.Kalan)) <em>(bilgi)</em></p>
 
@@ -84,7 +84,7 @@
                 <td class="num">@(h.Tahsilat?.ToString("N2") ?? "—")</td>
                 <td class="num">@h.Kalan.ToString("N2")</td>
                 <td>
-                    <span class="status-pill @(h.Durum == HukukDurum.Acik ? "sp-warn" : "sp-success")">@h.Durum</span>
+                    <span class="status-pill @(h.Durum == LegalStatus.Acik ? "sp-warn" : "sp-success")">@h.Durum</span>
                 </td>
                 <td>@h.Tarih.LocalDateTime.ToString("yyyy-MM-dd")</td>
                 <td><a href="/hukuk?duzenle=@h.Id" class="link">Düzenle</a></td>
@@ -104,7 +104,7 @@
     <label>Fatura No<input name="faturaNoTemp" value="@_edit?.FaturaNoTemp" maxlength="64" /></label>
     <label>Tür
         <select name="tur">
-            @foreach (var t in Enum.GetValues<HukukTuru>())
+            @foreach (var t in Enum.GetValues<LegalType>())
             {
                 <option value="@t" selected="@(_edit?.Tur == t)">@t</option>
             }
@@ -129,7 +129,7 @@
     </label>
     <label>Durum
         <select name="durum">
-            @foreach (var d in Enum.GetValues<HukukDurum>())
+            @foreach (var d in Enum.GetValues<LegalStatus>())
             {
                 <option value="@d" selected="@(_edit?.Durum == d)">@d</option>
             }
@@ -183,8 +183,8 @@
             Bas = FormParse.Date(Bas),
             // Bitiş GÜN SONUNA genişletilir; aksi halde "01.03" seçmek o günün kayıtlarını dışarıda bırakırdı.
             Bit = FormParse.Date(Bit)?.AddDays(1).AddTicks(-1),
-            Tur = Enum.TryParse<HukukTuru>(Tur, out var t) ? t : null,
-            Durum = Enum.TryParse<HukukDurum>(Durum, out var d) ? d : null,
+            Tur = Enum.TryParse<LegalType>(Tur, out var t) ? t : null,
+            Durum = Enum.TryParse<LegalStatus>(Durum, out var d) ? d : null,
             Ara = Ara
         });
 

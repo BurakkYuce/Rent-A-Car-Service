@@ -32,7 +32,7 @@ public sealed class KiraVarlikKontroluTests(PostgresFixture fx)
     {
         using var s = host.ScopeFor(tenant);
         var cari = await s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CariType.Bireysel, Ad = "Varlik", Soyad = "Test" });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Varlik", Soyad = "Test" });
         var arac = await s.ServiceProvider.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = plaka });
         return (cari, arac);
