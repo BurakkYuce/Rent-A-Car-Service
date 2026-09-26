@@ -30,7 +30,7 @@ public static partial class PlatformApi
         t.MapPost("", CreateTenant).MapFields(CreateRules);
         t.MapPut("/{id:guid}", UpdateTenant).MapFields(UpdateRules);
         t.MapPost("/{id:guid}/durum", ChangeStatus);
-        t.MapPost("/{id:guid}/yeni-arayuz-pilot", SetPilot);
+        // F13.1b: /{id}/yeni-arayuz-pilot kaldırıldı (pilot kapısı yok; yeni arayüz herkes için).
         t.MapPost("/{id:guid}/web-sitesi-modulu", SetWebSiteModule);
         t.MapGet("/{id:guid}/logo", LogoContent)
             .Produces(StatusCodes.Status200OK, typeof(byte[]), "image/png")

@@ -48,10 +48,11 @@ public sealed partial class PlatformUiApiTests
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         var id = fx.PilotCompanyId;
 
-        await ExpectProblem(await Send(c, null, HttpMethod.Post, P + $"/kiracilar/{id}/yeni-arayuz-pilot", new { aktif = true }),
+        // F13.1b: the pilot switch endpoint is gone; any platform write endpoint shows the same XSRF rule.
+        await ExpectProblem(await Send(c, null, HttpMethod.Post, P + $"/kiracilar/{id}/web-sitesi-modulu", new { aktif = true }),
             HttpStatusCode.BadRequest, "xsrf_gecersiz");
         // The token issued BEFORE login is bound to the anonymous identity → rejected.
-        await ExpectProblem(await Send(c, before, HttpMethod.Post, P + $"/kiracilar/{id}/yeni-arayuz-pilot", new { aktif = true }),
+        await ExpectProblem(await Send(c, before, HttpMethod.Post, P + $"/kiracilar/{id}/web-sitesi-modulu", new { aktif = true }),
             HttpStatusCode.BadRequest, "xsrf_gecersiz");
     }
 }

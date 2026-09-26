@@ -30,32 +30,8 @@ public sealed class MenuKapsamaTests
         return d!.FullName;
     }
 
-    [Fact]
-    public void Rapor_sayfalarinin_TAMAMI_menude()
-    {
-        var root = RepoRoot();
-        var pages = Path.Combine(root, "src/RentACar.Web/Components/Pages");
-        // F10.3: rapor öğeleri spa (/app/raporlar/…); Blazor sayfası menüdeki SPA öğesinin Blazor karşılığıyla eşlenir.
-        var menu = MenuRegistry.Items
-            .SelectMany(o => new[] { o.Rota, RentACar.Web.Spa.Cutover.BlazorEquivalent(o.Rota) })
-            .OfType<string>().ToHashSet(StringComparer.Ordinal);
-
-        var missing = new List<string>();
-        foreach (var file in Directory.EnumerateFiles(pages, "*.razor", SearchOption.AllDirectories))
-        {
-            foreach (Match m in Regex.Matches(File.ReadAllText(file), @"@page\s+""(/raporlar[^""]*)"""))
-            {
-                var route = m.Groups[1].Value;
-                if (route.Contains('{')) continue;                       // parametrik detay: drill-down'dan açılır
-                if (!menu.Contains(route))
-                    missing.Add($"{route}  ({Path.GetRelativePath(root, file)})");
-            }
-        }
-
-        Assert.True(missing.Count == 0,
-            "Bu rapor sayfaları yazılmış ama menü kaydında (MenuKaydi) yok — kullanıcı ulaşamaz:\n  "
-            + string.Join("\n  ", missing));
-    }
+    // F13.1b: Blazor rapor sayfası taraması (Rapor_sayfalarinin_TAMAMI_menude) silindi — Blazor sayfası kalmadı; aynı kural
+    // yeni arayüzün rota tablosunda SPA_rapor_rotalarinin_TAMAMI_menude ile kilitli.
 
     /// <summary>
     /// F7.3: cari/CRM SPA rota dosyalarındaki her parametresiz liste ekranı menüde spa öğesi olarak var (yeni cari

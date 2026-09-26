@@ -6,7 +6,7 @@ import { measureOverflow } from './vitrin-sayfalari';
 
 /**
  * F12.2 platform console (`/app/platform/*`): separate session and layout from the tenant shell.
- * Mandatory scenarios: sign in/out, create tenant, close with the typed code, pilot on/off; a TENANT
+ * Mandatory scenarios: sign in/out, create tenant, close with the typed code, no pilot switch (F13.1b); a TENANT
  * session cannot reach the screens; axe (light + dark) and overflow at 320/390/768/1440.
  */
 const EXPECTED_4XX = [/Failed to load resource: the server responded with a status of 4\d\d/];
@@ -122,34 +122,13 @@ test('firma kapatma: yanlış onay kodu alanda hata + kapanmaz; doğru kod Kapal
   expect(errors).toEqual([]);
 });
 
-test('yeni arayüz pilotu aç / kapat (onaylı; vazgeç istek göndermez)', async ({ page }) => {
+test('F13.1b: firma detayında yeni arayüz pilot anahtarı yok', async ({ page }) => {
   const api = await fakePlatformApi(page, { signedIn: true });
   await page.goto(`/app/platform/kiracilar/${TENANT_B}`);
   await ready(page, /Demo Firma/);
-  const pilot = page.getByTestId('platform-pilot-durum');
-  await expect(pilot).toHaveText('Kapalı');
-
-  await page.getByRole('button', { name: 'Aç Yeni Arayüz Pilotu' }).click();
-  await expect(confirmDialog(page)).toContainText('demo için yeni arayüz pilotu açılsın mı?');
-  await confirmDialog(page)
-    .getByRole('button', { name: /Onayla|Evet|Tamam/ })
-    .click();
-  await expect(pilot).toHaveText('Açık');
-
-  await page.getByRole('button', { name: 'Kapat Yeni Arayüz Pilotu' }).click();
-  // Cancel keeps it on (no request).
-  await confirmDialog(page)
-    .getByRole('button', { name: /Vazgeç|İptal/ })
-    .click();
-  await expect(pilot).toHaveText('Açık');
-  await page.getByRole('button', { name: 'Kapat Yeni Arayüz Pilotu' }).click();
-  await confirmDialog(page)
-    .getByRole('button', { name: /Onayla|Evet|Tamam/ })
-    .click();
-  await expect(pilot).toHaveText('Kapalı');
-  expect(api.calls.filter((c) => c.endsWith('/yeni-arayuz-pilot'))).toHaveLength(2);
-  expect(api.bodies).toContainEqual({ aktif: true });
-  expect(api.bodies).toContainEqual({ aktif: false });
+  await expect(page.getByTestId('platform-pilot-durum')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Yeni Arayüz Pilotu/ })).toHaveCount(0);
+  expect(api.calls.filter((c) => c.endsWith('/yeni-arayuz-pilot'))).toHaveLength(0);
 });
 
 test('firma oturumu platform ekranlarına erişemez: platform girişi görünür, platform verisi istenmez', async ({

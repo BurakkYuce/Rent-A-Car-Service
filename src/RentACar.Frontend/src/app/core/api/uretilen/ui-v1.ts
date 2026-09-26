@@ -17164,47 +17164,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['PlatformSwitchRequest'];
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['PlatformTenantDetailDto'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/ui/v1/platform/kiracilar/{id}/web-sitesi-modulu': {
     parameters: {
       query?: never;

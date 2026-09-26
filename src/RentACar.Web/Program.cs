@@ -6,8 +6,6 @@ using Serilog;
 using Serilog.Events;
 using System.Globalization;
 using Microsoft.AspNetCore.Localization;
-using Radzen;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -15,7 +13,6 @@ using RentACar.Application;
 using RentACar.Domain.Common;
 using RentACar.Domain.Entities;
 using RentACar.Infrastructure;
-using RentACar.Web.Components;
 using RentACar.Web.Observability;
 using RentACar.Web.Calendar;
 using RentACar.Infrastructure.Integrations;
@@ -67,15 +64,11 @@ var appConn = builder.Configuration.GetConnectionString("Default")
 var migratorConn = builder.Configuration.GetConnectionString("Migrator")
     ?? throw new InvalidOperationException("ConnectionStrings:Migrator eksik.");
 
-// ---- Blazor (HİBRİT: static SSR taban + ağır grid ekranları @rendermode InteractiveServer) ----
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+// F13.1b: Blazor (AddRazorComponents + interaktif circuit) ve Radzen kaydı kalktı — arayüz /app (Angular SPA),
+// veri /api/ui/v1.
 
-// ---- Radzen (back-office interaktif grid + servisler: Notification/Dialog/Tooltip/Context) ----
-builder.Services.AddRadzenComponents();
-
-// ---- Kültür: tr-TR (tarih dd.MM.yyyy, ondalık virgül, TRY) — RadzenDatePicker/Numeric bunu kullanır.
-// Mevcut static form-POST yolu FormParse'ta explicit InvariantCulture kullanır → ETKİLENMEZ (bağımsız).
+// ---- Kültür: tr-TR (tarih dd.MM.yyyy, ondalık virgül, TRY) — PDF/export metinleri. FormParse explicit
+// InvariantCulture kullanır → ETKİLENMEZ (bağımsız).
 var trCulture = new CultureInfo("tr-TR");
 builder.Services.Configure<RequestLocalizationOptions>(o =>
 {
@@ -106,10 +99,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
-        options.LoginPath = "/login";
-        // 403 → /login DEĞİL: kullanıcı zaten girişli olduğu için Login.razor onu /'a atıyor ve
-        // "durduk yere ana ekrana düştüm" oluyordu. Bkz. Identity/YetkiYonlendirme.cs.
-        options.AccessDeniedPath = "/yetkisiz";
+        // F13.1b: giriş ve yetkisiz hedefleri yeni arayüzde (/app anonim — challenge almaz, döngü yok). Asıl
+        // karar aşağıdaki olaylarda (PermissionRedirect); bu iki değer yalnız çerçeve varsayılanı.
+        options.LoginPath = RentACar.Web.Spa.Cutover.SpaLogin;
+        options.AccessDeniedPath = RentACar.Web.Spa.Cutover.SpaPanel;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         // TEK şema; /platform alanı için login/access-denied AYRI sayfaya yönlendirilir (alan-bazlı).
         // 401: GET isteğinin asıl hedefi ?ReturnUrl= olarak taşınır (bildirim/WhatsApp derin bağlantısı
@@ -183,58 +176,28 @@ builder.Services.AddRateLimiter(o =>
             Window = TimeSpan.FromSeconds(60),
             QueueLimit = 0,
         }));
-    // SSR form akışı: 429 gövdesi yerine login sayfasına anlamlı mesajla dön (PRG deseniyle tutarlı).
-    // /platform login'i AYRI sayfaya (adversarial L2: PlatformLogin'deki hata=limit dalı ölü olmasın).
-    // Tenant girişinde formdaki dönüş adresi (ReturnUrl) korunur: sınıra takılan kullanıcı bir dakika
-    // sonraki doğru girişte derin bağlantısını kaybetmesin (HataliGirisHedefi ile aynı gerekçe). Form
-    // YALNIZ küçükse okunur — giriş formu birkaç yüz bayttır; reddedilen isteğin büyük gövdesini
-    // belleğe almak brute-force'u bellek saldırısına çevirirdi. Değer GüvenliDonus'tan geçer.
+    // F13.1b: Blazor giriş formları kalktı; hız sınırı yalnız /api/ui uçlarında (giriş dahil) → 429 ProblemDetails
+    // (SPA formu korur, bekletir). Başka yolda ham 429 (gövdesiz; yönlendirme yok).
     o.OnRejected = async (ctx, ct) =>
     {
         var policy = ctx.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName ?? "login";
         RentACar.Application.Observability.RacarMetrics.RateLimitRejected(policy); // metrik: rate-limit reddi
-        var req = ctx.HttpContext.Request;
-        // F1.2: yeni arayüz API'si yönlendirme değil 429 ProblemDetails alır (SPA formu korur, bekletir).
-        if (RentACar.Web.Api.UiApiExtensions.UiPath(req.Path))
-        {
+        ctx.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        if (RentACar.Web.Api.UiApiExtensions.UiPath(ctx.HttpContext.Request.Path))
             await RentACar.Web.Api.UiApiExtensions.WriteAsync(ctx.HttpContext, RentACar.Web.Api.UiError.TooManyRequests,
                 policy == "login" ? "Çok fazla deneme; biraz sonra tekrar deneyin." : "Çok fazla istek; biraz sonra tekrar deneyin.");
-            return;
-        }
-        if (req.Path.StartsWithSegments("/platform"))
-        {
-            ctx.HttpContext.Response.Redirect("/platform/login?hata=limit");
-            return;
-        }
-        string? returnInfo = null;
-        if (req.HasFormContentType && req.ContentLength is > 0 and <= 8 * 1024)
-        {
-            try { returnInfo = (await req.ReadFormAsync(ct))[PermissionRedirect.ReturnParameter]; }
-            catch (Exception ex) when (ex is InvalidDataException or IOException
-                                          or BadHttpRequestException or OperationCanceledException)
-            { returnInfo = null; } // bozuk/yarım gövde: dönüşsüz limit sayfası yeter
-        }
-        ctx.HttpContext.Response.Redirect(PermissionRedirect.LimitTarget(returnInfo));
     };
 });
 
 // F1.2: /api/ui/v1 — antiforgery başlık adı (X-XSRF-TOKEN) + OpenAPI (yalnız Development).
 builder.Services.AddUiApi(builder.Environment);
 
-builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddScoped<AuthenticationStateProvider, SsrAuthenticationStateProvider>();
-
-// ITenantContext / ICurrentUser → RENDER MODUNA göre çözülür:
-//  • static SSR (HttpContext VAR)      → HttpContextIdentity (claim'i her erişimde taze okur)
-//  • interaktif circuit (HttpContext null) → CircuitTenantContext (circuit init'te bir kez doldurulur)
-// Alt katman (interceptor/RLS/factory) değişmez — yalnız kimlik kaynağı mod-uyumlu olur.
-builder.Services.AddScoped<CircuitTenantContext>();
-builder.Services.AddScoped<HybridIdentity>();
-builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HybridIdentity>());
-builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HybridIdentity>());
-
-// Kabuk durumu (sidebar collapse / aktif menü) — layout seviyesi seam.
-builder.Services.AddScoped<RentACar.Web.Components.Layout.ShellState>();
+// ITenantContext / ICurrentUser → HttpContextIdentity (claim'i her erişimde taze okur). F13.1b: Blazor circuit'i
+// kalktığı için CircuitTenantContext/HybridIdentity köprüsü gereksiz; her istek gerçek HTTP isteği. Alt katman
+// (interceptor/RLS/factory) değişmez.
+builder.Services.AddScoped<HttpContextIdentity>();
+builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HttpContextIdentity>());
+builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<HttpContextIdentity>());
 
 // ---- Platform süper-admin (tenant'tan bağımsız operatör konsolu) ----
 // Kimlik config'ten; ÜRETİMDE ZORUNLU (Pii:HmacKey deseni — yoksa açılış reddeder, arka kapı yok).
@@ -332,16 +295,37 @@ if (platformDevPassword is not null)
 await DbInitializer.MigrateAndSeedAsync(app.Services, migratorConn);
 
 // ---- Pipeline ----
+// F13.1b: Blazor /Error ve /not-found sayfaları kalktı. Tarayıcı gezinmesindeki işlenmemiş istisna ve gövdesiz 404
+// yeni arayüzün Panel'ine hata bandıyla (?hata=) gider; karar saf fonksiyonda (Cutover.StatusTarget — /api/ui,
+// /app, uzantılı dosya istekleri ve GET dışı yöntemler HAM durum kodunu alır). Destek kodu loglardaki request_id
+// (trace id) ile aynı ifade.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseExceptionHandler(new ExceptionHandlerOptions
+    {
+        ExceptionHandler = ctx =>
+        {
+            var code = System.Diagnostics.Activity.Current?.TraceId.ToString() ?? ctx.TraceIdentifier;
+            if (RentACar.Web.Spa.Cutover.StatusTarget(ctx.Request.Method, ctx.Request.Path, StatusCodes.Status500InternalServerError, code) is { } target)
+                ctx.Response.Redirect(target);
+            else
+                ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            return Task.CompletedTask;
+        },
+    });
     app.UseHsts();
 }
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UseStatusCodePages(context =>
+{
+    var http = context.HttpContext;
+    if (RentACar.Web.Spa.Cutover.StatusTarget(http.Request.Method, http.Request.Path, http.Response.StatusCode) is { } target)
+        http.Response.Redirect(target);
+    return Task.CompletedTask;
+});
 // F1.2: /api/ui için no-store + StatusCodePages/istisna HTML'i yerine ProblemDetails (ikisinin İÇİNDE durmalı).
 app.UseUiApiPipeline();
 
-app.UseRequestLocalization(); // tr-TR (yukarıda Configure edildi) — Radzen tarih/sayı formatı tutarlı
+app.UseRequestLocalization(); // tr-TR (yukarıda Configure edildi) — PDF/export tarih/sayı biçimi tutarlı
 
 // Reverse-proxy (Caddy/nginx aynı makinede) arkasında gerçek istemci IP'si — rate limit doğru IP'yi görsün.
 // Varsayılan KnownProxies=loopback: uzak istemciden gelen sahte X-Forwarded-For'a güvenilmez.
@@ -353,7 +337,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 // ---- Güvenlik yanıt başlıkları (defense-in-depth: Caddy'den bağımsız, HER yanıtta) ----
 // CSP script-src 'self' (inline event handler'lar harici JS'e taşındı → rc-ui.js). style-src 'unsafe-inline'
 // bilinçli pragmatik: inline style attr'ları/blokları kalıyor (XSS riski script'e göre düşük; tümünü ayıklamak
-// devasa iş). connect-src 'self' → Blazor/Radzen interaktif SignalR (same-origin ws) çalışır. frame-ancestors
+// devasa iş). connect-src 'self' → SPA yalnız kendi kökenindeki /api/ui'ye bağlanır. frame-ancestors
 // 'self' + X-Frame SAMEORIGIN → PDF-yazdır gizli iframe'i (same-origin) çalışır. object-src 'none'.
 app.Use(async (ctx, next) =>
 {
@@ -364,10 +348,8 @@ app.Use(async (ctx, next) =>
     h["Permissions-Policy"] = "geolocation=(), camera=(), microphone=(), payment=()";
     h["Content-Security-Policy"] =
         "default-src 'self'; " +
-        // script-src 'self' — HİÇBİR inline script yok (event handler'lar rc-ui.js'e taşındı; Blazor'ın
-        // <ImportMap> inline script'i App.razor'dan kaldırıldı — tam statik SSR'de gereksizdi ve importmap
-        // fingerprint'i her asset değişiminde dönüp hash'i bozuyordu). 'unsafe-inline' YOK, hash YOK → temiz
-        // ve kırılgan-değil (asset/CSS değişimleri artık CSP'yi bozmaz).
+        // script-src 'self' — HİÇBİR inline script yok (SPA derlemesi harici dosyalar; F13.1b'de Blazor kabuğu ve
+        // rc-*.js betikleri kalktı). 'unsafe-inline' YOK, hash YOK.
         "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data:; " +
@@ -402,8 +384,9 @@ app.UseMiddleware<RentACar.Web.Observability.RequestEnrichment.Middleware>();
 // Anlık kesme: kapatılan tenant'ın authenticated isteği (açık oturum) bir sonraki istekte /login'e düşer.
 app.UseMiddleware<TenantActiveMiddleware>();
 app.UseMiddleware<PlatformIsolationMiddleware>(); // platform operatörü tenant UI'ına giremez (konsola yönlendir)
-// F4.6 ilk kesiş: GET /login → /app/giris (tek giriş) + pilot kiracıda F4 sayfaları → /app (yalnız GET, açık
-// şablon listesi — PDF/hesap/export yönlenmez). Kapalı firma ve platform ayrımı ÖNCE çalışsın diye onlardan sonra.
+// Kesiş: GET /login → /app/giris (tek giriş); eski Blazor sayfa adresleri → /app (301, herkes; açık şablon listesi —
+// PDF/export yönlenmez); eski kabuk sayfaları → Panel + hata bandı. Kapalı firma ve platform ayrımı ÖNCE çalışsın
+// diye onlardan sonra.
 app.UseMiddleware<RentACar.Web.Spa.CutoverMiddleware>();
 app.UseAntiforgery();
 
@@ -462,7 +445,6 @@ app.MapPost("/internal/alert", async (HttpContext ctx, IConfiguration cfg, IServ
     return Results.Ok();
 }).AllowAnonymous().DisableAntiforgery();
 
-app.MapStaticAssets();
 // F1.5 — yeni arayüz kabuğu /app altında ANONİM (cookie challenge yok → /login döngüsü yok); Spa:Dizin
 // content root'a göreli (varsayılan ../app/browser). Güvenlik başlıkları/CSP yukarıdaki genel middleware'den.
 RentACar.Web.Spa.SpaHosting.MapSpaHosting(app);
@@ -477,7 +459,5 @@ app.MapPdfEndpoints();            // GET sözleşme/fatura PDF
 app.MapCompanyDocumentEndpoints(); // GET /firma-belgeleri/{id}/indir (DocumentApi indirme adresi)
 app.MapCompanyFileEndpoints();    // GET /dokumanlar/{id}/indir (DocumentApi indirme adresi)
 app.MapContractViewEndpoints();   // GET /sozlesme/{token} ANONİM (ERP host'unda, PublicSite'ta değil)
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
 
 app.Run();

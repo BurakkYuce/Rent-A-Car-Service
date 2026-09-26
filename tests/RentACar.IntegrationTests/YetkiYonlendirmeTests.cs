@@ -17,18 +17,22 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class YetkiYonlendirmeTests
 {
+    // F13.1b: 403 → Blazor /yetkisiz sayfası yerine yeni arayüzün Panel'i + hata bandı (kullanıcı nedenini görür);
+    // 401 → yeni arayüzün girişi. Beklenenler elle yazılmış sabit (mesajın yüzde-kodlu hali).
+    private const string NoPermissionTarget = "/app/panel?hata=Bu%20i%C5%9Flem%20i%C3%A7in%20yetkiniz%20yok.";
+
     [Theory]
-    [InlineData("/kiralar/cancel", "/yetkisiz")]      // canlı hatanın tetikleyicisi
-    [InlineData("/finans/tahsilat/ters", "/yetkisiz")]
-    [InlineData("/", "/yetkisiz")]
-    [InlineData("/platform/tenants", "/platform/login")]   // platform ayrı kabuk, kendi login'i
-    [InlineData("/platform", "/platform/login")]
+    [InlineData("/kiralar/cancel", NoPermissionTarget)]      // canlı hatanın tetikleyicisi
+    [InlineData("/listeler/export/kiralar", NoPermissionTarget)]
+    [InlineData("/", NoPermissionTarget)]
+    [InlineData("/platform/tenants", "/app/platform/giris")]   // platform ayrı kabuk, kendi girişi
+    [InlineData("/platform", "/app/platform/giris")]
     public void Yetkisiz_403_hedefi(string path, string expected)
         => Assert.Equal(expected, PermissionRedirect.UnauthorizedTarget(path));
 
     [Theory]
-    [InlineData("/kiralar", "/login")]
-    [InlineData("/platform/tenants", "/platform/login")]
+    [InlineData("/kiralar", "/app/giris")]
+    [InlineData("/platform/tenants", "/app/platform/giris")]
     public void Kimliksiz_401_hedefi(string path, string expected)
         => Assert.Equal(expected, PermissionRedirect.LoginTarget(path));
 
@@ -36,21 +40,24 @@ public sealed class YetkiYonlendirmeTests
     public void Platform_benzeri_ad_platform_sayilmaz()
     {
         // "/platformlar" gibi bir yol platform alanı DEĞİLDİR; StartsWithSegments bunu ayırt eder.
-        // Düz string StartsWith kullanılsaydı bu yol yanlışlıkla platform login'ine giderdi.
-        Assert.Equal("/yetkisiz", PermissionRedirect.UnauthorizedTarget("/platformlar"));
-        Assert.Equal("/login", PermissionRedirect.LoginTarget("/platformlar"));
+        // Düz string StartsWith kullanılsaydı bu yol yanlışlıkla platform girişine giderdi.
+        Assert.Equal(NoPermissionTarget, PermissionRedirect.UnauthorizedTarget("/platformlar"));
+        Assert.Equal("/app/giris", PermissionRedirect.LoginTarget("/platformlar"));
     }
 
     [Fact]
-    public void Program_cs_403u_login_e_yonlendirmiyor()
+    public void Program_cs_giris_ve_yetkisiz_yolu_yeni_arayuzde()
     {
-        // Regresyon çiti: AccessDeniedPath tekrar "/login" olursa 403 sessizce köke düşer.
+        // Regresyon çiti: AccessDeniedPath "/login" olursa 403 sessizce köke düşer (eski canlı hata); Blazor
+        // sayfaları (/login formu, /yetkisiz) kalmadığı için ikisi de SPA sabitlerinden gelir.
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
         Assert.NotNull(d);
 
         var program = File.ReadAllText(Path.Combine(d!.FullName, "src/RentACar.Web/Program.cs"));
         Assert.DoesNotContain("AccessDeniedPath = \"/login\"", program, StringComparison.Ordinal);
-        Assert.Contains("AccessDeniedPath = \"/yetkisiz\"", program, StringComparison.Ordinal);
+        Assert.Contains("options.LoginPath = RentACar.Web.Spa.Cutover.SpaLogin;", program, StringComparison.Ordinal);
+        Assert.Contains("options.AccessDeniedPath = RentACar.Web.Spa.Cutover.SpaPanel;", program, StringComparison.Ordinal);
+        Assert.Equal("/app/giris", RentACar.Web.Spa.Cutover.SpaLogin);
     }
 }

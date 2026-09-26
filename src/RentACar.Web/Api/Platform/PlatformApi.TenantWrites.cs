@@ -96,17 +96,6 @@ public static partial class PlatformApi
         return await DetailAfterWrite(svc, id, ct);
     }
 
-    /// <summary>New-UI pilot switch (<c>TenantSettings.YeniArayuzPilot</c>); read uncached by the pilot gate, so it
-    /// takes effect on the tenant's next request.</summary>
-    private static async Task<Results<Ok<PlatformTenantDetailDto>, ProblemHttpResult>> SetPilot(
-        Guid id, PlatformSwitchRequest body, HttpContext http, PlatformAdminService svc, CancellationToken ct)
-    {
-        if (!await svc.TenantExistsAsync(id, ct)) return TenantNotFound();
-        var on = body.Aktif ?? throw new ValidationException("Aktif (true/false) zorunludur.", "aktif");
-        await svc.SetNewUiPilotAsync(id, on, OperatorName(http), ct);
-        return await DetailAfterWrite(svc, id, ct);
-    }
-
     /// <summary>"Web Sitesi" module licence (purchase decision — only the platform writes it).</summary>
     private static async Task<Results<Ok<PlatformTenantDetailDto>, ProblemHttpResult>> SetWebSiteModule(
         Guid id, PlatformSwitchRequest body, HttpContext http, PlatformAdminService svc, CancellationToken ct)

@@ -19733,46 +19733,6 @@
         }
       }
     },
-    "/api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot": {
-      "post": {
-        "tags": [
-          "Platform"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PlatformSwitchRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PlatformTenantDetailDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/ui/v1/platform/kiracilar/{id}/web-sitesi-modulu": {
       "post": {
         "tags": [

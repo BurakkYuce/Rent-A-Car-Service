@@ -121,21 +121,23 @@ public sealed class GuvenliDonusTests
     {
         var address = PermissionRedirect.LoginRedirect("GET", path, new QueryString(query));
 
+        // F13.1b: 401 hedefi yeni arayüzün girişi; dönüş SPA'nın returnUrl'i (SPA girişten sonra /login?ReturnUrl='e
+        // geri verir → Cutover.AfterLogin, aynı SafeReturn çiti).
         var (page, parameters) = Split(address);
-        Assert.Equal("/login", page);
-        // TEK parametre: asıl hedefin kendi "&"'i kodlanmalı; kodlanmasaydı "sayfa=2" login sayfasının
+        Assert.Equal("/app/giris", page);
+        // TEK parametre: asıl hedefin kendi "&"'i kodlanmalı; kodlanmasaydı "sayfa=2" giriş sayfasının
         // ayrı bir parametresi olur ve dönüş adresi "/rezervasyonlar?durum=Aktif"a kırpılırdı.
-        Assert.Equal(PermissionRedirect.ReturnParameter, Assert.Single(parameters.Keys));
-        Assert.Equal(expectedReturn, parameters[PermissionRedirect.ReturnParameter].ToString());
+        Assert.Equal("returnUrl", Assert.Single(parameters.Keys));
+        Assert.Equal(expectedReturn, parameters["returnUrl"].ToString());
     }
 
     [Fact]
     public void GET_yonlendirmesinin_tam_metni()
     {
         // Elle kodlandı: "/kiralar/5?sekme=odeme" → %2Fkiralar%2F5%3Fsekme%3Dodeme
-        Assert.Equal("/login?ReturnUrl=%2Fkiralar%2F5%3Fsekme%3Dodeme",
+        Assert.Equal("/app/giris?returnUrl=%2Fkiralar%2F5%3Fsekme%3Dodeme",
             PermissionRedirect.LoginRedirect("GET", "/kiralar/5", new QueryString("?sekme=odeme")));
-        Assert.Equal("/login?ReturnUrl=%2Fkiralar",
+        Assert.Equal("/app/giris?returnUrl=%2Fkiralar",
             PermissionRedirect.LoginRedirect("GET", "/kiralar", QueryString.Empty));
     }
 
@@ -149,14 +151,14 @@ public sealed class GuvenliDonusTests
     [InlineData("PATCH", "/kiralar/5", "")]
     [InlineData("HEAD", "/kiralar", "")]  // sayfa açmaz; kural "yalnız GET"
     public void GET_disi_istek_ReturnUrl_tasimaz(string method, string path, string query)
-        => Assert.Equal("/login", PermissionRedirect.LoginRedirect(method, path, new QueryString(query)));
+        => Assert.Equal("/app/giris", PermissionRedirect.LoginRedirect(method, path, new QueryString(query)));
 
     [Theory]
     [InlineData("GET", "/platform/tenants", "?a=1")]
     [InlineData("GET", "/platform", "")]
     [InlineData("POST", "/platform/tenants/kapat", "")]
     public void Platform_alani_kendi_logine_doner_ve_donus_tasimaz(string method, string path, string query)
-        => Assert.Equal("/platform/login", PermissionRedirect.LoginRedirect(method, path, new QueryString(query)));
+        => Assert.Equal("/app/platform/giris", PermissionRedirect.LoginRedirect(method, path, new QueryString(query)));
 
     [Theory]
     [InlineData("/")]                   // Panel zaten varsayılan → "?ReturnUrl=%2F" gürültüsü yok
@@ -164,45 +166,25 @@ public sealed class GuvenliDonusTests
     [InlineData("/login")]
     [InlineData("/%2F%2Fevil.com")]     // Kestrel %2F'yi yolda çözmez; çit yine yakalar
     public void GET_ama_guvenli_olmayan_ya_da_varsayilan_hedef_ReturnUrl_tasimaz(string path)
-        => Assert.Equal("/login", PermissionRedirect.LoginRedirect("GET", path, QueryString.Empty));
+        => Assert.Equal("/app/giris", PermissionRedirect.LoginRedirect("GET", path, QueryString.Empty));
 
     [Fact]
     public void Tam_tur_bildirim_baglantisi_giristen_sonra_ayni_yere_acilir()
     {
         // Senaryo: WhatsApp'taki "/kiralar/5?sekme=odeme&not=a+b%20c" bağlantısı, oturum düşmüşken.
-        // 1) 401 → login adresi   2) Login.razor ReturnUrl'i okur (sorgu bir kez çözülür)
-        // 3) gizli alan → /auth/login → GuvenliDonus → LocalRedirect hedefi.
+        // 1) 401 → SPA girişi (returnUrl)   2) SPA girişten sonra /login?ReturnUrl='e geri verir
+        // 3) Cutover.AfterLogin → SafeReturn → haritadaki SPA karşılığı (sorgu AYNEN).
         var loginUrl = PermissionRedirect.LoginRedirect(
             "GET", "/kiralar/5", new QueryString("?sekme=odeme&not=a+b%20c"));
         var (_, parameters) = Split(loginUrl);
-        var hiddenField = PermissionRedirect.SafeReturn(parameters[PermissionRedirect.ReturnParameter].ToString());
-        var landing = PermissionRedirect.SafeReturn(hiddenField);
+        var landing = RentACar.Web.Spa.Cutover.AfterLogin(parameters["returnUrl"].ToString());
 
-        Assert.Equal("/kiralar/5?sekme=odeme&not=a+b%20c", landing);
+        Assert.Equal("/kiralar/5?sekme=odeme&not=a+b%20c", landing); // Guid'siz "/kiralar/5" haritada değil → olduğu gibi
     }
 
-    // ---------------------------------------------------------------------------------------------
-    // Hatalı giriş: dönüş korunur (şifreyi bir kez yanlış yazan derin bağlantıyı kaybetmesin)
-    // ---------------------------------------------------------------------------------------------
-
-    [Theory]
-    [InlineData("/kiralar/5?sekme=odeme", "/login?hata=1&ReturnUrl=%2Fkiralar%2F5%3Fsekme%3Dodeme")]
-    [InlineData("/kiralar", "/login?hata=1&ReturnUrl=%2Fkiralar")]
-    [InlineData(null, "/login?hata=1")]
-    [InlineData("", "/login?hata=1")]
-    [InlineData("/", "/login?hata=1")]
-    [InlineData("//evil.com", "/login?hata=1")]          // saldırgan değeri geri YANSITILMAZ
-    [InlineData("/platform/tenants", "/login?hata=1")]
-    public void Hatali_giris_hedefi(string? returnInfo, string expected)
-        => Assert.Equal(expected, PermissionRedirect.InvalidLoginTarget(returnInfo));
-
-    [Theory]
-    [InlineData("/kiralar/5?sekme=odeme", "/login?hata=limit&ReturnUrl=%2Fkiralar%2F5%3Fsekme%3Dodeme")]
-    [InlineData(null, "/login?hata=limit")]
-    [InlineData("//evil.com", "/login?hata=limit")]
-    [InlineData("/listeler/export/cariler", "/login?hata=limit")]  // indirme dönüş olamaz
-    public void Hiz_siniri_hedefi_donusu_korur(string? returnInfo, string expected)
-        => Assert.Equal(expected, PermissionRedirect.LimitTarget(returnInfo));
+    // F13.1b: "hatalı giriş" ve "hız sınırı" dönüş hedefleri (Blazor giriş formunun /login?hata=1|limit yönlendirmesi)
+    // silindi — form uçları kalktı; yeni arayüz girişi 401/429'u JSON (ProblemDetails) alır, form korunur
+    // (UiApiTests.Giris_hiz_siniri_429_cok_istek_json).
 
     // ---------------------------------------------------------------------------------------------
     // İndirme uçları dönüş OLAMAZ (adversarial bulgu: giriş ekranına hapsolma)
@@ -257,23 +239,23 @@ public sealed class GuvenliDonusTests
     public void Indirme_ucuna_401_indirmeyi_baslatan_sayfaya_doner()
     {
         // Referer'dan çıkarılmış önceki sayfa: kullanıcı girişten sonra listeye döner, Excel'e yeniden basar.
-        Assert.Equal("/login?ReturnUrl=%2Fcariler%3Fara%3Dx",
+        Assert.Equal("/app/giris?returnUrl=%2Fcariler%3Fara%3Dx",
             PermissionRedirect.LoginRedirect("GET", "/listeler/export/cariler", new QueryString("?ara=x"), "/cariler?ara=x"));
         // Önceki sayfa bilinmiyor → Panel (dönüş yok).
-        Assert.Equal("/login",
+        Assert.Equal("/app/giris",
             PermissionRedirect.LoginRedirect("GET", "/listeler/export/cariler", QueryString.Empty));
         // Önceki sayfa da çitten geçer: indirme / login / yabancı adres yine Panel.
-        Assert.Equal("/login",
+        Assert.Equal("/app/giris",
             PermissionRedirect.LoginRedirect("GET", "/raporlar/export/filo", QueryString.Empty, "/raporlar/export/filo"));
-        Assert.Equal("/login",
+        Assert.Equal("/app/giris",
             PermissionRedirect.LoginRedirect("GET", "/dokumanlar/" + G + "/indir", QueryString.Empty, "//evil.com"));
-        Assert.Equal("/login",
+        Assert.Equal("/app/giris",
             PermissionRedirect.LoginRedirect("GET", "/listeler/export/cariler", QueryString.Empty, "/login?ReturnUrl=%2Fx"));
         // İndirme DEĞİLSE önceki sayfa YOK SAYILIR — derin bağlantının kendisi taşınır.
-        Assert.Equal("/login?ReturnUrl=%2Fkiralar%2F5",
+        Assert.Equal("/app/giris?returnUrl=%2Fkiralar%2F5",
             PermissionRedirect.LoginRedirect("GET", "/kiralar/5", QueryString.Empty, "/cariler"));
         // Panel'e giden (reddedilen) indirme-dışı hedefte de önceki sayfa KULLANILMAZ.
-        Assert.Equal("/login",
+        Assert.Equal("/app/giris",
             PermissionRedirect.LoginRedirect("GET", "/auth/logout", QueryString.Empty, "/cariler"));
     }
 
@@ -345,25 +327,24 @@ public sealed class GuvenliDonusTests
     // ---------------------------------------------------------------------------------------------
 
     [Fact]
-    public void Program_cs_401de_refereri_hiz_sinirinda_donusu_tasir()
+    public void Program_cs_401de_refereri_tasir()
     {
         var program = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Program.cs"));
 
         Assert.Contains("PermissionRedirect.SameOriginPath(ctx.Request.Headers.Referer", program, StringComparison.Ordinal);
-        Assert.Contains("PermissionRedirect.LimitTarget(", program, StringComparison.Ordinal);
+        // F13.1b: hız sınırı Blazor giriş formuna yönlendirmez (form yok) — /api/ui 429 ProblemDetails, diğerleri ham 429.
         Assert.DoesNotContain("\"/login?hata=limit\"", program, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Giris_ucu_sabit_vehicles_e_degil_guvenli_donuse_yonlendirir()
+    public void Blazor_giris_ucu_yok_cikis_ucu_SPA_girisine_doner()
     {
+        // F13.1b: POST /auth/login (Blazor formu) silindi; giriş yalnız /api/ui/v1/oturum/giris'te. Çıkış ucu sabit
+        // SPA girişine döner (kullanıcı girdisi taşımaz — açık yönlendirme yok).
         var endpoint = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Identity/AuthEndpoints.cs"));
-
-        Assert.DoesNotContain("Redirect(\"/vehicles\")", endpoint, StringComparison.Ordinal);
-        // LocalRedirect ikinci çit: GuvenliDonus gerilese bile yerel olmayan adrese gidilmez.
-        Assert.Contains("Results.LocalRedirect(PermissionRedirect.SafeReturn(", endpoint, StringComparison.Ordinal);
-        Assert.Contains("PermissionRedirect.InvalidLoginTarget(", endpoint, StringComparison.Ordinal);
-        Assert.DoesNotContain("Redirect(\"/login?hata=1\")", endpoint, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"/auth/login\"", endpoint, StringComparison.Ordinal);
+        Assert.Contains("MapPost(\"/auth/logout\"", endpoint, StringComparison.Ordinal);
+        Assert.Contains("Results.Redirect(RentACar.Web.Spa.Cutover.SpaLogin", endpoint, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -385,7 +366,7 @@ public sealed class GuvenliDonusTests
     [Fact]
     public void Login_donusu_yalniz_suzulmus_haliyle_tasinir()
     {
-        Assert.False(File.Exists(Path.Combine(RepoRoot(), "src/RentACar.Web/Components/Pages/Login.razor")));
+        Assert.False(Directory.Exists(Path.Combine(RepoRoot(), "src/RentACar.Web/Components")));
         var cutover = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Spa/Cutover.cs"));
         Assert.Contains("PermissionRedirect.SafeReturn(raw.ToString())", cutover, StringComparison.Ordinal);
     }

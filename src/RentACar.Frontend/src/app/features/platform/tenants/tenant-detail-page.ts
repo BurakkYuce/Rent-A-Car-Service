@@ -50,7 +50,8 @@ const INFO_KEYS: readonly InfoKey[] = ['ad', 'yetkiliAd', 'eposta', 'telefon', '
  * cards (owner cross-tenant counts, 30-day ledger revenue as ONE aggregate), info form (full-replace PUT
  * with `surum`; 409 `cakisma` → the fresh record is reloaded and merged into untouched fields, typed
  * fields are kept), access management (suspend/resume, close with the typed tenant code — checked on the
- * server —, reopen), PDF logo, "Web Sitesi" module licence, new-UI pilot switch, public site (read-only).
+ * server —, reopen), PDF logo, "Web Sitesi" module licence, public site (read-only). F13.1b: the new-UI pilot
+ * switch was removed (the new UI is on for every tenant).
  */
 @Component({
   selector: 'rc-tenant-detail-page',
@@ -215,19 +216,6 @@ export class TenantDetailPage {
             tehlikeli: true,
           },
       () => this.api.post(`${this.root}/web-sitesi-modulu`, { aktif: on }),
-    );
-  }
-
-  protected async setPilot(on: boolean): Promise<void> {
-    await this.mutate(
-      on
-        ? { baslik: 'platform.detay.pilotAcBaslik', mesaj: 'platform.detay.pilotAcMesaj' }
-        : {
-            baslik: 'platform.detay.pilotKapatBaslik',
-            mesaj: 'platform.detay.pilotKapatMesaj',
-            tehlikeli: true,
-          },
-      () => this.api.post(`${this.root}/yeni-arayuz-pilot`, { aktif: on }),
     );
   }
 

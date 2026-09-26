@@ -12,7 +12,6 @@ using RentACar.Domain.Common;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
 using RentACar.Web.Api.Kira;
-using RentACar.Web.Components.Pages;
 using RentACar.Web.Identity;
 
 namespace RentACar.Web.Api.Panel;

@@ -1,6 +1,6 @@
 using RentACar.Domain.Entities;
 
-namespace RentACar.Web.Components.Pages.Bookings.KiraFormPaneller;
+namespace RentACar.Web.Api.Kira;
 
 /// <summary>
 /// Kira mega-form ortak görünüm modeli — sayfa (KiraForm.razor) doldurur, sekme panelleri parametreyle alır.

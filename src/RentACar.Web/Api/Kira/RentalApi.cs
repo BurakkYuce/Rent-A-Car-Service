@@ -22,7 +22,6 @@ using RentACar.Application.Vehicles;
 using RentACar.Domain.Entities;
 using RentACar.Domain.Enums;
 using RentACar.Infrastructure.Persistence;
-using RentACar.Web.Components.Pages.Bookings.KiraFormPaneller;
 using RentACar.Web.Finance;
 using RentACar.Web.Identity;
 using RentACar.Web.Reports;

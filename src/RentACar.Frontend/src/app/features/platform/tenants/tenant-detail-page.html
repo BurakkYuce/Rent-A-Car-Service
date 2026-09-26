@@ -239,34 +239,6 @@
       <p class="muted small">{{ 'platform.detay.modulIpucu' | transloco }}</p>
     </section>
 
-    <!-- Yeni arayüz pilotu -->
-    <section class="rc-bolum" aria-labelledby="pf-pilot">
-      <h2 id="pf-pilot">{{ 'platform.detay.pilotBaslik' | transloco }}</h2>
-      <div class="row">
-        <strong>{{ 'platform.detay.pilot' | transloco }}</strong>
-        <span
-          class="rc-rozet"
-          data-testid="platform-pilot-durum"
-          [class]="d.yeniArayuzPilot ? 'rc-rozet--basari' : 'rc-rozet--uyari'"
-          >{{
-            (d.yeniArayuzPilot ? 'platform.detay.acik' : 'platform.detay.kapali') | transloco
-          }}</span
-        >
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--kucuk"
-          [disabled]="busy()"
-          (click)="setPilot(!d.yeniArayuzPilot)"
-        >
-          {{
-            (d.yeniArayuzPilot ? 'platform.detay.kapatDugme' : 'platform.detay.acDugme') | transloco
-          }}
-          <span class="rc-gorunmez">{{ 'platform.detay.pilot' | transloco }}</span>
-        </button>
-      </div>
-      <p class="muted small">{{ 'platform.detay.pilotIpucu' | transloco }}</p>
-    </section>
-
     <!-- Halka açık site (salt okunur) -->
     <section class="rc-bolum" aria-labelledby="pf-site">
       <h2 id="pf-site">{{ 'platform.detay.siteBaslik' | transloco }}</h2>

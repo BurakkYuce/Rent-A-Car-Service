@@ -1010,19 +1010,8 @@ public sealed class UiFinansApiTests(WebFixture fx)
         Assert.Equal(300m, (await ReadRentalAsync(o, o.Kira)).Tahsilat);
     }
 
-    [Fact]
-    public async Task Pilot_olmayan_firmada_finans_uclari_403_pilot_degil()
-    {
-        var o = await SetUpEnvironmentAsync();
-        var s = await LoginAsync(o, Kim.Muhasebe);
-        await fx.MakePilotAsync(o.TenantId, false);
-        try
-        {
-            await Problem(await PostAsync(s, "/finans/tahsilat", Collection(o, 300m), NewKey()), HttpStatusCode.Forbidden, "pilot_degil");
-            Assert.Equal(0, await CollectionCountAsync(o, o.Kira));
-        }
-        finally { await fx.MakePilotAsync(o.TenantId, true); }
-    }
+    // F13.1b: "pilot olmayan firmada 403 pilot_degil" testi silindi — pilot kapısı kalktı (UiApiTests
+    // .Pilot_kapisi_yok_bayrak_kapali_firma_da_api_kullanir). Yetki/kapsam kapıları bu dosyadaki testlerde.
 
     // ============================================================ hesap seçimi
 

@@ -244,34 +244,25 @@ public sealed class UiApiTests(WebFixture fx)
         Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/ui/v1/test/finans")).StatusCode);
     }
 
+    /// <summary>
+    /// F13.1b: pilot kapısı kalktı — eski pilot bayrağı KAPALI (ya da ayar satırı olmayan) firmanın kullanıcısı da
+    /// /api/ui'yi kullanır; <c>ben.pilot</c> hep true (alan eski istemci için sözleşmede).
+    /// </summary>
     [Fact]
-    public async Task Pilot_olmayan_firma_403_pilot_degil_oturum_uclari_acik()
+    public async Task Pilot_kapisi_yok_bayrak_kapali_firma_da_api_kullanir()
     {
-        var (c, _, after) = await DoLogin(fx.OtherAdmin);
+        var k = await fx.CompanyAndUserAsync("Pilot Kapısı Yok Firması");
+        await fx.MakePilotAsync(await fx.TenantIdAsync(k.Firma), false);
+        var (c, _, after) = await DoLogin(k);
 
-        await ExpectProblem(await c.GetAsync("/api/ui/v1/test/tamam"), HttpStatusCode.Forbidden, "pilot_degil");
-        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/yaz", after)),
-            HttpStatusCode.Forbidden, "pilot_degil");
-
-        var ben = await c.GetAsync(Ben); // oturum/* pilot kapısından muaf
-        Assert.Equal(HttpStatusCode.OK, ben.StatusCode);
-        Assert.False((await Body(ben)).GetProperty("pilot").GetBoolean());
-
-        var (pilot, _, _) = await DoLogin();
-        Assert.Equal(HttpStatusCode.OK, (await pilot.GetAsync("/api/ui/v1/test/tamam")).StatusCode);
-    }
-
-    [Fact]
-    public async Task Pilot_bayragi_kapatilinca_aninda_kapanir()
-    {
-        var k = await fx.CompanyAndUserAsync("Pilot Aç-Kapa Firması");
-        var newItem = await fx.TenantIdAsync(k.Firma);
-        await fx.MakePilotAsync(newItem, true);
-        var (c, _, _) = await DoLogin(k);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/api/ui/v1/test/tamam")).StatusCode);
+        Assert.NotEqual(HttpStatusCode.Forbidden, (await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/test/yaz", after))).StatusCode);
+        var ben = await c.GetAsync(Ben);
+        Assert.Equal(HttpStatusCode.OK, ben.StatusCode);
+        Assert.True((await Body(ben)).GetProperty("pilot").GetBoolean());
 
-        await fx.MakePilotAsync(newItem, false);
-        await ExpectProblem(await c.GetAsync("/api/ui/v1/test/tamam"), HttpStatusCode.Forbidden, "pilot_degil");
+        var (other, _, _) = await DoLogin(fx.OtherAdmin);
+        Assert.Equal(HttpStatusCode.OK, (await other.GetAsync("/api/ui/v1/test/tamam")).StatusCode);
     }
 
     [Fact]
@@ -422,31 +413,31 @@ public sealed class UiApiTests(WebFixture fx)
             HttpStatusCode.TooManyRequests, "cok_istek");
     }
 
-    // ------------------------------------------------------------ Blazor değişmedi
+    // ------------------------------------------------------------ F13.1b: Blazor giriş/çıkış ve 404 sayfası yok
 
     [Fact]
-    public async Task Blazor_yonlendirmeleri_degismedi()
+    public async Task Eski_form_giris_ucu_yok_cikis_ve_404_SPA_ya()
     {
         var c = fx.Web.Client();
-        // F13.1a: Blazor Panel ("/") silindi — oturumsuz "/" artık challenge almaz (F13.1b pilotsuz yönlendirme ekler).
 
+        // Eski form çıkışı SPA girişine döner (sabit hedef).
         var pickup = await c.PostAsync("/auth/logout", new FormUrlEncodedContent([]));
         Assert.Equal(HttpStatusCode.Redirect, pickup.StatusCode);
-        Assert.Equal("/login", pickup.Headers.Location?.OriginalString);
+        Assert.Equal("/app/giris?neden=cikis", pickup.Headers.Location?.OriginalString);
 
-        // Blazor girişi hâlâ form + yönlendirme; aynı claim setiyle /api/ui/ben'i de açar (tek cookie şeması).
+        // Blazor form girişi (POST /auth/login) silindi: oturum AÇILMAZ; giriş yalnız /api/ui/v1/oturum/giris'te.
         var entry = await c.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["firma"] = fx.PilotAdmin.Firma, ["kullanici"] = fx.PilotAdmin.Kullanici, ["sifre"] = fx.PilotAdmin.Sifre,
         }));
-        Assert.Equal(HttpStatusCode.Redirect, entry.StatusCode);
-        Assert.Equal("/", entry.Headers.Location?.OriginalString);
-        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync(Ben)).StatusCode);
+        Assert.NotEqual(HttpStatusCode.Redirect, entry.StatusCode);
+        Assert.Null(CookieValue(entry, "racar.session"));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await c.GetAsync(Ben)).StatusCode);
 
-        // Bilinmeyen Blazor yolu hâlâ StatusCodePages'in not-found sayfası (ProblemDetails değil).
+        // Bilinmeyen yol: SPA Panel'ine bulunamadı bandıyla (Blazor not-found sayfası yok).
         var none = await c.GetAsync("/boyle-bir-sayfa-yok");
-        Assert.Equal(HttpStatusCode.NotFound, none.StatusCode);
-        Assert.Equal("text/html", none.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(HttpStatusCode.Redirect, none.StatusCode);
+        Assert.StartsWith("/app/panel?hata=", none.Headers.Location?.OriginalString);
     }
 }
 
@@ -584,17 +575,8 @@ public sealed class UiApiYapisalTests(WebFixture fx)
     // F13.1a: "Blazor web sitesi uçları modül metadatası taşır" testi silindi — /web-sitesi/* Blazor form uçları kalktı.
     // Aynı kural /api/ui web sitesi uçlarında Modul_yolundaki_uc_modul_metadatasi_tasir ile kilitli.
 
-    [Theory]
-    [InlineData("/api/ui/v1/oturum/ben", true)]
-    [InlineData("api/ui/v1/oturum/giris", true)]
-    [InlineData("/api/ui/v1/istemci-hata", true)]
-    [InlineData("/api/ui/v1/kiralar", false)]
-    [InlineData("/api/ui/v1/oturumlar", false)]      // segment sınırı: önek benzerliği muafiyet vermez
-    [InlineData("/api/ui/v1/test/tamam", false)]
-    [InlineData("/api/ui/v1/platform/kiracilar", true)]   // F12.1: platform oturumunun firması yok
-    [InlineData("/api/ui/v1/platformx/kiracilar", false)] // segment sınırı
-    public void Pilot_muafiyeti_rota_segmentine_gore(string route, bool exempt)
-        => Assert.Equal(exempt, UiApiExtensions.PilotExempt(route));
+    // F13.1b: pilot muafiyeti (PilotExempt) testi silindi — pilot kapısı kalktı
+    // (Pilot_kapisi_yok_bayrak_kapali_firma_da_api_kullanir).
 
     [Theory]
     [InlineData("GET", true)]

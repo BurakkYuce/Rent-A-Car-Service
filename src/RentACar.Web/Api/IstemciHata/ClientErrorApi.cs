@@ -10,7 +10,7 @@ namespace RentACar.Web.Api.IstemciHata;
 /// <list type="bullet">
 /// <item><b>Yalnız oturum:</b> grubun varsayılan <c>RequireAuthorization</c>'ı; anonim → 401 <c>oturum_yok</c>.
 /// İzin kapısı yok (<see cref="AuthExtensions.PermissionExempt{TBuilder}"/>): her oturum KENDİ hatasını raporlar,
-/// uç veri okumaz/yazmaz, yalnız log. Pilot kapısından muaf (<see cref="UiApiExtensions.PilotExempt"/>).</item>
+/// uç veri okumaz/yazmaz, yalnız log.</item>
 /// <item><b>Sınırlar:</b> gövde en çok <see cref="BodyLimit"/> bayt (fazlası 413, gövde belleğe alınmaz),
 /// alanlar ayrıca kırpılır, IP başına hız sınırı (<see cref="RatePolicy"/>). CSRF grubun filtresinden.</item>
 /// <item><b>Log:</b> WARNING, firma + kullanıcıyla. Kontrol karakterleri temizlenir (sahte log satırı yok).</item>
