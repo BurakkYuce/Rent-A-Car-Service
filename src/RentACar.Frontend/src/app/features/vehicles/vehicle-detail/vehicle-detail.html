@@ -1,71 +1,78 @@
-<div class="sayfa">
+<rc-sayfa-bandi
+  [baslik]="
+    detail() ? detail()!.plaka + ' ' + detail()!.marka : ('arac.detaySayfasi.baslik' | transloco)
+  "
+  ikon="car"
+>
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/araclar">
+      {{ 'arac.detaySayfasi.listeyeDon' | transloco }}
+    </a>
+    @if (detail() && canScorecard()) {
+      <a class="rc-dugme" [routerLink]="['/raporlar/arac-karne', id]">
+        {{ 'arac.detaySayfasi.karne' | transloco }}
+      </a>
+    }
+  </ng-container>
+  @if (detail()) {
+    <a birincil class="rc-dugme rc-dugme--birincil" [routerLink]="['/araclar', id]">
+      <rc-ikon ad="edit" [boyut]="14" />
+      {{ 'arac.detaySayfasi.kart' | transloco }}
+    </a>
+  }
+</rc-sayfa-bandi>
+
+<div class="rc-sayfa">
   @switch (store.detail.tur()) {
     @case ('hata') {
-      <h1>{{ 'arac.detaySayfasi.baslik' | transloco }}</h1>
       <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
         {{ store.detail.hata()?.detay }}
         <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="store.detail.yenile()">
           {{ 'arac.yenidenDene' | transloco }}
         </button>
       </div>
-      <a routerLink="/araclar">{{ 'arac.detaySayfasi.listeyeDon' | transloco }}</a>
     }
     @default {
       @if (detail(); as d) {
-        <header class="ust">
-          <h1>
-            {{ d.plaka }}
-            <span class="aciklama">{{ d.marka }}</span>
-          </h1>
-          <div class="ust__eylemler">
-            <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" [routerLink]="['/araclar', d.id]">
-              <rc-ikon ad="edit" [boyut]="14" />
-              {{ 'arac.detaySayfasi.kart' | transloco }}
-            </a>
-            @if (canScorecard()) {
-              <a
-                class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-                [routerLink]="['/raporlar/arac-karne', d.id]"
-              >
-                {{ 'arac.detaySayfasi.karne' | transloco }}
-              </a>
-            }
+        <dl class="rc-izgara-4 ozet">
+          <div class="rc-kart">
+            <dt>{{ 'arac.alan.plaka' | transloco }}</dt>
+            <dd><rc-plaka [plaka]="d.plaka" boyut="lg" /></dd>
           </div>
-        </header>
-        <dl class="kunye">
-          <div>
-            <dt>{{ 'arac.alan.grup' | transloco }}</dt>
-            <dd>{{ d.grup }}</dd>
-          </div>
-          <div>
-            <dt>{{ 'arac.alan.sube' | transloco }}</dt>
-            <dd>{{ d.sube }}</dd>
-          </div>
-          <div>
+          <div class="rc-kart">
             <dt>{{ 'arac.alan.durum' | transloco }}</dt>
             <dd>
               <span [class]="badge(d.durum)">{{ statusLabel(d.durum) }}</span>
             </dd>
           </div>
-          <div>
+          <div class="rc-kart">
+            <dt>{{ 'arac.alan.grup' | transloco }} · {{ 'arac.alan.sube' | transloco }}</dt>
+            <dd>
+              {{ d.grup }}
+              <span class="rc-hucre-alt">{{ d.sube }}</span>
+            </dd>
+          </div>
+          <div class="rc-kart">
             <dt>{{ 'arac.alan.km' | transloco }}</dt>
             <dd>{{ num(d.km) | sayi: '1.0-0' }}</dd>
           </div>
         </dl>
 
-        <section class="bolum" aria-labelledby="arac-detay-kira">
+        <section class="rc-bolum" aria-labelledby="arac-detay-kira">
           <h2 id="arac-detay-kira">
             {{ 'arac.detaySayfasi.kiralar' | transloco: { sayi: d.kiralar.length } }}
           </h2>
-          <div class="tablo-kap">
-            <table class="duz-tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <thead>
                 <tr>
                   <th scope="col">{{ 'arac.detaySayfasi.sozlesme' | transloco }}</th>
                   <th scope="col">{{ 'arac.detaySayfasi.baslangic' | transloco }}</th>
                   <th scope="col">{{ 'arac.detaySayfasi.bitis' | transloco }}</th>
                   <th scope="col">{{ 'arac.alan.durum' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'arac.detaySayfasi.genelToplam' | transloco }}</th>
+                  <th scope="col" class="rc-num">
+                    {{ 'arac.detaySayfasi.genelToplam' | transloco }}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -77,11 +84,11 @@
                     <td>{{ r.basTar | tarih }}</td>
                     <td>{{ r.bitTar | tarih }}</td>
                     <td>{{ r.durum }}</td>
-                    <td class="num">{{ num(r.genelToplam) | para }}</td>
+                    <td class="rc-num">{{ num(r.genelToplam) | para }}</td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="5" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                    <td colspan="5" class="rc-bos">{{ 'arac.kayitYok' | transloco }}</td>
                   </tr>
                 }
               </tbody>
@@ -89,19 +96,19 @@
           </div>
         </section>
 
-        <section class="bolum" aria-labelledby="arac-detay-servis">
+        <section class="rc-bolum" aria-labelledby="arac-detay-servis">
           <h2 id="arac-detay-servis">
             {{ 'arac.detaySayfasi.servisler' | transloco: { sayi: d.servisler.length } }}
           </h2>
-          <div class="tablo-kap">
-            <table class="duz-tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <thead>
                 <tr>
                   <th scope="col">{{ 'arac.detaySayfasi.no' | transloco }}</th>
                   <th scope="col">{{ 'arac.detaySayfasi.tur' | transloco }}</th>
                   <th scope="col">{{ 'arac.detaySayfasi.giris' | transloco }}</th>
                   <th scope="col">{{ 'arac.alan.durum' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'arac.detaySayfasi.iscilik' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'arac.detaySayfasi.iscilik' | transloco }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -111,11 +118,11 @@
                     <td>{{ s.tip }}</td>
                     <td>{{ s.girisTarihi | tarih }}</td>
                     <td>{{ s.durum }}</td>
-                    <td class="num">{{ num(s.toplamIscilik) | para }}</td>
+                    <td class="rc-num">{{ num(s.toplamIscilik) | para }}</td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="5" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                    <td colspan="5" class="rc-bos">{{ 'arac.kayitYok' | transloco }}</td>
                   </tr>
                 }
               </tbody>
@@ -123,18 +130,18 @@
           </div>
         </section>
 
-        <section class="bolum" aria-labelledby="arac-detay-ceza">
+        <section class="rc-bolum" aria-labelledby="arac-detay-ceza">
           <h2 id="arac-detay-ceza">
             {{ 'arac.detaySayfasi.cezalar' | transloco: { sayi: d.cezalar.length } }}
           </h2>
-          <div class="tablo-kap">
-            <table class="duz-tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <thead>
                 <tr>
                   <th scope="col">{{ 'arac.detaySayfasi.no' | transloco }}</th>
                   <th scope="col">{{ 'arac.detaySayfasi.tur' | transloco }}</th>
                   <th scope="col">{{ 'arac.detaySayfasi.teblig' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'arac.detaySayfasi.tutar' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'arac.detaySayfasi.tutar' | transloco }}</th>
                   <th scope="col">{{ 'arac.alan.durum' | transloco }}</th>
                 </tr>
               </thead>
@@ -144,12 +151,12 @@
                     <td>{{ p.no }}</td>
                     <td>{{ p.cezaTuru }}</td>
                     <td>{{ p.tebligTarihi | tarih }}</td>
-                    <td class="num">{{ num(p.tutar) | para }}</td>
+                    <td class="rc-num">{{ num(p.tutar) | para }}</td>
                     <td>{{ p.durum }}</td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="5" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                    <td colspan="5" class="rc-bos">{{ 'arac.kayitYok' | transloco }}</td>
                   </tr>
                 }
               </tbody>
@@ -157,7 +164,7 @@
           </div>
         </section>
 
-        <section class="bolum" aria-labelledby="arac-detay-km">
+        <section class="rc-bolum" aria-labelledby="arac-detay-km">
           <h2 id="arac-detay-km">{{ 'arac.km.baslik' | transloco }}</h2>
           @if (canWrite()) {
             <form class="satir-form" [formGroup]="kmForm" (ngSubmit)="enterKm()">
@@ -174,12 +181,12 @@
               </button>
             </form>
           }
-          <div class="tablo-kap">
-            <table class="duz-tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <thead>
                 <tr>
                   <th scope="col">{{ 'arac.km.tarih' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'arac.alan.km' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'arac.alan.km' | transloco }}</th>
                   <th scope="col">{{ 'arac.km.kaynakBaslik' | transloco }}</th>
                 </tr>
               </thead>
@@ -187,12 +194,12 @@
                 @for (k of d.kmKayitlari; track $index) {
                   <tr>
                     <td>{{ k.tarih | tarihSaat }}</td>
-                    <td class="num">{{ num(k.km) | sayi: '1.0-0' }}</td>
+                    <td class="rc-num">{{ num(k.km) | sayi: '1.0-0' }}</td>
                     <td>{{ kmSourceKey(k.kaynak) | transloco }}</td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="3" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                    <td colspan="3" class="rc-bos">{{ 'arac.kayitYok' | transloco }}</td>
                   </tr>
                 }
               </tbody>
@@ -200,17 +207,17 @@
           </div>
         </section>
 
-        <section class="bolum" aria-labelledby="arac-detay-hasar">
+        <section class="rc-bolum" aria-labelledby="arac-detay-hasar">
           <h2 id="arac-detay-hasar">
             {{ 'arac.detaySayfasi.hasarlar' | transloco: { sayi: d.hasarlar.length } }}
           </h2>
-          <div class="tablo-kap">
-            <table class="duz-tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <thead>
                 <tr>
                   <th scope="col">{{ 'arac.detaySayfasi.no' | transloco }}</th>
                   <th scope="col">{{ 'arac.detaySayfasi.acilis' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'arac.detaySayfasi.tahmini' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'arac.detaySayfasi.tahmini' | transloco }}</th>
                   <th scope="col">{{ 'arac.alan.durum' | transloco }}</th>
                 </tr>
               </thead>
@@ -219,7 +226,7 @@
                   <tr>
                     <td>{{ h.no }}</td>
                     <td>{{ h.acilisTarihi | tarih }}</td>
-                    <td class="num">
+                    <td class="rc-num">
                       @if (num(h.tahminiTutar) === null) {
                         —
                       } @else {
@@ -230,18 +237,15 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="4" class="aciklama">{{ 'arac.kayitYok' | transloco }}</td>
+                    <td colspan="4" class="rc-bos">{{ 'arac.kayitYok' | transloco }}</td>
                   </tr>
                 }
               </tbody>
             </table>
           </div>
         </section>
-        <p>
-          <a routerLink="/araclar">{{ 'arac.detaySayfasi.listeyeDon' | transloco }}</a>
-        </p>
       } @else {
-        <p class="aciklama" role="status">{{ 'arac.yukleniyor' | transloco }}</p>
+        <p class="rc-bos" role="status">{{ 'arac.yukleniyor' | transloco }}</p>
       }
     }
   }

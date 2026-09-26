@@ -1,23 +1,21 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'aracFinans.baf.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <button
-        type="button"
-        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-        [attr.aria-expanded]="createOpen()"
-        aria-controls="rc-yeni-tahsis"
-        (click)="toggleCreate()"
-      >
-        <rc-ikon ad="plus" [boyut]="14" />
-        {{ 'aracFinans.baf.yeni' | transloco }}
-      </button>
-    </div>
-  </header>
-  <p class="aciklama">{{ 'aracFinans.baf.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'aracFinans.baf.baslik' | transloco" ikon="key">
+  <button
+    birincil
+    type="button"
+    class="rc-dugme rc-dugme--birincil"
+    [attr.aria-expanded]="createOpen()"
+    aria-controls="rc-yeni-tahsis"
+    (click)="toggleCreate()"
+  >
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'aracFinans.baf.yeni' | transloco }}
+  </button>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'aracFinans.baf.aciklama' | transloco }}</p>
 
   @if (createOpen()) {
-    <section id="rc-yeni-tahsis" class="bolum" aria-labelledby="rc-yeni-tahsis-baslik">
+    <section id="rc-yeni-tahsis" class="rc-bolum" aria-labelledby="rc-yeni-tahsis-baslik">
       <h2 id="rc-yeni-tahsis-baslik">{{ 'aracFinans.baf.yeni' | transloco }}</h2>
       <form class="form" [formGroup]="form" (ngSubmit)="create()">
         <div class="rc-form-izgara">
@@ -59,7 +57,7 @@
           </rc-alan>
         </div>
         <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -76,69 +74,57 @@
     </section>
   }
 
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'aracFinans.filtre' | transloco"
-    (ngSubmit)="filter()"
+    [etkinSayisi]="query.etkinFiltreSayisi()"
+    depoAnahtari="rc.filtre.baf"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan [etiket]="'aracFinans.baf.personel' | transloco">
-        <rc-arama-secim formControlName="personel" [kaynak]="staff" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.plaka' | transloco">
-        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="20" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.durum' | transloco">
-        <rc-secim
-          formControlName="durum"
-          [secenekler]="statusOptions"
-          [bosEtiket]="'aracFinans.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.baf.kullanimAmaci' | transloco">
-        <rc-secim
-          formControlName="kullanimAmaci"
-          [secenekler]="purposeOptions"
-          [bosEtiket]="'aracFinans.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.baf.lokasyon' | transloco">
-        <rc-secim
-          formControlName="lokasyon"
-          [secenekler]="locationOptions"
-          [bosEtiket]="'aracFinans.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.baf.ofis' | transloco">
-        <rc-metin-girdisi formControlName="ofis" [azamiUzunluk]="100" liste="dl-baf-sube" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.baf.cikisMin' | transloco">
-        <rc-tarih-secici formControlName="bas" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.baf.cikisMax' | transloco">
-        <rc-tarih-secici formControlName="bit" />
-      </rc-alan>
-    </div>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'aracFinans.filtrele' | transloco }}
-      </button>
-      @if (query.etkinFiltreSayisi() > 0) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-          {{ 'aracFinans.temizle' | transloco }}
-        </button>
-      }
-    </div>
-  </form>
+    <rc-alan [etiket]="'aracFinans.baf.personel' | transloco">
+      <rc-arama-secim formControlName="personel" [kaynak]="staff" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.plaka' | transloco">
+      <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="20" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.durum' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'aracFinans.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.baf.kullanimAmaci' | transloco">
+      <rc-secim
+        formControlName="kullanimAmaci"
+        [secenekler]="purposeOptions"
+        [bosEtiket]="'aracFinans.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.baf.lokasyon' | transloco">
+      <rc-secim
+        formControlName="lokasyon"
+        [secenekler]="locationOptions"
+        [bosEtiket]="'aracFinans.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.baf.ofis' | transloco">
+      <rc-metin-girdisi formControlName="ofis" [azamiUzunluk]="100" liste="dl-baf-sube" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.baf.cikisMin' | transloco">
+      <rc-tarih-secici formControlName="bas" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.baf.cikisMax' | transloco">
+      <rc-tarih-secici formControlName="bit" />
+    </rc-alan>
+  </rc-filtre-paneli>
 
   @for (r of returning(); track r.id) {
     <rc-allocation-return-panel [row]="r" (closed)="returning.set([])" (returned)="returnDone()" />
   }
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="baf.liste"
     [etiket]="'aracFinans.baf.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -151,6 +137,13 @@
     (boyutDegisti)="query.degistir({ boyut: $event })"
     (yenidenDene)="store.list.yenile()"
   >
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka [plaka]="satir.plaka" boyut="sm" />
+      } @else {
+        —
+      }
+    </ng-template>
     <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="rc-rozet" [class.rc-rozet--bilgi]="satir.durum === 'Acik'">{{
         statusLabel(satir.durum)
@@ -158,7 +151,7 @@
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
       @if (satir.durum === 'Acik') {
-        <span class="satir-eylem">
+        <span class="rc-form-eylemler">
           <button
             type="button"
             class="rc-dugme rc-dugme--kucuk"

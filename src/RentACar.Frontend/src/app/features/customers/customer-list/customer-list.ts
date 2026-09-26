@@ -23,6 +23,7 @@ import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { Alan } from '@shared/form/alan/alan';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
@@ -32,6 +33,7 @@ import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { customerColumns } from '../customer-columns';
 import {
   CUSTOMER_LIST,
@@ -64,9 +66,11 @@ const fromTri = (v: Tri | null): boolean | undefined =>
     RouterLink,
     TranslocoPipe,
     Alan,
+    FilterPanelComponent,
     Ikon,
     MetinGirdisi,
     Secim,
+    SayfaBandi,
     Tablo,
     TabloHucre,
   ],

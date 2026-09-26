@@ -1,69 +1,54 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'aracFinans.siparis.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      @if (canCreate()) {
-        <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/arac-siparis/yeni">
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'aracFinans.siparis.yeni' | transloco }}
-        </a>
-      }
-    </div>
-  </header>
-  <p class="aciklama">{{ 'aracFinans.siparis.aciklama1' | transloco }}</p>
-  <p class="aciklama">{{ 'aracFinans.siparis.aciklama2' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'aracFinans.siparis.baslik' | transloco" ikon="car">
+  @if (canCreate()) {
+    <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/arac-siparis/yeni">
+      <rc-ikon ad="plus" [boyut]="14" />
+      {{ 'aracFinans.siparis.yeni' | transloco }}
+    </a>
+  }
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'aracFinans.siparis.aciklama1' | transloco }}</p>
+  <p class="not">{{ 'aracFinans.siparis.aciklama2' | transloco }}</p>
 
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'aracFinans.filtre' | transloco"
-    (ngSubmit)="filter()"
+    [etkinSayisi]="query.etkinFiltreSayisi()"
+    depoAnahtari="rc.filtre.arac-siparis"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan [etiket]="'aracFinans.siparis.cari' | transloco">
-        <rc-arama-secim formControlName="cari" [kaynak]="customers" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.siparis.araFiltre' | transloco">
-        <rc-metin-girdisi formControlName="ara" [azamiUzunluk]="100" />
-      </rc-alan>
-      <rc-alan
-        [etiket]="'aracFinans.siparis.aracFiltre' | transloco"
-        [ipucu]="'aracFinans.siparis.aracFiltreIpucu' | transloco"
-      >
-        <rc-metin-girdisi formControlName="arac" [azamiUzunluk]="100" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.siparis.dosyaNo' | transloco">
-        <rc-metin-girdisi formControlName="dosyaNo" [azamiUzunluk]="64" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.durum' | transloco">
-        <rc-secim
-          formControlName="durum"
-          [secenekler]="statusOptions"
-          [bosEtiket]="'aracFinans.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.siparis.siparisMin' | transloco">
-        <rc-tarih-secici formControlName="bas" />
-      </rc-alan>
-      <rc-alan [etiket]="'aracFinans.siparis.siparisMax' | transloco">
-        <rc-tarih-secici formControlName="bit" />
-      </rc-alan>
-    </div>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'aracFinans.filtrele' | transloco }}
-      </button>
-      @if (query.etkinFiltreSayisi() > 0) {
-        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-          {{ 'aracFinans.temizle' | transloco }}
-        </button>
-      }
-    </div>
-  </form>
+    <rc-alan [etiket]="'aracFinans.siparis.cari' | transloco">
+      <rc-arama-secim formControlName="cari" [kaynak]="customers" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.siparis.araFiltre' | transloco">
+      <rc-metin-girdisi formControlName="ara" [azamiUzunluk]="100" />
+    </rc-alan>
+    <rc-alan
+      [etiket]="'aracFinans.siparis.aracFiltre' | transloco"
+      [ipucu]="'aracFinans.siparis.aracFiltreIpucu' | transloco"
+    >
+      <rc-metin-girdisi formControlName="arac" [azamiUzunluk]="100" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.siparis.dosyaNo' | transloco">
+      <rc-metin-girdisi formControlName="dosyaNo" [azamiUzunluk]="64" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.durum' | transloco">
+      <rc-secim
+        formControlName="durum"
+        [secenekler]="statusOptions"
+        [bosEtiket]="'aracFinans.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.siparis.siparisMin' | transloco">
+      <rc-tarih-secici formControlName="bas" />
+    </rc-alan>
+    <rc-alan [etiket]="'aracFinans.siparis.siparisMax' | transloco">
+      <rc-tarih-secici formControlName="bit" />
+    </rc-alan>
+  </rc-filtre-paneli>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="arac-siparis.liste"
     [etiket]="'aracFinans.siparis.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -78,13 +63,13 @@
     (satirAc)="openRow($event)"
   >
     <ng-template rcTabloHucre="no" [rcTabloHucreSutunlar]="columns" let-satir>
-      <a class="bag" [routerLink]="['/arac-siparis', satir.id]">{{ satir.no }}</a>
+      <a [routerLink]="['/arac-siparis', satir.id]">{{ satir.no }}</a>
     </ng-template>
     <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="rc-rozet">{{ statusLabel(satir.durum) }}</span>
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         @if (satir.yetkiler.onayla) {
           <button
             type="button"

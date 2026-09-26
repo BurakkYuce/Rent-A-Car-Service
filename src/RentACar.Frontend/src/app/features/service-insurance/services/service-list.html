@@ -1,25 +1,23 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'servisSigorta.servis.baslik' | transloco }}</h1>
-    @if (canWrite()) {
-      <div class="ust__eylemler">
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-          [attr.aria-expanded]="createOpen()"
-          aria-controls="rc-yeni-servis"
-          (click)="toggleCreate()"
-        >
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'servisSigorta.servis.yeni' | transloco }}
-        </button>
-      </div>
-    }
-  </header>
-  <p class="aciklama">{{ 'servisSigorta.servis.bilgiNotu' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'servisSigorta.servis.baslik' | transloco" ikon="tool">
+  @if (canWrite()) {
+    <button
+      birincil
+      type="button"
+      class="rc-dugme rc-dugme--birincil"
+      [attr.aria-expanded]="createOpen()"
+      aria-controls="rc-yeni-servis"
+      (click)="toggleCreate()"
+    >
+      <rc-ikon ad="plus" [boyut]="14" />
+      {{ 'servisSigorta.servis.yeni' | transloco }}
+    </button>
+  }
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'servisSigorta.servis.bilgiNotu' | transloco }}</p>
 
   <div
-    class="satir-eylem"
+    class="rc-form-eylemler"
     role="group"
     [attr.aria-label]="'servisSigorta.servis.durumSekmeleri' | transloco"
   >
@@ -46,7 +44,7 @@
   </div>
 
   @if (createOpen()) {
-    <section id="rc-yeni-servis" class="bolum" aria-labelledby="rc-yeni-servis-baslik">
+    <section id="rc-yeni-servis" class="rc-bolum" aria-labelledby="rc-yeni-servis-baslik">
       <h2 id="rc-yeni-servis-baslik">{{ 'servisSigorta.servis.yeni' | transloco }}</h2>
       <form class="form" [formGroup]="form" (ngSubmit)="create()">
         <div class="rc-form-izgara">
@@ -95,9 +93,9 @@
             </rc-alan>
           </div>
         </fieldset>
-        <p class="aciklama">{{ 'servisSigorta.servis.sonrakiAdim' | transloco }}</p>
+        <p class="not">{{ 'servisSigorta.servis.sonrakiAdim' | transloco }}</p>
         <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -114,43 +112,32 @@
     </section>
   }
 
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'servisSigorta.filtre' | transloco"
-    (ngSubmit)="filter()"
+    depoAnahtari="rc.filtre.servisler"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan [etiket]="'servisSigorta.plaka' | transloco">
-        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="32" />
-      </rc-alan>
-      <rc-alan [etiket]="'servisSigorta.servis.tur' | transloco">
-        <rc-secim
-          formControlName="tip"
-          [secenekler]="typeOptions"
-          [bosEtiket]="'servisSigorta.tumu' | transloco"
-        />
-      </rc-alan>
-      <rc-alan [etiket]="'servisSigorta.servis.girisBas' | transloco">
-        <rc-tarih-secici formControlName="bas" />
-      </rc-alan>
-      <rc-alan [etiket]="'servisSigorta.servis.girisBit' | transloco">
-        <rc-tarih-secici formControlName="bit" />
-      </rc-alan>
-    </div>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'servisSigorta.filtrele' | transloco }}
-      </button>
-      <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
-        {{ 'servisSigorta.temizle' | transloco }}
-      </button>
-    </div>
-  </form>
+    <rc-alan [etiket]="'servisSigorta.plaka' | transloco">
+      <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="32" />
+    </rc-alan>
+    <rc-alan [etiket]="'servisSigorta.servis.tur' | transloco">
+      <rc-secim
+        formControlName="tip"
+        [secenekler]="typeOptions"
+        [bosEtiket]="'servisSigorta.tumu' | transloco"
+      />
+    </rc-alan>
+    <rc-alan [etiket]="'servisSigorta.servis.girisBas' | transloco">
+      <rc-tarih-secici formControlName="bas" />
+    </rc-alan>
+    <rc-alan [etiket]="'servisSigorta.servis.girisBit' | transloco">
+      <rc-tarih-secici formControlName="bit" />
+    </rc-alan>
+  </rc-filtre-paneli>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="servis.liste"
     [etiket]="'servisSigorta.servis.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -164,6 +151,9 @@
   >
     <ng-template rcTabloHucre="no" [rcTabloHucreSutunlar]="columns" let-satir>
       <a [routerLink]="['/servisler', satir.id]">{{ satir.no }}</a>
+    </ng-template>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      <rc-plaka [plaka]="satir.plaka" boyut="sm" />
     </ng-template>
   </rc-tablo>
 </div>

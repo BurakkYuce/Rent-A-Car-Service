@@ -1,14 +1,12 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'aracFinans.plan.baslik' | transloco }}</h1>
-  </header>
-  <p class="aciklama">
+<rc-sayfa-bandi [baslik]="'aracFinans.plan.baslik' | transloco" ikon="chart-bar"></rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">
     {{ 'aracFinans.plan.aciklama' | transloco }}
     <a routerLink="/arac-siparis">{{ 'aracFinans.siparis.baslik' | transloco }}</a>
   </p>
 
   @if (canWrite()) {
-    <section class="bolum duzenleyici" aria-labelledby="rc-plan-formu">
+    <section class="rc-bolum duzenleyici" aria-labelledby="rc-plan-formu">
       <h2 id="rc-plan-formu" tabindex="-1">
         {{
           (editing().kind === 'new'
@@ -41,7 +39,7 @@
         </div>
         <p class="not">{{ 'aracFinans.plan.enAzBiri' | transloco }}</p>
         <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -75,7 +73,7 @@
   }
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="filo-plan.liste"
     [etiket]="'aracFinans.plan.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -93,7 +91,7 @@
     </ng-template>
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
       @if (canWrite()) {
-        <span class="satir-eylem">
+        <span class="rc-form-eylemler">
           <button
             type="button"
             class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
@@ -133,20 +131,20 @@
   </rc-tablo>
 
   @if (totals(); as tp) {
-    <dl class="ozet-serit" [attr.aria-label]="'aracFinans.plan.toplamSatiri' | transloco">
-      <div>
+    <dl class="rc-izgara-4 ozet" [attr.aria-label]="'aracFinans.plan.toplamSatiri' | transloco">
+      <div class="rc-kart">
         <dt>{{ 'aracFinans.plan.toplamHedef' | transloco }}</dt>
         <dd>{{ tp.hedef | sayi: '1.0-0' }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'aracFinans.plan.toplamGerceklesen' | transloco }}</dt>
         <dd>{{ tp.gerceklesen | sayi: '1.0-0' }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'aracFinans.plan.toplamKayitli' | transloco }}</dt>
         <dd>{{ tp.kayitli | sayi: '1.0-0' }}</dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'aracFinans.plan.toplamFark' | transloco }}</dt>
         <dd>{{ signed(tp.fark) }}</dd>
       </div>

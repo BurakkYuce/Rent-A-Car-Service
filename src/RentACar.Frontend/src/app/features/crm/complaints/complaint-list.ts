@@ -13,6 +13,8 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
 import { suggestionList } from '@features/vehicles/suggestions';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 import { Alan } from '@shared/form/alan/alan';
 import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
 import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
@@ -23,10 +25,10 @@ import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { complaintColumns } from '../crm-columns';
 import { complaintRequest, complaintToForm, emptyComplaint } from '../crm-forms';
 import {
@@ -56,12 +58,14 @@ type Place = (typeof COMPLAINT_PLACES)[number];
   selector: 'rc-complaint-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FilterPanelComponent,
+    SayfaBandi,
+    PlateChipComponent,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
     AramaSecim,
     FormHatalari,
-    Ikon,
     MetinGirdisi,
     SayiGirdisi,
     Secim,

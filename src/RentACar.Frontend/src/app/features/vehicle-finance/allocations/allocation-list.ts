@@ -63,6 +63,9 @@ import {
   emptyAllocation,
 } from './allocation-model';
 import { AllocationReturnPanel } from './allocation-return-panel';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type AllocationStatus = (typeof ALLOCATION_STATUSES)[number];
 type AllocationLocation = (typeof ALLOCATION_LOCATIONS)[number];
@@ -76,6 +79,9 @@ type AllocationLocation = (typeof ALLOCATION_LOCATIONS)[number];
   selector: 'rc-allocation-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,

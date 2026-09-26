@@ -46,6 +46,9 @@ import {
   type DamageFileRequest,
 } from '../finance-model';
 import { DAMAGE_FILES, DamageFileStore, recordPath } from '../finance.store';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type DamageStatus = (typeof DAMAGE_STATUSES)[number];
 type Transition = 'onaya-gonder' | 'onayla' | 'reddet' | 'kapat';
@@ -59,6 +62,9 @@ type Transition = 'onaya-gonder' | 'onayla' | 'reddet' | 'kapat';
   selector: 'rc-damage-file-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
@@ -139,6 +145,10 @@ export class DamageFileList implements KaydedilmemisDegisiklikSahibi {
       sayfa: 1,
       filtreler: { durum: this.filterForm.getRawValue().durum ?? undefined },
     });
+  }
+  /** Filtre panelinin "Temizle"si: diğer liste ekranlarıyla aynı — sorgu varsayılana döner. */
+  protected clear(): void {
+    void this.query.sifirla();
   }
 
   protected toggleCreate(): void {

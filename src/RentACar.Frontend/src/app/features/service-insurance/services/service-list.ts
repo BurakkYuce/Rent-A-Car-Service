@@ -55,6 +55,9 @@ import {
 } from '../service-insurance-model';
 import { ServiceListStore } from '../service-insurance.store';
 import { emptyInfoForm, infoRequest } from './service-form-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
  * Servis / bakım (`/app/servisler`) — Blazor `ServiceRecordList.razor`: durum sekmeleri, liste, "Yeni Servis Kaydı"
@@ -65,6 +68,9 @@ import { emptyInfoForm, infoRequest } from './service-form-model';
   selector: 'rc-service-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

@@ -1,10 +1,23 @@
-<div class="sayfa">
-  <nav class="geri" [attr.aria-label]="'servisSigorta.gezinme' | transloco">
-    <a routerLink="/regulasyon">{{ 'servisSigorta.sigorta.liste' | transloco }}</a>
-  </nav>
+@let bant = store.detail.veri();
+<rc-sayfa-bandi
+  [baslik]="
+    ('servisSigorta.sigorta.kayit' | transloco) +
+    (bant ? ' ' + bant.police.plaka + ' ' + bant.police.tip : '')
+  "
+  ikon="shield"
+  [pill]="
+    bant
+      ? ((bant.police.odendi ? 'servisSigorta.odendi' : 'servisSigorta.odenmedi') | transloco)
+      : null
+  "
+>
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/regulasyon">{{ 'servisSigorta.sigorta.liste' | transloco }}</a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @switch (store.detail.tur()) {
     @case ('hata') {
-      <h1>{{ 'servisSigorta.sigorta.kayit' | transloco }}</h1>
       <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
         {{ 'servisSigorta.yuklenemedi' | transloco }}
         <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="reload()">
@@ -14,20 +27,6 @@
     }
     @default {
       @if (store.detail.veri(); as d) {
-        <header class="ust">
-          <h1>
-            {{ 'servisSigorta.sigorta.kayit' | transloco }} {{ d.police.plaka }} {{ d.police.tip }}
-            <span
-              class="rc-rozet"
-              [class.rc-rozet--basari]="d.police.odendi"
-              [class.rc-rozet--uyari]="!d.police.odendi"
-            >
-              {{
-                (d.police.odendi ? 'servisSigorta.odendi' : 'servisSigorta.odenmedi') | transloco
-              }}
-            </span>
-          </h1>
-        </header>
         <dl class="kunye">
           <div>
             <dt>{{ 'servisSigorta.sigorta.policeNo' | transloco }}</dt>
@@ -70,10 +69,10 @@
             <dd>{{ num(d.police.aksesuarDegeri) | para: d.police.doviz }}</dd>
           </div>
         </dl>
-        <p class="aciklama">{{ 'servisSigorta.sigorta.aciklama' | transloco }}</p>
+        <p class="not">{{ 'servisSigorta.sigorta.aciklama' | transloco }}</p>
 
         @if (d.odeme; as o) {
-          <section class="bolum" aria-labelledby="rc-police-odeme-izi">
+          <section class="rc-bolum" aria-labelledby="rc-police-odeme-izi">
             <h2 id="rc-police-odeme-izi">{{ 'servisSigorta.sigorta.odemeIzi' | transloco }}</h2>
             <dl class="kunye">
               <div>
@@ -109,23 +108,25 @@
           />
         }
 
-        <section class="bolum" aria-labelledby="rc-zeyil-baslik">
+        <section class="rc-bolum" aria-labelledby="rc-zeyil-baslik">
           <h2 id="rc-zeyil-baslik">{{ 'servisSigorta.zeyil.baslik' | transloco }}</h2>
-          <p class="aciklama">{{ 'servisSigorta.zeyil.aciklama' | transloco }}</p>
+          <p class="not">{{ 'servisSigorta.zeyil.aciklama' | transloco }}</p>
           @if (d.zeyiller.length === 0) {
-            <p class="aciklama">{{ 'servisSigorta.zeyil.yok' | transloco }}</p>
+            <p class="not">{{ 'servisSigorta.zeyil.yok' | transloco }}</p>
           } @else {
-            <div class="tablo-kap">
-              <table class="duz-tablo">
+            <div class="rc-tablo-kap">
+              <table class="rc-duz-tablo">
                 <thead>
                   <tr>
                     <th scope="col">{{ 'servisSigorta.zeyil.no' | transloco }}</th>
                     <th scope="col">{{ 'servisSigorta.zeyil.tarih' | transloco }}</th>
                     <th scope="col">{{ 'servisSigorta.zeyil.tanzim' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'servisSigorta.zeyil.deger' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'servisSigorta.zeyil.brut' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'servisSigorta.zeyil.net' | transloco }}</th>
-                    <th scope="col" class="num">
+                    <th scope="col" class="rc-num">
+                      {{ 'servisSigorta.zeyil.deger' | transloco }}
+                    </th>
+                    <th scope="col" class="rc-num">{{ 'servisSigorta.zeyil.brut' | transloco }}</th>
+                    <th scope="col" class="rc-num">{{ 'servisSigorta.zeyil.net' | transloco }}</th>
+                    <th scope="col" class="rc-num">
                       {{ 'servisSigorta.zeyil.fonVergi' | transloco }}
                     </th>
                     <th scope="col">{{ 'servisSigorta.zeyil.tipi' | transloco }}</th>
@@ -141,10 +142,10 @@
                       <td>{{ z.zeyilNo }}</td>
                       <td>{{ z.tarih | tarih }}</td>
                       <td>{{ z.tanzim | tarih }}</td>
-                      <td class="num">{{ num(z.deger) | para: d.police.doviz }}</td>
-                      <td class="num">{{ num(z.brut) | para: d.police.doviz }}</td>
-                      <td class="num">{{ num(z.net) | para: d.police.doviz }}</td>
-                      <td class="num">{{ num(z.fonVergi) | para: d.police.doviz }}</td>
+                      <td class="rc-num">{{ num(z.deger) | para: d.police.doviz }}</td>
+                      <td class="rc-num">{{ num(z.brut) | para: d.police.doviz }}</td>
+                      <td class="rc-num">{{ num(z.net) | para: d.police.doviz }}</td>
+                      <td class="rc-num">{{ num(z.fonVergi) | para: d.police.doviz }}</td>
                       <td>{{ z.tipi ?? '—' }}</td>
                       <td>{{ z.neden ?? '—' }}</td>
                       @if (d.yetkiler.duzenleyebilir) {
@@ -214,7 +215,7 @@
                 }
               </datalist>
               <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-              <div class="form__eylemler">
+              <div class="rc-form-eylemler">
                 <button
                   type="submit"
                   class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -228,8 +229,7 @@
           }
         </section>
       } @else {
-        <h1>{{ 'servisSigorta.sigorta.kayit' | transloco }}</h1>
-        <p class="aciklama" role="status">{{ 'servisSigorta.yukleniyor' | transloco }}</p>
+        <p class="not" role="status">{{ 'servisSigorta.yukleniyor' | transloco }}</p>
       }
     }
   }

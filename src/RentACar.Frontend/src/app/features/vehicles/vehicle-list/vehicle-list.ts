@@ -24,16 +24,21 @@ import { genelGosterilir } from '@core/oturum/oturum-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
 import { SayiPipe } from '@shared/bicim/bicim-pipe';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { Alan } from '@shared/form/alan/alan';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { SavedViewChipsComponent, type SavedView } from '@shared/gorunum-cipleri/gorunum-cipleri';
 import { Ikon } from '@shared/ikon/ikon';
+import { PlateChipComponent } from '@shared/plaka/plaka';
+import { StatusSignCardComponent } from '@shared/tabela-karti/tabela-karti';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { suggestionList } from '../suggestions';
 import { SCORECARD_ROLES } from '../vehicle-guards';
 import {
@@ -79,17 +84,22 @@ interface FilterValue {
     RouterLink,
     TranslocoPipe,
     Alan,
+    FilterPanelComponent,
     Ikon,
     MetinGirdisi,
+    PlateChipComponent,
+    SavedViewChipsComponent,
+    SayfaBandi,
     SayiPipe,
     Secim,
+    StatusSignCardComponent,
     Tablo,
     TabloHucre,
     TarihSecici,
   ],
   providers: [FetchPolicy, VehicleListStore],
   templateUrl: './vehicle-list.html',
-  styleUrl: '../vehicles.scss',
+  styleUrl: '../vehicle-screens.scss',
 })
 export class VehicleList {
   protected readonly store = inject(VehicleListStore);
@@ -175,6 +185,36 @@ export class VehicleList {
 
   protected readonly total = computed(() => this.store.list.veri()?.toplam ?? null);
 
+  /**
+   * Durum çipleri: mevcut `durum` süzgecinin kısayolu (ayrı durum yok — seçim URL'deki `durum`dur). Sayaçlar
+   * filo özetinden; özetin bilmediği durumlarda sayaç yok.
+   */
+  protected readonly statusViews = computed<readonly SavedView[]>(() => {
+    const current = this.query.sorgu().filtreler.durum ?? null;
+    const o = this.store.summary.veri();
+    const count: Partial<Record<VehicleStatus | 'tumu', number>> = o
+      ? {
+          tumu: toNumber(o.toplam) ?? undefined,
+          Musait: toNumber(o.musait) ?? undefined,
+          Serviste: toNumber(o.serviste) ?? undefined,
+        }
+      : {};
+    return [
+      {
+        id: 'tumu',
+        ad: this.t('arac.liste.tumAraclar'),
+        sayac: count.tumu ?? null,
+        aktif: current === null,
+      },
+      ...VEHICLE_STATUSES.map((s) => ({
+        id: s,
+        ad: this.t(`arac.durumlar.${s}`),
+        sayac: count[s] ?? null,
+        aktif: current === s,
+      })),
+    ];
+  });
+
   constructor() {
     const policy = inject(FetchPolicy);
     policy.baglan({
@@ -241,6 +281,34 @@ export class VehicleList {
         tarihBit: v.tarihBit ?? undefined,
       },
     });
+  }
+
+  protected selectStatus(view: SavedView): void {
+    const status = vehicleStatus(view.id);
+    void this.query.degistir({
+      sayfa: 1,
+      filtreler: { ...this.query.sorgu().filtreler, durum: status ?? undefined },
+    });
+  }
+
+  /** Oran kartı için pay (toplam 0 ise çubuk yok). */
+  protected share(part: number | string, whole: number | string): number | null {
+    const w = toNumber(whole);
+    const p = toNumber(part);
+    return w !== null && p !== null && w > 0 ? p / w : null;
+  }
+
+  /** Doluluk yüzdesi → 0–1 oran. */
+  protected percentRatio(value: number | string): number | null {
+    const v = toNumber(value);
+    return v === null ? null : v / 100;
+  }
+
+  /** Marka hücresinin ikinci satırı: tip · yakıt · vites · model yılı (boşlar atlanır). */
+  protected vehicleSubLine(row: VehicleListRow): string {
+    return [row.tip, row.yakit, row.vites, row.modelYili]
+      .filter((v) => v !== null && v !== undefined && v !== '')
+      .join(' · ');
   }
 
   protected clear(): void {

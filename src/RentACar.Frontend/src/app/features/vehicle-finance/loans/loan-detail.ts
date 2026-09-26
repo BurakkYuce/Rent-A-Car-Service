@@ -32,6 +32,8 @@ import { ParaPipe, SayiPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
 
 import { LOANS, LoanDetailStore, recordPath } from '../finance.store';
 import { InstallmentPaymentPanel } from './installment-payment-panel';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
  * Araç kredisi kaydı (`/app/arac-kredi/:id`): künye, hesaplanan özet (deftere yazmaz), TAKSİT PLANI (kalan-yöntemi,
@@ -41,7 +43,16 @@ import { InstallmentPaymentPanel } from './installment-payment-panel';
 @Component({
   selector: 'rc-loan-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslocoPipe, InstallmentPaymentPanel, ParaPipe, SayiPipe, TarihPipe],
+  imports: [
+    PlateChipComponent,
+    SayfaBandi,
+    RouterLink,
+    TranslocoPipe,
+    InstallmentPaymentPanel,
+    ParaPipe,
+    SayiPipe,
+    TarihPipe,
+  ],
   providers: [FetchPolicy, LoanDetailStore],
   templateUrl: './loan-detail.html',
   styleUrl: '../vehicle-finance.scss',

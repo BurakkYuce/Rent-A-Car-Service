@@ -1,7 +1,7 @@
-// Araç ekranlarının ve onu @use eden 7 özelliğin (cari, CRM, finans, finans belgeleri, araç finansı, servis-sigorta,
-// fiyat) ortak liste yerleşimi. GEÇİŞ KÖPRÜSÜ (Yol v2 PR-B): düzen artık global `src/styles/_duzen.scss`'te; buradaki
-// eski sınıflar aynı kalıpları `_duzen-kaliplari.scss`'ten alır → görünüm tek kaynaktan döner. PR-D şablonları
-// `.rc-*` sınıflarına taşıyınca bu dosya yalnız araç ekranına özgü kurallara iner.
+// GEÇİŞ KÖPRÜSÜ (Yol v2 PR-B): henüz göçmemiş özelliklerin (finans, finans belgeleri, fiyat) `@use` ettiği eski liste
+// yerleşimi. Düzen global `src/styles/_duzen.scss`'te; buradaki eski sınıflar aynı kalıpları `_duzen-kaliplari.scss`'ten
+// alır. Araç ekranları PR-D2'de `.rc-*` + `vehicle-screens.scss`'e geçti (bu dosyayı artık kullanmaz); son tüketici
+// göçünce dosya bütünüyle silinir.
 @use 'duzen-kaliplari' as d;
 
 .sayfa {
@@ -19,7 +19,6 @@
 .ust__eylemler,
 .filtre__eylemler,
 .form__eylemler,
-.gorunum,
 .satir-eylem {
   @include d.form-eylemler;
 }
@@ -77,33 +76,6 @@
   @include d.bolum;
 }
 
-.model-gruplari {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-2);
-  min-width: 0;
-}
-
-.model-grup {
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-lg);
-  background: var(--rc-yuzey);
-  min-width: 0;
-
-  > summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--rc-bosluk-2);
-    align-items: center;
-    padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
-    cursor: pointer;
-  }
-}
-
-.model-grup__ad {
-  font-weight: var(--rc-agirlik-kalin);
-}
-
 // `.tablo-kap` / `.duz-tablo` artık GLOBAL göç köprüsü (`_duzen.scss`): her @use eden bileşene kopyalanmasın diye
 // (bileşen stil bütçesi 4 kB).
 
@@ -136,10 +108,6 @@
   flex-wrap: wrap;
   gap: var(--rc-bosluk-2);
   align-items: flex-end;
-}
-
-.bag {
-  font-variant-numeric: tabular-nums;
 }
 
 .tablo {

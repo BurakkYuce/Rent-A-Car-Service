@@ -26,6 +26,8 @@ import { Ikon } from '@shared/ikon/ikon';
 import { SCORECARD_ROLES } from '../vehicle-guards';
 import { STATUS_BADGE, toNumber, vehicleStatus } from '../vehicle-model';
 import { VehicleDetailStore } from '../vehicle.store';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /** KM kaydı kaynağı → etiket anahtarı (Blazor: Kira dönüşü / Servis çıkışı / Manuel). */
 export function kmSourceKey(
@@ -45,6 +47,8 @@ export function kmSourceKey(
   selector: 'rc-vehicle-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
@@ -59,7 +63,7 @@ export function kmSourceKey(
   ],
   providers: [FetchPolicy, VehicleDetailStore],
   templateUrl: './vehicle-detail.html',
-  styleUrl: '../vehicles.scss',
+  styleUrl: '../vehicle-screens.scss',
 })
 export class VehicleDetail {
   protected readonly store = inject(VehicleDetailStore);

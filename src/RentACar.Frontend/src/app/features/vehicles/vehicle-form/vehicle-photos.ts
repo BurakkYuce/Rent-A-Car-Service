@@ -79,7 +79,7 @@ export const PHOTO_TYPES = 'image/png,image/jpeg,image/webp';
       gap: var(--rc-bosluk-1);
       align-items: center;
     }
-    .aciklama {
+    .not {
       margin: 0;
       color: var(--rc-metin-ikincil);
       font-size: var(--rc-yazi-xs);
@@ -94,8 +94,8 @@ export const PHOTO_TYPES = 'image/png,image/jpeg,image/webp';
     }
   `,
   template: `
-    <p class="aciklama">{{ 'arac.foto.aciklama' | transloco }}</p>
-    <p class="aciklama" aria-live="polite">
+    <p class="not">{{ 'arac.foto.aciklama' | transloco }}</p>
+    <p class="not" aria-live="polite">
       {{ 'arac.foto.sayac' | transloco: { sayi: photos().length, enFazla: max } }}
     </p>
     @if (kaynak().tur === 'hata') {
@@ -147,13 +147,13 @@ export const PHOTO_TYPES = 'image/png,image/jpeg,image/webp';
         </li>
       } @empty {
         @if (kaynak().tur === 'hazir') {
-          <li class="aciklama">{{ 'arac.foto.bos' | transloco }}</li>
+          <li class="not">{{ 'arac.foto.bos' | transloco }}</li>
         }
       }
     </ul>
     @if (yazabilir()) {
       <div class="yukleme">
-        <label class="aciklama" [attr.for]="inputId">{{ 'arac.foto.sec' | transloco }}</label>
+        <label class="not" [attr.for]="inputId">{{ 'arac.foto.sec' | transloco }}</label>
         <input #fileInput [id]="inputId" type="file" [attr.accept]="accept" (change)="picked()" />
         <button
           type="button"

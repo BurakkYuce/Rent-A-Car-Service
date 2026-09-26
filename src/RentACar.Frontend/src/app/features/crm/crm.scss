@@ -1,5 +1,5 @@
-// F7.2 CRM ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet, bölüm, düz tablo) aynen kullanılır.
-@use '../vehicles/vehicles';
+// F7.2 CRM ekranları (Yol v2): sayfa iskeleti, bölüm, düz tablo, filtre paneli ve ızgaralar global düzen
+// katmanından (`src/styles/_duzen.scss`); burada yalnız CRM ekranlarına özgü küçük kurallar.
 
 .not {
   margin: 0;
@@ -7,11 +7,16 @@
   font-size: var(--rc-yazi-xs);
 }
 
+.form,
 .yigin {
   display: flex;
   flex-direction: column;
-  gap: var(--rc-bosluk-1);
+  gap: var(--rc-bosluk-3);
   min-width: 0;
+}
+
+.yigin {
+  gap: var(--rc-bosluk-1);
 }
 
 .genis {
@@ -25,6 +30,10 @@
   gap: var(--rc-bosluk-2) var(--rc-bosluk-4);
 }
 
+.liste-tablosu {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
+}
+
 .duzenleyici {
   scroll-margin-top: var(--rc-bosluk-4);
 
@@ -33,12 +42,28 @@
   }
 }
 
+.ozet {
+  margin: 0;
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--rc-yazi-xl);
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 .soru-tablosu {
   td {
     white-space: normal;
   }
 
-  .rc-girdi {
+  input {
     width: 100%;
     min-width: 8rem;
   }

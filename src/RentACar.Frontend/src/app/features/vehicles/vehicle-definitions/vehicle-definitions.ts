@@ -8,6 +8,7 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
 import type { TanimAlani } from '@shared/form/tanim-crud/tanim-kaynagi';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { ACTIVE, PASSIVE, definitionSource } from './definition-source';
 
 export type DefinitionKind = 'sahip' | 'segment' | 'tip';
@@ -26,14 +27,12 @@ const ROOTS: Readonly<Record<DefinitionKind, ApiYolu>> = {
 @Component({
   selector: 'rc-vehicle-definitions',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TanimCrud],
-  styleUrl: '../vehicles.scss',
+  imports: [TranslocoPipe, TanimCrud, SayfaBandi],
+  styleUrl: '../vehicle-screens.scss',
   template: `
-    <div class="sayfa">
-      <header class="ust">
-        <h1>{{ 'arac.tanim.' + kind + '.baslik' | transloco }}</h1>
-      </header>
-      <p class="aciklama">{{ 'arac.tanim.' + kind + '.aciklama' | transloco }}</p>
+    <rc-sayfa-bandi [baslik]="'arac.tanim.' + kind + '.baslik' | transloco" ikon="tag" />
+    <div class="rc-sayfa">
+      <p class="not">{{ 'arac.tanim.' + kind + '.aciklama' | transloco }}</p>
       <rc-tanim-crud
         [baslik]="'arac.tanim.' + kind + '.tablo' | transloco"
         [alanlar]="fields"

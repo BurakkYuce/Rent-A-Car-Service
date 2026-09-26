@@ -23,6 +23,7 @@ import { ParaPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
 import { num } from '../service-insurance-model';
 import { InstallmentRecordStore } from '../service-insurance.store';
 import { type InstallmentKind, InstallmentPayPanel } from './installment-pay-panel';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 /**
  * MTV / muayene kaydı (`/app/regulasyon/mtv/:id`, `/app/regulasyon/muayeneler/:id`) — Blazor `/regulasyon` MTV ve
@@ -32,7 +33,7 @@ import { type InstallmentKind, InstallmentPayPanel } from './installment-pay-pan
 @Component({
   selector: 'rc-installment-record',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslocoPipe, InstallmentPayPanel, ParaPipe, TarihPipe],
+  imports: [SayfaBandi, RouterLink, TranslocoPipe, InstallmentPayPanel, ParaPipe, TarihPipe],
   providers: [FetchPolicy, InstallmentRecordStore],
   templateUrl: './installment-record.html',
   styleUrl: '../service-insurance.scss',

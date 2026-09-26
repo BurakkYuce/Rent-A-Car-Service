@@ -1,30 +1,29 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'servisSigorta.vade.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      @for (l of exportLinks; track l.href) {
-        <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" [href]="l.href">{{ l.label }}</a>
-      }
-    </div>
-  </header>
+<rc-sayfa-bandi [baslik]="'servisSigorta.vade.baslik' | transloco" ikon="alert-triangle">
+  <ng-container eylemler>
+    @for (l of exportLinks; track l.href) {
+      <a class="rc-dugme" [href]="l.href">{{ l.label }}</a>
+    }
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   <rc-regulation-tabs />
-  <p class="aciklama">{{ 'servisSigorta.vade.aciklama' | transloco }}</p>
+  <p class="not">{{ 'servisSigorta.vade.aciklama' | transloco }}</p>
 
   @if (summary(); as s) {
-    <dl class="ozet-serit">
-      <div>
+    <dl class="rc-izgara-4 ozet">
+      <div class="rc-kart">
         <dt>{{ 'servisSigorta.vade.kovalar.Gecmis' | transloco }}</dt>
         <dd>
           <button
             type="button"
-            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk gecikmis"
             (click)="selectBucket('Gecmis')"
           >
             {{ s.gecmis }}
           </button>
         </dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'servisSigorta.vade.kovalar.YediGun' | transloco }}</dt>
         <dd>
           <button
@@ -36,7 +35,7 @@
           </button>
         </dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'servisSigorta.vade.kovalar.OtuzGun' | transloco }}</dt>
         <dd>
           <button
@@ -48,7 +47,7 @@
           </button>
         </dd>
       </div>
-      <div>
+      <div class="rc-kart">
         <dt>{{ 'servisSigorta.vade.kovalar.Ileri' | transloco }}</dt>
         <dd>
           <button
@@ -63,43 +62,35 @@
     </dl>
   }
 
-  <form
-    class="filtre"
+  <rc-filtre-paneli
     [formGroup]="filterForm"
-    [attr.aria-label]="'servisSigorta.filtre' | transloco"
-    (ngSubmit)="filter()"
+    depoAnahtari="rc.filtre.vade"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
-    <div class="rc-form-izgara">
-      <rc-alan [etiket]="'servisSigorta.plaka' | transloco">
-        <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="32" />
-      </rc-alan>
-      <rc-alan [etiket]="'servisSigorta.vade.sutun.tur' | transloco">
-        <rc-metin-girdisi formControlName="tur" [azamiUzunluk]="32" liste="dl-vade-tur" />
-      </rc-alan>
-      <rc-alan [etiket]="'servisSigorta.vade.sutun.durum' | transloco">
-        <rc-secim
-          formControlName="kova"
-          [secenekler]="bucketOptions"
-          [bosEtiket]="'servisSigorta.tumu' | transloco"
-        />
-      </rc-alan>
-    </div>
-    <datalist id="dl-vade-tur">
-      <option value="Kasko"></option>
-      <option value="Trafik"></option>
-      <option value="MTV"></option>
-      <option value="Muayene"></option>
-    </datalist>
-    <div class="filtre__eylemler">
-      <button type="submit" class="rc-dugme rc-dugme--kucuk">
-        <rc-ikon ad="filter" [boyut]="14" />
-        {{ 'servisSigorta.filtrele' | transloco }}
-      </button>
-    </div>
-  </form>
+    <rc-alan [etiket]="'servisSigorta.plaka' | transloco">
+      <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="32" />
+    </rc-alan>
+    <rc-alan [etiket]="'servisSigorta.vade.sutun.tur' | transloco">
+      <rc-metin-girdisi formControlName="tur" [azamiUzunluk]="32" liste="dl-vade-tur" />
+    </rc-alan>
+    <rc-alan [etiket]="'servisSigorta.vade.sutun.durum' | transloco">
+      <rc-secim
+        formControlName="kova"
+        [secenekler]="bucketOptions"
+        [bosEtiket]="'servisSigorta.tumu' | transloco"
+      />
+    </rc-alan>
+  </rc-filtre-paneli>
+  <datalist id="dl-vade-tur">
+    <option value="Kasko"></option>
+    <option value="Trafik"></option>
+    <option value="MTV"></option>
+    <option value="Muayene"></option>
+  </datalist>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="vade.liste"
     [etiket]="'servisSigorta.vade.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -111,6 +102,9 @@
     (boyutDegisti)="query.degistir({ boyut: $event })"
     (yenidenDene)="store.board.yenile()"
   >
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      <rc-plaka [plaka]="satir.plaka" boyut="sm" />
+    </ng-template>
     <ng-template rcTabloHucre="kova" [rcTabloHucreSutunlar]="columns" let-satir>
       <span [class]="'rc-rozet ' + bucketTone(satir.kova)">{{ bucketLabel(satir.kova) }}</span>
     </ng-template>

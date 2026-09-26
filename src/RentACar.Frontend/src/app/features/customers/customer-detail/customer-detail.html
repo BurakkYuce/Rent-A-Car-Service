@@ -1,19 +1,16 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>
-      {{ name() || ('cari.detayBaslik' | transloco) }}
-      @if (anonymous()) {
-        <span class="rc-rozet rc-rozet--bilgi">{{ 'cari.kvkkRozet' | transloco }}</span>
-      }
-    </h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/cariler">
-        <rc-ikon ad="chevron-left" [boyut]="14" />
-        {{ 'cari.listeyeDon' | transloco }}
-      </a>
-    </div>
-  </header>
-
+<rc-sayfa-bandi
+  [baslik]="name() || ('cari.detayBaslik' | transloco)"
+  ikon="users"
+  [pill]="anonymous() ? ('cari.kvkkRozet' | transloco) : null"
+>
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/cariler">
+      <rc-ikon ad="chevron-left" [boyut]="14" />
+      {{ 'cari.listeyeDon' | transloco }}
+    </a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @if (store.detail.tur() === 'hata') {
     <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
       {{ store.detail.hata()?.detay }}
@@ -22,37 +19,34 @@
       </button>
     </div>
   } @else if (store.detail.veri(); as d) {
-    <rc-sekmeli-form [sekmeler]="tabs()" [etiket]="'cari.detayBolumler' | transloco">
-      <section rcSekmePaneli="ozet" [baslik]="'cari.detayBolum.ozet' | transloco">
-        <span class="rozetler">
-          @if (d.karaListe) {
-            <span class="rc-rozet rc-rozet--hata">{{ 'cari.rozet.karaListe' | transloco }}</span>
-          }
-          @if (d.aracVerilmez) {
-            <span class="rc-rozet rc-rozet--hata">{{ 'cari.rozet.aracVerilmez' | transloco }}</span>
-          }
-          @if (d.musteri.uyari) {
-            <span class="rc-rozet rc-rozet--uyari">{{ 'cari.rozet.uyari' | transloco }}</span>
-          }
-          @if (d.pasif) {
-            <span class="rc-rozet">{{ 'cari.rozet.pasif' | transloco }}</span>
-          }
-        </span>
+    <div class="rc-izgara-3" role="group" [attr.aria-label]="'cari.ozetKart.etiket' | transloco">
+      <section class="rc-kart" aria-labelledby="cari-kimlik">
+        <h2 id="cari-kimlik" class="kart-baslik">{{ 'cari.ozetKart.kimlik' | transloco }}</h2>
+        @if (d.karaListe || d.aracVerilmez || d.musteri.uyari || d.pasif) {
+          <span class="rozetler">
+            @if (d.karaListe) {
+              <span class="rc-rozet rc-rozet--hata">{{ 'cari.rozet.karaListe' | transloco }}</span>
+            }
+            @if (d.aracVerilmez) {
+              <span class="rc-rozet rc-rozet--hata">{{
+                'cari.rozet.aracVerilmez' | transloco
+              }}</span>
+            }
+            @if (d.musteri.uyari) {
+              <span class="rc-rozet rc-rozet--uyari">{{ 'cari.rozet.uyari' | transloco }}</span>
+            }
+            @if (d.pasif) {
+              <span class="rc-rozet">{{ 'cari.rozet.pasif' | transloco }}</span>
+            }
+          </span>
+        }
         @if (d.musteri.uyariNedeni) {
           <p class="not">{{ 'cari.alan.uyariNedeni' | transloco }}: {{ d.musteri.uyariNedeni }}</p>
         }
-        <dl class="kunye">
+        <dl class="bilgi">
           <div>
             <dt>{{ 'cari.alan.tip' | transloco }}</dt>
             <dd>{{ 'cari.tipler.' + d.musteri.tip | transloco }}</dd>
-          </div>
-          <div>
-            <dt>{{ 'cari.alan.cepTel' | transloco }}</dt>
-            <dd>{{ d.musteri.cepTel ?? '—' }}</dd>
-          </div>
-          <div>
-            <dt>{{ 'cari.alan.email' | transloco }}</dt>
-            <dd>{{ d.musteri.email ?? '—' }}</dd>
           </div>
           <div>
             <dt>{{ 'cari.alan.tcKimlik' | transloco }}</dt>
@@ -74,6 +68,19 @@
             <dt>{{ 'cari.alan.pasaportNo' | transloco }}</dt>
             <dd>{{ d.musteri.pasaportNoMaskeli ?? '—' }}</dd>
           </div>
+        </dl>
+      </section>
+      <section class="rc-kart" aria-labelledby="cari-iletisim">
+        <h2 id="cari-iletisim" class="kart-baslik">{{ 'cari.ozetKart.iletisim' | transloco }}</h2>
+        <dl class="bilgi">
+          <div>
+            <dt>{{ 'cari.alan.cepTel' | transloco }}</dt>
+            <dd>{{ d.musteri.cepTel ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'cari.alan.email' | transloco }}</dt>
+            <dd>{{ d.musteri.email ?? '—' }}</dd>
+          </div>
           <div>
             <dt>{{ 'cari.alan.adres' | transloco }}</dt>
             <dd>{{ address(d.musteri) }}</dd>
@@ -82,37 +89,47 @@
             <dt>{{ 'cari.alan.musteriTipi' | transloco }}</dt>
             <dd>{{ d.musteri.musteriTipi ?? '—' }}</dd>
           </div>
+        </dl>
+      </section>
+      <section class="rc-kart" aria-labelledby="cari-bakiye">
+        <h2 id="cari-bakiye" class="kart-baslik">{{ 'cari.ozetKart.bakiye' | transloco }}</h2>
+        <dl class="ozet" [attr.aria-label]="'cari.bakiyeEtiket' | transloco">
+          <div>
+            <dt>{{ 'cari.bakiye' | transloco }}</dt>
+            @if (d.bakiye !== null) {
+              <dd [class.borclu]="side() === 'borclu'" [class.alacakli]="side() === 'alacakli'">
+                {{ balance() | para }}
+              </dd>
+            } @else {
+              <dd>—</dd>
+            }
+          </div>
+        </dl>
+        @if (d.bakiye !== null) {
+          <p class="not">{{ 'cari.bakiyeNotu' | transloco }}</p>
+        }
+        <dl class="bilgi">
           <div>
             <dt>{{ 'cari.alan.riskLimiti' | transloco }}</dt>
             <dd>{{ num(d.musteri.riskLimiti) | para }}</dd>
           </div>
         </dl>
+      </section>
+    </div>
 
-        @if (d.bakiye !== null) {
-          <dl class="ozet-serit" [attr.aria-label]="'cari.bakiyeEtiket' | transloco">
-            <div>
-              <dt>{{ 'cari.bakiye' | transloco }}</dt>
-              <dd [class.borclu]="side() === 'borclu'" [class.alacakli]="side() === 'alacakli'">
-                {{ balance() | para }}
-              </dd>
-            </div>
-          </dl>
-          <p class="not">{{ 'cari.bakiyeNotu' | transloco }}</p>
-        } @else {
-          <p class="not">{{ 'cari.finansYetkisi' | transloco }}</p>
-        }
-
+    <rc-sekmeli-form [sekmeler]="tabs()" [etiket]="'cari.detayBolumler' | transloco">
+      <section rcSekmePaneli="ozet" [baslik]="'cari.detayBolum.ozet' | transloco">
         @if (d.hareketler; as lines) {
           <h2>{{ 'cari.sonHareketler' | transloco }}</h2>
-          <div class="tablo-kap">
-            <table class="duz-tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <thead>
                 <tr>
                   <th scope="col">{{ 'cari.ekstreSutun.tarih' | transloco }}</th>
                   <th scope="col">{{ 'cari.ekstreSutun.kaynak' | transloco }}</th>
                   <th scope="col">{{ 'cari.ekstreSutun.aciklama' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'cari.ekstreSutun.borc' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'cari.ekstreSutun.alacak' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'cari.ekstreSutun.borc' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'cari.ekstreSutun.alacak' | transloco }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -121,49 +138,51 @@
                     <td>{{ e.tarih | tarih }}</td>
                     <td>{{ e.kaynak }}</td>
                     <td>{{ e.aciklama }}</td>
-                    <td class="num">{{ e.borc === null ? '' : (num(e.borc) | para) }}</td>
-                    <td class="num">{{ e.alacak === null ? '' : (num(e.alacak) | para) }}</td>
+                    <td class="rc-num">{{ e.borc === null ? '' : (num(e.borc) | para) }}</td>
+                    <td class="rc-num">{{ e.alacak === null ? '' : (num(e.alacak) | para) }}</td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="5" class="aciklama">{{ 'cari.hareketYok' | transloco }}</td>
+                    <td colspan="5" class="rc-bos">{{ 'cari.hareketYok' | transloco }}</td>
                   </tr>
                 }
               </tbody>
             </table>
           </div>
+        } @else {
+          <p class="not">{{ 'cari.finansYetkisi' | transloco }}</p>
         }
       </section>
 
       <section rcSekmePaneli="kiralar" [baslik]="'cari.detayBolum.kiralar' | transloco">
-        <p class="aciklama">{{ 'cari.kiralarNotu' | transloco: { sayi: d.kiralar.length } }}</p>
-        <div class="tablo-kap">
-          <table class="duz-tablo">
+        <p class="not">{{ 'cari.kiralarNotu' | transloco: { sayi: d.kiralar.length } }}</p>
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <thead>
               <tr>
                 <th scope="col">{{ 'cari.kiraSutun.sozlesme' | transloco }}</th>
                 <th scope="col">{{ 'cari.kiraSutun.baslangic' | transloco }}</th>
                 <th scope="col">{{ 'cari.kiraSutun.bitis' | transloco }}</th>
                 <th scope="col">{{ 'cari.kiraSutun.durum' | transloco }}</th>
-                <th scope="col" class="num">{{ 'cari.kiraSutun.genelToplam' | transloco }}</th>
-                <th scope="col" class="num">{{ 'cari.kiraSutun.bakiye' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'cari.kiraSutun.genelToplam' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'cari.kiraSutun.bakiye' | transloco }}</th>
               </tr>
             </thead>
             <tbody>
               @for (r of d.kiralar; track r.id) {
                 <tr>
                   <td>
-                    <a class="bag" [routerLink]="['/kiralar', r.id]">{{ r.sozlesmeNo }}</a>
+                    <a [routerLink]="['/kiralar', r.id]">{{ r.sozlesmeNo }}</a>
                   </td>
                   <td>{{ r.basTar | tarih }}</td>
                   <td>{{ r.bitTar | tarih }}</td>
                   <td>{{ r.durum }}</td>
-                  <td class="num">{{ num(r.genelToplam) | para: currency(r.doviz) }}</td>
-                  <td class="num">{{ num(r.bakiye) | para: currency(r.doviz) }}</td>
+                  <td class="rc-num">{{ num(r.genelToplam) | para: currency(r.doviz) }}</td>
+                  <td class="rc-num">{{ num(r.bakiye) | para: currency(r.doviz) }}</td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6" class="aciklama">{{ 'cari.kayitYok' | transloco }}</td>
+                  <td colspan="6" class="rc-bos">{{ 'cari.kayitYok' | transloco }}</td>
                 </tr>
               }
             </tbody>
@@ -174,7 +193,7 @@
       @if (canSeeStatement()) {
         <section rcSekmePaneli="ekstre" [baslik]="'cari.detayBolum.ekstre' | transloco">
           <form
-            class="filtre"
+            class="form"
             [formGroup]="statementForm"
             [attr.aria-label]="'cari.ekstreFiltre' | transloco"
             (ngSubmit)="showStatement()"
@@ -187,7 +206,7 @@
                 <rc-tarih-secici formControlName="bit" />
               </rc-alan>
             </div>
-            <div class="filtre__eylemler">
+            <div class="rc-form-eylemler">
               <button type="submit" class="rc-dugme rc-dugme--kucuk">
                 {{ 'cari.ekstreGoster' | transloco }}
               </button>
@@ -204,20 +223,20 @@
               {{ store.statement.hata()?.detay }}
             </div>
           } @else if (store.statement.veri(); as s) {
-            <dl class="ozet-serit" [attr.aria-label]="'cari.ekstreOzet' | transloco">
-              <div>
+            <dl class="rc-izgara-4 ozet" [attr.aria-label]="'cari.ekstreOzet' | transloco">
+              <div class="rc-kart">
                 <dt>{{ 'cari.devir' | transloco }}</dt>
                 <dd>{{ num(s.devir) | para }}</dd>
               </div>
-              <div>
+              <div class="rc-kart">
                 <dt>{{ 'cari.toplamBorc' | transloco }}</dt>
                 <dd>{{ num(s.toplamBorc) | para }}</dd>
               </div>
-              <div>
+              <div class="rc-kart">
                 <dt>{{ 'cari.toplamAlacak' | transloco }}</dt>
                 <dd>{{ num(s.toplamAlacak) | para }}</dd>
               </div>
-              <div>
+              <div class="rc-kart">
                 <dt>{{ 'cari.bakiye' | transloco }}</dt>
                 <dd>{{ num(s.bakiye) | para }}</dd>
               </div>
@@ -225,18 +244,20 @@
             @if (!s.yuruyenBakiyeMi) {
               <p class="not">{{ 'cari.yuruyenYok' | transloco }}</p>
             }
-            <div class="tablo-kap">
-              <table class="duz-tablo">
+            <div class="rc-tablo-kap">
+              <table class="rc-duz-tablo">
                 <thead>
                   <tr>
                     <th scope="col">{{ 'cari.ekstreSutun.tarih' | transloco }}</th>
                     <th scope="col">{{ 'cari.ekstreSutun.aciklama' | transloco }}</th>
                     <th scope="col">{{ 'cari.ekstreSutun.kaynak' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'cari.ekstreSutun.tutar' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'cari.ekstreSutun.borc' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'cari.ekstreSutun.alacak' | transloco }}</th>
+                    <th scope="col" class="rc-num">{{ 'cari.ekstreSutun.tutar' | transloco }}</th>
+                    <th scope="col" class="rc-num">{{ 'cari.ekstreSutun.borc' | transloco }}</th>
+                    <th scope="col" class="rc-num">{{ 'cari.ekstreSutun.alacak' | transloco }}</th>
                     @if (s.yuruyenBakiyeMi) {
-                      <th scope="col" class="num">{{ 'cari.ekstreSutun.bakiye' | transloco }}</th>
+                      <th scope="col" class="rc-num">
+                        {{ 'cari.ekstreSutun.bakiye' | transloco }}
+                      </th>
                     }
                   </tr>
                 </thead>
@@ -246,16 +267,16 @@
                       <td>{{ l.tarih | tarih }}</td>
                       <td>{{ l.aciklama }}</td>
                       <td>{{ l.kaynak }}</td>
-                      <td class="num">{{ num(l.tutar) | para: currency(l.doviz) }}</td>
-                      <td class="num">{{ num(l.borc) | para }}</td>
-                      <td class="num">{{ num(l.alacak) | para }}</td>
+                      <td class="rc-num">{{ num(l.tutar) | para: currency(l.doviz) }}</td>
+                      <td class="rc-num">{{ num(l.borc) | para }}</td>
+                      <td class="rc-num">{{ num(l.alacak) | para }}</td>
                       @if (s.yuruyenBakiyeMi) {
-                        <td class="num">{{ num(l.yuruyen) | para }}</td>
+                        <td class="rc-num">{{ num(l.yuruyen) | para }}</td>
                       }
                     </tr>
                   } @empty {
                     <tr>
-                      <td colspan="7" class="aciklama">{{ 'cari.hareketYok' | transloco }}</td>
+                      <td colspan="7" class="rc-bos">{{ 'cari.hareketYok' | transloco }}</td>
                     </tr>
                   }
                 </tbody>
@@ -266,15 +287,11 @@
       }
 
       <div rcYanPanel class="yan">
-        <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" [routerLink]="['/cariler', id]">
+        <a class="rc-dugme" [routerLink]="['/cariler', id]">
           {{ 'cari.kartaGit' | transloco }}
         </a>
         @if (canCreateRental()) {
-          <a
-            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
-            routerLink="/kiralar/yeni"
-            [queryParams]="{ musteriId: id }"
-          >
+          <a class="rc-dugme" routerLink="/kiralar/yeni" [queryParams]="{ musteriId: id }">
             {{ 'cari.yeniKira' | transloco }}
           </a>
         }

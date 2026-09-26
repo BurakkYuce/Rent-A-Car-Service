@@ -57,7 +57,10 @@
       "yil": "Yıl {{ yil }}",
       "grupSayac": "{{ toplam }} araç · {{ musait }} müsait · {{ kirada }} kirada · {{ serviste }} serviste",
       "bos": "Kayıtlı araç yok.",
-      "tabloEtiketi": "Araçlar"
+      "tabloEtiketi": "Araçlar",
+      "tumAraclar": "Tüm araçlar",
+      "toplamArac": "Toplam {{ sayi }} araç",
+      "dolulukYuzde": "Doluluk (%)"
     },
     "filtre": {
       "baslik": "Araç süzgeçleri",

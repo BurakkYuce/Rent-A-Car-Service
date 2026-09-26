@@ -20,7 +20,6 @@ import { Alan } from '@shared/form/alan/alan';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
-import { Ikon } from '@shared/ikon/ikon';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
@@ -28,6 +27,9 @@ import { RegulationTabs } from '../regulation/regulation-tabs';
 import { dueColumns } from '../service-insurance-columns';
 import { DUE_BUCKETS, DUE_LIST, type DueBucket, type DueItem } from '../service-insurance-model';
 import { DueBoardStore } from '../service-insurance.store';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
  * Vade uyarıları (`/app/vade`) — Blazor `VadePanosu.razor`: sigorta / MTV / muayene bitiş takibi; kova özeti
@@ -38,10 +40,12 @@ import { DueBoardStore } from '../service-insurance.store';
   selector: 'rc-due-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    FilterPanelComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    Ikon,
     MetinGirdisi,
     RegulationTabs,
     Secim,
@@ -130,6 +134,12 @@ export class DueBoardPage {
         kova: v.kova ?? undefined,
       },
     });
+  }
+
+  /** Filtre panelinin "Temizle"si: form boşalır, liste süzgeçsiz yeniden istenir. */
+  protected clear(): void {
+    this.filterForm.reset({ plaka: null, tur: null, kova: null });
+    this.filter();
   }
 
   protected selectBucket(b: DueBucket | null): void {

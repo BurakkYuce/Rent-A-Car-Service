@@ -1,39 +1,42 @@
-<div class="sayfa">
+@let d0 = store.detail.tur() === 'hata' ? null : store.detail.veri();
+<rc-sayfa-bandi
+  ikon="cash"
+  [baslik]="
+    d0
+      ? ('aracFinans.kredi.detayBasligi' | transloco: { no: d0.no })
+      : ('aracFinans.kredi.detayBaslik' | transloco)
+  "
+  [pill]="d0 ? ('aracFinans.kredi.durumlar.' + d0.durum | transloco) : null"
+>
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/arac-kredi">
+      {{ 'aracFinans.kredi.listeyeDon' | transloco }}
+    </a>
+    @if (d0 && d0.yetkiler.iptal) {
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--tehlike"
+        [disabled]="cancelling()"
+        (click)="cancel()"
+      >
+        {{ 'aracFinans.kredi.iptal' | transloco }}
+      </button>
+    }
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   @switch (store.detail.tur()) {
     @case ('hata') {
-      <h1>{{ 'aracFinans.kredi.detayBaslik' | transloco }}</h1>
       <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
         {{ store.detail.hata()?.detay }}
         <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="reload()">
           {{ 'aracFinans.yenidenDene' | transloco }}
         </button>
       </div>
-      <a routerLink="/arac-kredi">{{ 'aracFinans.kredi.listeyeDon' | transloco }}</a>
     }
     @default {
       @if (store.detail.veri(); as d) {
-        <header class="ust">
-          <h1>
-            {{ 'aracFinans.kredi.detayBasligi' | transloco: { no: d.no } }}
-            <span class="rc-rozet">{{ 'aracFinans.kredi.durumlar.' + d.durum | transloco }}</span>
-          </h1>
-          <div class="ust__eylemler">
-            <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/arac-kredi">
-              {{ 'aracFinans.kredi.listeyeDon' | transloco }}
-            </a>
-            @if (d.yetkiler.iptal) {
-              <button
-                type="button"
-                class="rc-dugme rc-dugme--tehlike rc-dugme--kucuk"
-                [disabled]="cancelling()"
-                (click)="cancel()"
-              >
-                {{ 'aracFinans.kredi.iptal' | transloco }}
-              </button>
-            }
-          </div>
-        </header>
-        <p class="aciklama">{{ 'aracFinans.kredi.defterNotu' | transloco }}</p>
+        <p class="not">{{ 'aracFinans.kredi.defterNotu' | transloco }}</p>
 
         <dl class="kunye">
           <div>
@@ -52,7 +55,9 @@
             <dt>{{ 'aracFinans.kredi.arac' | transloco }}</dt>
             <dd>
               @if (d.vehicleId) {
-                <a [routerLink]="['/araclar', d.vehicleId, 'detay']">{{ d.plaka }}</a>
+                <a [routerLink]="['/araclar', d.vehicleId, 'detay']"
+                  ><rc-plaka [plaka]="d.plaka" boyut="sm"
+                /></a>
               } @else {
                 {{ 'aracFinans.kredi.filoGeneli' | transloco }}
               }
@@ -76,27 +81,27 @@
           </div>
         </dl>
         @if (d.aciklama) {
-          <p class="aciklama">{{ d.aciklama }}</p>
+          <p class="not">{{ d.aciklama }}</p>
         }
 
-        <dl class="ozet-serit" [attr.aria-label]="'aracFinans.kredi.ozet' | transloco">
-          <div>
+        <dl class="rc-izgara-4 ozet" [attr.aria-label]="'aracFinans.kredi.ozet' | transloco">
+          <div class="rc-kart">
             <dt>{{ 'aracFinans.kredi.toplamFaiz' | transloco }}</dt>
             <dd>{{ num(d.ozet.toplamFaiz) | para: d.doviz }}</dd>
           </div>
-          <div>
+          <div class="rc-kart">
             <dt>{{ 'aracFinans.kredi.toplamGeriOdeme' | transloco }}</dt>
             <dd>{{ num(d.ozet.toplamGeriOdeme) | para: d.doviz }}</dd>
           </div>
-          <div>
+          <div class="rc-kart">
             <dt>{{ 'aracFinans.kredi.aylikTaksit' | transloco }}</dt>
             <dd>{{ num(d.ozet.aylikTaksit) | para: d.doviz }}</dd>
           </div>
-          <div>
+          <div class="rc-kart">
             <dt>{{ 'aracFinans.kredi.odenenTutar' | transloco }}</dt>
             <dd>{{ num(d.ozet.odenenTutar) | para: d.doviz }}</dd>
           </div>
-          <div>
+          <div class="rc-kart">
             <dt>{{ 'aracFinans.kredi.kalanBakiye' | transloco }}</dt>
             <dd>{{ num(d.ozet.kalanBakiye) | para: d.doviz }}</dd>
           </div>
@@ -111,10 +116,10 @@
           />
         }
 
-        <section class="bolum" aria-labelledby="rc-kredi-plan">
+        <section class="rc-bolum" aria-labelledby="rc-kredi-plan">
           <h2 id="rc-kredi-plan">{{ 'aracFinans.kredi.plan' | transloco }}</h2>
-          <div class="tablo-kap">
-            <table class="duz-tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <caption class="rc-gorunmez">
                 {{
                   'aracFinans.kredi.plan' | transloco
@@ -122,18 +127,18 @@
               </caption>
               <thead>
                 <tr>
-                  <th scope="col" class="num">{{ 'aracFinans.kredi.sira' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'aracFinans.kredi.sira' | transloco }}</th>
                   <th scope="col">{{ 'aracFinans.kredi.vade' | transloco }}</th>
-                  <th scope="col" class="num">{{ 'aracFinans.kredi.tutar' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'aracFinans.kredi.tutar' | transloco }}</th>
                   <th scope="col">{{ 'aracFinans.kredi.odemeDurumu' | transloco }}</th>
                 </tr>
               </thead>
               <tbody>
                 @for (p of d.ozet.taksitler; track p.sira) {
                   <tr>
-                    <td class="num">{{ p.sira }}</td>
+                    <td class="rc-num">{{ p.sira }}</td>
                     <td>{{ p.vade | tarih }}</td>
-                    <td class="num">{{ num(p.tutar) | para: d.doviz }}</td>
+                    <td class="rc-num">{{ num(p.tutar) | para: d.doviz }}</td>
                     <td>
                       @if (p.odendi) {
                         <span class="rc-rozet rc-rozet--basari">{{
@@ -150,7 +155,6 @@
           </div>
         </section>
       } @else {
-        <h1>{{ 'aracFinans.kredi.detayBaslik' | transloco }}</h1>
         <div class="rc-iskelet" aria-busy="true"></div>
       }
     }

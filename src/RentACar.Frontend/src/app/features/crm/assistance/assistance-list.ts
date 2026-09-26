@@ -19,6 +19,8 @@ import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 import { Alan } from '@shared/form/alan/alan';
 import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
 import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
@@ -30,10 +32,10 @@ import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSaatSecici } from '@shared/form/tarih/tarih-saat-secici';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { assistanceColumns } from '../crm-columns';
 import {
   assistanceHiddenContact,
@@ -95,12 +97,14 @@ export function viewOf(f: {
   selector: 'rc-assistance-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FilterPanelComponent,
+    SayfaBandi,
+    PlateChipComponent,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
     AramaSecim,
     FormHatalari,
-    Ikon,
     MetinGirdisi,
     OnayKutusu,
     Secim,
