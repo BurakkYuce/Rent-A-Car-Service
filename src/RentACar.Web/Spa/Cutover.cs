@@ -4,14 +4,14 @@ using RentACar.Web.Identity;
 namespace RentACar.Web.Spa;
 
 /// <summary>
-/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F7.3 cari/CRM, F10.3 rapor, F9.3 servis/sigorta/fiyat, F8.3 finans, F11.3 tanım/sistem/web kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
+/// F4.6 ilk kesiş (+ F5.4 rezervasyon, F6.4 araç, F7.3 cari/CRM, F10.3 rapor, F9.3 servis/sigorta/fiyat, F8.3 finans, F11.3 tanım/sistem/web, F12 platform konsolu kesişi) — Blazor ↔ yeni arayüz (<c>/app</c>) geçiş kararları. SAF fonksiyonlar (Program.cs ve
 /// middleware test edilemez; karar burada, birim testiyle kilitli). Uygulayan: <see cref="CutoverMiddleware"/>.
 ///
-/// <para><b>Yönlendirme haritası</b> (<see cref="Map"/>): kesişi yapılmış fazların (F4, F5, F6, F7, F10, F9, F8, F11) envanterinde
+/// <para><b>Yönlendirme haritası</b> (<see cref="Map"/>): kesişi yapılmış fazların (F4, F5, F6, F7, F10, F9, F8, F11, F12) envanterinde
 /// silinecek Blazor <c>@page</c> ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
 /// (<c>/kiralar/{id}/pdf</c>, <c>/kiralar/hesapla</c>, <c>/kiralar/donus-hesapla</c>, <c>/kiralar/musait-arac</c>,
 /// <c>/kiralar/ornek-sozlesme/pdf</c>, export, makbuz…) YÖNLENMEZ: bir şablonla segment segment birebir
-/// eşleşmeyen yol haritada yoktur. Yalnız GET/HEAD, yalnız PİLOT kiracının oturumu (middleware karar verir).
+/// eşleşmeyen yol haritada yoktur. Yalnız GET/HEAD, yalnız PİLOT kiracının oturumu (middleware karar verir); F12 platform bloğu istisna (her oturum).
 /// Sorgu dizesi AYNEN taşınır (<c>?varac=…&amp;vfrom=…</c>); fragment tarayıcıda kalır (Location'a eklenmez —
 /// tarayıcı fragment'sız Location'da özgün fragment'ı korur). 302 (geçici; F13'te kalıcı olur).</para>
 ///
@@ -32,6 +32,18 @@ public static class Cutover
 
     /// <summary>Pilot kiracının varsayılan inişi.</summary>
     public const string SpaPanel = SpaHosting.Prefix + "/panel";
+
+    /// <summary>Blazor platform konsolunun kökü (F12 kesişinden sonra yalnız POST uçları ve dosya GET'leri).</summary>
+    public const string PlatformConsoleRoot = "/platform";
+
+    /// <summary>Yeni arayüz platform konsolunun kökü (kendi oturumu ve kabuğu).</summary>
+    public const string SpaPlatformRoot = SpaHosting.Prefix + "/platform";
+
+    /// <summary>Yeni arayüz platform girişi (anonim).</summary>
+    public const string SpaPlatformLogin = SpaPlatformRoot + "/giris";
+
+    /// <summary>Platform operatörünün varsayılan inişi (firma konsolu).</summary>
+    public const string SpaPlatformTenants = SpaPlatformRoot + "/kiracilar";
 
     /// <summary>SPA'nın dönüş adresi parametresi (Angular <c>queryParamMap</c> büyük/küçük harf duyarlı).</summary>
     public const string SpaReturnParameter = "returnUrl";
@@ -83,6 +95,12 @@ public static class Cutover
     /// şablon: ilan fiyatı, ilan özellikleri, blog önizlemesi). Dosya/görsel GET'leri (logo, ilan fotoğrafı, blog kapağı,
     /// doküman indirme), takvim beslemesi ve Blazor POST'ları segment sayısı ya da yöntem farkıyla dışarıda.
     /// <c>/tarife-aktar</c> F9'un sayfasıdır (F9 bloğunda).</item>
+    /// <item><b>F12</b> (F12 kesiş): 4 platform konsolu sayfası → <c>/app/platform/…</c> (<c>/platform/login</c> →
+    /// <c>giris</c>, <c>/platform/tenants</c> → <c>kiracilar</c>, detay <c>/platform/tenants/{id}</c> →
+    /// <c>kiracilar/{id}</c>, <c>/platform/belgeler</c> → <c>belgeler</c>). Platform bir kiracı değildir, pilot kavramı
+    /// yoktur: bu blok HER oturum için (oturumsuz dahil) yönlenir (<see cref="IsPlatformConsolePath"/>). Belge indirme
+    /// GET'leri ve Blazor POST'ları (<c>/platform/auth/…</c>, <c>/platform/tenants/create</c> …) segment ya da yöntem
+    /// farkıyla dışarıda.</item>
     /// </list>
     /// </summary>
     public static IReadOnlyList<Eslem> Map { get; } =
@@ -235,7 +253,19 @@ public static class Cutover
         new("/blog-yonetim", SpaHosting.Prefix + "/blog-yonetim"),
         new("/blog-yonetim/{id:guid}/onizleme", SpaHosting.Prefix + "/blog-yonetim/{id}/onizleme"),
         new("/gelen-talepler", SpaHosting.Prefix + "/gelen-talepler"),
+        // F12
+        new("/platform/login", SpaPlatformLogin),
+        new("/platform/tenants", SpaPlatformTenants),
+        new("/platform/tenants/{id:guid}", SpaPlatformTenants + "/{id}"),
+        new("/platform/belgeler", SpaPlatformRoot + "/belgeler"),
     ];
+
+    /// <summary>
+    /// Platform konsolu alanı (<c>/platform</c> ve altı; segment eşleşmesi — <c>/platformlar</c> DEĞİL). Haritanın F12
+    /// bloğu bu alandadır ve pilot/oturum koşulu olmadan yönlenir (<see cref="CutoverMiddleware"/>).
+    /// </summary>
+    public static bool IsPlatformConsolePath(PathString path)
+        => path.StartsWithSegments(PlatformConsoleRoot, StringComparison.OrdinalIgnoreCase);
 
     private const string GuidParameter = "{id:guid}";
 
