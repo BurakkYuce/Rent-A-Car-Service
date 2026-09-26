@@ -16,11 +16,11 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<Vehicle>> ListAsync(string? sube = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Vehicle>> ListAsync(string? branch = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Vehicles.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(sube)) q = q.Where(v => v.Sube == sube);
+        if (!string.IsNullOrWhiteSpace(branch)) q = q.Where(v => v.Sube == branch);
         return await q.OrderBy(v => v.Plaka).ToListAsync(ct);
     }
 
@@ -43,15 +43,15 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             // FAZ-11: aynı kutu, iki hedef. SIPP kodu kayıtta BÜYÜK HARF normalize edilir
             // (VehicleService.NormalizeSipp) → arama terimi de aynı normalizasyondan geçmeli,
             // yoksa listede gördüğü "cdmd"yi yazan kullanıcı boş sonuç alır.
-            var deger = filter.Grup.Trim();
+            var value = filter.Grup.Trim();
             q = filter.GrupTuru == VehicleGroupType.Sipp
-                ? q.Where(v => v.Sipp == deger.ToUpperInvariant())
+                ? q.Where(v => v.Sipp == value.ToUpperInvariant())
                 : q.Where(v => v.Grup == filter.Grup);
         }
         // FAZ-11 tarih aralığı — TİP seçilmemişse aralık HİÇ uygulanmaz (bkz. AracTarihTuru.Yok).
         if (filter.TarihTuru != VehicleDateType.Yok && (filter.TarihBas is not null || filter.TarihBit is not null))
         {
-            var bas = filter.TarihBas;
+            var start = filter.TarihBas;
             // Bitiş GÜN DAHİL: kullanıcı "31.12'ye kadar" derken 31.12'yi de kastediyor
             // (TCMB kur fazındaki "BitTar gün-dahil" dersiyle aynı). TarihBit sözleşme gereği
             // bitiş GÜNÜNÜN başlangıç anıdır → +1 gün ve STRICT "<" ile o günün tamamı kapsanır.
@@ -61,11 +61,11 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             q = filter.TarihTuru switch
             {
                 VehicleDateType.FiloGiris => q.Where(v => v.FiloGirisTarih != null
-                    && (bas == null || v.FiloGirisTarih >= bas) && (bit == null || v.FiloGirisTarih < bit)),
+                    && (start == null || v.FiloGirisTarih >= start) && (bit == null || v.FiloGirisTarih < bit)),
                 VehicleDateType.FiloCikis => q.Where(v => v.FiloCikisTarih != null
-                    && (bas == null || v.FiloCikisTarih >= bas) && (bit == null || v.FiloCikisTarih < bit)),
+                    && (start == null || v.FiloCikisTarih >= start) && (bit == null || v.FiloCikisTarih < bit)),
                 _ => q.Where(v => v.TescilTarihi != null
-                    && (bas == null || v.TescilTarihi >= bas) && (bit == null || v.TescilTarihi < bit)),
+                    && (start == null || v.TescilTarihi >= start) && (bit == null || v.TescilTarihi < bit)),
             };
         }
         // FAZ-11 araç sahibi: özel "girilmemiş" kovası ya da belirli bir sahip (bkz. AracSahiplik).
@@ -75,8 +75,8 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }
         else if (!string.IsNullOrWhiteSpace(filter.AracSahibi))
         {
-            var sahip = filter.AracSahibi.Trim();
-            q = q.Where(v => v.AracSahibi != null && v.AracSahibi.Trim() == sahip);
+            var owner = filter.AracSahibi.Trim();
+            q = q.Where(v => v.AracSahibi != null && v.AracSahibi.Trim() == owner);
         }
         if (!string.IsNullOrWhiteSpace(filter.Query))
         {
@@ -86,8 +86,8 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }
 
         var total = await q.CountAsync(ct);
-        var sirali = filter.Siralama is { } s ? s(q) : q.OrderBy(v => v.Plaka); // F6.1a: beyaz liste sıralama
-        var items = await sirali
+        var sorted = filter.Siralama is { } s ? s(q) : q.OrderBy(v => v.Plaka); // F6.1a: beyaz liste sıralama
+        var items = await sorted
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToListAsync(ct);
         return new PagedResult<Vehicle>(items, total, filter.Page, filter.PageSize);
@@ -121,12 +121,12 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         }
 
         var limit = Math.Clamp(filter?.EnFazla ?? 1000, 1, 10000);
-        var araclar = await q.OrderBy(v => v.Plaka).Take(limit).ToListAsync(ct);
-        if (araclar.Count == 0) return [];
-        var ids = araclar.Select(v => v.Id).ToList();
+        var vehicles = await q.OrderBy(v => v.Plaka).Take(limit).ToListAsync(ct);
+        if (vehicles.Count == 0) return [];
+        var ids = vehicles.Select(v => v.Id).ToList();
 
         // Son kredi bankası (araç başına EN YENİ kredi).
-        var krediler = (await db.AracKredileri.AsNoTracking()
+        var loans = (await db.AracKredileri.AsNoTracking()
                 .Where(k => k.VehicleId != null && ids.Contains(k.VehicleId.Value))
                 .Select(k => new { Arac = k.VehicleId!.Value, k.BankaAdi, k.CreatedAtUtc })
                 .ToListAsync(ct))
@@ -134,7 +134,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             .ToDictionary(g => g.Key, g => g.OrderByDescending(k => k.CreatedAtUtc).First().BankaAdi);
 
         // Muayene: araç başına EN GEÇ biten kayıt (yürürlükteki muayene).
-        var muayene = (await db.InspectionRecords.AsNoTracking()
+        var inspection = (await db.InspectionRecords.AsNoTracking()
                 .Where(m => ids.Contains(m.VehicleId))
                 .Select(m => new { m.VehicleId, m.Bitis }).ToListAsync(ct))
             .GroupBy(m => m.VehicleId)
@@ -142,16 +142,16 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
 
         // Sigorta: TİPE GÖRE ayrı — Kasko ve Trafik farklı poliçelerdir, tek "sigorta bitişi"
         // kolonu ikisini karıştırırdı.
-        var policeler = await db.InsurancePolicies.AsNoTracking()
+        var policies = await db.InsurancePolicies.AsNoTracking()
             .Where(p => ids.Contains(p.VehicleId))
             .Select(p => new { p.VehicleId, p.Tip, p.Bitis }).ToListAsync(ct);
-        var kasko = policeler.Where(p => p.Tip == InsuranceType.Kasko)
+        var casco = policies.Where(p => p.Tip == InsuranceType.Kasko)
             .GroupBy(p => p.VehicleId).ToDictionary(g => g.Key, g => g.Max(p => p.Bitis));
-        var trafik = policeler.Where(p => p.Tip == InsuranceType.Trafik)
+        var traffic = policies.Where(p => p.Tip == InsuranceType.Trafik)
             .GroupBy(p => p.VehicleId).ToDictionary(g => g.Key, g => g.Max(p => p.Bitis));
 
         // Satış (araç başına en yeni).
-        var satislar = (await db.VehicleSales.AsNoTracking()
+        var sales = (await db.VehicleSales.AsNoTracking()
                 .Where(x => ids.Contains(x.VehicleId))
                 .Select(x => new { x.VehicleId, x.HedefFiyat, x.IhaleTarihi, x.IhaleFirmasi, x.NoterSatisTarihi, x.Tarih })
                 .ToListAsync(ct))
@@ -159,7 +159,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Tarih).First());
 
         // AKTİF kira CANLI çözülür — araçta böyle bir kolon YOK (bkz. VehicleDetayRow özeti).
-        var aktifKiralar = (await (
+        var activeRentals = (await (
                 from r in db.Rentals.AsNoTracking().Where(r => r.Durum == RentalStatus.Kirada && ids.Contains(r.VehicleId))
                 join c in db.Customers.AsNoTracking() on r.MusteriId equals c.Id into cg
                 from c in cg.DefaultIfEmpty()
@@ -172,19 +172,19 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             .GroupBy(x => x.VehicleId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.BasTar).First());
 
-        return araclar.Select(v =>
+        return vehicles.Select(v =>
         {
-            satislar.TryGetValue(v.Id, out var sat);
-            aktifKiralar.TryGetValue(v.Id, out var kira);
+            sales.TryGetValue(v.Id, out var sell);
+            activeRentals.TryGetValue(v.Id, out var rental);
             return new VehicleDetayRow(
                 v,
-                krediler.GetValueOrDefault(v.Id),
-                muayene.TryGetValue(v.Id, out var mb) ? mb : null,
-                kasko.TryGetValue(v.Id, out var kb) ? kb : null,
-                trafik.TryGetValue(v.Id, out var tb) ? tb : null,
-                sat?.HedefFiyat, sat?.IhaleTarihi, sat?.IhaleFirmasi, sat?.NoterSatisTarihi,
-                string.IsNullOrWhiteSpace(kira?.Musteri) ? null : kira!.Musteri!.Trim(),
-                kira?.BitTar, kira?.SozlesmeNo, kira?.MusteriId);
+                loans.GetValueOrDefault(v.Id),
+                inspection.TryGetValue(v.Id, out var mb) ? mb : null,
+                casco.TryGetValue(v.Id, out var kb) ? kb : null,
+                traffic.TryGetValue(v.Id, out var tb) ? tb : null,
+                sell?.HedefFiyat, sell?.IhaleTarihi, sell?.IhaleFirmasi, sell?.NoterSatisTarihi,
+                string.IsNullOrWhiteSpace(rental?.Musteri) ? null : rental!.Musteri!.Trim(),
+                rental?.BitTar, rental?.SozlesmeNo, rental?.MusteriId);
         }).ToList();
     }
 
@@ -196,7 +196,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         var ids = vehicleIds.ToList();
 
         // Aktif kira sözleşme no (araç başına en geç başlayan açık kira).
-        var kiraNo = (await db.Rentals.AsNoTracking()
+        var rentalNo = (await db.Rentals.AsNoTracking()
                 .Where(r => r.Durum == RentalStatus.Kirada && ids.Contains(r.VehicleId))
                 .Select(r => new { r.VehicleId, r.SozlesmeNo, r.BasTar })
                 .ToListAsync(ct))
@@ -204,21 +204,21 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.BasTar).First().SozlesmeNo);
 
         // Bayraklar: "var mı" sorusu → Select yerine küme; EF bunları EXISTS'e indirger.
-        var servisli = (await db.ServiceRecords.AsNoTracking()
+        var withService = (await db.ServiceRecords.AsNoTracking()
             .Where(s => ids.Contains(s.VehicleId)
                      && (s.Durum == ServiceStatus.Acik || s.Durum == ServiceStatus.Serviste))
             .Select(s => s.VehicleId).Distinct().ToListAsync(ct)).ToHashSet();
-        var bafli = (await db.Baflar.AsNoTracking()
+        var withBaf = (await db.Baflar.AsNoTracking()
             .Where(b => ids.Contains(b.VehicleId) && b.Durum == BafStatus.Acik)
             .Select(b => b.VehicleId).Distinct().ToListAsync(ct)).ToHashSet();
         // Satış bayrağı İPTAL'i saymaz: iptal edilmiş satış girişimi aracı "satılıyor" göstermez.
-        var satisli = (await db.VehicleSales.AsNoTracking()
+        var sold = (await db.VehicleSales.AsNoTracking()
             .Where(x => ids.Contains(x.VehicleId) && x.Durum != SaleStatus.Iptal)
             .Select(x => x.VehicleId).Distinct().ToListAsync(ct)).ToHashSet();
 
         // Kasko: araç başına EN GEÇ biten poliçe (yürürlükteki). Trafik poliçesi AYRI bir üründür,
         // buraya karıştırılmaz (VehicleDetayRow'daki ayrımla aynı).
-        var kasko = (await db.InsurancePolicies.AsNoTracking()
+        var casco = (await db.InsurancePolicies.AsNoTracking()
                 .Where(p => ids.Contains(p.VehicleId) && p.Tip == InsuranceType.Kasko)
                 .Select(p => new { p.VehicleId, p.Bitis, p.Prim })
                 .ToListAsync(ct))
@@ -226,7 +226,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.Bitis).First());
 
         // Kredi: araç başına en yeni kayıt. "Son tarih" kolonu YOK → başlangıç + taksit sayısı (ay).
-        var kredi = (await db.AracKredileri.AsNoTracking()
+        var loan = (await db.AracKredileri.AsNoTracking()
                 .Where(k => k.VehicleId != null && ids.Contains(k.VehicleId.Value))
                 .Select(k => new { Arac = k.VehicleId!.Value, k.BankaAdi, k.BaslangicTarihi, k.TaksitSayisi, k.CreatedAtUtc })
                 .ToListAsync(ct))
@@ -235,13 +235,13 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
 
         return ids.ToDictionary(id => id, id =>
         {
-            kasko.TryGetValue(id, out var ks);
-            kredi.TryGetValue(id, out var kr);
+            casco.TryGetValue(id, out var ks);
+            loan.TryGetValue(id, out var kr);
             return new VehicleListeEk(
-                kiraNo.GetValueOrDefault(id),
-                servisli.Contains(id),
-                bafli.Contains(id),
-                satisli.Contains(id),
+                rentalNo.GetValueOrDefault(id),
+                withService.Contains(id),
+                withBaf.Contains(id),
+                sold.Contains(id),
                 ks?.Bitis,
                 ks?.Prim,
                 kr?.BankaAdi,
@@ -255,12 +255,12 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         return await db.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == id, ct);
     }
 
-    public async Task<bool> PlateExistsAsync(string plaka, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> PlateExistsAsync(string plate, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Vehicles
             .AsNoTracking()
-            .Where(v => v.Plaka == plaka && (excludeId == null || v.Id != excludeId))
+            .Where(v => v.Plaka == plate && (excludeId == null || v.Id != excludeId))
             .AnyAsync(ct);
     }
 
@@ -296,26 +296,26 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         return true;
     }
 
-    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
-    public async Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<Vehicle> apply, CancellationToken ct = default)
+    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<see cref="RowVersionSql"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<Vehicle> apply, CancellationToken ct = default)
     {
-        string? plaka = null;
+        string? plate = null;
         try
         {
-            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Araclar, id, beklenenSurum,
+            return await RowVersionSql.UpdateAsync(_factory, RowVersionSql.Vehicles, id, expectedVersion,
                 (db, k, c) => db.Vehicles.FirstOrDefaultAsync(v => v.Id == k, c),
-                v => { apply(v); plaka = v.Plaka; }, ct);
+                v => { apply(v); plate = v.Plaka; }, ct);
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
-            throw new DuplicatePlakaException(plaka ?? string.Empty);
+            throw new DuplicatePlakaException(plate ?? string.Empty);
         }
     }
 
     public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.Araclar, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.Vehicles, id, ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
@@ -336,7 +336,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
         return true;
     }
 
-    public async Task<bool> AddManualKmAsync(Guid id, int km, DateTimeOffset tarih, CancellationToken ct = default)
+    public async Task<bool> AddManualKmAsync(Guid id, int km, DateTimeOffset date, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // deadlock/serialization çakışmasında baştan dene
         {
@@ -354,7 +354,7 @@ public sealed class VehicleRepository(IDbContextFactory<AppDbContext> factory) :
             vehicle.Km = km;
             vehicle.UpdatedAtUtc = DateTimeOffset.UtcNow;
             db.KmLoglari.Add(new VehicleKmLog
-            { VehicleId = id, Tarih = tarih, Km = km, Kaynak = KmLogSource.Manuel });
+            { VehicleId = id, Tarih = date, Km = km, Kaynak = KmLogSource.Manuel });
 
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);

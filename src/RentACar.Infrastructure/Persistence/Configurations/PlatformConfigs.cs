@@ -28,7 +28,7 @@ internal sealed class TenantConfig : IEntityTypeConfiguration<Tenant>
 }
 
 // ---- KullaniciIzinIstisna (platform deseni — Users gibi: login bootstrap'ta GUC'suz okunur) ----
-internal sealed class KullaniciIzinIstisnaConfig : IEntityTypeConfiguration<KullaniciIzinIstisna>
+internal sealed class UserPermissionExceptionConfig : IEntityTypeConfiguration<KullaniciIzinIstisna>
 {
     public void Configure(EntityTypeBuilder<KullaniciIzinIstisna> e)
     {
@@ -91,7 +91,7 @@ internal sealed class TenantDomainConfig : IEntityTypeConfiguration<TenantDomain
 // ---- PlatformBelge / PlatformBelgeHedef (PR-B — platformdan tenant'a PDF dağıtımı) ----
 // PLATFORM tabloları: ITenantOwned DEĞİL → merkezi tenant-filtre döngüsü dokunmaz, RLS de yok.
 // İzolasyon uygulama katmanında (PlatformBelgeRepository.Gorunur — dört koşul).
-internal sealed class PlatformBelgeConfig : IEntityTypeConfiguration<PlatformBelge>
+internal sealed class PlatformDocumentConfig : IEntityTypeConfiguration<PlatformBelge>
 {
     public void Configure(EntityTypeBuilder<PlatformBelge> e)
     {
@@ -108,7 +108,7 @@ internal sealed class PlatformBelgeConfig : IEntityTypeConfiguration<PlatformBel
     }
 }
 
-internal sealed class PlatformBelgeHedefConfig : IEntityTypeConfiguration<PlatformBelgeHedef>
+internal sealed class PlatformDocumentTargetConfig : IEntityTypeConfiguration<PlatformBelgeHedef>
 {
     public void Configure(EntityTypeBuilder<PlatformBelgeHedef> e)
     {
@@ -127,7 +127,7 @@ internal sealed class PlatformBelgeHedefConfig : IEntityTypeConfiguration<Platfo
 // ---- PR-C: sozlesme paylasim linki (PLATFORM tablosu — RLS YOK, kisisel veri YOK) ----
 // Neden platform tablosu: link ANONIM aciliyor, istekte cookie/GUC yok. Tenant-owned + FORCE RLS
 // olsaydi token sorgusu sessizce 0 satir donerdi (Users.CalendarToken ile ayni zorunluluk).
-internal sealed class PaylasimLinkConfig : IEntityTypeConfiguration<PaylasimLink>
+internal sealed class ShareLinkConfig : IEntityTypeConfiguration<PaylasimLink>
 {
     public void Configure(EntityTypeBuilder<PaylasimLink> e)
     {

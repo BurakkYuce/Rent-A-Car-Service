@@ -246,7 +246,7 @@ internal sealed class ExpenseConfig : IEntityTypeConfiguration<Expense>
 }
 
 // ---- DonemKilidi / Dönem kapanışı (tenant-owned; tenant başına TEK satır, roadmap D2) ----
-internal sealed class DonemKilidiConfig : IEntityTypeConfiguration<DonemKilidi>
+internal sealed class PeriodLockConfig : IEntityTypeConfiguration<DonemKilidi>
 {
     public void Configure(EntityTypeBuilder<DonemKilidi> e)
     {
@@ -258,7 +258,7 @@ internal sealed class DonemKilidiConfig : IEntityTypeConfiguration<DonemKilidi>
 }
 
 // ---- GelenEFatura / Gelen (satın-alma) e-Fatura triage kutusu (tenant-owned; deftere postalamaz) ----
-internal sealed class GelenEFaturaConfig : IEntityTypeConfiguration<GelenEFatura>
+internal sealed class IncomingEInvoiceConfig : IEntityTypeConfiguration<GelenEFatura>
 {
     public void Configure(EntityTypeBuilder<GelenEFatura> e)
     {
@@ -290,7 +290,7 @@ internal sealed class GelenEFaturaConfig : IEntityTypeConfiguration<GelenEFatura
 }
 
 // ---- DepozitoIrat (FAZ 1.2; mali iz — immutability trigger migration'da) ----
-internal sealed class DepozitoIratConfig : IEntityTypeConfiguration<DepozitoIrat>
+internal sealed class DepositForfeitConfig : IEntityTypeConfiguration<DepozitoIrat>
 {
     public void Configure(EntityTypeBuilder<DepozitoIrat> e)
     {
@@ -305,7 +305,7 @@ internal sealed class DepozitoIratConfig : IEntityTypeConfiguration<DepozitoIrat
 }
 
 // ---- DisHizmetAlimi (FAZ 4.3 — B2B dış hizmet; MALİ İZ: değişmez, düzeltme ters kayıtla) ----
-internal sealed class DisHizmetAlimiConfig : IEntityTypeConfiguration<DisHizmetAlimi>
+internal sealed class OutsourcedServiceConfig : IEntityTypeConfiguration<DisHizmetAlimi>
 {
     public void Configure(EntityTypeBuilder<DisHizmetAlimi> e)
     {
@@ -334,7 +334,7 @@ internal sealed class DisHizmetAlimiConfig : IEntityTypeConfiguration<DisHizmetA
 }
 
 // ---- CariVirmanBilgi (FAZ-59 — virman künyesi; PARA TAŞIMAZ, mali belge DEĞİL) ----
-internal sealed class CariVirmanBilgiConfig : IEntityTypeConfiguration<CariVirmanBilgi>
+internal sealed class AccountTransferInfoConfig : IEntityTypeConfiguration<CariVirmanBilgi>
 {
     public void Configure(EntityTypeBuilder<CariVirmanBilgi> e)
     {
@@ -352,7 +352,7 @@ internal sealed class CariVirmanBilgiConfig : IEntityTypeConfiguration<CariVirma
 }
 
 // ---- GiderOdeme (FAZ-64 — gider kısmi ödeme takibi; append-only, DEFTERE YAZMAZ) ----
-internal sealed class GiderOdemeConfig : IEntityTypeConfiguration<GiderOdeme>
+internal sealed class ExpensePaymentConfig : IEntityTypeConfiguration<GiderOdeme>
 {
     public void Configure(EntityTypeBuilder<GiderOdeme> e)
     {
@@ -375,7 +375,7 @@ internal sealed class GiderOdemeConfig : IEntityTypeConfiguration<GiderOdeme>
 }
 
 // ---- KasaVirmanBilgi (FAZ-50 — kasa/banka virman künyesi; PARA TAŞIMAZ, mali belge DEĞİL) ----
-internal sealed class KasaVirmanBilgiConfig : IEntityTypeConfiguration<KasaVirmanBilgi>
+internal sealed class CashTransferInfoConfig : IEntityTypeConfiguration<KasaVirmanBilgi>
 {
     public void Configure(EntityTypeBuilder<KasaVirmanBilgi> e)
     {
@@ -395,7 +395,7 @@ internal sealed class KasaVirmanBilgiConfig : IEntityTypeConfiguration<KasaVirma
 }
 
 // ---- KapatmaTahsis (FAZ-29 — hangi tahsilat hangi borç kalemini kapattı; PARA POSTLAMAZ) ----
-internal sealed class KapatmaTahsisConfig : IEntityTypeConfiguration<KapatmaTahsis>
+internal sealed class SettlementAllocationConfig : IEntityTypeConfiguration<KapatmaTahsis>
 {
     public void Configure(EntityTypeBuilder<KapatmaTahsis> e)
     {

@@ -32,10 +32,10 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
         return await db.VehicleGroups.AsNoTracking().FirstOrDefaultAsync(g => g.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.VehicleGroups.AsNoTracking()
             .Where(g => g.Kod == k && (excludeId == null || g.Id != excludeId))
             .AnyAsync(ct);
@@ -44,14 +44,14 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
     /// <summary>Türkçe katlama (İ/I/ı/i) bir .NET comparer'dır, SQL'e çevrilemez → adaylar (grup sayısı
     /// azdır) belleğe çekilip <see cref="TurkishText"/> ile karşılaştırılır. Ordinal `==` kullanmak
     /// "EKONOMİ" ile "ekonomi"yi FARKLI sayıp çakışmayı sessizce geçirirdi.</summary>
-    public async Task<bool> NameExistsAsync(string ad, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> NameExistsAsync(string name, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var adaylar = await db.VehicleGroups.AsNoTracking()
+        var candidates = await db.VehicleGroups.AsNoTracking()
             .Where(g => excludeId == null || g.Id != excludeId)
             .Select(g => g.Ad)
             .ToListAsync(ct);
-        return adaylar.Any(x => TurkishText.EqualsIgnoreTurkishCase(x, ad));
+        return candidates.Any(x => TurkishText.EqualsIgnoreTurkishCase(x, name));
     }
 
     public async Task CreateAsync(VehicleGroup group, CancellationToken ct = default)
@@ -74,15 +74,15 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
         var group = await db.VehicleGroups.FirstOrDefaultAsync(g => g.Id == id, ct);
         if (group is null) return new GrupGuncellemeSonuc(false, 0);
 
-        var eskiAd = group.Ad;
+        var oldName = group.Ad;
         apply(group);
 
         // Rename cascade — AYNI SaveChanges. Ad değişip araçlar taşınmazsa filo sessizce eşleşmez
         // hale gelir (vitrin/arama boşalır). Grup pasifleştirilerek yeniden adlandırılırsa araçlar
         // yine taşınır ama vitrinden düşer: İSTENEN davranış (pasif grup yayınlanmaz).
-        var tasinan = TurkishText.EqualsIgnoreTurkishCase(eskiAd, group.Ad)
+        var moved = TurkishText.EqualsIgnoreTurkishCase(oldName, group.Ad)
             ? 0
-            : await TasiAsync(db, grup => TurkishText.EqualsIgnoreTurkishCase(grup, eskiAd), group.Ad, ct);
+            : await MoveAsync(db, groupName => TurkishText.EqualsIgnoreTurkishCase(groupName, oldName), group.Ad, ct);
 
         try
         {
@@ -92,7 +92,7 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
         {
             throw new ValidationException($"'{group.Kod}' kodlu araç grubu zaten var.");
         }
-        return new GrupGuncellemeSonuc(true, tasinan);
+        return new GrupGuncellemeSonuc(true, moved);
     }
 
     /// <summary>
@@ -108,9 +108,9 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
             {
                 await using var db = await _factory.CreateDbContextAsync(ct);
                 await using var tx = await db.Database.BeginTransactionAsync(ct);
-                await SatirSurumu.KilitleAsync(db, SatirSurumu.VehicleGroups, id, ct);
+                await RowVersionSql.LockAsync(db, RowVersionSql.VehicleGroups, id, ct);
                 if (expectedVersion is not null
-                    && await SatirSurumu.OkuAsync(db, SatirSurumu.VehicleGroups, id, ct) is { } current
+                    && await RowVersionSql.ReadAsync(db, RowVersionSql.VehicleGroups, id, ct) is { } current
                     && !string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
                     throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
 
@@ -121,7 +121,7 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
                 code = group.Kod;
                 var moved = TurkishText.EqualsIgnoreTurkishCase(oldName, group.Ad)
                     ? 0
-                    : await TasiAsync(db, grup => TurkishText.EqualsIgnoreTurkishCase(grup, oldName), group.Ad, ct);
+                    : await MoveAsync(db, groupName => TurkishText.EqualsIgnoreTurkishCase(groupName, oldName), group.Ad, ct);
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
                 return new GrupGuncellemeSonuc(true, moved);
@@ -136,15 +136,15 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
     public async Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.VehicleGroups, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.VehicleGroups, id, ct);
     }
 
-    public async Task<int> MoveGroupValueAsync(string? kaynakDeger, bool bosOlanlar, string hedefAd, CancellationToken ct = default)
+    public async Task<int> MoveGroupValueAsync(string? sourceValue, bool emptyOnes, string targetName, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var n = bosOlanlar
-            ? await TasiAsync(db, string.IsNullOrWhiteSpace, hedefAd, ct)
-            : await TasiAsync(db, grup => TurkishText.EqualsIgnoreTurkishCase(grup, kaynakDeger), hedefAd, ct);
+        var n = emptyOnes
+            ? await MoveAsync(db, string.IsNullOrWhiteSpace, targetName, ct)
+            : await MoveAsync(db, group => TurkishText.EqualsIgnoreTurkishCase(group, sourceValue), targetName, ct);
         if (n > 0) await db.SaveChangesAsync(ct);
         return n;
     }
@@ -155,14 +155,14 @@ public sealed class VehicleGroupRepository(IDbContextFactory<AppDbContext> facto
     /// <c>UpdatedAtUtc</c> yazılmaz. Filo tenant başına onlarca satırdır; adaylar belleğe çekilip
     /// TRACKING ile güncellenir. <b>SaveChanges çağırana aittir</b> — rename bunu grup güncellemesiyle
     /// aynı transaction'da yapar.</summary>
-    private static async Task<int> TasiAsync(
-        AppDbContext db, Func<string?, bool> eslesir, string hedefAd, CancellationToken ct)
+    private static async Task<int> MoveAsync(
+        AppDbContext db, Func<string?, bool> matches, string targetName, CancellationToken ct)
     {
-        var adaylar = await db.Vehicles.ToListAsync(ct);
+        var candidates = await db.Vehicles.ToListAsync(ct);
         var n = 0;
-        foreach (var v in adaylar.Where(v => eslesir(v.Grup)))
+        foreach (var v in candidates.Where(v => matches(v.Grup)))
         {
-            v.Grup = hedefAd;
+            v.Grup = targetName;
             v.UpdatedAtUtc = DateTimeOffset.UtcNow;
             n++;
         }

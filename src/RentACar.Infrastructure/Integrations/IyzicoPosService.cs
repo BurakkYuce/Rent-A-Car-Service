@@ -42,70 +42,70 @@ public sealed class IyzicoAyar
 /// <para>Hata/timeout (20 sn) → <c>Ok=false</c> + Türkçe cümle; istisna YUKARI SIZMAZ.</para>
 /// </summary>
 public sealed class IyzicoPosService(
-    IHttpClientFactory httpFactory, IyzicoAyar ayar, ILogger<IyzicoPosService> log) : IPosService
+    IHttpClientFactory httpFactory, IyzicoAyar setting, ILogger<IyzicoPosService> log) : IPosService
 {
-    private const string UcPreauth = "/payment/iyzipos/checkoutform/initialize/preauth/ecom";
-    private const string UcAuth = "/payment/iyzipos/checkoutform/initialize/auth/ecom";
-    private const string UcSonuc = "/payment/iyzipos/checkoutform/auth/ecom/detail";
-    private const string UcKapat = "/payment/postauth";
-    private const string UcIptal = "/payment/cancel";
-    private const string UcIade = "/payment/refund";
+    private const string EndpointPreauth = "/payment/iyzipos/checkoutform/initialize/preauth/ecom";
+    private const string EndpointAuth = "/payment/iyzipos/checkoutform/initialize/auth/ecom";
+    private const string EndpointResult = "/payment/iyzipos/checkoutform/auth/ecom/detail";
+    private const string EndpointClose = "/payment/postauth";
+    private const string EndpointCancel = "/payment/cancel";
+    private const string EndpointRefund = "/payment/refund";
 
-    public async Task<PosBaslatSonuc> StartAsync(PosOdemeIstegi istek, CancellationToken ct = default)
+    public async Task<PosBaslatSonuc> StartAsync(PosOdemeIstegi request, CancellationToken ct = default)
     {
-        if (!ayar.Yapilandirildi)
+        if (!setting.Yapilandirildi)
             return new PosBaslatSonuc(false, null, null, "Ödeme sağlayıcısı yapılandırılmadı.");
-        if (istek.Tutar <= 0)
+        if (request.Tutar <= 0)
             return new PosBaslatSonuc(false, null, null, "Ödeme tutarı sıfırdan büyük olmalıdır.");
 
-        var tutar = Tutar(istek.Tutar);
-        var govde = new Dictionary<string, object?>
+        var amount = Amount(request.Tutar);
+        var body = new Dictionary<string, object?>
         {
             ["locale"] = "tr",
-            ["conversationId"] = istek.Referans,
-            ["price"] = tutar,
+            ["conversationId"] = request.Referans,
+            ["price"] = amount,
             // paidPrice = price: komisyon/vade farkı BİNDİRİLMEZ. Farklı olsaydı müşteriden çekilen
             // tutarla sözleşmedeki tutar ayrışır, mutabakat bozulurdu.
-            ["paidPrice"] = tutar,
-            ["currency"] = istek.ParaBirimi,
-            ["basketId"] = istek.Referans,
+            ["paidPrice"] = amount,
+            ["currency"] = request.ParaBirimi,
+            ["basketId"] = request.Referans,
             ["paymentGroup"] = "PRODUCT",
-            ["callbackUrl"] = istek.DonusUrl,
+            ["callbackUrl"] = request.DonusUrl,
             ["enabledInstallments"] = new[] { 1 }, // taksit KAPALI: kira bedeli taksitlendirilmiyor
             ["buyer"] = new Dictionary<string, object?>
             {
-                ["id"] = istek.Alici.Id,
-                ["name"] = istek.Alici.Ad,
-                ["surname"] = istek.Alici.Soyad,
-                ["gsmNumber"] = istek.Alici.Telefon,
-                ["email"] = istek.Alici.Eposta,
-                ["identityNumber"] = istek.Alici.KimlikNo,
-                ["registrationAddress"] = istek.Alici.Adres,
-                ["ip"] = istek.Alici.Ip,
-                ["city"] = istek.Alici.Sehir,
-                ["country"] = istek.Alici.Ulke,
+                ["id"] = request.Alici.Id,
+                ["name"] = request.Alici.Ad,
+                ["surname"] = request.Alici.Soyad,
+                ["gsmNumber"] = request.Alici.Telefon,
+                ["email"] = request.Alici.Eposta,
+                ["identityNumber"] = request.Alici.KimlikNo,
+                ["registrationAddress"] = request.Alici.Adres,
+                ["ip"] = request.Alici.Ip,
+                ["city"] = request.Alici.Sehir,
+                ["country"] = request.Alici.Ulke,
             },
-            ["shippingAddress"] = Adres(istek.Alici),
-            ["billingAddress"] = Adres(istek.Alici),
+            ["shippingAddress"] = Address(request.Alici),
+            ["billingAddress"] = Address(request.Alici),
             // Sepet toplamı price'a EŞİT olmak zorunda (sağlayıcı doğrular) → tek kalem.
             ["basketItems"] = new[]
             {
                 new Dictionary<string, object?>
                 {
-                    ["id"] = istek.Referans,
-                    ["name"] = Kisalt(istek.Aciklama, 100),
+                    ["id"] = request.Referans,
+                    ["name"] = Shorten(request.Aciklama, 100),
                     ["category1"] = "Arac Kiralama",
                     ["itemType"] = "VIRTUAL", // araç kiralama fiziksel teslimat değil
-                    ["price"] = tutar,
+                    ["price"] = amount,
                 },
             },
         };
 
-        var (ok, kok, hata) = await IstekAsync(istek.Provizyon ? UcPreauth : UcAuth, govde, ct);
-        if (!ok) return new PosBaslatSonuc(false, null, null, hata);
+        var (ok, root, error) = await RequestAsync(request.Provizyon ? EndpointPreauth : EndpointAuth, body, ct);
+        if (!ok) return new PosBaslatSonuc(false, null, null, error);
 
-        var token = Metin(kok, "token");
-        var url = Metin(kok, "paymentPageUrl");
+        var token = Text(root, "token");
+        var url = Text(root, "paymentPageUrl");
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(url))
             return new PosBaslatSonuc(false, null, null, "Sağlayıcı ödeme sayfası bilgisi döndürmedi.");
         return new PosBaslatSonuc(true, token, url, null);
@@ -113,111 +113,111 @@ public sealed class IyzicoPosService(
 
     public async Task<PosDurumSonuc> ResultAsync(string token, CancellationToken ct = default)
     {
-        if (!ayar.Yapilandirildi)
+        if (!setting.Yapilandirildi)
             return new PosDurumSonuc(false, null, null, null, null, null, null, "Ödeme sağlayıcısı yapılandırılmadı.");
         if (string.IsNullOrWhiteSpace(token))
             return new PosDurumSonuc(false, null, null, null, null, null, null, "Ödeme jetonu boş.");
 
-        var (ok, kok, hata) = await IstekAsync(UcSonuc,
+        var (ok, root, error) = await RequestAsync(EndpointResult,
             new Dictionary<string, object?> { ["locale"] = "tr", ["conversationId"] = "sonuc", ["token"] = token }, ct);
-        if (!ok) return new PosDurumSonuc(false, null, null, null, null, null, null, hata);
+        if (!ok) return new PosDurumSonuc(false, null, null, null, null, null, null, error);
 
         // paymentStatus SUCCESS değilse ödeme TAMAMLANMAMIŞTIR (kart reddi, 3DS başarısız, vazgeçme).
         // status=success yalnız "sorgu başarılı" demektir — ikisini karıştırmak, ödenmemiş bir
         // kiralamayı ödenmiş saymak olurdu.
-        var odemeDurum = Metin(kok, "paymentStatus");
-        var basarili = string.Equals(odemeDurum, "SUCCESS", StringComparison.OrdinalIgnoreCase);
-        var odemeId = Metin(kok, "paymentId");
-        var islemId = IlkIslemId(kok);
-        var tutar = Ondalik(kok, "paidPrice");
-        var kart = KartOzet(kok);
-        var referans = Metin(kok, "conversationId");
+        var paymentStatus = Text(root, "paymentStatus");
+        var successful = string.Equals(paymentStatus, "SUCCESS", StringComparison.OrdinalIgnoreCase);
+        var paymentId = Text(root, "paymentId");
+        var transactionId = FirstTransactionId(root);
+        var amount = ReadDecimal(root, "paidPrice");
+        var card = CardSummary(root);
+        var reference = Text(root, "conversationId");
 
-        if (!basarili)
+        if (!successful)
         {
-            var mesaj = Metin(kok, "errorMessage")
-                        ?? $"Ödeme tamamlanmadı (durum: {odemeDurum ?? "bilinmiyor"}).";
-            return new PosDurumSonuc(false, odemeId, islemId, odemeDurum, tutar, kart, referans, mesaj);
+            var message = Text(root, "errorMessage")
+                        ?? $"Ödeme tamamlanmadı (durum: {paymentStatus ?? "bilinmiyor"}).";
+            return new PosDurumSonuc(false, paymentId, transactionId, paymentStatus, amount, card, reference, message);
         }
-        return new PosDurumSonuc(true, odemeId, islemId, odemeDurum, tutar, kart, referans, null);
+        return new PosDurumSonuc(true, paymentId, transactionId, paymentStatus, amount, card, reference, null);
     }
 
-    public Task<PosResult> CloseAsync(string odemeId, decimal tutar, string ip, CancellationToken ct = default)
-        => BasitAsync(UcKapat, new Dictionary<string, object?>
+    public Task<PosResult> CloseAsync(string paymentId, decimal amount, string ip, CancellationToken ct = default)
+        => SimpleAsync(EndpointClose, new Dictionary<string, object?>
         {
             ["locale"] = "tr",
-            ["conversationId"] = "kapat-" + odemeId,
-            ["paymentId"] = odemeId,
-            ["paidPrice"] = Tutar(tutar),
+            ["conversationId"] = "kapat-" + paymentId,
+            ["paymentId"] = paymentId,
+            ["paidPrice"] = Amount(amount),
             ["ip"] = ip,
         }, "paymentId", ct);
 
-    public Task<PosResult> CancelAsync(string odemeId, string ip, CancellationToken ct = default)
-        => BasitAsync(UcIptal, new Dictionary<string, object?>
+    public Task<PosResult> CancelAsync(string paymentId, string ip, CancellationToken ct = default)
+        => SimpleAsync(EndpointCancel, new Dictionary<string, object?>
         {
             ["locale"] = "tr",
-            ["conversationId"] = "iptal-" + odemeId,
-            ["paymentId"] = odemeId,
+            ["conversationId"] = "iptal-" + paymentId,
+            ["paymentId"] = paymentId,
             ["ip"] = ip,
         }, "paymentId", ct);
 
-    public Task<PosResult> RefundAsync(string islemId, decimal tutar, string ip, CancellationToken ct = default)
-        => BasitAsync(UcIade, new Dictionary<string, object?>
+    public Task<PosResult> RefundAsync(string transactionId, decimal amount, string ip, CancellationToken ct = default)
+        => SimpleAsync(EndpointRefund, new Dictionary<string, object?>
         {
             ["locale"] = "tr",
-            ["conversationId"] = "iade-" + islemId,
-            ["paymentTransactionId"] = islemId,
-            ["price"] = Tutar(tutar),
+            ["conversationId"] = "iade-" + transactionId,
+            ["paymentTransactionId"] = transactionId,
+            ["price"] = Amount(amount),
             ["ip"] = ip,
         }, "paymentId", ct);
 
     // ---- ortak ----
 
-    private async Task<PosResult> BasitAsync(
-        string uri, Dictionary<string, object?> govde, string refAlan, CancellationToken ct)
+    private async Task<PosResult> SimpleAsync(
+        string uri, Dictionary<string, object?> body, string refAlan, CancellationToken ct)
     {
-        if (!ayar.Yapilandirildi) return new PosResult(false, null, "Ödeme sağlayıcısı yapılandırılmadı.");
-        var (ok, kok, hata) = await IstekAsync(uri, govde, ct);
-        return ok ? new PosResult(true, Metin(kok, refAlan), null) : new PosResult(false, null, hata);
+        if (!setting.Yapilandirildi) return new PosResult(false, null, "Ödeme sağlayıcısı yapılandırılmadı.");
+        var (ok, root, error) = await RequestAsync(uri, body, ct);
+        return ok ? new PosResult(true, Text(root, refAlan), null) : new PosResult(false, null, error);
     }
 
     /// <summary>İsteği gönderir; <c>status=="success"</c> değilse sağlayıcının Türkçe hatasını taşır.</summary>
-    private async Task<(bool Ok, JsonElement Kok, string? Hata)> IstekAsync(
-        string uri, Dictionary<string, object?> govde, CancellationToken ct)
+    private async Task<(bool Ok, JsonElement Kok, string? Hata)> RequestAsync(
+        string uri, Dictionary<string, object?> body, CancellationToken ct)
     {
         // Gövde TEK KEZ serileştirilir: imza ile gönderilen metin BİREBİR aynı olmak zorunda.
-        var metin = JsonSerializer.Serialize(govde);
-        var (auth, rnd) = IyzicoImza.Uret(ayar.ApiKey, ayar.SecretKey, uri, metin);
+        var text = JsonSerializer.Serialize(body);
+        var (auth, rnd) = IyzicoSignature.Generate(setting.ApiKey, setting.SecretKey, uri, text);
 
         try
         {
             var http = httpFactory.CreateClient();
             http.Timeout = TimeSpan.FromSeconds(20);
-            using var req = new HttpRequestMessage(HttpMethod.Post, ayar.BaseUrl.TrimEnd('/') + uri)
+            using var req = new HttpRequestMessage(HttpMethod.Post, setting.BaseUrl.TrimEnd('/') + uri)
             {
-                Content = new StringContent(metin, Encoding.UTF8, "application/json"),
+                Content = new StringContent(text, Encoding.UTF8, "application/json"),
             };
             req.Headers.TryAddWithoutValidation("Authorization", auth);
             req.Headers.TryAddWithoutValidation("x-iyzi-rnd", rnd);
 
             var resp = await http.SendAsync(req, ct);
-            var govdeMetni = await resp.Content.ReadAsStringAsync(ct);
+            var bodyText = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode)
             {
-                log.LogWarning("iyzico {Uri} HTTP {Kod}: {Govde}", uri, (int)resp.StatusCode, govdeMetni);
+                log.LogWarning("iyzico {Uri} HTTP {Kod}: {Govde}", uri, (int)resp.StatusCode, bodyText);
                 return (false, default, $"Ödeme sağlayıcısına ulaşılamadı (HTTP {(int)resp.StatusCode}).");
             }
 
-            using var doc = JsonDocument.Parse(govdeMetni);
-            var kok = doc.RootElement.Clone(); // doc dispose olduktan sonra da okunabilsin
-            if (!string.Equals(Metin(kok, "status"), "success", StringComparison.OrdinalIgnoreCase))
+            using var doc = JsonDocument.Parse(bodyText);
+            var root = doc.RootElement.Clone(); // doc dispose olduktan sonra da okunabilsin
+            if (!string.Equals(Text(root, "status"), "success", StringComparison.OrdinalIgnoreCase))
             {
-                var kod = Metin(kok, "errorCode");
-                var mesaj = Metin(kok, "errorMessage") ?? "Ödeme sağlayıcısı isteği reddetti.";
-                log.LogWarning("iyzico {Uri} reddetti: {Kod} {Mesaj}", uri, kod, mesaj);
-                return (false, kok, kod is null ? mesaj : $"{mesaj} (kod {kod})");
+                var code = Text(root, "errorCode");
+                var message = Text(root, "errorMessage") ?? "Ödeme sağlayıcısı isteği reddetti.";
+                log.LogWarning("iyzico {Uri} reddetti: {Kod} {Mesaj}", uri, code, message);
+                return (false, root, code is null ? message : $"{message} (kod {code})");
             }
-            return (true, kok, null);
+            return (true, root, null);
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -236,7 +236,7 @@ public sealed class IyzicoPosService(
         }
     }
 
-    private static Dictionary<string, object?> Adres(PosAlici a) => new()
+    private static Dictionary<string, object?> Address(PosAlici a) => new()
     {
         ["contactName"] = $"{a.Ad} {a.Soyad}".Trim(),
         ["city"] = a.Sehir,
@@ -248,42 +248,42 @@ public sealed class IyzicoPosService(
     /// Sağlayıcının beklediği tutar biçimi: nokta ondalık, InvariantCulture, en az bir ondalık hane.
     /// Türkçe kültürde <c>ToString()</c> virgül üretir ve istek reddedilir — bu yüzden kültür AÇIK.
     /// </summary>
-    public static string Tutar(decimal deger)
-        => deger.ToString("0.0#####", CultureInfo.InvariantCulture);
+    public static string Amount(decimal value)
+        => value.ToString("0.0#####", CultureInfo.InvariantCulture);
 
-    private static string Kisalt(string? s, int n)
+    private static string Shorten(string? s, int n)
         => string.IsNullOrWhiteSpace(s) ? "Arac kiralama" : (s.Length <= n ? s : s[..n]);
 
-    private static string? Metin(JsonElement kok, string alan)
-        => kok.ValueKind == JsonValueKind.Object && kok.TryGetProperty(alan, out var v)
+    private static string? Text(JsonElement root, string alan)
+        => root.ValueKind == JsonValueKind.Object && root.TryGetProperty(alan, out var v)
            && v.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
             ? (v.ValueKind == JsonValueKind.String ? v.GetString() : v.ToString())
             : null;
 
-    private static decimal? Ondalik(JsonElement kok, string alan)
+    private static decimal? ReadDecimal(JsonElement root, string alan)
     {
-        var m = Metin(kok, alan);
+        var m = Text(root, alan);
         return decimal.TryParse(m, NumberStyles.Number, CultureInfo.InvariantCulture, out var d) ? d : null;
     }
 
     /// <summary>İade ucu ödeme kimliğini değil KALEM işlem kimliğini ister — ilk kalemden okunur.</summary>
-    private static string? IlkIslemId(JsonElement kok)
+    private static string? FirstTransactionId(JsonElement root)
     {
-        if (kok.ValueKind != JsonValueKind.Object
-            || !kok.TryGetProperty("itemTransactions", out var kalemler)
-            || kalemler.ValueKind != JsonValueKind.Array) return null;
-        foreach (var k in kalemler.EnumerateArray())
-            if (Metin(k, "paymentTransactionId") is { Length: > 0 } id) return id;
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("itemTransactions", out var items)
+            || items.ValueKind != JsonValueKind.Array) return null;
+        foreach (var k in items.EnumerateArray())
+            if (Text(k, "paymentTransactionId") is { Length: > 0 } id) return id;
         return null;
     }
 
     /// <summary>Kartın son 4 hanesi + ailesi — makbuzda/ekranda gösterilir (tam numara ASLA tutulmaz).</summary>
-    private static string? KartOzet(JsonElement kok)
+    private static string? CardSummary(JsonElement root)
     {
-        var son4 = Metin(kok, "lastFourDigits");
-        var aile = Metin(kok, "cardAssociation");
-        if (son4 is null && aile is null) return null;
-        return string.Join(' ', new[] { aile, son4 is null ? null : "**** " + son4 }.Where(x => x is not null));
+        var last4 = Text(root, "lastFourDigits");
+        var aile = Text(root, "cardAssociation");
+        if (last4 is null && aile is null) return null;
+        return string.Join(' ', new[] { aile, last4 is null ? null : "**** " + last4 }.Where(x => x is not null));
     }
 }
 
@@ -291,32 +291,32 @@ public sealed class IyzicoPosService(
 /// iyzico kurulumu — Web ve PublicSite AYNI çağrıyı kullanır (ikisi de ödeme başlatabiliyor:
 /// ERP'de depozito provizyonu, halka açık sitede online rezervasyon).
 /// </summary>
-public static class IyzicoKurulum
+public static class IyzicoSetup
 {
     /// <summary>
     /// Config'te <c>Iyzico:ApiKey</c> + <c>Iyzico:SecretKey</c> VARSA gerçek adaptörü kaydeder
     /// (stub'ı override eder); yoksa hiçbir şey yapmaz ve stub dürüstçe "yapılandırılmadı" döner.
     /// </summary>
     public static IServiceCollection AddIyzico(
-        this IServiceCollection services, IConfiguration config, bool gelistirmeOrtami, ILogger? log = null)
+        this IServiceCollection services, IConfiguration config, bool developmentEnvironment, ILogger? log = null)
     {
-        var ayar = new IyzicoAyar
+        var setting = new IyzicoAyar
         {
             BaseUrl = config["Iyzico:BaseUrl"] ?? "https://sandbox-api.iyzipay.com",
             ApiKey = config["Iyzico:ApiKey"] ?? string.Empty,
             SecretKey = config["Iyzico:SecretKey"] ?? string.Empty,
         };
-        if (!ayar.Yapilandirildi) return services;
+        if (!setting.Yapilandirildi) return services;
 
         // Üretimde SANDBOX anahtarıyla çalışmak = hiç para tahsil etmemek, üstelik ekranda "ödendi"
         // görmek. Açılışı reddetmek yerine gürültülü uyarı: staging ortamları bilinçli olarak
         // sandbox kullanır ve onları kilitlemek istemiyoruz.
-        if (!gelistirmeOrtami && ayar.ApiKey.StartsWith("sandbox-", StringComparison.OrdinalIgnoreCase))
+        if (!developmentEnvironment && setting.ApiKey.StartsWith("sandbox-", StringComparison.OrdinalIgnoreCase))
             log?.LogWarning("iyzico SANDBOX anahtarıyla çalışıyor ({Ortam} ortamı) — gerçek tahsilat YAPILMAZ.",
-                gelistirmeOrtami ? "Development" : "üretim/staging");
+                developmentEnvironment ? "Development" : "üretim/staging");
 
         services.AddHttpClient();
-        services.AddSingleton(ayar);
+        services.AddSingleton(setting);
         services.AddSingleton<IPosService, IyzicoPosService>();
         return services;
     }

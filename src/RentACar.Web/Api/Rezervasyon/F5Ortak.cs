@@ -52,7 +52,7 @@ internal static class F5Ortak
     internal static DateTimeOffset DayStartUtc(DateOnly gun)
     {
         var yerel = gun.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
-        return new DateTimeOffset(yerel, TenantGun.Dilim.GetUtcOffset(yerel)).ToUniversalTime();
+        return new DateTimeOffset(yerel, TenantDay.Slice.GetUtcOffset(yerel)).ToUniversalTime();
     }
 
     /// <summary>
@@ -64,7 +64,7 @@ internal static class F5Ortak
     public static DateTimeOffset YereldenUtc(DateTimeOffset duvar)
     {
         var yerel = DateTime.SpecifyKind(duvar.DateTime, DateTimeKind.Unspecified);
-        return new DateTimeOffset(yerel, TenantGun.Dilim.GetUtcOffset(yerel)).ToUniversalTime();
+        return new DateTimeOffset(yerel, TenantDay.Slice.GetUtcOffset(yerel)).ToUniversalTime();
     }
 
     /// <summary>Takvim günü aralığı: [gün başı, ertesi gün başı − 1 µs] (üst sınır GÜN DAHİL; repo &lt;= uygular).</summary>

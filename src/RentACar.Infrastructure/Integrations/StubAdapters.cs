@@ -13,14 +13,14 @@ namespace RentACar.Infrastructure.Integrations;
 public sealed class StubSmsService : ISmsService
 {
     // Sahte başarı YOK: SMS sağlayıcısı yapılandırılmadıysa mesaj GİTMEZ, çağıran bunu görmelidir.
-    public Task<bool> SendAsync(string phone, string message, string? gonderen = null, CancellationToken ct = default)
+    public Task<bool> SendAsync(string phone, string message, string? sender = null, CancellationToken ct = default)
         => Task.FromResult(false);
 }
 
 /// <summary>SMTP yapılandırılmadığında devreye giren gönderici — sessizce başarı dönmez.</summary>
 public sealed class NoopEmailSender : IEmailSender
 {
-    public Task<EpostaSonuc> SendAsync(SmtpAyar ayar, EpostaMesaj mesaj, CancellationToken ct = default)
+    public Task<EpostaSonuc> SendAsync(SmtpAyar setting, EpostaMesaj message, CancellationToken ct = default)
         => Task.FromResult(new EpostaSonuc(false, "E-posta göndericisi yapılandırılmadı."));
 }
 
@@ -57,33 +57,33 @@ public sealed class StubPosService : IPosService
     // Sahte işlem referansı ÜRETMEZ: o referans provizyon/tahsilat kaydına yazılsa, hiçbir kart
     // bloke edilmemişken sistemde geçerli bir işlem varmış gibi görünürdü. Para yolunda sahte
     // başarı, e-Fatura'daki sahte ETTN ile aynı sınıf hatadır.
-    private const string Yapilandirilmadi = "Ödeme sağlayıcısı yapılandırılmadı (stub).";
+    private const string NotConfigured = "Ödeme sağlayıcısı yapılandırılmadı (stub).";
 
-    public Task<PosBaslatSonuc> StartAsync(PosOdemeIstegi istek, CancellationToken ct = default)
-        => Task.FromResult(new PosBaslatSonuc(false, null, null, Yapilandirilmadi));
+    public Task<PosBaslatSonuc> StartAsync(PosOdemeIstegi request, CancellationToken ct = default)
+        => Task.FromResult(new PosBaslatSonuc(false, null, null, NotConfigured));
 
     public Task<PosDurumSonuc> ResultAsync(string token, CancellationToken ct = default)
-        => Task.FromResult(new PosDurumSonuc(false, null, null, null, null, null, null, Yapilandirilmadi));
+        => Task.FromResult(new PosDurumSonuc(false, null, null, null, null, null, null, NotConfigured));
 
-    public Task<PosResult> CloseAsync(string odemeId, decimal tutar, string ip, CancellationToken ct = default) => Yok();
-    public Task<PosResult> CancelAsync(string odemeId, string ip, CancellationToken ct = default) => Yok();
-    public Task<PosResult> RefundAsync(string islemId, decimal tutar, string ip, CancellationToken ct = default) => Yok();
+    public Task<PosResult> CloseAsync(string paymentId, decimal amount, string ip, CancellationToken ct = default) => None();
+    public Task<PosResult> CancelAsync(string paymentId, string ip, CancellationToken ct = default) => None();
+    public Task<PosResult> RefundAsync(string transactionId, decimal amount, string ip, CancellationToken ct = default) => None();
 
-    private static Task<PosResult> Yok()
-        => Task.FromResult(new PosResult(false, TxRef: null, Error: Yapilandirilmadi));
+    private static Task<PosResult> None()
+        => Task.FromResult(new PosResult(false, TxRef: null, Error: NotConfigured));
 }
 
 public sealed class StubKabisService : IKabisService
 {
     // KABİS bildirimi YASAL yükümlülük (1774 sayılı Kanun). Yapılandırma yokken "bildirildi" demek,
     // bildirilmemiş kiralamayı bildirilmiş göstermek olur — cezası kiralama BAŞINA işler.
-    public Task<bool> NotifyAsync(KabisBildirim bildirim, CancellationToken ct = default) => Task.FromResult(false);
+    public Task<bool> NotifyAsync(KabisBildirim notification, CancellationToken ct = default) => Task.FromResult(false);
 }
 
 public sealed class StubHgsService : IHgsService
 {
     public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(
-        string plaka, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+        string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<TollCrossing>>([]);
 }
 

@@ -15,8 +15,8 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     public async Task<IReadOnlyList<Vehicle>> GetAvailableAsync(
-        DateTimeOffset from, DateTimeOffset to, string? grup, string? sube,
-        RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)
+        DateTimeOffset from, DateTimeOffset to, string? group, string? branch,
+        RentACar.Application.Authorization.BranchScope.BranchFilter scope = default, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -25,12 +25,12 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
             // SONRAKİ (çakışmayan) tarihler için müsait; gerçek dışlamayı aşağıdaki tarih-çakışması yapar.
             // (Serviste/Pasif/Satildi havuz dışı.)
             .Where(v => v.Durum == VehicleStatus.Musait || v.Durum == VehicleStatus.Kirada);
-        if (!string.IsNullOrWhiteSpace(grup)) pool = pool.Where(v => v.Grup == grup);
-        if (!string.IsNullOrWhiteSpace(sube)) pool = pool.Where(v => v.Sube == sube);
+        if (!string.IsNullOrWhiteSpace(group)) pool = pool.Where(v => v.Grup == group);
+        if (!string.IsNullOrWhiteSpace(branch)) pool = pool.Where(v => v.Sube == branch);
         // C3 ŞABLON (BranchScope.InScope ile birebir): FK-eşit VEYA metin-eşit (Ordinal).
-        if (!kapsam.Unrestricted)
+        if (!scope.Unrestricted)
         {
-            var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
+            var kid = scope.SubeId; var kad = scope.SubeAd;
             pool = pool.Where(v => (kid != null && v.SubeId == kid)
                                 || ((kid == null || v.SubeId == null) && kad != null && v.Sube != null && v.Sube.Trim() == kad)); // C5
         }
@@ -59,32 +59,32 @@ public sealed class AvailabilityRepository(IDbContextFactory<AppDbContext> facto
 
         // Efektif dönüş = gerçek dönüş ?? planlı bitiş. İptal kiralar hariç; GELECEKTE biten kira
         // "son kullanım" değildir (araç hâlâ o kirada olabilir) → yalnız geçmiş.
-        var ham = await db.Rentals.AsNoTracking()
+        var raw = await db.Rentals.AsNoTracking()
             .Where(r => r.Durum != RentACar.Domain.Enums.RentalStatus.Iptal && vehicleIds.Contains(r.VehicleId))
             .Select(r => new { r.VehicleId, r.MusteriId, Bit = r.GercekDonusTar ?? r.BitTar })
             .Where(r => r.Bit <= now)
             .ToListAsync(ct);
-        if (ham.Count == 0) return [];
+        if (raw.Count == 0) return [];
 
-        var son = ham.GroupBy(r => r.VehicleId)
+        var last = raw.GroupBy(r => r.VehicleId)
             .Select(g => g.OrderByDescending(r => r.Bit).First())
             .ToList();
 
         // Müşteri adları TEK sorguda (araç başına sorgu atmak N+1 olurdu).
-        var cariIdler = son.Select(x => x.MusteriId).Distinct().ToList();
-        var cariler = await db.Customers.AsNoTracking()
-            .Where(c => cariIdler.Contains(c.Id))
+        var customerIds = last.Select(x => x.MusteriId).Distinct().ToList();
+        var customers = await db.Customers.AsNoTracking()
+            .Where(c => customerIds.Contains(c.Id))
             .Select(c => new { c.Id, c.Tip, c.Unvan, c.Ad, c.Soyad, c.AnonimAd })
             .ToListAsync(ct);
-        var anonim = cariler.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet(); // F5.1 (KVKK bayrağı)
-        var adlar = cariler.ToDictionary(
+        var anonymous = customers.Where(c => c.AnonimAd).Select(c => c.Id).ToHashSet(); // F5.1 (KVKK bayrağı)
+        var names = customers.ToDictionary(
             c => c.Id,
             c => c.Tip == RentACar.Domain.Enums.CustomerType.Kurumsal
                 ? c.Unvan
                 : $"{c.Ad} {c.Soyad}".Trim());
 
-        return son
-            .Select(x => new SonKullanimRow(x.VehicleId, x.Bit, adlar.GetValueOrDefault(x.MusteriId), anonim.Contains(x.MusteriId)))
+        return last
+            .Select(x => new SonKullanimRow(x.VehicleId, x.Bit, names.GetValueOrDefault(x.MusteriId), anonymous.Contains(x.MusteriId)))
             .ToList();
     }
 }

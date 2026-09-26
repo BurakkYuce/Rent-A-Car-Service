@@ -246,7 +246,7 @@ internal sealed class AccessoryConfig : IEntityTypeConfiguration<Accessory>
 }
 
 // ---- EkHizmetTanim / Ek hizmet tanımı (tenant-owned; master sözlük) ----
-internal sealed class EkHizmetTanimConfig : IEntityTypeConfiguration<EkHizmetTanim>
+internal sealed class AddOnDefinitionConfig : IEntityTypeConfiguration<EkHizmetTanim>
 {
     public void Configure(EntityTypeBuilder<EkHizmetTanim> e)
     {
@@ -292,7 +292,7 @@ internal sealed class PenaltyTypeConfig : IEntityTypeConfiguration<PenaltyType>
 }
 
 // ---- KdvRate / KDV oranı (tenant-owned; master sözlük) ----
-internal sealed class KdvRateConfig : IEntityTypeConfiguration<KdvRate>
+internal sealed class VatRateConfig : IEntityTypeConfiguration<KdvRate>
 {
     public void Configure(EntityTypeBuilder<KdvRate> e)
     {
@@ -475,7 +475,7 @@ internal sealed class CurrencyConfig : IEntityTypeConfiguration<Currency>
 }
 
 // ---- HesapKodu / ServisTanim (basit Kod-master; full-CRUD → roadmap N1) ----
-internal sealed class HesapKoduConfig : IEntityTypeConfiguration<HesapKodu>
+internal sealed class AccountCodeConfig : IEntityTypeConfiguration<HesapKodu>
 {
     public void Configure(EntityTypeBuilder<HesapKodu> e)
     {
@@ -489,7 +489,7 @@ internal sealed class HesapKoduConfig : IEntityTypeConfiguration<HesapKodu>
     }
 }
 
-internal sealed class ServisTanimConfig : IEntityTypeConfiguration<ServisTanim>
+internal sealed class ServiceDefinitionConfig : IEntityTypeConfiguration<ServisTanim>
 {
     public void Configure(EntityTypeBuilder<ServisTanim> e)
     {
@@ -511,7 +511,7 @@ internal sealed class ServisTanimConfig : IEntityTypeConfiguration<ServisTanim>
     }
 }
 
-internal sealed class DropTanimConfig : IEntityTypeConfiguration<DropTanim>
+internal sealed class DropDefinitionConfig : IEntityTypeConfiguration<DropTanim>
 {
     public void Configure(EntityTypeBuilder<DropTanim> e)
     {
@@ -541,7 +541,7 @@ internal sealed class DropTanimConfig : IEntityTypeConfiguration<DropTanim>
 
 
 // ---- SubeUcretsizHizmet (FAZ-23 — şubeye özel ücretsiz hizmet; tenant-owned, para taşımaz) ----
-internal sealed class SubeUcretsizHizmetConfig : IEntityTypeConfiguration<SubeUcretsizHizmet>
+internal sealed class BranchFreeServiceConfig : IEntityTypeConfiguration<SubeUcretsizHizmet>
 {
     public void Configure(EntityTypeBuilder<SubeUcretsizHizmet> e)
     {

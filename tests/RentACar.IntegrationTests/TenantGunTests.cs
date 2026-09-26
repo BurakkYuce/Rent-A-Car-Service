@@ -14,14 +14,14 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class TenantGunTests
 {
-    private static readonly TimeZoneInfo Istanbul = TenantGun.Dilim;
+    private static readonly TimeZoneInfo Istanbul = TenantDay.Slice;
 
     [Fact]
     public void Gece_yarisindan_sonra_YEREL_gune_gecer()
     {
         // 26 Ağu 21:30 UTC = 27 Ağu 00:30 İstanbul (UTC+3) → belge 27 Ağustos'a yazılmalı.
         Assert.Equal(new DateOnly(2026, 8, 27),
-            TenantGun.Gun(new DateTimeOffset(2026, 8, 26, 21, 30, 0, TimeSpan.Zero), Istanbul));
+            TenantDay.Day(new DateTimeOffset(2026, 8, 26, 21, 30, 0, TimeSpan.Zero), Istanbul));
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public sealed class TenantGunTests
     {
         // 26 Ağu 20:30 UTC = 26 Ağu 23:30 İstanbul → hâlâ 26 Ağustos.
         Assert.Equal(new DateOnly(2026, 8, 26),
-            TenantGun.Gun(new DateTimeOffset(2026, 8, 26, 20, 30, 0, TimeSpan.Zero), Istanbul));
+            TenantDay.Day(new DateTimeOffset(2026, 8, 26, 20, 30, 0, TimeSpan.Zero), Istanbul));
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class TenantGunTests
     {
         // 31 Ara 21:30 UTC = 1 Oca 00:30 İstanbul → yıl da devreder (fatura sayacı için kritik).
         Assert.Equal(new DateOnly(2027, 1, 1),
-            TenantGun.Gun(new DateTimeOffset(2026, 12, 31, 21, 30, 0, TimeSpan.Zero), Istanbul));
+            TenantDay.Day(new DateTimeOffset(2026, 12, 31, 21, 30, 0, TimeSpan.Zero), Istanbul));
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class TenantGunTests
         // Çağıran +03:00 offsetli bir an verirse de sonuç aynı olmalı (mutlak an aynı).
         var utc = new DateTimeOffset(2026, 8, 26, 21, 30, 0, TimeSpan.Zero);
         var yerel = new DateTimeOffset(2026, 8, 27, 0, 30, 0, TimeSpan.FromHours(3));
-        Assert.Equal(TenantGun.Gun(utc, Istanbul), TenantGun.Gun(yerel, Istanbul));
+        Assert.Equal(TenantDay.Day(utc, Istanbul), TenantDay.Day(yerel, Istanbul));
     }
 
     [Fact]

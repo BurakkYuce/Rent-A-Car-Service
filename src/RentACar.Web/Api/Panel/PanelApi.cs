@@ -28,7 +28,7 @@ namespace RentACar.Web.Api.Panel;
 /// ucunun izni). Blazor bunları rolle (Admin/Yönetici/Muhasebe) kapılıyor — aynı rol kümesi, kullanıcı-bazlı
 /// istisnalar artık yansır (F4.6 yönü). Kira/rezervasyon listeleri şube kapsamlı servislerden gelir.</para>
 ///
-/// <para><b>Gün kovası</b> İstanbul gününe göre (<see cref="TenantGun"/>); Blazor sunucu yerel saatini kullanır —
+/// <para><b>Gün kovası</b> İstanbul gününe göre (<see cref="TenantDay"/>); Blazor sunucu yerel saatini kullanır —
 /// üretimde sunucu saat dilimi İstanbul olduğundan aynı sonuç, CI (UTC) ve farklı saat dilimli sunucuda doğru olan bu.</para>
 /// </summary>
 public static class PanelApi
@@ -94,7 +94,7 @@ public static class PanelApi
         CancellationToken ct)
     {
         var simdi = DateTimeOffset.UtcNow;
-        var bugun = TenantGun.Gun(simdi);
+        var bugun = TenantDay.Day(simdi);
         var finansYazma = AuthExtensions.HasPermission(http.User, Permission.FinanceWrite);
         var raporOkuma = AuthExtensions.HasPermission(http.User, Permission.ViewReports);
 
@@ -104,7 +104,7 @@ public static class PanelApi
             ? await kasa.GetRentalTransactionCountsAsync(acikKira.Select(r => r.Id).ToList(), ct)
             : new Dictionary<Guid, int>();
         List<PanelDonusSatiri> Donus(Func<DateOnly, bool> kosul) => acikKira
-            .Where(r => kosul(TenantGun.Gun(r.BitTar)))
+            .Where(r => kosul(TenantDay.Day(r.BitTar)))
             .OrderBy(r => r.BitTar)
             .Select(r => new PanelDonusSatiri(r.Id, r.SozlesmeNo, r.BitTar,
                 MusteriGorunumu.ListeAdi(r.MusteriAd, r.MusteriAnonimAd), r.Plaka, r.DonusOfisi,
@@ -122,7 +122,7 @@ public static class PanelApi
         var acikRez = (await rezervasyonlar.SearchAsync(new ReservationFilter(), ct))
             .Where(r => r.Rez.Durum is ReservationStatus.Rezerv or ReservationStatus.Onayli).ToList();
         List<PanelCikisSatiri> Cikis(Func<DateOnly, bool> kosul) => acikRez
-            .Where(r => kosul(TenantGun.Gun(r.Rez.BasTar)))
+            .Where(r => kosul(TenantDay.Day(r.Rez.BasTar)))
             .OrderBy(r => r.Rez.BasTar)
             .Select(r => new PanelCikisSatiri(r.Rez.Id, r.Rez.ReservationNo, r.Rez.BasTar,
                 MusteriGorunumu.ListeAdi(r.MusteriAd, r.MusteriAnonimAd), r.Plaka, r.Rez.CikisOfisi))
@@ -133,7 +133,7 @@ public static class PanelApi
 
         // Site talebi: yalnız Web Sitesi modülü açıkken; yetkisiz rol panoyu DÜŞÜRMEZ (Home ile aynı savunma).
         SiteTalebiOzeti? siteTalebi = null;
-        if (kiraci.TenantId is { } tid && await kiraciDurum.WebSitesiModuluAsync(tid, ct))
+        if (kiraci.TenantId is { } tid && await kiraciDurum.WebsiteModuleAsync(tid, ct))
         {
             try
             {

@@ -219,7 +219,7 @@ public static class KiraApi
         private static DateTimeOffset GunBasi(DateOnly gun)
         {
             var yerel = gun.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
-            return new DateTimeOffset(yerel, TenantGun.Dilim.GetUtcOffset(yerel)).ToUniversalTime();
+            return new DateTimeOffset(yerel, TenantDay.Slice.GetUtcOffset(yerel)).ToUniversalTime();
         }
     }
 

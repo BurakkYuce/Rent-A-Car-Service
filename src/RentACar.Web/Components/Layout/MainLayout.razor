@@ -219,7 +219,7 @@
         try { _okunmamis = await Bildirimler.UnreadCountAsync(); }
         catch { _okunmamis = 0; }
         // 60 sn cache'li tek okuma; platformdan açılınca en geç o kadar sonra menüde belirir.
-        try { _webSitesiModulu = Tenant.TenantId is { } id && await TenantDurum.WebSitesiModuluAsync(id); }
+        try { _webSitesiModulu = Tenant.TenantId is { } id && await TenantDurum.WebsiteModuleAsync(id); }
         catch { _webSitesiModulu = false; } // menü hiçbir koşulda sayfayı düşürmemeli
         // PR-17: yalnız modül açıkken sorulur (kapalıysa menü de yok). Yetkisiz rolde guard atar →
         // sayaç 0 gösterilir; menü hiçbir koşulda sayfayı düşürmemeli.

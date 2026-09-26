@@ -127,7 +127,7 @@ public sealed class LowTemizligiBTests(PostgresFixture fx)
         var job = Task.Run(async () =>
         {
             await using var db = await factory.CreateDbContextAsync();
-            return await DonemFaturaUretici.RunAsync(db, tenant, DateTimeOffset.UtcNow);
+            return await PeriodInvoiceGenerator.RunAsync(db, tenant, DateTimeOffset.UtcNow);
         });
         Assert.True(await KilitBekleniyorAsync(kilitAnahtari), "job kilide ulaşmadı — yarış kurulamadı");
         await tx.CommitAsync();

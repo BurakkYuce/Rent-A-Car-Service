@@ -19,7 +19,7 @@ public sealed class OpsWatchdogJob(
 {
     // Saat dilimi TEK kaynaktan: aynı çözüm mantığı üç ayrı yerde kopyalanmıştı (iki job +
     // belge numarası). Numaradaki gün ile job'un günü ayrışmasın diye ortaklaştırıldı.
-    private static readonly TimeZoneInfo Tz = RentACar.Infrastructure.Persistence.TenantGun.Dilim;
+    private static readonly TimeZoneInfo Tz = RentACar.Infrastructure.Persistence.TenantDay.Slice;
 
     // MeterListener'ın biriktirdiği kümülatif job-hata sayıları (job → toplam) ve en son alarm verilen sayı.
     private readonly ConcurrentDictionary<string, long> _jobFail = new();

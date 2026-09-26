@@ -127,7 +127,7 @@ public static class OturumApi
         }
 
         var ayar = await sp.GetRequiredService<ITenantSettingsRepository>().GetAsync(ct);
-        var webSitesi = await sp.GetRequiredService<TenantStatusCache>().WebSitesiModuluAsync(tenantId, ct);
+        var webSitesi = await sp.GetRequiredService<TenantStatusCache>().WebsiteModuleAsync(tenantId, ct);
         var sube = BranchScope.EffectiveFilter(current);
 
         return new BenYaniti(

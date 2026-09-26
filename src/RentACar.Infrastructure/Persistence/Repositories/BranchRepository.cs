@@ -33,23 +33,23 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
         return await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 
-    public async Task<Branch?> FindByNameAsync(string ad, CancellationToken ct = default)
+    public async Task<Branch?> FindByNameAsync(string name, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Tenant-scoped (query filter + RLS) + EXACT case-insensitive eşleşme (adversarial M2: ILike pattern
         // "M_rkez"/"%" yanlış eşleşiyordu + backfill exact ile uyumsuzdu). lower()=lower() backfill ile birebir.
         // Kod sırası → aynı adlı şubede deterministik seçim (L2).
-        var norm = ad.Trim().ToLowerInvariant();
+        var norm = name.Trim().ToLowerInvariant();
         return await db.Branches.AsNoTracking()
             .Where(b => b.Ad.ToLower() == norm)
             .OrderBy(b => b.Kod)
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.Branches.AsNoTracking()
             .Where(b => b.Kod == k && (excludeId == null || b.Id != excludeId))
             .AnyAsync(ct);
@@ -108,11 +108,11 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
 
     // ---- FAZ-23: şubeye özel ücretsiz hizmet ----
 
-    public async Task<IReadOnlyList<SubeUcretsizHizmet>> ListServicesAsync(Guid subeId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<SubeUcretsizHizmet>> ListServicesAsync(Guid branchId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.SubeUcretsizHizmetler.AsNoTracking()
-            .Where(x => x.SubeId == subeId).OrderBy(x => x.HizmetAdi).ToListAsync(ct);
+            .Where(x => x.SubeId == branchId).OrderBy(x => x.HizmetAdi).ToListAsync(ct);
     }
 
     public async Task AddServiceAsync(SubeUcretsizHizmet row, CancellationToken ct = default)
@@ -141,146 +141,146 @@ public sealed class BranchRepository(IDbContextFactory<AppDbContext> factory) : 
     // şube referansı eklerse buraya da eklenmelidir (SubeBirlestirmeKapsamTests bunu kilitler).
 
     public async Task<IReadOnlyList<(string Tablo, int Adet)>> MergeCountAsync(
-        Guid kaynakId, CancellationToken ct = default)
+        Guid sourceId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var kaynak = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == kaynakId, ct);
-        if (kaynak is null) return [];
+        var source = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == sourceId, ct);
+        if (source is null) return [];
 
-        var sonuc = new List<(string, int)>();
-        async Task Say<T>(string etiket, IQueryable<T> q) where T : class
+        var result = new List<(string, int)>();
+        async Task Say<T>(string label, IQueryable<T> q) where T : class
         {
             var n = await q.CountAsync(ct);
-            if (n > 0) sonuc.Add((etiket, n));
+            if (n > 0) result.Add((label, n));
         }
 
-        await Say("Araç", db.Vehicles.Where(x => x.SubeId == kaynakId));
-        await Say("Kira kuralı", db.RentalRules.Where(x => x.SubeId == kaynakId));
-        await Say("Rezervasyon", db.Reservations.Where(x => x.CikisSubeId == kaynakId));
-        await Say("Teklif", db.Quotations.Where(x => x.CikisSubeId == kaynakId));
-        await Say("Personel", db.Personeller.Where(x => x.SubeId == kaynakId));
-        await Say("Kira sözleşmesi", db.Rentals.Where(x => x.CikisSubeId == kaynakId));
-        await Say("Lokasyon", db.Locations.Where(x => x.SubeId == kaynakId));
-        await Say("Tarife matrisi", db.RateMatrices.Where(x => x.SubeId == kaynakId));
-        await Say("Doluluk fiyat kuralı", db.DolulukFiyatKurallari.Where(x => x.SubeId == kaynakId));   // FAZ-73
-        await Say("Araç (metin şube)", db.Vehicles.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
-        await Say("Kira kuralı (metin)", db.RentalRules.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
-        await Say("BAF (metin)", db.Baflar.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
+        await Say("Araç", db.Vehicles.Where(x => x.SubeId == sourceId));
+        await Say("Kira kuralı", db.RentalRules.Where(x => x.SubeId == sourceId));
+        await Say("Rezervasyon", db.Reservations.Where(x => x.CikisSubeId == sourceId));
+        await Say("Teklif", db.Quotations.Where(x => x.CikisSubeId == sourceId));
+        await Say("Personel", db.Personeller.Where(x => x.SubeId == sourceId));
+        await Say("Kira sözleşmesi", db.Rentals.Where(x => x.CikisSubeId == sourceId));
+        await Say("Lokasyon", db.Locations.Where(x => x.SubeId == sourceId));
+        await Say("Tarife matrisi", db.RateMatrices.Where(x => x.SubeId == sourceId));
+        await Say("Doluluk fiyat kuralı", db.DolulukFiyatKurallari.Where(x => x.SubeId == sourceId));   // FAZ-73
+        await Say("Araç (metin şube)", db.Vehicles.Where(x => x.Sube != null && x.Sube == source.Ad));
+        await Say("Kira kuralı (metin)", db.RentalRules.Where(x => x.Sube != null && x.Sube == source.Ad));
+        await Say("BAF (metin)", db.Baflar.Where(x => x.Sube != null && x.Sube == source.Ad));
         // FAZ-18: dönüş şubesi de metin bir şube referansıdır → birleştirmede taşınmalı, yoksa
         // kaynak şube adı BAF dönüş alanında "hayalet" olarak kalır.
-        await Say("BAF dönüş şubesi (metin)", db.Baflar.Where(x => x.DonusSube != null && x.DonusSube == kaynak.Ad));
-        await Say("Personel (metin)", db.Personeller.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
-        await Say("Lokasyon (metin)", db.Locations.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
-        await Say("Hesap (metin)", db.FinancialAccounts.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
-        await Say("Tarife matrisi (metin)", db.RateMatrices.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
-        await Say("Doluluk fiyat kuralı (metin)", db.DolulukFiyatKurallari.Where(x => x.Sube != null && x.Sube == kaynak.Ad));   // FAZ-73
-        await Say("Cari virman künyesi (metin)", db.CariVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
+        await Say("BAF dönüş şubesi (metin)", db.Baflar.Where(x => x.DonusSube != null && x.DonusSube == source.Ad));
+        await Say("Personel (metin)", db.Personeller.Where(x => x.Sube != null && x.Sube == source.Ad));
+        await Say("Lokasyon (metin)", db.Locations.Where(x => x.Sube != null && x.Sube == source.Ad));
+        await Say("Hesap (metin)", db.FinancialAccounts.Where(x => x.Sube != null && x.Sube == source.Ad));
+        await Say("Tarife matrisi (metin)", db.RateMatrices.Where(x => x.Sube != null && x.Sube == source.Ad));
+        await Say("Doluluk fiyat kuralı (metin)", db.DolulukFiyatKurallari.Where(x => x.Sube != null && x.Sube == source.Ad));   // FAZ-73
+        await Say("Cari virman künyesi (metin)", db.CariVirmanBilgileri.Where(x => x.Sube != null && x.Sube == source.Ad));
         // FAZ-50 — kasa/banka virman künyesi. Künye PARA TAŞIMAZ (mali belge değil) → gider gibi
         // "taşınmaz" değil, cari virman künyesiyle AYNI davranır: şube adı hedefe taşınır.
-        await Say("Kasa virman künyesi (metin)", db.KasaVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
-        await Say("Site talebi (metin)", db.SiteTalepleri.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
-        await Say("Drop tanımı (metin)", db.DropTanimlari.Where(x => x.Sube == kaynak.Ad));
-        await Say("Kullanıcı (atanmış şube)", db.Users.Where(u => u.AtanmisSubeId == kaynakId));
-        await Say("Şube ücretsiz hizmeti", db.SubeUcretsizHizmetler.Where(x => x.SubeId == kaynakId));
-        await Say("Personel vardiyası", db.PersonelVardiyalari.Where(x => x.SubeId == kaynakId));   // FAZ-45
-        await Say("Personel vardiyası (metin)", db.PersonelVardiyalari.Where(x => x.Sube != null && x.Sube == kaynak.Ad));
+        await Say("Kasa virman künyesi (metin)", db.KasaVirmanBilgileri.Where(x => x.Sube != null && x.Sube == source.Ad));
+        await Say("Site talebi (metin)", db.SiteTalepleri.Where(x => x.Sube != null && x.Sube == source.Ad));
+        await Say("Drop tanımı (metin)", db.DropTanimlari.Where(x => x.Sube == source.Ad));
+        await Say("Kullanıcı (atanmış şube)", db.Users.Where(u => u.AtanmisSubeId == sourceId));
+        await Say("Şube ücretsiz hizmeti", db.SubeUcretsizHizmetler.Where(x => x.SubeId == sourceId));
+        await Say("Personel vardiyası", db.PersonelVardiyalari.Where(x => x.SubeId == sourceId));   // FAZ-45
+        await Say("Personel vardiyası (metin)", db.PersonelVardiyalari.Where(x => x.Sube != null && x.Sube == source.Ad));
         // FAZ-60: ceza "İşlem Şube" metni. Ceza mali belge DEĞİL (başlık güncellenebilir), taşınır.
-        await Say("Ceza (işlem şube metni)", db.Penalties.Where(x => x.IslemSube != null && x.IslemSube == kaynak.Ad));
+        await Say("Ceza (işlem şube metni)", db.Penalties.Where(x => x.IslemSube != null && x.IslemSube == source.Ad));
 
         // GİDER TAŞINMAZ. Expense DEĞİŞMEZ bir mali belgedir: DB'de değişmezlik trigger'ı var ve
         // racar_app'in UPDATE yetkisi yok. Zaten olmamalı da — kesilmiş bir gider belgesinin şubesini
         // geriye dönük değiştirmek muhasebe kaydını tahrif etmek olurdu. Kullanıcı bunu ÖNİZLEMEDE
         // görür ve kaynak şube pasife çekilse de o giderler adıyla birlikte yerinde kalır.
-        var gider = await db.Expenses.CountAsync(
-            x => x.SubeId == kaynakId || (x.Sube != null && x.Sube == kaynak.Ad), ct);
-        if (gider > 0) sonuc.Add(("Gider (TAŞINMAZ — değişmez mali belge)", gider));
+        var expense = await db.Expenses.CountAsync(
+            x => x.SubeId == sourceId || (x.Sube != null && x.Sube == source.Ad), ct);
+        if (expense > 0) result.Add(("Gider (TAŞINMAZ — değişmez mali belge)", expense));
 
-        return sonuc;
+        return result;
     }
 
-    public async Task<int> MergeAsync(Guid kaynakId, Guid hedefId, CancellationToken ct = default)
+    public async Task<int> MergeAsync(Guid sourceId, Guid targetId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var kaynak = await db.Branches.FirstOrDefaultAsync(b => b.Id == kaynakId, ct)
+        var source = await db.Branches.FirstOrDefaultAsync(b => b.Id == sourceId, ct)
             ?? throw new ValidationException("Kaynak şube bulunamadı.");
-        var hedef = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == hedefId, ct)
+        var target = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == targetId, ct)
             ?? throw new ValidationException("Hedef şube bulunamadı.");
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var toplam = 0;
+        var total = 0;
 
-            toplam += await db.Vehicles.Where(x => x.SubeId == kaynakId)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
-            toplam += await db.RentalRules.Where(x => x.SubeId == kaynakId)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
-            toplam += await db.Reservations.Where(x => x.CikisSubeId == kaynakId)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.CikisSubeId, (Guid?)hedefId), ct);
-            toplam += await db.Quotations.Where(x => x.CikisSubeId == kaynakId)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.CikisSubeId, (Guid?)hedefId), ct);
-            toplam += await db.Personeller.Where(x => x.SubeId == kaynakId)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
-            toplam += await db.Rentals.Where(x => x.CikisSubeId == kaynakId)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.CikisSubeId, (Guid?)hedefId), ct);
-            toplam += await db.Locations.Where(x => x.SubeId == kaynakId)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
-            toplam += await db.RateMatrices.Where(x => x.SubeId == kaynakId)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
-            toplam += await db.DolulukFiyatKurallari.Where(x => x.SubeId == kaynakId)   // FAZ-73
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
-            toplam += await db.PersonelVardiyalari.Where(x => x.SubeId == kaynakId)   // FAZ-45
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)hedefId), ct);
-            toplam += await db.Vehicles.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.RentalRules.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.Baflar.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.Baflar.Where(x => x.DonusSube != null && x.DonusSube == kaynak.Ad)   // FAZ-18
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.DonusSube, hedef.Ad), ct);
-            toplam += await db.Personeller.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.Locations.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.FinancialAccounts.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.RateMatrices.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.DolulukFiyatKurallari.Where(x => x.Sube != null && x.Sube == kaynak.Ad)   // FAZ-73
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.CariVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.KasaVirmanBilgileri.Where(x => x.Sube != null && x.Sube == kaynak.Ad)   // FAZ-50
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.SiteTalepleri.Where(x => x.Sube != null && x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
-            toplam += await db.PersonelVardiyalari.Where(x => x.Sube != null && x.Sube == kaynak.Ad)   // FAZ-45
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
+            total += await db.Vehicles.Where(x => x.SubeId == sourceId)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)targetId), ct);
+            total += await db.RentalRules.Where(x => x.SubeId == sourceId)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)targetId), ct);
+            total += await db.Reservations.Where(x => x.CikisSubeId == sourceId)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.CikisSubeId, (Guid?)targetId), ct);
+            total += await db.Quotations.Where(x => x.CikisSubeId == sourceId)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.CikisSubeId, (Guid?)targetId), ct);
+            total += await db.Personeller.Where(x => x.SubeId == sourceId)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)targetId), ct);
+            total += await db.Rentals.Where(x => x.CikisSubeId == sourceId)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.CikisSubeId, (Guid?)targetId), ct);
+            total += await db.Locations.Where(x => x.SubeId == sourceId)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)targetId), ct);
+            total += await db.RateMatrices.Where(x => x.SubeId == sourceId)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)targetId), ct);
+            total += await db.DolulukFiyatKurallari.Where(x => x.SubeId == sourceId)   // FAZ-73
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)targetId), ct);
+            total += await db.PersonelVardiyalari.Where(x => x.SubeId == sourceId)   // FAZ-45
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, (Guid?)targetId), ct);
+            total += await db.Vehicles.Where(x => x.Sube != null && x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.RentalRules.Where(x => x.Sube != null && x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.Baflar.Where(x => x.Sube != null && x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.Baflar.Where(x => x.DonusSube != null && x.DonusSube == source.Ad)   // FAZ-18
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.DonusSube, target.Ad), ct);
+            total += await db.Personeller.Where(x => x.Sube != null && x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.Locations.Where(x => x.Sube != null && x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.FinancialAccounts.Where(x => x.Sube != null && x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.RateMatrices.Where(x => x.Sube != null && x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.DolulukFiyatKurallari.Where(x => x.Sube != null && x.Sube == source.Ad)   // FAZ-73
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.CariVirmanBilgileri.Where(x => x.Sube != null && x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.KasaVirmanBilgileri.Where(x => x.Sube != null && x.Sube == source.Ad)   // FAZ-50
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.SiteTalepleri.Where(x => x.Sube != null && x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
+            total += await db.PersonelVardiyalari.Where(x => x.Sube != null && x.Sube == source.Ad)   // FAZ-45
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
 
-        toplam += await db.DropTanimlari.Where(x => x.Sube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, hedef.Ad), ct);
+        total += await db.DropTanimlari.Where(x => x.Sube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.Sube, target.Ad), ct);
 
         // FAZ-60 — ceza "İşlem Şube" metni (Penalties).
-        toplam += await db.Penalties.Where(x => x.IslemSube != null && x.IslemSube == kaynak.Ad)
-                .ExecuteUpdateAsync(u => u.SetProperty(x => x.IslemSube, hedef.Ad), ct);
+        total += await db.Penalties.Where(x => x.IslemSube != null && x.IslemSube == source.Ad)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.IslemSube, target.Ad), ct);
 
         // Users PLATFORM tablosu (RLS yok, query filter yok) → tenant koşulu AÇIKÇA yazılır;
         // yoksa başka firmaların kullanıcıları da güncellenirdi.
         var tenant = db.TenantId;
-        toplam += await db.Users.Where(u => u.TenantId == tenant && u.AtanmisSubeId == kaynakId)
+        total += await db.Users.Where(u => u.TenantId == tenant && u.AtanmisSubeId == sourceId)
             .ExecuteUpdateAsync(u => u
-                .SetProperty(x => x.AtanmisSubeId, (Guid?)hedefId)
-                .SetProperty(x => x.AtanmisSube, hedef.Ad), ct);
+                .SetProperty(x => x.AtanmisSubeId, (Guid?)targetId)
+                .SetProperty(x => x.AtanmisSube, target.Ad), ct);
 
         // Child kayıtlar da taşınır (şube silinmiyor ama pasif şubede kalmaları anlamsız).
-        toplam += await db.SubeUcretsizHizmetler.Where(x => x.SubeId == kaynakId)
-            .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, hedefId), ct);
+        total += await db.SubeUcretsizHizmetler.Where(x => x.SubeId == sourceId)
+            .ExecuteUpdateAsync(u => u.SetProperty(x => x.SubeId, targetId), ct);
 
         // Kaynak şube SİLİNMEZ — pasife çekilir. Silmek geçmiş kayıtların adını çözümsüz bırakırdı.
-        kaynak.Aktif = false;
-        kaynak.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        source.Aktif = false;
+        source.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return toplam;
+        return total;
     }
 
     // F11.1a — IVersionedRepository<Branch> (generic RowVersion helper).

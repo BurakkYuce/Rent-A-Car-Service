@@ -68,13 +68,13 @@ public sealed class BlogRepository(IDbContextFactory<AppDbContext> factory) : IB
         return true;
     }
 
-    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması (<see cref="RowVersionSql"/>).</summary>
     public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<BlogPost> apply, CancellationToken ct = default)
     {
         string? slug = null;
         try
         {
-            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.BlogYazilari, id, expectedVersion,
+            return await RowVersionSql.UpdateAsync(_factory, RowVersionSql.BlogPosts, id, expectedVersion,
                 (db, k, c) => db.BlogYazilari.FirstOrDefaultAsync(p => p.Id == k, c),
                 p => { apply(p); slug = p.Slug; }, ct);
         }
@@ -87,7 +87,7 @@ public sealed class BlogRepository(IDbContextFactory<AppDbContext> factory) : IB
     public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.BlogYazilari, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.BlogPosts, id, ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

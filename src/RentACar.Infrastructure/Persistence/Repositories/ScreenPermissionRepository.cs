@@ -20,18 +20,18 @@ public sealed class ScreenPermissionRepository(IDbContextFactory<AppDbContext> f
         return await db.EkranYetkileri.AsNoTracking().OrderBy(r => r.EkranKodu).ToListAsync(ct);
     }
 
-    public async Task<ScreenPermission?> FindByCodeAsync(string ekranKodu, CancellationToken ct = default)
+    public async Task<ScreenPermission?> FindByCodeAsync(string screenCode, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.EkranYetkileri.AsNoTracking().FirstOrDefaultAsync(r => r.EkranKodu == ekranKodu, ct);
+        return await db.EkranYetkileri.AsNoTracking().FirstOrDefaultAsync(r => r.EkranKodu == screenCode, ct);
     }
 
-    public async Task UpsertAsync(string ekranKodu, Action<ScreenPermission> apply, CancellationToken ct = default)
+    public async Task UpsertAsync(string screenCode, Action<ScreenPermission> apply, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var row = await db.EkranYetkileri.FirstOrDefaultAsync(r => r.EkranKodu == ekranKodu, ct);
+        var row = await db.EkranYetkileri.FirstOrDefaultAsync(r => r.EkranKodu == screenCode, ct);
         var isNew = row is null;
-        row ??= new ScreenPermission { EkranKodu = ekranKodu };
+        row ??= new ScreenPermission { EkranKodu = screenCode };
         apply(row);
         if (isNew) db.EkranYetkileri.Add(row);
         try
@@ -40,14 +40,14 @@ public sealed class ScreenPermissionRepository(IDbContextFactory<AppDbContext> f
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            throw new ValidationException($"'{ekranKodu}' ekran yetkisi zaten kayıtlı (eşzamanlı yazım).");
+            throw new ValidationException($"'{screenCode}' ekran yetkisi zaten kayıtlı (eşzamanlı yazım).");
         }
     }
 
-    public async Task<bool> DeleteAsync(string ekranKodu, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(string screenCode, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var row = await db.EkranYetkileri.FirstOrDefaultAsync(r => r.EkranKodu == ekranKodu, ct);
+        var row = await db.EkranYetkileri.FirstOrDefaultAsync(r => r.EkranKodu == screenCode, ct);
         if (row is null) return false;
         db.EkranYetkileri.Remove(row);
         await db.SaveChangesAsync(ct);

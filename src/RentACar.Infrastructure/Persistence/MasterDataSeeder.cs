@@ -17,33 +17,33 @@ namespace RentACar.Infrastructure.Persistence;
 /// </summary>
 public static class MasterDataSeeder
 {
-    private static readonly string[] Markalar =
+    private static readonly string[] Brands =
         ["Toyota", "Renault", "Fiat", "Volkswagen", "Ford", "Hyundai", "Opel", "Peugeot", "Citroën", "Dacia",
          "Mercedes-Benz", "BMW", "Audi", "Honda", "Nissan", "Kia", "Škoda", "Seat", "Volvo", "Tesla"];
-    private static readonly string[] Renkler =
+    private static readonly string[] Colors =
         ["Beyaz", "Siyah", "Gri", "Gümüş", "Kırmızı", "Mavi", "Lacivert", "Yeşil", "Kahverengi", "Bordo", "Turuncu", "Sarı"];
-    private static readonly string[] Segmentler =
+    private static readonly string[] Segments =
         ["Ekonomi", "Kompakt", "Orta", "Üst", "Lüks", "SUV", "Ticari", "Minivan"];
-    private static readonly string[] AracTipleri =
+    private static readonly string[] VehicleTypes =
         ["Sedan", "Hatchback", "Station Wagon", "SUV", "Van", "Pick-up"];
-    private static readonly string[] AracGruplari =
+    private static readonly string[] VehicleGroups =
         ["Ekonomi", "Orta", "Üst", "SUV", "Lüks", "Ticari"];
-    private static readonly string[] Subeler = ["Merkez"];
-    private static readonly string[] Lokasyonlar = ["Merkez Ofis"];
-    private static readonly string[] CezaTurleri =
+    private static readonly string[] Branches = ["Merkez"];
+    private static readonly string[] Locations = ["Merkez Ofis"];
+    private static readonly string[] PenaltyTypes =
         ["Hız Cezası", "Park Cezası", "Kırmızı Işık", "Emniyet Kemeri", "HGS İhlali", "Diğer"];
-    private static readonly string[] OdemeTipleri =
+    private static readonly string[] PaymentTypes =
         ["Nakit", "Kredi Kartı", "Havale/EFT", "Çek", "Senet"];
-    private static readonly string[] GiderTurleri =
+    private static readonly string[] ExpenseTypes =
         ["Yakıt", "Bakım-Onarım", "Sigorta", "Lastik", "Temizlik", "Otopark", "Ceza", "Diğer"];
-    private static readonly string[] Kaynaklar =
+    private static readonly string[] Sources =
         ["Telefon", "Web", "Ofis", "Acente", "Kurumsal", "Yürüyen Müşteri"];
-    private static readonly string[] SigortaSirketleri =
+    private static readonly string[] InsuranceCompanies =
         ["Allianz", "AXA", "Anadolu Sigorta", "Aksigorta", "HDI Sigorta", "Mapfre", "Sompo", "Türkiye Sigorta"];
-    private static readonly string[] MusteriGruplari = ["Bireysel", "Kurumsal", "Acente", "VIP"];
-    private static readonly string[] Ulkeler =
+    private static readonly string[] CustomerGroups = ["Bireysel", "Kurumsal", "Acente", "VIP"];
+    private static readonly string[] Countries =
         ["Türkiye", "Almanya", "İngiltere", "Fransa", "Hollanda", "ABD", "Rusya", "Diğer"];
-    private static readonly string[] Departmanlar = ["Operasyon", "Muhasebe", "Satış", "Yönetim"];
+    private static readonly string[] Departments = ["Operasyon", "Muhasebe", "Satış", "Yönetim"];
 
     /// <summary>Tüm tenant'ları dolaşıp idempotent seed eder (başlangıçta, owner conn).</summary>
     public static async Task RunAsync(AppDbContext db, ILogger? log = null, CancellationToken ct = default)
@@ -72,21 +72,21 @@ public static class MasterDataSeeder
             $"SELECT set_config('app.tenant_id', {tid.ToString()}, false)", ct);
 
         var n = 0;
-        n += await SeedCat<Brand>(db, tid, Markalar, (k, a) => new Brand { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<VehicleColor>(db, tid, Renkler, (k, a) => new VehicleColor { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<VehicleSegment>(db, tid, Segmentler, (k, a) => new VehicleSegment { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<VehicleType>(db, tid, AracTipleri, (k, a) => new VehicleType { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<VehicleGroup>(db, tid, AracGruplari, (k, a) => new VehicleGroup { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<Branch>(db, tid, Subeler, (k, a) => new Branch { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<Location>(db, tid, Lokasyonlar, (k, a) => new Location { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<PenaltyType>(db, tid, CezaTurleri, (k, a) => new PenaltyType { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<PaymentType>(db, tid, OdemeTipleri, (k, a) => new PaymentType { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<ExpenseCategory>(db, tid, GiderTurleri, (k, a) => new ExpenseCategory { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<ReservationSource>(db, tid, Kaynaklar, (k, a) => new ReservationSource { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<InsuranceCompany>(db, tid, SigortaSirketleri, (k, a) => new InsuranceCompany { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<CustomerGroup>(db, tid, MusteriGruplari, (k, a) => new CustomerGroup { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<Country>(db, tid, Ulkeler, (k, a) => new Country { TenantId = tid, Kod = k, Ad = a }, ct);
-        n += await SeedCat<Department>(db, tid, Departmanlar, (k, a) => new Department { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<Brand>(db, tid, Brands, (k, a) => new Brand { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<VehicleColor>(db, tid, Colors, (k, a) => new VehicleColor { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<VehicleSegment>(db, tid, Segments, (k, a) => new VehicleSegment { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<VehicleType>(db, tid, VehicleTypes, (k, a) => new VehicleType { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<VehicleGroup>(db, tid, VehicleGroups, (k, a) => new VehicleGroup { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<Branch>(db, tid, Branches, (k, a) => new Branch { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<Location>(db, tid, Locations, (k, a) => new Location { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<PenaltyType>(db, tid, PenaltyTypes, (k, a) => new PenaltyType { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<PaymentType>(db, tid, PaymentTypes, (k, a) => new PaymentType { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<ExpenseCategory>(db, tid, ExpenseTypes, (k, a) => new ExpenseCategory { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<ReservationSource>(db, tid, Sources, (k, a) => new ReservationSource { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<InsuranceCompany>(db, tid, InsuranceCompanies, (k, a) => new InsuranceCompany { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<CustomerGroup>(db, tid, CustomerGroups, (k, a) => new CustomerGroup { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<Country>(db, tid, Countries, (k, a) => new Country { TenantId = tid, Kod = k, Ad = a }, ct);
+        n += await SeedCat<Department>(db, tid, Departments, (k, a) => new Department { TenantId = tid, Kod = k, Ad = a }, ct);
 
         if (n > 0)
         {
@@ -98,22 +98,22 @@ public static class MasterDataSeeder
 
     /// <summary>O tenant'ta T kategorisi BOŞSA varsayılanları ekler; doluysa (kullanıcı tanımı var) dokunmaz.</summary>
     private static async Task<int> SeedCat<T>(
-        AppDbContext db, Guid tid, string[] adlar, Func<string, string, T> make, CancellationToken ct)
+        AppDbContext db, Guid tid, string[] names, Func<string, string, T> make, CancellationToken ct)
         where T : class, ITenantOwned
     {
-        var doluMu = await db.Set<T>().IgnoreQueryFilters().Where(x => x.TenantId == tid).AnyAsync(ct);
-        if (doluMu) return 0;
+        var isFilled = await db.Set<T>().IgnoreQueryFilters().Where(x => x.TenantId == tid).AnyAsync(ct);
+        if (isFilled) return 0;
 
-        var kullanilan = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var ad in adlar)
-            db.Set<T>().Add(make(BenzersizKod(Fold(ad), kullanilan), ad));
-        return adlar.Length;
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var name in names)
+            db.Set<T>().Add(make(UniqueCode(Fold(name), used), name));
+        return names.Length;
     }
 
     /// <summary>Türkçe/Latin özel karakterleri ASCII'ye indirir, harf/rakam dışını atar, büyük harf yapar.</summary>
-    private static string Fold(string ad)
+    private static string Fold(string name)
     {
-        var pre = ad.Trim()
+        var pre = name.Trim()
             .Replace('ı', 'i').Replace('İ', 'i').Replace('ş', 's').Replace('Ş', 'S')
             .Replace('ğ', 'g').Replace('Ğ', 'G').Replace('ç', 'c').Replace('Ç', 'C')
             .Replace('ö', 'o').Replace('Ö', 'O').Replace('ü', 'u').Replace('Ü', 'U');
@@ -128,15 +128,15 @@ public static class MasterDataSeeder
     }
 
     /// <summary>(TenantId,Kod) UNIQUE → aynı kategoride çakışan Kod'a sayısal suffix ekler; 32 kolon sınırı.</summary>
-    private static string BenzersizKod(string bazKod, HashSet<string> kullanilan)
+    private static string UniqueCode(string baseCode, HashSet<string> used)
     {
-        var kod = bazKod.Length > 32 ? bazKod[..32] : bazKod;
-        if (kullanilan.Add(kod)) return kod;
+        var code = baseCode.Length > 32 ? baseCode[..32] : baseCode;
+        if (used.Add(code)) return code;
         for (var i = 2; ; i++)
         {
-            var g = bazKod.Length > 30 ? bazKod[..30] : bazKod;
+            var g = baseCode.Length > 30 ? baseCode[..30] : baseCode;
             var k = g + i;
-            if (kullanilan.Add(k)) return k;
+            if (used.Add(k)) return k;
         }
     }
 }

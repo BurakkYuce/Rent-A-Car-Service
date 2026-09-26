@@ -32,10 +32,10 @@ public sealed class AccessoryRepository(IDbContextFactory<AppDbContext> factory)
         return await db.Accessories.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.Accessories.AsNoTracking()
             .Where(a => a.Kod == k && (excludeId == null || a.Id != excludeId))
             .AnyAsync(ct);

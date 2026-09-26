@@ -15,18 +15,18 @@ namespace RentACar.Infrastructure.Persistence.Repositories;
 /// </summary>
 public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory) : IQuotationRepository
 {
-    private const string ZatenKabulMesaji = ConcurrentModificationException.QuotationAcceptMessage;
+    private const string AlreadyAcceptedMessage = ConcurrentModificationException.QuotationAcceptMessage;
 
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task<IReadOnlyList<Quotation>> ListAsync(RentACar.Application.Authorization.BranchScope.BranchFilter kapsam = default, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Quotation>> ListAsync(RentACar.Application.Authorization.BranchScope.BranchFilter scope = default, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.Quotations.AsNoTracking();
         // C4 ŞABLON (InScope ile birebir): türetilmiş-FK-eşit VEYA ofis-metni-eşit (Ordinal).
-        if (!kapsam.Unrestricted)
+        if (!scope.Unrestricted)
         {
-            var kid = kapsam.SubeId; var kad = kapsam.SubeAd;
+            var kid = scope.SubeId; var kad = scope.SubeAd;
             q = q.Where(x => (kid != null && x.CikisSubeId == kid)
                           || ((kid == null || x.CikisSubeId == null) && kad != null && x.CikisOfisi != null && x.CikisOfisi.Trim() == kad)); // C5
         }
@@ -45,7 +45,7 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            quotation.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Teklif, ct);
+            quotation.No = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.Teklif, ct);
             db.Quotations.Add(quotation);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -55,7 +55,7 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
     /// <summary>F5.1 adversarial L6 — satır kilidi (<c>FOR UPDATE</c>) ALTINDA oku-uygula-yaz: <paramref name="apply"/>
     /// içindeki durum denetimi eşzamanlı kabul/red ile yarışamaz (kabul edilmiş teklif "Reddedildi"ye ezilmez).</summary>
     public Task<bool> UpdateAsync(Guid id, Action<Quotation> apply, CancellationToken ct = default)
-        => SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Teklifler, id, beklenenSurum: null,
+        => RowVersionSql.UpdateAsync(_factory, RowVersionSql.Quotations, id, expectedVersion: null,
             (db, k, c) => db.Quotations.FirstOrDefaultAsync(x => x.Id == k, c), apply, ct);
 
     public async Task<Guid> ConvertToReservationAsync(
@@ -68,18 +68,18 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
 
             // F5.1 adversarial H1: teklif satırı OKUMADAN ÖNCE kilitlenir; durum + ReservationId kilit ALTINDA yeniden
             // denetlenir. Kilitsiz okumada 8 eşzamanlı kabulün hepsi "ReservationId null" görüp 8 rezervasyon açıyordu.
-            await SatirSurumu.KilitleAsync(db, SatirSurumu.Teklifler, quotationId, ct);
+            await RowVersionSql.LockAsync(db, RowVersionSql.Quotations, quotationId, ct);
             var quotation = await db.Quotations.FirstOrDefaultAsync(x => x.Id == quotationId, ct)
                 ?? throw new ValidationException("Teklif bulunamadı.");
             if (quotation.ReservationId is not null)
-                throw new ConcurrentModificationException(ZatenKabulMesaji);
+                throw new ConcurrentModificationException(AlreadyAcceptedMessage);
             if (quotation.Durum is not (QuotationStatus.Taslak or QuotationStatus.Gonderildi))
                 throw new ConcurrentModificationException(
                     $"Teklif bu sırada başka bir oturumda '{quotation.Durum}' durumuna geçti; kabul edilmedi.");
 
             var reservation = buildReservation(quotation);
             reservation.KaynakTeklifId = quotation.Id; // yapısal çit: (TenantId, KaynakTeklifId) kısmi UNIQUE
-            reservation.ReservationNo = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.Rezervasyon, ct);
+            reservation.ReservationNo = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.Rezervasyon, ct);
             db.Reservations.Add(reservation);
 
             quotation.Durum = QuotationStatus.Kabul;
@@ -94,10 +94,10 @@ public sealed class QuotationRepository(IDbContextFactory<AppDbContext> factory)
             catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException
             {
                 SqlState: Npgsql.PostgresErrorCodes.UniqueViolation,
-                ConstraintName: Configurations.ReservationConfig.TeklifTekRezervasyonIndeksi,
+                ConstraintName: Configurations.ReservationConfig.QuotationSingleReservationIndex,
             })
             {
-                throw new ConcurrentModificationException(ZatenKabulMesaji);
+                throw new ConcurrentModificationException(AlreadyAcceptedMessage);
             }
             return reservation.Id;
         }, ct);

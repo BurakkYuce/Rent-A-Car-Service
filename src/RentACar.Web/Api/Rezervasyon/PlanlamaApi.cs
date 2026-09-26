@@ -59,7 +59,7 @@ public static class PlanlamaApi
         CalendarService takvim, VehicleService araclar, string? ay, string? plaka, string? grup, string? sube,
         CancellationToken ct)
     {
-        var bugun = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TenantGun.Dilim).DateTime);
+        var bugun = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TenantDay.Slice).DateTime);
         DateOnly ilk;
         if (string.IsNullOrWhiteSpace(ay))
             ilk = new DateOnly(bugun.Year, bugun.Month, 1);

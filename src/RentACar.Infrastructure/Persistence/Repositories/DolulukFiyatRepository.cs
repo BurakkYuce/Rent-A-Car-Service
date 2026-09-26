@@ -8,7 +8,7 @@ using RentACar.Domain.Enums;
 namespace RentACar.Infrastructure.Persistence.Repositories;
 
 /// <summary>IDolulukFiyatKuralRepository implementasyonu (FAZ 3.A7) — master CRUD deseni.</summary>
-public sealed class DolulukFiyatKuralRepository(IDbContextFactory<AppDbContext> factory) : IOccupancyPriceRuleRepository
+public sealed class OccupancyPriceRuleRepository(IDbContextFactory<AppDbContext> factory) : IOccupancyPriceRuleRepository
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
@@ -32,11 +32,11 @@ public sealed class DolulukFiyatKuralRepository(IDbContextFactory<AppDbContext> 
         return await db.DolulukFiyatKurallari.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.DolulukFiyatKurallari.AsNoTracking()
-            .AnyAsync(c => c.Kod == kod && (excludeId == null || c.Id != excludeId), ct);
+            .AnyAsync(c => c.Kod == code && (excludeId == null || c.Id != excludeId), ct);
     }
 
     public async Task CreateAsync(DolulukFiyatKural row, CancellationToken ct = default)
@@ -94,47 +94,47 @@ public sealed class DolulukFiyatKuralRepository(IDbContextFactory<AppDbContext> 
 public sealed class OccupancyProvider(IDbContextFactory<AppDbContext> factory) : IOccupancyProvider
 {
     public async Task<decimal?> GetGroupOccupancyPercentAsync(
-        string grupKod, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+        string groupCode, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {
-        var kod = grupKod.Trim();
+        var code = groupCode.Trim();
         var fromD = from.UtcDateTime.Date;
         var toD = to.UtcDateTime.Date;
-        var donemGun = Math.Max(1, (toD - fromD).Days); // B5: aynı-gün penceresi 1 gün sayılır
+        var periodDays = Math.Max(1, (toD - fromD).Days); // B5: aynı-gün penceresi 1 gün sayılır
         if (to <= from) return null;
 
         await using var db = await factory.CreateDbContextAsync(ct);
-        var aracIdler = await db.Vehicles.AsNoTracking()
-            .Where(v => v.Grup != null && v.Grup.Trim().ToUpper() == kod.ToUpper()
+        var vehicleIds = await db.Vehicles.AsNoTracking()
+            .Where(v => v.Grup != null && v.Grup.Trim().ToUpper() == code.ToUpper()
                 && v.Durum != VehicleStatus.Satildi && v.Durum != VehicleStatus.Pasif) // B1
             .Select(v => v.Id).ToListAsync(ct);
-        if (aracIdler.Count == 0) return null;
+        if (vehicleIds.Count == 0) return null;
 
-        var kiralar = await db.Rentals.AsNoTracking()
-            .Where(r => aracIdler.Contains(r.VehicleId) && r.Durum != RentalStatus.Iptal
+        var rentals = await db.Rentals.AsNoTracking()
+            .Where(r => vehicleIds.Contains(r.VehicleId) && r.Durum != RentalStatus.Iptal
                 && r.BasTar < to && r.BitTar > from)
             .Select(r => new { r.BasTar, r.BitTar, r.GercekDonusTar }).ToListAsync(ct);
-        var rezervasyonlar = await db.Reservations.AsNoTracking() // B3: ileri talep sinyali
-            .Where(r => aracIdler.Contains(r.VehicleId)
+        var reservations = await db.Reservations.AsNoTracking() // B3: ileri talep sinyali
+            .Where(r => vehicleIds.Contains(r.VehicleId)
                 && (r.Durum == ReservationStatus.Rezerv || r.Durum == ReservationStatus.Onayli)
                 && r.BasTar < to && r.BitTar > from)
             .Select(r => new { r.BasTar, r.BitTar }).ToListAsync(ct);
 
-        var bitSiniri = toD == fromD ? fromD.AddDays(1) : toD; // B5 ile tutarlı üst sınır
+        var endLimit = toD == fromD ? fromD.AddDays(1) : toD; // B5 ile tutarlı üst sınır
 
         // Bitiş-hariç gün örtüşmesi (tarih düzeyinde); B2: erken dönüşte efektif bitiş.
-        int Ortusme(DateTimeOffset bas, DateTimeOffset bit)
+        int Overlap(DateTimeOffset start, DateTimeOffset bit)
         {
-            var lo = bas.UtcDateTime.Date > fromD ? bas.UtcDateTime.Date : fromD;
-            var hi = bit.UtcDateTime.Date < bitSiniri ? bit.UtcDateTime.Date : bitSiniri;
+            var lo = start.UtcDateTime.Date > fromD ? start.UtcDateTime.Date : fromD;
+            var hi = bit.UtcDateTime.Date < endLimit ? bit.UtcDateTime.Date : endLimit;
             return hi > lo ? (hi - lo).Days : 0;
         }
-        var doluGun = kiralar.Sum(r =>
+        var occupiedDays = rentals.Sum(r =>
         {
-            var efektifBit = r.GercekDonusTar is { } gd && gd < r.BitTar ? gd : r.BitTar;
-            return Ortusme(r.BasTar, efektifBit);
-        }) + rezervasyonlar.Sum(r => Ortusme(r.BasTar, r.BitTar));
+            var effectiveEnd = r.GercekDonusTar is { } gd && gd < r.BitTar ? gd : r.BitTar;
+            return Overlap(r.BasTar, effectiveEnd);
+        }) + reservations.Sum(r => Overlap(r.BasTar, r.BitTar));
 
-        var aracGun = aracIdler.Count * donemGun;
-        return Math.Round((decimal)doluGun * 100m / aracGun, 2, MidpointRounding.AwayFromZero);
+        var vehicleDays = vehicleIds.Count * periodDays;
+        return Math.Round((decimal)occupiedDays * 100m / vehicleDays, 2, MidpointRounding.AwayFromZero);
     }
 }

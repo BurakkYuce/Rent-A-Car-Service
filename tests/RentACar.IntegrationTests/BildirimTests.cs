@@ -37,7 +37,7 @@ public sealed class BildirimTests(PostgresFixture fx)
     private static async Task<int> UretAsync(IServiceProvider sp, Guid tenant)
     {
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
-        return await VadeBildirimUretici.RunAsync(db, tenant, Now);
+        return await DueNotificationGenerator.RunAsync(db, tenant, Now);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public sealed class BildirimTests(PostgresFixture fx)
             await db.Database.OpenConnectionAsync();
             await db.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT set_config('app.tenant_id', {tenant.ToString()}, false)");
-            Assert.Equal(3, await VadeBildirimUretici.RunAsync(db, tenant, Now));
+            Assert.Equal(3, await DueNotificationGenerator.RunAsync(db, tenant, Now));
         }
         // Açık damga + RLS ile doğru tenant'ta görünür.
         Assert.Equal(3, await scope.ServiceProvider.GetRequiredService<InAppNotificationService>().UnreadCountAsync());

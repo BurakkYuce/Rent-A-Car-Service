@@ -71,7 +71,7 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
         var f = host.ScopeFor(tenant).ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
 
-        var ozet = await OperasyonOzetUretici.BuildAsync(db, Gun, Tz);
+        var ozet = await OperationSummaryGenerator.BuildAsync(db, Gun, Tz);
 
         Assert.Equal(2, ozet.Cikis);
         Assert.Equal(1, ozet.Donus);
@@ -90,7 +90,7 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
         using (var s = host.ScopeFor(tenant)) await SeedAsync(s, toggle: true, no: "0532 111 22 33");
         var wa = new FakeWhatsApp();
 
-        await WhatsAppOzetGonderici.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
         Assert.Equal(1, wa.Calls);
         Assert.Equal("+905321112233", wa.LastPhone);   // E.164 normalize
         Assert.Equal("2", wa.LastParams!["1"]);        // çıkış (kültür-güvenli int)
@@ -107,7 +107,7 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
         }
 
         // idempotent: 2. çağrı → gönderim YOK
-        await WhatsAppOzetGonderici.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
         Assert.Equal(1, wa.Calls);
     }
 
@@ -119,15 +119,15 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
 
         var t1 = Guid.NewGuid();
         using (var s = host.ScopeFor(t1)) await SeedAsync(s, toggle: false, no: "0532");     // toggle kapalı
-        await WhatsAppOzetGonderici.SendDailyAsync(RawOptions(), t1, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), t1, wa, Sabah09, Tz, NullLogger.Instance);
 
         var t2 = Guid.NewGuid();
         using (var s = host.ScopeFor(t2)) await SeedAsync(s, toggle: true, no: null);          // no boş
-        await WhatsAppOzetGonderici.SendDailyAsync(RawOptions(), t2, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), t2, wa, Sabah09, Tz, NullLogger.Instance);
 
         var t3 = Guid.NewGuid();
         using (var s = host.ScopeFor(t3)) await SeedAsync(s, toggle: true, no: "0532");
-        await WhatsAppOzetGonderici.SendDailyAsync(RawOptions(), t3, wa, Sabah06, Tz, NullLogger.Instance); // 06:00 < 08:00
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), t3, wa, Sabah06, Tz, NullLogger.Instance); // 06:00 < 08:00
 
         Assert.Equal(0, wa.Calls);
     }
@@ -140,11 +140,11 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
         using (var s = host.ScopeFor(tenant)) await SeedAsync(s, toggle: true, no: "0532");
         var wa = new FakeWhatsApp { Result = false }; // Twilio başarısız
 
-        await WhatsAppOzetGonderici.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
         Assert.Equal(1, wa.Calls); // denendi, başarısız → slot Basarili=false
 
         wa.Result = true;
-        await WhatsAppOzetGonderici.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
         Assert.Equal(2, wa.Calls); // madde1: başarısız satır → TEKRAR denendi (sessiz-düşme yok)
     }
 
@@ -155,7 +155,7 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
         var tenantB = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
         using (var s = host.ScopeFor(tenantA)) await SeedAsync(s, toggle: true, no: "0532");
-        await WhatsAppOzetGonderici.SendDailyAsync(RawOptions(), tenantA, new FakeWhatsApp(), Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenantA, new FakeWhatsApp(), Sabah09, Tz, NullLogger.Instance);
 
         // B, A'nın gönderim logunu GÖRMEZ (RLS, racar_app)
         using var sb = host.ScopeFor(tenantB);

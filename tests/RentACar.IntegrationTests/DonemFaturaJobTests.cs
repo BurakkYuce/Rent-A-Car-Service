@@ -39,11 +39,11 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         return (id, m);
     }
 
-    private static async Task<DonemFaturaUretici.Sonuc> KosAsync(IServiceProvider sp, Guid tenantId)
+    private static async Task<PeriodInvoiceGenerator.Sonuc> KosAsync(IServiceProvider sp, Guid tenantId)
     {
         // Job'ın doğrudan-context yolu (VadeBildirimUretici test emsali — BildirimTests.UretAsync).
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
-        return await DonemFaturaUretici.RunAsync(db, tenantId, DateTimeOffset.UtcNow);
+        return await PeriodInvoiceGenerator.RunAsync(db, tenantId, DateTimeOffset.UtcNow);
     }
 
     [Fact]

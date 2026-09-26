@@ -149,7 +149,7 @@ internal sealed class DamageFileConfig : IEntityTypeConfiguration<DamageFile>
 }
 
 // ---- FiloKiralama (uzun-dönem kira sözleşmesi; full-CRUD, mali belge DEĞİL → roadmap L1) ----
-internal sealed class FiloKiralamaConfig : IEntityTypeConfiguration<FiloKiralama>
+internal sealed class FleetRentalConfig : IEntityTypeConfiguration<FiloKiralama>
 {
     public void Configure(EntityTypeBuilder<FiloKiralama> e)
     {
@@ -179,7 +179,7 @@ internal sealed class FiloKiralamaConfig : IEntityTypeConfiguration<FiloKiralama
 }
 
 // ---- AracSiparis (tedarik siparişi; full-CRUD, mali belge DEĞİL → roadmap L3) ----
-internal sealed class AracSiparisConfig : IEntityTypeConfiguration<AracSiparis>
+internal sealed class VehicleOrderConfig : IEntityTypeConfiguration<AracSiparis>
 {
     public void Configure(EntityTypeBuilder<AracSiparis> e)
     {
@@ -235,7 +235,7 @@ internal sealed class AracSiparisConfig : IEntityTypeConfiguration<AracSiparis>
 }
 
 // ---- AracKredi (banka kredisi takibi; full-CRUD, mali belge DEĞİL → roadmap L4) ----
-internal sealed class AracKrediConfig : IEntityTypeConfiguration<AracKredi>
+internal sealed class VehicleLoanConfig : IEntityTypeConfiguration<AracKredi>
 {
     public void Configure(EntityTypeBuilder<AracKredi> e)
     {
@@ -325,7 +325,7 @@ internal sealed class VehiclePhotoConfig : IEntityTypeConfiguration<VehiclePhoto
 // ---- WebIlan / WebIlanOzellik (PR-13 — halka açık site ilanları) ----
 // NOT: HasQueryFilter BURAYA YAZILMAZ — AppDbContext.OnModelCreating'deki merkezi döngü tüm
 // ITenantOwned entity'lere tenant filtresini otomatik uygular (ModelGuardTests bunu doğrular).
-internal sealed class WebIlanConfig : IEntityTypeConfiguration<WebIlan>
+internal sealed class WebListingConfig : IEntityTypeConfiguration<WebIlan>
 {
     public void Configure(EntityTypeBuilder<WebIlan> e)
     {
@@ -349,7 +349,7 @@ internal sealed class WebIlanConfig : IEntityTypeConfiguration<WebIlan>
     }
 }
 
-internal sealed class WebIlanOzellikConfig : IEntityTypeConfiguration<WebIlanOzellik>
+internal sealed class WebListingFeatureConfig : IEntityTypeConfiguration<WebIlanOzellik>
 {
     public void Configure(EntityTypeBuilder<WebIlanOzellik> e)
     {

@@ -32,10 +32,10 @@ public sealed class VehicleSegmentRepository(IDbContextFactory<AppDbContext> fac
         return await db.VehicleSegments.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.VehicleSegments.AsNoTracking()
             .Where(s => s.Kod == k && (excludeId == null || s.Id != excludeId))
             .AnyAsync(ct);
@@ -73,26 +73,26 @@ public sealed class VehicleSegmentRepository(IDbContextFactory<AppDbContext> fac
         return true;
     }
 
-    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
-    public async Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<VehicleSegment> apply, CancellationToken ct = default)
+    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<see cref="RowVersionSql"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<VehicleSegment> apply, CancellationToken ct = default)
     {
-        string? kod = null;
+        string? code = null;
         try
         {
-            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.Segmentler, id, beklenenSurum,
+            return await RowVersionSql.UpdateAsync(_factory, RowVersionSql.Segments, id, expectedVersion,
                 (db, k, c) => db.VehicleSegments.FirstOrDefaultAsync(s => s.Id == k, c),
-                s => { apply(s); kod = s.Kod; }, ct);
+                s => { apply(s); code = s.Kod; }, ct);
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            throw new ValidationException($"'{kod}' kodlu segment zaten var.");
+            throw new ValidationException($"'{code}' kodlu segment zaten var.");
         }
     }
 
     public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.Segmentler, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.Segments, id, ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

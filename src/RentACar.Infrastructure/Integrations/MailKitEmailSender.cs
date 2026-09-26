@@ -30,54 +30,54 @@ public sealed class MailKitEmailSender(
     private readonly Func<string, CancellationToken, Task<System.Net.IPAddress?>> _resolve =
         endpointResolver ?? SmtpEndpointGuard.ResolveAllowedAsync;
 
-    public async Task<EpostaSonuc> SendAsync(SmtpAyar ayar, EpostaMesaj mesaj, CancellationToken ct = default)
+    public async Task<EpostaSonuc> SendAsync(SmtpAyar setting, EpostaMesaj message, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(ayar.Host))
+        if (string.IsNullOrWhiteSpace(setting.Host))
             return new EpostaSonuc(false, "SMTP sunucusu tanımlı değil (Ayarlar → E-posta).");
-        if (ayar.Port is <= 0 or > 65535)
-            return new EpostaSonuc(false, $"SMTP portu geçersiz: {ayar.Port}.");
+        if (setting.Port is <= 0 or > 65535)
+            return new EpostaSonuc(false, $"SMTP portu geçersiz: {setting.Port}.");
         // F11.1b güvenlik M4: yalnız SMTP portları (kiracı ayarı sunucumuzu port tarayıcısına çeviremez).
-        if (!SmtpEndpointGuard.AllowedPorts.Contains(ayar.Port))
+        if (!SmtpEndpointGuard.AllowedPorts.Contains(setting.Port))
             return new EpostaSonuc(false, "SMTP portu yalnız 25, 465, 587 ya da 2525 olabilir.");
-        if (string.IsNullOrWhiteSpace(ayar.GonderenAdres))
+        if (string.IsNullOrWhiteSpace(setting.GonderenAdres))
             return new EpostaSonuc(false, "Gönderen e-posta adresi tanımlı değil (Ayarlar → E-posta).");
-        if (string.IsNullOrWhiteSpace(mesaj.Alici))
+        if (string.IsNullOrWhiteSpace(message.Alici))
             return new EpostaSonuc(false, "Alıcı e-posta adresi boş.");
 
         MimeMessage mime;
         try
         {
             mime = new MimeMessage();
-            mime.From.Add(new MailboxAddress(ayar.GonderenAd ?? ayar.GonderenAdres, ayar.GonderenAdres));
-            mime.To.Add(MailboxAddress.Parse(mesaj.Alici));
-            mime.Subject = mesaj.Konu;
+            mime.From.Add(new MailboxAddress(setting.GonderenAd ?? setting.GonderenAdres, setting.GonderenAdres));
+            mime.To.Add(MailboxAddress.Parse(message.Alici));
+            mime.Subject = message.Konu;
             mime.Body = new BodyBuilder
             {
-                HtmlBody = mesaj.GovdeHtml,
+                HtmlBody = message.GovdeHtml,
                 // Düz metin gövdesi verilmezse HTML'i olduğu gibi koymayız (etiketler görünür);
                 // düz-metin alternatifini çağıran üretir, yoksa yalnız HTML gider.
-                TextBody = mesaj.GovdeDuz,
+                TextBody = message.GovdeDuz,
             }.ToMessageBody();
         }
         catch (ParseException)
         {
-            return new EpostaSonuc(false, $"E-posta adresi geçersiz: {mesaj.Alici}");
+            return new EpostaSonuc(false, $"E-posta adresi geçersiz: {message.Alici}");
         }
 
         try
         {
             // F11.1b güvenlik M4: DNS çözümünden SONRA iç ağ/loopback/link-local reddi; bağlantı denetlenen IP'ye açılır.
-            var address = await _resolve(ayar.Host, ct);
+            var address = await _resolve(setting.Host, ct);
             if (address is null)
             {
-                log.LogWarning("SMTP hedefi reddedildi ya da çözülemedi ({Host}:{Port}).", ayar.Host, ayar.Port);
+                log.LogWarning("SMTP hedefi reddedildi ya da çözülemedi ({Host}:{Port}).", setting.Host, setting.Port);
                 return new EpostaSonuc(false, GenericFailure);
             }
 
             using var client = new SmtpClient { Timeout = 20_000 };
-            var secure = ayar.Port == 465
+            var secure = setting.Port == 465
                 ? SecureSocketOptions.SslOnConnect
-                : ayar.Ssl ? SecureSocketOptions.StartTls : SecureSocketOptions.StartTlsWhenAvailable;
+                : setting.Ssl ? SecureSocketOptions.StartTls : SecureSocketOptions.StartTlsWhenAvailable;
 
             var socket = new System.Net.Sockets.Socket(address.AddressFamily, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
             using (var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
@@ -85,7 +85,7 @@ public sealed class MailKitEmailSender(
                 connectTimeout.CancelAfter(20_000);
                 try
                 {
-                    await socket.ConnectAsync(new System.Net.IPEndPoint(address, ayar.Port), connectTimeout.Token);
+                    await socket.ConnectAsync(new System.Net.IPEndPoint(address, setting.Port), connectTimeout.Token);
                 }
                 catch
                 {
@@ -93,8 +93,8 @@ public sealed class MailKitEmailSender(
                     throw;
                 }
             }
-            await client.ConnectAsync(socket, ayar.Host, ayar.Port, secure, ct);
-            if (!string.IsNullOrWhiteSpace(ayar.Kullanici))
+            await client.ConnectAsync(socket, setting.Host, setting.Port, secure, ct);
+            if (!string.IsNullOrWhiteSpace(setting.Kullanici))
             {
                 // F11.1b güvenlik M3: şifreli olmayan bağlantıda AUTH YOK — parola düz metin gitmez.
                 if (!client.IsSecure)
@@ -103,12 +103,12 @@ public sealed class MailKitEmailSender(
                     return new EpostaSonuc(false,
                         "SMTP sunucusu şifreli bağlantı (TLS) sunmuyor; parola şifresiz gönderilmez. 465 (SSL) ya da 587 (STARTTLS) kullanın.");
                 }
-                await client.AuthenticateAsync(ayar.Kullanici, ayar.Sifre ?? string.Empty, ct);
+                await client.AuthenticateAsync(setting.Kullanici, setting.Sifre ?? string.Empty, ct);
             }
             await client.SendAsync(mime, ct);
             await client.DisconnectAsync(true, ct);
 
-            log.LogInformation("E-posta gönderildi (alici={Alici} konu={Konu}).", mesaj.Alici, mesaj.Konu);
+            log.LogInformation("E-posta gönderildi (alici={Alici} konu={Konu}).", message.Alici, message.Konu);
             return new EpostaSonuc(true, null);
         }
         catch (AuthenticationException ex)
@@ -120,19 +120,19 @@ public sealed class MailKitEmailSender(
         {
             log.LogWarning(ex, "SMTP TLS el sıkışması başarısız.");
             return new EpostaSonuc(false,
-                $"TLS el sıkışması başarısız. {ayar.Host}:{ayar.Port} için şifreleme ayarını kontrol edin "
+                $"TLS el sıkışması başarısız. {setting.Host}:{setting.Port} için şifreleme ayarını kontrol edin "
                 + "(465 → SSL, 587 → STARTTLS).");
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            log.LogWarning("SMTP zaman aşımı ({Host}:{Port}).", ayar.Host, ayar.Port);
+            log.LogWarning("SMTP zaman aşımı ({Host}:{Port}).", setting.Host, setting.Port);
             return new EpostaSonuc(false, GenericFailure);
         }
         catch (Exception ex)
         {
             // F11.1b güvenlik M4: ham istisna metni (bağlantı reddedildi / ulaşılamadı / sunucu banner'ı) kullanıcıya
             // DÖNMEZ — port tarama sinyali olurdu; ayrıntı log'da.
-            log.LogWarning(ex, "SMTP gönderim hatası ({Host}:{Port}).", ayar.Host, ayar.Port);
+            log.LogWarning(ex, "SMTP gönderim hatası ({Host}:{Port}).", setting.Host, setting.Port);
             return new EpostaSonuc(false, GenericFailure);
         }
     }

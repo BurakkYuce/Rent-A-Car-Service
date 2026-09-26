@@ -46,8 +46,8 @@ public sealed class DonemFaturaJob(IConfiguration config, ILogger<DonemFaturaJob
         {
             // Per-tenant yalıtım (UreticiYalitimi): kendi context'i + koşu günlüğü (başarı VE hata);
             // hata loglanır (hangi iş, hangi tenant) + metrik, sonraki tenant etkilenmez.
-            var sonuc = await UreticiYalitimi.DbAdimiAsync(options, tenantId, JobCalismaKaydedici.DonemFatura,
-                db => DonemFaturaUretici.RunAsync(db, tenantId, now, ct),
+            var sonuc = await GeneratorIsolation.DbStepAsync(options, tenantId, JobRunRecorder.PeriodInvoice,
+                db => PeriodInvoiceGenerator.RunAsync(db, tenantId, now, ct),
                 log,
                 s => s.Kesilen,
                 s => s.Atlananlar.Count == 0 ? null : string.Join(" | ", s.Atlananlar), ct);

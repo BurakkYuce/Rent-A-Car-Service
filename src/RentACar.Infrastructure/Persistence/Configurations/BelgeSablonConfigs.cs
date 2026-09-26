@@ -5,7 +5,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Configurations;
 
 // ---- BelgeSablon (marka-özel PDF metin şablonu; tenant-owned master, defter postalamaz) ----
-internal sealed class BelgeSablonConfig : IEntityTypeConfiguration<BelgeSablon>
+internal sealed class DocumentTemplateConfig : IEntityTypeConfiguration<BelgeSablon>
 {
     public void Configure(EntityTypeBuilder<BelgeSablon> e)
     {

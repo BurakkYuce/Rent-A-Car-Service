@@ -149,7 +149,7 @@ public sealed partial class UiReportTests(WebFixture fx)
             Assert.True(root.GetProperty("errors").TryGetProperty(field, out _), $"errors[{field}] yok: {root}");
     }
 
-    private static string Today => RentACar.Infrastructure.Persistence.TenantGun.Gun(DateTimeOffset.UtcNow).ToString("yyyy-MM-dd");
+    private static string Today => RentACar.Infrastructure.Persistence.TenantDay.Day(DateTimeOffset.UtcNow).ToString("yyyy-MM-dd");
 
     private static decimal Dec(JsonElement e, string name) => e.GetProperty(name).GetDecimal();
 }

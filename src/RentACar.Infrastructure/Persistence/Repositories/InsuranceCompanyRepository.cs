@@ -32,10 +32,10 @@ public sealed class InsuranceCompanyRepository(IDbContextFactory<AppDbContext> f
         return await db.InsuranceCompanies.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.InsuranceCompanies.AsNoTracking()
             .Where(c => c.Kod == k && (excludeId == null || c.Id != excludeId))
             .AnyAsync(ct);
@@ -73,13 +73,13 @@ public sealed class InsuranceCompanyRepository(IDbContextFactory<AppDbContext> f
         return true;
     }
 
-    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
+    /// <summary>F11.1b — satır kilidi + iyimser sürüm karşılaştırması (<see cref="RowVersionSql"/>).</summary>
     public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<InsuranceCompany> apply, CancellationToken ct = default)
     {
         string? code = null;
         try
         {
-            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.InsuranceCompanies, id, expectedVersion,
+            return await RowVersionSql.UpdateAsync(_factory, RowVersionSql.InsuranceCompanies, id, expectedVersion,
                 (db, k, c) => db.InsuranceCompanies.FirstOrDefaultAsync(x => x.Id == k, c),
                 x => { apply(x); code = x.Kod; }, ct);
         }
@@ -92,7 +92,7 @@ public sealed class InsuranceCompanyRepository(IDbContextFactory<AppDbContext> f
     public async Task<string?> RowVersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.InsuranceCompanies, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.InsuranceCompanies, id, ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

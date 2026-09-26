@@ -23,15 +23,15 @@ internal static class TrSql
         public string Deger { get; } = deger;
     }
 
-    /// <summary><paramref name="alan"/> katlanmış biçimde <paramref name="katlanmisTerim"/>'i içeriyor mu.
+    /// <summary><paramref name="alan"/> katlanmış biçimde <paramref name="foldedTerm"/>'i içeriyor mu.
     /// Terim ÖNCEDEN <see cref="TurkishText.Normalize"/>'dan geçmiş olmalı.</summary>
-    public static Expression<Func<T, bool>> Icerir<T>(Expression<Func<T, string>> alan, string katlanmisTerim)
+    public static Expression<Func<T, bool>> ContainsFold<T>(Expression<Func<T, string>> alan, string foldedTerm)
     {
-        Expression govde = alan.Body;
+        Expression body = alan.Body;
         foreach (var (k, h) in TurkishText.Mapping)
-            govde = Expression.Call(govde, Replace, Expression.Constant(k.ToString()), Expression.Constant(h.ToString()));
-        govde = Expression.Call(govde, ToLower);
-        var terim = Expression.Property(Expression.Constant(new Kutu(katlanmisTerim)), nameof(Kutu.Deger));
-        return Expression.Lambda<Func<T, bool>>(Expression.Call(govde, Contains, terim), alan.Parameters);
+            body = Expression.Call(body, Replace, Expression.Constant(k.ToString()), Expression.Constant(h.ToString()));
+        body = Expression.Call(body, ToLower);
+        var term = Expression.Property(Expression.Constant(new Kutu(foldedTerm)), nameof(Kutu.Deger));
+        return Expression.Lambda<Func<T, bool>>(Expression.Call(body, Contains, term), alan.Parameters);
     }
 }

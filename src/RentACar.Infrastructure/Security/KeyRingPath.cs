@@ -25,14 +25,14 @@ public static class KeyRingPath
     /// <param name="envValue">Test için enjekte edilir; null ise ortam değişkeni okunur.</param>
     public static string Resolve(string? envValue = null)
     {
-        var acik = envValue ?? Environment.GetEnvironmentVariable(EnvVar);
-        if (!string.IsNullOrWhiteSpace(acik)) return acik.Trim();
+        var open = envValue ?? Environment.GetEnvironmentVariable(EnvVar);
+        if (!string.IsNullOrWhiteSpace(open)) return open.Trim();
 
         // Dev/test fallback'i: profil dizini kalıcıdır ve `dotnet clean` onu silmez.
-        var taban = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (string.IsNullOrWhiteSpace(taban))
-            taban = Path.GetTempPath();   // profilsiz ortam (kimi CI konteynerleri) — üretimde guard zaten env şart koşuyor
+        var floor = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(floor))
+            floor = Path.GetTempPath();   // profilsiz ortam (kimi CI konteynerleri) — üretimde guard zaten env şart koşuyor
 
-        return Path.Combine(taban, "racar", "dp-keys");
+        return Path.Combine(floor, "racar", "dp-keys");
     }
 }

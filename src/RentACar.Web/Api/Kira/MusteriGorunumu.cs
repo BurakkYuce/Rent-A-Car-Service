@@ -61,7 +61,7 @@ public static class MusteriGorunumu
     /// </summary>
     public static string PaylasimMesaji(RentalContract c, Customer? m)
     {
-        static string Gun(DateTimeOffset an) => TimeZoneInfo.ConvertTime(an, TenantGun.Dilim).ToString("dd.MM.yyyy", Tr);
+        static string Gun(DateTimeOffset an) => TimeZoneInfo.ConvertTime(an, TenantDay.Slice).ToString("dd.MM.yyyy", Tr);
         var hitap = m is null || m.AnonimAd ? NotrHitap : m.DisplayName;
         return $"Sayın {hitap}, {c.SozlesmeNo} nolu kira sözleşmeniz: {Gun(c.BasTar)} - {Gun(c.BitTar)}, " +
                $"genel toplam {c.GenelToplam.ToString("N2", Tr)} {c.Doviz ?? "TL"}.";

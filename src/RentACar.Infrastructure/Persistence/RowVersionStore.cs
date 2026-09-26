@@ -6,7 +6,7 @@ using RentACar.Application.Common;
 namespace RentACar.Infrastructure.Persistence;
 
 /// <summary>
-/// F9.1 — <see cref="IRowVersionStore"/>: same mechanism as <see cref="SatirSurumu"/> (Postgres <c>xmin</c> as an
+/// F9.1 — <see cref="IRowVersionStore"/>: same mechanism as <see cref="RowVersionSql"/> (Postgres <c>xmin</c> as an
 /// opaque version + <c>FOR UPDATE</c> row lock) but generic over the entity type. The table name is taken from the EF
 /// model of <typeparamref name="T"/> (never from input), so no whitelist is needed. Runs on the app role: RLS limits
 /// every read/lock to the current tenant (another tenant's row reads as "missing").

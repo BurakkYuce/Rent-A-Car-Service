@@ -9,10 +9,10 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
 {
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
-    public async Task AddAsync(PublicBookingRequest talep, CancellationToken ct = default)
+    public async Task AddAsync(PublicBookingRequest request, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        db.SiteTalepleri.Add(talep);
+        db.SiteTalepleri.Add(request);
         await db.SaveChangesAsync(ct);
     }
 
@@ -31,7 +31,7 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
         return await db.SiteTalepleri.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct);
     }
 
-    public async Task<bool> TryClaimAsync(Guid id, PublicBookingRequestDurum hedef, CancellationToken ct = default)
+    public async Task<bool> TryClaimAsync(Guid id, PublicBookingRequestDurum target, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // TEK atomik UPDATE — yarışta tek kazanan bırakır (oku-kontrol-yaz DEĞİL).
@@ -39,14 +39,14 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
         // yüklem, personelin "İletişimde" işaretlediği talebi dönüştürülemez hale getiriyordu.
         // `TalepDurumu.Terminal` bir C# metodu ve LINQ'e çevrilemez → yüklem aktif durumların
         // AÇIK listesi olarak yazıldı; testler ikisinin örtüştüğünü doğruluyor.
-        var etkilenen = await db.SiteTalepleri
+        var affected = await db.SiteTalepleri
             .Where(t => t.Id == id && (t.Durum == PublicBookingRequestDurum.Yeni
                                     || t.Durum == PublicBookingRequestDurum.Iletisimde
                                     || t.Durum == PublicBookingRequestDurum.TeklifVerildi))
             .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.Durum, hedef)
+                .SetProperty(t => t.Durum, target)
                 .SetProperty(t => t.UpdatedAtUtc, DateTimeOffset.UtcNow), ct);
-        return etkilenen == 1;
+        return affected == 1;
     }
 
     public async Task SetConvertedReservationAsync(Guid id, Guid reservationId, CancellationToken ct = default)
@@ -58,14 +58,14 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
                 .SetProperty(t => t.UpdatedAtUtc, DateTimeOffset.UtcNow), ct);
     }
 
-    public async Task ReleaseClaimAsync(Guid id, PublicBookingRequestDurum oncekiDurum, CancellationToken ct = default)
+    public async Task ReleaseClaimAsync(Guid id, PublicBookingRequestDurum previousStatus, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // PR-17: koşulsuz `Yeni` yazmak, personelin "İletişimde/Teklif verildi" ilerlemesini
         // SESSİZCE silerdi → claim ÖNCESİ durum geri yazılıyor.
         await db.SiteTalepleri.Where(t => t.Id == id)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.Durum, oncekiDurum)
+                .SetProperty(t => t.Durum, previousStatus)
                 .SetProperty(t => t.DonusenReservationId, (Guid?)null)
                 .SetProperty(t => t.UpdatedAtUtc, DateTimeOffset.UtcNow), ct);
     }
@@ -73,27 +73,27 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
     // ---- PR-17: filtre/sayfalama, sayaçlar, durum/atama/not ----
 
     public async Task<(IReadOnlyList<PublicBookingRequest> Satirlar, int Toplam)> PagedAsync(
-        PublicBookingRequestDurum? durum, string? ara, int sayfa, int boyut, CancellationToken ct = default)
+        PublicBookingRequestDurum? status, string? search, int page, int size, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var q = db.SiteTalepleri.AsNoTracking().AsQueryable();
 
-        if (durum is { } d) q = q.Where(t => t.Durum == d);
-        if (!string.IsNullOrWhiteSpace(ara))
+        if (status is { } d) q = q.Where(t => t.Durum == d);
+        if (!string.IsNullOrWhiteSpace(search))
         {
             // Ad ve telefonda arama. Telefon normalizasyonu DB'de ifade edilemediği için ham
             // `Contains` — personel numarayı listede göründüğü gibi yazıyor.
-            var k = ara.Trim();
+            var k = search.Trim();
             q = q.Where(t => EF.Functions.ILike(t.AdSoyad, $"%{k}%") || t.Telefon.Contains(k));
         }
 
-        var toplam = await q.CountAsync(ct);
-        var satirlar = await q
+        var total = await q.CountAsync(ct);
+        var rows = await q
             .OrderBy(t => t.Durum == PublicBookingRequestDurum.Yeni ? 0 : 1) // çalışma kuyruğu: Yeni önce
             .ThenByDescending(t => t.CreatedAtUtc)
-            .Skip(Math.Max(0, sayfa - 1) * boyut).Take(boyut)
+            .Skip(Math.Max(0, page - 1) * size).Take(size)
             .ToListAsync(ct);
-        return (satirlar, toplam);
+        return (rows, total);
     }
 
     public async Task<int> NewCountAsync(CancellationToken ct = default)
@@ -111,29 +111,29 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
             .MinAsync(t => (DateTimeOffset?)t.CreatedAtUtc, ct);
     }
 
-    public async Task<bool> ChangeStatusAsync(Guid id, PublicBookingRequestDurum hedef, CancellationToken ct = default)
+    public async Task<bool> ChangeStatusAsync(Guid id, PublicBookingRequestDurum target, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Terminal satır DEĞİŞMEZ (atomik — oku-kontrol-yaz değil). Claim yüklemiyle aynı liste.
-        var etkilenen = await db.SiteTalepleri
+        var affected = await db.SiteTalepleri
             .Where(t => t.Id == id && (t.Durum == PublicBookingRequestDurum.Yeni
                                     || t.Durum == PublicBookingRequestDurum.Iletisimde
                                     || t.Durum == PublicBookingRequestDurum.TeklifVerildi))
             .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.Durum, hedef)
+                .SetProperty(t => t.Durum, target)
                 .SetProperty(t => t.UpdatedAtUtc, DateTimeOffset.UtcNow), ct);
-        return etkilenen == 1;
+        return affected == 1;
     }
 
-    public async Task<bool> AssignAsync(Guid id, Guid? kullaniciId, string? ad, CancellationToken ct = default)
+    public async Task<bool> AssignAsync(Guid id, Guid? userId, string? name, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var etkilenen = await db.SiteTalepleri.Where(t => t.Id == id)
+        var affected = await db.SiteTalepleri.Where(t => t.Id == id)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.AtananKullaniciId, kullaniciId)
-                .SetProperty(t => t.AtananAd, ad)
+                .SetProperty(t => t.AtananKullaniciId, userId)
+                .SetProperty(t => t.AtananAd, name)
                 .SetProperty(t => t.UpdatedAtUtc, DateTimeOffset.UtcNow), ct);
-        return etkilenen == 1;
+        return affected == 1;
     }
 
     public async Task AddNoteAsync(TalepNotu not, CancellationToken ct = default)
@@ -143,43 +143,43 @@ public sealed class PublicBookingRequestRepository(IDbContextFactory<AppDbContex
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<IReadOnlyList<TalepNotu>> NotesAsync(Guid talepId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<TalepNotu>> NotesAsync(Guid requestId, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.TalepNotlari.AsNoTracking()
-            .Where(n => n.TalepId == talepId)
+            .Where(n => n.TalepId == requestId)
             .OrderByDescending(n => n.ZamanUtc)
             .ToListAsync(ct);
     }
 
     public async Task<Dictionary<Guid, int>> NoteCountsAsync(
-        IReadOnlyCollection<Guid> talepIdler, CancellationToken ct = default)
+        IReadOnlyCollection<Guid> requestIds, CancellationToken ct = default)
     {
-        if (talepIdler.Count == 0) return [];
+        if (requestIds.Count == 0) return [];
         await using var db = await _factory.CreateDbContextAsync(ct);
         // TEK sorgu: satır başına COUNT çağırmak liste ekranında N+1 üretirdi.
         return await db.TalepNotlari.AsNoTracking()
-            .Where(n => talepIdler.Contains(n.TalepId))
+            .Where(n => requestIds.Contains(n.TalepId))
             .GroupBy(n => n.TalepId)
             .Select(g => new { g.Key, Adet = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Adet, ct);
     }
 
-    public async Task<Guid?> FindCustomerIdByPhoneAsync(string telefon, CancellationToken ct = default)
+    public async Task<Guid?> FindCustomerIdByPhoneAsync(string phone, CancellationToken ct = default)
     {
-        var hedef = OnlyDigits(telefon);
-        if (hedef.Length < 7) return null; // anlamlı eşleşme için çok kısa — yeni cari açılsın
+        var target = OnlyDigits(phone);
+        if (target.Length < 7) return null; // anlamlı eşleşme için çok kısa — yeni cari açılsın
 
         await using var db = await _factory.CreateDbContextAsync(ct);
         // Normalize karşılaştırma DB'de ifade edilemez (regexp_replace EF'e çevrilmiyor) → aday kümesi
         // bellekte süzülür. Cari sayısı tenant başına makul; CepTel/Gsm2 dolu olanlarla sınırlanır.
-        var adaylar = await db.Customers.AsNoTracking()
+        var candidates = await db.Customers.AsNoTracking()
             .Where(c => c.CepTel != null || c.Gsm2 != null)
             .Select(c => new { c.Id, c.CepTel, c.Gsm2 })
             .ToListAsync(ct);
 
-        return adaylar.FirstOrDefault(c =>
-            OnlyDigits(c.CepTel) == hedef || OnlyDigits(c.Gsm2) == hedef)?.Id;
+        return candidates.FirstOrDefault(c =>
+            OnlyDigits(c.CepTel) == target || OnlyDigits(c.Gsm2) == target)?.Id;
     }
 
     /// <summary>"0555 111 22 33" → "05551112233" (boşluk/tire/parantez/+ atılır).</summary>

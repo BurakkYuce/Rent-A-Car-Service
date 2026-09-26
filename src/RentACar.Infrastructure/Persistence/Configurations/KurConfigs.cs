@@ -8,7 +8,7 @@ using RentACar.Domain.Entities;
 namespace RentACar.Infrastructure.Persistence.Configurations;
 
 // ---- KurKaydi (PLATFORM; TCMB günlük kur — paylaşımlı, RLS YOK, TenantId YOK; Tenants deseni) ----
-internal sealed class KurKaydiConfig : IEntityTypeConfiguration<KurKaydi>
+internal sealed class ExchangeRateRecordConfig : IEntityTypeConfiguration<KurKaydi>
 {
     public void Configure(EntityTypeBuilder<KurKaydi> e)
     {
@@ -27,7 +27,7 @@ internal sealed class KurKaydiConfig : IEntityTypeConfiguration<KurKaydi>
 }
 
 // ---- SabitKur (tenant-owned; kur sabitleme — RLS) ----
-internal sealed class SabitKurConfig : IEntityTypeConfiguration<SabitKur>
+internal sealed class FixedExchangeRateConfig : IEntityTypeConfiguration<SabitKur>
 {
     public void Configure(EntityTypeBuilder<SabitKur> e)
     {

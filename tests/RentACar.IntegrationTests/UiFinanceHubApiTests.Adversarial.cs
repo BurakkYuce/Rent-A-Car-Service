@@ -116,10 +116,10 @@ public sealed partial class UiFinanceHubApiTests
         var istanbul = TimeSpan.FromHours(3);
         await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(locked.ToDateTime(TimeOnly.MinValue), istanbul).ToUniversalTime());
 
-        async Task<RentACar.Infrastructure.Persistence.DonemFaturaUretici.Sonuc> RunAt(DateOnly day)
+        async Task<RentACar.Infrastructure.Persistence.PeriodInvoiceGenerator.Sonuc> RunAt(DateOnly day)
         {
             await using var db = await sp.GetRequiredService<IDbContextFactory<RentACar.Infrastructure.Persistence.AppDbContext>>().CreateDbContextAsync();
-            return await RentACar.Infrastructure.Persistence.DonemFaturaUretici.RunAsync(db, tenant,
+            return await RentACar.Infrastructure.Persistence.PeriodInvoiceGenerator.RunAsync(db, tenant,
                 new DateTimeOffset(day.ToDateTime(new TimeOnly(15, 0)), istanbul).ToUniversalTime());
         }
 

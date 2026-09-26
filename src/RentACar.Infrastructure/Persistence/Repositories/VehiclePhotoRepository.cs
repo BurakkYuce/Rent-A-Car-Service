@@ -44,14 +44,14 @@ public sealed class VehiclePhotoRepository(IDbContextFactory<AppDbContext> facto
     {
         if (vehicleIds.Count == 0) return [];
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var idler = vehicleIds as Guid[] ?? [.. vehicleIds];
+        var ids = vehicleIds as Guid[] ?? [.. vehicleIds];
         // Npgsql `= ANY(@ids)`'e çevirir; Distinct sunucuda. Bytea kolonuna DOKUNULMAZ.
-        var bulunan = await db.VehiclePhotos.AsNoTracking()
-            .Where(p => idler.Contains(p.VehicleId))
+        var found = await db.VehiclePhotos.AsNoTracking()
+            .Where(p => ids.Contains(p.VehicleId))
             .Select(p => p.VehicleId)
             .Distinct()
             .ToListAsync(ct);
-        return [.. bulunan];
+        return [.. found];
     }
 
     /// <summary>
@@ -71,8 +71,8 @@ public sealed class VehiclePhotoRepository(IDbContextFactory<AppDbContext> facto
         await LockVehicleRowAsync(db, photo.VehicleId, ct);
         var existing = db.VehiclePhotos.Where(p => p.VehicleId == photo.VehicleId);
         if (await existing.CountAsync(ct) >= maxPhotos) return false;
-        var maxSira = await existing.MaxAsync(p => (int?)p.Sira, ct) ?? -1;
-        photo.Sira = maxSira + 1;
+        var maxOrder = await existing.MaxAsync(p => (int?)p.Sira, ct) ?? -1;
+        photo.Sira = maxOrder + 1;
         db.VehiclePhotos.Add(photo);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

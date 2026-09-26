@@ -32,10 +32,10 @@ public sealed class VehicleTypeRepository(IDbContextFactory<AppDbContext> factor
         return await db.VehicleTypes.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.VehicleTypes.AsNoTracking()
             .Where(t => t.Kod == k && (excludeId == null || t.Id != excludeId))
             .AnyAsync(ct);
@@ -73,26 +73,26 @@ public sealed class VehicleTypeRepository(IDbContextFactory<AppDbContext> factor
         return true;
     }
 
-    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<see cref="SatirSurumu"/>).</summary>
-    public async Task<bool> UpdateAsync(Guid id, string? beklenenSurum, Action<VehicleType> apply, CancellationToken ct = default)
+    /// <summary>F6.1a — satır kilidi + iyimser sürüm karşılaştırması (<see cref="RowVersionSql"/>).</summary>
+    public async Task<bool> UpdateAsync(Guid id, string? expectedVersion, Action<VehicleType> apply, CancellationToken ct = default)
     {
-        string? kod = null;
+        string? code = null;
         try
         {
-            return await SatirSurumu.GuncelleAsync(_factory, SatirSurumu.AracTipleri, id, beklenenSurum,
+            return await RowVersionSql.UpdateAsync(_factory, RowVersionSql.VehicleTypes, id, expectedVersion,
                 (db, k, c) => db.VehicleTypes.FirstOrDefaultAsync(t => t.Id == k, c),
-                t => { apply(t); kod = t.Kod; }, ct);
+                t => { apply(t); code = t.Kod; }, ct);
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            throw new ValidationException($"'{kod}' kodlu araç tipi zaten var.");
+            throw new ValidationException($"'{code}' kodlu araç tipi zaten var.");
         }
     }
 
     public async Task<string?> VersionAsync(Guid id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await SatirSurumu.OkuAsync(db, SatirSurumu.AracTipleri, id, ct);
+        return await RowVersionSql.ReadAsync(db, RowVersionSql.VehicleTypes, id, ct);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)

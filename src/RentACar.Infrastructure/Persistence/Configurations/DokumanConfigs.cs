@@ -6,7 +6,7 @@ namespace RentACar.Infrastructure.Persistence.Configurations;
 
 // ---- FirmaDokuman (firmanın KENDİ yüklediği PDF'ler; tenant-owned, defter postalamaz) ----
 // HasQueryFilter YAZILMAZ: OnModelCreating'deki merkezi ITenantOwned döngüsü uygular (ModelGuardTests doğrular).
-internal sealed class FirmaDokumanConfig : IEntityTypeConfiguration<FirmaDokuman>
+internal sealed class CompanyFileConfig : IEntityTypeConfiguration<FirmaDokuman>
 {
     public void Configure(EntityTypeBuilder<FirmaDokuman> e)
     {

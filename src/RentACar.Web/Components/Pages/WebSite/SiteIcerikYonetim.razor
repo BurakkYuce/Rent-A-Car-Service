@@ -151,7 +151,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _modul = Tenant.TenantId is { } t && await Durum.WebSitesiModuluAsync(t);
+        _modul = Tenant.TenantId is { } t && await Durum.WebsiteModuleAsync(t);
         if (!_modul) return;
         _sayfalar = await Icerik.ListAsync();
         _sorular = await Icerik.ListFaqAsync();

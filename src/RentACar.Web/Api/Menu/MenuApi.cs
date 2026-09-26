@@ -42,7 +42,7 @@ public static class MenuApi
         HttpContext http, ITenantContext tenant, TenantStatusCache durum,
         InAppNotificationService bildirimler, PublicBookingRequestService talepler, ILoggerFactory log, CancellationToken ct)
     {
-        var webSitesi = tenant.TenantId is { } id && await durum.WebSitesiModuluAsync(id, ct);
+        var webSitesi = tenant.TenantId is { } id && await durum.WebsiteModuleAsync(id, ct);
         var ogeler = Gorunur(http.User, webSitesi).ToList();
 
         // Rozetler MainLayout'la AYNI kaynaktan; sayaç hatası menüyü düşürmez (0 + uyarı logu).

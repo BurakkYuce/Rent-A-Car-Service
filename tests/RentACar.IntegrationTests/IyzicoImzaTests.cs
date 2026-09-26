@@ -28,13 +28,13 @@ public sealed class IyzicoImzaTests
         const string uri = "/payment/bin/check";
         const string body = """{"binNumber":"589004"}""";
 
-        var (auth, _) = IyzicoImza.Uret(OrnekApiKey, secret, uri, body, OrnekRandomKey);
+        var (auth, _) = IyzicoSignature.Generate(OrnekApiKey, secret, uri, body, OrnekRandomKey);
 
         Assert.StartsWith("IYZWSv2 ", auth);
         Assert.Equal(1, auth.Count(c => c == ' ')); // base64 boşluk içermez → tam olarak TEK boşluk
 
         var cozulen = Encoding.UTF8.GetString(Convert.FromBase64String(auth["IYZWSv2 ".Length..]));
-        var imza = IyzicoImza.Imzala(secret, OrnekRandomKey + uri + body);
+        var imza = IyzicoSignature.Sign(secret, OrnekRandomKey + uri + body);
         Assert.Equal($"apiKey:{OrnekApiKey}&randomKey:{OrnekRandomKey}&signature:{imza}", cozulen);
     }
 
@@ -47,10 +47,10 @@ public sealed class IyzicoImzaTests
         const string uri = "/payment/bin/check";
         const string body = """{"binNumber":"589004"}""";
 
-        var (auth, rnd) = IyzicoImza.Uret(OrnekApiKey, secret, uri, body, OrnekRandomKey);
+        var (auth, rnd) = IyzicoSignature.Generate(OrnekApiKey, secret, uri, body, OrnekRandomKey);
         Assert.Equal(OrnekRandomKey, rnd);
 
-        var imza = IyzicoImza.Imzala(secret, OrnekRandomKey + uri + body);
+        var imza = IyzicoSignature.Sign(secret, OrnekRandomKey + uri + body);
         var beklenen = "IYZWSv2 " + Convert.ToBase64String(
             Encoding.UTF8.GetBytes($"apiKey:{OrnekApiKey}&randomKey:{OrnekRandomKey}&signature:{imza}"));
         Assert.Equal(beklenen, auth);
@@ -62,15 +62,15 @@ public sealed class IyzicoImzaTests
         // Sıra karışırsa iyzico'nun tek söylediği "Geçersiz imza" olur. Sıranın önemi burada kilitli:
         // aynı parçaların farklı sırası FARKLI imza üretmeli.
         const string secret = "s";
-        var dogru = IyzicoImza.Imzala(secret, "RND" + "/yol" + "{\"a\":1}");
-        var yanlis = IyzicoImza.Imzala(secret, "/yol" + "RND" + "{\"a\":1}");
+        var dogru = IyzicoSignature.Sign(secret, "RND" + "/yol" + "{\"a\":1}");
+        var yanlis = IyzicoSignature.Sign(secret, "/yol" + "RND" + "{\"a\":1}");
         Assert.NotEqual(dogru, yanlis);
     }
 
     [Fact]
     public void Imza_hex_ve_kucuk_harf()
     {
-        var imza = IyzicoImza.Imzala("anahtar", "yük");
+        var imza = IyzicoSignature.Sign("anahtar", "yük");
         Assert.Equal(64, imza.Length);                       // SHA-256 → 32 bayt → 64 hex
         Assert.Matches("^[0-9a-f]+$", imza);                 // base64 DEĞİL, küçük harf hex
     }
@@ -78,15 +78,15 @@ public sealed class IyzicoImzaTests
     [Fact]
     public void Imza_ayni_girdiyle_kararli_farkli_anahtarla_farkli()
     {
-        Assert.Equal(IyzicoImza.Imzala("k1", "yük"), IyzicoImza.Imzala("k1", "yük"));
-        Assert.NotEqual(IyzicoImza.Imzala("k1", "yük"), IyzicoImza.Imzala("k2", "yük"));
+        Assert.Equal(IyzicoSignature.Sign("k1", "yük"), IyzicoSignature.Sign("k1", "yük"));
+        Assert.NotEqual(IyzicoSignature.Sign("k1", "yük"), IyzicoSignature.Sign("k2", "yük"));
     }
 
     [Fact]
     public void Rastgele_anahtar_ayni_milisaniyede_bile_cakismaz()
     {
         // Yalnız zaman damgası kullanılsaydı paralel çağrılar aynı anahtarı üretirdi.
-        var anahtarlar = Enumerable.Range(0, 200).Select(_ => IyzicoImza.RastgeleAnahtar()).ToList();
+        var anahtarlar = Enumerable.Range(0, 200).Select(_ => IyzicoSignature.RandomKey()).ToList();
         Assert.Equal(anahtarlar.Count, anahtarlar.Distinct().Count());
         Assert.All(anahtarlar, a => Assert.Matches("^[0-9]{22,}$", a));
     }
@@ -96,5 +96,5 @@ public sealed class IyzicoImzaTests
     [InlineData("a", "", "/y")]
     [InlineData("a", "s", "")]
     public void Eksik_bilesenle_uretilmez(string apiKey, string secret, string uri)
-        => Assert.ThrowsAny<ArgumentException>(() => IyzicoImza.Uret(apiKey, secret, uri, "{}"));
+        => Assert.ThrowsAny<ArgumentException>(() => IyzicoSignature.Generate(apiKey, secret, uri, "{}"));
 }

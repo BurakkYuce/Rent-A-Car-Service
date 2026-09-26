@@ -37,7 +37,7 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            record.No = await BelgeNoUretici.UretAsync(db, db.TenantId, DocumentNoType.ServisKaydi, ct);
+            record.No = await DocumentNoGenerator.GenerateAsync(db, db.TenantId, DocumentNoType.ServisKaydi, ct);
             foreach (var l in record.Lines) l.ServiceRecordId = record.Id;
             record.ToplamIscilik = record.Lines.Sum(l => l.Tutar);
             db.ServiceRecords.Add(record);
@@ -88,7 +88,7 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
         // Durum geçişi yok, araç kuplajı yok, km log yok — yalnız alan güncellemesi (FAZ-16 bilgi blokları).
         => TransitionAsync(id, apply, setVehicleTo: null, onlyWhenVehicleIs: null, ct: ct);
 
-    public async Task<bool> AddLineAsync(Guid id, ServiceLine kalem, CancellationToken ct = default)
+    public async Task<bool> AddLineAsync(Guid id, ServiceLine item, CancellationToken ct = default)
     {
         return await PgRetry.RunAsync(async () => // P0-5 deadlock retry + kayıp-güncelleme koruması
         {
@@ -106,17 +106,17 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
             // F9.1: kalem kimliği /api/ui'de Idempotency-Key'den türetilir → aynı anahtarlı eşzamanlı ikinci istek
             // kilidin arkasında burada görülür (ToplamIscilik iki kez artmaz). Durum çitinden ÖNCE: sonuç ilk
             // isteğin servisi kapatıp kapatmamasına bağlı olmaz.
-            if (await db.Set<ServiceLine>().AsNoTracking().AnyAsync(l => l.Id == kalem.Id, ct))
-                throw new DuplicateOperationException(KalemMukerrer);
+            if (await db.Set<ServiceLine>().AsNoTracking().AnyAsync(l => l.Id == item.Id, ct))
+                throw new DuplicateOperationException(ItemDuplicate);
             if (rec.Durum is ServiceStatus.Tamamlandi or ServiceStatus.Iptal)
                 throw new ValidationException("Kapanmış servise kalem eklenemez.");
 
-            kalem.ServiceRecordId = rec.Id;
-            db.Set<ServiceLine>().Add(kalem);
+            item.ServiceRecordId = rec.Id;
+            db.Set<ServiceLine>().Add(item);
             // Toplamı DB'den (kilit altında) yeniden hesapla + bu çağrının yeni kalemi. Eşzamanlı
             // çağrı bu commit'i beklediğinden onun kalemi mevcutToplam'a dahil olur.
-            var mevcutToplam = await db.Set<ServiceLine>().Where(l => l.ServiceRecordId == id).SumAsync(l => l.Tutar, ct);
-            rec.ToplamIscilik = mevcutToplam + kalem.Tutar;
+            var currentTotal = await db.Set<ServiceLine>().Where(l => l.ServiceRecordId == id).SumAsync(l => l.Tutar, ct);
+            rec.ToplamIscilik = currentTotal + item.Tutar;
             rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
             try
@@ -126,7 +126,7 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
                 await tx.RollbackAsync(ct);
-                throw new DuplicateOperationException(KalemMukerrer); // PK = anahtar (başka servis/kiracıya ait olsa da yazılmaz)
+                throw new DuplicateOperationException(ItemDuplicate); // PK = anahtar (başka servis/kiracıya ait olsa da yazılmaz)
             }
             await tx.CommitAsync(ct);
             return true;
@@ -134,9 +134,9 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
     }
 
     /// <summary>F9.1 — aynı işlem anahtarıyla ikinci kalem.</summary>
-    public const string KalemMukerrer = "Bu kalem zaten eklendi (çift gönderim); yeni kalem yazılmadı.";
+    public const string ItemDuplicate = "Bu kalem zaten eklendi (çift gönderim); yeni kalem yazılmadı.";
 
-    public async Task PostReflectionAsync(Guid serviceId, Guid cariId, decimal yansitilanTutar,
+    public async Task PostReflectionAsync(Guid serviceId, Guid customerId, decimal reflectedAmount,
         IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
     {
         var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
@@ -155,12 +155,12 @@ public sealed class ServiceRecordRepository(IDbContextFactory<AppDbContext> fact
                 .FirstOrDefaultAsync(ct)
                 ?? throw new ValidationException("Servis kaydı bulunamadı.");
             if (rec.Yansitildi) throw new ValidationException("Servis maliyeti zaten yansıtıldı.");
-            if (rec.Durum != ServiceStatus.Tamamlandi || rec.KusurOrani is not { } kusur
-                || decimal.Round(rec.ToplamIscilik * kusur, 2, MidpointRounding.AwayFromZero) != yansitilanTutar)
+            if (rec.Durum != ServiceStatus.Tamamlandi || rec.KusurOrani is not { } fault
+                || decimal.Round(rec.ToplamIscilik * fault, 2, MidpointRounding.AwayFromZero) != reflectedAmount)
                 throw new ConcurrentModificationException("Servis kaydı bu sırada değişti; kaydı yeniden açıp tekrar deneyin.");
             rec.Yansitildi = true;
-            rec.YansitilanTutar = yansitilanTutar;
-            rec.YansitilanCariId = cariId;
+            rec.YansitilanTutar = reflectedAmount;
+            rec.YansitilanCariId = customerId;
             rec.UpdatedAtUtc = DateTimeOffset.UtcNow;
             db.AccountLedgerEntries.AddRange(entries);
 

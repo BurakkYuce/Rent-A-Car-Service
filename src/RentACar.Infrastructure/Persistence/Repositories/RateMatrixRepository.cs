@@ -33,10 +33,10 @@ public sealed class RateMatrixRepository(IDbContextFactory<AppDbContext> factory
         return await db.RateMatrices.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.RateMatrices.AsNoTracking()
             .Where(r => r.Kod == k && (excludeId == null || r.Id != excludeId))
             .AnyAsync(ct);
@@ -101,14 +101,14 @@ public sealed class RateMatrixRepository(IDbContextFactory<AppDbContext> factory
         //
         // ExecuteDeleteAsync ile çözülmedi: o yol SaveChanges'i atlar, AuditSaveChangesInterceptor
         // çalışmaz ve toplu silme İZSİZ kalırdı.
-        var idListe = ids as Guid[] ?? [.. ids];
-        var bekliyor = (int)TariffApprovalStatus.Bekliyor;
-        var kilitli = await db.Database.SqlQuery<Guid>(
-            $"""SELECT "Id" AS "Value" FROM "TarifeMatris" WHERE "Id" = ANY({idListe}) AND "OnayDurumu" = {bekliyor} FOR UPDATE""")
+        var idList = ids as Guid[] ?? [.. ids];
+        var waiting = (int)TariffApprovalStatus.Bekliyor;
+        var locked = await db.Database.SqlQuery<Guid>(
+            $"""SELECT "Id" AS "Value" FROM "TarifeMatris" WHERE "Id" = ANY({idList}) AND "OnayDurumu" = {waiting} FOR UPDATE""")
             .ToListAsync(ct);
-        if (kilitli.Count == 0) { await tx.CommitAsync(ct); return 0; }
+        if (locked.Count == 0) { await tx.CommitAsync(ct); return 0; }
 
-        var rows = await db.RateMatrices.Where(r => kilitli.Contains(r.Id)).ToListAsync(ct);
+        var rows = await db.RateMatrices.Where(r => locked.Contains(r.Id)).ToListAsync(ct);
         db.RateMatrices.RemoveRange(rows);
 
         try

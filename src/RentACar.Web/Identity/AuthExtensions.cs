@@ -75,7 +75,7 @@ public static class AuthExtensions
             var tenant = ctx.HttpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId;
             if (tenant is not { } id) return Results.NotFound();
             var cache = ctx.HttpContext.RequestServices.GetRequiredService<TenantStatusCache>();
-            if (!await cache.WebSitesiModuluAsync(id, ctx.HttpContext.RequestAborted))
+            if (!await cache.WebsiteModuleAsync(id, ctx.HttpContext.RequestAborted))
                 return Results.NotFound();
             return await next(ctx);
         });

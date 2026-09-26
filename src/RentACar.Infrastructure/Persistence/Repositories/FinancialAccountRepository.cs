@@ -32,10 +32,10 @@ public sealed class FinancialAccountRepository(IDbContextFactory<AppDbContext> f
         return await db.FinancialAccounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, ct);
     }
 
-    public async Task<bool> CodeExistsAsync(string kod, Guid? excludeId = null, CancellationToken ct = default)
+    public async Task<bool> CodeExistsAsync(string code, Guid? excludeId = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var k = kod.Trim().ToUpperInvariant();
+        var k = code.Trim().ToUpperInvariant();
         return await db.FinancialAccounts.AsNoTracking()
             .Where(a => a.Kod == k && (excludeId == null || a.Id != excludeId))
             .AnyAsync(ct);

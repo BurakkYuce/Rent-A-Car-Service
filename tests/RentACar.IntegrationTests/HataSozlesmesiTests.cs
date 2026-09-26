@@ -139,7 +139,7 @@ public sealed class IdempotencyKisitiTests
     [InlineData("", false)]
     [InlineData(null, false)]
     public void MukerrerKisitiMi_gercek_index_adlarini_dogru_siniflar(string? ad, bool beklenen)
-        => Assert.Equal(beklenen, IdempotencyKisiti.MukerrerKisitiMi(ad));
+        => Assert.Equal(beklenen, IdempotencyConstraint.IsDuplicateConstraint(ad));
 
     private static DbUpdateException UniqueIhlali(string? kisit) =>
         new("kaydetme hatası", new PostgresException(
@@ -149,7 +149,7 @@ public sealed class IdempotencyKisitiTests
     [Fact]
     public void Red_idempotency_kisitinda_Mukerrer_doner_mesaj_korunur()
     {
-        var ex = IdempotencyKisiti.Red(UniqueIhlali("IX_CashTransactions_TenantId_IslemAnahtari"), "Bu işlem zaten kaydedilmiş.");
+        var ex = IdempotencyConstraint.Red(UniqueIhlali("IX_CashTransactions_TenantId_IslemAnahtari"), "Bu işlem zaten kaydedilmiş.");
         Assert.IsType<DuplicateOperationException>(ex);
         Assert.Equal("Bu işlem zaten kaydedilmiş.", ex.Message);
     }
@@ -157,7 +157,7 @@ public sealed class IdempotencyKisitiTests
     [Fact]
     public void Red_is_benzersizliginde_duz_ValidationException_doner()
     {
-        var ex = IdempotencyKisiti.Red(UniqueIhlali("IX_MtvOdemeleri_TenantId_MtvId_Sira"), "Bu MTV ödemesi zaten kaydedilmiş.");
+        var ex = IdempotencyConstraint.Red(UniqueIhlali("IX_MtvOdemeleri_TenantId_MtvId_Sira"), "Bu MTV ödemesi zaten kaydedilmiş.");
         Assert.IsType<ValidationException>(ex); // tam tip: alt tip DEĞİL
         Assert.Equal("Bu MTV ödemesi zaten kaydedilmiş.", ex.Message);
     }
@@ -165,7 +165,7 @@ public sealed class IdempotencyKisitiTests
     [Fact]
     public void Red_postgres_disi_ic_istisnada_duz_ValidationException_doner()
     {
-        var ex = IdempotencyKisiti.Red(new DbUpdateException("x", new InvalidOperationException()), "m");
+        var ex = IdempotencyConstraint.Red(new DbUpdateException("x", new InvalidOperationException()), "m");
         Assert.IsType<ValidationException>(ex);
     }
 

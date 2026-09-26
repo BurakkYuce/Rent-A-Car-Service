@@ -76,7 +76,7 @@ public static partial class FinanceHubApi
     /// <summary>Ay (İstanbul takvimi) × kaynak. Devir özete girmez (hareket değil, açılış bakiyesi).</summary>
     private static List<CustomerStatementSummaryLine> Summarize(IEnumerable<AccountLedgerEntry> lines)
         => [.. lines
-            .GroupBy(e => (Month: TimeZoneInfo.ConvertTime(e.EntryDateUtc, TenantGun.Dilim).ToString("yyyy-MM"), e.SourceType))
+            .GroupBy(e => (Month: TimeZoneInfo.ConvertTime(e.EntryDateUtc, TenantDay.Slice).ToString("yyyy-MM"), e.SourceType))
             .Select(g =>
             {
                 var debit = g.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);

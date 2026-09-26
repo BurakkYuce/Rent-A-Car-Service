@@ -30,10 +30,10 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
         return await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.Id == addOnId, ct);
     }
 
-    public async Task<RentalAddOn?> FindByOperationKeyAsync(Guid islemAnahtari, CancellationToken ct = default)
+    public async Task<RentalAddOn?> FindByOperationKeyAsync(Guid operationKey, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
-        return await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.IslemAnahtari == islemAnahtari, ct);
+        return await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.IslemAnahtari == operationKey, ct);
     }
 
     public async Task<bool> IsRentalInvoicedAsync(Guid rentalId, CancellationToken ct = default)
@@ -57,18 +57,18 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
 
             // F4.1 adversarial N2: ÖNCE kira-fatura advisory kilidi (fatura kesimiyle serileşir — Invoices'ta
             // Rentals'a FK YOK, fatura yolu satır kilidine hiç dokunmuyor), SONRA satır kilidi (KiraKilitleri sıra kuralı).
-            await KiraKilitleri.FaturaAsync(db, addOn.RentalId, ct);
+            await RentalLocks.InvoiceAsync(db, addOn.RentalId, ct);
             // Lost-update koruması (CRITICAL): RecomputeAsync mutlak SUM okuyup GenelToplam'ı yazar.
             // SUM'dan ÖNCE parent kira satırını kilitle → eşzamanlı ek hizmet ekleme/silme serileşir,
             // SUM tüm commit'li kalemleri görür (READ COMMITTED'da stale-okuma → eksik faturalama engellenir).
-            await KiraKilitleri.SatirAsync(db, addOn.RentalId, ct);
+            await RentalLocks.RowAsync(db, addOn.RentalId, ct);
 
             // Low-B: eşzamanlı çift gönderim (aynı anahtar, aynı kira) kira satır kilidiyle serileşir → ikinci istek
             // ilkinin commit'ini burada görür ve deterministik 409 mükerrer + mevcut alır. Durum çitlerinden ÖNCE
             // (DEVIR §5). Farklı kiralarla aynı anahtar yarışı kısmi unique index'te yakalanır (catch aşağıda).
-            if (addOn.IslemAnahtari is { } anahtar
-                && await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.IslemAnahtari == anahtar, ct) is { } onceki)
-                throw RentalAddOnService.Duplicate(onceki, addOn.RentalId, addOn.EkHizmetTanimId, addOn.Miktar);
+            if (addOn.IslemAnahtari is { } key
+                && await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.IslemAnahtari == key, ct) is { } previous)
+                throw RentalAddOnService.Duplicate(previous, addOn.RentalId, addOn.EkHizmetTanimId, addOn.Miktar);
 
             var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == addOn.RentalId, ct)
                 ?? throw new ValidationException("Kira sözleşmesi bulunamadı.");
@@ -90,7 +90,7 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
             }
             catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException
                 { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation } pg
-                && IdempotencyKisiti.MukerrerKisitiMi(pg.ConstraintName))
+                && IdempotencyConstraint.IsDuplicateConstraint(pg.ConstraintName))
             {
                 throw new DuplicateOperationException(DuplicateOperationException.DifferentContentMessage);
             }
@@ -107,14 +107,14 @@ public sealed class RentalAddOnRepository(IDbContextFactory<AppDbContext> factor
             await using var db = await _factory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            var kalem = await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.Id == addOnId, ct);
-            if (kalem is null) return false;
+            var item = await db.RentalAddOns.AsNoTracking().FirstOrDefaultAsync(a => a.Id == addOnId, ct);
+            if (item is null) return false;
 
             // F4.1 adversarial N2: advisory → satır kilidi (AddAsync ile aynı sıra), sonra kalem kilit ALTINDA
             // yeniden okunur (bu arada başka istek silmiş olabilir).
-            await KiraKilitleri.FaturaAsync(db, kalem.RentalId, ct);
+            await RentalLocks.InvoiceAsync(db, item.RentalId, ct);
             // Lost-update koruması (CRITICAL) — bkz. AddAsync: SUM yeniden-hesabından önce kira satırını kilitle.
-            await KiraKilitleri.SatirAsync(db, kalem.RentalId, ct);
+            await RentalLocks.RowAsync(db, item.RentalId, ct);
             var addOn = await db.RentalAddOns.FirstOrDefaultAsync(a => a.Id == addOnId, ct);
             if (addOn is null) return false;
 

@@ -9,7 +9,7 @@ namespace RentACar.Web.Jobs;
 /// sigorta/MTV/muayene vadelerini tarayıp kalıcı uygulama-içi bildirim üretir (idempotent) + firma sahibine
 /// günlük operasyon özeti WhatsApp gönderir (saat kapılı, idempotent). Dış e-posta YOK; WhatsApp config-gated
 /// (yoksa stub no-op). racar_app bağlantısı + tenant-loop + GUC (backfill deseni; owner DEĞİL).
-/// Her üretici adımı YALITILMIŞTIR (<see cref="UreticiYalitimi"/>): biri patlarsa diğerleri ve WhatsApp
+/// Her üretici adımı YALITILMIŞTIR (<see cref="GeneratorIsolation"/>): biri patlarsa diğerleri ve WhatsApp
 /// özeti yine koşar (#265'te müşteri hatırlatmalarının hatası özeti de her tenant için düşürüyordu).
 /// </summary>
 public sealed class VadeBildirimJob(
@@ -21,7 +21,7 @@ public sealed class VadeBildirimJob(
     private static readonly TimeSpan Interval = TimeSpan.FromHours(12);
     // Saat dilimi TEK kaynaktan: aynı çözüm mantığı üç ayrı yerde kopyalanmıştı (iki job +
     // belge numarası). Numaradaki gün ile job'un günü ayrışmasın diye ortaklaştırıldı.
-    private static readonly TimeZoneInfo Tz = RentACar.Infrastructure.Persistence.TenantGun.Dilim;
+    private static readonly TimeZoneInfo Tz = RentACar.Infrastructure.Persistence.TenantDay.Slice;
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -66,18 +66,18 @@ public sealed class VadeBildirimJob(
     /// </summary>
     public IReadOnlyList<UreticiAdimi> DbAdimlari(Guid tenantId, DateTimeOffset now) =>
     [
-        new(JobCalismaKaydedici.VadeBildirim, (db, ct) => VadeBildirimUretici.RunAsync(db, tenantId, now, ct)),
-        new(JobCalismaKaydedici.FiloBildirim, (db, ct) => FiloBildirimUretici.RunAsync(db, tenantId, now, tutSatEsik, ct)),
-        new(JobCalismaKaydedici.MusteriBildirim, (db, ct) =>
-            MusteriBildirimUretici.RunAsync(db, tenantId, now, Tz, secrets, eposta, sms, ct)),
+        new(JobRunRecorder.DueNotification, (db, ct) => DueNotificationGenerator.RunAsync(db, tenantId, now, ct)),
+        new(JobRunRecorder.FleetNotification, (db, ct) => FleetNotificationGenerator.RunAsync(db, tenantId, now, tutSatEsik, ct)),
+        new(JobRunRecorder.CustomerNotification, (db, ct) =>
+            CustomerNotificationGenerator.RunAsync(db, tenantId, now, Tz, secrets, eposta, sms, ct)),
     ];
 
     /// <summary>Günlük operasyon özeti WhatsApp adımı (kendi 2 kısa context'i; saat-kapılı + idempotent; stub→no-op).</summary>
     public Func<CancellationToken, Task> OzetAdimi(DbContextOptions<AppDbContext> options, Guid tenantId, DateTimeOffset now)
-        => ct => WhatsAppOzetGonderici.SendDailyAsync(options, tenantId, whatsapp, now, Tz, log, ct);
+        => ct => WhatsAppSummarySender.SendDailyAsync(options, tenantId, whatsapp, now, Tz, log, ct);
 
     /// <summary>
-    /// Bir tenant'ın koşusu: her adım KENDİ context'i ve try/catch'i ile (<see cref="UreticiYalitimi"/>).
+    /// Bir tenant'ın koşusu: her adım KENDİ context'i ve try/catch'i ile (<see cref="GeneratorIsolation"/>).
     /// Bir üreticinin hatası sonrakileri ve WhatsApp özetini DÜŞÜRMEZ; log hangi üreticinin hangi
     /// tenant için patladığını söyler, koşu günlüğüne Basarisiz satırı düşer, metrik artar.
     /// </summary>
@@ -87,9 +87,9 @@ public sealed class VadeBildirimJob(
     {
         var toplam = 0;
         foreach (var adim in dbAdimlari)
-            toplam += await UreticiYalitimi.DbAdimiAsync(options, tenantId, adim.Ad,
+            toplam += await GeneratorIsolation.DbStepAsync(options, tenantId, adim.Ad,
                 db => adim.Uret(db, ct), log, n => n, ct: ct);
-        await UreticiYalitimi.AdimAsync(tenantId, JobCalismaKaydedici.WhatsAppOzet, () => ozetAdimi(ct), log, ct);
+        await GeneratorIsolation.StepAsync(tenantId, JobRunRecorder.WhatsAppSummary, () => ozetAdimi(ct), log, ct);
         return toplam;
     }
 }

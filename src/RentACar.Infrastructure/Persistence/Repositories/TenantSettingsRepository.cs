@@ -22,11 +22,11 @@ public sealed class TenantSettingsRepository(IDbContextFactory<AppDbContext> fac
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var id = await db.TenantSettings.AsNoTracking().Select(s => (Guid?)s.Id).FirstOrDefaultAsync(ct);
-        return id is { } k ? await SatirSurumu.OkuAsync(db, SatirSurumu.FirmaAyarlari, k, ct) : null;
+        return id is { } k ? await RowVersionSql.ReadAsync(db, RowVersionSql.CompanySettings, k, ct) : null;
     }
 
     /// <summary>
-    /// F11.1b — kilit + sürüm karşılaştırması + upsert tek işlemde (<see cref="SatirSurumu"/> deseni). Satır yokken
+    /// F11.1b — kilit + sürüm karşılaştırması + upsert tek işlemde (<see cref="RowVersionSql"/> deseni). Satır yokken
     /// eşzamanlı iki ilk yazımın kaybedeni unique index'e çarpar → 409 (sessizce üzerine yazmaz).
     /// </summary>
     public async Task UpsertAsync(Action<Settings> apply, string? expectedVersion, CancellationToken ct = default)
@@ -40,8 +40,8 @@ public sealed class TenantSettingsRepository(IDbContextFactory<AppDbContext> fac
                 var id = await db.TenantSettings.AsNoTracking().Select(s => (Guid?)s.Id).FirstOrDefaultAsync(ct);
                 if (id is { } k)
                 {
-                    await SatirSurumu.KilitleAsync(db, SatirSurumu.FirmaAyarlari, k, ct);
-                    var current = await SatirSurumu.OkuAsync(db, SatirSurumu.FirmaAyarlari, k, ct);
+                    await RowVersionSql.LockAsync(db, RowVersionSql.CompanySettings, k, ct);
+                    var current = await RowVersionSql.ReadAsync(db, RowVersionSql.CompanySettings, k, ct);
                     if (expectedVersion is null || !string.Equals(current, expectedVersion.Trim(), StringComparison.Ordinal))
                         throw new ConcurrentModificationException(ConcurrentModificationException.RecordMessage);
                 }

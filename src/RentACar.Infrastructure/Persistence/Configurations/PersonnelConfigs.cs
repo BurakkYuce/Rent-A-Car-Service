@@ -10,7 +10,7 @@ namespace RentACar.Infrastructure.Persistence.Configurations;
 /// <summary>Personel vardiyası (FAZ-45). Aynı personelin aynı gün birden çok vardiyası olabilir
 /// (bölünmüş mesai) → indeks UNIQUE DEĞİL; çakışma kontrolü servis katmanında (gece vardiyası
 /// gün sınırını aştığı için tek-tablo unique kısıtıyla ifade edilemez).</summary>
-internal sealed class PersonelVardiyaConfig : IEntityTypeConfiguration<PersonelVardiya>
+internal sealed class StaffShiftConfig : IEntityTypeConfiguration<PersonelVardiya>
 {
     public void Configure(EntityTypeBuilder<PersonelVardiya> e)
     {

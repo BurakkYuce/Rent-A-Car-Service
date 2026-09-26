@@ -16,13 +16,13 @@ public sealed class LedgerPoster(IDbContextFactory<AppDbContext> factory) : ILed
     private readonly IDbContextFactory<AppDbContext> _factory = factory;
 
     public Task PostAsync(IReadOnlyList<AccountLedgerEntry> entries, CancellationToken ct = default)
-        => YazAsync(entries, null, ct);
+        => WriteAsync(entries, null, ct);
 
-    public Task PostWithAsync<T>(IReadOnlyList<AccountLedgerEntry> entries, T ekKayit,
+    public Task PostWithAsync<T>(IReadOnlyList<AccountLedgerEntry> entries, T extraEntry,
         CancellationToken ct = default) where T : class
-        => YazAsync(entries, ekKayit, ct);
+        => WriteAsync(entries, extraEntry, ct);
 
-    private async Task YazAsync(IReadOnlyList<AccountLedgerEntry> entries, object? ekKayit, CancellationToken ct)
+    private async Task WriteAsync(IReadOnlyList<AccountLedgerEntry> entries, object? extraEntry, CancellationToken ct)
     {
         if (entries.Count == 0) return;
 
@@ -37,7 +37,7 @@ public sealed class LedgerPoster(IDbContextFactory<AppDbContext> factory) : ILed
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             db.AccountLedgerEntries.AddRange(entries);
             // Künye AYNI transaction'da: biri yazılıp diğeri yazılmadan kalamaz.
-            if (ekKayit is not null) db.Add(ekKayit);
+            if (extraEntry is not null) db.Add(extraEntry);
             try
             {
                 await db.SaveChangesAsync(ct);
@@ -53,12 +53,12 @@ public sealed class LedgerPoster(IDbContextFactory<AppDbContext> factory) : ILed
                 // (hesap, referans, yön, tutar, döviz, kur). Aynı anahtar başka cari/tutarla geldiyse ikinci
                 // isteğin parası yazılmadı → 409, asla sessiz değil. Kiracıda hiç görünmüyorsa çakışma başka
                 // kiracının künye PK'sıyla (kiracı-global) olmuştur → sessiz yutmak parayı kaybettirirdi → red.
-                var mevcut = await DefterKumesi.OkuAsync(db,
+                var existing = await LedgerSet.ReadAsync(db,
                     [.. entries.Select(e => e.SourceType).Distinct()],
                     [.. entries.Select(e => e.SourceId).Distinct()], ct);
-                if (mevcut.Count == 0)
+                if (existing.Count == 0)
                     throw new ValidationException("İşlem anahtarı başka bir kayıtla çakıştı — yeni anahtarla tekrar deneyin.");
-                if (!DefterKumesi.Ayni(mevcut, entries))
+                if (!LedgerSet.Same(existing, entries))
                     throw DuplicateOperationException.DifferentContent();
             }
         }, ct);

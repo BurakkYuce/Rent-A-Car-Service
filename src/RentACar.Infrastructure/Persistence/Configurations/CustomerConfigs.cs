@@ -126,7 +126,7 @@ internal sealed class CustomerContactConfig : IEntityTypeConfiguration<CustomerC
     }
 }
 
-internal sealed class PersonelConfig : IEntityTypeConfiguration<Personel>
+internal sealed class PersonnelConfig : IEntityTypeConfiguration<Personel>
 {
     public void Configure(EntityTypeBuilder<Personel> e)
     {
@@ -170,7 +170,7 @@ internal sealed class PersonelConfig : IEntityTypeConfiguration<Personel>
 }
 
 // ---- HukukDosya (tenant-owned; master, roadmap C2) ----
-internal sealed class HukukDosyaConfig : IEntityTypeConfiguration<HukukDosya>
+internal sealed class LegalCaseConfig : IEntityTypeConfiguration<HukukDosya>
 {
     public void Configure(EntityTypeBuilder<HukukDosya> e)
     {
@@ -200,7 +200,7 @@ internal sealed class HukukDosyaConfig : IEntityTypeConfiguration<HukukDosya>
 }
 
 // ---- Anket / Sikayet (tenant-owned; CRM, roadmap C3) ----
-internal sealed class AnketConfig : IEntityTypeConfiguration<Anket>
+internal sealed class SurveyConfig : IEntityTypeConfiguration<Anket>
 {
     public void Configure(EntityTypeBuilder<Anket> e)
     {
@@ -224,7 +224,7 @@ internal sealed class AnketConfig : IEntityTypeConfiguration<Anket>
     }
 }
 
-internal sealed class SikayetConfig : IEntityTypeConfiguration<Sikayet>
+internal sealed class ComplaintConfig : IEntityTypeConfiguration<Sikayet>
 {
     public void Configure(EntityTypeBuilder<Sikayet> e)
     {
@@ -245,7 +245,7 @@ internal sealed class SikayetConfig : IEntityTypeConfiguration<Sikayet>
 }
 
 // ---- RezSart (FAZ-25 — müşteri özel talebi/şartı; tenant-owned, para taşımaz) ----
-internal sealed class RezSartConfig : IEntityTypeConfiguration<RezSart>
+internal sealed class ReservationTermConfig : IEntityTypeConfiguration<RezSart>
 {
     public void Configure(EntityTypeBuilder<RezSart> e)
     {
@@ -263,7 +263,7 @@ internal sealed class RezSartConfig : IEntityTypeConfiguration<RezSart>
 }
 
 /// <summary>Anket cevabı (FAZ-42) — anketin child satırı; soru metni snapshot.</summary>
-internal sealed class AnketCevapConfig : IEntityTypeConfiguration<AnketCevap>
+internal sealed class SurveyAnswerConfig : IEntityTypeConfiguration<AnketCevap>
 {
     public void Configure(EntityTypeBuilder<AnketCevap> e)
     {

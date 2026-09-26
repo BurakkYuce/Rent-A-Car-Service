@@ -70,7 +70,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _modul = Tenant.TenantId is { } t && await Durum.WebSitesiModuluAsync(t);
+        _modul = Tenant.TenantId is { } t && await Durum.WebsiteModuleAsync(t);
         if (!_modul) return;
         _detay = await Ilanlar.GetAsync(Id);
         if (_detay is not null) _kardesSayisi = await Ilanlar.SiblingDraftCountAsync(Id);
