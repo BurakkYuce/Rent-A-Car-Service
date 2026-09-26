@@ -4,23 +4,23 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { translationFunction } from '@core/i18n/ceviri';
 import { TemelStore } from '@core/veri/temel-store';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinAlani } from '@shared/form/kontroller/metin-alani';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextArea } from '@shared/form/kontroller/text-area';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { mergeServerValues } from '../shared/version-merge';
 
-type MessageTemplate = Sema<'MessageTemplateDto'>;
+type MessageTemplate = Schema<'MessageTemplateDto'>;
 
 const ROOT = '/api/ui/v1/mesaj-sablonlari' as const;
 
@@ -64,23 +64,23 @@ function templateValues(m: MessageTemplate): Record<string, unknown> {
   selector: 'rc-message-templates-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    MetinAlani,
-    MetinGirdisi,
-    OnayKutusu,
+    FormErrors,
+    TextArea,
+    TextInput,
+    Checkbox,
   ],
   styleUrl: '../system.scss',
   templateUrl: './message-templates-page.html',
 })
 export class MessageTemplatesPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly placeholders = PLACEHOLDERS.map((p) => `{${p}}`);
   protected readonly list = new TemelStore<readonly MessageTemplate[]>(() =>
@@ -92,23 +92,23 @@ export class MessageTemplatesPage {
     govde: new FormControl<string | null>(null, [Validators.required, Validators.maxLength(8192)]),
     aktif: new FormControl<boolean | null>(true),
   });
-  protected readonly submit = formGonderimi();
+  protected readonly submit = formSubmission();
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     this.list.yukle();
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.editing() !== null && this.form.dirty;
   }
 
-  protected typeLabel(tur: string): string {
-    return KNOWN_TYPES.includes(tur) ? this.t(`sistem.mesaj.tur.${tur}` as CeviriAnahtari) : tur;
+  protected typeLabel(type: string): string {
+    return KNOWN_TYPES.includes(type) ? this.t(`sistem.mesaj.tur.${type}` as CeviriAnahtari) : type;
   }
 
-  protected channelLabel(kanal: string): string {
-    return this.t(kanal === 'Eposta' ? 'sistem.mesaj.eposta' : 'sistem.mesaj.sms');
+  protected channelLabel(channel: string): string {
+    return this.t(channel === 'Eposta' ? 'sistem.mesaj.eposta' : 'sistem.mesaj.sms');
   }
 
   protected isEditing(m: MessageTemplate): boolean {
@@ -117,8 +117,8 @@ export class MessageTemplatesPage {
   }
 
   protected open(m: MessageTemplate): void {
-    const konu = this.form.controls.konu;
-    konu.setValidators(
+    const subject = this.form.controls.konu;
+    subject.setValidators(
       m.kanal === 'Eposta'
         ? [Validators.required, Validators.maxLength(256)]
         : Validators.maxLength(256),

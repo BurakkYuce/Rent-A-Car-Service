@@ -12,13 +12,13 @@ import { TranslocoService } from '@jsverse/transloco';
 import { type Observable, Subject, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi, type IstekSecenekleri } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { MUKERRER_CAGIRAN_GOSTERIR } from '@core/oturum/istek-baglami';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { YenidenGirisServisi } from '@core/oturum/yeniden-giris-servisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { DUPLICATE_CALLER_SHOWS } from '@core/oturum/request-context';
+import { SessionService } from '@core/oturum/session-service';
+import { ReloginService } from '@core/oturum/relogin-service';
 
 import { MONEY_SESSION_CHANNEL, PendingMoneyAttempts } from './money-attempts';
 import {
@@ -41,22 +41,25 @@ interface Call {
 }
 
 const PATH = '/api/ui/v1/finans/tahsilat' as const;
-const problem = (status: number, kod: string, extra: object = {}) =>
-  apiHatasinaCevir(
-    new HttpErrorResponse({ status, error: { status, kod, detail: `${kod} detayı`, ...extra } }),
+const problem = (status: number, code: string, extra: object = {}) =>
+  toApiError(
+    new HttpErrorResponse({
+      status,
+      error: { status, kod: code, detail: `${code} detayı`, ...extra },
+    }),
   );
-const networkError = () => apiHatasinaCevir(new HttpErrorResponse({ status: 0 }));
+const networkError = () => toApiError(new HttpErrorResponse({ status: 0 }));
 
 let calls: Call[];
 let confirmAnswer: boolean;
 let session: WritableSignal<{ anahtar: string } | null>;
 /** Sunucunun `GET oturum/ben` yanıtı (tekrar öncesi doğrulama); varsayılan: güncel bağlamın kullanıcısı. */
 let serverSession: () => Observable<unknown>;
-const benOf = (anahtar: string) => {
-  const [kiraci, kullanici] = anahtar.split('|');
+const benOf = (key: string) => {
+  const [renter, user] = key.split('|');
   return {
-    kiraci: { id: kiraci },
-    kullanici: { id: kullanici },
+    kiraci: { id: renter },
+    kullanici: { id: user },
     subeKapsami: { tumSubeler: true, subeId: null },
   };
 };
@@ -100,10 +103,10 @@ beforeEach(() => {
         },
       },
       { provide: MONEY_SESSION_CHANNEL, useValue: null },
-      { provide: OnayServisi, useValue: { sor: vi.fn(async () => confirmAnswer) } },
+      { provide: ConfirmService, useValue: { ask: vi.fn(async () => confirmAnswer) } },
       { provide: TranslocoService, useValue: { translate: (k: string) => k } },
       {
-        provide: ToastServisi,
+        provide: ToastService,
         useValue: {
           bilgi: (text: string, o?: { baslik?: string }) =>
             toasts.push({ tone: 'bilgi', text, title: o?.baslik }),
@@ -112,11 +115,11 @@ beforeEach(() => {
         },
       },
       {
-        provide: OturumServisi,
+        provide: SessionService,
         useValue: {
-          temizlikKaydet: () => () => undefined,
-          baglam: () => session(),
-          girisYapildi: () => session() !== null,
+          registerCleanup: () => () => undefined,
+          context: () => session(),
+          loggedIn: () => session() !== null,
           ben: () => {
             const s = session();
             return s ? benOf(s.anahtar) : null;
@@ -124,7 +127,7 @@ beforeEach(() => {
           yukle: vi.fn(async () => null),
         },
       },
-      { provide: YenidenGirisServisi, useValue: { iste: () => reloginAnswer() } },
+      { provide: ReloginService, useValue: { request: () => reloginAnswer() } },
     ],
   });
 });
@@ -149,10 +152,14 @@ function mount(config: Partial<MoneySubmissionConfig> = {}) {
     conflict: vi.fn(),
     rejected: vi.fn(),
   };
-  const run = (tutar = form.controls.tutar.value ?? '') =>
+  const run = (amount = form.controls.tutar.value ?? '') =>
     submission.run<{ id: string }>({
       form,
-      build: () => ({ path: PATH, body: { tutar }, content: { tutar, doviz: 'TRY' } }),
+      build: () => ({
+        path: PATH,
+        body: { tutar: amount },
+        content: { tutar: amount, doviz: 'TRY' },
+      }),
       ...hooks,
     });
   return { injector, submission, form, hooks, run };
@@ -164,7 +171,7 @@ describe('MoneySubmission — anahtar ve kilit', () => {
     await run();
     expect(calls).toHaveLength(1);
     expect(calls[0]?.options?.islemAnahtari).toBe('k-1');
-    expect(calls[0]?.options?.context?.get(MUKERRER_CAGIRAN_GOSTERIR)).toBe(true);
+    expect(calls[0]?.options?.context?.get(DUPLICATE_CALLER_SHOWS)).toBe(true);
     expect(form.disabled).toBe(true);
     expect(TestBed.inject(PendingMoneyAttempts).get('tahsilat:c1')).toMatchObject({
       key: 'k-1',

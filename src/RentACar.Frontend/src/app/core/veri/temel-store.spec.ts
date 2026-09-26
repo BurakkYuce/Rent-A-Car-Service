@@ -4,223 +4,223 @@ import { EMPTY, Observable, Subject, finalize, tap, throwError } from 'rxjs';
 
 import { ApiHatasi } from '@core/api/api-hatasi';
 import { Sayfa } from '@core/api/sayfa';
-import { TemelStore, TemelStoreSecenekleri, kayitYok } from './temel-store';
+import { TemelStore, TemelStoreSecenekleri, noRecord } from './temel-store';
 
 interface Satir {
   readonly plaka: string;
 }
 
 /** Elle kontrol edilen sahte kaynak: her `yukle` bir Subject açar; test sonucu ne zaman döneceğini seçer. */
-class SahteKaynak<P, T> {
-  readonly istekler: { parametre: P; cevap: Subject<T>; iptal: boolean }[] = [];
+class FakeSource<P, T> {
+  readonly requests: { parametre: P; cevap: Subject<T>; iptal: boolean }[] = [];
 
   /** `iptal`: yanıt (değer/hata) gelmeden abonelikten çıkıldı — switchMap'in iptali. */
-  readonly getir = (parametre: P): Observable<T> => {
-    const kayit = { parametre, cevap: new Subject<T>(), iptal: false };
-    this.istekler.push(kayit);
-    let yanitlandi = false;
-    return kayit.cevap.pipe(
-      tap({ next: () => (yanitlandi = true), error: () => (yanitlandi = true) }),
+  readonly fetch = (parameter: P): Observable<T> => {
+    const record = { parametre: parameter, cevap: new Subject<T>(), iptal: false };
+    this.requests.push(record);
+    let responded = false;
+    return record.cevap.pipe(
+      tap({ next: () => (responded = true), error: () => (responded = true) }),
       finalize(() => {
-        if (!yanitlandi) kayit.iptal = true;
+        if (!responded) record.iptal = true;
       }),
     );
   };
 
   istek(i: number): { parametre: P; cevap: Subject<T>; iptal: boolean } {
-    const kayit = this.istekler[i];
-    if (kayit === undefined) throw new Error(`İstek ${i} yok`);
-    return kayit;
+    const record = this.requests[i];
+    if (record === undefined) throw new Error(`İstek ${i} yok`);
+    return record;
   }
 }
 
-function sayfa(plakalar: readonly string[]): Sayfa<Satir> {
+function sayfa(plates: readonly string[]): Sayfa<Satir> {
   return {
-    kayitlar: plakalar.map((plaka) => ({ plaka })),
-    toplam: plakalar.length,
+    kayitlar: plates.map((plate) => ({ plaka: plate })),
+    toplam: plates.length,
     sayfaNo: 1,
     boyut: 50,
   };
 }
 
-function storeKur<P, T>(
-  getir: (p: P) => Observable<T>,
-  secenekler?: TemelStoreSecenekleri,
+function createStore<P, T>(
+  fetch: (p: P) => Observable<T>,
+  options?: TemelStoreSecenekleri,
 ): TemelStore<T, P> {
-  return TestBed.runInInjectionContext(() => new TemelStore<T, P>(getir, secenekler));
+  return TestBed.runInInjectionContext(() => new TemelStore<T, P>(fetch, options));
 }
 
-const HATA_500 = new HttpErrorResponse({
+const ERROR_500 = new HttpErrorResponse({
   status: 500,
   error: { title: 'Sunucu hatası', status: 500, detail: 'Beklenmeyen bir hata oluştu.' },
 });
 
 describe('TemelStore', () => {
   it('başlangıç bos; yukle → yukleniyor; yanıt → hazir', () => {
-    const kaynak = new SahteKaynak<string, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir);
+    const source = new FakeSource<string, Sayfa<Satir>>();
+    const store = createStore(source.fetch);
 
     expect(store.tur()).toBe('bos');
     expect(store.veri()).toBeUndefined();
 
     store.yukle('ilk');
     expect(store.tur()).toBe('yukleniyor');
-    expect(store.yukleniyor()).toBe(true);
+    expect(store.isLoading()).toBe(true);
     expect(store.veri()).toBeUndefined();
 
-    kaynak.istek(0).cevap.next(sayfa(['34 ABC 01']));
+    source.istek(0).cevap.next(sayfa(['34 ABC 01']));
     expect(store.tur()).toBe('hazir');
     expect(store.veri()?.kayitlar).toEqual([{ plaka: '34 ABC 01' }]);
     expect(store.hata()).toBeUndefined();
   });
 
   it('HATA BOŞ LİSTE DEĞİLDİR: hata durumunda veri yok, kayitYok false', () => {
-    const store = storeKur<void, Sayfa<Satir>>(() => throwError(() => HATA_500));
+    const store = createStore<void, Sayfa<Satir>>(() => throwError(() => ERROR_500));
     store.yukle();
 
     expect(store.tur()).toBe('hata');
     expect(store.veri()).toBeUndefined();
     expect(store.hata()).toBeInstanceOf(ApiHatasi);
     expect(store.hata()?.kod).toBe('sunucu');
-    expect(kayitYok(store.durum())).toBe(false);
+    expect(noRecord(store.durum())).toBe(false);
   });
 
   it('kayitYok yalnız başarılı + sıfır kayıtta true', () => {
-    const kaynak = new SahteKaynak<void, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir);
-    expect(kayitYok(store.durum())).toBe(false); // bos
+    const source = new FakeSource<void, Sayfa<Satir>>();
+    const store = createStore(source.fetch);
+    expect(noRecord(store.durum())).toBe(false); // bos
 
     store.yukle();
-    expect(kayitYok(store.durum())).toBe(false); // yukleniyor
+    expect(noRecord(store.durum())).toBe(false); // yukleniyor
 
-    kaynak.istek(0).cevap.next(sayfa([]));
+    source.istek(0).cevap.next(sayfa([]));
     expect(store.tur()).toBe('hazir');
-    expect(kayitYok(store.durum())).toBe(true);
+    expect(noRecord(store.durum())).toBe(true);
   });
 
   it('İPTAL: ikinci yukle birinciyi iptal eder; yalnız son sonuç yazılır', () => {
-    const kaynak = new SahteKaynak<string, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir);
+    const source = new FakeSource<string, Sayfa<Satir>>();
+    const store = createStore(source.fetch);
 
     store.yukle('eski-filtre');
     store.yukle('yeni-filtre');
 
-    expect(kaynak.istek(0).iptal).toBe(true);
-    expect(kaynak.istek(1).iptal).toBe(false);
+    expect(source.istek(0).iptal).toBe(true);
+    expect(source.istek(1).iptal).toBe(false);
 
     // Yavaş eski yanıt SONRA gelir: yok sayılmalı (Revlo yarışı: eski filtrenin sonucu ekranda kalırdı).
-    kaynak.istek(1).cevap.next(sayfa(['06 YEN 06']));
-    kaynak.istek(0).cevap.next(sayfa(['34 ESK 34']));
+    source.istek(1).cevap.next(sayfa(['06 YEN 06']));
+    source.istek(0).cevap.next(sayfa(['34 ESK 34']));
 
     expect(store.veri()?.kayitlar).toEqual([{ plaka: '06 YEN 06' }]);
   });
 
   it('İPTAL: eski istek hatayla dönse bile yeni sonucu bozmaz', () => {
-    const kaynak = new SahteKaynak<string, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir);
+    const source = new FakeSource<string, Sayfa<Satir>>();
+    const store = createStore(source.fetch);
 
     store.yukle('a');
     store.yukle('b');
-    kaynak.istek(0).cevap.error(HATA_500);
+    source.istek(0).cevap.error(ERROR_500);
     expect(store.tur()).toBe('yukleniyor');
 
-    kaynak.istek(1).cevap.next(sayfa(['B']));
+    source.istek(1).cevap.next(sayfa(['B']));
     expect(store.tur()).toBe('hazir');
   });
 
   it('hata sonrası yenile aynı parametreyle yeniden ister ve toparlar', () => {
-    const kaynak = new SahteKaynak<number, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir);
+    const source = new FakeSource<number, Sayfa<Satir>>();
+    const store = createStore(source.fetch);
 
     store.yukle(7);
-    kaynak.istek(0).cevap.error(HATA_500);
+    source.istek(0).cevap.error(ERROR_500);
     expect(store.tur()).toBe('hata');
 
     store.yenile();
-    expect(kaynak.istek(1).parametre).toBe(7);
+    expect(source.istek(1).parametre).toBe(7);
     expect(store.tur()).toBe('yukleniyor');
-    kaynak.istek(1).cevap.next(sayfa(['X']));
+    source.istek(1).cevap.next(sayfa(['X']));
     expect(store.tur()).toBe('hazir');
   });
 
   it('yenile hiç yüklenmemiş store’da bir şey yapmaz', () => {
-    const kaynak = new SahteKaynak<number, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir);
+    const source = new FakeSource<number, Sayfa<Satir>>();
+    const store = createStore(source.fetch);
     store.yenile();
-    expect(kaynak.istekler.length).toBe(0);
+    expect(source.requests.length).toBe(0);
     expect(store.tur()).toBe('bos');
   });
 
   it('oncekiVeriyiKoru: yeniden yüklerken eski veri görünür; hata gelince düşer', () => {
-    const kaynak = new SahteKaynak<string, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir, { oncekiVeriyiKoru: true });
+    const source = new FakeSource<string, Sayfa<Satir>>();
+    const store = createStore(source.fetch, { oncekiVeriyiKoru: true });
 
     store.yukle('1');
-    kaynak.istek(0).cevap.next(sayfa(['A']));
+    source.istek(0).cevap.next(sayfa(['A']));
     store.yukle('2');
 
     expect(store.tur()).toBe('yukleniyor');
     expect(store.veri()?.kayitlar).toEqual([{ plaka: 'A' }]);
-    expect(kayitYok(store.durum())).toBe(false);
+    expect(noRecord(store.durum())).toBe(false);
 
-    kaynak.istek(1).cevap.error(HATA_500);
+    source.istek(1).cevap.error(ERROR_500);
     expect(store.tur()).toBe('hata');
     expect(store.veri()).toBeUndefined();
   });
 
   it('varsayılan (koru kapalı): yeniden yüklerken veri görünmez', () => {
-    const kaynak = new SahteKaynak<string, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir);
+    const source = new FakeSource<string, Sayfa<Satir>>();
+    const store = createStore(source.fetch);
     store.yukle('1');
-    kaynak.istek(0).cevap.next(sayfa(['A']));
+    source.istek(0).cevap.next(sayfa(['A']));
     store.yukle('2');
     expect(store.veri()).toBeUndefined();
   });
 
   it('sifirla süren isteği iptal eder, bos’a döner, geç gelen yanıt yazılmaz', () => {
-    const kaynak = new SahteKaynak<string, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir);
+    const source = new FakeSource<string, Sayfa<Satir>>();
+    const store = createStore(source.fetch);
     store.yukle('x');
-    store.sifirla();
+    store.reset();
 
-    expect(kaynak.istek(0).iptal).toBe(true);
-    kaynak.istek(0).cevap.next(sayfa(['GEC']));
+    expect(source.istek(0).iptal).toBe(true);
+    source.istek(0).cevap.next(sayfa(['GEC']));
     expect(store.tur()).toBe('bos');
     expect(store.veri()).toBeUndefined();
 
     store.yenile(); // sıfırlanan store son parametreyi unutmuş olmalı
-    expect(kaynak.istekler.length).toBe(1);
+    expect(source.requests.length).toBe(1);
   });
 
   it('getir eşzamanlı fırlatırsa hata durumu; store sonraki yuklemede çalışmaya devam eder', () => {
-    let bozuk = true;
-    const kaynak = new SahteKaynak<void, Sayfa<Satir>>();
-    const store = storeKur((p: void) => {
-      if (bozuk) throw new TypeError('adaptör hatası');
-      return kaynak.getir(p);
+    let corrupt = true;
+    const source = new FakeSource<void, Sayfa<Satir>>();
+    const store = createStore((p: void) => {
+      if (corrupt) throw new TypeError('adaptör hatası');
+      return source.fetch(p);
     });
 
     store.yukle();
     expect(store.tur()).toBe('hata');
     expect(store.hata()?.kod).toBe('bilinmeyen');
 
-    bozuk = false;
+    corrupt = false;
     store.yukle();
-    kaynak.istek(0).cevap.next(sayfa(['OK']));
+    source.istek(0).cevap.next(sayfa(['OK']));
     expect(store.tur()).toBe('hazir');
   });
 
   it('değer üretmeden tamamlanan kaynak yukleniyor’da takılı kalmaz → hata', () => {
-    const store = storeKur<void, Sayfa<Satir>>(() => EMPTY);
+    const store = createStore<void, Sayfa<Satir>>(() => EMPTY);
     store.yukle();
     expect(store.tur()).toBe('hata');
   });
 
   it('bileşen/injector yok edilince abonelik kapanır (sızıntı yok)', () => {
-    const kaynak = new SahteKaynak<void, Sayfa<Satir>>();
-    const store = storeKur(kaynak.getir);
+    const source = new FakeSource<void, Sayfa<Satir>>();
+    const store = createStore(source.fetch);
     store.yukle();
     TestBed.resetTestingModule();
-    expect(kaynak.istek(0).iptal).toBe(true);
+    expect(source.istek(0).iptal).toBe(true);
   });
 });

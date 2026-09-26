@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ciddiIhlaller, hatalariTopla, oturumAc } from './ortak';
+import { seriousViolations, collectErrors, logIn } from './ortak';
 import { ADMIN_BEN, record, settingsEndpoints, usersEndpoints, type Write } from './system-fakes';
-import { tasmaOlc } from './vitrin-sayfalari';
+import { measureOverflow } from './vitrin-sayfalari';
 
 /**
  * F11.2b web sitesi (ilan sihirbazı 3 adım, site içeriği, blog önizleme), gelen talepler, bildirimler, arama, parola;
@@ -88,17 +88,17 @@ async function websiteEndpoints(page: Page): Promise<Write[]> {
 test('ilan sihirbazı: havuzdan seç → oluştur → fiyat (surum) → özellikler (surum); axe', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
-  await oturumAc(page, ADMIN_BEN);
+  const errors = collectErrors(page);
+  await logIn(page, ADMIN_BEN);
   const writes = await websiteEndpoints(page);
   await page.goto('/app/web-sitesi');
   await expect(page.getByRole('link', { name: 'Foto yok → ekle' })).toBeVisible();
   await expect(page.getByText('Sitede yayınlanmamış 2 araç var')).toBeVisible();
-  expect(await ciddiIhlaller(page), 'ilanlar').toEqual([]);
+  expect(await seriousViolations(page), 'ilanlar').toEqual([]);
 
   await page.getByRole('link', { name: 'Araç ekle' }).click();
   await page.getByRole('checkbox', { name: 'Fiat Egea 1.4' }).check();
-  expect(await ciddiIhlaller(page), 'havuz').toEqual([]);
+  expect(await seriousViolations(page), 'havuz').toEqual([]);
   await page.getByRole('button', { name: 'İleri →' }).click();
   await expect.poll(() => writes.length).toBe(1);
   expect(body(writes[0])).toEqual({ mod: 'beraber', imzalar: ['fiat|egea|2024'] });
@@ -129,7 +129,7 @@ test('ilan sihirbazı: havuzdan seç → oluştur → fiyat (surum) → özellik
 });
 
 test('web sitesi modülü yoksa ilan ekranı yalnız bilgi verir, uç çağrılmaz', async ({ page }) => {
-  await oturumAc(page, { ...ADMIN_BEN, moduller: { webSitesi: false } });
+  await logIn(page, { ...ADMIN_BEN, moduller: { webSitesi: false } });
   const writes = await websiteEndpoints(page);
   let calls = 0;
   page.on('request', (r) => {
@@ -144,8 +144,8 @@ test('web sitesi modülü yoksa ilan ekranı yalnız bilgi verir, uç çağrılm
 test('site içeriği: sürümsüz liste satırı tekil okunur, çok satırlı gövdeyle PUT surum taşır', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
-  await oturumAc(page, ADMIN_BEN);
+  const errors = collectErrors(page);
+  await logIn(page, ADMIN_BEN);
   const writes: Write[] = [];
   const pageRow = { id: 'p1', slug: 'hakkimizda', baslik: 'Hakkımızda', sira: 1, yayinda: true };
   const pageDetail = {
@@ -172,7 +172,7 @@ test('site içeriği: sürümsüz liste satırı tekil okunur, çok satırlı g�
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const content = page.getByRole('textbox', { name: 'İçerik' });
   await expect(content).toHaveValue('Paragraf 1\n\nParagraf 2');
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
   await content.fill('## Biz kimiz\n\nYeni paragraf');
   await page.getByRole('button', { name: 'Kaydet' }).click();
   await expect.poll(() => writes.length).toBe(1);
@@ -192,8 +192,8 @@ test('site içeriği: sürümsüz liste satırı tekil okunur, çok satırlı g�
 test('blog önizleme: içerik düz metin — <script> işaretleme olarak yorumlanmaz', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
-  await oturumAc(page, ADMIN_BEN);
+  const errors = collectErrors(page);
+  await logIn(page, ADMIN_BEN);
   await page.route('**/api/ui/v1/blog-yonetim/*/onizleme', (r) =>
     r.fulfill({
       json: {
@@ -224,7 +224,7 @@ test('blog önizleme: içerik düz metin — <script> işaretleme olarak yorumla
 });
 
 test('gelen talepler: ayrıntı → not ekle, aday araçla dönüştür', async ({ page }) => {
-  await oturumAc(page, ADMIN_BEN);
+  await logIn(page, ADMIN_BEN);
   const writes: Write[] = [];
   await page.route(
     (u) => u.pathname.startsWith('/api/ui/v1/gelen-talepler'),
@@ -295,7 +295,7 @@ test('gelen talepler: ayrıntı → not ekle, aday araçla dönüştür', async 
   );
   await page.goto('/app/gelen-talepler');
   await page.getByRole('button', { name: 'Ayrıntı (0 not)' }).click();
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
   await page.getByRole('textbox', { name: 'Yeni not' }).fill('Arandı');
   await page.getByRole('button', { name: 'Not ekle' }).click();
   await expect.poll(() => writes.length).toBe(1);
@@ -310,7 +310,7 @@ test('gelen talepler: ayrıntı → not ekle, aday araçla dönüştür', async 
 test('bildirimler, arama ve parola: oturumla açılır; parola alanları current/new-password', async ({
   page,
 }) => {
-  await oturumAc(page, ADMIN_BEN);
+  await logIn(page, ADMIN_BEN);
   const writes: Write[] = [];
   await page.route('**/api/ui/v1/bildirimler?*', (r) =>
     r.fulfill({
@@ -387,14 +387,14 @@ test.describe('sistem ekranları: mobil taşma (dokunmatik öykünme)', () => {
   test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   for (const path of OVERFLOW_PAGES) {
     test(`${path}: 320/390/768 px gövde yatay taşması yok`, async ({ page }) => {
-      await oturumAc(page, ADMIN_BEN);
+      await logIn(page, ADMIN_BEN);
       await overflowFakes(page);
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(path);
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
         await page.waitForLoadState('networkidle');
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   }
@@ -402,12 +402,12 @@ test.describe('sistem ekranları: mobil taşma (dokunmatik öykünme)', () => {
 
 for (const path of OVERFLOW_PAGES) {
   test(`${path}: 1440 px gövde yatay taşması yok`, async ({ page }) => {
-    await oturumAc(page, ADMIN_BEN);
+    await logIn(page, ADMIN_BEN);
     await overflowFakes(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await page.waitForLoadState('networkidle');
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

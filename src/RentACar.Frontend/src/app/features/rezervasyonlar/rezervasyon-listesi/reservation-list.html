@@ -1,0 +1,132 @@
+<rc-sayfa-bandi [baslik]="'rezervasyon.baslik' | transloco" ikon="calendar-event">
+  <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/rezervasyonlar/yeni">
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'rezervasyon.yeni' | transloco }}
+  </a>
+</rc-sayfa-bandi>
+
+<div class="rc-sayfa">
+  <rc-katlanir-filtre
+    class="filtre"
+    [baslik]="'rezervasyon.filtre.baslik' | transloco"
+    [etkinSayisi]="liste.etkinFiltreSayisi()"
+    [(acik)]="filterOpen"
+  >
+    <form
+      class="filtre__form"
+      [formGroup]="filterForm"
+      [attr.aria-label]="'rezervasyon.filtre.baslik' | transloco"
+      (ngSubmit)="filter()"
+    >
+      <div class="rc-form-izgara">
+        <rc-alan
+          [etiket]="'rezervasyon.filtre.ara' | transloco"
+          [ipucu]="'rezervasyon.filtre.araIpucu' | transloco"
+        >
+          <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="200" />
+        </rc-alan>
+        <rc-alan [etiket]="'rezervasyon.filtre.durum' | transloco">
+          <rc-secim
+            formControlName="durum"
+            [secenekler]="statusOptions"
+            [bosEtiket]="'rezervasyon.filtre.tumu' | transloco"
+          />
+        </rc-alan>
+        <rc-alan [etiket]="'rezervasyon.filtre.basMin' | transloco">
+          <rc-tarih-secici formControlName="basMin" />
+        </rc-alan>
+        <rc-alan [etiket]="'rezervasyon.filtre.basMax' | transloco">
+          <rc-tarih-secici formControlName="basMax" />
+        </rc-alan>
+        <rc-alan [etiket]="'rezervasyon.filtre.kaynak' | transloco">
+          <rc-arama-secim formControlName="kaynak" [kaynak]="sources" />
+        </rc-alan>
+      </div>
+      <div class="filtre__eylemler">
+        <button type="submit" class="rc-dugme rc-dugme--birincil rc-dugme--kucuk">
+          <rc-ikon ad="filter" [boyut]="14" />
+          {{ 'rezervasyon.filtre.filtrele' | transloco }}
+        </button>
+        @if (liste.etkinFiltreSayisi() > 0) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="clear()"
+          >
+            {{ 'rezervasyon.filtre.temizle' | transloco }}
+          </button>
+        }
+      </div>
+    </form>
+  </rc-katlanir-filtre>
+
+  <rc-tablo
+    class="liste-tablosu"
+    tabloKodu="rezervasyonlar.liste"
+    [etiket]="'rezervasyon.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.liste.durum()"
+    [satirKimligi]="identity"
+    [sirala]="liste.sorgu().sirala"
+    [varsayilanSirala]="defaultSort"
+    [disaAktarma]="exportItem()"
+    (siralaDegisti)="liste.degistir({ sirala: $event })"
+    (sayfaDegisti)="liste.degistir({ sayfa: $event })"
+    (boyutDegisti)="liste.degistir({ boyut: $event })"
+    (yenidenDene)="store.liste.yenile()"
+    (satirAc)="openRow($event)"
+  >
+    <ng-template rcTabloHucre="no" [rcTabloHucreSutunlar]="columns" let-satir>
+      <a class="bag" [routerLink]="['/rezervasyonlar', satir.id]">{{ satir.no }}</a>
+    </ng-template>
+
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka [plaka]="satir.plaka" boyut="sm" />
+      }
+    </ng-template>
+
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span [class]="rozet(satir.durum)" [class.opsiyonlu]="satir.durum === 'Rezerv'">{{
+        statusLabel(satir.durum)
+      }}</span>
+    </ng-template>
+
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="satir-islemleri">
+        @if (satir.durum === 'Rezerv') {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="islemler.inProgress() !== null"
+            (click)="onayla(satir)"
+          >
+            <rc-ikon ad="check" [boyut]="14" />
+            {{ 'rezervasyon.eylem.onayla' | transloco }}
+            <span class="rc-gorunmez">{{ satir.no }}</span>
+          </button>
+        }
+        @if (acik(satir)) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="islemler.inProgress() !== null"
+            (click)="convertToRental(satir)"
+          >
+            <rc-ikon ad="car" [boyut]="14" />
+            {{ 'rezervasyon.eylem.kirayaCevir' | transloco }}
+            <span class="rc-gorunmez">{{ satir.no }}</span>
+          </button>
+          <a
+            class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
+            [routerLink]="['/rezervasyonlar', satir.id]"
+          >
+            <rc-ikon ad="edit" [boyut]="14" />
+            {{ 'rezervasyon.eylem.duzenle' | transloco }}
+            <span class="rc-gorunmez">{{ satir.no }}</span>
+          </a>
+        }
+      </span>
+    </ng-template>
+  </rc-tablo>
+</div>

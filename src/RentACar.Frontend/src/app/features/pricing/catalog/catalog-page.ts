@@ -24,44 +24,38 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type ApiYolu, type SorguParametreleri } from '@core/api/api-istemcisi';
+import { toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type ApiPath, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import { tarihSaatBicimle } from '@core/bicim/bicim';
-import type { SecimOgesi } from '@core/api/ui-tipleri';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
+import { formatDateTime } from '@core/bicim/bicim';
+import type { SelectionItem } from '@core/api/ui-tipleri';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { translationFunction } from '@core/i18n/ceviri';
+import { requestContext } from '@core/oturum/request-context';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { TemelStore } from '@core/veri/temel-store';
-import {
-  metinDegeri,
-  sunucuDegerleriniBirlestir,
-} from '@features/planlama-ortak/form-yardimcilari';
+import { textValue, mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinAlani } from '@shared/form/kontroller/metin-alani';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextArea } from '@shared/form/kontroller/text-area';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { RatePriceQuery } from '../rate-price-query/rate-price-query';
 import { ServiceDefinitionSuggestions } from '../service-definition-suggestions/service-definition-suggestions';
@@ -78,7 +72,7 @@ import {
   rowToForm,
 } from './catalog-model';
 import { WeekdayPicker } from './weekday-picker';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id: string };
 
@@ -98,47 +92,47 @@ interface FieldGroup {
   selector: 'rc-catalog-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     NgTemplateOutlet,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    Ikon,
-    MetinAlani,
-    MetinGirdisi,
-    OnayKutusu,
-    ParaGirdisi,
+    FormErrors,
+    Icon,
+    TextArea,
+    TextInput,
+    Checkbox,
+    MoneyInput,
     RatePriceQuery,
-    SayiGirdisi,
-    Secim,
+    NumberInput,
+    Selection,
     ServiceDefinitionSuggestions,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    Table,
+    TableCell,
+    DatePicker,
     WeekdayPicker,
   ],
   providers: [FetchPolicy],
   templateUrl: './catalog-page.html',
   styleUrl: '../pricing.scss',
 })
-export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
+export class CatalogPage implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly session = inject(OturumServisi);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly session = inject(SessionService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly config: CatalogConfig =
     CATALOGS[(inject(ActivatedRoute).snapshot.data['catalog'] as string | undefined) ?? ''] ??
     CATALOGS['tarifeler']!;
-  protected readonly query = listeSorgusuUrlSenkronu(catalogListDefinition(this.config));
+  protected readonly query = listQueryUrlSync(catalogListDefinition(this.config));
   protected readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<Sayfa<CatalogRow>>(this.config.listPath ?? this.config.root, {
         parametreler: p,
       }),
@@ -163,7 +157,7 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
       this.editableFields.map((f) => [f.name, new FormControl<unknown>(null, validators(f))]),
     ) as Record<string, FormControl<unknown>>,
   );
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   // ---- süzgeç
   protected readonly filterForm = new FormGroup(
@@ -182,10 +176,10 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
   >({});
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.list.yukle(p),
-      sifirla: () => this.list.sifirla(),
+      sifirla: () => this.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -202,10 +196,10 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
     effect(() => {
       if (this.editing() !== null && this.canWrite()) untracked(() => this.loadChoices());
     });
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.editing() !== null && this.form.dirty;
   }
 
@@ -244,7 +238,7 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
       const who = b['onaylayan'];
       const at = b['onayZaman'];
       return typeof who === 'string' && who !== ''
-        ? `${who}${typeof at === 'string' ? ` · ${tarihSaatBicimle(at)}` : ''}`
+        ? `${who}${typeof at === 'string' ? ` · ${formatDateTime(at)}` : ''}`
         : '—';
     }
     const v = b[f.name];
@@ -257,7 +251,7 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
     const v = this.filterForm.getRawValue();
     const filters: Record<string, string | undefined> = {};
     for (const [name, value] of Object.entries(v))
-      filters[name] = typeof value === 'string' ? (metinDegeri(value) ?? undefined) : undefined;
+      filters[name] = typeof value === 'string' ? (textValue(value) ?? undefined) : undefined;
     void this.query.degistir({ sayfa: 1, filtreler: filters });
   }
 
@@ -333,7 +327,7 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
   protected async remove(row: CatalogRow): Promise<void> {
     if (this.busy() !== null) return;
     const title = String(row[this.config.titleField] ?? '');
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('fiyatTarife.silBaslik'),
       mesaj: this.t('fiyatTarife.silMesaj', { ad: title }),
       onayEtiketi: this.t('fiyatTarife.sil'),
@@ -355,7 +349,7 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
           this.list.yenile();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.list.yenile();
         },
@@ -368,7 +362,7 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
 
   // ------------------------------------------------------------------ iç
 
-  private recordPath(id: string): ApiYolu {
+  private recordPath(id: string): ApiPath {
     return `${this.config.root}/${encodeURIComponent(id)}`;
   }
 
@@ -382,7 +376,7 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
           if (e?.kind === 'record' && e.id === id) this.recordArrived(r);
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
         },
       });
@@ -401,14 +395,14 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
     if (!this.form.dirty) {
       this.form.reset(fresh);
     } else {
-      const conflicts = sunucuDegerleriniBirlestir(
+      const conflicts = mergeServerValues(
         this.form,
         fresh,
         baseline,
         this.t('fiyatTarife.cakismaAlan'),
       );
       if (conflicts.length > 0)
-        this.banner.goster({
+        this.banner.show({
           tur: 'uyari',
           mesaj: this.t('fiyatTarife.cakismaBant', { sayi: conflicts.length }),
           kod: 'cakisma',
@@ -438,7 +432,7 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
 
   private async releaseForm(): Promise<boolean> {
     if (this.editing() === null || !this.form.dirty) return true;
-    return this.confirm.sor({
+    return this.confirm.ask({
       baslik: this.t('fiyatTarife.vazgecBaslik'),
       mesaj: this.t('fiyatTarife.vazgecMesaj'),
     });
@@ -457,12 +451,12 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
   private loadChoices(): void {
     if (this.choicesLoaded) return;
     this.choicesLoaded = true;
-    const quiet = istekBaglami({ sessiz: true });
+    const quiet = requestContext({ sessiz: true });
     for (const f of this.editableFields) {
       const s = f.suggestion;
       if (s)
         this.api
-          .get<readonly SecimOgesi[]>(`/api/ui/v1/secim/${s.endpoint}`, {
+          .get<readonly SelectionItem[]>(`/api/ui/v1/secim/${s.endpoint}`, {
             parametreler: { limit: 20 },
             context: quiet,
           })
@@ -479,7 +473,7 @@ export class CatalogPage implements KaydedilmemisDegisiklikSahibi {
           });
       if (f.lookup)
         this.api
-          .get<readonly SecimOgesi[]>(`/api/ui/v1/secim/${f.lookup}`, {
+          .get<readonly SelectionItem[]>(`/api/ui/v1/secim/${f.lookup}`, {
             parametreler: { limit: 20 },
             context: quiet,
           })

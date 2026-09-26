@@ -1,0 +1,222 @@
+<section class="tanim" [attr.aria-labelledby]="titleId">
+  <header class="ust">
+    <h2 [id]="titleId">{{ baslik() }}</h2>
+    <button
+      type="button"
+      class="rc-dugme rc-dugme--birincil rc-dugme--kucuk rc-yazdirma-gizle"
+      [disabled]="editing() !== null"
+      (click)="yeni()"
+    >
+      <rc-ikon ad="plus" [boyut]="14" />
+      {{ 'form.tanim.yeni' | transloco }}
+    </button>
+  </header>
+
+  <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+  @if (openError()) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ openError() }}</p>
+  }
+
+  @if (layout() === 'panel' && editing() !== null) {
+    <div class="duzenleme duzenleme--panel">
+      <div class="rc-form-izgara">
+        @for (alan of formFields(); track alan.ad) {
+          <ng-container
+            *ngTemplateOutlet="kontrol; context: { $implicit: alan, etiketGizli: false }"
+          />
+        }
+      </div>
+      <div class="panel-islemler">
+        <ng-container *ngTemplateOutlet="islemDugmeleri" />
+      </div>
+    </div>
+  }
+
+  @switch (liste.tur()) {
+    @case ('hata') {
+      <div class="rc-form-hatalari" role="alert">
+        {{ 'form.tanim.hata' | transloco }} {{ liste.hata()?.detay }}
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="liste.yenile()">
+          {{ 'form.tanim.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @default {
+      <div class="rc-tablo-kap">
+        <table class="rc-duz-tablo" [attr.aria-busy]="liste.isLoading()">
+          <thead>
+            <tr>
+              @for (alan of columns(); track alan.ad) {
+                <th scope="col">{{ alan.etiket }}</th>
+              }
+              <th scope="col" class="islemler rc-yazdirma-gizle">
+                {{ 'form.tanim.islemler' | transloco }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (layout() === 'row' && editing()?.tur === 'yeni') {
+              <ng-container *ngTemplateOutlet="duzenlemeSatiri" />
+            }
+            @for (satir of rows(); track satir.id) {
+              @if (layout() === 'row' && isEditing(satir)) {
+                <ng-container *ngTemplateOutlet="duzenlemeSatiri" />
+              } @else {
+                <tr [class.rc-satir-secili]="isEditing(satir)">
+                  @for (alan of columns(); track alan.ad) {
+                    <td [class.rc-num]="alan.tur === 'sayi' || alan.tur === 'para'">
+                      {{ show(alan, satir[alan.ad]) }}
+                    </td>
+                  }
+                  <td class="islemler rc-yazdirma-gizle">
+                    @if (toDelete() === satir.id) {
+                      <span
+                        class="onay"
+                        role="group"
+                        [attr.aria-label]="'form.tanim.silOnay' | transloco"
+                      >
+                        <span>{{ 'form.tanim.silOnay' | transloco }}</span>
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--kucuk rc-dugme--birincil"
+                          [disabled]="isDeleting()"
+                          (click)="remove(satir.id)"
+                        >
+                          {{ 'form.tanim.evetSil' | transloco }}
+                        </button>
+                        <button
+                          type="button"
+                          class="rc-dugme rc-dugme--kucuk"
+                          (click)="toDelete.set(null)"
+                        >
+                          {{ 'form.tanim.vazgec' | transloco }}
+                        </button>
+                        @if (deleteError()) {
+                          <span class="hata" role="alert">{{ deleteError() }}</span>
+                        }
+                      </span>
+                    } @else {
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="editing() !== null || opening() !== null"
+                        (click)="edit(satir)"
+                      >
+                        <rc-ikon ad="edit" [boyut]="14" />
+                        {{ 'form.tanim.duzenle' | transloco }}
+                      </button>
+                      <button
+                        type="button"
+                        class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+                        [disabled]="editing() !== null"
+                        (click)="confirmDelete(satir.id)"
+                      >
+                        <rc-ikon ad="trash" [boyut]="14" />
+                        {{ 'form.tanim.sil' | transloco }}
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            } @empty {
+              @if (liste.tur() === 'hazir' && (layout() === 'panel' || editing() === null)) {
+                <tr>
+                  <td class="rc-bos" [attr.colspan]="columns().length + 1">
+                    {{ 'form.tanim.bos' | transloco }}
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (liste.isLoading()) {
+        <p class="durum" role="status">{{ 'form.tanim.yukleniyor' | transloco }}</p>
+      }
+    }
+  }
+</section>
+
+<ng-template #duzenlemeSatiri>
+  <tr class="duzenleme">
+    @for (alan of columns(); track alan.ad) {
+      <td>
+        <ng-container
+          *ngTemplateOutlet="kontrol; context: { $implicit: alan, etiketGizli: true }"
+        />
+      </td>
+    }
+    <td class="islemler">
+      <ng-container *ngTemplateOutlet="islemDugmeleri" />
+    </td>
+  </tr>
+</ng-template>
+
+<ng-template #islemDugmeleri>
+  <button
+    type="button"
+    class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+    [disabled]="submission.gonderiliyor()"
+    (click)="kaydet()"
+  >
+    {{ 'form.tanim.kaydet' | transloco }}
+  </button>
+  <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="cancel()">
+    {{ 'form.tanim.vazgec' | transloco }}
+  </button>
+</ng-template>
+
+<ng-template #kontrol let-alan let-etiketGizli="etiketGizli">
+  <rc-alan [etiket]="alan.etiket" [etiketGizli]="etiketGizli">
+    @switch (alan.tur) {
+      @case ('sayi') {
+        <rc-sayi-girdisi
+          [formControl]="controlOf(alan)"
+          [kesir]="alan.fraction ?? 0"
+          [negatif]="alan.negative ?? false"
+          [yerTutucu]="alan.placeholder ?? ''"
+        />
+      }
+      @case ('para') {
+        <rc-para-girdisi [formControl]="controlOf(alan)" />
+      }
+      @case ('onay') {
+        <rc-onay-kutusu [formControl]="controlOf(alan)" />
+      }
+      @case ('secim') {
+        <rc-secim [formControl]="controlOf(alan)" [secenekler]="optionsOf(alan)" />
+      }
+      @case ('date') {
+        <rc-tarih-secici [formControl]="controlOf(alan)" />
+      }
+      @case ('textarea') {
+        <rc-metin-alani
+          [formControl]="controlOf(alan)"
+          [azamiUzunluk]="alan.azamiUzunluk"
+          [yerTutucu]="alan.placeholder ?? ''"
+          [satir]="6"
+        />
+      }
+      @case ('datalist') {
+        <rc-metin-girdisi
+          [formControl]="controlOf(alan)"
+          [azamiUzunluk]="alan.azamiUzunluk"
+          [yerTutucu]="alan.placeholder ?? ''"
+          [liste]="datalistId(alan)"
+        />
+        <datalist [id]="datalistId(alan)">
+          @for (oneri of suggestionsOf(alan); track oneri) {
+            <option [value]="oneri"></option>
+          }
+        </datalist>
+      }
+      @default {
+        <rc-metin-girdisi
+          [formControl]="controlOf(alan)"
+          [azamiUzunluk]="alan.azamiUzunluk"
+          [yerTutucu]="alan.placeholder ?? ''"
+        />
+      }
+    }
+  </rc-alan>
+</ng-template>

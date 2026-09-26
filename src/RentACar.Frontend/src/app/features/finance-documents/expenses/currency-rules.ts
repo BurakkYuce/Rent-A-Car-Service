@@ -1,7 +1,7 @@
-import { trBuyukHarf } from '@core/metin/tr-normalize';
+import { trUpperCase } from '@core/metin/tr-normalize';
 
 const iso = (c: string | null | undefined): string => {
-  const k = trBuyukHarf((c ?? '').trim());
+  const k = trUpperCase((c ?? '').trim());
   return k === '' || k === 'TL' ? 'TRY' : k;
 };
 

@@ -12,28 +12,28 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { Secim } from '@shared/form/kontroller/secim';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { Selection } from '@shared/form/kontroller/selection';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { pagedDefinitionSource } from '../paged-source';
 import { vehicleGroupFields } from './vehicle-group-fields';
 
-type Unmatched = Sema<'UnmatchedGroupValueDto'>;
-type BrandRow = Sema<'DefinitionDto'>;
-type AssignResult = Sema<'GroupAssignResult'>;
+type Unmatched = Schema<'UnmatchedGroupValueDto'>;
+type BrandRow = Schema<'DefinitionDto'>;
+type AssignResult = Schema<'GroupAssignResult'>;
 
-const ROOT: ApiYolu = '/api/ui/v1/arac-gruplari';
+const ROOT: ApiPath = '/api/ui/v1/arac-gruplari';
 /** Grubu BOŞ araçların seçenek anahtarı (gerçek grup değeriyle çakışmaz: sunucu `bos: true` alır). */
 export const EMPTY_GROUP_KEY = '\u0000bos';
 
@@ -45,16 +45,24 @@ export const EMPTY_GROUP_KEY = '\u0000bos';
 @Component({
   selector: 'rc-vehicle-group-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, TanimCrud, Alan, FormHatalari, Secim, SayfaBandi],
+  imports: [
+    ReactiveFormsModule,
+    TranslocoPipe,
+    DefinitionCrud,
+    Alan,
+    FormErrors,
+    Selection,
+    PageBand,
+  ],
   styleUrl: '../definitions.scss',
   templateUrl: './vehicle-group-page.html',
 })
 export class VehicleGroupPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
-  private readonly crud = viewChild(TanimCrud);
+  private readonly t = translationFunction();
+  private readonly crud = viewChild(DefinitionCrud);
 
   /** Marka önerisi aktif marka tanımlarından (Blazor `_markaOpts`; seç veya yaz). */
   protected readonly fields = vehicleGroupFields(this.t, {
@@ -83,15 +91,15 @@ export class VehicleGroupPage {
     kaynak: new FormControl<string | null>(null, Validators.required),
     hedefGrupId: new FormControl<string | null>(null, Validators.required),
   });
-  protected readonly assignSubmit = formGonderimi();
+  protected readonly assignSubmit = formSubmission();
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     this.loadUnmatched();
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return this.crud()?.kaydedilmemisDegisiklikVar() ?? false;
+  hasUnsavedChanges(): boolean {
+    return this.crud()?.hasUnsavedChanges() ?? false;
   }
 
   /** Grup eklenip adı değişince eşleşme de değişir. */
@@ -102,7 +110,7 @@ export class VehicleGroupPage {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (list) => this.unmatched.set(list),
-        error: (e: unknown) => this.unmatchedError.set(apiHatasinaCevir(e).detay),
+        error: (e: unknown) => this.unmatchedError.set(toApiError(e).detay),
       });
   }
 

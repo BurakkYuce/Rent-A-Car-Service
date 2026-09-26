@@ -11,17 +11,17 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { paraBicimle } from '@core/bicim/bicim';
+import { formatMoney } from '@core/bicim/bicim';
 import { moneySubmission } from '@core/form/money-submission';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { ParaPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import type { ExpensePayment, ExpensePaymentRequest, ExpenseRow } from '../document-model';
 import {
@@ -47,10 +47,10 @@ export const expensePaymentScope = (id: string) => `gider-odeme:${id}`;
     TranslocoPipe,
     Alan,
     MoneySubmitBar,
-    MetinGirdisi,
-    ParaGirdisi,
-    ParaPipe,
-    TarihSecici,
+    TextInput,
+    MoneyInput,
+    MoneyPipe,
+    DatePicker,
   ],
   template: `
     <section class="rc-bolum" aria-labelledby="rc-gider-odeme">
@@ -102,8 +102,8 @@ export const expensePaymentScope = (id: string) => `gider-odeme:${id}`;
   styleUrl: '../finance-documents.scss',
 })
 export class ExpensePaymentForm implements OnInit {
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   readonly expense = input.required<ExpenseRow>();
   readonly paid = output<ExpensePayment | null>();
@@ -142,8 +142,8 @@ export class ExpensePaymentForm implements OnInit {
       success: (p) => {
         this.toast.basari(
           this.t('finansBelge.gider.odemeYazildi', {
-            tutar: paraBicimle(toNumber(p.tutar), e.doviz),
-            kalan: paraBicimle(toNumber(p.kalanSonrasi), e.doviz),
+            tutar: formatMoney(toNumber(p.tutar), e.doviz),
+            kalan: formatMoney(toNumber(p.kalanSonrasi), e.doviz),
           }),
         );
         this.reset();

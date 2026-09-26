@@ -8,18 +8,18 @@
 const TR = 'tr-TR';
 
 /** Türkçe küçük harf: "I" → "ı", "İ" → "i". */
-export function trKucukHarf(metin: string): string {
-  return metin.toLocaleLowerCase(TR);
+export function trLowerCase(text: string): string {
+  return text.toLocaleLowerCase(TR);
 }
 
 /** Türkçe büyük harf: "i" → "İ", "ı" → "I". */
-export function trBuyukHarf(metin: string): string {
-  return metin.toLocaleUpperCase(TR);
+export function trUpperCase(text: string): string {
+  return text.toLocaleUpperCase(TR);
 }
 
 /** Arama/karşılaştırma anahtarı: Unicode NFC, baş-son boşluk kırpılmış, Türkçe küçük harf. */
-export function trNormalize(metin: string): string {
-  return trKucukHarf(metin.normalize('NFC').trim());
+export function trNormalize(text: string): string {
+  return trLowerCase(text.normalize('NFC').trim());
 }
 
 /**
@@ -27,6 +27,6 @@ export function trNormalize(metin: string): string {
  * karşılığı ("İş" → "is", "Işık" → "isik", "Güneş" → "gunes"). Kullanıcı Türkçe klavye olmadan da
  * yazabilsin diye; ASCII sorgu Türkçe metni, Türkçe sorgu aynı metni bulur. Görüntüleme için değil.
  */
-export function trAramaAnahtari(metin: string): string {
-  return trNormalize(metin).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
+export function trSearchKey(text: string): string {
+  return trNormalize(text).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
 }

@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-import { BEN, oturumAc, problem } from './ortak';
+import { BEN, logIn, problem } from './ortak';
 
 /**
  * F11.3 tanım/sistem/web sitesi kesişi (sahte `/api/ui/v1`, üretim derlemesi + CSP). Harness yalnız statik SPA
@@ -31,7 +31,7 @@ const ALL_PERMISSIONS = {
 
 async function fakes(page: Page): Promise<void> {
   await remainingEndpoints(page);
-  await oturumAc(page, ALL_PERMISSIONS);
+  await logIn(page, ALL_PERMISSIONS);
 }
 
 const ID = '7a1c2c8e-0000-4000-8000-0000000000f1';

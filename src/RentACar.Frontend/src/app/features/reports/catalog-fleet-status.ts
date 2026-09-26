@@ -1,4 +1,4 @@
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 
 import { scorecardLink } from './catalog-sales';
 import {
@@ -17,8 +17,8 @@ const R = '/api/ui/v1/raporlar';
 
 // ── Filo analiz ─────────────────────────────────────────────────────────────────────────────
 const fa = cardsFor<SummaryOf<`${typeof R}/filo-analiz`>>();
-const faSatir = columnsFor<RowOf<`${typeof R}/filo-analiz`>>();
-const kohort = columnsFor<Sema<'FiloKohortRow'>>();
+const faRow = columnsFor<RowOf<`${typeof R}/filo-analiz`>>();
+const cohort = columnsFor<Schema<'FiloKohortRow'>>();
 export const FLEET_ANALYSIS = defineReport({
   kod: 'filo-analiz',
   baslik: 'rapor.baslik.filoAnaliz',
@@ -66,10 +66,10 @@ export const FLEET_ANALYSIS = defineReport({
           baslik: 'rapor.bolum.yasKohortu',
           satirlar: (s) => s.yasKohortu,
           sutunlar: [
-            kohort.field('kova', 'metin'),
-            kohort.field('aracAdet', 'tamsayi'),
-            kohort.field('ortKmMaliyet', 'para'),
-            kohort.field('ortDoluluk', 'yuzde'),
+            cohort.field('kova', 'metin'),
+            cohort.field('aracAdet', 'tamsayi'),
+            cohort.field('ortKmMaliyet', 'para'),
+            cohort.field('ortDoluluk', 'yuzde'),
           ],
         }),
       ],
@@ -77,25 +77,25 @@ export const FLEET_ANALYSIS = defineReport({
         siralanabilir: ['plaka', 'gelir', 'gider', 'netKar', 'dolulukYuzde', 'roiYuzde', 'yasAy'],
         satirKimligi: (r) => r.vehicleId,
         sutunlar: [
-          faSatir.field('plaka', 'metin', {
+          faRow.field('plaka', 'metin', {
             sirala: true,
             sabit: true,
             bag: (r) => scorecardLink(r.vehicleId),
           }),
-          faSatir.field('grup', 'metin'),
-          faSatir.field('segment', 'metin', { gizli: true }),
-          faSatir.field('sube', 'metin'),
-          faSatir.field('gelir', 'para', { sirala: true }),
-          faSatir.field('gider', 'para', { sirala: true }),
-          faSatir.field('netKar', 'para', { sirala: true }),
-          faSatir.field('dolulukYuzde', 'yuzde', { sirala: true }),
-          faSatir.field('roiYuzde', 'yuzde', { sirala: true }),
-          faSatir.field('kmBasinaMaliyet', 'para'),
-          faSatir.field('sahiplikGun', 'tamsayi', { gizli: true }),
-          faSatir.field('kiralananGun', 'tamsayi', { gizli: true }),
-          faSatir.field('yasAy', 'tamsayi', { sirala: true }),
-          faSatir.field('tutSatSinyal', 'tamsayi'),
-          faSatir.field('sinifEndeks', 'sayi', { gizli: true }),
+          faRow.field('grup', 'metin'),
+          faRow.field('segment', 'metin', { gizli: true }),
+          faRow.field('sube', 'metin'),
+          faRow.field('gelir', 'para', { sirala: true }),
+          faRow.field('gider', 'para', { sirala: true }),
+          faRow.field('netKar', 'para', { sirala: true }),
+          faRow.field('dolulukYuzde', 'yuzde', { sirala: true }),
+          faRow.field('roiYuzde', 'yuzde', { sirala: true }),
+          faRow.field('kmBasinaMaliyet', 'para'),
+          faRow.field('sahiplikGun', 'tamsayi', { gizli: true }),
+          faRow.field('kiralananGun', 'tamsayi', { gizli: true }),
+          faRow.field('yasAy', 'tamsayi', { sirala: true }),
+          faRow.field('tutSatSinyal', 'tamsayi'),
+          faRow.field('sinifEndeks', 'sayi', { gizli: true }),
         ],
       },
     }),
@@ -104,7 +104,7 @@ export const FLEET_ANALYSIS = defineReport({
 
 // ── Filo durumu (şube bazlı) ───────────────────────────────────────────────────────────────
 const fs = cardsFor<SummaryOf<`${typeof R}/filo`>>();
-const sube = columnsFor<Sema<'FiloSubeRow'>>();
+const sube = columnsFor<Schema<'FiloSubeRow'>>();
 export const FLEET_STATUS = defineReport({
   kod: 'filo',
   baslik: 'rapor.baslik.filo',

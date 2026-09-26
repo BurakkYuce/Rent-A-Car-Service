@@ -1,17 +1,17 @@
 import {
-  GMAIL_TASLAK_KOKU,
-  WHATSAPP_KOKU,
-  epostaGecerliMi,
-  gmailTaslakBaglantisi,
+  GMAIL_DRAFT_ROOT,
+  WHATSAPP_ROOT,
+  isEmailValid,
+  gmailDraftLink,
   gsmNormalize,
-  whatsappBaglantisi,
+  whatsappLink,
 } from './dis-baglantilar';
 
 /** Blazor `rc-kira-tabs.js` `bindPaylas` davranışı — beklenen adresler elle yazılmıştır. */
 describe('dış paylaşım bağlantıları', () => {
   it('kökler yalnız iki izinli adres', () => {
-    expect(WHATSAPP_KOKU).toBe('https://wa.me/');
-    expect(GMAIL_TASLAK_KOKU).toBe('https://mail.google.com/mail/?view=cm&fs=1');
+    expect(WHATSAPP_ROOT).toBe('https://wa.me/');
+    expect(GMAIL_DRAFT_ROOT).toBe('https://mail.google.com/mail/?view=cm&fs=1');
   });
 
   it.each([
@@ -22,25 +22,25 @@ describe('dış paylaşım bağlantıları', () => {
     ['12345', null],
     ['', null],
     [null, null],
-  ])('GSM %s → %s', (girdi, beklenen) => {
-    expect(gsmNormalize(girdi)).toBe(beklenen);
+  ])('GSM %s → %s', (input, expected) => {
+    expect(gsmNormalize(input)).toBe(expected);
   });
 
   it('WhatsApp: numara + kodlanmış metin; geçersiz numarada null', () => {
     // Lint istisnası yalnız iki kökün TAM metnine izin verir → beklenen adres kök + kuyruk olarak yazılır.
-    expect(whatsappBaglantisi('05321112233', 'Sayın Ayşe, 2026 & 50%')).toBe(
+    expect(whatsappLink('05321112233', 'Sayın Ayşe, 2026 & 50%')).toBe(
       'https://wa.me/' + '905321112233?text=Say%C4%B1n%20Ay%C5%9Fe%2C%202026%20%26%2050%25',
     );
-    expect(whatsappBaglantisi('123', 'x')).toBeNull();
+    expect(whatsappLink('123', 'x')).toBeNull();
   });
 
   it('Gmail taslağı: alıcı + konu + gövde kodlanır; geçersiz adreste null', () => {
-    expect(gmailTaslakBaglantisi(' ayse@ornek.test ', 'Kira Sözleşmesi 1', 'a&b')).toBe(
+    expect(gmailDraftLink(' ayse@ornek.test ', 'Kira Sözleşmesi 1', 'a&b')).toBe(
       'https://mail.google.com/mail/?view=cm&fs=1' +
         '&to=ayse%40ornek.test&su=Kira%20S%C3%B6zle%C5%9Fmesi%201&body=a%26b',
     );
-    expect(gmailTaslakBaglantisi('@ornek.test', 'k', 'g')).toBeNull();
-    expect(gmailTaslakBaglantisi('', 'k', 'g')).toBeNull();
-    expect(epostaGecerliMi('a@b')).toBe(true);
+    expect(gmailDraftLink('@ornek.test', 'k', 'g')).toBeNull();
+    expect(gmailDraftLink('', 'k', 'g')).toBeNull();
+    expect(isEmailValid('a@b')).toBe(true);
   });
 });

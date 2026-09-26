@@ -2,14 +2,14 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 import { TemelStore } from '@core/veri/temel-store';
-import { TarihPipe } from '@shared/bicim/bicim-pipe';
+import { DatePipe } from '@shared/bicim/bicim-pipe';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { kilobytes } from './documents-page';
 
-type PlatformDocument = Sema<'PlatformDocumentDto'>;
+type PlatformDocument = Schema<'PlatformDocumentDto'>;
 
 /**
  * F11.2a firma belgeleri (Blazor `FirmaBelgeleri`, oturum): platformun paylaştığı belgeler, salt okunur.
@@ -18,7 +18,7 @@ type PlatformDocument = Sema<'PlatformDocumentDto'>;
 @Component({
   selector: 'rc-platform-documents-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TarihPipe, SayfaBandi],
+  imports: [TranslocoPipe, DatePipe, PageBand],
   styleUrl: '../definitions.scss',
   template: `
     <rc-sayfa-bandi [baslik]="'tanimlar.platformDocument.baslik' | transloco" ikon="file-text" />

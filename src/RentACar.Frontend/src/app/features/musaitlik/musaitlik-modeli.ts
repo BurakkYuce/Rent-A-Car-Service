@@ -1,11 +1,11 @@
-import type { SorguParametreleri } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
+import type { QueryParameters } from '@core/api/api-istemcisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { listDefinition } from '@core/veri/liste-sorgusu';
 
-export type MusaitlikYaniti = Sema<'MusaitlikYaniti'>;
-export type MusaitlikSatiri = Sema<'MusaitlikSatiri'>;
-export type MusaitlikSecenekleri = Sema<'MusaitlikSecenekleri'>;
-export type KiralaSorgusu = Sema<'KiralaSorgusu'>;
+export type AvailabilityResponse = Schema<'MusaitlikYaniti'>;
+export type AvailabilityRow = Schema<'MusaitlikSatiri'>;
+export type AvailabilityOptions = Schema<'MusaitlikSecenekleri'>;
+export type RentQuery = Schema<'KiralaSorgusu'>;
 
 /**
  * Müsaitlik URL ↔ API sözleşmesi (`GET /api/ui/v1/musaitlik`, `PlanlamaApi.MusaitlikSorgusu`). Blazor
@@ -13,7 +13,7 @@ export type KiralaSorgusu = Sema<'KiralaSorgusu'>;
  * alış/dönüş saati), grup, şube, rezervasyon kaynağı (fiyat kanalı + broker çiti), döviz süzgeci, plaka.
  * Sayfalama yok; `sayfa`/`boyut` API'ye gitmez.
  */
-export const MUSAITLIK = listeTanimi({
+export const MUSAITLIK = listDefinition({
   filtreler: {
     basGun: { tur: 'tarih' },
     bitGun: { tur: 'tarih' },
@@ -28,22 +28,25 @@ export const MUSAITLIK = listeTanimi({
   },
 });
 
-const SAAT = /^([01]\d|2[0-3]):[0-5]\d$/;
+const HOUR = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /**
  * Arama parametreleri; başlangıç günü yoksa `null` (Blazor: ilk açılışta arama YAPILMAZ). Bozuk saat
  * (`25:00`, elle yazılmış URL) gönderilmez — sunucu bağlama hatası üretmesin; saat verilmezse 00:00.
  */
-export function aramaParametreleri(p: SorguParametreleri): SorguParametreleri | null {
+export function searchParams(p: QueryParameters): QueryParameters | null {
   if (typeof p['basGun'] !== 'string') return null;
-  const sonuc: Record<string, SorguParametreleri[string]> = {};
-  for (const [ad, deger] of Object.entries(p)) {
-    if (ad === 'sayfa' || ad === 'boyut' || ad === 'sirala') continue;
-    if ((ad === 'basSaat' || ad === 'bitSaat') && (typeof deger !== 'string' || !SAAT.test(deger)))
+  const result: Record<string, QueryParameters[string]> = {};
+  for (const [name, value] of Object.entries(p)) {
+    if (name === 'sayfa' || name === 'boyut' || name === 'sirala') continue;
+    if (
+      (name === 'basSaat' || name === 'bitSaat') &&
+      (typeof value !== 'string' || !HOUR.test(value))
+    )
       continue;
-    sonuc[ad] = deger;
+    result[name] = value;
   }
-  return sonuc;
+  return result;
 }
 
 /**
@@ -51,17 +54,17 @@ export function aramaParametreleri(p: SorguParametreleri): SorguParametreleri | 
  * Tarihler sunucunun `kiralaSorgusu`'ndan (İstanbul takvim günü; gün-sayısı modunda bitiş alanı boştur,
  * ham alan taşınsaydı kira formuna eksik tarih giderdi). Grup yalnız süzgeçte seçildiyse.
  */
-export function kiralaParametreleri(aracId: string, s: KiralaSorgusu): Record<string, string> {
-  const sonuc: Record<string, string> = { varac: aracId, vfrom: s.vfrom, vto: s.vto };
-  if (s.vgrup) sonuc['vgrup'] = s.vgrup;
-  return sonuc;
+export function rentParameters(vehicleId: string, s: RentQuery): Record<string, string> {
+  const result: Record<string, string> = { varac: vehicleId, vfrom: s.vfrom, vto: s.vto };
+  if (s.vgrup) result['vgrup'] = s.vgrup;
+  return result;
 }
 
 /** JSON sayısı (`number | string`) → gösterim sayısı. YALNIZ gösterim. */
-export function sayi(deger: number | string | null | undefined): number | null {
-  if (typeof deger === 'number') return Number.isFinite(deger) ? deger : null;
-  if (typeof deger === 'string' && deger.trim() !== '') {
-    const n = Number(deger);
+export function count(value: number | string | null | undefined): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value);
     return Number.isFinite(n) ? n : null;
   }
   return null;

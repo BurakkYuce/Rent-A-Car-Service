@@ -3,10 +3,10 @@
     birincil
     type="button"
     class="rc-dugme rc-dugme--birincil"
-    [disabled]="kayit.gonderiliyor()"
+    [disabled]="record.gonderiliyor()"
     (click)="kaydet()"
   >
-    {{ (kayit.gonderiliyor() ? 'teklif.eylem.kaydediliyor' : 'teklif.eylem.olustur') | transloco }}
+    {{ (record.gonderiliyor() ? 'teklif.eylem.kaydediliyor' : 'teklif.eylem.olustur') | transloco }}
   </button>
 </rc-sayfa-bandi>
 
@@ -15,7 +15,7 @@
     <a routerLink="/teklifler">{{ 'teklif.listeyeDon' | transloco }}</a>
   </nav>
 
-  <rc-form-hatalari [hatalar]="kayit.genelHatalar()" />
+  <rc-form-hatalari [hatalar]="record.genelHatalar()" />
 
   <div class="bolumler" [formGroup]="form">
     <section class="rc-bolum">
@@ -23,14 +23,14 @@
         <rc-alan [etiket]="'teklif.alan.musteri' | transloco" class="rc-form-izgara__genis">
           <rc-arama-secim
             formControlName="musteri"
-            [kaynak]="musteriKaynagi"
+            [kaynak]="customerDataSource"
             [yerTutucu]="'teklif.alan.musteriAra' | transloco"
           />
         </rc-alan>
         <rc-alan [etiket]="'teklif.alan.arac' | transloco" class="rc-form-izgara__genis">
           <rc-arama-secim
             formControlName="arac"
-            [kaynak]="aracKaynagi"
+            [kaynak]="vehicleSource"
             [yerTutucu]="'teklif.alan.plakaAra' | transloco"
           />
         </rc-alan>
@@ -41,7 +41,7 @@
           <rc-tarih-saat-secici formControlName="bitTar" />
         </rc-alan>
         <rc-alan [etiket]="'teklif.alan.fiyatTuru' | transloco">
-          <rc-secim formControlName="fiyatTuru" [secenekler]="fiyatTurleri()" />
+          <rc-secim formControlName="fiyatTuru" [secenekler]="priceTypes()" />
         </rc-alan>
         <rc-alan [etiket]="'teklif.alan.gunlukUcret' | transloco">
           <rc-para-girdisi
@@ -50,17 +50,13 @@
           />
         </rc-alan>
         <rc-alan [etiket]="'teklif.alan.gecerlilik' | transloco">
-          <rc-tarih-secici
-            formControlName="gecerlilik"
-            [hazirlar]="false"
-            [enAz]="gecerlilikEnAz()"
-          />
+          <rc-tarih-secici formControlName="gecerlilik" [hazirlar]="false" [enAz]="validityMin()" />
         </rc-alan>
         <rc-alan [etiket]="'teklif.alan.cikisOfisi' | transloco">
-          <rc-arama-secim formControlName="cikisOfisi" [kaynak]="lokasyonKaynagi" />
+          <rc-arama-secim formControlName="cikisOfisi" [kaynak]="locationDataSource" />
         </rc-alan>
         <rc-alan [etiket]="'teklif.alan.donusOfisi' | transloco">
-          <rc-arama-secim formControlName="donusOfisi" [kaynak]="lokasyonKaynagi" />
+          <rc-arama-secim formControlName="donusOfisi" [kaynak]="locationDataSource" />
         </rc-alan>
       </div>
     </section>

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { TemelKontrol, kontrolSaglayicilari } from '@shared/form/kontroller/temel-kontrol';
+import { BaseControl, controlProviders } from '@shared/form/kontroller/base-control';
 
 /** Haftanın günleri — numaralandırma .NET `DayOfWeek` ile AYNI (0 = Pazar); Blazor sırası Pzt…Paz. */
 export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0] as const;
@@ -30,23 +30,23 @@ export function formatWeekdays(days: ReadonlySet<number>): string | null {
   selector: 'rc-weekday-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe],
-  providers: kontrolSaglayicilari(() => WeekdayPicker),
+  providers: controlProviders(() => WeekdayPicker),
   template: `
     <div
       class="rc-secenek-grubu"
       role="group"
       [attr.aria-labelledby]="alan?.etiketKimligi ?? null"
-      [attr.aria-describedby]="ariaAciklayan()"
+      [attr.aria-describedby]="ariaDescribedBy()"
     >
       @for (d of days; track d) {
         <label class="rc-secenek">
           <input
             type="checkbox"
-            [attr.id]="$first ? ogeKimligi() : null"
+            [attr.id]="$first ? itemId() : null"
             [checked]="selected().has(d)"
             [disabled]="pasif()"
             (change)="toggle(d)"
-            (blur)="dokun()"
+            (blur)="touch()"
           />
           <span>{{ 'fiyatTarife.gunler.' + d | transloco }}</span>
         </label>
@@ -54,7 +54,7 @@ export function formatWeekdays(days: ReadonlySet<number>): string | null {
     </div>
   `,
 })
-export class WeekdayPicker extends TemelKontrol<string> {
+export class WeekdayPicker extends BaseControl<string> {
   protected readonly days = WEEKDAYS;
   protected readonly selected = computed(() => parseWeekdays(this.deger()));
 
@@ -62,6 +62,6 @@ export class WeekdayPicker extends TemelKontrol<string> {
     const next = new Set(this.selected());
     if (next.has(day)) next.delete(day);
     else next.add(day);
-    this.bildir(formatWeekdays(next));
+    this.notify(formatWeekdays(next));
   }
 }

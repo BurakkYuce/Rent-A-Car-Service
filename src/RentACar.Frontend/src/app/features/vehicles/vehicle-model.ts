@@ -1,19 +1,19 @@
-import type { Sema } from '@core/api/ui-tipleri';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
+import type { Schema } from '@core/api/ui-tipleri';
+import { listDefinition } from '@core/veri/liste-sorgusu';
 
-export type VehicleListRow = Sema<'AracListeSatiri'>;
-export type VehicleSummary = Sema<'AracOzeti'>;
-export type VehicleModelGroups = Sema<'AracModelGruplari'>;
-export type VehicleModelGroup = Sema<'AracModelGrubu'>;
-export type VehicleCard = Sema<'AracKartDto'>;
-export type VehicleCreateRequest = Sema<'AracIstegi'>;
-export type VehicleUpdateRequest = Sema<'AracGuncelleIstegi'>;
-export type VehicleDetail = Sema<'AracDetayDto'>;
-export type DetailedRow = Sema<'AracDetayliSatir'>;
-export type StatusBoardResponse = Sema<'AracDurumYaniti'>;
-export type StatusRow = Sema<'AracDurumSatiri'>;
-export type VehiclePhoto = Sema<'AracFotoDto'>;
-export type SuggestionValue = Sema<'AracSecimDegeri'>;
+export type VehicleListRow = Schema<'AracListeSatiri'>;
+export type VehicleSummary = Schema<'AracOzeti'>;
+export type VehicleModelGroups = Schema<'AracModelGruplari'>;
+export type VehicleModelGroup = Schema<'AracModelGrubu'>;
+export type VehicleCard = Schema<'AracKartDto'>;
+export type VehicleCreateRequest = Schema<'AracIstegi'>;
+export type VehicleUpdateRequest = Schema<'AracGuncelleIstegi'>;
+export type VehicleDetail = Schema<'AracDetayDto'>;
+export type DetailedRow = Schema<'AracDetayliSatir'>;
+export type StatusBoardResponse = Schema<'AracDurumYaniti'>;
+export type StatusRow = Schema<'AracDurumSatiri'>;
+export type VehiclePhoto = Schema<'AracFotoDto'>;
+export type SuggestionValue = Schema<'AracSecimDegeri'>;
 
 /** Sunucu enum ADLARI (`VehicleStatus`, `FiloStatus`, `Vites`, `FuelType`); tanımsız ad 400. */
 export const VEHICLE_STATUSES = ['Musait', 'Kirada', 'Serviste', 'Pasif', 'Satildi'] as const;
@@ -58,7 +58,7 @@ export function vehicleStatus(value: string | null | undefined): VehicleStatus |
 }
 
 /** Araç listesi (`GET /araclar`): Blazor VehicleList süzgeçleri + "modele göre grupla" görünümü. */
-export const VEHICLE_LIST = listeTanimi({
+export const VEHICLE_LIST = listDefinition({
   filtreler: {
     q: { tur: 'metin', enFazla: 100 },
     grupTuru: { tur: 'secim', degerler: GROUP_KINDS },
@@ -100,7 +100,7 @@ export const VEHICLE_LIST = listeTanimi({
 });
 
 /** Detaylı araç listesi (`GET /araclar/detayli`, ViewReports). */
-export const DETAILED_LIST = listeTanimi({
+export const DETAILED_LIST = listDefinition({
   filtreler: {
     ara: { tur: 'metin', enFazla: 100 },
     sube: { tur: 'metin', enFazla: 64 },
@@ -125,7 +125,7 @@ export const DETAILED_LIST = listeTanimi({
 });
 
 /** Araç güncel durum panosu (`GET /araclar/durum`, OperationsWrite). Üçlü bayraklar `true`/`false`/yok. */
-export const STATUS_BOARD = listeTanimi({
+export const STATUS_BOARD = listDefinition({
   filtreler: {
     q: { tur: 'metin', enFazla: 100 },
     durum: { tur: 'secim', degerler: VEHICLE_STATUSES },

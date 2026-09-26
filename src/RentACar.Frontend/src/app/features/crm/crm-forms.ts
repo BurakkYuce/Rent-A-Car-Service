@@ -1,7 +1,7 @@
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { momentValue, dayValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
 import {
   linked,
@@ -22,7 +22,7 @@ import {
  * anıyla AYNEN geri gider. Para invariant metin. PUT tam değiştirme: `surum` kaydın sürümü (yeni kayıtta yok).
  */
 
-const text = (v: string | null | undefined) => metinDegeri(v ?? null);
+const text = (v: string | null | undefined) => textValue(v ?? null);
 
 // ------------------------------------------------------------------ anket
 
@@ -32,7 +32,7 @@ export interface SurveyFormValue {
   readonly anketTuru: string | null;
   readonly durum: string | null;
   readonly cikisOfisi: string | null;
-  readonly tarih: GunMetni | null;
+  readonly tarih: DayText | null;
   readonly puan: number | null;
   readonly kaynak: string | null;
   readonly yorum: string | null;
@@ -65,7 +65,7 @@ export function surveyToForm(s: Survey): SurveyFormValue {
     anketTuru: s.anketTuru,
     durum: s.durum,
     cikisOfisi: s.cikisOfisi,
-    tarih: gunDegeri(s.tarih),
+    tarih: dayValue(s.tarih),
     puan: toNumber(s.puan),
     kaynak: s.kaynak,
     yorum: s.yorum,
@@ -103,7 +103,7 @@ export function surveyRequest(
     rentalId: v.kira?.id ?? null,
     puan: v.puan ?? 0,
     yorum: text(v.yorum),
-    tarih: anDegeri(v.tarih, base?.tarih),
+    tarih: momentValue(v.tarih, base?.tarih),
     kaynak: text(v.kaynak),
     anketTuru: v.anketTuru ?? null,
     durum: v.durum ?? 'Yapildi',
@@ -132,7 +132,7 @@ export interface ComplaintFormValue {
   readonly teslimAlan: SecimSecenegi | null;
   readonly teslimEden: SecimSecenegi | null;
   readonly puan: number | null;
-  readonly tarih: GunMetni | null;
+  readonly tarih: DayText | null;
   readonly konu: string | null;
   readonly detay: string | null;
   readonly durum: string | null;
@@ -167,7 +167,7 @@ export function complaintToForm(c: Complaint): ComplaintFormValue {
     teslimAlan: linked(c.teslimAlanPersonelId, c.teslimAlanAd),
     teslimEden: linked(c.teslimEdenPersonelId, c.teslimEdenAd),
     puan: toNumber(c.puan),
-    tarih: gunDegeri(c.tarih),
+    tarih: dayValue(c.tarih),
     konu: c.konu,
     detay: c.detay,
     durum: c.durum,
@@ -184,7 +184,7 @@ export function complaintRequest(
     konu: text(v.konu),
     detay: text(v.detay),
     durum: v.durum ?? 'Acik',
-    tarih: anDegeri(v.tarih, base?.tarih),
+    tarih: momentValue(v.tarih, base?.tarih),
     cozum: text(v.cozum),
     rentalId: v.kira?.id ?? null,
     teslimAlanPersonelId: v.teslimAlan?.id ?? null,
@@ -314,7 +314,7 @@ export interface LegalFormValue {
   readonly tutar: string | null;
   readonly tahsilat: string | null;
   readonly durum: string | null;
-  readonly tarih: GunMetni | null;
+  readonly tarih: DayText | null;
   readonly aciklama: string | null;
   readonly aktif: boolean;
 }
@@ -358,7 +358,7 @@ export function legalToForm(h: LegalFile): LegalFormValue {
     tutar: money(h.tutar),
     tahsilat: money(h.tahsilat),
     durum: h.durum,
-    tarih: gunDegeri(h.tarih),
+    tarih: dayValue(h.tarih),
     aciklama: h.aciklama,
     aktif: h.aktif,
   };
@@ -375,7 +375,7 @@ export function legalRequest(
     avukat: text(v.avukat),
     tutar: money(v.tutar) ?? '0',
     durum: v.durum ?? 'Acik',
-    tarih: anDegeri(v.tarih, base?.tarih),
+    tarih: momentValue(v.tarih, base?.tarih),
     aciklama: text(v.aciklama),
     aktif: v.aktif,
     faturaNoTemp: text(v.faturaNoTemp),

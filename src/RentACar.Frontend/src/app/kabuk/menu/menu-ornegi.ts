@@ -1,11 +1,11 @@
-import type { MenuYaniti } from '@core/api/ui-tipleri';
+import type { MenuResponse } from '@core/api/ui-tipleri';
 
 /**
  * Birim testlerinin örnek menü yanıtı (`GET /api/ui/v1/menu` biçimi). Sunucu izne göre SÜZMÜŞ gelir:
  * bu kullanıcıda Finans yok (FinanceWrite'sız) — istemci eksik öğeyi eklemez, fazlasını gizlemez.
  * Bilerek sırası karışık (istemci `sira`ya göre dizer).
  */
-export const ORNEK_MENU: MenuYaniti = {
+export const SAMPLE_MENU: MenuResponse = {
   ogeler: [
     {
       rota: '/kiralar',

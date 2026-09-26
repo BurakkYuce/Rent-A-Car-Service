@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
 import {
   INSTALLMENT_1,
   LOAN_1,
@@ -11,14 +11,14 @@ import {
   loanDetail,
 } from './vehicle-finance-fakes';
 import { statusRow, vehicleEndpoints } from './vehicle-fakes';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F6.2b araç finans ekranları: kredi (liste + kayıt + TAKSİT ÖDEME), müşteri taksit, sipariş, BAF, hasar, filo plan.
  * Üç zorunlu senaryo (doğrulama hatasında form korunur, oturum düşünce form kaybolmaz, `cakisma` formu silmez) + para
  * (kaybolan yanıttan sonra aynı anahtarla tek ödeme, çift tıklamada tek istek) + axe iki tema + 320/390/768/1440 taşma.
  */
-const AG_HATASI = [
+const NETWORK_ERROR = [
   /Failed to load resource: the server responded with a status of 4\d\d/,
   /Failed to load resource: net::ERR_FAILED/,
 ];
@@ -97,28 +97,28 @@ const PLAN: VitrinSayfasi = {
 const PAGES = [LOANS, LOAN, INSTALLMENTS, ORDERS, ORDER, ORDER_NEW, ALLOCATIONS, DAMAGE, PLAN];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
 });
 
 // Sayfa başına ayrı test: tek testte tüm sayfalar × 2 tema axe taraması CI'da 30 sn sınırına dayanıyordu.
 for (const s of PAGES) {
   test(`${s.ad}: içerik + axe iki tema, konsol hatası yok`, async ({ page }) => {
-    const hatalar = hatalariTopla(page, AG_HATASI);
+    const errors = collectErrors(page, NETWORK_ERROR);
     await financeEndpoints(page);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
+    await waitReady(page, s);
+    expect(await seriousViolations(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
-    expect(hatalar).toEqual([]);
+    expect(await seriousViolations(page), `${s.ad} koyu`).toEqual([]);
+    expect(errors).toEqual([]);
   });
 }
 
 test('kredi listesi: özet kartlar, sağa yaslı para, dışa aktarma süzgeçle', async ({ page }) => {
   await financeEndpoints(page);
   await page.goto(`${LOANS.yol}?durum=Aktif`);
-  await hazirBekle(page, LOANS);
+  await waitReady(page, LOANS);
   await expect(page.getByRole('gridcell', { name: '22.500,00 ₺' })).toBeVisible();
   await expect(page.getByText('Toplam Kredi Borcu').locator('..')).toContainText('22.500,00 ₺');
   await expect(page.getByRole('link', { name: 'Excel' })).toHaveAttribute(
@@ -129,14 +129,14 @@ test('kredi listesi: özet kartlar, sağa yaslı para, dışa aktarma süzgeçle
 
 async function payPanel(page: Page) {
   await page.goto(LOAN.yol);
-  await hazirBekle(page, LOAN);
+  await waitReady(page, LOAN);
   return page.getByRole('region', { name: 'Taksit Öde' });
 }
 
 test('taksit ödeme: kaybolan yanıt → "tekrar" AYNI anahtar + AYNI gövde → sunucu tek ödeme, zaten kaydedildi', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let payments = 0;
   const written = await financeEndpoints(page, {
     loan: () => loanDetail(3 + payments),
@@ -184,7 +184,7 @@ test('taksit ödeme: kaybolan yanıt → "tekrar" AYNI anahtar + AYNI gövde →
   expect(payments).toBe(1);
   // Kayıt yenilendi: 4. taksit ödendi, sonraki 5. — kullanıcı ikinci ödemeye yönlendirilmez.
   await expect(page.getByText('Sonraki taksit: 5/12')).toBeVisible();
-  expect(hatalar.filter((h) => !/Failed to load resource/.test(h))).toEqual([]);
+  expect(errors.filter((h) => !/Failed to load resource/.test(h))).toEqual([]);
 });
 
 test('taksit ödeme: çift tıklamada tek istek; başarıda yeni anahtar', async ({ page }) => {
@@ -224,7 +224,7 @@ test('taksit ödeme: çift tıklamada tek istek; başarıda yeni anahtar', async
 test('müşteri taksit: doğrulama hatasında form korunur; tr tutar "1.500,50" → 1500.50; 3 ondalık reddedilir', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let n = 0;
   const written = await financeEndpoints(page, {
     write: async (r, path) => {
@@ -238,7 +238,7 @@ test('müşteri taksit: doğrulama hatasında form korunur; tr tutar "1.500,50" 
     },
   });
   await page.goto(INSTALLMENTS.yol);
-  await hazirBekle(page, INSTALLMENTS);
+  await waitReady(page, INSTALLMENTS);
   const form = page.getByRole('region', { name: 'Tek Taksit Ekle' });
   await form.getByRole('combobox', { name: 'Müşteri' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -258,12 +258,12 @@ test('müşteri taksit: doğrulama hatasında form korunur; tr tutar "1.500,50" 
     taksitTutari: '1500.50',
     durum: 'Bekliyor',
   });
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
 
   await form.getByRole('button', { name: 'Ekle' }).click();
   await expect(page.getByText('Taksit eklendi.')).toBeVisible();
   expect(written[1]?.anahtar).toBe(written[0]?.anahtar); // ilk istek yazılmadı: aynı işlem
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('müşteri taksit planı: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (aynı anahtar)', async ({
@@ -279,15 +279,15 @@ test('müşteri taksit planı: oturum düşünce form kaybolmaz — yerinde giri
     },
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
+    await writeXsrf(page, 'yeni-belirtec');
     return route.fulfill({ json: BEN });
   });
   await page.goto(INSTALLMENTS.yol);
-  await hazirBekle(page, INSTALLMENTS);
+  await waitReady(page, INSTALLMENTS);
   const form = page.getByRole('region', { name: 'Taksit Planı Üret' });
   await form.getByRole('combobox', { name: 'Müşteri' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -316,17 +316,17 @@ test('müşteri taksit planı: oturum düşünce form kaybolmaz — yerinde giri
 test('müşteri taksit düzenleme: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
-  let surum = 'ts-1';
-  let durum = 'Bekliyor';
+  const errors = collectErrors(page, NETWORK_ERROR);
+  let version = 'ts-1';
+  let status = 'Bekliyor';
   let put = 0;
   const written = await financeEndpoints(page, {
-    installment: () => installment({ surum, durum }),
+    installment: () => installment({ surum: version, durum: status }),
     write: async (r, path) => {
       if (r.request().method() !== 'PUT') return false;
       if (++put === 1) {
-        surum = 'ts-2';
-        durum = 'Odendi'; // başka oturum ödendi işaretledi
+        version = 'ts-2';
+        status = 'Odendi'; // başka oturum ödendi işaretledi
         await problem(r, 409, 'cakisma', 'Kayıt siz düzenlerken değişti; güncel hâli yükleyin.');
       } else await r.fulfill({ json: installment({ surum: 'ts-3', aciklama: 'Yeni not' }) });
       void path;
@@ -334,7 +334,7 @@ test('müşteri taksit düzenleme: cakisma formu silmez — güncel kayıt birle
     },
   });
   await page.goto(INSTALLMENTS.yol);
-  await hazirBekle(page, INSTALLMENTS);
+  await waitReady(page, INSTALLMENTS);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const form = page.getByRole('region', { name: 'Taksiti Düzenle' });
   const note = form.getByRole('textbox', { name: 'Açıklama' });
@@ -360,13 +360,13 @@ test('müşteri taksit düzenleme: cakisma formu silmez — güncel kayıt birle
     aciklama: 'Yeni not',
     durum: 'Odendi',
   });
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('sipariş: satır düğmeleri sunucu yetkilerinden; iptal onaylı', async ({ page }) => {
   const written = await financeEndpoints(page);
   await page.goto(ORDERS.yol);
-  await hazirBekle(page, ORDERS);
+  await waitReady(page, ORDERS);
   await expect(page.getByRole('gridcell', { name: '1.500.000,00 ₺' })).toBeVisible();
   await expect(page.getByRole('gridcell', { name: 'KR-000001 — Ziraat' })).toBeVisible();
   await page.getByRole('button', { name: 'İptal' }).click();
@@ -380,7 +380,7 @@ test('sipariş: satır düğmeleri sunucu yetkilerinden; iptal onaylı', async (
 test('müşteri taksit: ilk okuma dönmeden yazan kullanıcı — dokunmadığı alanlar TAZE kayıttan gider (inceleme M1)', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   const written = await financeEndpoints(page, {
     // Liste bayat: başka oturum tutarı 1.250,50 → 2.000 yaptı; tekil kayıt 1,5 sn gecikmeli döner.
     installmentRow: () => installment({ taksitTutari: 1250.5 }),
@@ -393,7 +393,7 @@ test('müşteri taksit: ilk okuma dönmeden yazan kullanıcı — dokunmadığı
     },
   });
   await page.goto(INSTALLMENTS.yol);
-  await hazirBekle(page, INSTALLMENTS);
+  await waitReady(page, INSTALLMENTS);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const form = page.getByRole('region', { name: 'Taksiti Düzenle' });
   await form.getByRole('textbox', { name: 'Açıklama' }).fill('Yeni not'); // ilk okuma henüz dönmedi
@@ -407,13 +407,13 @@ test('müşteri taksit: ilk okuma dönmeden yazan kullanıcı — dokunmadığı
     aciklama: 'Yeni not',
     surum: 'ts-2',
   });
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('filo plan: ilk okuma dönmeden yazan kullanıcı — hedef TAZE kayıttan gider (inceleme M1)', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   const written = await financeEndpoints(page, {
     planRow: () => fleetPlan({ hedefAdet: 10 }),
     plan: () => fleetPlan({ hedefAdet: 11, fark: 4, surum: 'fp-2' }),
@@ -425,7 +425,7 @@ test('filo plan: ilk okuma dönmeden yazan kullanıcı — hedef TAZE kayıttan 
     },
   });
   await page.goto(PLAN.yol);
-  await hazirBekle(page, PLAN);
+  await waitReady(page, PLAN);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const form = page.getByRole('region', { name: 'Hedefi Düzenle' });
   await form.getByRole('textbox', { name: 'Açıklama' }).fill('Q4 hedefi');
@@ -438,7 +438,7 @@ test('filo plan: ilk okuma dönmeden yazan kullanıcı — hedef TAZE kayıttan 
     aciklama: 'Q4 hedefi',
     surum: 'fp-2',
   });
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('müşteri taksit: TRY kaydı EUR yapılınca eski kur (1) gönderilmez — kur null (inceleme M2)', async ({
@@ -452,7 +452,7 @@ test('müşteri taksit: TRY kaydı EUR yapılınca eski kur (1) gönderilmez —
     },
   });
   await page.goto(INSTALLMENTS.yol);
-  await hazirBekle(page, INSTALLMENTS);
+  await waitReady(page, INSTALLMENTS);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const form = page.getByRole('region', { name: 'Taksiti Düzenle' });
   const save = form.getByRole('button', { name: 'Kaydet' });
@@ -466,7 +466,7 @@ test('müşteri taksit: TRY kaydı EUR yapılınca eski kur (1) gönderilmez —
 test('sipariş: boş birim fiyat alan hatası verir, istek gitmez (inceleme L3)', async ({ page }) => {
   const written = await financeEndpoints(page);
   await page.goto(ORDER_NEW.yol);
-  await hazirBekle(page, ORDER_NEW);
+  await waitReady(page, ORDER_NEW);
   await page.getByRole('combobox', { name: 'Tedarikçi', exact: true }).fill('Bayi B');
   await page.getByRole('button', { name: 'Kaydet' }).click();
   await expect(page.getByRole('textbox', { name: 'Birim Fiyat (resmi)' })).toHaveAttribute(
@@ -479,7 +479,7 @@ test('sipariş: boş birim fiyat alan hatası verir, istek gitmez (inceleme L3)'
 test('durum panosu "Tahsis" → BAF formu araç + çıkış KM + şube dolu açılır (F6.3 parite)', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   await vehicleEndpoints(page);
   await page.route('**/api/ui/v1/araclar/durum**', (r) =>
     r.fulfill({
@@ -528,7 +528,7 @@ test('durum panosu "Tahsis" → BAF formu araç + çıkış KM + şube dolu aç�
     'true',
   );
   expect(written).toHaveLength(0);
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 for (const s of PAGES) {
@@ -539,8 +539,8 @@ for (const s of PAGES) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -548,7 +548,7 @@ for (const s of PAGES) {
     await financeEndpoints(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

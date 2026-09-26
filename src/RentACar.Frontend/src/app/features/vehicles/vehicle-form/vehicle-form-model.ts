@@ -1,9 +1,9 @@
 import { FormControl, Validators, type ValidatorFn } from '@angular/forms';
 
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { DayText } from '@core/form/tarih-girdisi';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
-import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { momentValue, dayValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 
 import {
   FLEET_STATUSES,
@@ -261,7 +261,7 @@ export function cardToForm(card: VehicleCard): VehicleFormValue {
         value[spec.name] = raw === null || raw === undefined || raw === '' ? null : String(raw);
         break;
       case 'date':
-        value[spec.name] = gunDegeri(raw as string | null | undefined);
+        value[spec.name] = dayValue(raw as string | null | undefined);
         break;
       default:
         value[spec.name] = typeof raw === 'string' ? raw : null;
@@ -295,13 +295,13 @@ export function formToRequest(v: VehicleFormValue, base: VehicleCard | null): Ve
             : raw;
         break;
       case 'date':
-        body[spec.name] = anDegeri(
-          (raw as GunMetni | null) ?? null,
+        body[spec.name] = momentValue(
+          (raw as DayText | null) ?? null,
           base ? (read(base, spec.name) as string | null | undefined) : null,
         );
         break;
       default:
-        body[spec.name] = metinDegeri(typeof raw === 'string' ? raw : null);
+        body[spec.name] = textValue(typeof raw === 'string' ? raw : null);
     }
   }
   if (body['alisEuro'] === false && (base?.alisEuro ?? null) === null) body['alisEuro'] = null;

@@ -1,8 +1,8 @@
-import { paraBicimle } from '@core/bicim/bicim';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { anDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { formatMoney } from '@core/bicim/bicim';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
 import type {
   AccountKind,
@@ -31,14 +31,14 @@ const amount = (v: string | null | undefined): string | null => {
   const t = v?.trim() ?? '';
   return t === '' ? null : t;
 };
-const day = (g: GunMetni | null | undefined): string | null => anDegeri(g ?? null, null);
+const day = (g: DayText | null | undefined): string | null => momentValue(g ?? null, null);
 
 export interface ManualInvoiceForm {
   readonly cari: SecimSecenegi | null;
   readonly netTutar: string | null;
   readonly kdvOrani: VatRate | null;
-  readonly tarih: GunMetni | null;
-  readonly vadeTarihi: GunMetni | null;
+  readonly tarih: DayText | null;
+  readonly vadeTarihi: DayText | null;
   readonly aciklama: string | null;
   readonly islemSube: string | null;
   readonly evrakNo: string | null;
@@ -57,15 +57,15 @@ export function manualInvoiceRequest(v: ManualInvoiceForm): ManualInvoiceRequest
     cariId: v.cari?.id ?? '',
     netTutar: amount(v.netTutar) ?? '',
     kdvOrani: v.kdvOrani,
-    aciklama: metinDegeri(v.aciklama),
+    aciklama: textValue(v.aciklama),
     tarih: day(v.tarih),
     vadeTarihi: day(v.vadeTarihi),
-    islemSube: metinDegeri(v.islemSube),
-    evrakNo: metinDegeri(v.evrakNo),
-    faturaOzelKod: metinDegeri(v.faturaOzelKod),
-    odemeTuru: metinDegeri(v.odemeTuru),
-    gonderimSekli: metinDegeri(v.gonderimSekli),
-    kdvSifirSebep: metinDegeri(v.kdvSifirSebep),
+    islemSube: textValue(v.islemSube),
+    evrakNo: textValue(v.evrakNo),
+    faturaOzelKod: textValue(v.faturaOzelKod),
+    odemeTuru: textValue(v.odemeTuru),
+    gonderimSekli: textValue(v.gonderimSekli),
+    kdvSifirSebep: textValue(v.kdvSifirSebep),
     otv: amount(v.otv),
     tevkifatOran: v.tevkifatOran,
     tevkifatTutar: amount(v.tevkifatTutar),
@@ -75,7 +75,7 @@ export function manualInvoiceRequest(v: ManualInvoiceForm): ManualInvoiceRequest
 
 export interface PenaltyForm {
   readonly cezaTuru: string | null;
-  readonly tebligTarihi: GunMetni | null;
+  readonly tebligTarihi: DayText | null;
   readonly saat: string | null;
   readonly vadeGun: number | null;
   readonly yer: string | null;
@@ -91,21 +91,21 @@ export interface PenaltyForm {
 /** Boş tutarlı kalem atlanır (Blazor: "Boş kalem atlanır"); sıra korunur. */
 export function penaltyRequest(v: PenaltyForm): PenaltyCreateRequest {
   return {
-    cezaTuru: metinDegeri(v.cezaTuru),
+    cezaTuru: textValue(v.cezaTuru),
     kalemler: v.kalemler
       .filter((k) => amount(k.tutar) !== null)
-      .map((k) => ({ tutar: amount(k.tutar) ?? '', sebep: metinDegeri(k.sebep) })),
+      .map((k) => ({ tutar: amount(k.tutar) ?? '', sebep: textValue(k.sebep) })),
     tebligTarihi: day(v.tebligTarihi),
     vadeGun: v.vadeGun,
     aracId: v.arac?.id ?? null,
     cariId: v.cari?.id ?? null,
     kiraId: null,
-    sebep: metinDegeri(v.sebep),
-    saat: metinDegeri(v.saat),
-    yer: metinDegeri(v.yer),
-    cepTel: metinDegeri(v.cepTel),
-    makbuzNo: metinDegeri(v.makbuzNo),
-    islemSube: metinDegeri(v.islemSube),
+    sebep: textValue(v.sebep),
+    saat: textValue(v.saat),
+    yer: textValue(v.yer),
+    cepTel: textValue(v.cepTel),
+    makbuzNo: textValue(v.makbuzNo),
+    islemSube: textValue(v.islemSube),
   };
 }
 
@@ -113,7 +113,7 @@ export interface PenaltyPaymentForm {
   readonly satirId: string | null;
   readonly tutar: string | null;
   readonly hesap: AccountKind | null;
-  readonly tarih: GunMetni | null;
+  readonly tarih: DayText | null;
   readonly makbuzNo: string | null;
   readonly islemYapan: string | null;
   readonly aciklama: string | null;
@@ -126,9 +126,9 @@ export function penaltyPaymentRequest(v: PenaltyPaymentForm): PenaltyPaymentRequ
     hesap: v.hesap,
     tutar: amount(v.tutar),
     tarih: day(v.tarih),
-    makbuzNo: metinDegeri(v.makbuzNo),
-    islemYapan: metinDegeri(v.islemYapan),
-    aciklama: metinDegeri(v.aciklama),
+    makbuzNo: textValue(v.makbuzNo),
+    islemYapan: textValue(v.islemYapan),
+    aciklama: textValue(v.aciklama),
   };
 }
 
@@ -145,9 +145,9 @@ export interface ExpenseForm {
   /** `rc-para-girdisi` (4 hane) invariant metni; boş → sunucu çözer (TRY = 1; dövizde firma kuru → TCMB). */
   readonly kur: string | null;
   readonly hesapId: string | null;
-  readonly tarih: GunMetni | null;
-  readonly odemeTarihi: GunMetni | null;
-  readonly vade: GunMetni | null;
+  readonly tarih: DayText | null;
+  readonly odemeTarihi: DayText | null;
+  readonly vade: DayText | null;
   readonly hazirAciklama: string | null;
   readonly sube: string | null;
   readonly evrakNo: string | null;
@@ -163,14 +163,14 @@ export function expenseRequest(v: ExpenseForm): ExpenseCreateRequest {
     tarih: day(v.tarih),
     aracId: v.arac?.id ?? null,
     cariId: v.cari?.id ?? null,
-    sube: metinDegeri(v.sube),
-    evrakNo: metinDegeri(v.evrakNo),
-    doviz: metinDegeri(v.doviz),
+    sube: textValue(v.sube),
+    evrakNo: textValue(v.evrakNo),
+    doviz: textValue(v.doviz),
     kur: amount(v.kur),
-    aciklama: metinDegeri(v.aciklama),
+    aciklama: textValue(v.aciklama),
     hesapId: v.hesapId,
     odemeTarihi: day(v.odemeTarihi),
-    hazirAciklama: metinDegeri(v.hazirAciklama),
+    hazirAciklama: textValue(v.hazirAciklama),
     kiraId: v.kira?.id ?? null,
     vade: day(v.vade),
   };
@@ -178,7 +178,7 @@ export function expenseRequest(v: ExpenseForm): ExpenseCreateRequest {
 
 export interface ExpensePaymentForm {
   readonly tutar: string | null;
-  readonly tarih: GunMetni | null;
+  readonly tarih: DayText | null;
   readonly makbuzNo: string | null;
   readonly aciklama: string | null;
 }
@@ -188,8 +188,8 @@ export function expensePaymentRequest(v: ExpensePaymentForm): ExpensePaymentRequ
   return {
     tutar: amount(v.tutar),
     tarih: day(v.tarih),
-    makbuzNo: metinDegeri(v.makbuzNo),
-    aciklama: metinDegeri(v.aciklama),
+    makbuzNo: textValue(v.makbuzNo),
+    aciklama: textValue(v.aciklama),
   };
 }
 
@@ -198,7 +198,7 @@ export interface SaleForm {
   readonly alici: SecimSecenegi | null;
   readonly satisNet: string | null;
   readonly kdvOrani: VatRate | null;
-  readonly tarih: GunMetni | null;
+  readonly tarih: DayText | null;
   readonly doviz: string | null;
   readonly kur: string | null;
   readonly noterNo: string | null;
@@ -212,9 +212,9 @@ export interface SaleForm {
   readonly satisNoktasi: string | null;
   readonly uygulananKampanya: string | null;
   readonly ihaleFirmasi: string | null;
-  readonly ihaleTarihi: GunMetni | null;
+  readonly ihaleTarihi: DayText | null;
   readonly ihaleSayisi: string | null;
-  readonly noterSatisTarihi: GunMetni | null;
+  readonly noterSatisTarihi: DayText | null;
   readonly yevmiyeNumarasi: string | null;
   readonly aciklama2: string | null;
   readonly kirayaVerme: boolean | null;
@@ -228,26 +228,26 @@ export function saleRequest(v: SaleForm): VehicleSaleRequest {
     satisNet: amount(v.satisNet) ?? '',
     kdvOrani: v.kdvOrani ?? '',
     tarih: day(v.tarih),
-    doviz: metinDegeri(v.doviz),
+    doviz: textValue(v.doviz),
     kur: amount(v.kur),
-    noterNo: metinDegeri(v.noterNo),
-    aciklama: metinDegeri(v.aciklama),
+    noterNo: textValue(v.noterNo),
+    aciklama: textValue(v.aciklama),
     hedefFiyat: amount(v.hedefFiyat),
     satisKm: v.satisKm,
-    satisKanali: metinDegeri(v.satisKanali),
-    devir: metinDegeri(v.devir),
+    satisKanali: textValue(v.satisKanali),
+    devir: textValue(v.devir),
     ihaleTarihi: day(v.ihaleTarihi),
-    ihaleFirmasi: metinDegeri(v.ihaleFirmasi),
+    ihaleFirmasi: textValue(v.ihaleFirmasi),
     noterSatisTarihi: day(v.noterSatisTarihi),
     kirayaVerme: v.kirayaVerme === true,
     ilanKm: v.ilanKm,
-    listeDoviz: metinDegeri(v.listeDoviz),
-    satisNoktasi: metinDegeri(v.satisNoktasi),
-    uygulananKampanya: metinDegeri(v.uygulananKampanya),
-    ihaleSayisi: metinDegeri(v.ihaleSayisi),
+    listeDoviz: textValue(v.listeDoviz),
+    satisNoktasi: textValue(v.satisNoktasi),
+    uygulananKampanya: textValue(v.uygulananKampanya),
+    ihaleSayisi: textValue(v.ihaleSayisi),
     satisiVerildi: v.satisiVerildi === true,
-    yevmiyeNumarasi: metinDegeri(v.yevmiyeNumarasi),
-    aciklama2: metinDegeri(v.aciklama2),
+    yevmiyeNumarasi: textValue(v.yevmiyeNumarasi),
+    aciklama2: textValue(v.aciklama2),
   };
 }
 
@@ -255,7 +255,7 @@ export interface IncomingCreateForm {
   readonly ettn: string | null;
   readonly gonderenVkn: string | null;
   readonly gonderenUnvan: string | null;
-  readonly tarih: GunMetni | null;
+  readonly tarih: DayText | null;
   readonly netTutar: string | null;
   readonly kdvTutar: string | null;
   readonly genelToplam: string | null;
@@ -266,15 +266,15 @@ export interface IncomingCreateForm {
 /** Elle giriş: belge tutarları kullanıcının belgeden OKUDUĞU değerlerdir; tutarlılığı (net + KDV = genel) sunucu denetler. */
 export function incomingCreateRequest(v: IncomingCreateForm): IncomingInvoiceCreateRequest {
   return {
-    ettn: metinDegeri(v.ettn),
-    gonderenVkn: metinDegeri(v.gonderenVkn),
-    gonderenUnvan: metinDegeri(v.gonderenUnvan),
+    ettn: textValue(v.ettn),
+    gonderenVkn: textValue(v.gonderenVkn),
+    gonderenUnvan: textValue(v.gonderenUnvan),
     netTutar: amount(v.netTutar) ?? '0',
     kdvTutar: amount(v.kdvTutar) ?? '0',
     genelToplam: amount(v.genelToplam) ?? '',
     tarih: day(v.tarih),
-    doviz: metinDegeri(v.doviz),
-    aciklama: metinDegeri(v.aciklama),
+    doviz: textValue(v.doviz),
+    aciklama: textValue(v.aciklama),
   };
 }
 
@@ -321,10 +321,10 @@ export function incomingToLinkForm(r: IncomingInvoiceRow): IncomingLinkForm {
 /** TAM DEĞİŞTİRME (boş alan temizler); `surum` ZORUNLU — detaydan, bayatsa sunucu 409 `cakisma`. */
 export function incomingLinkRequest(
   v: IncomingLinkForm,
-  surum: string,
+  version: string,
 ): IncomingInvoiceLinkRequest {
   return {
-    surum,
+    surum: version,
     kdv20Matrah: amount(v.kdv20Matrah),
     kdv20: amount(v.kdv20),
     kdv10Matrah: amount(v.kdv10Matrah),
@@ -349,7 +349,7 @@ export function incomingExpenseRequest(v: IncomingExpenseForm): IncomingInvoiceE
   return {
     odemeYontemi: v.odemeYontemi ?? 'AcikHesap',
     cariId: v.cari?.id ?? null,
-    sube: metinDegeri(v.sube),
+    sube: textValue(v.sube),
   };
 }
 
@@ -359,7 +359,7 @@ export function incomingExpenseRequest(v: IncomingExpenseForm): IncomingInvoiceE
  */
 export function vatBreakdownText(r: IncomingInvoiceRow, empty: string): string {
   const c = r.doviz || 'TRY';
-  const m = (v: number | string | null | undefined) => paraBicimle(toNumber(v), c);
+  const m = (v: number | string | null | undefined) => formatMoney(toNumber(v), c);
   const parts: string[] = [];
   const tiers: readonly [string, number | string | null, number | string | null][] = [
     ['%20', r.kdv20Matrah, r.kdv20],

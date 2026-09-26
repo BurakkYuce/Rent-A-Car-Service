@@ -2,26 +2,26 @@ import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from 
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { Secim } from '@shared/form/kontroller/secim';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { Selection } from '@shared/form/kontroller/selection';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
-import { restTanimKaynagi } from '@shared/form/tanim-crud/tanim-kaynagi';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
+import { restDefinitionSource } from '@shared/form/tanim-crud/definition-source';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { reservationSourceFields } from './reservation-source-fields';
 
-type ReflectResult = Sema<'ReflectRatesResult'>;
+type ReflectResult = Schema<'ReflectRatesResult'>;
 
-const ROOT: ApiYolu = '/api/ui/v1/rezervasyon-kaynaklari';
+const ROOT: ApiPath = '/api/ui/v1/rezervasyon-kaynaklari';
 
 /**
  * F11.2c rezervasyon kaynakları (Blazor `ReservationSourceList`, OperationsWrite): genel tanım CRUD'u (panel) +
@@ -31,7 +31,15 @@ const ROOT: ApiYolu = '/api/ui/v1/rezervasyon-kaynaklari';
 @Component({
   selector: 'rc-reservation-source-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, TanimCrud, Alan, FormHatalari, Secim, SayfaBandi],
+  imports: [
+    ReactiveFormsModule,
+    TranslocoPipe,
+    DefinitionCrud,
+    Alan,
+    FormErrors,
+    Selection,
+    PageBand,
+  ],
   styleUrl: '../definitions.scss',
   template: `
     <rc-sayfa-bandi [baslik]="'tanimlar.reservationSource.baslik' | transloco" ikon="inbox" />
@@ -73,13 +81,13 @@ const ROOT: ApiYolu = '/api/ui/v1/rezervasyon-kaynaklari';
 })
 export class ReservationSourcePage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
-  private readonly crud = viewChild(TanimCrud);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
+  private readonly crud = viewChild(DefinitionCrud);
 
   protected readonly fields = reservationSourceFields(this.t);
-  protected readonly source = restTanimKaynagi(ROOT);
+  protected readonly source = restDefinitionSource(ROOT);
   protected readonly sourceOptions = computed<readonly SecenekOgesi<string>[]>(() =>
     (this.crud()?.rows() ?? []).map((s) => ({
       deger: s.id,
@@ -90,14 +98,14 @@ export class ReservationSourcePage {
   protected readonly reflectForm = new FormGroup({
     kaynakId: new FormControl<string | null>(null, Validators.required),
   });
-  protected readonly reflectSubmit = formGonderimi();
+  protected readonly reflectSubmit = formSubmission();
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return this.crud()?.kaydedilmemisDegisiklikVar() ?? false;
+  hasUnsavedChanges(): boolean {
+    return this.crud()?.hasUnsavedChanges() ?? false;
   }
 
   protected async reflect(): Promise<void> {
@@ -106,7 +114,7 @@ export class ReservationSourcePage {
       this.reflectForm.markAllAsTouched();
       return;
     }
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('tanimlar.reservationSource.yansit.onayBaslik'),
       mesaj: this.t('tanimlar.reservationSource.yansit.onayMesaj'),
       onayEtiketi: this.t('tanimlar.reservationSource.yansit.dugme'),

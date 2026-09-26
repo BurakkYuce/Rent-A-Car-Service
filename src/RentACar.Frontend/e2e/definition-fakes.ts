@@ -53,13 +53,13 @@ export async function definitionEndpoints(
 
 export const branch = (
   id: string,
-  kod: string,
-  ad: string,
+  code: string,
+  name: string,
   extra: Record<string, unknown> = {},
 ) => ({
   id,
-  kod,
-  ad,
+  kod: code,
+  ad: name,
   adres: null,
   telefon: '0212 000 00 00',
   eposta: null,
@@ -90,7 +90,7 @@ export const branch = (
   resimDosyasi: null,
   haftalikCalismaSaatleri: null,
   aktif: true,
-  surum: `s-${kod}`,
+  surum: `s-${code}`,
   ...extra,
 });
 

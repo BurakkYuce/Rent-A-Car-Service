@@ -1,13 +1,13 @@
-import type { ApiYolu } from '@core/api/api-istemcisi';
-import { invariantOndalik } from '@core/form/ondalik';
+import type { ApiPath } from '@core/api/api-istemcisi';
+import { invariantDecimal } from '@core/form/ondalik';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import {
-  type FiltreKatalogu,
-  type FiltreTanimi,
+  type FilterCatalog,
+  type FilterDefinition,
   type ListeTanimi,
-  listeTanimi,
+  listDefinition,
 } from '@core/veri/liste-sorgusu';
-import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { momentValue, dayValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 
 /**
  * F9.2 fiyat/tarife tanım ekranlarının (tarifeler, tarife grupları, sigorta ürünleri, ek hizmetler, tarife matrisi,
@@ -87,9 +87,9 @@ export interface CatalogFilter {
 export interface CatalogConfig {
   /** Rota verisi ve tablo kodu (`fiyat.<key>`). */
   readonly key: string;
-  readonly root: ApiYolu;
+  readonly root: ApiPath;
   /** Liste ucu farklıysa (kira kuralları: `/kira-kurallari/ara`). */
-  readonly listPath?: ApiYolu;
+  readonly listPath?: ApiPath;
   readonly title: CeviriAnahtari;
   readonly description: CeviriAnahtari;
   /** Düzenleme bölümü başlığı: "Yeni …" / "… Düzenle". */
@@ -125,9 +125,9 @@ export function toFormValue(f: CatalogField, v: unknown): unknown {
     case 'money':
       return v === null || v === ''
         ? null
-        : invariantOndalik(v as string | number, { kesir: decimalsOf(f) });
+        : invariantDecimal(v as string | number, { kesir: decimalsOf(f) });
     case 'date':
-      return gunDegeri(typeof v === 'string' ? v : null);
+      return dayValue(typeof v === 'string' ? v : null);
     case 'int':
     case 'ratio':
       return toNum(v);
@@ -144,7 +144,10 @@ export function toFormValue(f: CatalogField, v: unknown): unknown {
 export function toRequestValue(f: CatalogField, v: unknown, original: unknown): unknown {
   switch (f.kind) {
     case 'date':
-      return anDegeri((v as string | null) ?? null, typeof original === 'string' ? original : null);
+      return momentValue(
+        (v as string | null) ?? null,
+        typeof original === 'string' ? original : null,
+      );
     case 'bool':
       return v === true;
     case 'int':
@@ -156,7 +159,7 @@ export function toRequestValue(f: CatalogField, v: unknown, original: unknown): 
     case 'textarea':
     case 'password':
     case 'weekdays':
-      return metinDegeri(typeof v === 'string' ? v : null);
+      return textValue(typeof v === 'string' ? v : null);
     default:
       return v === '' ? null : (v ?? null);
   }
@@ -203,7 +206,7 @@ export function formToBody(
   return body;
 }
 
-function filterDefinition(f: CatalogFilter): FiltreTanimi {
+function filterDefinition(f: CatalogFilter): FilterDefinition {
   switch (f.kind) {
     case 'select':
       return { tur: 'secim', degerler: f.options ?? [] };
@@ -217,11 +220,11 @@ function filterDefinition(f: CatalogFilter): FiltreTanimi {
 }
 
 /** Liste sorgusu: `q` + ekran süzgeçleri; sıralama beyaz listesi sunucunun `Sort` haritasıyla aynı sütunlar. */
-export function catalogListDefinition(c: CatalogConfig): ListeTanimi<FiltreKatalogu> {
-  const filtreler: Record<string, FiltreTanimi> = { q: { tur: 'metin', enFazla: 100 } };
-  for (const f of c.filters ?? []) filtreler[f.name] = filterDefinition(f);
-  return listeTanimi({
-    filtreler,
+export function catalogListDefinition(c: CatalogConfig): ListeTanimi<FilterCatalog> {
+  const filters: Record<string, FilterDefinition> = { q: { tur: 'metin', enFazla: 100 } };
+  for (const f of c.filters ?? []) filters[f.name] = filterDefinition(f);
+  return listDefinition({
+    filtreler: filters,
     siralanabilir: c.columns.filter((x) => x.sortable).map((x) => x.field),
     varsayilanSirala: c.defaultSort,
   });

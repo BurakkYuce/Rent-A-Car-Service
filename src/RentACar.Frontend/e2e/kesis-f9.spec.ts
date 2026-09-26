@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-import { BEN, oturumAc, problem } from './ortak';
+import { BEN, logIn, problem } from './ortak';
 import {
   INSPECTION_1,
   MTV_1,
@@ -35,7 +35,7 @@ const ADMIN = { ...BEN, izinler: [...BEN.izinler, 'ManageUsers', 'OperationsDele
 
 async function fakes(page: Page): Promise<void> {
   await remainingEndpoints(page);
-  await oturumAc(page, ADMIN);
+  await logIn(page, ADMIN);
   await serviceInsuranceEndpoints(page);
 }
 
@@ -177,7 +177,7 @@ test('araç durum: "Servis" bağlantısı SPA servis ekranına router ile gider 
   page,
 }) => {
   await remainingEndpoints(page);
-  await oturumAc(page, ADMIN);
+  await logIn(page, ADMIN);
   await vehicleEndpoints(page);
   await serviceInsuranceEndpoints(page); // son kaydedilen önce eşleşir: seçim uçları servis sahtesinden
   await page.goto('/app/arac-durum');

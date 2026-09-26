@@ -7,7 +7,7 @@
     <button
       type="button"
       class="rc-dugme"
-      [disabled]="store.board.yukleniyor()"
+      [disabled]="store.board.isLoading()"
       (click)="store.board.yenile()"
     >
       <rc-ikon ad="refresh" [boyut]="14" />

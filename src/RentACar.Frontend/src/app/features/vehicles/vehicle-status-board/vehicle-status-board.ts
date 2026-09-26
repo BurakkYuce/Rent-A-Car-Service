@@ -13,19 +13,19 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { Sayfa } from '@core/api/sayfa';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { translationFunction } from '@core/i18n/ceviri';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import type { StoreDurumu } from '@core/veri/temel-store';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import type { StoreState } from '@core/veri/temel-store';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { ALLOCATION_PREFILL_KEY, type AllocationPrefill } from '../allocation-prefill';
 import { suggestionList } from '../suggestions';
@@ -46,9 +46,9 @@ import {
   type StatusRow,
   type VehicleStatus,
 } from '../vehicle-model';
-import { StatusBoardStore, secimSuggestionFetch } from '../vehicle.store';
+import { StatusBoardStore, selectionSuggestionFetch } from '../vehicle.store';
 import { statusColumns } from './status-columns';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 import { StatusSignCardComponent } from '@shared/tabela-karti/tabela-karti';
@@ -72,16 +72,16 @@ type TriState = (typeof TRI_STATE)[number];
     StatusSignCardComponent,
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    Ikon,
-    MetinGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
+    Icon,
+    TextInput,
+    Selection,
+    Table,
+    TableCell,
   ],
   providers: [FetchPolicy, StatusBoardStore],
   templateUrl: './vehicle-status-board.html',
@@ -92,10 +92,10 @@ export class VehicleStatusBoard {
   private readonly api = inject(ApiIstemcisi);
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(STATUS_BOARD);
+  protected readonly query = listQueryUrlSync(STATUS_BOARD);
   protected readonly columns = statusColumns(this.t);
   protected readonly rowId = (r: StatusRow) => r.vehicleId;
 
@@ -144,7 +144,7 @@ export class VehicleStatusBoard {
 
   protected readonly branchSuggestions = suggestionList(
     this.filterForm.controls.sube,
-    secimSuggestionFetch(this.api, 'sube'),
+    selectionSuggestionFetch(this.api, 'sube'),
   );
   /** Pasif sebebi serbest metin (master yok): öneriler görünen satırlardan (Blazor ile aynı sınır). */
   protected readonly reasonSuggestions = computed(() => {
@@ -155,7 +155,7 @@ export class VehicleStatusBoard {
   });
 
   /** Tablo motoru `Sayfa<T>` durumu ister: yanıtın `liste` alanı (sayaçlar ayrı). */
-  protected readonly tableSource = computed<StoreDurumu<Sayfa<StatusRow>>>(() => {
+  protected readonly tableSource = computed<StoreState<Sayfa<StatusRow>>>(() => {
     const d = this.store.board.durum();
     const page = (l: StatusBoardResponse['liste']): Sayfa<StatusRow> => ({
       kayitlar: l.kayitlar,
@@ -197,10 +197,10 @@ export class VehicleStatusBoard {
   });
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.board.yukle(p),
-      sifirla: () => this.store.board.sifirla(),
+      sifirla: () => this.store.board.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -289,7 +289,7 @@ export class VehicleStatusBoard {
 
   private refreshIfVisible(): void {
     if (this.document.visibilityState !== 'visible' || !this.tab.aktif()) return;
-    if (this.store.board.yukleniyor()) return;
+    if (this.store.board.isLoading()) return;
     this.store.board.yenile();
   }
 

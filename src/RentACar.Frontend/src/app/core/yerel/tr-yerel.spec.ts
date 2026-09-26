@@ -14,9 +14,9 @@ describe('Türkçe yerel ayar', () => {
   });
 
   it("Angular'ın kendi pipe'ları da Türkçe biçimler (yerel veri kayıtlı)", () => {
-    const yerel = TestBed.inject(LOCALE_ID);
-    expect(new DecimalPipe(yerel).transform(1234.5)).toBe('1.234,5');
-    expect(new DatePipe(yerel).transform('2026-08-26', 'd MMMM y EEEE')).toBe(
+    const local = TestBed.inject(LOCALE_ID);
+    expect(new DecimalPipe(local).transform(1234.5)).toBe('1.234,5');
+    expect(new DatePipe(local).transform('2026-08-26', 'd MMMM y EEEE')).toBe(
       '26 Ağustos 2026 Çarşamba',
     );
   });

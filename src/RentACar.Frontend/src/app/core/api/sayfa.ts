@@ -22,10 +22,10 @@ export interface Sayfa<T> {
 }
 
 /** Sunucu sabitleri (`ListeIstegi.EnFazlaBoyut`, varsayılan boyut). */
-export const EN_FAZLA_BOYUT = 200;
-export const VARSAYILAN_BOYUT = 50;
+export const MAX_SIZE = 200;
+export const DEFAULT_SIZE = 50;
 
 /** Toplam sayfa sayısı (backend `Sayfa<T>.ToplamSayfa` ile aynı kural); kayıt yoksa 0. */
-export function toplamSayfa(sayfa: Pick<Sayfa<unknown>, 'toplam' | 'boyut'>): number {
-  return sayfa.boyut <= 0 ? 0 : Math.ceil(sayfa.toplam / sayfa.boyut);
+export function totalPages(page: Pick<Sayfa<unknown>, 'toplam' | 'boyut'>): number {
+  return page.boyut <= 0 ? 0 : Math.ceil(page.toplam / page.boyut);
 }

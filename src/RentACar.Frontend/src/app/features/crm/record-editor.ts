@@ -3,26 +3,26 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { FormGroup } from '@angular/forms';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
-import type { GonderimKilidi } from '@core/form/gonderim-kilidi';
+import { toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
+import type { SubmitLock } from '@core/form/submit-lock';
 
 import { recordPath } from './crm-model';
 
 export type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id: string };
 
 export interface RecordEditorConfig<TRow, TCard> {
-  readonly path: ApiYolu;
+  readonly path: ApiPath;
   readonly form: FormGroup;
   /** Düzenleme formunun kabı (odak buraya taşınır). */
   readonly anchor: string;
-  readonly lock: GonderimKilidi;
+  readonly lock: SubmitLock;
   readonly empty: () => object;
   readonly toForm: (row: TRow) => object;
   readonly rowOf: (card: TCard) => TRow;
@@ -41,13 +41,13 @@ export interface RecordEditorConfig<TRow, TCard> {
  */
 export class RecordEditor<TRow, TCard extends { readonly surum?: string | null }> {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   readonly editing = signal<Editing>({ kind: 'new' });
   readonly base = signal<TCard | null>(null);
@@ -92,14 +92,14 @@ export class RecordEditor<TRow, TCard extends { readonly surum?: string | null }
   }
 
   /** Kaydetme hatası: bayat sürüm → güncel kaydı oku ve birleştir. */
-  failed(kod: string): void {
+  failed(code: string): void {
     const id = this.recordId;
-    if (kod === 'cakisma' && id !== null) this.read(id);
+    if (code === 'cakisma' && id !== null) this.read(id);
   }
 
   async remove(id: string, title: string, message: string, done: string): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: title,
       mesaj: message,
       onayEtiketi: this.t('crm.sil'),
@@ -120,7 +120,7 @@ export class RecordEditor<TRow, TCard extends { readonly surum?: string | null }
           this.c.reload();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.c.reload();
         },
@@ -136,7 +136,7 @@ export class RecordEditor<TRow, TCard extends { readonly surum?: string | null }
           if (this.recordId === id) this.arrived(card);
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
         },
       });
@@ -151,14 +151,14 @@ export class RecordEditor<TRow, TCard extends { readonly surum?: string | null }
     if (clean) {
       this.c.form.reset({ ...fresh });
     } else {
-      const conflicts = sunucuDegerleriniBirlestir(
+      const conflicts = mergeServerValues(
         this.c.form,
         fresh,
         baseline as Record<string, unknown>,
         this.t('crm.cakismaAlan'),
       );
       if (conflicts.length > 0)
-        this.banner.goster({
+        this.banner.show({
           tur: 'uyari',
           mesaj: this.t('crm.cakismaBant', { sayi: conflicts.length }),
           kod: 'cakisma',
@@ -179,7 +179,7 @@ export class RecordEditor<TRow, TCard extends { readonly surum?: string | null }
 
   private async release(): Promise<boolean> {
     if (!this.c.form.dirty) return true;
-    return this.confirm.sor({
+    return this.confirm.ask({
       baslik: this.t('crm.vazgecBaslik'),
       mesaj: this.t('crm.vazgecMesaj'),
     });

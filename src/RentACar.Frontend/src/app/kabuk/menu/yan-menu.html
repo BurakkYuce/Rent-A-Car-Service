@@ -1,12 +1,12 @@
 <ng-template #baglanti let-kayit let-ikon="ikon">
   <a
     class="oge"
-    [class.oge--etkin]="kayit.kimlik === etkinKimlik()"
+    [class.oge--etkin]="kayit.kimlik === activeId()"
     [href]="href(kayit)"
     [attr.title]="dar() ? kayit.etiket : null"
-    [attr.aria-current]="kayit.kimlik === etkinKimlik() ? 'page' : null"
+    [attr.aria-current]="kayit.kimlik === activeId() ? 'page' : null"
     [attr.aria-describedby]="kayit.hedef.tur === 'blazor' ? 'rc-menu-eski-ekran' : null"
-    (click)="tikla($event, kayit)"
+    (click)="click($event, kayit)"
   >
     @if (ikon) {
       <rc-ikon class="oge__ikon" [ad]="ikon" [boyut]="16" />
@@ -52,7 +52,7 @@
     </div>
   }
 
-  @let k = kisayollar();
+  @let k = shortcuts();
   @if (k.kira || k.rezervasyon) {
     <div class="kisayol">
       @if (k.kira; as kira) {
@@ -61,8 +61,8 @@
           [href]="href(kira)"
           [attr.aria-label]="kira.etiket"
           [attr.title]="dar() ? kira.etiket : null"
-          [attr.aria-current]="kira.kimlik === etkinKimlik() ? 'page' : null"
-          (click)="tikla($event, kira)"
+          [attr.aria-current]="kira.kimlik === activeId() ? 'page' : null"
+          (click)="click($event, kira)"
         >
           <rc-ikon [ad]="dar() ? 'key' : 'plus'" [boyut]="dar() ? 16 : 14" />
           <span class="kisayol__metin">{{ 'kabuk.kisayol.kira' | transloco }}</span>
@@ -74,8 +74,8 @@
           [href]="href(rez)"
           [attr.aria-label]="rez.etiket"
           [attr.title]="dar() ? rez.etiket : null"
-          [attr.aria-current]="rez.kimlik === etkinKimlik() ? 'page' : null"
-          (click)="tikla($event, rez)"
+          [attr.aria-current]="rez.kimlik === activeId() ? 'page' : null"
+          (click)="click($event, rez)"
         >
           <rc-ikon [ad]="dar() ? 'calendar-event' : 'plus'" [boyut]="dar() ? 16 : 14" />
           <span class="kisayol__metin">{{ 'kabuk.kisayol.rezervasyon' | transloco }}</span>
@@ -91,7 +91,7 @@
           <ng-container
             *ngTemplateOutlet="
               baglanti;
-              context: { $implicit: blok.kayit, ikon: ogeIkonu(blok.kayit) }
+              context: { $implicit: blok.kayit, ikon: itemIcon(blok.kayit) }
             "
           />
         </li>
@@ -100,16 +100,16 @@
           <button
             type="button"
             class="grup__baslik"
-            [class.grup__baslik--acik]="acikMi(blok.ad)"
+            [class.grup__baslik--acik]="isOpen(blok.ad)"
             [attr.title]="dar() ? blok.ad : null"
-            [attr.aria-expanded]="acikMi(blok.ad)"
+            [attr.aria-expanded]="isOpen(blok.ad)"
             [attr.aria-controls]="'rc-menu-grup-' + i"
-            (click)="grubuDegistir(blok.ad)"
+            (click)="toggleGroup(blok.ad)"
           >
-            <rc-ikon class="oge__ikon" [ad]="grupIkonu(blok.ad)" [boyut]="16" />
+            <rc-ikon class="oge__ikon" [ad]="groupIcon(blok.ad)" [boyut]="16" />
             <span class="oge__etiket">{{ blok.ad }}</span>
-            @if (!acikMi(blok.ad)) {
-              @if (grupRozeti(blok.kayitlar); as sayi) {
+            @if (!isOpen(blok.ad)) {
+              @if (groupBadge(blok.kayitlar); as sayi) {
                 <span class="oge__rozet"
                   >{{ sayi
                   }}<span class="rc-gorunmez"> {{ 'kabuk.menu.yeni' | transloco }}</span></span
@@ -118,24 +118,24 @@
             }
             <rc-ikon
               class="grup__ok"
-              [ad]="acikMi(blok.ad) ? 'chevron-down' : 'chevron-right'"
+              [ad]="isOpen(blok.ad) ? 'chevron-down' : 'chevron-right'"
               [boyut]="14"
             />
           </button>
-          <ul class="liste liste--grup" [id]="'rc-menu-grup-' + i" [hidden]="!acikMi(blok.ad)">
+          <ul class="liste liste--grup" [id]="'rc-menu-grup-' + i" [hidden]="!isOpen(blok.ad)">
             @for (kayit of blok.kayitlar; track kayit.kimlik) {
-              @if (kiraListesiMi(kayit)) {
-                @for (g of gorunumler(kayit); track g.kayit.kimlik) {
+              @if (isRentalList(kayit)) {
+                @for (g of views(kayit); track g.kayit.kimlik) {
                   <li>
                     <a
                       class="oge oge--alt"
-                      [class.oge--etkin]="gorunumEtkin(g, kayit)"
+                      [class.oge--etkin]="isViewActive(g, kayit)"
                       [href]="href(g.kayit)"
-                      [attr.aria-current]="gorunumEtkin(g, kayit) ? 'page' : null"
-                      (click)="tikla($event, g.kayit)"
+                      [attr.aria-current]="isViewActive(g, kayit) ? 'page' : null"
+                      (click)="click($event, g.kayit)"
                     >
                       <span class="oge__etiket">{{ g.etiket | transloco }}</span>
-                      @if (gorunumSayaci(g); as sayi) {
+                      @if (viewCounter(g); as sayi) {
                         <span class="oge__rozet" [class.oge__rozet--hata]="g.hata && sayi !== '0'"
                           >{{ sayi
                           }}<span class="rc-gorunmez">

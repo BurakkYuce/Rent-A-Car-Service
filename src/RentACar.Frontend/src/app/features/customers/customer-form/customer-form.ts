@@ -15,33 +15,30 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
 import { suggestionList } from '@features/vehicles/suggestions';
-import { TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { SekmeliForm, SekmePaneli, type SekmeTanimi } from '@shared/form/sekmeli-form/sekmeli-form';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { Selection } from '@shared/form/kontroller/selection';
+import { TabbedForm, TabPanel, type SekmeTanimi } from '@shared/form/sekmeli-form/tabbed-form';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { CUSTOMERS, CUSTOMER_TYPES, customerPath, type CustomerCard } from '../customer-model';
 import {
   CustomerCardStore,
@@ -90,33 +87,33 @@ import {
     RouterLink,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    OnayKutusu,
-    ParaGirdisi,
-    SayfaBandi,
-    SayiGirdisi,
-    Secim,
-    SekmeliForm,
-    SekmePaneli,
-    TarihSaatPipe,
-    TarihSecici,
+    FormErrors,
+    Icon,
+    TextInput,
+    Checkbox,
+    MoneyInput,
+    PageBand,
+    NumberInput,
+    Selection,
+    TabbedForm,
+    TabPanel,
+    DateTimePipe,
+    DatePicker,
   ],
   providers: [FetchPolicy, CustomerCardStore],
   templateUrl: './customer-form.html',
   styleUrls: ['../customers.scss', './customer-form.scss'],
 })
-export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
+export class CustomerForm implements UnsavedChangesOwner {
   protected readonly store = inject(CustomerCardStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
-  private readonly tabs = viewChild(SekmeliForm);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
+  private readonly tabs = viewChild(TabbedForm);
 
   /** Düzenlenen carinin kimliği; `null` = yeni cari. */
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id');
@@ -124,7 +121,7 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
 
   protected readonly form = buildForm();
   protected readonly contacts = this.form.controls[CONTACTS_FIELD] as FormArray<ContactGroup>;
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
   /** Son okunan sunucu hâli: `surum` PUT'a gider, birleştirmenin tabanıdır. */
   protected readonly base = signal<CustomerCard | null>(null);
   /** Anonimleştirme kaldırma reddi (403) — KVKK sekmesinde açıkça gösterilir. */
@@ -177,10 +174,10 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
 
     const policy = inject(FetchPolicy);
     if (this.id !== null) {
-      policy.baglan({
+      policy.connect({
         parametre: signal(this.id).asReadonly(),
         yukle: (x) => this.store.card.yukle(x),
-        sifirla: () => this.store.card.sifirla(),
+        sifirla: () => this.store.card.reset(),
       });
       effect(() => {
         const d = this.store.card.durum();
@@ -196,10 +193,10 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
       (this.form.controls[name] as FormControl<unknown> | undefined)?.valueChanges
         .pipe(takeUntilDestroyed())
         .subscribe(() => this.updateTaxRequirement());
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -252,7 +249,7 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
   protected save(): void {
     if (!this.canWrite()) return;
     const base = this.base();
-    if (!this.isNew && (base === null || this.store.card.yukleniyor())) return;
+    if (!this.isNew && (base === null || this.store.card.isLoading())) return;
     this.privacyDenied.set(null);
     const value = this.form.getRawValue();
     const body = formToRequest(value, this.contacts.getRawValue(), base);
@@ -265,7 +262,7 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
           ? this.api.post<CustomerCard>(CUSTOMERS, body, { islemAnahtari: key })
           : this.api.put<CustomerCard>(customerPath(id), body, { islemAnahtari: key }),
       {
-        gecersiz: () => this.tabs()?.ilkGecersizeGit(),
+        gecersiz: () => this.tabs()?.goToFirstInvalid(),
         basarili: (card) => {
           if (id === null) {
             this.toast.basari(this.t('cari.kart.olusturuldu', { ad: this.displayName(card) }));
@@ -279,7 +276,7 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
           if (h.kod === 'cakisma') this.store.card.yenile();
           else if (h.kod === 'yetki_yok' && lifted.length > 0) {
             this.privacyDenied.set(h.detay || this.t('cari.kvkk.kaldirmaYetkisiz'));
-            this.tabs()?.sec('kvkk');
+            this.tabs()?.select('kvkk');
           }
         },
       },
@@ -343,7 +340,7 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
       return;
     }
     const fresh: Record<string, unknown> = { ...cardToForm(card) };
-    const conflicts = sunucuDegerleriniBirlestir(
+    const conflicts = mergeServerValues(
       this.form,
       fresh,
       cardToForm(previous),
@@ -351,7 +348,7 @@ export class CustomerForm implements KaydedilmemisDegisiklikSahibi {
     );
     if (this.contacts.pristine) this.resetContacts(card);
     if (conflicts.length > 0) {
-      this.banner.goster({
+      this.banner.show({
         tur: 'uyari',
         mesaj: this.t('cari.kart.cakismaBant', { sayi: conflicts.length }),
         kod: 'cakisma',

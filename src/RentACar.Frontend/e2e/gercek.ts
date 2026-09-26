@@ -10,11 +10,11 @@ import { ORTAM } from './ortam';
  * aracı sunucunun müsaitlik ucundan alır; oluşturulan rezervasyon/kira koşum sonunda İPTAL edilir
  * (silme yok — CLAUDE.md: mali ve operasyonel kayıtlar iptal/ters kayıtla kapanır).
  */
-export const KOK = ORTAM.gercekKok.replace(/\/$/, '');
-export const GERCEK_YOK = KOK === '' || ORTAM.gercekSifre === '';
+export const ROOT = ORTAM.gercekKok.replace(/\/$/, '');
+export const NO_ACTUAL = ROOT === '' || ORTAM.gercekSifre === '';
 
 async function xsrf(page: Page): Promise<string> {
-  const c = (await page.context().cookies(KOK)).find((x) => x.name === 'XSRF-TOKEN');
+  const c = (await page.context().cookies(ROOT)).find((x) => x.name === 'XSRF-TOKEN');
   return c ? decodeURIComponent(c.value) : '';
 }
 
@@ -23,46 +23,46 @@ interface Ben {
 }
 
 /** Kullanıcı başına TEK giriş: `/login` hız sınırı (429) her testte yeniden girişe izin vermez. */
-const oturumlar = new Map<string, { cerezler: Cookie[]; ben: Ben }>();
+const sessions = new Map<string, { cerezler: Cookie[]; ben: Ben }>();
 
 /** SPA giriş formunun kullandığı AYNI uçlarla girer (`oturum/xsrf` → `oturum/giris`), aynı çerez kavanozu. */
-export async function gir(page: Page, kullanici: string): Promise<Ben> {
-  const onceki = oturumlar.get(kullanici);
-  if (onceki) {
-    await page.context().addCookies(onceki.cerezler);
-    return onceki.ben;
+export async function login(page: Page, user: string): Promise<Ben> {
+  const previous = sessions.get(user);
+  if (previous) {
+    await page.context().addCookies(previous.cerezler);
+    return previous.ben;
   }
   const r = page.context().request;
-  expect((await r.get(`${KOK}/api/ui/v1/oturum/xsrf`)).status()).toBe(204);
-  const yanit = await r.post(`${KOK}/api/ui/v1/oturum/giris`, {
+  expect((await r.get(`${ROOT}/api/ui/v1/oturum/xsrf`)).status()).toBe(204);
+  const response = await r.post(`${ROOT}/api/ui/v1/oturum/giris`, {
     headers: { 'X-XSRF-TOKEN': await xsrf(page) },
-    data: { firma: ORTAM.gercekFirma, kullanici, sifre: ORTAM.gercekSifre },
+    data: { firma: ORTAM.gercekFirma, kullanici: user, sifre: ORTAM.gercekSifre },
   });
-  expect(yanit.ok(), `giriş ${kullanici}: HTTP ${yanit.status()}`).toBe(true);
-  const ben = (await yanit.json()) as Ben;
+  expect(response.ok(), `giriş ${user}: HTTP ${response.status()}`).toBe(true);
+  const ben = (await response.json()) as Ben;
   expect(ben.pilot, 'kiracı pilotta olmalı (yoksa /api/ui kapalı)').toBe(true);
-  oturumlar.set(kullanici, { cerezler: await page.context().cookies(KOK), ben });
+  sessions.set(user, { cerezler: await page.context().cookies(ROOT), ben });
   return ben;
 }
 
 export async function apiGet<T>(
   page: Page,
-  yol: string,
-  sorgu?: Record<string, string>,
+  path: string,
+  query?: Record<string, string>,
 ): Promise<T> {
-  const y = await page.context().request.get(`${KOK}${yol}`, { params: sorgu });
-  expect(y.ok(), `GET ${yol}: HTTP ${y.status()} ${await y.text()}`).toBe(true);
+  const y = await page.context().request.get(`${ROOT}${path}`, { params: query });
+  expect(y.ok(), `GET ${path}: HTTP ${y.status()} ${await y.text()}`).toBe(true);
   return (await y.json()) as T;
 }
 
-export async function apiGetDurum(page: Page, yol: string): Promise<number> {
-  return (await page.context().request.get(`${KOK}${yol}`)).status();
+export async function apiGetState(page: Page, path: string): Promise<number> {
+  return (await page.context().request.get(`${ROOT}${path}`)).status();
 }
 
-export async function apiPost(page: Page, yol: string, govde?: unknown): Promise<APIResponse> {
-  return page.context().request.post(`${KOK}${yol}`, {
+export async function apiPost(page: Page, path: string, body?: unknown): Promise<APIResponse> {
+  return page.context().request.post(`${ROOT}${path}`, {
     headers: { 'X-XSRF-TOKEN': await xsrf(page), 'Idempotency-Key': crypto.randomUUID() },
-    ...(govde === undefined ? {} : { data: govde }),
+    ...(body === undefined ? {} : { data: body }),
   });
 }
 
@@ -73,30 +73,30 @@ export interface Gun {
   readonly gun: number;
 }
 
-export function gunEkle(g: Gun, n: number): Gun {
+export function addDays(g: Gun, n: number): Gun {
   const d = new Date(Date.UTC(g.yil, g.ay - 1, g.gun + n));
   return { yil: d.getUTCFullYear(), ay: d.getUTCMonth() + 1, gun: d.getUTCDate() };
 }
 
 const iki = (n: number) => String(n).padStart(2, '0');
-export const isoGun = (g: Gun) => `${g.yil}-${iki(g.ay)}-${iki(g.gun)}`;
-export const trGun = (g: Gun) => `${iki(g.gun)}.${iki(g.ay)}.${g.yil}`;
-export const isoAy = (g: Gun) => `${g.yil}-${iki(g.ay)}`;
+export const isoDay = (g: Gun) => `${g.yil}-${iki(g.ay)}-${iki(g.gun)}`;
+export const trDay = (g: Gun) => `${iki(g.gun)}.${iki(g.ay)}.${g.yil}`;
+export const isoMonth = (g: Gun) => `${g.yil}-${iki(g.ay)}`;
 
 /**
  * Rastgele ileri pencere başlangıcı: bugünden (İstanbul) 40–300 gün sonra (rezervasyon en çok 1 yıl ileri —
  * `TarihPolitikasi`), ayın 3–24'ü arası (3 günlük pencere + dönüş günü aynı ayda kalsın — takvim hücre sayısı
  * tek ayda doğrulanır).
  */
-export function rastgeleBaslangic(): Gun {
-  const simdi = new Date(Date.now() + 3 * 3600_000);
-  const bugun = {
-    yil: simdi.getUTCFullYear(),
-    ay: simdi.getUTCMonth() + 1,
-    gun: simdi.getUTCDate(),
+export function randomStart(): Gun {
+  const now = new Date(Date.now() + 3 * 3600_000);
+  const today = {
+    yil: now.getUTCFullYear(),
+    ay: now.getUTCMonth() + 1,
+    gun: now.getUTCDate(),
   };
-  const aday = gunEkle(bugun, 40 + Math.floor(Math.random() * 260));
-  return { ...aday, gun: 3 + Math.floor(Math.random() * 22) };
+  const candidate = addDays(today, 40 + Math.floor(Math.random() * 260));
+  return { ...candidate, gun: 3 + Math.floor(Math.random() * 22) };
 }
 
 interface MusaitArac {
@@ -105,9 +105,9 @@ interface MusaitArac {
 }
 
 /** Pencerede (09:00 → +3 gün 09:00) SUNUCUNUN müsait dediği araçlardan rastgele biri. */
-export async function musaitArac(page: Page, bas: Gun): Promise<MusaitArac> {
+export async function availableVehicle(page: Page, start: Gun): Promise<MusaitArac> {
   const y = await apiGet<{ araclar: MusaitArac[] }>(page, '/api/ui/v1/musaitlik', {
-    basGun: isoGun(bas),
+    basGun: isoDay(start),
     gun: '3',
     basSaat: '09:00',
     bitSaat: '09:00',
@@ -117,7 +117,7 @@ export async function musaitArac(page: Page, bas: Gun): Promise<MusaitArac> {
 }
 
 /** Seçim ucundan bir müşteri (etiket = combobox seçeneğinin adı). */
-export async function birMusteri(page: Page): Promise<{ id: string; etiket: string }> {
+export async function oneCustomer(page: Page): Promise<{ id: string; etiket: string }> {
   const m = await apiGet<{ id: string; etiket: string }[]>(page, '/api/ui/v1/secim/musteri', {
     limit: '10',
   });
@@ -126,22 +126,22 @@ export async function birMusteri(page: Page): Promise<{ id: string; etiket: stri
 }
 
 /** `rc-arama-secim` (typeahead): yaz → seçeneği tıkla. `kapsam`: aynı adlı süzgeç kutusu varsa form bölgesi. */
-export async function sec(
+export async function select(
   page: Page,
   alan: string,
-  yazi: string,
-  secenek: RegExp | string,
-  kapsam: Locator | Page = page,
+  text: string,
+  option: RegExp | string,
+  scope: Locator | Page = page,
 ) {
-  const kutu = kapsam.getByRole('combobox', { name: alan, exact: true });
-  await kutu.click();
-  await kutu.fill(yazi);
-  await page.getByRole('option', { name: secenek }).first().click();
+  const box = scope.getByRole('combobox', { name: alan, exact: true });
+  await box.click();
+  await box.fill(text);
+  await page.getByRole('option', { name: option }).first().click();
 }
 
 /** `rc-tarih-saat-secici`nin gün kutusu (saat varsayılan 09:00 kalır). */
-export async function gunYaz(page: Page, alan: string, g: Gun) {
-  const kutu = page.getByRole('textbox', { name: alan, exact: true });
-  await kutu.fill(trGun(g));
-  await kutu.blur();
+export async function writeDay(page: Page, alan: string, g: Gun) {
+  const box = page.getByRole('textbox', { name: alan, exact: true });
+  await box.fill(trDay(g));
+  await box.blur();
 }

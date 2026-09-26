@@ -1,0 +1,137 @@
+<rc-sayfa-bandi [baslik]="'musaitlikSayfasi.baslik' | transloco" ikon="search" />
+
+<div class="rc-sayfa">
+  <form
+    class="rc-kart arama"
+    novalidate
+    [formGroup]="form"
+    [attr.aria-label]="'musaitlikSayfasi.arama' | transloco"
+    (ngSubmit)="searchAction()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'musaitlikSayfasi.alan.basGun' | transloco">
+        <rc-tarih-secici formControlName="basGun" />
+      </rc-alan>
+      <rc-alan [etiket]="'musaitlikSayfasi.alan.bitGun' | transloco">
+        <rc-tarih-secici formControlName="bitGun" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'musaitlikSayfasi.alan.gun' | transloco"
+        [ipucu]="'musaitlikSayfasi.alan.gunIpucu' | transloco"
+      >
+        <rc-sayi-girdisi formControlName="gun" />
+      </rc-alan>
+      <rc-alan [etiket]="'musaitlikSayfasi.alan.basSaat' | transloco">
+        <rc-metin-girdisi
+          formControlName="basSaat"
+          girdiModu="numeric"
+          [azamiUzunluk]="5"
+          [yerTutucu]="'musaitlikSayfasi.alan.saatYerTutucu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'musaitlikSayfasi.alan.bitSaat' | transloco">
+        <rc-metin-girdisi
+          formControlName="bitSaat"
+          girdiModu="numeric"
+          [azamiUzunluk]="5"
+          [yerTutucu]="'musaitlikSayfasi.alan.saatYerTutucu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'musaitlikSayfasi.alan.grup' | transloco">
+        <rc-metin-girdisi formControlName="grup" liste="dl-musaitlik-grup" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'musaitlikSayfasi.alan.sube' | transloco">
+        <rc-metin-girdisi formControlName="sube" liste="dl-musaitlik-sube" [azamiUzunluk]="128" />
+      </rc-alan>
+      <rc-alan [etiket]="'musaitlikSayfasi.alan.rezKaynak' | transloco">
+        <rc-secim formControlName="rezKaynak" [secenekler]="sourceOptions()" bosEtiket="—" />
+      </rc-alan>
+      <rc-alan
+        [etiket]="'musaitlikSayfasi.alan.doviz' | transloco"
+        [ipucu]="'musaitlikSayfasi.alan.dovizIpucu' | transloco"
+      >
+        <rc-secim
+          formControlName="doviz"
+          [secenekler]="currencyOptions()"
+          [bosEtiket]="'musaitlikSayfasi.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'musaitlikSayfasi.alan.plaka' | transloco">
+        <rc-metin-girdisi
+          formControlName="plaka"
+          [azamiUzunluk]="32"
+          [yerTutucu]="'musaitlikSayfasi.alan.plakaYerTutucu' | transloco"
+        />
+      </rc-alan>
+    </div>
+    <datalist id="dl-musaitlik-grup">
+      @for (g of groupSuggestions(); track g) {
+        <option [value]="g"></option>
+      }
+    </datalist>
+    <datalist id="dl-musaitlik-sube">
+      @for (s of branchSuggestions(); track s) {
+        <option [value]="s"></option>
+      }
+    </datalist>
+    <div class="arama__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--birincil rc-dugme--kucuk">
+        <rc-ikon ad="search" [boyut]="14" />
+        {{ 'musaitlikSayfasi.ara' | transloco }}
+      </button>
+    </div>
+  </form>
+
+  @if (store.sonuc.hata(); as hata) {
+    <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+      <span>{{ hata.detay }}</span>
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="store.sonuc.yenile()">
+        {{ 'musaitlikSayfasi.yenidenDene' | transloco }}
+      </button>
+    </div>
+  }
+
+  @if (hasSearch() && store.sonuc.tur() !== 'hata') {
+    <div class="sonuc-ozeti" aria-live="polite">
+      @if (ozet(); as o) {
+        <p class="ozet">{{ o }}</p>
+      }
+      @if (brokerNote(); as b) {
+        <p class="ozet ozet--not">{{ b }}</p>
+      }
+    </div>
+
+    <rc-tablo
+      class="liste-tablosu"
+      tabloKodu="musaitlik.liste"
+      [etiket]="'musaitlikSayfasi.tabloEtiketi' | transloco"
+      [sutunlar]="columns"
+      [kaynak]="tableSource()"
+      [satirKimligi]="identity"
+      (yenidenDene)="store.sonuc.yenile()"
+    >
+      <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+        @if (satir.plaka) {
+          <rc-plaka [plaka]="satir.plaka" boyut="sm" />
+        }
+      </ng-template>
+
+      <ng-template rcTabloHucre="kirala" [rcTabloHucreSutunlar]="columns" let-satir>
+        @if (rentQuery(satir); as sorgu) {
+          <span class="satir-islemleri">
+            <a class="rc-dugme rc-dugme--kucuk" routerLink="/kiralar/yeni" [queryParams]="sorgu">
+              {{ 'musaitlikSayfasi.kirala' | transloco }}
+              <span class="rc-gorunmez">{{ satir.plaka }}</span>
+            </a>
+          </span>
+        }
+      </ng-template>
+    </rc-tablo>
+  } @else if (!hasSearch()) {
+    <rc-bos-durum
+      ikon="search"
+      [baslik]="'musaitlikSayfasi.bosBaslik' | transloco"
+      [aciklama]="'musaitlikSayfasi.baslangic' | transloco"
+    />
+  }
+</div>

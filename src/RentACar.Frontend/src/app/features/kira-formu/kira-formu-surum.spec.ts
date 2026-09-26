@@ -3,15 +3,15 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { TranslocoService } from '@jsverse/transloco';
 import { type Observable, Subject, firstValueFrom, of, throwError } from 'rxjs';
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi, type IstekSecenekleri } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { provideCeviri } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { KiraFormuDurumu } from './kira-formu-durumu';
-import type { KiraDetayYaniti, KiraSozlesmesi } from './kira-tipleri';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { provideTranslation } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { RentalFormState } from './rental-form-state';
+import type { RentalDetailResponse, RentalContract } from './kira-tipleri';
 
 /**
  * #261 yeniden doğrulama N1/N2 (F4.4'te kapatıldı) — kayıtlı kirada sürüm (`surum`) akışı:
@@ -20,20 +20,20 @@ import type { KiraDetayYaniti, KiraSozlesmesi } from './kira-tipleri';
  *   değişikliği yoksa birleştirilmiş gövde yeni sürümle SESSİZ ve TEK SEFER yeniden gönderilir.
  * Beklenenler elle kurulmuş sunucu durumlarından (formül yok).
  */
-const KIRA_ID = '0b0e7c1a-1111-4aaa-8bbb-000000000001';
-const MUSTERI_ID = '0b0e7c1a-2222-4aaa-8bbb-000000000002';
-const ARAC_ID = '0b0e7c1a-3333-4aaa-8bbb-000000000003';
-const SURUCU_ID = '0b0e7c1a-4444-4aaa-8bbb-000000000004';
-const PERSONEL_ID = '0b0e7c1a-5555-4aaa-8bbb-000000000005';
+const RENTAL_ID = '0b0e7c1a-1111-4aaa-8bbb-000000000001';
+const CUSTOMER_ID = '0b0e7c1a-2222-4aaa-8bbb-000000000002';
+const VEHICLE_ID = '0b0e7c1a-3333-4aaa-8bbb-000000000003';
+const DRIVER_ID = '0b0e7c1a-4444-4aaa-8bbb-000000000004';
+const STAFF_ID = '0b0e7c1a-5555-4aaa-8bbb-000000000005';
 
-function kira(ek: Partial<KiraSozlesmesi> = {}): KiraSozlesmesi {
+function kira(extra: Partial<RentalContract> = {}): RentalContract {
   return {
-    id: KIRA_ID,
+    id: RENTAL_ID,
     sozlesmeNo: '2026220901001',
     durum: 'Kirada',
     reservationId: null,
-    musteriId: MUSTERI_ID,
-    vehicleId: ARAC_ID,
+    musteriId: CUSTOMER_ID,
+    vehicleId: VEHICLE_ID,
     basTar: '2026-09-22T06:00:00+00:00',
     bitTar: '2026-09-25T06:00:00+00:00',
     cikisOfisi: 'Merkez',
@@ -56,9 +56,9 @@ function kira(ek: Partial<KiraSozlesmesi> = {}): KiraSozlesmesi {
     kmHediye: null,
     bitisSebebi: null,
     teslimAlanPersonelId: null,
-    teslimEdenPersonelId: PERSONEL_ID,
+    teslimEdenPersonelId: STAFF_ID,
     odemeSekli: 'Nakit',
-    ikinciSurucuId: SURUCU_ID,
+    ikinciSurucuId: DRIVER_ID,
     ikinciSurucuSerbestAd: null,
     ikinciSurucuSerbestSoyad: null,
     ikinciSurucuSerbestTel: null,
@@ -132,17 +132,17 @@ function kira(ek: Partial<KiraSozlesmesi> = {}): KiraSozlesmesi {
     createdAtUtc: '2026-09-22T06:00:00+00:00',
     updatedAtUtc: null,
     surum: '4711',
-    ...ek,
+    ...extra,
   };
 }
 
-function detay(ek: Partial<KiraSozlesmesi> = {}): KiraDetayYaniti {
+function detay(extra: Partial<RentalContract> = {}): RentalDetailResponse {
   return {
-    kira: kira(ek),
-    musteri: { id: MUSTERI_ID, ad: 'Ayşe Yılmaz' },
-    ikinciSurucu: { id: SURUCU_ID, ad: 'Mehmet Kaya' },
+    kira: kira(extra),
+    musteri: { id: CUSTOMER_ID, ad: 'Ayşe Yılmaz' },
+    ikinciSurucu: { id: DRIVER_ID, ad: 'Mehmet Kaya' },
     arac: {
-      id: ARAC_ID,
+      id: VEHICLE_ID,
       plaka: '34 ABC 123',
       marka: 'Fiat',
       tip: 'Egea',
@@ -167,8 +167,8 @@ function detay(ek: Partial<KiraSozlesmesi> = {}): KiraDetayYaniti {
   };
 }
 
-const cakisma = () =>
-  apiHatasinaCevir(
+const conflict = () =>
+  toApiError(
     new HttpErrorResponse({
       status: 409,
       error: { status: 409, kod: 'cakisma', detail: 'Kira başka bir oturumda değişti.' },
@@ -180,41 +180,41 @@ interface Put {
   readonly secenek?: IstekSecenekleri;
 }
 
-async function kur(put: (g: Record<string, unknown>, n: number) => Observable<unknown>) {
+async function exchangeRate(put: (g: Record<string, unknown>, n: number) => Observable<unknown>) {
   // A failed read completes its subject; the next read gets a fresh one (several failures in a row).
-  let detaylar = new Subject<KiraDetayYaniti>();
-  const putlar: Put[] = [];
+  let details = new Subject<RentalDetailResponse>();
+  const puts: Put[] = [];
   const api = {
-    get: (yol: string) => {
-      if (yol === `/api/ui/v1/kiralar/${KIRA_ID}`) return detaylar.asObservable().pipe((o) => o);
-      if (yol.endsWith('/form-varsayilanlari')) return of({ cikisYakit: 8, fiyatTuru: null });
+    get: (path: string) => {
+      if (path === `/api/ui/v1/kiralar/${RENTAL_ID}`) return details.asObservable().pipe((o) => o);
+      if (path.endsWith('/form-varsayilanlari')) return of({ cikisYakit: 8, fiyatTuru: null });
       return of([]);
     },
-    put: (_yol: string, govde: Record<string, unknown>, secenek?: IstekSecenekleri) => {
-      putlar.push({ govde, secenek });
-      return put(govde, putlar.length);
+    put: (_path: string, body: Record<string, unknown>, option?: IstekSecenekleri) => {
+      puts.push({ govde: body, secenek: option });
+      return put(body, puts.length);
     },
-    post: (yol: string) =>
-      yol.endsWith('/provizyon/al') ? of(kira({ provizyonDurum: 'Alindi', surum: 'v2' })) : of({}),
+    post: (path: string) =>
+      path.endsWith('/provizyon/al') ? of(kira({ provizyonDurum: 'Alindi', surum: 'v2' })) : of({}),
     delete: () => of({}),
   };
   TestBed.configureTestingModule({
     providers: [
-      ...provideCeviri(),
-      KiraFormuDurumu,
+      ...provideTranslation(),
+      RentalFormState,
       { provide: ApiIstemcisi, useValue: api },
       {
-        provide: ToastServisi,
+        provide: ToastService,
         useValue: { basari: vi.fn(), bilgi: vi.fn(), uyari: vi.fn(), hata: vi.fn() },
       },
-      { provide: OnayServisi, useValue: { sor: vi.fn(async () => true) } },
+      { provide: ConfirmService, useValue: { ask: vi.fn(async () => true) } },
       { provide: Router, useValue: { navigate: vi.fn(async () => true) } },
-      { provide: OturumServisi, useValue: { izinVar: () => true, ben: () => ({ rol: 'Admin' }) } },
+      { provide: SessionService, useValue: { izinVar: () => true, ben: () => ({ rol: 'Admin' }) } },
       {
         provide: ActivatedRoute,
         useValue: {
           snapshot: {
-            paramMap: convertToParamMap({ id: KIRA_ID }),
+            paramMap: convertToParamMap({ id: RENTAL_ID }),
             queryParamMap: convertToParamMap({}),
             routeConfig: null,
             pathFromRoot: [],
@@ -227,76 +227,82 @@ async function kur(put: (g: Record<string, unknown>, n: number) => Observable<un
     ],
   });
   await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));
-  const d = TestBed.inject(KiraFormuDurumu);
+  const d = TestBed.inject(RentalFormState);
   TestBed.tick();
-  const detayVer = async (x: KiraDetayYaniti) => {
-    detaylar.next(x);
+  const provideDetail = async (x: RentalDetailResponse) => {
+    details.next(x);
     TestBed.tick();
     await Promise.resolve(); // sessiz yeniden gönderim mikro görevde
     TestBed.tick();
   };
   /** Süren detay okumasını HTTP hatasıyla bitirir (kodsuz gövde: 5xx → `sunucu`, 404 → `bilinmeyen`). */
-  const detayHatasi = (status: number, kod?: string) => {
-    const failed = detaylar;
-    detaylar = new Subject<KiraDetayYaniti>();
+  const detailError = (status: number, code?: string) => {
+    const failed = details;
+    details = new Subject<RentalDetailResponse>();
     failed.error(
-      new HttpErrorResponse({ status, error: { status, kod, detail: 'Sunucu hatası' } }),
+      new HttpErrorResponse({ status, error: { status, kod: code, detail: 'Sunucu hatası' } }),
     );
     TestBed.tick();
   };
-  return { d, putlar, detayVer, detayHatasi, bant: TestBed.inject(UyariBandiServisi) };
+  return {
+    d,
+    putlar: puts,
+    detayVer: provideDetail,
+    detayHatasi: detailError,
+    bant: TestBed.inject(WarningBannerService),
+  };
 }
 
 describe('Kira formu sürüm akışı (#261 N1/N2)', () => {
   it('N1: işlem sonrası kayıt yeniden okunurken Kaydet pasif; okuma bitince açık', async () => {
-    const { d, detayVer } = await kur(() => of(kira()));
+    const { d, detayVer } = await exchangeRate(() => of(kira()));
     await detayVer(detay({ surum: 'v1' }));
-    expect(d.kaydedilebilir()).toBe(true);
-    d.provizyonAl(); // 2xx → yenile() → detay yükleniyor
-    expect(d.kayitTazeleniyor()).toBe(true);
-    expect(d.kaydedilebilir()).toBe(false);
+    expect(d.canSave()).toBe(true);
+    d.takePreAuth(); // 2xx → yenile() → detay yükleniyor
+    expect(d.isRecordRefreshing()).toBe(true);
+    expect(d.canSave()).toBe(false);
     await detayVer(detay({ surum: 'v2', provizyonDurum: 'Alindi' }));
-    expect(d.kaydedilebilir()).toBe(true);
+    expect(d.canSave()).toBe(true);
   });
 
   it('L5: tazeleme 5xx → form ve finans paneli son iyi veriyle kalır, hata bandı çıkar, Kaydet pasif', async () => {
-    const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
+    const { d, detayVer, detayHatasi } = await exchangeRate(() => of(kira()));
     const iyi = detay({ surum: 'v1' });
     await detayVer(iyi);
     d.yenile();
     detayHatasi(503);
     expect(d.detay.tur()).toBe('hata');
-    expect(d.gorunenDetay()).toBe(iyi); // panel girdisi (`[detay]`) aynı nesne — kaybolmaz
+    expect(d.visibleDetail()).toBe(iyi); // panel girdisi (`[detay]`) aynı nesne — kaybolmaz
     expect(d.kira()?.surum).toBe('v1');
     expect(d.tazelemeHatasi()?.kod).toBe('sunucu');
-    expect(d.kaydedilebilir()).toBe(false);
+    expect(d.canSave()).toBe(false);
   });
 
   it('#318: tazeleme 429 (cok_istek) GEÇİCİDİR → son iyi veri kalır; ardından 503 de onu geri getirir', async () => {
-    const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
+    const { d, detayVer, detayHatasi } = await exchangeRate(() => of(kira()));
     const iyi = detay({ surum: 'v1' });
     await detayVer(iyi);
     d.yenile();
     detayHatasi(429, 'cok_istek');
-    expect(d.gorunenDetay()).toBe(iyi);
+    expect(d.visibleDetail()).toBe(iyi);
     expect(d.tazelemeHatasi()?.kod).toBe('cok_istek');
     d.yenile();
-    expect(d.gorunenDetay()).toBe(iyi); // yeniden okuma sürerken de
+    expect(d.visibleDetail()).toBe(iyi); // yeniden okuma sürerken de
     detayHatasi(503);
-    expect(d.gorunenDetay()).toBe(iyi);
+    expect(d.visibleDetail()).toBe(iyi);
   });
 
   it('#318 L1: 5xx sonrası yeniden okuma SÜRERKEN de son iyi veri kalır (panel yeniden kurulmaz, donmuş anahtar kaybolmaz)', async () => {
-    const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
+    const { d, detayVer, detayHatasi } = await exchangeRate(() => of(kira()));
     const iyi = detay({ surum: 'v1' });
     await detayVer(iyi);
     d.yenile();
     detayHatasi(503);
     d.yenile(); // "Yeniden yükle"
     expect(d.detay.tur()).toBe('yukleniyor');
-    expect(d.gorunenDetay()).toBe(iyi);
+    expect(d.visibleDetail()).toBe(iyi);
     expect(d.tazelemeHatasi()).toBeNull();
-    expect(d.kaydedilebilir()).toBe(false);
+    expect(d.canSave()).toBe(false);
   });
 
   it.each([
@@ -304,41 +310,41 @@ describe('Kira formu sürüm akışı (#261 N1/N2)', () => {
     [404, undefined, 502],
   ])(
     '#280 L-3: definitive %i (%s) then transient %i → stale detail never returns',
-    async (definitive, kod, transient) => {
-      const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
+    async (definitive, code, transient) => {
+      const { d, detayVer, detayHatasi } = await exchangeRate(() => of(kira()));
       await detayVer(detay({ surum: 'v1' }));
       d.yenile();
-      detayHatasi(definitive, kod);
-      expect(d.gorunenDetay()).toBeNull();
+      detayHatasi(definitive, code);
+      expect(d.visibleDetail()).toBeNull();
       d.yenile();
       detayHatasi(transient);
       expect(d.detay.hata()?.kod).toBe('sunucu');
-      expect(d.gorunenDetay()).toBeNull();
+      expect(d.visibleDetail()).toBeNull();
       expect(d.kira()).toBeNull();
       expect(d.tazelemeHatasi()).toBeNull();
     },
   );
 
   it('L5: tazeleme 404 (kayıt silinmiş) → eski veri GÖSTERİLMEZ, bant yok', async () => {
-    const { d, detayVer, detayHatasi } = await kur(() => of(kira()));
+    const { d, detayVer, detayHatasi } = await exchangeRate(() => of(kira()));
     await detayVer(detay({ surum: 'v1' }));
     d.yenile();
     detayHatasi(404);
-    expect(d.gorunenDetay()).toBeNull();
+    expect(d.visibleDetail()).toBeNull();
     expect(d.kira()).toBeNull();
     expect(d.tazelemeHatasi()).toBeNull();
   });
 
   it('N2: başka oturum dokunulmayan alanı değiştirdi → TEK sefer sessiz yeniden gönderim, yeni sürümle', async () => {
-    const { d, putlar, detayVer, bant } = await kur((g) =>
-      g['surum'] === 'v2' ? of(kira({ surum: 'v3' })) : throwError(() => cakisma()),
+    const { d, putlar, detayVer, bant } = await exchangeRate((g) =>
+      g['surum'] === 'v2' ? of(kira({ surum: 'v3' })) : throwError(() => conflict()),
     );
     await detayVer(detay({ surum: 'v1', dropUcreti: null }));
     d.form.controls.aciklama.setValue('benim notum');
     d.form.controls.aciklama.markAsDirty();
     d.kaydet(() => undefined);
     expect(putlar).toHaveLength(1);
-    bant.goster({ tur: 'uyari', mesaj: 'Kira başka bir oturumda değişti.', kod: 'cakisma' }); // interceptor'ın bandı
+    bant.show({ tur: 'uyari', mesaj: 'Kira başka bir oturumda değişti.', kod: 'cakisma' }); // interceptor'ın bandı
     // Güncel kayıt: başka sekme drop ücretini yazdı (+ tahsilat → sürüm v2); açıklamaya dokunmadı.
     await detayVer(detay({ surum: 'v2', dropUcreti: 300 }));
     expect(putlar).toHaveLength(2);
@@ -351,7 +357,12 @@ describe('Kira formu sürüm akışı (#261 N1/N2)', () => {
   });
 
   it('N2: aynı alana başka oturum yazdı → çakışma işaretlenir, otomatik gönderim YOK', async () => {
-    const { d, putlar, detayVer, bant } = await kur(() => throwError(() => cakisma()));
+    const {
+      d,
+      putlar,
+      detayVer,
+      bant: banner,
+    } = await exchangeRate(() => throwError(() => conflict()));
     await detayVer(detay({ surum: 'v1', aciklama: null }));
     d.form.controls.aciklama.setValue('benim notum');
     d.form.controls.aciklama.markAsDirty();
@@ -359,11 +370,11 @@ describe('Kira formu sürüm akışı (#261 N1/N2)', () => {
     await detayVer(detay({ surum: 'v2', aciklama: 'öteki notu' }));
     expect(putlar).toHaveLength(1);
     expect(d.form.controls.aciklama.value).toBe('benim notum');
-    expect(bant.bant()?.kod).toBe('cakisma');
+    expect(banner.bant()?.kod).toBe('cakisma');
   });
 
   it('N2: sürüm DEĞİŞMEDİYSE (başka tür çakışma, ör. müsaitlik) yeniden gönderilmez', async () => {
-    const { d, putlar, detayVer } = await kur(() => throwError(() => cakisma()));
+    const { d, putlar, detayVer } = await exchangeRate(() => throwError(() => conflict()));
     await detayVer(detay({ surum: 'v1' }));
     d.form.controls.aciklama.setValue('x');
     d.form.controls.aciklama.markAsDirty();
@@ -373,7 +384,7 @@ describe('Kira formu sürüm akışı (#261 N1/N2)', () => {
   });
 
   it('N2: sessiz yeniden gönderim de 409 alırsa ÜÇÜNCÜ gönderim yok (tek seferlik)', async () => {
-    const { d, putlar, detayVer } = await kur(() => throwError(() => cakisma()));
+    const { d, putlar, detayVer } = await exchangeRate(() => throwError(() => conflict()));
     await detayVer(detay({ surum: 'v1' }));
     d.form.controls.aciklama.setValue('x');
     d.form.controls.aciklama.markAsDirty();

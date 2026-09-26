@@ -12,32 +12,32 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { Observable } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { translationFunction } from '@core/i18n/ceviri';
 import { TemelStore } from '@core/veri/temel-store';
-import { ParaPipe, TarihPipe, TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinAlani } from '@shared/form/kontroller/metin-alani';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { Secim } from '@shared/form/kontroller/secim';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextArea } from '@shared/form/kontroller/text-area';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Selection } from '@shared/form/kontroller/selection';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { pageCount } from '../audit/audit-page';
 
-type RequestPage = Sema<'BookingRequestPageDto'>;
-type RequestRow = Sema<'BookingRequestRowDto'>;
-type Note = Sema<'BookingRequestNoteDto'>;
-type Candidate = Sema<'CandidateVehicleDto'>;
-type Converted = Sema<'BookingRequestConvertedDto'>;
+type RequestPage = Schema<'BookingRequestPageDto'>;
+type RequestRow = Schema<'BookingRequestRowDto'>;
+type Note = Schema<'BookingRequestNoteDto'>;
+type Candidate = Schema<'CandidateVehicleDto'>;
+type Converted = Schema<'BookingRequestConvertedDto'>;
 
 const ROOT = '/api/ui/v1/gelen-talepler' as const;
 export const REQUEST_PAGE_SIZE = 25;
@@ -85,28 +85,28 @@ interface RequestQuery {
   selector: 'rc-booking-requests-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
-    ParaPipe,
-    TarihPipe,
-    TarihSaatPipe,
+    MoneyPipe,
+    DatePipe,
+    DateTimePipe,
     Alan,
-    FormHatalari,
-    MetinAlani,
-    MetinGirdisi,
-    Secim,
+    FormErrors,
+    TextArea,
+    TextInput,
+    Selection,
   ],
   styleUrl: '../system.scss',
   templateUrl: './booking-requests-page.html',
 })
 export class BookingRequestsPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly filters = new FormGroup({
     durum: new FormControl<string | null>(null),
@@ -137,11 +137,11 @@ export class BookingRequestsPage {
   protected readonly noteForm = new FormGroup({
     metin: new FormControl<string | null>(null, [Validators.required, Validators.maxLength(2000)]),
   });
-  protected readonly noteSubmit = formGonderimi();
+  protected readonly noteSubmit = formSubmission();
   protected readonly convertForm = new FormGroup({
     aracId: new FormControl<string | null>(null, Validators.required),
   });
-  protected readonly convertSubmit = formGonderimi();
+  protected readonly convertSubmit = formSubmission();
   protected readonly candidateOptions = computed<readonly SecenekOgesi<string>[]>(() =>
     (this.candidates() ?? []).map((c) => ({
       deger: c.id,
@@ -154,7 +154,7 @@ export class BookingRequestsPage {
   protected readonly actionError = signal<string | null>(null);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     const initialStatus = statusFromQuery(
       inject(ActivatedRoute).snapshot.queryParamMap.get('durum'),
     );
@@ -165,7 +165,7 @@ export class BookingRequestsPage {
     this.list.yukle(this.query());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.noteForm.dirty;
   }
 
@@ -214,16 +214,16 @@ export class BookingRequestsPage {
     }
   }
 
-  protected setStatus(r: RequestRow, durum: string): void {
-    this.act(this.api.post(`${ROOT}/${encodeURIComponent(r.id)}/durum`, { durum }));
+  protected setStatus(r: RequestRow, status: string): void {
+    this.act(this.api.post(`${ROOT}/${encodeURIComponent(r.id)}/durum`, { durum: status }));
   }
 
-  protected claim(r: RequestRow, ustlen: boolean): void {
-    this.act(this.api.post(`${ROOT}/${encodeURIComponent(r.id)}/ustlen`, { ustlen }));
+  protected claim(r: RequestRow, claim: boolean): void {
+    this.act(this.api.post(`${ROOT}/${encodeURIComponent(r.id)}/ustlen`, { ustlen: claim }));
   }
 
   protected async reject(r: RequestRow): Promise<void> {
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('sistem.talep.reddetBaslik', { ad: r.adSoyad }),
       mesaj: this.t('sistem.talep.reddetMesaj'),
       onayEtiketi: this.t('sistem.talep.reddet'),
@@ -281,7 +281,7 @@ export class BookingRequestsPage {
       },
       error: (e: unknown) => {
         this.busy.set(false);
-        const h = apiHatasinaCevir(e);
+        const h = toApiError(e);
         this.actionError.set(h.alanlar?.['durum']?.[0] ?? h.detay);
       },
     });

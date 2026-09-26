@@ -13,30 +13,30 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { damageColumns } from '../finance-columns';
 import {
@@ -46,7 +46,7 @@ import {
   type DamageFileRequest,
 } from '../finance-model';
 import { DAMAGE_FILES, DamageFileStore, recordPath } from '../finance.store';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -64,35 +64,35 @@ type Transition = 'onaya-gonder' | 'onayla' | 'reddet' | 'kapat';
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    ParaGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
+    SearchSelection,
+    FormErrors,
+    Icon,
+    TextInput,
+    MoneyInput,
+    Selection,
+    Table,
+    TableCell,
   ],
   providers: [FetchPolicy, DamageFileStore],
   templateUrl: './damage-file-list.html',
   styleUrl: '../vehicle-finance.scss',
 })
-export class DamageFileList implements KaydedilmemisDegisiklikSahibi {
+export class DamageFileList implements UnsavedChangesOwner {
   protected readonly store = inject(DamageFileStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(DAMAGE_LIST);
+  protected readonly query = listQueryUrlSync(DAMAGE_LIST);
   protected readonly columns = damageColumns(this.t);
   protected readonly rowId = (r: DamageFile) => r.id;
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly vehicles = serverSelectionSource('arac');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly busy = signal<string | null>(null);
   /** Kullanıcının aç/kapa tercihi; verilmediyse Blazor gibi kayıt yokken açık. */
   private readonly createToggle = signal<boolean | null>(null);
@@ -113,24 +113,24 @@ export class DamageFileList implements KaydedilmemisDegisiklikSahibi {
     tahminiTutar: new FormControl<string | null>(null),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(1024)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
       const f = this.query.sorgu().filtreler;
       untracked(() => this.filterForm.reset({ durum: f.durum ?? null }));
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -161,7 +161,7 @@ export class DamageFileList implements KaydedilmemisDegisiklikSahibi {
       vehicleId: v.arac?.id ?? '',
       cariId: v.cari?.id ?? null,
       tahminiTutar: v.tahminiTutar,
-      aciklama: metinDegeri(v.aciklama),
+      aciklama: textValue(v.aciklama),
     };
     this.submission.gonder(
       this.form,
@@ -203,7 +203,7 @@ export class DamageFileList implements KaydedilmemisDegisiklikSahibi {
           this.store.list.yenile();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.store.list.yenile();
         },

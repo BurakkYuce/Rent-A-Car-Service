@@ -3,18 +3,18 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 
-import { SorguParametreleri } from '@core/api/api-istemcisi';
+import { QueryParameters } from '@core/api/api-istemcisi';
 import {
-  FiltreKatalogu,
+  FilterCatalog,
   ListeSorgusu,
   ListeTanimi,
   SorguDegisikligi,
-  apiParametreleri,
-  etkinFiltreSayisi,
-  sorguAnahtari,
-  sorguyuCoz,
-  sorguyuDegistir,
-  urlParametreleri,
+  apiParams,
+  activeFilterCount,
+  queryKey,
+  parseQuery,
+  changeQuery,
+  urlParameters,
 } from './liste-sorgusu';
 
 export interface DegisiklikSecenekleri {
@@ -25,14 +25,14 @@ export interface DegisiklikSecenekleri {
   readonly yaziyor?: boolean;
 }
 
-export interface ListeSorgusuUrlSenkronu<K extends FiltreKatalogu> {
+export interface ListQueryUrlSync<K extends FilterCatalog> {
   /** URL'den okunan (tek doğruluk kaynağı), normalize edilmiş sorgu. Yalnız anlamca değişince bildirir. */
   readonly sorgu: Signal<ListeSorgusu<K>>;
   /** `sorgu`'nun API parametreleri (`ApiIstemcisi` `parametreler`'ine doğrudan verilir). */
-  readonly apiParametreleri: Signal<SorguParametreleri>;
+  readonly apiParametreleri: Signal<QueryParameters>;
   readonly etkinFiltreSayisi: Signal<number>;
   /** Değişikliği URL'e yazar; `sorgu` gezinme bitince güncellenir. */
-  degistir(degisiklik: SorguDegisikligi<K>, secenek?: DegisiklikSecenekleri): Promise<boolean>;
+  degistir(change: SorguDegisikligi<K>, option?: DegisiklikSecenekleri): Promise<boolean>;
   /** Filtreleri, sıralamayı ve sayfalamayı varsayılana döndürür. */
   sifirla(): Promise<boolean>;
 }
@@ -45,42 +45,42 @@ export interface ListeSorgusuUrlSenkronu<K extends FiltreKatalogu> {
  * Yazılan her değer katalogdan geçer; URL'de yalnız varsayılandan farklı değerler durur.
  * Yönetilmeyen sorgu parametreleri (ör. `bilgi`, `#sekme=`) korunur (`queryParamsHandling: 'merge'`).
  */
-export function listeSorgusuUrlSenkronu<K extends FiltreKatalogu>(
-  tanim: ListeTanimi<K>,
-): ListeSorgusuUrlSenkronu<K> {
+export function listQueryUrlSync<K extends FilterCatalog>(
+  definition: ListeTanimi<K>,
+): ListQueryUrlSync<K> {
   const router = inject(Router);
   const route = inject(ActivatedRoute);
 
-  const sorgu = toSignal(route.queryParamMap.pipe(map((p) => sorguyuCoz(tanim, p))), {
+  const query = toSignal(route.queryParamMap.pipe(map((p) => parseQuery(definition, p))), {
     requireSync: true,
-    equal: (a, b) => sorguAnahtari(tanim, a) === sorguAnahtari(tanim, b),
+    equal: (a, b) => queryKey(definition, a) === queryKey(definition, b),
   });
 
   // Aynı tikte art arda gelen değişiklikler (ör. iki filtre) gezinme bitmeden birbirini ezmesin:
   // bekleyen değişiklik bir sonrakinin tabanı olur.
-  let bekleyen: ListeSorgusu<K> | null = null;
+  let pending: ListeSorgusu<K> | null = null;
 
-  const yaz = (yeni: ListeSorgusu<K>, yaziyor: boolean): Promise<boolean> => {
-    bekleyen = yeni;
+  const write = (newItem: ListeSorgusu<K>, isTyping: boolean): Promise<boolean> => {
+    pending = newItem;
     return router
       .navigate([], {
         relativeTo: route,
-        queryParams: urlParametreleri(tanim, yeni),
+        queryParams: urlParameters(definition, newItem),
         queryParamsHandling: 'merge',
         preserveFragment: true,
-        replaceUrl: yaziyor,
+        replaceUrl: isTyping,
       })
       .finally(() => {
-        if (bekleyen === yeni) bekleyen = null;
+        if (pending === newItem) pending = null;
       });
   };
 
   return {
-    sorgu,
-    apiParametreleri: computed(() => apiParametreleri(tanim, sorgu())),
-    etkinFiltreSayisi: computed(() => etkinFiltreSayisi(tanim, sorgu())),
-    degistir: (degisiklik, secenek) =>
-      yaz(sorguyuDegistir(tanim, bekleyen ?? sorgu(), degisiklik), secenek?.yaziyor ?? false),
-    sifirla: () => yaz(sorguyuCoz(tanim, {}), false),
+    sorgu: query,
+    apiParametreleri: computed(() => apiParams(definition, query())),
+    etkinFiltreSayisi: computed(() => activeFilterCount(definition, query())),
+    degistir: (change, option) =>
+      write(changeQuery(definition, pending ?? query(), change), option?.yaziyor ?? false),
+    sifirla: () => write(parseQuery(definition, {}), false),
   };
 }

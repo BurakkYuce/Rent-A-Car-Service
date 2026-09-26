@@ -10,24 +10,24 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import type { StoreDurumu } from '@core/veri/temel-store';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import type { StoreState } from '@core/veri/temel-store';
 import type { Sayfa } from '@core/api/sayfa';
-import { metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { RegulationTabs } from '../regulation/regulation-tabs';
 import { dueColumns } from '../service-insurance-columns';
 import { DUE_BUCKETS, DUE_LIST, type DueBucket, type DueItem } from '../service-insurance-model';
 import { DueBoardStore } from '../service-insurance.store';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -42,15 +42,15 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    MetinGirdisi,
+    TextInput,
     RegulationTabs,
-    Secim,
-    Tablo,
-    TabloHucre,
+    Selection,
+    Table,
+    TableCell,
   ],
   providers: [FetchPolicy, DueBoardStore],
   templateUrl: './due-board.html',
@@ -58,9 +58,9 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
 })
 export class DueBoardPage {
   protected readonly store = inject(DueBoardStore);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(DUE_LIST);
+  protected readonly query = listQueryUrlSync(DUE_LIST);
   protected readonly columns = dueColumns(this.t, (b) => this.bucketLabel(b));
   protected readonly rowId = (r: DueItem) => `${r.vehicleId}:${r.tur}:${r.bitis}`;
   protected readonly bucketOptions: readonly SecenekOgesi<DueBucket>[] = DUE_BUCKETS.map((b) => ({
@@ -69,7 +69,7 @@ export class DueBoardPage {
   }));
 
   /** Tablo kaynağı: panodaki sayfa (`kalemler`) aynı dört durumla. */
-  protected readonly items = computed<StoreDurumu<Sayfa<DueItem>>>(() => {
+  protected readonly items = computed<StoreState<Sayfa<DueItem>>>(() => {
     const d = this.store.board.durum();
     switch (d.tur) {
       case 'hazir':
@@ -96,10 +96,10 @@ export class DueBoardPage {
   });
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.board.yukle(p),
-      sifirla: () => this.store.board.sifirla(),
+      sifirla: () => this.store.board.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -129,8 +129,8 @@ export class DueBoardPage {
     void this.query.degistir({
       sayfa: 1,
       filtreler: {
-        plaka: metinDegeri(v.plaka) ?? undefined,
-        tur: metinDegeri(v.tur) ?? undefined,
+        plaka: textValue(v.plaka) ?? undefined,
+        tur: textValue(v.tur) ?? undefined,
         kova: v.kova ?? undefined,
       },
     });

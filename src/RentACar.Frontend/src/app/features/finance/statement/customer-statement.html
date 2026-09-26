@@ -24,14 +24,14 @@
           kind="tahsilat"
           defaultChannel="Masaüstü"
           [balance]="s.bakiye"
-          [refreshing]="statement.yukleniyor()"
+          [refreshing]="statement.isLoading()"
           (settled)="reload()"
         />
         <rc-fin-cash-form
           [cariId]="id"
           kind="odeme"
           defaultChannel="Masaüstü"
-          [refreshing]="statement.yukleniyor()"
+          [refreshing]="statement.isLoading()"
           (settled)="reload()"
         />
       </div>
@@ -128,7 +128,7 @@
         </div>
         <p class="not">{{ 'finans.ekstre.ozetNot' | transloco }}</p>
       } @else {
-        <div class="rc-tablo-kap" [attr.aria-busy]="statement.yukleniyor()">
+        <div class="rc-tablo-kap" [attr.aria-busy]="statement.isLoading()">
           <table class="rc-duz-tablo">
             <thead>
               <tr>

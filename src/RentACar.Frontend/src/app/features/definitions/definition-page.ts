@@ -2,12 +2,12 @@ import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/
 import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
-import { restTanimKaynagi } from '@shared/form/tanim-crud/tanim-kaynagi';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { translationFunction } from '@core/i18n/ceviri';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
+import { restDefinitionSource } from '@shared/form/tanim-crud/definition-source';
 
-import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../kabuk/sayfa-bandi/page-band';
 import { type DefinitionKind, definitionConfig, selectionSuggestions } from './definition-catalog';
 import { pagedDefinitionSource } from './paged-source';
 
@@ -22,7 +22,7 @@ import { pagedDefinitionSource } from './paged-source';
 @Component({
   selector: 'rc-definition-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TanimCrud, SayfaBandi],
+  imports: [TranslocoPipe, DefinitionCrud, PageBand],
   styleUrl: './definitions.scss',
   template: `
     <rc-sayfa-bandi [baslik]="'tanimlar.' + kind + '.baslik' | transloco" ikon="tag" />
@@ -41,23 +41,23 @@ import { pagedDefinitionSource } from './paged-source';
   `,
 })
 export class DefinitionPage {
-  private readonly crud = viewChild(TanimCrud);
+  private readonly crud = viewChild(DefinitionCrud);
   protected readonly kind: DefinitionKind =
     (inject(ActivatedRoute).snapshot.data['definition'] as DefinitionKind | undefined) ?? 'brand';
-  protected readonly config = definitionConfig(this.kind, ceviriFonksiyonu(), {
+  protected readonly config = definitionConfig(this.kind, translationFunction(), {
     branch: selectionSuggestions('/api/ui/v1/secim/sube'),
     location: selectionSuggestions('/api/ui/v1/secim/lokasyon'),
   });
   protected readonly source =
     this.config.pagedSort === undefined
-      ? restTanimKaynagi(this.config.root)
+      ? restDefinitionSource(this.config.root)
       : pagedDefinitionSource(this.config.root, this.config.pagedSort);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return this.crud()?.kaydedilmemisDegisiklikVar() ?? false;
+  hasUnsavedChanges(): boolean {
+    return this.crud()?.hasUnsavedChanges() ?? false;
   }
 }

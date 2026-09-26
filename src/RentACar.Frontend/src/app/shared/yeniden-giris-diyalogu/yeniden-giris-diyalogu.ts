@@ -4,9 +4,9 @@ import { Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { Ben } from '@core/oturum/oturum-tipleri';
-import type { YenidenGirisVerisi } from '@core/oturum/yeniden-giris-servisi';
-import { GirisFormu } from '@shared/giris-formu/giris-formu';
-import { Ikon } from '@shared/ikon/ikon';
+import type { YenidenGirisVerisi } from '@core/oturum/relogin-service';
+import { LoginForm } from '@shared/giris-formu/login-form';
+import { Icon } from '@shared/ikon/icon';
 
 /**
  * Yerinde yeniden giriş (oturum düştü). Sayfa ve form arkada OLDUĞU GİBİ kalır; giriş başarılı olunca
@@ -16,7 +16,7 @@ import { Ikon } from '@shared/ikon/ikon';
 @Component({
   selector: 'rc-yeniden-giris-diyalogu',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GirisFormu, TranslocoPipe, Ikon],
+  imports: [LoginForm, TranslocoPipe, Icon],
   template: `
     <div class="rc-diyalog">
       <header class="rc-diyalog__ust">
@@ -32,7 +32,7 @@ import { Ikon } from '@shared/ikon/ikon';
         [kullanici]="veri.kullanici"
         [kilitli]="veri.kullanici !== null"
         gonderEtiketi="oturum.yenidenGiris.gonder"
-        (girisYapildi)="girildi($event)"
+        (girisYapildi)="entered($event)"
       >
         <button type="button" class="rc-dugme" (click)="ref.close(false)">
           {{ 'oturum.yenidenGiris.vazgec' | transloco }}
@@ -48,16 +48,16 @@ export class YenidenGirisDiyalogu {
 
   constructor() {
     // disableClose: perde kapatmaz; Esc açıkça "vazgeç".
-    const abonelik = this.ref.keydownEvents.subscribe((olay) => {
-      if (olay.key === 'Escape') {
-        olay.preventDefault();
+    const subscription = this.ref.keydownEvents.subscribe((evt) => {
+      if (evt.key === 'Escape') {
+        evt.preventDefault();
         this.ref.close(false);
       }
     });
-    inject(DestroyRef).onDestroy(() => abonelik.unsubscribe());
+    inject(DestroyRef).onDestroy(() => subscription.unsubscribe());
   }
 
-  protected girildi(ben: Ben): void {
+  protected entered(ben: Ben): void {
     if (this.veri.kullaniciId !== null && ben.kullanici.id !== this.veri.kullaniciId) {
       // Başka kimlik: önceki kullanıcının isteği bu kimlikle GÖNDERİLMEZ; ana sayfaya.
       this.ref.close(false);

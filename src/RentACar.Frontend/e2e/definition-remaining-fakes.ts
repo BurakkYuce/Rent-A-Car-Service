@@ -131,15 +131,15 @@ const sourceBase = {
 
 export const source = (
   id: string,
-  kod: string,
-  ad: string,
+  code: string,
+  name: string,
   extra: Record<string, unknown> = {},
 ) => ({
   id,
-  kod,
-  ad,
+  kod: code,
+  ad: name,
   ...sourceBase,
-  surum: `r-${kod}`,
+  surum: `r-${code}`,
   ...extra,
 });
 

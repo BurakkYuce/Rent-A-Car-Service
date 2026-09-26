@@ -1,11 +1,11 @@
-import { paraBicimle, sayiBicimle, tarihBicimle, tarihSaatBicimle } from './bicim';
+import { formatMoney, sayiBicimle, tarihBicimle, formatDateTime } from './bicim';
 
 /**
  * Bağımsız oracle: beklenen metinler elle yazıldı (Türk muhasebe yazımı ve backend
  * `decimal.ToString("N2")` davranışı), biçimleyici koddan türetilmedi.
  */
 describe('paraBicimle', () => {
-  const tablo: [number, string][] = [
+  const table: [number, string][] = [
     [1234.5, '1.234,50 ₺'],
     [1234.56, '1.234,56 ₺'],
     [-93040, '-93.040,00 ₺'],
@@ -20,23 +20,23 @@ describe('paraBicimle', () => {
     [-0.004, '0,00 ₺'], // "-0,00" değil
   ];
 
-  it.each(tablo)('%s → %s', (tutar, beklenen) => {
-    expect(paraBicimle(tutar)).toBe(beklenen);
+  it.each(table)('%s → %s', (amount, expected) => {
+    expect(formatMoney(amount)).toBe(expected);
   });
 
   it('para birimi koduna göre simge; simgesi olmayan kodu yazar', () => {
-    expect(paraBicimle(100, 'USD')).toBe('100,00 $');
-    expect(paraBicimle(100, 'EUR')).toBe('100,00 €');
-    expect(paraBicimle(100, 'GBP')).toBe('100,00 £');
-    expect(paraBicimle(100, 'CHF')).toBe('100,00 CHF');
-    expect(paraBicimle(-1500.25, 'EUR')).toBe('-1.500,25 €');
+    expect(formatMoney(100, 'USD')).toBe('100,00 $');
+    expect(formatMoney(100, 'EUR')).toBe('100,00 €');
+    expect(formatMoney(100, 'GBP')).toBe('100,00 £');
+    expect(formatMoney(100, 'CHF')).toBe('100,00 CHF');
+    expect(formatMoney(-1500.25, 'EUR')).toBe('-1.500,25 €');
   });
 
   it('değer yoksa ya da sayı değilse boş metin', () => {
-    expect(paraBicimle(null)).toBe('');
-    expect(paraBicimle(undefined)).toBe('');
-    expect(paraBicimle(Number.NaN)).toBe('');
-    expect(paraBicimle(Number.POSITIVE_INFINITY)).toBe('');
+    expect(formatMoney(null)).toBe('');
+    expect(formatMoney(undefined)).toBe('');
+    expect(formatMoney(Number.NaN)).toBe('');
+    expect(formatMoney(Number.POSITIVE_INFINITY)).toBe('');
   });
 });
 
@@ -59,17 +59,17 @@ describe('tarihBicimle / tarihSaatBicimle', () => {
     // 26.08.2026 21:30 UTC = 27.08.2026 00:30 İstanbul: gün değişir.
     const an = new Date('2026-08-26T21:30:00Z');
     expect(tarihBicimle(an)).toBe('27.08.2026');
-    expect(tarihSaatBicimle(an)).toBe('27.08.2026 00:30');
-    expect(tarihSaatBicimle('2026-01-05T06:07:00Z')).toBe('05.01.2026 09:07');
-    expect(tarihSaatBicimle('2026-08-26T10:00:00+03:00')).toBe('26.08.2026 10:00');
-    expect(tarihSaatBicimle(Date.UTC(2026, 11, 31, 20, 59))).toBe('31.12.2026 23:59');
+    expect(formatDateTime(an)).toBe('27.08.2026 00:30');
+    expect(formatDateTime('2026-01-05T06:07:00Z')).toBe('05.01.2026 09:07');
+    expect(formatDateTime('2026-08-26T10:00:00+03:00')).toBe('26.08.2026 10:00');
+    expect(formatDateTime(Date.UTC(2026, 11, 31, 20, 59))).toBe('31.12.2026 23:59');
   });
 
   it('geçersiz ya da boş girdi boş metin döner, fırlatmaz', () => {
     expect(tarihBicimle('tarih değil')).toBe('');
-    expect(tarihSaatBicimle('tarih değil')).toBe('');
+    expect(formatDateTime('tarih değil')).toBe('');
     expect(tarihBicimle(null)).toBe('');
     expect(tarihBicimle('')).toBe('');
-    expect(tarihSaatBicimle(undefined)).toBe('');
+    expect(formatDateTime(undefined)).toBe('');
   });
 });

@@ -18,16 +18,16 @@ import { activeSelection, loanRequest } from './loans/loan-form-model';
 import { orderRequest, orderToForm } from './orders/order-form-model';
 
 /** Beklenen değerler elle kurulmuş senaryodan (bağımsız oracle); dönüşüm kodundan türetilmez. */
-const CARI = { id: 'c0c0c0c0-0000-4000-8000-000000000001', etiket: 'Ayşe Yılmaz' };
-const ARAC = { id: 'a1a1a1a1-0000-4000-8000-000000000001', etiket: '34ABC123' };
+const ACCOUNT = { id: 'c0c0c0c0-0000-4000-8000-000000000001', etiket: 'Ayşe Yılmaz' };
+const VEHICLE = { id: 'a1a1a1a1-0000-4000-8000-000000000001', etiket: '34ABC123' };
 
 const INSTALLMENT = {
   id: 'd0d0d0d0-0000-4000-8000-000000000001',
   sira: 3,
-  cariId: CARI.id,
-  cariAd: CARI.etiket,
-  vehicleId: ARAC.id,
-  plaka: ARAC.etiket,
+  cariId: ACCOUNT.id,
+  cariAd: ACCOUNT.etiket,
+  vehicleId: VEHICLE.id,
+  plaka: VEHICLE.etiket,
   vehicleSaleId: 'e0e0e0e0-0000-4000-8000-000000000001',
   // 2026-10-15 İstanbul gece yarısı (+03:00) = 2026-10-14T21:00:00Z
   vade: '2026-10-14T21:00:00Z',
@@ -47,7 +47,7 @@ describe('kredi formu', () => {
     expect(
       loanRequest({
         bankaAdi: '  Ziraat ',
-        cari: CARI,
+        cari: ACCOUNT,
         dosyaNo: null,
         arac: null,
         krediTutari: '1500000.5',
@@ -58,7 +58,7 @@ describe('kredi formu', () => {
       }),
     ).toEqual({
       bankaAdi: 'Ziraat',
-      cariId: CARI.id,
+      cariId: ACCOUNT.id,
       dosyaNo: null,
       vehicleId: null,
       krediTutari: '1500000.5',
@@ -85,14 +85,14 @@ describe('müşteri taksiti', () => {
     expect(v.vade).toBe('2026-10-15');
     expect(v.taksitTutari).toBe('1250.50');
     expect(v.kur).toBe(35.1234);
-    expect(v.arac).toEqual(ARAC);
+    expect(v.arac).toEqual(VEHICLE);
   });
 
   it('dokunmadan kaydet: tarih sunucu anıyla AYNEN gider, surum + araç satış bağı tabandan', () => {
     const body = installmentRequest(installmentToForm(INSTALLMENT), INSTALLMENT);
     expect(body).toEqual({
-      cariId: CARI.id,
-      vehicleId: ARAC.id,
+      cariId: ACCOUNT.id,
+      vehicleId: VEHICLE.id,
       vehicleSaleId: 'e0e0e0e0-0000-4000-8000-000000000001',
       vade: '2026-10-14T21:00:00Z',
       taksitTutari: '1250.50',
@@ -119,7 +119,7 @@ describe('müşteri taksiti', () => {
   it('plan: toplam metin aynen, kur boş → sunucu çözer', () => {
     expect(
       planRequest({
-        cari: CARI,
+        cari: ACCOUNT,
         arac: null,
         toplamTutar: '12000.01',
         taksitSayisi: 12,
@@ -129,7 +129,7 @@ describe('müşteri taksiti', () => {
         aciklama: null,
       }),
     ).toEqual({
-      cariId: CARI.id,
+      cariId: ACCOUNT.id,
       vehicleId: null,
       toplamTutar: '12000.01',
       taksitSayisi: 12,
@@ -215,7 +215,7 @@ describe('BAF', () => {
     });
     const req = allocationRequest({
       personel: { id: 'p1', etiket: 'Ali' },
-      arac: ARAC,
+      arac: VEHICLE,
       cikisTarihi: null,
       cikisSaat: null,
       cikisKm: 12000,
@@ -228,7 +228,7 @@ describe('BAF', () => {
     });
     expect(req).toMatchObject({
       personelId: 'p1',
-      vehicleId: ARAC.id,
+      vehicleId: VEHICLE.id,
       cikisKm: 12000,
       kirayaVer: true,
     });
@@ -239,10 +239,10 @@ describe('dışa aktarma', () => {
   it('ekrandaki süzgeç Blazor ucunun eski adlarıyla taşınır', () => {
     expect(
       exportParameters(
-        { cariId: CARI.id, durum: 'Aktif', plaka: undefined, bas: '2026-01-01' },
+        { cariId: ACCOUNT.id, durum: 'Aktif', plaka: undefined, bas: '2026-01-01' },
         LOAN_EXPORT_NAMES,
       ),
-    ).toEqual({ cariF: CARI.id, durumF: 'Aktif', bas: '2026-01-01' });
+    ).toEqual({ cariF: ACCOUNT.id, durumF: 'Aktif', bas: '2026-01-01' });
   });
 });
 

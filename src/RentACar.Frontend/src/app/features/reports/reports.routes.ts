@@ -1,7 +1,7 @@
 import type { Route, Routes } from '@angular/router';
 
-import { ceviriBloguyla } from '@core/i18n/ceviri-blogu';
-import { izinGuard } from '@core/oturum/oturum-guard';
+import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { permissionGuard } from '@core/oturum/session-guard';
 import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
 
 /**
@@ -54,11 +54,11 @@ function route([code, title, access]: (typeof REPORT_ROUTE_TABLE)[number]): Rout
     data: { rapor: code },
     canMatch: [
       access === 'vr'
-        ? izinGuard('ViewReports')
+        ? permissionGuard('ViewReports')
         : anyPermissionGuard('OperationsWrite', 'ViewReports'),
     ],
     loadComponent: () => import('@features/reports/report-page').then((m) => m.ReportPage),
   };
 }
 
-export const REPORT_ROUTES: Routes = ceviriBloguyla('rapor', REPORT_ROUTE_TABLE.map(route));
+export const REPORT_ROUTES: Routes = withTranslationBlock('rapor', REPORT_ROUTE_TABLE.map(route));

@@ -3,19 +3,19 @@ import type { Page, Route } from '@playwright/test';
 import { kaydet, type KayitliIstek } from './ortak';
 
 /** F8.2a finans ekranları için sahte `/api/ui/v1` (değerler elle kurulmuş; uygulama kodundan türetilmez). */
-export const CARI_1 = 'c0c0c0c0-0000-4000-8000-000000000001';
-export const CARI_2 = 'c0c0c0c0-0000-4000-8000-000000000002';
-export const KALEM_1 = 'e0e0e0e0-0000-4000-8000-000000000001';
-export const KALEM_2 = 'e0e0e0e0-0000-4000-8000-000000000002';
+export const ACCOUNT_1 = 'c0c0c0c0-0000-4000-8000-000000000001';
+export const ACCOUNT_2 = 'c0c0c0c0-0000-4000-8000-000000000002';
+export const ITEM_1 = 'e0e0e0e0-0000-4000-8000-000000000001';
+export const ITEM_2 = 'e0e0e0e0-0000-4000-8000-000000000002';
 export const TX_1 = 'd1d1d1d1-0000-4000-8000-000000000001';
-export const KIRA_1 = 'a0a0a0a0-0000-4000-8000-000000000001';
-export const SABIT_1 = 'f5f5f5f5-0000-4000-8000-000000000001';
+export const RENTAL_1 = 'a0a0a0a0-0000-4000-8000-000000000001';
+export const FIXED_1 = 'f5f5f5f5-0000-4000-8000-000000000001';
 
 const json = (r: Route, body: unknown, status = 200) => r.fulfill({ status, json: body });
 
 export function fixedRate(extra: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id: SABIT_1,
+    id: FIXED_1,
     kod: 'EUR',
     kur: 36.5,
     basTar: null,
@@ -58,12 +58,12 @@ export async function financeHubEndpoints(
   );
 
   async function read(r: Route, path: string) {
-    const bakiye = e.balance?.() ?? 1250.5;
+    const balance = e.balance?.() ?? 1250.5;
     switch (path) {
       case '/api/ui/v1/secim/musteri':
         return json(r, [
-          { id: CARI_1, etiket: 'Ayşe Yılmaz', kod: 'C-1' },
-          { id: CARI_2, etiket: 'Bora Kaya', kod: 'C-2' },
+          { id: ACCOUNT_1, etiket: 'Ayşe Yılmaz', kod: 'C-1' },
+          { id: ACCOUNT_2, etiket: 'Bora Kaya', kod: 'C-2' },
         ]);
       case '/api/ui/v1/secim/arac':
         return json(r, [{ id: 'v1', etiket: '34ABC123', plaka: '34ABC123' }]);
@@ -105,7 +105,7 @@ export async function financeHubEndpoints(
                 hesapId: 'h1',
                 hesapAd: 'Merkez Kasa',
                 kanal: 'Masaüstü',
-                cariId: CARI_1,
+                cariId: ACCOUNT_1,
                 cariAd: 'Ayşe Yılmaz',
                 cariKod: 'C-1',
                 kiraId: null,
@@ -144,15 +144,20 @@ export async function financeHubEndpoints(
             kunyeVar: true,
           },
         ]);
-      case `/api/ui/v1/finans/cariler/${CARI_1}/bakiye`:
-        return json(r, { cariId: CARI_1, cariAd: 'Ayşe Yılmaz', bakiye, depozitoBakiye: 0 });
-      case `/api/ui/v1/finans/cariler/${CARI_2}/bakiye`:
-        return json(r, { cariId: CARI_2, cariAd: 'Bora Kaya', bakiye: -40, depozitoBakiye: 0 });
-      case `/api/ui/v1/finans/cariler/${CARI_1}/ekstre`:
+      case `/api/ui/v1/finans/cariler/${ACCOUNT_1}/bakiye`:
         return json(r, {
-          cariId: CARI_1,
+          cariId: ACCOUNT_1,
           cariAd: 'Ayşe Yılmaz',
-          bakiye,
+          bakiye: balance,
+          depozitoBakiye: 0,
+        });
+      case `/api/ui/v1/finans/cariler/${ACCOUNT_2}/bakiye`:
+        return json(r, { cariId: ACCOUNT_2, cariAd: 'Bora Kaya', bakiye: -40, depozitoBakiye: 0 });
+      case `/api/ui/v1/finans/cariler/${ACCOUNT_1}/ekstre`:
+        return json(r, {
+          cariId: ACCOUNT_1,
+          cariAd: 'Ayşe Yılmaz',
+          bakiye: balance,
           devir: 0,
           yuruyenBakiyeMi: true,
           satirlar: [
@@ -191,15 +196,15 @@ export async function financeHubEndpoints(
           dovizler: ['TRY'],
           kaynaklar: ['Fatura', 'Tahsilat'],
         });
-      case `/api/ui/v1/finans/cariler/${CARI_1}/acik-kalemler`:
+      case `/api/ui/v1/finans/cariler/${ACCOUNT_1}/acik-kalemler`:
         return json(r, {
-          cariId: CARI_1,
+          cariId: ACCOUNT_1,
           cariAd: 'Ayşe Yılmaz',
-          bakiye,
+          bakiye: balance,
           acikToplam: 1300,
           kalemler: [
             {
-              id: KALEM_1,
+              id: ITEM_1,
               tarih: '2026-09-01T10:00:00Z',
               kaynak: 'Fatura',
               aciklama: 'Kira',
@@ -211,7 +216,7 @@ export async function financeHubEndpoints(
               kapali: false,
             },
             {
-              id: KALEM_2,
+              id: ITEM_2,
               tarih: '2026-09-05T10:00:00Z',
               kaynak: 'Ceza',
               aciklama: 'HGS',
@@ -230,9 +235,9 @@ export async function financeHubEndpoints(
             id: 'cv1',
             tarih: '2026-09-20T09:00:00Z',
             vade: null,
-            kaynakCariId: CARI_1,
+            kaynakCariId: ACCOUNT_1,
             kaynakCariAd: 'Ayşe Yılmaz',
-            hedefCariId: CARI_2,
+            hedefCariId: ACCOUNT_2,
             hedefCariAd: 'Bora Kaya',
             tutar: 300,
             doviz: 'TRY',
@@ -245,7 +250,7 @@ export async function financeHubEndpoints(
           },
         ]);
       case '/api/ui/v1/finans/depozito':
-        return json(r, [{ cariId: CARI_1, cariAd: 'Ayşe Yılmaz', bakiye: 2500 }]);
+        return json(r, [{ cariId: ACCOUNT_1, cariAd: 'Ayşe Yılmaz', bakiye: 2500 }]);
       case '/api/ui/v1/finans/donem-kapanis':
         return json(r, {
           kapanisTarihi: '2026-06-30',
@@ -265,12 +270,12 @@ export async function financeHubEndpoints(
           jobAcik: false,
           adaylar: [
             {
-              kiraId: KIRA_1,
+              kiraId: RENTAL_1,
               sozlesmeNo: '2026010901001',
               donemSira: 2,
               donemBas: '2026-08-31T21:00:00Z',
               donemBit: '2026-09-29T21:00:00Z',
-              cariId: CARI_1,
+              cariId: ACCOUNT_1,
               cariAd: 'Ayşe Yılmaz',
               sube: 'Merkez',
               doviz: 'TRY',

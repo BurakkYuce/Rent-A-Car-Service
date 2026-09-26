@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideCeviri } from '@core/i18n/ceviri';
+import { provideTranslation } from '@core/i18n/ceviri';
 
 import { REPORTS } from './report-catalog';
 import { OPS_OR_VIEW, VIEW_REPORTS, columnsFor, defineView, type RowOf } from './report-model';
@@ -99,7 +99,7 @@ const ACCESS: Readonly<Record<string, 'vr' | 'ops'>> = Object.fromEntries(
   Object.keys(ENDPOINTS).map((k) => [k, OPS_GROUP.includes(k) ? 'ops' : 'vr']),
 );
 
-const endpointOf = (uc: string) => uc.replace('/api/ui/v1/raporlar/', '');
+const endpointOf = (endpoint: string) => endpoint.replace('/api/ui/v1/raporlar/', '');
 
 describe('rapor kataloğu', () => {
   it('her rapor uçlarıyla birebir; her uç tam bir görünümde', () => {
@@ -149,7 +149,7 @@ describe('rapor kataloğu', () => {
   });
 
   it('kullanılan her çeviri anahtarı rapor bloğunda var', async () => {
-    TestBed.configureTestingModule({ providers: [...provideCeviri()] });
+    TestBed.configureTestingModule({ providers: [...provideTranslation()] });
     const transloco = TestBed.inject(TranslocoService);
     await firstValueFrom(transloco.load('tr'));
     const keys = new Set<string>();

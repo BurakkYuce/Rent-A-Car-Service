@@ -1,8 +1,8 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
 import { SHIFTS, reportEndpoints } from './report-fakes';
-import { tasmaOlc } from './vitrin-sayfalari';
+import { measureOverflow } from './vitrin-sayfalari';
 
 /**
  * F10.3 personel çalışma — vardiya ekle / düzenle / sil (`/api/ui/v1/vardiyalar`). Üç zorunlu senaryo: doğrulama
@@ -10,7 +10,7 @@ import { tasmaOlc } from './vitrin-sayfalari';
  * birleşir, sonraki PUT yeni sürümle). Ayrıca: yetkisiz (OperationsWrite yok) kullanıcıda yazma bölümü yok,
  * silme onaylı ve rapor yeniden yüklenir. Sahte API; süreler elle kurulmuş (ekran hesap yapmaz).
  */
-const AG_HATASI = [
+const NETWORK_ERROR = [
   /Failed to load resource: the server responded with a status of 4\d\d/,
   /Failed to load resource: net::ERR_FAILED/,
 ];
@@ -104,13 +104,13 @@ async function pickStaff(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page);
+  await logIn(page);
 });
 
 test('vardiya ekle: doğrulama hatasında form korunur; hatalı saat istek göndermez; gövde birebir', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let n = 0;
   const { written, reportCalls } = await shiftEndpoints(page, {
     write: async (r) => {
@@ -146,7 +146,7 @@ test('vardiya ekle: doğrulama hatasında form korunur; hatalı saat istek gönd
     aciklama: 'Gece desteği',
     surum: null,
   });
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
 
   const before = reportCalls.length;
   await form.getByRole('button', { name: 'Ekle' }).click();
@@ -154,7 +154,7 @@ test('vardiya ekle: doğrulama hatasında form korunur; hatalı saat istek gönd
   expect(written[1]?.anahtar).toBe(written[0]?.anahtar); // ilk istek yazılmadı: aynı işlem
   await expect.poll(() => reportCalls.length).toBeGreaterThan(before); // rapor tazelendi
   await expect(form.getByRole('textbox', { name: 'Açıklama' })).toHaveValue(''); // form sıfırlandı
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('vardiya ekle: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (aynı anahtar ve gövde)', async ({
@@ -169,11 +169,11 @@ test('vardiya ekle: oturum düşünce form kaybolmaz — yerinde giriş, AYNI is
     },
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
+    await writeXsrf(page, 'yeni-belirtec');
     return route.fulfill({ json: BEN });
   });
   await openPage(page);
@@ -203,17 +203,17 @@ test('vardiya ekle: oturum düşünce form kaybolmaz — yerinde giriş, AYNI is
 test('vardiya düzenleme: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
-  let surum = 'v-1';
-  let sube = 'Merkez';
+  const errors = collectErrors(page, NETWORK_ERROR);
+  let version = 'v-1';
+  let branch = 'Merkez';
   let put = 0;
   const { written } = await shiftEndpoints(page, {
-    record: () => shift({ surum, sube }),
+    record: () => shift({ surum: version, sube: branch }),
     write: async (r, method) => {
       if (method !== 'PUT') return false;
       if (++put === 1) {
-        surum = 'v-2';
-        sube = 'Havalimanı'; // başka oturum şubeyi değiştirdi
+        version = 'v-2';
+        branch = 'Havalimanı'; // başka oturum şubeyi değiştirdi
         await problem(r, 409, 'cakisma', 'Kayıt siz düzenlerken değişti; güncel hâli yükleyin.');
         return true;
       }
@@ -249,7 +249,7 @@ test('vardiya düzenleme: cakisma formu silmez — güncel kayıt birleşir, son
     sube: 'Havalimanı',
   });
   expect(written[1]?.path).toBe(`/api/ui/v1/vardiyalar/${SHIFT_ID}`);
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('vardiya sil: onaylı; vazgeçince istek yok, onayda DELETE + rapor tazelenir', async ({
@@ -272,7 +272,7 @@ test('vardiya sil: onaylı; vazgeçince istek yok, onayda DELETE + rapor tazelen
 test('OperationsWrite olmayan kullanıcı: yazma bölümü yok, vardiya listesi salt okunur çizilir', async ({
   page,
 }) => {
-  await oturumAc(page, { ...BEN, rol: 'Muhasebe', izinler: ['FinanceWrite', 'ViewReports'] });
+  await logIn(page, { ...BEN, rol: 'Muhasebe', izinler: ['FinanceWrite', 'ViewReports'] });
   await shiftEndpoints(page);
   await page.goto(PAGE);
   await expect(page.getByRole('heading', { name: 'Vardiyalar' })).toBeVisible();
@@ -288,7 +288,7 @@ test.describe('yazma bölümü dolu listeyle: mobil taşma (dokunmatik öykünme
       await page.setViewportSize({ width, height: 844 });
       await openPage(page);
       await expect(page.getByRole('button', { name: /^Sil — Ali Veli/ })).toBeVisible();
-      expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+      expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
     }
   });
 });

@@ -1,45 +1,45 @@
-import type { Sema } from '@core/api/ui-tipleri';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
+import type { Schema } from '@core/api/ui-tipleri';
+import { listDefinition } from '@core/veri/liste-sorgusu';
 
 // ---- Fatura (`/api/ui/v1/faturalar`)
-export type InvoiceRow = Sema<'InvoiceListRow'>;
-export type InvoiceDetail = Sema<'InvoiceDetail'>;
-export type InvoiceLineRow = Sema<'InvoiceLineListRow'>;
-export type InvoiceSummary = Sema<'InvoiceSummary'>;
-export type ManualInvoiceRequest = Sema<'ManualInvoiceRequest'>;
-export type BatchInvoiceRequest = Sema<'BatchInvoiceRequest'>;
-export type BatchInvoiceResult = Sema<'BatchInvoiceResult'>;
-export type DocumentResult = Sema<'DocumentResult'>;
-export type RentalRow = Sema<'KiraListeSatiri'>;
+export type InvoiceRow = Schema<'InvoiceListRow'>;
+export type InvoiceDetail = Schema<'InvoiceDetail'>;
+export type InvoiceLineRow = Schema<'InvoiceLineListRow'>;
+export type InvoiceSummary = Schema<'InvoiceSummary'>;
+export type ManualInvoiceRequest = Schema<'ManualInvoiceRequest'>;
+export type BatchInvoiceRequest = Schema<'BatchInvoiceRequest'>;
+export type BatchInvoiceResult = Schema<'BatchInvoiceResult'>;
+export type DocumentResult = Schema<'DocumentResult'>;
+export type RentalRow = Schema<'KiraListeSatiri'>;
 
 // ---- Ceza (`/api/ui/v1/cezalar`)
-export type PenaltyRow = Sema<'PenaltyListRow'>;
-export type PenaltyDetail = Sema<'PenaltyDetail'>;
-export type PenaltyLine = Sema<'PenaltyLineDto'>;
-export type PenaltyCreateRequest = Sema<'PenaltyCreateRequest'>;
-export type PenaltyPaymentRequest = Sema<'PenaltyPaymentRequest'>;
-export type PenaltyPaymentResult = Sema<'PenaltyPaymentResult'>;
-export type PenaltyType = Sema<'PenaltyTypeDto'>;
+export type PenaltyRow = Schema<'PenaltyListRow'>;
+export type PenaltyDetail = Schema<'PenaltyDetail'>;
+export type PenaltyLine = Schema<'PenaltyLineDto'>;
+export type PenaltyCreateRequest = Schema<'PenaltyCreateRequest'>;
+export type PenaltyPaymentRequest = Schema<'PenaltyPaymentRequest'>;
+export type PenaltyPaymentResult = Schema<'PenaltyPaymentResult'>;
+export type PenaltyType = Schema<'PenaltyTypeDto'>;
 
 // ---- Gider (`/api/ui/v1/giderler`)
-export type ExpenseRow = Sema<'ExpenseListRow'>;
-export type ExpenseCreateRequest = Sema<'ExpenseCreateRequest'>;
-export type ExpensePaymentRequest = Sema<'ExpensePaymentRequest'>;
-export type ExpensePayment = Sema<'ExpensePaymentDto'>;
+export type ExpenseRow = Schema<'ExpenseListRow'>;
+export type ExpenseCreateRequest = Schema<'ExpenseCreateRequest'>;
+export type ExpensePaymentRequest = Schema<'ExpensePaymentRequest'>;
+export type ExpensePayment = Schema<'ExpensePaymentDto'>;
 
 // ---- Gelen e-fatura (`/api/ui/v1/gelen-efatura`)
-export type IncomingInvoiceRow = Sema<'IncomingInvoiceRow'>;
-export type IncomingInvoiceDetail = Sema<'IncomingInvoiceDetail'>;
-export type IncomingInvoiceCreateRequest = Sema<'IncomingInvoiceCreateRequest'>;
-export type IncomingInvoiceLinkRequest = Sema<'IncomingInvoiceLinkRequest'>;
-export type IncomingInvoiceLinkResult = Sema<'IncomingInvoiceLinkResult'>;
-export type IncomingInvoiceExpenseRequest = Sema<'IncomingInvoiceExpenseRequest'>;
-export type IncomingInvoiceExpenseResult = Sema<'IncomingInvoiceExpenseResult'>;
-export type IncomingInvoiceSyncResult = Sema<'IncomingInvoiceSyncResult'>;
+export type IncomingInvoiceRow = Schema<'IncomingInvoiceRow'>;
+export type IncomingInvoiceDetail = Schema<'IncomingInvoiceDetail'>;
+export type IncomingInvoiceCreateRequest = Schema<'IncomingInvoiceCreateRequest'>;
+export type IncomingInvoiceLinkRequest = Schema<'IncomingInvoiceLinkRequest'>;
+export type IncomingInvoiceLinkResult = Schema<'IncomingInvoiceLinkResult'>;
+export type IncomingInvoiceExpenseRequest = Schema<'IncomingInvoiceExpenseRequest'>;
+export type IncomingInvoiceExpenseResult = Schema<'IncomingInvoiceExpenseResult'>;
+export type IncomingInvoiceSyncResult = Schema<'IncomingInvoiceSyncResult'>;
 
 // ---- Araç satışı (`/api/ui/v1/satislar`)
-export type VehicleSaleRow = Sema<'VehicleSaleRow'>;
-export type VehicleSaleRequest = Sema<'VehicleSaleCreateRequest'>;
+export type VehicleSaleRow = Schema<'VehicleSaleRow'>;
+export type VehicleSaleRequest = Schema<'VehicleSaleCreateRequest'>;
 
 /** Sunucu enum ADLARI (tanımsız ad 400). */
 export const PENALTY_STATUSES = ['Yeni', 'Yansitildi', 'Odendi', 'Iptal', 'Kismi'] as const;
@@ -106,7 +106,7 @@ export const EXPENSE_PRESETS = [
 
 // ------------------------------------------------------------------ liste tanımları (URL = API adları)
 
-export const INVOICE_LIST = listeTanimi({
+export const INVOICE_LIST = listDefinition({
   filtreler: {
     q: { tur: 'metin', enFazla: 128 },
     cariId: { tur: 'kimlik' },
@@ -121,7 +121,7 @@ export const INVOICE_LIST = listeTanimi({
   varsayilanBoyut: 50,
 });
 
-export const INVOICE_LINE_LIST = listeTanimi({
+export const INVOICE_LINE_LIST = listDefinition({
   filtreler: {
     q: { tur: 'metin', enFazla: 128 },
     cariId: { tur: 'kimlik' },
@@ -136,7 +136,7 @@ export const INVOICE_LINE_LIST = listeTanimi({
   varsayilanBoyut: 100,
 });
 
-export const PENALTY_LIST = listeTanimi({
+export const PENALTY_LIST = listDefinition({
   filtreler: {
     musteri: { tur: 'metin', enFazla: 128 },
     makbuzNo: { tur: 'metin', enFazla: 64 },
@@ -152,7 +152,7 @@ export const PENALTY_LIST = listeTanimi({
   varsayilanBoyut: 50,
 });
 
-export const EXPENSE_LIST = listeTanimi({
+export const EXPENSE_LIST = listDefinition({
   filtreler: {
     q: { tur: 'metin', enFazla: 128 },
     cariId: { tur: 'kimlik' },
@@ -167,7 +167,7 @@ export const EXPENSE_LIST = listeTanimi({
   varsayilanBoyut: 50,
 });
 
-export const INCOMING_LIST = listeTanimi({
+export const INCOMING_LIST = listDefinition({
   filtreler: {
     firma: { tur: 'metin', enFazla: 256 },
     ettnBas: { tur: 'metin', enFazla: 64 },
@@ -183,7 +183,7 @@ export const INCOMING_LIST = listeTanimi({
   varsayilanBoyut: 50,
 });
 
-export const SALE_LIST = listeTanimi({
+export const SALE_LIST = listDefinition({
   filtreler: {
     plaka: { tur: 'metin', enFazla: 16 },
     aliciCariId: { tur: 'kimlik' },

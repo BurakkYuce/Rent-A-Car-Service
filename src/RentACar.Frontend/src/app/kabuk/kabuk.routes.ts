@@ -1,18 +1,18 @@
 import type { Routes } from '@angular/router';
 
-import { KABUK_ISARETI } from '@core/sekme/sekme-anahtari';
+import { SHELL_MARKER } from '@core/sekme/tab-key';
 
-import { SAYFALAR } from '../sayfalar';
+import { PAGES } from '../sayfalar';
 import { Kabuk } from './kabuk';
-import { sekmeSiniriGuard } from './sekmeler/sekme-siniri';
+import { tabLimitGuard } from './sekmeler/sekme-siniri';
 
 /** Kabuk (tembel): menü + üst çubuk + sekmeler; sayfalar çocuk rota. Bilinmeyen adres ana sayfaya. */
-export const KABUK_ROTALARI: Routes = [
+export const SHELL_ROUTES: Routes = [
   {
     path: '',
     component: Kabuk,
-    data: { [KABUK_ISARETI]: true },
-    canActivateChild: [sekmeSiniriGuard],
-    children: [...SAYFALAR, { path: '**', redirectTo: '' }],
+    data: { [SHELL_MARKER]: true },
+    canActivateChild: [tabLimitGuard],
+    children: [...PAGES, { path: '**', redirectTo: '' }],
   },
 ];

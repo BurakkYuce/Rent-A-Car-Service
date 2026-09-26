@@ -1,4 +1,4 @@
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 import { tarihBicimle } from '@core/bicim/bicim';
 
 import {
@@ -22,7 +22,7 @@ const R = '/api/ui/v1/raporlar';
 
 // ── Periyodik servis ────────────────────────────────────────────────────────────────────────
 const ps = cardsFor<SummaryOf<`${typeof R}/periyodik-servis`>>();
-const psSatir = columnsFor<RowOf<`${typeof R}/periyodik-servis`>>();
+const psRow = columnsFor<RowOf<`${typeof R}/periyodik-servis`>>();
 export const PERIODIC_SERVICE = defineReport({
   kod: 'periyodik-servis',
   baslik: 'rapor.baslik.periyodikServis',
@@ -58,18 +58,18 @@ export const PERIODIC_SERVICE = defineReport({
         siralanabilir: ['plaka', 'kalanKm', 'guncelKm', 'sube'],
         satirKimligi: (r) => r.vehicleId,
         sutunlar: [
-          psSatir.field('plaka', 'metin', { sirala: true, sabit: true }),
-          psSatir.field('sube', 'metin', { sirala: true }),
-          psSatir.field('guncelKm', 'tamsayi', { sirala: true }),
-          psSatir.field('sonrakiBakimKm', 'tamsayi'),
-          psSatir.field('kalanKm', 'tamsayi', { sirala: true }),
-          psSatir.field('kaynak', 'metin', { gizli: true }),
-          psSatir.field('marka', 'metin'),
-          psSatir.field('tip', 'metin'),
-          psSatir.field('modelYili', 'metin', { gizli: true }),
-          psSatir.field('sonServisTarihi', 'tarih'),
-          psSatir.field('sonServisKm', 'tamsayi'),
-          psSatir.field('aktif', 'bayrak', { gizli: true }),
+          psRow.field('plaka', 'metin', { sirala: true, sabit: true }),
+          psRow.field('sube', 'metin', { sirala: true }),
+          psRow.field('guncelKm', 'tamsayi', { sirala: true }),
+          psRow.field('sonrakiBakimKm', 'tamsayi'),
+          psRow.field('kalanKm', 'tamsayi', { sirala: true }),
+          psRow.field('kaynak', 'metin', { gizli: true }),
+          psRow.field('marka', 'metin'),
+          psRow.field('tip', 'metin'),
+          psRow.field('modelYili', 'metin', { gizli: true }),
+          psRow.field('sonServisTarihi', 'tarih'),
+          psRow.field('sonServisKm', 'tamsayi'),
+          psRow.field('aktif', 'bayrak', { gizli: true }),
         ],
       },
     }),
@@ -78,7 +78,7 @@ export const PERIODIC_SERVICE = defineReport({
 
 // ── Sigorta / muayene ───────────────────────────────────────────────────────────────────────
 const sm = cardsFor<SummaryOf<`${typeof R}/sigorta-muayene`>>();
-const smSatir = columnsFor<RowOf<`${typeof R}/sigorta-muayene`>>();
+const smRow = columnsFor<RowOf<`${typeof R}/sigorta-muayene`>>();
 const DOC_TYPES = ['Trafik', 'Kasko', 'Muayene', 'Mtv', 'ZIzni', 'Seyrusefer'] as const;
 export const INSURANCE_INSPECTION = defineReport({
   kod: 'sigorta-muayene',
@@ -114,21 +114,21 @@ export const INSURANCE_INSPECTION = defineReport({
         siralanabilir: ['plaka', 'trafikBitis', 'kaskoBitis', 'muayeneBitis', 'mtvVade'],
         satirKimligi: (r) => r.vehicleId,
         sutunlar: [
-          smSatir.field('plaka', 'metin', { sirala: true, sabit: true }),
-          smSatir.field('marka', 'metin'),
-          smSatir.field('tip', 'metin', { gizli: true }),
-          smSatir.field('sube', 'metin'),
-          smSatir.field('aracSahibi', 'metin'),
-          smSatir.field('trafikBitis', 'tarih', { sirala: true }),
-          smSatir.field('kaskoBitis', 'tarih', { sirala: true }),
-          smSatir.field('muayeneBitis', 'tarih', { sirala: true }),
-          smSatir.field('mtvVade', 'tarih', { sirala: true }),
-          smSatir.field('mtvOdendi', 'bayrak'),
-          smSatir.field('zIzniBitis', 'tarih', { gizli: true }),
-          smSatir.field('seyrusiferBitis', 'tarih', { gizli: true }),
-          smSatir.field('belgeNo', 'metin', { gizli: true }),
-          smSatir.field('kimde', 'metin', { gizli: true }),
-          smSatir.field('sasiNo', 'metin', { gizli: true }),
+          smRow.field('plaka', 'metin', { sirala: true, sabit: true }),
+          smRow.field('marka', 'metin'),
+          smRow.field('tip', 'metin', { gizli: true }),
+          smRow.field('sube', 'metin'),
+          smRow.field('aracSahibi', 'metin'),
+          smRow.field('trafikBitis', 'tarih', { sirala: true }),
+          smRow.field('kaskoBitis', 'tarih', { sirala: true }),
+          smRow.field('muayeneBitis', 'tarih', { sirala: true }),
+          smRow.field('mtvVade', 'tarih', { sirala: true }),
+          smRow.field('mtvOdendi', 'bayrak'),
+          smRow.field('zIzniBitis', 'tarih', { gizli: true }),
+          smRow.field('seyrusiferBitis', 'tarih', { gizli: true }),
+          smRow.field('belgeNo', 'metin', { gizli: true }),
+          smRow.field('kimde', 'metin', { gizli: true }),
+          smRow.field('sasiNo', 'metin', { gizli: true }),
         ],
       },
     }),
@@ -137,18 +137,18 @@ export const INSURANCE_INSPECTION = defineReport({
 
 // ── Karşılaştırmalı analiz (ay × kırılım) ───────────────────────────────────────────────────
 const ka = cardsFor<SummaryOf<`${typeof R}/karsilastirmali-analiz`>>();
-type CompRow = Sema<'ComparativeRow'>;
-const kaSatir = columnsFor<CompRow>();
+type CompRow = Schema<'ComparativeRow'>;
+const kaRow = columnsFor<CompRow>();
 function monthColumns(keys: readonly string[]): readonly ReportColumn<CompRow>[] {
   return [
-    kaSatir.field('kirilim', 'metin', { sabit: true }),
+    kaRow.field('kirilim', 'metin', { sabit: true }),
     ...keys.map((k, i) =>
-      kaSatir.computed(`m${i}`, 'sayi', (r) => (r.aylar as Record<string, unknown>)[k], {
+      kaRow.computed(`m${i}`, 'sayi', (r) => (r.aylar as Record<string, unknown>)[k], {
         baslik: 'rapor.alan.ay',
         baslikMetni: k,
       }),
     ),
-    kaSatir.field('toplam', 'sayi'),
+    kaRow.field('toplam', 'sayi'),
   ];
 }
 export const COMPARATIVE = defineReport({
@@ -207,14 +207,14 @@ export const COMPARATIVE = defineReport({
 
 // ── Personel çalışma (vardiya) ──────────────────────────────────────────────────────────────
 const pc = cardsFor<SummaryOf<`${typeof R}/personel-calisma`>>();
-type Matrix = Sema<'ShiftMatrixRow'>;
-const pcMatris = columnsFor<Matrix>();
-const pcListe = columnsFor<Sema<'ShiftRow'>>();
+type Matrix = Schema<'ShiftMatrixRow'>;
+const pcMatrix = columnsFor<Matrix>();
+const pcList = columnsFor<Schema<'ShiftRow'>>();
 function dayColumns(days: readonly string[]): readonly ReportColumn<Matrix>[] {
   return [
-    pcMatris.field('personelAd', 'metin', { sabit: true }),
+    pcMatrix.field('personelAd', 'metin', { sabit: true }),
     ...days.map((d, i) =>
-      pcMatris.computed(
+      pcMatrix.computed(
         `g${i}`,
         'metin',
         (r) =>
@@ -225,7 +225,7 @@ function dayColumns(days: readonly string[]): readonly ReportColumn<Matrix>[] {
         { baslik: 'rapor.alan.gun', baslikMetni: tarihBicimle(d) },
       ),
     ),
-    pcMatris.field('toplamSaatMetni', 'metin'),
+    pcMatrix.field('toplamSaatMetni', 'metin'),
   ];
 }
 export const STAFF_SHIFTS = defineReport({
@@ -264,13 +264,13 @@ export const STAFF_SHIFTS = defineReport({
           baslik: 'rapor.bolum.vardiyalar',
           satirlar: (s) => s.liste,
           sutunlar: [
-            pcListe.field('tarih', 'tarih'),
-            pcListe.field('personelAd', 'metin'),
-            pcListe.field('personelKadroSube', 'metin'),
-            pcListe.field('aralik', 'metin'),
-            pcListe.field('sureDk', 'tamsayi'),
-            pcListe.field('sube', 'metin'),
-            pcListe.field('aciklama', 'metin'),
+            pcList.field('tarih', 'tarih'),
+            pcList.field('personelAd', 'metin'),
+            pcList.field('personelKadroSube', 'metin'),
+            pcList.field('aralik', 'metin'),
+            pcList.field('sureDk', 'tamsayi'),
+            pcList.field('sube', 'metin'),
+            pcList.field('aciklama', 'metin'),
           ],
         }),
       ],

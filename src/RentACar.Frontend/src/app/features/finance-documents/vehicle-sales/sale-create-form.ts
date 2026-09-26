@@ -12,23 +12,26 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { ApiHatasi } from '@core/api/api-hatasi';
-import type { SecimOgesi } from '@core/api/ui-tipleri';
+import type { SelectionItem } from '@core/api/ui-tipleri';
 import { customNotice } from '@core/form/money-notice';
 import { moneySubmission } from '@core/form/money-submission';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import {
   CURRENCIES,
@@ -60,30 +63,30 @@ const alreadySold = (e: ApiHatasi): boolean =>
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
+    SearchSelection,
     MoneySubmitBar,
-    MetinGirdisi,
-    OnayKutusu,
-    ParaGirdisi,
-    SayiGirdisi,
-    Secim,
-    TarihSecici,
+    TextInput,
+    Checkbox,
+    MoneyInput,
+    NumberInput,
+    Selection,
+    DatePicker,
   ],
   templateUrl: './sale-create-form.html',
   styleUrl: '../finance-documents.scss',
 })
 export class SaleCreateForm {
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
-  readonly branches = input<readonly SecimOgesi[] | undefined>(undefined);
+  readonly branches = input<readonly SelectionItem[] | undefined>(undefined);
   readonly saved = output<DocumentResult | null>();
   readonly dirtyChange = output<boolean>();
 
   /** Satılabilir araçlar (`/secim/satilabilir-arac`: satılmamış, şube kapsamlı, FinanceWrite; #300). */
-  protected readonly vehicles = sunucuSecimKaynagi('satilabilir-arac');
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly vehicles = serverSelectionSource('satilabilir-arac');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly channels = SALE_CHANNELS;
   protected readonly vatOptions: readonly SecenekOgesi<VatRate>[] = VAT_RATES.map((v) => ({
     deger: v,
@@ -150,7 +153,7 @@ export class SaleCreateForm {
       this.form.markAllAsTouched();
       if (this.form.invalid) return;
     }
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('finansBelge.satis.satBaslik'),
       mesaj: this.t('finansBelge.satis.satOnay', {
         plaka: this.form.controls.arac.value?.etiket ?? '',

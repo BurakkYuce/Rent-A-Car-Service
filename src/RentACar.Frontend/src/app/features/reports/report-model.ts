@@ -1,9 +1,9 @@
-import type { SecimUcu } from '@core/api/ui-tipleri';
+import type { SelectionEndpoint } from '@core/api/ui-tipleri';
 // Rapor tanımları uç şemasına YOLDAN bağlanır (sütun alanı, özet alanı, süzgeç parametresi): `ui-tipleri`
 // yol tablosunu dışa açmadığı için yol tipleri üretilen dosyadan alınır (yalnız tip; çalışma zamanı yok).
 import type { paths } from '@core/api/uretilen/ui-v1';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { Izin } from '@core/oturum/oturum-tipleri';
+import type { Permission } from '@core/oturum/oturum-tipleri';
 
 /**
  * F10.2 ORTAK RAPOR ŞABLONU — saf model. 26 rapor ekranı tek bileşenin (`ReportPage`) YAPILANDIRMASIDIR: her rapor
@@ -120,7 +120,7 @@ export type ReportFilter<S, Q extends string = string> =
       /** Uç `int` bekliyor (ondalık gönderilmez). */
       readonly tamsayi?: boolean;
     })
-  | (FilterBase<Q> & { readonly tur: 'arama'; readonly kaynak: SecimUcu })
+  | (FilterBase<Q> & { readonly tur: 'arama'; readonly kaynak: SelectionEndpoint })
   | (FilterBase<Q> & { readonly tur: 'liste'; readonly kaynak: ListSource })
   /** Şube adı: kapsamsız kullanıcıda seç-veya-yaz, şube kapsamlıda KENDİ şubesi (sabit, gönderilmez). */
   | (FilterBase<Q> & { readonly tur: 'sube' });
@@ -156,7 +156,7 @@ export interface ReportView {
 export interface ReportEditor {
   readonly tur: 'vardiya';
   readonly bolum: string;
-  readonly izin: Izin;
+  readonly izin: Permission;
 }
 
 export type ReportGroup = 'finans' | 'cari' | 'satis' | 'filo' | 'operasyon';
@@ -168,7 +168,7 @@ export interface ReportDefinition {
   readonly aciklama?: CeviriAnahtari;
   readonly grup: ReportGroup;
   /** Uçla BİREBİR: `ViewReports` ya da `OperationsWrite ∨ ViewReports`. */
-  readonly izinler: readonly Izin[];
+  readonly izinler: readonly Permission[];
   /** Uç firma geneli (şube kapsamlıya 403). */
   readonly firmaGeneli: boolean;
   /** Rota `:id` taşır (araç karnesi); uçtaki `{id}` bununla dolar. */
@@ -176,8 +176,8 @@ export interface ReportDefinition {
   readonly gorunumler: readonly ReportView[];
 }
 
-export const VIEW_REPORTS: readonly Izin[] = ['ViewReports'];
-export const OPS_OR_VIEW: readonly Izin[] = ['OperationsWrite', 'ViewReports'];
+export const VIEW_REPORTS: readonly Permission[] = ['ViewReports'];
+export const OPS_OR_VIEW: readonly Permission[] = ['OperationsWrite', 'ViewReports'];
 
 // ─── Tanım yardımcıları (tip → düz model) ───────────────────────────────────────────────────
 
@@ -220,18 +220,18 @@ export function columnsFor<R>() {
   return {
     field<K extends keyof R & string>(
       alan: K,
-      tur: ValueKind,
+      type: ValueKind,
       options: ColumnOptions<R> = {},
     ): ReportColumn<R> {
-      return { baslik: fieldLabel(alan), ...options, kod: alan, tur, deger: (r) => r[alan] };
+      return { baslik: fieldLabel(alan), ...options, kod: alan, tur: type, deger: (r) => r[alan] };
     },
     computed(
-      kod: string,
-      tur: ValueKind,
-      deger: (row: R) => unknown,
+      code: string,
+      type: ValueKind,
+      value: (row: R) => unknown,
       options: ColumnOptions<R> & { readonly baslik: CeviriAnahtari },
     ): ReportColumn<R> {
-      return { ...options, kod, tur, deger };
+      return { ...options, kod: code, tur: type, deger: value };
     },
   };
 }
@@ -241,23 +241,23 @@ export function cardsFor<S>() {
   return {
     field<K extends keyof S & string>(
       alan: K,
-      tur: ValueKind,
+      type: ValueKind,
       options: { readonly baslik?: CeviriAnahtari; readonly isaretli?: boolean } = {},
     ): ReportCard<S> {
       return {
         baslik: options.baslik ?? fieldLabel(alan),
-        tur,
+        tur: type,
         isaretli: options.isaretli,
         deger: (s) => s[alan],
       };
     },
     computed(
-      baslik: CeviriAnahtari,
-      tur: ValueKind,
-      deger: (summary: S) => unknown,
-      isaretli = false,
+      title: CeviriAnahtari,
+      type: ValueKind,
+      value: (summary: S) => unknown,
+      isChecked = false,
     ): ReportCard<S> {
-      return { baslik, tur, deger, isaretli };
+      return { baslik: title, tur: type, deger: value, isaretli: isChecked };
     },
   };
 }
@@ -285,7 +285,7 @@ type Summary<P extends ReportPath> = SummaryOf<P>;
 
 /** Uç yoluna tipli görünüm tanımı → düz `ReportView`. */
 export function defineView<P extends ReportPath>(
-  uc: P,
+  endpoint: P,
   def: {
     readonly kod?: string;
     readonly baslik?: CeviriAnahtari;
@@ -306,7 +306,7 @@ export function defineView<P extends ReportPath>(
   },
 ): (reportCode: string) => ReportView {
   return (reportCode) => {
-    const kod = def.kod ?? 'ana';
+    const code = def.kod ?? 'ana';
     const rows = def.satirlar as
       | {
           readonly sutunlar: readonly ReportColumn<unknown>[];
@@ -315,15 +315,15 @@ export function defineView<P extends ReportPath>(
         }
       | undefined;
     return {
-      kod,
+      kod: code,
       baslik: def.baslik,
-      uc,
+      uc: endpoint,
       filtreler: (def.filtreler ?? []) as readonly ReportFilter<unknown>[],
       sabit: def.sabit as Readonly<Record<string, string>> | undefined,
       kartlar: (def.kartlar ?? []) as readonly ReportCard<unknown>[],
       bolumler: (def.bolumler ?? []) as readonly ReportSection<unknown>[],
       uyarilar: (def.uyarilar ?? []) as readonly ReportNotice<unknown>[],
-      satirlar: rows ? { ...rows, tabloKodu: `rapor.${reportCode}.${kod}` } : null,
+      satirlar: rows ? { ...rows, tabloKodu: `rapor.${reportCode}.${code}` } : null,
       zarfsiz: def.zarfsiz ?? false,
       duzenleyici: def.duzenleyici,
     };

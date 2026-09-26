@@ -13,16 +13,16 @@ import {
   throwIfEmpty,
 } from 'rxjs';
 
-import { ApiHatasi, apiHatasinaCevir } from '@core/api/api-hatasi';
+import { ApiHatasi, toApiError } from '@core/api/api-hatasi';
 import { Sayfa } from '@core/api/sayfa';
 
 /**
  * Dört açık durum. **`bos` "boş liste" DEĞİLDİR:** henüz yükleme istenmedi ya da store sıfırlandı
  * (çıkış). Sıfır kayıtlı başarılı yanıt `hazir`'dır (liste için bkz. `kayitYok`).
  */
-export type StoreDurumTuru = 'bos' | 'yukleniyor' | 'hazir' | 'hata';
+export type StoreStateType = 'bos' | 'yukleniyor' | 'hazir' | 'hata';
 
-export type StoreDurumu<T> =
+export type StoreState<T> =
   | { readonly tur: 'bos' }
   /** `onceki`: `oncekiVeriyiKoru` açıksa son iyi veri (yeniden yüklerken ekranda kalsın diye). */
   | { readonly tur: 'yukleniyor'; readonly onceki: T | undefined }
@@ -64,70 +64,68 @@ export interface TemelStoreSecenekleri {
  * ```
  */
 export class TemelStore<T, P = void> {
-  private readonly _durum = signal<StoreDurumu<T>>({ tur: 'bos' });
-  private readonly istekler = new Subject<{ readonly parametre: P } | null>();
-  private readonly oncekiVeriyiKoru: boolean;
-  private sonIstek: { readonly parametre: P } | null = null;
+  private readonly _state = signal<StoreState<T>>({ tur: 'bos' });
+  private readonly requests = new Subject<{ readonly parametre: P } | null>();
+  private readonly keepPreviousData: boolean;
+  private lastRequest: { readonly parametre: P } | null = null;
 
   /** Tam durum (ayrımlı birleşim) — şablonda `@switch (store.durum().tur)` ile. */
-  readonly durum: Signal<StoreDurumu<T>> = this._durum.asReadonly();
-  readonly tur: Signal<StoreDurumTuru> = computed(() => this._durum().tur);
-  readonly yukleniyor: Signal<boolean> = computed(() => this._durum().tur === 'yukleniyor');
+  readonly durum: Signal<StoreState<T>> = this._state.asReadonly();
+  readonly tur: Signal<StoreStateType> = computed(() => this._state().tur);
+  readonly isLoading: Signal<boolean> = computed(() => this._state().tur === 'yukleniyor');
   /** `hazir`'da veri; `yukleniyor`'da (koru açıksa) önceki veri; `bos`/`hata`'da `undefined`. */
   readonly veri: Signal<T | undefined> = computed(() => {
-    const d = this._durum();
+    const d = this._state();
     if (d.tur === 'hazir') return d.veri;
     if (d.tur === 'yukleniyor') return d.onceki;
     return undefined;
   });
   readonly hata: Signal<ApiHatasi | undefined> = computed(() => {
-    const d = this._durum();
+    const d = this._state();
     return d.tur === 'hata' ? d.hata : undefined;
   });
 
   constructor(
-    private readonly getir: (parametre: P) => Observable<T>,
-    secenekler: TemelStoreSecenekleri = {},
+    private readonly fetch: (parameter: P) => Observable<T>,
+    options: TemelStoreSecenekleri = {},
   ) {
-    this.oncekiVeriyiKoru = secenekler.oncekiVeriyiKoru ?? false;
-    this.istekler
+    this.keepPreviousData = options.oncekiVeriyiKoru ?? false;
+    this.requests
       .pipe(
-        switchMap((istek) => (istek === null ? EMPTY : this.calistir(istek.parametre))),
+        switchMap((request) => (request === null ? EMPTY : this.calistir(request.parametre))),
         takeUntilDestroyed(inject(DestroyRef)),
       )
-      .subscribe((durum) => this._durum.set(durum));
+      .subscribe((status) => this._state.set(status));
   }
 
   /** Yükler; süren istek varsa iptal edilir. */
-  yukle(parametre: P): void {
-    this.sonIstek = { parametre };
-    this.istekler.next(this.sonIstek);
+  yukle(parameter: P): void {
+    this.lastRequest = { parametre: parameter };
+    this.requests.next(this.lastRequest);
   }
 
   /** Son parametreyle yeniden yükler (hata sonrası "Yeniden dene"). Hiç yüklenmediyse bir şey yapmaz. */
   yenile(): void {
-    if (this.sonIstek !== null) this.istekler.next(this.sonIstek);
+    if (this.lastRequest !== null) this.requests.next(this.lastRequest);
   }
 
   /** Süren isteği iptal eder, veriyi atar, `bos`'a döner (çıkış / bağlam kaybı — KVKK). */
-  sifirla(): void {
-    this.sonIstek = null;
-    this.istekler.next(null);
-    this._durum.set({ tur: 'bos' });
+  reset(): void {
+    this.lastRequest = null;
+    this.requests.next(null);
+    this._state.set({ tur: 'bos' });
   }
 
-  private calistir(parametre: P): Observable<StoreDurumu<T>> {
-    this._durum.set({
+  private calistir(parameter: P): Observable<StoreState<T>> {
+    this._state.set({
       tur: 'yukleniyor',
-      onceki: this.oncekiVeriyiKoru ? this.veri() : undefined,
+      onceki: this.keepPreviousData ? this.veri() : undefined,
     });
-    return defer(() => this.getir(parametre)).pipe(
+    return defer(() => this.fetch(parameter)).pipe(
       take(1),
       throwIfEmpty(() => new Error('Veri kaynağı değer üretmeden tamamlandı.')),
-      map((veri): StoreDurumu<T> => ({ tur: 'hazir', veri })),
-      catchError((hata: unknown) =>
-        of<StoreDurumu<T>>({ tur: 'hata', hata: apiHatasinaCevir(hata) }),
-      ),
+      map((data): StoreState<T> => ({ tur: 'hazir', veri: data })),
+      catchError((error: unknown) => of<StoreState<T>>({ tur: 'hata', hata: toApiError(error) })),
     );
   }
 }
@@ -136,6 +134,6 @@ export class TemelStore<T, P = void> {
  * "Kayıt bulunamadı" yalnız BAŞARILI ve sıfır kayıtlı yanıtta gösterilir. `hata`, `bos` ve
  * `yukleniyor` için `false` — hata hiçbir koşulda boş liste gibi görünmez.
  */
-export function kayitYok<K>(durum: StoreDurumu<Sayfa<K>>): boolean {
-  return durum.tur === 'hazir' && durum.veri.kayitlar.length === 0;
+export function noRecord<K>(status: StoreState<Sayfa<K>>): boolean {
+  return status.tur === 'hazir' && status.veri.kayitlar.length === 0;
 }

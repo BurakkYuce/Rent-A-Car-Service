@@ -11,18 +11,18 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { ParaPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, DatePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { SekmeliForm, SekmePaneli, type SekmeTanimi } from '@shared/form/sekmeli-form/sekmeli-form';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { TabbedForm, TabPanel, type SekmeTanimi } from '@shared/form/sekmeli-form/tabbed-form';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { balanceSide, canSeeStatement, type CustomerProfile } from '../customer-model';
 import { CustomerDetailStore } from '../customer.store';
 
@@ -48,13 +48,13 @@ export function currencyCode(value: string | null | undefined): string {
     RouterLink,
     TranslocoPipe,
     Alan,
-    Ikon,
-    ParaPipe,
-    SayfaBandi,
-    SekmeliForm,
-    SekmePaneli,
-    TarihPipe,
-    TarihSecici,
+    Icon,
+    MoneyPipe,
+    PageBand,
+    TabbedForm,
+    TabPanel,
+    DatePipe,
+    DatePicker,
   ],
   providers: [FetchPolicy, CustomerDetailStore],
   templateUrl: './customer-detail.html',
@@ -62,9 +62,9 @@ export function currencyCode(value: string | null | undefined): string {
 })
 export class CustomerDetail {
   protected readonly store = inject(CustomerDetailStore);
-  private readonly session = inject(OturumServisi);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
+  private readonly session = inject(SessionService);
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
 
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
   protected readonly num = toNumber;
@@ -109,15 +109,15 @@ export class CustomerDetail {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: signal(this.id).asReadonly(),
       yukle: (x) => {
         this.store.detail.yukle(x);
         if (this.canSeeStatement()) this.store.statement.yukle({ id: x, ...this.statementRange() });
       },
       sifirla: () => {
-        this.store.detail.sifirla();
-        this.store.statement.sifirla();
+        this.store.detail.reset();
+        this.store.statement.reset();
       },
       sekmeyeDonunce: 'yenile',
     });

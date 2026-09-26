@@ -3,11 +3,11 @@ import { provideRouter, UrlTree, type CanMatchFn, type Route } from '@angular/ro
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideCeviri } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import type { Izin } from '@core/oturum/oturum-tipleri';
+import { provideTranslation } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import type { Permission } from '@core/oturum/oturum-tipleri';
 
-import { SAYFALAR } from './sayfalar';
+import { PAGES } from './sayfalar';
 
 /**
  * F5.3 parite çiti — sayfa izni. Beklenen liste ELLE yazıldı (Blazor razor'larının `@attribute`'u:
@@ -15,7 +15,7 @@ import { SAYFALAR } from './sayfalar';
  * MusaitlikArama, RezSartList, FiloKiralamaList `izin:OperationsWrite`). Rota tablosundan TÜRETİLMEZ:
  * bir rota guard'ını kaybederse ya da yeni F5 rotası guard'sız eklenirse test kırılır.
  */
-const F5_ROTALARI_OPERATIONS_WRITE = [
+const F5_ROUTES_OPERATIONS_WRITE = [
   'rezervasyonlar',
   'rezervasyonlar/yeni',
   'rezervasyonlar/:id',
@@ -31,55 +31,55 @@ const F5_ROTALARI_OPERATIONS_WRITE = [
 ] as const;
 
 describe('F5 rotaları: Blazor sayfa izniyle aynı kapı (OperationsWrite)', () => {
-  let izinler: readonly Izin[] = [];
-  const sahteOturum = {
-    ilkYukleme: () => Promise.resolve(null),
-    girisYapildi: () => true,
+  let permissions: readonly Permission[] = [];
+  const fakeSession = {
+    initialLoad: () => Promise.resolve(null),
+    loggedIn: () => true,
     ben: () => ({ pilot: true }),
-    izinVar: (izin: Izin) => izinler.includes(izin),
+    izinVar: (permission: Permission) => permissions.includes(permission),
   };
 
   beforeEach(async () => {
-    izinler = [];
+    permissions = [];
     TestBed.configureTestingModule({
       providers: [
-        ...provideCeviri(),
+        ...provideTranslation(),
         provideRouter([]),
-        { provide: OturumServisi, useValue: sahteOturum },
+        { provide: SessionService, useValue: fakeSession },
       ],
     });
     await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));
   });
 
-  function rota(yol: string): Route {
-    const bulunan = SAYFALAR.filter((r) => r.path === yol);
-    expect(bulunan, `rota tekil olmalı: ${yol}`).toHaveLength(1);
-    return bulunan[0]!;
+  function rota(path: string): Route {
+    const found = PAGES.filter((r) => r.path === path);
+    expect(found, `rota tekil olmalı: ${path}`).toHaveLength(1);
+    return found[0]!;
   }
 
   async function sonuc(r: Route): Promise<unknown[]> {
-    const guardlar = (r.canMatch ?? []) as CanMatchFn[];
-    const sonuclar: unknown[] = [];
-    for (const g of guardlar) {
-      sonuclar.push(await TestBed.runInInjectionContext(() => g(r, [])));
+    const guards = (r.canMatch ?? []) as CanMatchFn[];
+    const results: unknown[] = [];
+    for (const g of guards) {
+      results.push(await TestBed.runInInjectionContext(() => g(r, [])));
     }
-    return sonuclar;
+    return results;
   }
 
-  it.each(F5_ROTALARI_OPERATIONS_WRITE)(
+  it.each(F5_ROUTES_OPERATIONS_WRITE)(
     '%s: izinsiz rol reddedilir, OperationsWrite geçer',
-    async (yol) => {
-      const r = rota(yol);
-      expect(r.canMatch?.length ?? 0, `${yol} canMatch guard'ı yok`).toBeGreaterThan(0);
+    async (path) => {
+      const r = rota(path);
+      expect(r.canMatch?.length ?? 0, `${path} canMatch guard'ı yok`).toBeGreaterThan(0);
 
       // Muhasebe benzeri rol: finans + rapor izni var, operasyon izni yok → reddedilir (ana sayfaya).
-      izinler = ['FinanceWrite', 'ViewReports'];
+      permissions = ['FinanceWrite', 'ViewReports'];
       const red = await sonuc(r);
       expect(red.some((s) => s instanceof UrlTree)).toBe(true);
 
-      izinler = ['OperationsWrite'];
-      const gecer = await sonuc(r);
-      expect(gecer.every((s) => s === true)).toBe(true);
+      permissions = ['OperationsWrite'];
+      const passes = await sonuc(r);
+      expect(passes.every((s) => s === true)).toBe(true);
     },
   );
 });

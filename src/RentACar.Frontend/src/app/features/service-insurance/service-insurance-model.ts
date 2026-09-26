@@ -1,46 +1,46 @@
 import type { Sayfa } from '@core/api/sayfa';
-import type { Sema } from '@core/api/ui-tipleri';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
+import type { Schema } from '@core/api/ui-tipleri';
+import { listDefinition } from '@core/veri/liste-sorgusu';
 
 // ---- Servis / bakım (`/api/ui/v1/servisler`)
-export type ServiceRecordRow = Sema<'ServiceRecordRow'>;
-export type ServiceRecordDetail = Sema<'ServiceRecordDetail'>;
-export type ServiceLine = Sema<'ServiceLineDto'>;
-export type ServiceInfo = Sema<'ServiceInfoDto'>;
-export type ServiceRecordRequest = Sema<'ServiceRecordRequest'>;
-export type ServiceInfoRequest = Sema<'ServiceInfoRequest'>;
-export type ServiceLineRequest = Sema<'ServiceLineRequest'>;
-export type ServiceReflectRequest = Sema<'ServiceReflectRequest'>;
-export type ServiceCounts = Sema<'ServiceCounts'>;
+export type ServiceRecordRow = Schema<'ServiceRecordRow'>;
+export type ServiceRecordDetail = Schema<'ServiceRecordDetail'>;
+export type ServiceLine = Schema<'ServiceLineDto'>;
+export type ServiceInfo = Schema<'ServiceInfoDto'>;
+export type ServiceRecordRequest = Schema<'ServiceRecordRequest'>;
+export type ServiceInfoRequest = Schema<'ServiceInfoRequest'>;
+export type ServiceLineRequest = Schema<'ServiceLineRequest'>;
+export type ServiceReflectRequest = Schema<'ServiceReflectRequest'>;
+export type ServiceCounts = Schema<'ServiceCounts'>;
 
 // ---- Sigorta / MTV / muayene (`/api/ui/v1/regulasyon`) + vade panosu
-export type PolicyRow = Sema<'InsurancePolicyRow'>;
-export type PolicyDetail = Sema<'InsurancePolicyDetail'>;
-export type PolicyRequest = Sema<'InsurancePolicyRequest'>;
-export type PolicyPaymentRequest = Sema<'InsurancePaymentRequest'>;
-export type Endorsement = Sema<'EndorsementDto'>;
-export type EndorsementRequest = Sema<'EndorsementRequest'>;
-export type EndorsementRow = Sema<'EndorsementListRow'>;
-export type MtvRow = Sema<'MtvRow'>;
-export type MtvDetail = Sema<'MtvDetail'>;
-export type MtvRequest = Sema<'MtvRequest'>;
-export type InspectionRow = Sema<'InspectionRow'>;
-export type InspectionDetail = Sema<'InspectionDetail'>;
-export type InspectionRequest = Sema<'InspectionRequest'>;
-export type InstallmentPayment = Sema<'InstallmentPaymentDto'>;
-export type InstallmentPaymentRequest = Sema<'InstallmentPaymentRequest'>;
-export type InstallmentPaymentResult = Sema<'InstallmentPaymentResult'>;
-export type RegulationOptions = Sema<'RegulationOptions'>;
+export type PolicyRow = Schema<'InsurancePolicyRow'>;
+export type PolicyDetail = Schema<'InsurancePolicyDetail'>;
+export type PolicyRequest = Schema<'InsurancePolicyRequest'>;
+export type PolicyPaymentRequest = Schema<'InsurancePaymentRequest'>;
+export type Endorsement = Schema<'EndorsementDto'>;
+export type EndorsementRequest = Schema<'EndorsementRequest'>;
+export type EndorsementRow = Schema<'EndorsementListRow'>;
+export type MtvRow = Schema<'MtvRow'>;
+export type MtvDetail = Schema<'MtvDetail'>;
+export type MtvRequest = Schema<'MtvRequest'>;
+export type InspectionRow = Schema<'InspectionRow'>;
+export type InspectionDetail = Schema<'InspectionDetail'>;
+export type InspectionRequest = Schema<'InspectionRequest'>;
+export type InstallmentPayment = Schema<'InstallmentPaymentDto'>;
+export type InstallmentPaymentRequest = Schema<'InstallmentPaymentRequest'>;
+export type InstallmentPaymentResult = Schema<'InstallmentPaymentResult'>;
+export type RegulationOptions = Schema<'RegulationOptions'>;
 
 /**
  * `GET /vade` satırı — üretilen şemadan. Eskiden bildirim merkezinin aynı adlı DTO'su şemayı eziyordu (tip elle
  * yazılmıştı); o kayıt `MessageDueItemDto` oldu ve yapısal test (`UiApiOpenApiSchemaNameTests`) çakışmayı kilitler.
  */
-export type DueItem = Sema<'DueItemDto'>;
+export type DueItem = Schema<'DueItemDto'>;
 
 /** Sayfa zarfı çekirdeğin `Sayfa<T>`'si (üretilen `SayfaOf…` sayıları `number | string` yazar). */
 export interface DueBoard {
-  readonly ozet: Sema<'DueSummary'>;
+  readonly ozet: Schema<'DueSummary'>;
   readonly kalemler: Sayfa<DueItem>;
 }
 
@@ -80,7 +80,7 @@ export const DECLARATION_TYPES = ['Kaza Tespit Tutanağı', 'Anlaşmalı Beyan',
 
 const PAID = ['true', 'false'] as const;
 
-export const SERVICE_LIST = listeTanimi({
+export const SERVICE_LIST = listDefinition({
   filtreler: {
     durum: { tur: 'secim', degerler: SERVICE_STATUSES },
     tip: { tur: 'secim', degerler: SERVICE_TYPES },
@@ -92,7 +92,7 @@ export const SERVICE_LIST = listeTanimi({
   varsayilanSirala: '-girisTarihi',
 });
 
-export const POLICY_LIST = listeTanimi({
+export const POLICY_LIST = listDefinition({
   filtreler: {
     plaka: { tur: 'metin', enFazla: 32 },
     odendi: { tur: 'secim', degerler: PAID },
@@ -105,7 +105,7 @@ export const POLICY_LIST = listeTanimi({
 });
 
 /** Tüm poliçelerin zeyilleri (`GET /regulasyon/zeyiller`, #301). */
-export const ENDORSEMENT_LIST = listeTanimi({
+export const ENDORSEMENT_LIST = listDefinition({
   filtreler: {
     plaka: { tur: 'metin', enFazla: 32 },
     tipi: { tur: 'metin', enFazla: 64 },
@@ -116,7 +116,7 @@ export const ENDORSEMENT_LIST = listeTanimi({
   varsayilanSirala: '-tarih',
 });
 
-export const MTV_LIST = listeTanimi({
+export const MTV_LIST = listDefinition({
   filtreler: {
     plaka: { tur: 'metin', enFazla: 32 },
     odendi: { tur: 'secim', degerler: PAID },
@@ -127,7 +127,7 @@ export const MTV_LIST = listeTanimi({
   varsayilanSirala: 'vade',
 });
 
-export const INSPECTION_LIST = listeTanimi({
+export const INSPECTION_LIST = listDefinition({
   filtreler: {
     plaka: { tur: 'metin', enFazla: 32 },
     odendi: { tur: 'secim', degerler: PAID },
@@ -138,7 +138,7 @@ export const INSPECTION_LIST = listeTanimi({
   varsayilanSirala: 'bitis',
 });
 
-export const DUE_LIST = listeTanimi({
+export const DUE_LIST = listDefinition({
   filtreler: {
     kova: { tur: 'secim', degerler: DUE_BUCKETS },
     tur: { tur: 'metin', enFazla: 32 },

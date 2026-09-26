@@ -15,8 +15,8 @@ describe('pagedDefinitionSource', () => {
         const no = Number(opts.parametreler['sayfa']);
         const start = (no - 1) * PAGE_SIZE;
         const count = Math.max(0, Math.min(PAGE_SIZE, total - start));
-        const kayitlar = Array.from({ length: count }, (_, i) => ({ id: String(start + i) }));
-        return of({ kayitlar, toplam: total });
+        const records = Array.from({ length: count }, (_, i) => ({ id: String(start + i) }));
+        return of({ kayitlar: records, toplam: total });
       },
     };
     TestBed.configureTestingModule({ providers: [{ provide: ApiIstemcisi, useValue: api }] });

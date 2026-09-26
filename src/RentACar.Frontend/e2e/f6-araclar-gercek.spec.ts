@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { apiGet, apiGetDurum, apiPost, GERCEK_YOK, gir, KOK } from './gercek';
+import { apiGet, apiGetState, apiPost, NO_ACTUAL, login, ROOT } from './gercek';
 import { ORTAM } from './ortam';
 
 /**
@@ -10,7 +10,7 @@ import { ORTAM } from './ortam';
  * operatörü aracı hiçbir yoldan göremez/değiştiremez; Muhasebe okur ama yazamaz. Koşum sonunda fotoğraflar ve
  * araç silinir (mali kayıt değil; kira/BAF bağı kurulmadı).
  */
-test.skip(GERCEK_YOK, 'gerçek backend ortamı yok (RACAR_E2E_KOK / RACAR_E2E_SIFRE)');
+test.skip(NO_ACTUAL, 'gerçek backend ortamı yok (RACAR_E2E_KOK / RACAR_E2E_SIFRE)');
 test.describe.configure({ mode: 'serial' });
 
 /**
@@ -19,7 +19,7 @@ test.describe.configure({ mode: 'serial' });
  */
 declare const Buffer: { from(data: string, encoding: 'base64'): never };
 
-const ARACLAR = '/api/ui/v1/araclar';
+const VEHICLES = '/api/ui/v1/araclar';
 /** Geçerli 1×1 PNG'ler (sunucu türü içerikten okur, küçük resim üretir). */
 const PNG_A =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -39,64 +39,64 @@ interface Photo {
 }
 
 const plaka = `99EF${String(1000 + Math.floor(Math.random() * 9000))}`;
-let aracId = '';
+let vehicleIdValue = '';
 
-async function apiSend(page: Page, method: 'put' | 'delete', yol: string, govde?: unknown) {
-  const c = (await page.context().cookies(KOK)).find((x) => x.name === 'XSRF-TOKEN');
-  return page.context().request[method](`${KOK}${yol}`, {
+async function apiSend(page: Page, method: 'put' | 'delete', path: string, body?: unknown) {
+  const c = (await page.context().cookies(ROOT)).find((x) => x.name === 'XSRF-TOKEN');
+  return page.context().request[method](`${ROOT}${path}`, {
     headers: {
       'X-XSRF-TOKEN': c ? decodeURIComponent(c.value) : '',
       'Idempotency-Key': crypto.randomUUID(),
     },
-    ...(govde === undefined ? {} : { data: govde }),
+    ...(body === undefined ? {} : { data: body }),
   });
 }
 
 test('araç: oluştur → düzenle (surum, bayat 409) → foto yükle + sırala → durum panosu → Tahsis formu dolu', async ({
   page,
 }) => {
-  await gir(page, ORTAM.gercekAdmin);
+  await login(page, ORTAM.gercekAdmin);
 
   // Oluştur (SPA formu): plaka + şube.
-  await page.goto(`${KOK}/app/araclar/yeni`);
+  await page.goto(`${ROOT}/app/araclar/yeni`);
   await page.getByRole('textbox', { name: 'Plaka' }).fill(plaka);
   await page.getByRole('combobox', { name: 'Şube' }).fill('Merkez');
   await page.getByRole('button', { name: 'Oluştur' }).click();
   await expect(page).toHaveURL(/\/app\/araclar\/[0-9a-f-]{36}$/);
   await expect(page.getByText(`${plaka} plakalı araç oluşturuldu.`)).toBeVisible();
-  aracId = page.url().split('/').pop()!;
-  const ilk = await apiGet<Card>(page, `${ARACLAR}/${aracId}`);
-  expect(ilk).toMatchObject({ plaka, sube: 'Merkez', marka: null });
+  vehicleIdValue = page.url().split('/').pop()!;
+  const first = await apiGet<Card>(page, `${VEHICLES}/${vehicleIdValue}`);
+  expect(first).toMatchObject({ plaka, sube: 'Merkez', marka: null });
 
   // Düzenle: marka + KM → kayıt; sürüm ilerler.
   await page.getByRole('combobox', { name: 'Marka' }).fill('E2E Marka');
   await page.getByRole('textbox', { name: 'KM', exact: true }).fill('12500');
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
   await expect(page.getByText(`${plaka} plakalı araç kaydedildi.`)).toBeVisible();
-  const ikinci = await apiGet<Card>(page, `${ARACLAR}/${aracId}`);
-  expect(ikinci).toMatchObject({ marka: 'E2E Marka', sube: 'Merkez' });
-  expect(Number(ikinci.km)).toBe(12500);
-  expect(ikinci.surum).not.toBe(ilk.surum);
+  const second = await apiGet<Card>(page, `${VEHICLES}/${vehicleIdValue}`);
+  expect(second).toMatchObject({ marka: 'E2E Marka', sube: 'Merkez' });
+  expect(Number(second.km)).toBe(12500);
+  expect(second.surum).not.toBe(first.surum);
 
   // Bayat sürümle tam değiştirme reddedilir, kayıt değişmez.
-  const bayat = await apiSend(page, 'put', `${ARACLAR}/${aracId}`, {
-    ...ikinci,
+  const stale = await apiSend(page, 'put', `${VEHICLES}/${vehicleIdValue}`, {
+    ...second,
     marka: 'Bayat Yazim',
-    surum: ilk.surum,
+    surum: first.surum,
   });
-  expect(bayat.status()).toBe(409);
-  expect(((await bayat.json()) as { kod?: string }).kod).toBe('cakisma');
-  expect((await apiGet<Card>(page, `${ARACLAR}/${aracId}`)).marka).toBe('E2E Marka');
+  expect(stale.status()).toBe(409);
+  expect(((await stale.json()) as { kod?: string }).kod).toBe('cakisma');
+  expect((await apiGet<Card>(page, `${VEHICLES}/${vehicleIdValue}`)).marka).toBe('E2E Marka');
 
   // Fotoğraflar: iki yükleme (ilki kapak) → ikinciyi yukarı taşı → sunucu sırası değişir.
-  await page.goto(`${KOK}/app/araclar/${aracId}#sekme=fotograflar`);
-  const dosya = page.getByLabel('Fotoğraf seç (PNG/JPEG/WebP, ≤ 2 MB)');
-  for (const [ad, png] of [
+  await page.goto(`${ROOT}/app/araclar/${vehicleIdValue}#sekme=fotograflar`);
+  const file = page.getByLabel('Fotoğraf seç (PNG/JPEG/WebP, ≤ 2 MB)');
+  for (const [name, png] of [
     ['a.png', PNG_A],
     ['b.png', PNG_B],
   ] as const) {
-    await dosya.setInputFiles({
-      name: ad,
+    await file.setInputFiles({
+      name: name,
       mimeType: 'image/png',
       buffer: Buffer.from(png, 'base64'),
     });
@@ -104,20 +104,20 @@ test('araç: oluştur → düzenle (surum, bayat 409) → foto yükle + sırala 
     await expect(page.getByText('Fotoğraf yüklendi.').last()).toBeVisible();
   }
   await expect(page.getByText('2/20 fotoğraf')).toBeVisible();
-  const once = await apiGet<Photo[]>(page, `${ARACLAR}/${aracId}/fotograflar`);
+  const once = await apiGet<Photo[]>(page, `${VEHICLES}/${vehicleIdValue}/fotograflar`);
   expect(once).toHaveLength(2);
   await page.getByRole('button', { name: '2. fotoğrafı yukarı taşı' }).click();
   await expect
     .poll(async () =>
-      (await apiGet<Photo[]>(page, `${ARACLAR}/${aracId}/fotograflar`)).map((p) => p.id),
+      (await apiGet<Photo[]>(page, `${VEHICLES}/${vehicleIdValue}/fotograflar`)).map((p) => p.id),
     )
     .toEqual([once[1]!.id, once[0]!.id]);
 
   // Durum panosu: araç görünür, "Tahsis" BAF formunu araç + KM + şube dolu açar (F6.3 parite).
-  await page.goto(`${KOK}/app/arac-durum?q=${plaka}`);
-  const satir = page.getByRole('row').filter({ hasText: plaka });
-  await expect(satir).toHaveCount(1);
-  await satir.getByRole('link', { name: 'Tahsis' }).click();
+  await page.goto(`${ROOT}/app/arac-durum?q=${plaka}`);
+  const row = page.getByRole('row').filter({ hasText: plaka });
+  await expect(row).toHaveCount(1);
+  await row.getByRole('link', { name: 'Tahsis' }).click();
   await expect(page).toHaveURL(/\/app\/baf(\?|$)/);
   await expect(page.getByRole('combobox', { name: 'Araç', exact: true })).toHaveValue(
     new RegExp(`^${plaka}`),
@@ -129,70 +129,72 @@ test('araç: oluştur → düzenle (surum, bayat 409) → foto yükle + sırala 
 test('şube kapsamı: "ADV Şube B" operatörü Merkez aracını göremez, değiştiremez, Merkez\'e araç açamaz', async ({
   page,
 }) => {
-  expect(aracId, 'önceki test aracı oluşturmalı').not.toBe('');
-  await gir(page, ORTAM.gercekOperator);
-  expect(await apiGetDurum(page, `${ARACLAR}/${aracId}`)).toBe(403);
-  expect(await apiGetDurum(page, `${ARACLAR}/${aracId}/fotograflar`)).toBe(403);
-  const liste = await apiGet<{ kayitlar: { id: string }[] }>(page, ARACLAR, { q: plaka });
-  expect(liste.kayitlar.map((k) => k.id)).not.toContain(aracId);
-  const pano = await apiGet<{ liste: { kayitlar: { vehicleId: string }[] } }>(
+  expect(vehicleIdValue, 'önceki test aracı oluşturmalı').not.toBe('');
+  await login(page, ORTAM.gercekOperator);
+  expect(await apiGetState(page, `${VEHICLES}/${vehicleIdValue}`)).toBe(403);
+  expect(await apiGetState(page, `${VEHICLES}/${vehicleIdValue}/fotograflar`)).toBe(403);
+  const list = await apiGet<{ kayitlar: { id: string }[] }>(page, VEHICLES, { q: plaka });
+  expect(list.kayitlar.map((k) => k.id)).not.toContain(vehicleIdValue);
+  const dashboard = await apiGet<{ liste: { kayitlar: { vehicleId: string }[] } }>(
     page,
-    `${ARACLAR}/durum`,
+    `${VEHICLES}/durum`,
     { q: plaka },
   );
-  expect(pano.liste.kayitlar.map((k) => k.vehicleId)).not.toContain(aracId);
-  expect((await apiPost(page, `${ARACLAR}/${aracId}/km`, { km: 99999 })).status()).toBe(403);
-  const yeni = await apiPost(page, ARACLAR, {
+  expect(dashboard.liste.kayitlar.map((k) => k.vehicleId)).not.toContain(vehicleIdValue);
+  expect((await apiPost(page, `${VEHICLES}/${vehicleIdValue}/km`, { km: 99999 })).status()).toBe(
+    403,
+  );
+  const newItem = await apiPost(page, VEHICLES, {
     plaka: `${plaka}X`,
     sube: 'Merkez',
     durum: 'Musait',
     km: 0,
   });
-  expect(yeni.ok(), `başka şubeye araç açılmamalı: ${yeni.status()}`).toBe(false);
+  expect(newItem.ok(), `başka şubeye araç açılmamalı: ${newItem.status()}`).toBe(false);
   // Silme OperationsDelete ister (operatörde yok).
-  expect((await apiSend(page, 'delete', `${ARACLAR}/${aracId}`)).status()).toBe(403);
+  expect((await apiSend(page, 'delete', `${VEHICLES}/${vehicleIdValue}`)).status()).toBe(403);
 
-  await page.goto(`${KOK}/app/araclar/${aracId}`);
+  await page.goto(`${ROOT}/app/araclar/${vehicleIdValue}`);
   await expect(page.getByRole('button', { name: 'Kaydet', exact: true })).toHaveCount(0);
 });
 
 test('izin: Muhasebe aracı okur (ViewReports) ama yazamaz; durum panosu ve tanımlar kapalı', async ({
   page,
 }) => {
-  await gir(page, ORTAM.gercekMuhasebe);
-  const kart = await apiGet<Card>(page, `${ARACLAR}/${aracId}`);
-  expect(kart.plaka).toBe(plaka);
-  expect((await apiSend(page, 'put', `${ARACLAR}/${aracId}`, kart)).status()).toBe(403);
-  expect(await apiGetDurum(page, `${ARACLAR}/durum`)).toBe(403);
-  expect(await apiGetDurum(page, `${ARACLAR}/detayli`)).toBe(200);
+  await login(page, ORTAM.gercekMuhasebe);
+  const card = await apiGet<Card>(page, `${VEHICLES}/${vehicleIdValue}`);
+  expect(card.plaka).toBe(plaka);
+  expect((await apiSend(page, 'put', `${VEHICLES}/${vehicleIdValue}`, card)).status()).toBe(403);
+  expect(await apiGetState(page, `${VEHICLES}/durum`)).toBe(403);
+  expect(await apiGetState(page, `${VEHICLES}/detayli`)).toBe(200);
 
-  await page.goto(`${KOK}/app/araclar/${aracId}`);
+  await page.goto(`${ROOT}/app/araclar/${vehicleIdValue}`);
   await expect(page.getByText('Araç kartını yalnız görüntüleme yetkiniz var.')).toBeVisible();
-  for (const yol of ['/app/arac-durum', '/app/arac-sahipleri', '/app/araclar/yeni']) {
-    await page.goto(`${KOK}${yol}`);
+  for (const path of ['/app/arac-durum', '/app/arac-sahipleri', '/app/araclar/yeni']) {
+    await page.goto(`${ROOT}${path}`);
     await expect(page.getByText('Bu sayfayı görüntüleme yetkiniz yok.')).toBeVisible();
-    await expect(page).toHaveURL(`${KOK}/app/`);
+    await expect(page).toHaveURL(`${ROOT}/app/`);
   }
 });
 
 test('izin: Operatör detaylı listeyi (ViewReports) açamaz', async ({ page }) => {
-  await gir(page, ORTAM.gercekOperator);
-  expect(await apiGetDurum(page, `${ARACLAR}/detayli`)).toBe(403);
-  await page.goto(`${KOK}/app/araclar/detayli`);
+  await login(page, ORTAM.gercekOperator);
+  expect(await apiGetState(page, `${VEHICLES}/detayli`)).toBe(403);
+  await page.goto(`${ROOT}/app/araclar/detayli`);
   await expect(page.getByText('Bu sayfayı görüntüleme yetkiniz yok.')).toBeVisible();
 });
 
 test.afterAll(async ({ browser }) => {
-  if (!aracId) return;
+  if (!vehicleIdValue) return;
   const page = await browser.newPage();
-  await gir(page, ORTAM.gercekAdmin);
-  for (const p of await apiGet<Photo[]>(page, `${ARACLAR}/${aracId}/fotograflar`)) {
-    expect((await apiSend(page, 'delete', `${ARACLAR}/${aracId}/fotograflar/${p.id}`)).ok()).toBe(
-      true,
-    );
+  await login(page, ORTAM.gercekAdmin);
+  for (const p of await apiGet<Photo[]>(page, `${VEHICLES}/${vehicleIdValue}/fotograflar`)) {
+    expect(
+      (await apiSend(page, 'delete', `${VEHICLES}/${vehicleIdValue}/fotograflar/${p.id}`)).ok(),
+    ).toBe(true);
   }
-  const sil = await apiSend(page, 'delete', `${ARACLAR}/${aracId}`);
-  expect(sil.ok(), `araç silme: ${sil.status()}`).toBe(true);
-  expect(await apiGetDurum(page, `${ARACLAR}/${aracId}`)).toBe(404);
+  const remove = await apiSend(page, 'delete', `${VEHICLES}/${vehicleIdValue}`);
+  expect(remove.ok(), `araç silme: ${remove.status()}`).toBe(true);
+  expect(await apiGetState(page, `${VEHICLES}/${vehicleIdValue}`)).toBe(404);
   await page.close();
 });

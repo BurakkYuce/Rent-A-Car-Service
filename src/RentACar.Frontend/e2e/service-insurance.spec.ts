@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
 import {
   INSPECTION_1,
   MTV_1,
@@ -12,7 +12,7 @@ import {
   serviceDetail,
   serviceInsuranceEndpoints,
 } from './service-insurance-fakes';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F9.2 servis / sigorta / vade / fiyat-tarife ekranları. Üç zorunlu senaryo PARA formunda (MTV ödemesi): doğrulama
@@ -20,22 +20,22 @@ import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
  * aynı anahtar/gövdeyle tek ödeme, tanım ekranında `cakisma` birleştirmesi, çift tıklamada tek kalem; axe iki tema +
  * 320/390/768/1440 taşma.
  */
-const AG_HATASI = [
+const NETWORK_ERROR = [
   /Failed to load resource: the server responded with a status of 4\d\d/,
   /Failed to load resource: net::ERR_FAILED/,
 ];
 const ADMIN = { ...BEN, izinler: [...BEN.izinler, 'ManageUsers', 'OperationsDelete'] };
 
 const P = (
-  ad: string,
-  yol: string,
-  baslik: string,
-  hazir?: VitrinSayfasi['hazir'],
+  name: string,
+  path: string,
+  title: string,
+  ready?: VitrinSayfasi['hazir'],
 ): VitrinSayfasi => ({
-  ad,
-  yol,
-  baslik,
-  ...(hazir ? { hazir } : {}),
+  ad: name,
+  yol: path,
+  baslik: title,
+  ...(ready ? { hazir: ready } : {}),
 });
 const grid = (text: string) => async (page: Page) => {
   await expect(page.getByRole('gridcell', { name: text }).first()).toBeVisible();
@@ -68,34 +68,34 @@ const PAGES: readonly VitrinSayfasi[] = [
 ];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, ADMIN);
+  await logIn(page, ADMIN);
 });
 
 // Sayfa başına ayrı test (#305 deseni): tek testte 21 sayfa × 2 tema axe taraması CI'da 30 sn sınırına dayanıyordu.
 for (const s of PAGES) {
   test(`${s.ad}: içerik + axe iki tema, konsol hatası yok`, async ({ page }) => {
-    const hatalar = hatalariTopla(page, AG_HATASI);
+    const errors = collectErrors(page, NETWORK_ERROR);
     await serviceInsuranceEndpoints(page);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
+    await waitReady(page, s);
+    expect(await seriousViolations(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
-    expect(hatalar).toEqual([]);
+    expect(await seriousViolations(page), `${s.ad} koyu`).toEqual([]);
+    expect(errors).toEqual([]);
   });
 }
 
 async function payForm(page: Page) {
   await page.goto(`/app/regulasyon/mtv/${MTV_1}`);
-  await hazirBekle(page, PAGES[5]!);
+  await waitReady(page, PAGES[5]!);
   return page.getByRole('region', { name: 'Öde' });
 }
 
 test('MTV ödemesi: doğrulama hatasında form korunur, düzeltilen gövde AYNI anahtarla gider', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let n = 0;
   const written = await serviceInsuranceEndpoints(page, {
     write: async (r, path) => {
@@ -135,8 +135,8 @@ test('MTV ödemesi: doğrulama hatasında form korunur, düzeltilen gövde AYNI 
   await form.getByRole('button', { name: 'Öde' }).click();
   await expect(page.getByText('2. ödeme kaydedildi (400,00 ₺); kalan 600,00 ₺.')).toBeVisible();
   expect(written[1]?.anahtar).toBe(written[0]?.anahtar);
-  expect(await ciddiIhlaller(page)).toEqual([]);
-  expect(hatalar).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('MTV ödemesi: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (aynı anahtar + gövde)', async ({
@@ -155,11 +155,11 @@ test('MTV ödemesi: oturum düşünce form kaybolmaz — yerinde giriş, AYNI is
     },
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
+    await writeXsrf(page, 'yeni-belirtec');
     return route.fulfill({ json: ADMIN });
   });
   const form = await payForm(page);
@@ -184,14 +184,14 @@ test('MTV ödemesi: oturum düşünce form kaybolmaz — yerinde giriş, AYNI is
 test('MTV ödemesi: cakisma formu silmez — kalan yenilenir, sonraki gönderim yeni kalanla', async ({
   page,
 }) => {
-  let kalan = 1000;
+  let remaining = 1000;
   let n = 0;
   const written = await serviceInsuranceEndpoints(page, {
-    mtv: () => mtvDetail(kalan),
+    mtv: () => mtvDetail(remaining),
     write: async (r, path) => {
       if (!path.endsWith('/odeme')) return false;
       if (++n === 1) {
-        kalan = 700; // başka sekme 300 ödedi
+        remaining = 700; // başka sekme 300 ödedi
         await problem(
           r,
           409,
@@ -277,16 +277,16 @@ test('MTV ödemesi: kaybolan yanıt → donmuş kopya AYNI anahtar + gövdeyle �
 test('tarife düzenleme: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
-  let surum = 'rc-1';
+  const errors = collectErrors(page, NETWORK_ERROR);
+  let version = 'rc-1';
   let extra: Record<string, unknown> = {};
   let put = 0;
   const written = await serviceInsuranceEndpoints(page, {
-    rate: () => rateCard(surum, extra),
+    rate: () => rateCard(version, extra),
     write: async (r, _path, method) => {
       if (method !== 'PUT') return false;
       if (++put === 1) {
-        surum = 'rc-2';
+        version = 'rc-2';
         extra = { maxGun: 30 }; // başka oturum max günü değiştirdi
         await problem(r, 409, 'cakisma', 'Kayıt siz düzenlerken değişti; güncel hâli yükleyin.');
       } else await r.fulfill({ json: rateCard('rc-3', { ad: 'Yeni ad', maxGun: 30 }) });
@@ -294,7 +294,7 @@ test('tarife düzenleme: cakisma formu silmez — güncel kayıt birleşir, sonr
     },
   });
   await page.goto('/app/tarifeler');
-  await hazirBekle(page, PAGES[9]!);
+  await waitReady(page, PAGES[9]!);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const editor = page.getByRole('region', { name: 'Tarife Düzenle' });
   const name = editor.getByRole('textbox', { name: 'Ad', exact: true });
@@ -318,7 +318,7 @@ test('tarife düzenleme: cakisma formu silmez — güncel kayıt birleşir, sonr
     ad: 'Yeni ad',
     maxGun: 30,
   });
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('servis kalemi: çift tıklamada tek istek, Idempotency-Key gönderilir; toplamlar sunucudan', async ({
@@ -336,7 +336,7 @@ test('servis kalemi: çift tıklamada tek istek, Idempotency-Key gönderilir; to
     },
   });
   await page.goto(`/app/servisler/${SERVICE_1}`);
-  await hazirBekle(page, PAGES[1]!);
+  await waitReady(page, PAGES[1]!);
   const section = page.getByRole('region', { name: 'Kalemler' });
   await section.getByRole('textbox', { name: 'Kalem', exact: true }).fill('Yağ');
   await section.getByRole('textbox', { name: 'Birim fiyat' }).fill('100');
@@ -401,11 +401,11 @@ test('M2 maliyet: hesap uçarken girdi değişirse sonuç BAYAT kalır, Kaydet k
     },
   });
   await page.goto('/app/maliyet-hesapla');
-  const alis = page.getByRole('textbox', { name: 'Alış bedeli (net)' });
-  await alis.fill('1000000');
+  const purchase = page.getByRole('textbox', { name: 'Alış bedeli (net)' });
+  await purchase.fill('1000000');
   await page.getByRole('button', { name: 'Hesapla', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Gönderiliyor…' })).toBeVisible();
-  await alis.fill('2000000');
+  await purchase.fill('2000000');
   await expect(page.getByRole('heading', { name: 'Sonuç (araç başına)' })).toBeVisible();
   await expect(page.getByText('Girdi hesaplamadan sonra değişti')).toBeVisible();
   const save = page.getByRole('button', { name: 'Teklifi Kaydet' });
@@ -438,7 +438,7 @@ test('M3 servis kalemi: kendi yazılmış denemesi NET tutarla tanınır, form t
     },
   });
   await page.goto(`/app/servisler/${SERVICE_1}`);
-  await hazirBekle(page, PAGES[1]!);
+  await waitReady(page, PAGES[1]!);
   const section = page.getByRole('region', { name: 'Kalemler' });
   await section.getByRole('textbox', { name: 'Kalem', exact: true }).fill('Yağ');
   await section.getByRole('textbox', { name: 'Birim fiyat' }).fill('100');
@@ -492,7 +492,7 @@ test('M4 muayene: "zaten kaydedildi" sonrası form (ceza dahil) sıfırlanır; a
     },
   });
   await page.goto(`/app/regulasyon/muayeneler/${INSPECTION_1}`);
-  await hazirBekle(page, PAGES[7]!);
+  await waitReady(page, PAGES[7]!);
   const form = page.getByRole('region', { name: 'Öde' });
   await form.getByRole('combobox', { name: 'Hesap', exact: true }).selectOption('Banka');
   await form.getByRole('textbox', { name: 'Ödeme tutarı' }).fill('400');
@@ -534,10 +534,10 @@ test('L1 tarife aktar: süzgeç değişip liste yüklenirken kanal sil KAPALI; o
   await page.route(
     (u) => u.pathname === '/api/ui/v1/tarife-aktar',
     async (r) => {
-      const kanal = new URL(r.request().url()).searchParams.get('kanal');
-      if (kanal === 'B') await wait(1500);
+      const channel = new URL(r.request().url()).searchParams.get('kanal');
+      if (channel === 'B') await wait(1500);
       await r.fulfill({
-        json: { satirlar: page1([]), bekleyen: 0, onayli: 0, silinecek: kanal === 'B' ? 7 : 2 },
+        json: { satirlar: page1([]), bekleyen: 0, onayli: 0, silinecek: channel === 'B' ? 7 : 2 },
       });
     },
   );
@@ -567,7 +567,7 @@ test('P5 tarife: 4 haneli fiyat dokunmadan (odak alıp bırakınca) kaydedilince
     },
   });
   await page.goto('/app/tarifeler');
-  await hazirBekle(page, PAGES[9]!);
+  await waitReady(page, PAGES[9]!);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const editor = page.getByRole('region', { name: 'Tarife Düzenle' });
   await expect(editor.getByRole('button', { name: 'Kaydet' })).toBeEnabled();
@@ -588,8 +588,8 @@ for (const s of PAGES) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -597,7 +597,7 @@ for (const s of PAGES) {
     await serviceInsuranceEndpoints(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

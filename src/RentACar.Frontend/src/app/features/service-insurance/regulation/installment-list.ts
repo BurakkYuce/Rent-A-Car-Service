@@ -12,35 +12,35 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { Observable } from 'rxjs';
 
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import type { Sayfa } from '@core/api/sayfa';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import type { TemelStore } from '@core/veri/temel-store';
-import type { FiltreKatalogu, ListeTanimi } from '@core/veri/liste-sorgusu';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { anDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import type { FilterCatalog, ListeTanimi } from '@core/veri/liste-sorgusu';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
 import { inspectionColumns, mtvColumns } from '../service-insurance-columns';
@@ -56,7 +56,7 @@ import {
 import { InspectionListStore, MtvListStore } from '../service-insurance.store';
 import type { InstallmentKind } from './installment-pay-panel';
 import { RegulationTabs } from './regulation-tabs';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -76,42 +76,42 @@ interface Row {
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    ParaGirdisi,
+    SearchSelection,
+    FormErrors,
+    Icon,
+    TextInput,
+    MoneyInput,
     RegulationTabs,
-    SayiGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    NumberInput,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, MtvListStore, InspectionListStore],
   templateUrl: './installment-list.html',
   styleUrl: '../service-insurance.scss',
 })
-export class InstallmentList implements KaydedilmemisDegisiklikSahibi {
+export class InstallmentList implements UnsavedChangesOwner {
   protected readonly kind: InstallmentKind =
     (inject(ActivatedRoute).snapshot.data['kind'] as InstallmentKind | undefined) ?? 'mtv';
   private readonly mtvStore = inject(MtvListStore);
   private readonly inspectionStore = inject(InspectionListStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly session = inject(OturumServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly session = inject(SessionService);
+  private readonly t = translationFunction();
 
   protected readonly list = (this.kind === 'mtv'
     ? this.mtvStore.list
-    : this.inspectionStore.list) as unknown as TemelStore<Sayfa<Row>, SorguParametreleri>;
-  protected readonly query = listeSorgusuUrlSenkronu<FiltreKatalogu>(
-    (this.kind === 'mtv' ? MTV_LIST : INSPECTION_LIST) as ListeTanimi<FiltreKatalogu>,
+    : this.inspectionStore.list) as unknown as TemelStore<Sayfa<Row>, QueryParameters>;
+  protected readonly query = listQueryUrlSync<FilterCatalog>(
+    (this.kind === 'mtv' ? MTV_LIST : INSPECTION_LIST) as ListeTanimi<FilterCatalog>,
   );
   protected readonly columns = (this.kind === 'mtv'
     ? mtvColumns(this.t)
@@ -119,7 +119,7 @@ export class InstallmentList implements KaydedilmemisDegisiklikSahibi {
   protected readonly rowId = (r: Row) => r.id;
   protected readonly detailRoot =
     this.kind === 'mtv' ? '/regulasyon/mtv' : '/regulasyon/muayeneler';
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
+  protected readonly vehicles = serverSelectionSource('arac');
   protected readonly canWrite = computed(() => this.session.izinVar('OperationsWrite'));
   private readonly createToggle = signal<boolean | null>(null);
   protected readonly createOpen = computed(
@@ -133,8 +133,8 @@ export class InstallmentList implements KaydedilmemisDegisiklikSahibi {
   protected readonly filterForm = new FormGroup({
     plaka: new FormControl<string | null>(null),
     odendi: new FormControl<'true' | 'false' | null>(null),
-    bas: new FormControl<GunMetni | null>(null),
-    bit: new FormControl<GunMetni | null>(null),
+    bas: new FormControl<DayText | null>(null),
+    bit: new FormControl<DayText | null>(null),
   });
 
   /** MTV: dönem + tutar + vade. Muayene: muayene tarihi + bitiş + ücret + işlem km. */
@@ -145,39 +145,39 @@ export class InstallmentList implements KaydedilmemisDegisiklikSahibi {
       this.kind === 'mtv' ? [Validators.required, Validators.maxLength(16)] : [],
     ),
     tutar: new FormControl<string | null>(null),
-    tarih: new FormControl<GunMetni | null>(null, Validators.required),
-    bitis: new FormControl<GunMetni | null>(
+    tarih: new FormControl<DayText | null>(null, Validators.required),
+    bitis: new FormControl<DayText | null>(
       null,
       this.kind === 'muayene' ? Validators.required : [],
     ),
     islemKm: new FormControl<number | null>(null),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
-      yukle: (p: SorguParametreleri) => this.list.yukle(p),
-      sifirla: () => this.list.sifirla(),
+      yukle: (p: QueryParameters) => this.list.yukle(p),
+      sifirla: () => this.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
       const f = this.query.sorgu().filtreler as Readonly<Record<string, string | undefined>>;
-      const [bas, bit] = this.kind === 'mtv' ? ['vadeBas', 'vadeBit'] : ['bitisBas', 'bitisBit'];
+      const [start, bit] = this.kind === 'mtv' ? ['vadeBas', 'vadeBit'] : ['bitisBas', 'bitisBit'];
       untracked(() =>
         this.filterForm.reset({
           plaka: f['plaka'] ?? null,
           odendi: (f['odendi'] as 'true' | 'false' | undefined) ?? null,
-          bas: f[bas] ?? null,
+          bas: f[start] ?? null,
           bit: f[bit] ?? null,
         }),
       );
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -190,7 +190,7 @@ export class InstallmentList implements KaydedilmemisDegisiklikSahibi {
     void this.query.degistir({
       sayfa: 1,
       filtreler: {
-        plaka: metinDegeri(v.plaka) ?? undefined,
+        plaka: textValue(v.plaka) ?? undefined,
         odendi: v.odendi ?? undefined,
         ...range,
       },
@@ -209,18 +209,18 @@ export class InstallmentList implements KaydedilmemisDegisiklikSahibi {
     const v = this.form.getRawValue();
     const mtv: MtvRequest = {
       vehicleId: v.arac?.id ?? null,
-      donem: metinDegeri(v.donem),
+      donem: textValue(v.donem),
       tutar: v.tutar,
-      vade: anDegeri(v.tarih, null),
-      aciklama: metinDegeri(v.aciklama),
+      vade: momentValue(v.tarih, null),
+      aciklama: textValue(v.aciklama),
     };
     const inspection: InspectionRequest = {
       vehicleId: v.arac?.id ?? null,
-      muayeneTarihi: anDegeri(v.tarih, null),
-      bitis: anDegeri(v.bitis, null),
+      muayeneTarihi: momentValue(v.tarih, null),
+      bitis: momentValue(v.bitis, null),
       ucret: v.tutar,
       islemKm: v.islemKm,
-      aciklama: metinDegeri(v.aciklama),
+      aciklama: textValue(v.aciklama),
     };
     const reset = () => this.form.reset();
     this.submission.gonder<unknown>(

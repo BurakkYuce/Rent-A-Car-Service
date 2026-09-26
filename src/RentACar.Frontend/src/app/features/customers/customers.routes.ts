@@ -1,8 +1,8 @@
 import type { Routes } from '@angular/router';
 
-import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriBloguyla } from '@core/i18n/ceviri-blogu';
-import { izinGuard } from '@core/oturum/oturum-guard';
+import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { permissionGuard } from '@core/oturum/session-guard';
 import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
 
 /**
@@ -13,7 +13,7 @@ import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
  */
 const READ = anyPermissionGuard('OperationsWrite', 'FinanceWrite', 'ViewReports');
 
-export const CUSTOMER_ROUTES: Routes = ceviriBloguyla('cari', [
+export const CUSTOMER_ROUTES: Routes = withTranslationBlock('cari', [
   {
     path: 'cariler',
     title: 'Cariler — RentACar',
@@ -24,10 +24,10 @@ export const CUSTOMER_ROUTES: Routes = ceviriBloguyla('cari', [
   {
     path: 'cariler/yeni',
     title: 'Yeni Cari — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
       import('@features/customers/customer-form/customer-form').then((m) => m.CustomerForm),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'cariler/:id',
@@ -35,7 +35,7 @@ export const CUSTOMER_ROUTES: Routes = ceviriBloguyla('cari', [
     canMatch: [READ],
     loadComponent: () =>
       import('@features/customers/customer-form/customer-form').then((m) => m.CustomerForm),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'cariler/:id/detay',

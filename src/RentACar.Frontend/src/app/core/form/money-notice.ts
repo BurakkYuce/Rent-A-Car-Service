@@ -1,5 +1,5 @@
 import type { ApiHatasi } from '@core/api/api-hatasi';
-import { paraBicimle } from '@core/bicim/bicim';
+import { formatMoney } from '@core/bicim/bicim';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 
 /**
@@ -68,7 +68,7 @@ export function duplicateNotice(
     };
   const params: Record<string, string> = {
     no: m.belgeNo ?? '',
-    tutar: paraBicimle(moneyAmount(m.tutar), m.doviz || 'TRY'),
+    tutar: formatMoney(moneyAmount(m.tutar), m.doviz || 'TRY'),
   };
   // Yapısal uç: kaydı başkası da yazmış olabilir — nötr metin, "önceki denemeniz" denmez.
   if (recordedMessage)
@@ -93,7 +93,7 @@ export function duplicateNotice(
       tone: 'uyari',
       title: 'paraIslemi.farkliBaslik',
       message: 'paraIslemi.oncekiKaydedildiFarkliTutar',
-      params: { ...params, girilen: paraBicimle(entered, submitted?.doviz || m.doviz || 'TRY') },
+      params: { ...params, girilen: formatMoney(entered, submitted?.doviz || m.doviz || 'TRY') },
       detail,
     };
   return {

@@ -18,7 +18,7 @@
   @if (items.tur() === 'hata') {
     <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ items.hata()?.detay }}</p>
   }
-  @if (cariId() && items.veri(); as d) {
+  @if (customerId() && items.veri(); as d) {
     <dl class="ozet-serit">
       <div class="rc-kart">
         <dt>
@@ -138,7 +138,7 @@
           [submission]="action"
           ikon="cash"
           [label]="'finans.tekCari.kapat' | transloco"
-          [disabled]="items.yukleniyor()"
+          [disabled]="items.isLoading()"
           (send)="submit()"
           (abandoned)="items.yenile()"
         />

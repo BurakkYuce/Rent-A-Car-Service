@@ -4,37 +4,37 @@ import type { Page } from '@playwright/test';
  * F5.2b planlama ekranlarının sahte `/api/ui/v1` yanıtları (harness yalnız statik SPA sunar). Değerler
  * ELLE kurulmuş senaryodur (bağımsız oracle): ekran hesap yapmaz, sunucunun verdiğini gösterir.
  */
-export const ARAC_1 = 'a0000000-0000-4000-8000-000000000001';
-export const ARAC_2 = 'a0000000-0000-4000-8000-000000000002';
-export const MUSTERI_1 = 'c0000000-0000-4000-8000-000000000001';
-export const SART_1 = 'b0000000-0000-4000-8000-000000000001';
-export const SART_2 = 'b0000000-0000-4000-8000-000000000002';
-export const FILO_1 = 'f0000000-0000-4000-8000-000000000001';
+export const VEHICLE_1 = 'a0000000-0000-4000-8000-000000000001';
+export const VEHICLE_2 = 'a0000000-0000-4000-8000-000000000002';
+export const CUSTOMER_1 = 'c0000000-0000-4000-8000-000000000001';
+export const TERM_1 = 'b0000000-0000-4000-8000-000000000001';
+export const TERM_2 = 'b0000000-0000-4000-8000-000000000002';
+export const FLEET_1 = 'f0000000-0000-4000-8000-000000000001';
 
-const bos = (n: number) => Array.from({ length: n }, () => null as string | null);
+const empty = (n: number) => Array.from({ length: n }, () => null as string | null);
 
 /** Ekim 2026: 34ABC123 1–3 kirada, 5'inde rezervasyon; 34XYZ9 boş. */
-export function takvimYaniti(ay = '2026-10') {
-  const gunler = bos(31);
+export function calendarResponse(month = '2026-10') {
+  const gunler = empty(31);
   gunler[0] = gunler[1] = gunler[2] = 'Kira';
   gunler[4] = 'Rezervasyon';
   return {
-    ay,
+    ay: month,
     gunSayisi: 31,
     oncekiAy: '2026-09',
     sonrakiAy: '2026-11',
     araclar: [
-      { id: ARAC_1, plaka: '34ABC123', gunler },
-      { id: ARAC_2, plaka: '34XYZ9', gunler: bos(31) },
+      { id: VEHICLE_1, plaka: '34ABC123', gunler },
+      { id: VEHICLE_2, plaka: '34XYZ9', gunler: empty(31) },
     ],
     aracToplam: 2,
   };
 }
 
-export function musaitlikSatiri(id: string, plaka: string, ek: Record<string, unknown> = {}) {
+export function availabilityRow(id: string, plate: string, extra: Record<string, unknown> = {}) {
   return {
     id,
-    plaka,
+    plaka: plate,
     marka: 'Fiat',
     tip: 'Egea',
     modelYili: 2024,
@@ -57,24 +57,24 @@ export function musaitlikSatiri(id: string, plaka: string, ek: Record<string, un
     bostaGun: 4,
     sonMusteri: 'Ayşe Yılmaz',
     fiyat: { gunluk: 1250.5, toplam: 3751.5, paraBirimi: 'TRY' },
-    ...ek,
+    ...extra,
   };
 }
 
 /** Pencere: 01.10.2026 09:00 – 04.10.2026 09:00 İstanbul (UTC 06:00). */
-export const MUSAITLIK_YANITI = {
+export const AVAILABILITY_RESPONSE = {
   pencereBas: '2026-10-01T06:00:00Z',
   pencereBit: '2026-10-04T06:00:00Z',
-  araclar: [musaitlikSatiri(ARAC_1, '34ABC123')],
+  araclar: [availabilityRow(VEHICLE_1, '34ABC123')],
   brokerElenen: 1,
   brokerGerekce: ['GRUP_KAPALI'],
   kiralaSorgusu: { vfrom: '2026-10-01', vto: '2026-10-04', vgrup: 'C' },
 };
 
-export function rezSart(id: string, ek: Record<string, unknown> = {}) {
+export function reservationTerm(id: string, extra: Record<string, unknown> = {}) {
   return {
     id,
-    musteriId: MUSTERI_1,
+    musteriId: CUSTOMER_1,
     musteriAd: 'Ayşe Yılmaz',
     sart: 'Bebek koltuğu',
     grup: 'Ekipman',
@@ -87,27 +87,27 @@ export function rezSart(id: string, ek: Record<string, unknown> = {}) {
     reservationId: null,
     quotationId: null,
     surum: null,
-    ...ek,
+    ...extra,
   };
 }
 
 /** Eski (1995 tarihli) aktif filo sözleşmesi: 3 × (1.000 net + 200 KDV) = 3.600 + 50 damga = 3.650. */
-export function filoDetay(ek: Record<string, unknown> = {}) {
-  const taksit = (sira: number, vade: string) => ({
-    sira,
-    vade,
+export function fleetDetail(extra: Record<string, unknown> = {}) {
+  const installment = (order: number, due: string) => ({
+    sira: order,
+    vade: due,
     net: 1000,
     kdv: 200,
     toplam: 1200,
   });
   return {
-    id: FILO_1,
+    id: FLEET_1,
     no: 'FK-000001',
     durum: 'Aktif',
     surum: 'surum-1',
-    musteriId: MUSTERI_1,
+    musteriId: CUSTOMER_1,
     musteriAd: 'Ayşe Yılmaz',
-    vehicleId: ARAC_1,
+    vehicleId: VEHICLE_1,
     plaka: '34ABC123',
     basTar: '2026-09-30T21:00:00Z',
     sureAy: 3,
@@ -136,30 +136,33 @@ export function filoDetay(ek: Record<string, unknown> = {}) {
       damga: 50,
       genelToplam: 3650,
       taksitler: [
-        taksit(1, '2026-09-30T21:00:00Z'),
-        taksit(2, '2026-10-31T21:00:00Z'),
-        taksit(3, '2026-11-30T21:00:00Z'),
+        installment(1, '2026-09-30T21:00:00Z'),
+        installment(2, '2026-10-31T21:00:00Z'),
+        installment(3, '2026-11-30T21:00:00Z'),
       ],
     },
     yetkiler: { kunye: true, tamamla: true, iptal: false },
-    ...ek,
+    ...extra,
   };
 }
 
 /** Ortak yardımcı uçlar: tablo düzeni (yok), müşteri seçimi. */
-export async function ortakUclar(page: Page): Promise<void> {
+export async function sharedEndpoints(page: Page): Promise<void> {
   await page.route('**/api/ui/v1/tablo-duzenleri/**', (route) =>
     route.fulfill({ json: { tabloKodu: 'x', duzen: null, guncellemeUtc: null } }),
   );
   await page.route(
     (url) => url.pathname === '/api/ui/v1/secim/musteri',
-    (route) => route.fulfill({ json: [{ id: MUSTERI_1, etiket: 'Ayşe Yılmaz', tip: 'Bireysel' }] }),
+    (route) =>
+      route.fulfill({ json: [{ id: CUSTOMER_1, etiket: 'Ayşe Yılmaz', tip: 'Bireysel' }] }),
   );
   await page.route(
     (url) => url.pathname === '/api/ui/v1/secim/arac',
     (route) =>
       route.fulfill({
-        json: [{ id: ARAC_1, etiket: '34ABC123', plaka: '34ABC123', grup: 'C', durum: 'Musait' }],
+        json: [
+          { id: VEHICLE_1, etiket: '34ABC123', plaka: '34ABC123', grup: 'C', durum: 'Musait' },
+        ],
       }),
   );
 }

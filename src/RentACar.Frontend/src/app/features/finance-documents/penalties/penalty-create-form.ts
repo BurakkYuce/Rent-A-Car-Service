@@ -12,17 +12,20 @@ import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } fr
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import type { DocumentResult, PenaltyType } from '../document-model';
 import { type PenaltyForm, penaltyRequest } from '../document-requests';
@@ -49,28 +52,28 @@ function lineGroup(required: boolean) {
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    MetinGirdisi,
-    ParaGirdisi,
-    SayiGirdisi,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    TextInput,
+    MoneyInput,
+    NumberInput,
+    DatePicker,
   ],
   templateUrl: './penalty-create-form.html',
   styleUrl: '../finance-documents.scss',
 })
 export class PenaltyCreateForm {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   /** Ceza türü önerileri (seç veya yaz). */
   readonly types = input<readonly PenaltyType[] | undefined>(undefined);
   readonly saved = output<DocumentResult>();
   readonly dirtyChange = output<boolean>();
 
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly vehicles = serverSelectionSource('arac');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly typeNames = computed(() => (this.types() ?? []).map((x) => x.ad));
 
   protected readonly lines = new FormArray(
@@ -93,7 +96,7 @@ export class PenaltyCreateForm {
     sebep: new FormControl<string | null>(null, Validators.maxLength(512)),
     kalemler: this.lines,
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   constructor() {
     this.form.valueChanges

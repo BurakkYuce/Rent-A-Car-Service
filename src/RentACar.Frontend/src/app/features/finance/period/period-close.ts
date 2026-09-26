@@ -11,14 +11,14 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 
 import { ConfirmGate } from '@core/form/money-submission';
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
-import { gunBicimle } from '@core/form/tarih-girdisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { clearServerErrors, applyServerErrors } from '@core/form/sunucu-hatalari';
+import { formatDay } from '@core/form/tarih-girdisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
 
@@ -41,10 +41,10 @@ import { FIN_COMMON, toAmount } from '../finance-shared';
 })
 export class PeriodClose {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
   private readonly gate = new ConfirmGate();
 
   protected readonly state = new TemelStore(() =>
@@ -57,23 +57,23 @@ export class PeriodClose {
   });
   protected readonly lockText = computed(() => {
     const d = this.state.veri()?.kapanisTarihi;
-    return d ? gunBicimle(d) : null;
+    return d ? formatDay(d) : null;
   });
   protected readonly profit = computed(() => (toAmount(this.state.veri()?.donemSonucu) ?? 0) >= 0);
 
   constructor() {
-    inject(FetchPolicy).baglan({ parametre: computed(() => 0), yukle: () => this.state.yukle() });
+    inject(FetchPolicy).connect({ parametre: computed(() => 0), yukle: () => this.state.yukle() });
   }
 
   protected async close(): Promise<void> {
     if (this.busy()) return;
-    sunucuHatalariniTemizle(this.form);
+    clearServerErrors(this.form);
     this.errors.set([]);
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
     const day = this.form.controls.kapanisTarihi.value;
     const yes = await this.gate.ask(() =>
-      this.confirm.sor({
+      this.confirm.ask({
         baslik: this.t('finans.donem.kapatBaslik'),
         mesaj: this.t('finans.donem.kapatOnay'),
         onayEtiketi: this.t('finans.donem.kapat'),
@@ -87,7 +87,7 @@ export class PeriodClose {
   protected async unlock(): Promise<void> {
     if (this.busy()) return;
     const yes = await this.gate.ask(() =>
-      this.confirm.sor({
+      this.confirm.ask({
         baslik: this.t('finans.donem.acBaslik'),
         mesaj: this.t('finans.donem.acOnay'),
         onayEtiketi: this.t('finans.donem.ac'),
@@ -118,8 +118,8 @@ export class PeriodClose {
           this.state.yenile();
         },
         error: (raw: unknown) => {
-          const e = apiHatasinaCevir(raw);
-          const rest = sunucuHatalariniUygula(this.form, e.alanlar);
+          const e = toApiError(raw);
+          const rest = applyServerErrors(this.form, e.alanlar);
           if (e.alanlar === undefined && !genelGosterilir(e)) this.errors.set([e.detay]);
           else if (rest.length > 0) this.errors.set(rest);
           this.state.yenile();

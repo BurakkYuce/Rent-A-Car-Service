@@ -28,44 +28,46 @@ import { ONYUKLU_CEVIRI_BLOKLARI } from './onyuklu-ceviri';
  */
 export const DILLER = ['tr'] as const;
 export type Dil = (typeof DILLER)[number];
-export const VARSAYILAN_DIL: Dil = 'tr';
+export const DEFAULT_LANGUAGE: Dil = 'tr';
 
-const CEVIRILER: Readonly<Record<Dil, Translation>> = { tr };
+const TRANSLATIONS: Readonly<Record<Dil, Translation>> = { tr };
 
 @Injectable({ providedIn: 'root' })
-export class GomuluCeviriYukleyici implements TranslocoLoader {
+export class EmbeddedTranslationLoader implements TranslocoLoader {
   private readonly onyuklu = inject(ONYUKLU_CEVIRI_BLOKLARI);
 
   getTranslation(dil: string): Observable<Translation> {
-    const ceviri = (CEVIRILER as Readonly<Record<string, Translation | undefined>>)[dil];
-    if (!ceviri) return throwError(() => new Error(`Çeviri dosyası yok: ${dil}`));
-    return of(this.onyuklu.reduce<Translation>((toplam, blok) => ({ ...toplam, ...blok }), ceviri));
+    const translation = (TRANSLATIONS as Readonly<Record<string, Translation | undefined>>)[dil];
+    if (!translation) return throwError(() => new Error(`Çeviri dosyası yok: ${dil}`));
+    return of(
+      this.onyuklu.reduce<Translation>((total, block) => ({ ...total, ...block }), translation),
+    );
   }
 }
 
 /** Eksik anahtar geliştirmede bağırır, üretimde anahtarın kendisi görünür (boş metin yerine). */
-export class EksikCeviriIsleyici implements TranslocoMissingHandler {
-  handle(anahtar: string): string {
-    return isDevMode() ? `EKSİK: ${anahtar}` : anahtar;
+export class MissingTranslationHandler implements TranslocoMissingHandler {
+  handle(key: string): string {
+    return isDevMode() ? `EKSİK: ${key}` : key;
   }
 }
 
-export function provideCeviri(): EnvironmentProviders[] {
+export function provideTranslation(): EnvironmentProviders[] {
   return [
     ...provideTransloco({
       config: {
         availableLangs: [...DILLER],
-        defaultLang: VARSAYILAN_DIL,
-        fallbackLang: VARSAYILAN_DIL,
+        defaultLang: DEFAULT_LANGUAGE,
+        fallbackLang: DEFAULT_LANGUAGE,
         reRenderOnLangChange: false,
         prodMode: !isDevMode(),
         missingHandler: { logMissingKey: isDevMode(), useFallbackTranslation: false },
       },
-      loader: GomuluCeviriYukleyici,
+      loader: EmbeddedTranslationLoader,
     }),
-    provideTranslocoMissingHandler(EksikCeviriIsleyici),
+    provideTranslocoMissingHandler(MissingTranslationHandler),
     // TS tarafındaki `translate()` çağrıları da ilk çizimden önce hazır metni bulsun.
-    provideAppInitializer(() => firstValueFrom(inject(TranslocoService).load(VARSAYILAN_DIL))),
+    provideAppInitializer(() => firstValueFrom(inject(TranslocoService).load(DEFAULT_LANGUAGE))),
   ];
 }
 
@@ -73,10 +75,10 @@ export function provideCeviri(): EnvironmentProviders[] {
  * TS tarafında tipli çeviri: anahtar `tr.json`'da ya da bir blokta yoksa derleme hatası. Enjeksiyon bağlamında
  * çağrılır. Blok anahtarı yalnız o bloğu yükleyen rotanın altında çözülür (yüklenmemişse eksik anahtar davranışı).
  */
-export function ceviriFonksiyonu(): (
-  anahtar: CeviriAnahtari,
-  parametreler?: Record<string, unknown>,
+export function translationFunction(): (
+  key: CeviriAnahtari,
+  parameters?: Record<string, unknown>,
 ) => string {
   const transloco = inject(TranslocoService);
-  return (anahtar, parametreler) => transloco.translate(anahtar, parametreler);
+  return (key, parameters) => transloco.translate(key, parameters);
 }

@@ -3,8 +3,8 @@ import type { Page, Route } from '@playwright/test';
 import { kaydet, type KayitliIstek } from './ortak';
 
 /** F7.2 cari + CRM ekranları için sahte `/api/ui/v1` (değerler elle kurulmuş; uygulama kodundan türetilmez). */
-export const CARI_1 = 'c1c1c1c1-0000-4000-8000-000000000001';
-export const CARI_2 = 'c1c1c1c1-0000-4000-8000-000000000002';
+export const ACCOUNT_1 = 'c1c1c1c1-0000-4000-8000-000000000001';
+export const ACCOUNT_2 = 'c1c1c1c1-0000-4000-8000-000000000002';
 export const RENTAL_1 = 'b2b2b2b2-0000-4000-8000-000000000001';
 export const SURVEY_1 = 'a5a5a5a5-0000-4000-8000-000000000001';
 export const COMPLAINT_1 = 'a6a6a6a6-0000-4000-8000-000000000001';
@@ -14,7 +14,7 @@ export const LEGAL_1 = 'a8a8a8a8-0000-4000-8000-000000000001';
 /** Bireysel cari kartı: TC kayıtlı ama GİZLİ (yalnız `tcKimlikVar`), ehliyet maskeli, vergi no maskeli. */
 export function card(extra: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id: CARI_1,
+    id: ACCOUNT_1,
     surum: 'c-1',
     tcKimlikVar: true,
     ehliyetNoMaske: '****5678',
@@ -60,7 +60,7 @@ export function card(extra: Record<string, unknown> = {}): Record<string, unknow
 
 function row(extra: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id: CARI_1,
+    id: ACCOUNT_1,
     tip: 'Bireysel',
     ad: 'Ayşe Yılmaz',
     anonim: false,
@@ -90,17 +90,17 @@ function row(extra: Record<string, unknown> = {}): Record<string, unknown> {
   };
 }
 
-const page1 = (kayitlar: unknown[], boyut = 50) => ({
-  kayitlar,
-  toplam: kayitlar.length,
+const page1 = (records: unknown[], size = 50) => ({
+  kayitlar: records,
+  toplam: records.length,
   sayfaNo: 1,
-  boyut,
+  boyut: size,
 });
 
 function detail(finance: boolean): Record<string, unknown> {
   return {
     musteri: {
-      id: CARI_1,
+      id: ACCOUNT_1,
       ad: 'Ayşe Yılmaz',
       tip: 'Bireysel',
       cepTel: '05321112233',
@@ -160,7 +160,7 @@ function detail(finance: boolean): Record<string, unknown> {
 
 /** 3.000 borç − 2.750 alacak = 250 bakiye (devir 0). */
 const STATEMENT = {
-  cariId: CARI_1,
+  cariId: ACCOUNT_1,
   cariAd: 'Ayşe Yılmaz',
   bakiye: 250,
   devir: 0,
@@ -206,7 +206,7 @@ export function survey(extra: Record<string, unknown> = {}): Record<string, unkn
   return {
     id: SURVEY_1,
     tarih: '2026-09-01T09:00:00Z',
-    cariId: CARI_1,
+    cariId: ACCOUNT_1,
     musteriAd: 'Ayşe Yılmaz',
     rentalId: RENTAL_1,
     sozlesmeNo: '2026260801001',
@@ -228,7 +228,7 @@ export function complaint(extra: Record<string, unknown> = {}): Record<string, u
     detay: null,
     durum: 'Acik',
     cozum: null,
-    cariId: CARI_1,
+    cariId: ACCOUNT_1,
     musteriAd: 'Ayşe Yılmaz',
     musteriTel: '05321112233',
     rentalId: RENTAL_1,
@@ -273,7 +273,7 @@ export function legalFile(extra: Record<string, unknown> = {}): Record<string, u
     tur: 'Icra',
     durum: 'Acik',
     aktif: true,
-    cariId: CARI_1,
+    cariId: ACCOUNT_1,
     musteriAd: 'Ayşe Yılmaz',
     musteriTel: null,
     avukat: 'Av. Can',
@@ -297,7 +297,7 @@ const ANALYSIS = {
   toplamHizmetBedeli: 400,
   segment: page1([
     {
-      cariId: CARI_1,
+      cariId: ACCOUNT_1,
       ad: 'Ayşe Yılmaz',
       mail: 'ayse@example.com',
       tel: '05321112233',
@@ -336,7 +336,7 @@ export async function customerCrmEndpoints(page: Page, e: Fakes = {}): Promise<K
     (r) => {
       const p = new URL(r.request().url()).pathname;
       if (p.startsWith('/api/ui/v1/secim/musteri'))
-        return json(r, p.endsWith(CARI_1) ? { id: CARI_1, etiket: 'Ayşe Yılmaz' } : []);
+        return json(r, p.endsWith(ACCOUNT_1) ? { id: ACCOUNT_1, etiket: 'Ayşe Yılmaz' } : []);
       return json(r, []);
     },
   );
@@ -377,7 +377,7 @@ export async function customerCrmEndpoints(page: Page, e: Fakes = {}): Promise<K
           page1([
             row(),
             row({
-              id: CARI_2,
+              id: ACCOUNT_2,
               ad: 'Anonim müşteri',
               anonim: true,
               cepTel: null,
@@ -387,11 +387,11 @@ export async function customerCrmEndpoints(page: Page, e: Fakes = {}): Promise<K
             }),
           ]),
         );
-      case `/api/ui/v1/cariler/${CARI_1}`:
+      case `/api/ui/v1/cariler/${ACCOUNT_1}`:
         return json(r, e.card?.() ?? card());
-      case `/api/ui/v1/cariler/${CARI_1}/detay`:
+      case `/api/ui/v1/cariler/${ACCOUNT_1}/detay`:
         return json(r, detail(e.finance ?? true));
-      case `/api/ui/v1/finans/cariler/${CARI_1}/ekstre`:
+      case `/api/ui/v1/finans/cariler/${ACCOUNT_1}/ekstre`:
         return json(r, STATEMENT);
       case '/api/ui/v1/anketler':
         return json(r, page1([{ ...sv, surum: null }]));
@@ -426,7 +426,7 @@ export async function customerCrmEndpoints(page: Page, e: Fakes = {}): Promise<K
             sozlesmeNo: '2026260801001',
             plaka: '34ABC123',
             musteriAd: 'Ayşe Yılmaz',
-            musteriId: CARI_1,
+            musteriId: ACCOUNT_1,
             cikisOfisi: 'Merkez',
             basTar: '2026-08-26T09:00:00Z',
           },

@@ -3,16 +3,16 @@ import { Router, provideRouter } from '@angular/router';
 
 import {
   ListeSorgusu,
-  apiParametreleri,
-  etkinFiltreSayisi,
-  listeTanimi,
-  sorguyuCoz,
-  sorguyuDegistir,
-  urlParametreleri,
+  apiParams,
+  activeFilterCount,
+  listDefinition,
+  parseQuery,
+  changeQuery,
+  urlParameters,
 } from './liste-sorgusu';
 
 /** Elle kurulmuş örnek katalog (kira listesi benzeri). */
-const KIRALAR = listeTanimi({
+const KIRALAR = listDefinition({
   filtreler: {
     arama: { tur: 'metin' },
     durum: { tur: 'secim', degerler: ['acik', 'kapali', 'iptal'] },
@@ -26,13 +26,13 @@ const KIRALAR = listeTanimi({
   varsayilanSirala: '-cikisTarihi',
 });
 
-type KiraSorgusu = ListeSorgusu<typeof KIRALAR.filtreler>;
+type RentalQuery = ListeSorgusu<typeof KIRALAR.filtreler>;
 
-const VARSAYILAN: KiraSorgusu = { sayfa: 1, boyut: 50, sirala: '-cikisTarihi', filtreler: {} };
+const DEFAULT: RentalQuery = { sayfa: 1, boyut: 50, sirala: '-cikisTarihi', filtreler: {} };
 
 describe('liste sorgusu — ayrıştırma (bozuk parametre → varsayılan)', () => {
   it('boş kaynak → varsayılanlar', () => {
-    expect(sorguyuCoz(KIRALAR, {})).toEqual(VARSAYILAN);
+    expect(parseQuery(KIRALAR, {})).toEqual(DEFAULT);
   });
 
   it.each([
@@ -48,8 +48,8 @@ describe('liste sorgusu — ayrıştırma (bozuk parametre → varsayılan)', ()
     ['2147483648', 1],
     ['99999999999999999999999', 1],
     ['7', 7],
-  ])('sayfa=%j → %i', (ham, beklenen) => {
-    expect(sorguyuCoz(KIRALAR, { sayfa: ham }).sayfa).toBe(beklenen);
+  ])('sayfa=%j → %i', (raw, expected) => {
+    expect(parseQuery(KIRALAR, { sayfa: raw }).sayfa).toBe(expected);
   });
 
   it.each([
@@ -64,8 +64,8 @@ describe('liste sorgusu — ayrıştırma (bozuk parametre → varsayılan)', ()
     ['20.5', 50],
     ['', 50],
     ['25', 25],
-  ])('boyut kırpma: boyut=%j → %i (sunucu kuralı 1..200)', (ham, beklenen) => {
-    expect(sorguyuCoz(KIRALAR, { boyut: ham }).boyut).toBe(beklenen);
+  ])('boyut kırpma: boyut=%j → %i (sunucu kuralı 1..200)', (raw, expected) => {
+    expect(parseQuery(KIRALAR, { boyut: raw }).boyut).toBe(expected);
   });
 
   it.each([
@@ -77,12 +77,12 @@ describe('liste sorgusu — ayrıştırma (bozuk parametre → varsayılan)', ()
     ['--plaka', '-cikisTarihi'],
     ['', '-cikisTarihi'],
     ['PLAKA', '-cikisTarihi'],
-  ])('sirala=%j → %j (beyaz liste; bilinmeyen alan 400 üretmesin)', (ham, beklenen) => {
-    expect(sorguyuCoz(KIRALAR, { sirala: ham }).sirala).toBe(beklenen);
+  ])('sirala=%j → %j (beyaz liste; bilinmeyen alan 400 üretmesin)', (raw, expected) => {
+    expect(parseQuery(KIRALAR, { sirala: raw }).sirala).toBe(expected);
   });
 
   it('filtre türleri: geçerliler okunur, geçersizler düşer', () => {
-    const gecerli = sorguyuCoz(KIRALAR, {
+    const valid = parseQuery(KIRALAR, {
       arama: '  İzmir  ',
       durum: 'kapali',
       baslangic: '2024-02-29',
@@ -91,7 +91,7 @@ describe('liste sorgusu — ayrıştırma (bozuk parametre → varsayılan)', ()
       kurumsal: '1',
       subeId: '3F2504E0-4F89-11D3-9A0C-0305E82C3301',
     });
-    expect(gecerli.filtreler).toEqual({
+    expect(valid.filtreler).toEqual({
       arama: 'İzmir',
       durum: 'kapali',
       baslangic: '2024-02-29',
@@ -101,7 +101,7 @@ describe('liste sorgusu — ayrıştırma (bozuk parametre → varsayılan)', ()
       subeId: '3F2504E0-4F89-11D3-9A0C-0305E82C3301',
     });
 
-    const gecersiz = sorguyuCoz(KIRALAR, {
+    const invalid = parseQuery(KIRALAR, {
       arama: '   ',
       durum: 'Kapali',
       baslangic: '2026-02-30',
@@ -110,7 +110,7 @@ describe('liste sorgusu — ayrıştırma (bozuk parametre → varsayılan)', ()
       kurumsal: 'evet',
       subeId: 'sube-1',
     });
-    expect(gecersiz.filtreler).toEqual({});
+    expect(invalid.filtreler).toEqual({});
   });
 
   it.each([
@@ -121,30 +121,30 @@ describe('liste sorgusu — ayrıştırma (bozuk parametre → varsayılan)', ()
     ['26-01-01'],
     ['2026-1-1'],
     ['2026-01-01T00:00'],
-  ])('geçersiz tarih %j düşer', (ham) => {
-    expect(sorguyuCoz(KIRALAR, { baslangic: ham }).filtreler.baslangic).toBeUndefined();
+  ])('geçersiz tarih %j düşer', (raw) => {
+    expect(parseQuery(KIRALAR, { baslangic: raw }).filtreler.baslangic).toBeUndefined();
   });
 
   it('tekrarlanan parametre (dizi) → ilk değer', () => {
-    expect(sorguyuCoz(KIRALAR, { durum: ['acik', 'kapali'], sayfa: ['3', '9'] })).toMatchObject({
+    expect(parseQuery(KIRALAR, { durum: ['acik', 'kapali'], sayfa: ['3', '9'] })).toMatchObject({
       sayfa: 3,
       filtreler: { durum: 'acik' },
     });
   });
 
   it('metin filtresi 200 karakterde kesilir, NFC’ye normalize edilir', () => {
-    const uzun = 'ş'.repeat(250);
-    expect(sorguyuCoz(KIRALAR, { arama: uzun }).filtreler.arama).toBe('ş'.repeat(200));
+    const longText = 'ş'.repeat(250);
+    expect(parseQuery(KIRALAR, { arama: longText }).filtreler.arama).toBe('ş'.repeat(200));
     // "ş" ayrık biçimde (s + U+0327) → birleşik "ş"
-    expect(sorguyuCoz(KIRALAR, { arama: 'Kaş' }).filtreler.arama).toBe('Kaş');
+    expect(parseQuery(KIRALAR, { arama: 'Kaş' }).filtreler.arama).toBe('Kaş');
   });
 
   it('tanım doğrulaması: ayrılmış ad ve listede olmayan varsayılan sıralama reddedilir', () => {
-    expect(() => listeTanimi({ filtreler: { sayfa: { tur: 'metin' } } })).toThrow();
+    expect(() => listDefinition({ filtreler: { sayfa: { tur: 'metin' } } })).toThrow();
     expect(() =>
-      listeTanimi({ filtreler: {}, siralanabilir: ['a'], varsayilanSirala: '-b' }),
+      listDefinition({ filtreler: {}, siralanabilir: ['a'], varsayilanSirala: '-b' }),
     ).toThrow();
-    expect(() => listeTanimi({ filtreler: {}, varsayilanBoyut: 500 })).toThrow();
+    expect(() => listDefinition({ filtreler: {}, varsayilanBoyut: 500 })).toThrow();
   });
 });
 
@@ -157,38 +157,38 @@ describe('liste sorgusu — URL gidiş-dönüş (gerçek Router kodlamasıyla)',
   });
 
   /** Sorgu → URL parametreleri → Router ile URL METNİNE seri hâle → geri ayrıştır → sorgu. */
-  function gidisDonus(sorgu: KiraSorgusu): { url: string; geri: KiraSorgusu } {
-    const parametreler = Object.fromEntries(
-      Object.entries(urlParametreleri(KIRALAR, sorgu)).filter(([, v]) => v !== null),
+  function roundTrip(query: RentalQuery): { url: string; geri: RentalQuery } {
+    const parameters = Object.fromEntries(
+      Object.entries(urlParameters(KIRALAR, query)).filter(([, v]) => v !== null),
     );
     const url = router.serializeUrl(
-      router.createUrlTree(['/kiralar'], { queryParams: parametreler }),
+      router.createUrlTree(['/kiralar'], { queryParams: parameters }),
     );
-    const geri = sorguyuCoz(KIRALAR, router.parseUrl(url).queryParamMap);
-    return { url, geri };
+    const back = parseQuery(KIRALAR, router.parseUrl(url).queryParamMap);
+    return { url, geri: back };
   }
 
-  const tablo: readonly [string, KiraSorgusu, string][] = [
-    ['varsayılan → temiz URL', VARSAYILAN, '/kiralar'],
+  const table: readonly [string, RentalQuery, string][] = [
+    ['varsayılan → temiz URL', DEFAULT, '/kiralar'],
     [
       'sayfa + boyut + artan sıralama',
-      { ...VARSAYILAN, sayfa: 3, boyut: 100, sirala: 'plaka' },
+      { ...DEFAULT, sayfa: 3, boyut: 100, sirala: 'plaka' },
       '/kiralar?sayfa=3&boyut=100&sirala=plaka',
     ],
     [
       'Türkçe karakterli arama',
-      { ...VARSAYILAN, filtreler: { arama: 'Şişli Çağlayan İĞDIR ığdır öü' } },
+      { ...DEFAULT, filtreler: { arama: 'Şişli Çağlayan İĞDIR ığdır öü' } },
       '/kiralar?arama=%C5%9Ei%C5%9Fli%20%C3%87a%C4%9Flayan%20%C4%B0%C4%9EDIR%20%C4%B1%C4%9Fd%C4%B1r%20%C3%B6%C3%BC',
     ],
     [
       'URL için özel karakterler',
-      { ...VARSAYILAN, filtreler: { arama: 'a&b=c?d#e/f+g%h' } },
+      { ...DEFAULT, filtreler: { arama: 'a&b=c?d#e/f+g%h' } },
       '/kiralar?arama=a%26b%3Dc%3Fd%23e%2Ff%2Bg%25h',
     ],
     [
       'tüm filtre türleri',
       {
-        ...VARSAYILAN,
+        ...DEFAULT,
         filtreler: {
           durum: 'iptal',
           baslangic: '2026-09-21',
@@ -202,14 +202,14 @@ describe('liste sorgusu — URL gidiş-dönüş (gerçek Router kodlamasıyla)',
     ],
   ];
 
-  it.each(tablo)('%s', (_ad, sorgu, beklenenUrl) => {
-    const { url, geri } = gidisDonus(sorgu);
-    expect(url).toBe(beklenenUrl);
-    expect(geri).toEqual(sorgu);
+  it.each(table)('%s', (_name, query, expectedUrl) => {
+    const { url, geri } = roundTrip(query);
+    expect(url).toBe(expectedUrl);
+    expect(geri).toEqual(query);
   });
 
   it('varsayılan değerler URL parametresinden SİLİNİR (null)', () => {
-    expect(urlParametreleri(KIRALAR, VARSAYILAN)).toEqual({
+    expect(urlParameters(KIRALAR, DEFAULT)).toEqual({
       sayfa: null,
       boyut: null,
       sirala: null,
@@ -225,53 +225,53 @@ describe('liste sorgusu — URL gidiş-dönüş (gerçek Router kodlamasıyla)',
 });
 
 describe('liste sorgusu — değişiklik ve API parametreleri', () => {
-  const besinciSayfa: KiraSorgusu = { ...VARSAYILAN, sayfa: 5 };
+  const fifthPage: RentalQuery = { ...DEFAULT, sayfa: 5 };
 
   it('filtre değişince sayfa 1’e döner', () => {
-    expect(sorguyuDegistir(KIRALAR, besinciSayfa, { filtreler: { arama: 'Ankara' } })).toEqual({
-      ...VARSAYILAN,
+    expect(changeQuery(KIRALAR, fifthPage, { filtreler: { arama: 'Ankara' } })).toEqual({
+      ...DEFAULT,
       filtreler: { arama: 'Ankara' },
     });
   });
 
   it('sıralama ya da boyut değişince sayfa 1’e döner; yalnız sayfa değişince korunur', () => {
-    expect(sorguyuDegistir(KIRALAR, besinciSayfa, { sirala: 'tutar' }).sayfa).toBe(1);
-    expect(sorguyuDegistir(KIRALAR, besinciSayfa, { boyut: 20 }).sayfa).toBe(1);
-    expect(sorguyuDegistir(KIRALAR, besinciSayfa, { sayfa: 6 }).sayfa).toBe(6);
+    expect(changeQuery(KIRALAR, fifthPage, { sirala: 'tutar' }).sayfa).toBe(1);
+    expect(changeQuery(KIRALAR, fifthPage, { boyut: 20 }).sayfa).toBe(1);
+    expect(changeQuery(KIRALAR, fifthPage, { sayfa: 6 }).sayfa).toBe(6);
   });
 
   it('aynı filtre değeri yeniden yazılırsa sayfa korunur', () => {
-    const mevcut: KiraSorgusu = { ...besinciSayfa, filtreler: { arama: 'Ankara' } };
-    expect(sorguyuDegistir(KIRALAR, mevcut, { filtreler: { arama: '  Ankara ' } }).sayfa).toBe(5);
+    const existing: RentalQuery = { ...fifthPage, filtreler: { arama: 'Ankara' } };
+    expect(changeQuery(KIRALAR, existing, { filtreler: { arama: '  Ankara ' } }).sayfa).toBe(5);
   });
 
   it('undefined filtreyi kaldırır; diğer filtreler korunur', () => {
-    const mevcut: KiraSorgusu = { ...VARSAYILAN, filtreler: { arama: 'x', durum: 'acik' } };
-    expect(sorguyuDegistir(KIRALAR, mevcut, { filtreler: { arama: undefined } }).filtreler).toEqual(
-      { durum: 'acik' },
-    );
+    const existing: RentalQuery = { ...DEFAULT, filtreler: { arama: 'x', durum: 'acik' } };
+    expect(changeQuery(KIRALAR, existing, { filtreler: { arama: undefined } }).filtreler).toEqual({
+      durum: 'acik',
+    });
   });
 
   it('boyut değişikliği de kırpılır', () => {
-    expect(sorguyuDegistir(KIRALAR, VARSAYILAN, { boyut: 1000 }).boyut).toBe(200);
+    expect(changeQuery(KIRALAR, DEFAULT, { boyut: 1000 }).boyut).toBe(200);
   });
 
   it('API parametreleri: sayfa/boyut daima, sıralama ve dolu filtreler', () => {
     expect(
-      apiParametreleri(KIRALAR, { ...VARSAYILAN, filtreler: { arama: 'İzmir', kurumsal: true } }),
+      apiParams(KIRALAR, { ...DEFAULT, filtreler: { arama: 'İzmir', kurumsal: true } }),
     ).toEqual({ sayfa: 1, boyut: 50, sirala: '-cikisTarihi', arama: 'İzmir', kurumsal: 'true' });
 
-    const siralamasiz = listeTanimi({ filtreler: {} });
-    expect(apiParametreleri(siralamasiz, sorguyuCoz(siralamasiz, {}))).toEqual({
+    const unsorted = listDefinition({ filtreler: {} });
+    expect(apiParams(unsorted, parseQuery(unsorted, {}))).toEqual({
       sayfa: 1,
       boyut: 50,
     });
   });
 
   it('etkin filtre sayısı', () => {
-    expect(etkinFiltreSayisi(KIRALAR, VARSAYILAN)).toBe(0);
+    expect(activeFilterCount(KIRALAR, DEFAULT)).toBe(0);
     expect(
-      etkinFiltreSayisi(KIRALAR, { ...VARSAYILAN, filtreler: { arama: 'a', kurumsal: false } }),
+      activeFilterCount(KIRALAR, { ...DEFAULT, filtreler: { arama: 'a', kurumsal: false } }),
     ).toBe(2);
   });
 });

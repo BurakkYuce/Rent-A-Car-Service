@@ -2,8 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { tap } from 'rxjs';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { PanelOzetiYaniti } from '@core/api/ui-tipleri';
-import { KabukSayaclari } from '@core/sayac/kabuk-sayaclari';
+import type { PanelSummaryResponse } from '@core/api/ui-tipleri';
+import { ShellCounters } from '@core/sayac/shell-counters';
 import { TemelStore } from '@core/veri/temel-store';
 
 /**
@@ -16,13 +16,13 @@ import { TemelStore } from '@core/veri/temel-store';
 @Injectable()
 export class PanelStore {
   private readonly api = inject(ApiIstemcisi);
-  private readonly sayaclar = inject(KabukSayaclari);
+  private readonly counters = inject(ShellCounters);
 
-  readonly ozet = new TemelStore<PanelOzetiYaniti, null>(
+  readonly ozet = new TemelStore<PanelSummaryResponse, null>(
     () =>
-      this.api.get<PanelOzetiYaniti>('/api/ui/v1/panel/ozet').pipe(
+      this.api.get<PanelSummaryResponse>('/api/ui/v1/panel/ozet').pipe(
         tap((o) =>
-          this.sayaclar.yayinla({
+          this.counters.publish({
             kirada: Number(o.kpi.kirada),
             geciken: o.donusler.gecikmis.length,
             bugunCikan: o.cikislar.bugun.length,

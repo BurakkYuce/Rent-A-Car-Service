@@ -1,9 +1,13 @@
 import { inject } from '@angular/core';
 import { type Observable, EMPTY, expand, map, reduce } from 'rxjs';
 
-import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import type { TanimDegeri, TanimKaynagi, TanimSatiri } from '@shared/form/tanim-crud/tanim-kaynagi';
+import type {
+  DefinitionValue,
+  DefinitionSource,
+  DefinitionRow,
+} from '@shared/form/tanim-crud/definition-source';
 
 /** Tanım listeleri sunucuda sayfalı; ekranda tamamı (tanım kümeleri küçüktür). */
 const PAGE_SIZE = 200;
@@ -27,18 +31,18 @@ interface DefinitionDto {
  *   düzenlemeyi açarken kaydı `read` ile tekil okur (güncel değer + sürüm) ve PUT o sürümle gider; arada yazım
  *   olursa sunucu 409 `cakisma` verir, bileşen formu silmeden güncel kaydı birleştirir (F11.2a çekirdek eki).
  */
-export function definitionSource(root: ApiYolu, fields: readonly string[]): TanimKaynagi {
+export function definitionSource(root: ApiPath, fields: readonly string[]): DefinitionSource {
   const api = inject(ApiIstemcisi);
-  const record = (id: string): ApiYolu => `${root}/${encodeURIComponent(id)}`;
+  const record = (id: string): ApiPath => `${root}/${encodeURIComponent(id)}`;
 
-  const toRow = (dto: DefinitionDto): TanimSatiri => {
+  const toRow = (dto: DefinitionDto): DefinitionRow => {
     const row: Record<string, unknown> = { id: dto.id, surum: dto.surum ?? null };
     for (const f of fields)
       row[f] = f === 'durum' ? (dto.aktif ? ACTIVE : PASSIVE) : (dto[f] ?? null);
-    return row as TanimSatiri;
+    return row as DefinitionRow;
   };
 
-  const toBody = (value: TanimDegeri): Record<string, unknown> => {
+  const toBody = (value: DefinitionValue): Record<string, unknown> => {
     const body: Record<string, unknown> = {};
     for (const f of fields) {
       if (f === 'durum') continue;
@@ -53,7 +57,7 @@ export function definitionSource(root: ApiYolu, fields: readonly string[]): Tani
     api.get<Sayfa<DefinitionDto>>(root, { parametreler: { sayfa: n, boyut: PAGE_SIZE } });
 
   return {
-    listele: (): Observable<readonly TanimSatiri[]> =>
+    listele: (): Observable<readonly DefinitionRow[]> =>
       page(1).pipe(
         expand((p) => (p.sayfaNo * p.boyut < p.toplam ? page(p.sayfaNo + 1) : EMPTY)),
         reduce((all, p) => [...all, ...p.kayitlar], [] as DefinitionDto[]),

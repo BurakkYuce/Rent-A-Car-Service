@@ -1,21 +1,21 @@
 import {
-  REZ_SART_LISTESI,
-  type RezSart,
-  bekleyenParametreleri,
-  kayittanDegerler,
-  rezSartGovdesi,
-  yeniDegerler,
+  RESERVATION_TERM_LIST,
+  type ReservationTerm,
+  pendingParams,
+  valuesFromRecord,
+  reservationTermBody,
+  newValues,
 } from './rez-sart-modeli';
-import { gecerlilikMetni } from './rez-sart-sutunlari';
-import { apiParametreleri, sorguyuCoz } from '@core/veri/liste-sorgusu';
+import { validityText } from './reservation-term-columns';
+import { apiParams, parseQuery } from '@core/veri/liste-sorgusu';
 
-const MUSTERI = 'c0000000-0000-4000-8000-000000000001';
-const REZ = 'r0000000-0000-4000-8000-000000000001';
+const CUSTOMER = 'c0000000-0000-4000-8000-000000000001';
+const RES = 'r0000000-0000-4000-8000-000000000001';
 
 /** Elle kurulmuş kayıt: tarihler sunucunun UTC anları (İstanbul gece yarısı = önceki gün 21:00Z). */
-const KAYIT: RezSart = {
+const RECORD: ReservationTerm = {
   id: 's1',
-  musteriId: MUSTERI,
+  musteriId: CUSTOMER,
   musteriAd: 'Ayşe Yılmaz',
   sart: 'Bebek koltuğu',
   grup: 'Ekipman',
@@ -25,7 +25,7 @@ const KAYIT: RezSart = {
   karsilamaTarihi: null,
   karsilandi: false,
   teslimEden: null,
-  reservationId: REZ,
+  reservationId: RES,
   quotationId: null,
   surum: 'surum-1',
 };
@@ -33,12 +33,12 @@ const KAYIT: RezSart = {
 describe('rez şartı modeli', () => {
   it('yeni kayıt: gün → İstanbul gece yarısı (UTC), karşılama tarihi gönderilmez, surum yok', () => {
     const v = {
-      ...yeniDegerler('2026-09-23'),
-      musteri: { id: MUSTERI, etiket: 'Ayşe' },
+      ...newValues('2026-09-23'),
+      musteri: { id: CUSTOMER, etiket: 'Ayşe' },
       sart: '  Koltuk  ',
     };
-    expect(rezSartGovdesi(v, null)).toEqual({
-      musteriId: MUSTERI,
+    expect(reservationTermBody(v, null)).toEqual({
+      musteriId: CUSTOMER,
       sart: 'Koltuk',
       grup: null,
       basTar: null,
@@ -52,16 +52,16 @@ describe('rez şartı modeli', () => {
   });
 
   it('düzenleme (tam PUT): dokunulmayan tarih sunucunun ANI ile aynen gider, bağ kimlikleri ve surum geri döner', () => {
-    const v = kayittanDegerler(KAYIT);
+    const v = valuesFromRecord(RECORD);
     expect(v.basTar).toBe('2026-10-01');
     expect(v.talepTarihi).toBe('2026-09-20');
-    const govde = rezSartGovdesi({ ...v, bitTar: '2026-10-05', teslimEden: 'Ali' }, KAYIT);
-    expect(govde).toMatchObject({
+    const body = reservationTermBody({ ...v, bitTar: '2026-10-05', teslimEden: 'Ali' }, RECORD);
+    expect(body).toMatchObject({
       basTar: '2026-09-30T21:00:00Z',
       talepTarihi: '2026-09-20T07:15:00Z',
       bitTar: '2026-10-04T21:00:00.000Z',
       teslimEden: 'Ali',
-      reservationId: REZ,
+      reservationId: RES,
       quotationId: null,
       surum: 'surum-1',
     });
@@ -69,24 +69,22 @@ describe('rez şartı modeli', () => {
 
   it('"bekleyen" sayacı: aynı süzgeç + durum=bekleyen, tek kayıt; karşılanan süzgecinde istek yok', () => {
     const p = (k: Record<string, string>) =>
-      apiParametreleri(REZ_SART_LISTESI, sorguyuCoz(REZ_SART_LISTESI, k));
-    expect(
-      bekleyenParametreleri(p({ musteriId: MUSTERI, sayfa: '3', sirala: '-talepTarihi' })),
-    ).toEqual({
-      musteriId: MUSTERI,
+      apiParams(RESERVATION_TERM_LIST, parseQuery(RESERVATION_TERM_LIST, k));
+    expect(pendingParams(p({ musteriId: CUSTOMER, sayfa: '3', sirala: '-talepTarihi' }))).toEqual({
+      musteriId: CUSTOMER,
       durum: 'bekleyen',
       sayfa: 1,
       boyut: 1,
     });
-    expect(bekleyenParametreleri(p({ durum: 'karsilanan' }))).toBeNull();
+    expect(pendingParams(p({ durum: 'karsilanan' }))).toBeNull();
   });
 
   it('geçerlilik metni: iki uç, tek uç, yok (İstanbul günü)', () => {
-    expect(
-      gecerlilikMetni({ basTar: '2026-09-30T21:00:00Z', bitTar: '2026-10-04T21:00:00Z' }),
-    ).toBe('01.10.2026 – 05.10.2026');
-    expect(gecerlilikMetni({ basTar: '2026-09-30T21:00:00Z', bitTar: null })).toBe('01.10.2026 –');
-    expect(gecerlilikMetni({ basTar: null, bitTar: '2026-10-04T21:00:00Z' })).toBe('– 05.10.2026');
-    expect(gecerlilikMetni({ basTar: null, bitTar: null })).toBeNull();
+    expect(validityText({ basTar: '2026-09-30T21:00:00Z', bitTar: '2026-10-04T21:00:00Z' })).toBe(
+      '01.10.2026 – 05.10.2026',
+    );
+    expect(validityText({ basTar: '2026-09-30T21:00:00Z', bitTar: null })).toBe('01.10.2026 –');
+    expect(validityText({ basTar: null, bitTar: '2026-10-04T21:00:00Z' })).toBe('– 05.10.2026');
+    expect(validityText({ basTar: null, bitTar: null })).toBeNull();
   });
 });

@@ -3,15 +3,15 @@ import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import {
-  aciliDurumMu,
+  isUrgentState,
   type Toast,
-  type ToastDurumu,
-  ToastServisi,
-} from '@core/geri-bildirim/toast-servisi';
-import { Ikon } from '@shared/ikon/ikon';
+  type ToastState,
+  ToastService,
+} from '@core/geri-bildirim/toast-service';
+import { Icon } from '@shared/ikon/icon';
 import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
 
-const IKON: Readonly<Record<ToastDurumu, IkonAdi>> = {
+const ICON: Readonly<Record<ToastState, IkonAdi>> = {
   basari: 'circle-check',
   bilgi: 'info-circle',
   uyari: 'alert-triangle',
@@ -28,20 +28,20 @@ const IKON: Readonly<Record<ToastDurumu, IkonAdi>> = {
 @Component({
   selector: 'rc-toast-alani',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Ikon, TranslocoPipe, NgTemplateOutlet],
+  imports: [Icon, TranslocoPipe, NgTemplateOutlet],
   templateUrl: './toast-alani.html',
   styleUrl: './toast-alani.scss',
 })
 export class ToastAlani {
-  protected readonly servis = inject(ToastServisi);
-  protected readonly kibar = computed(() =>
-    this.servis.toastlar().filter((t) => !aciliDurumMu(t.durum)),
+  protected readonly servis = inject(ToastService);
+  protected readonly polite = computed(() =>
+    this.servis.toasts().filter((t) => !isUrgentState(t.durum)),
   );
-  protected readonly acil = computed(() =>
-    this.servis.toastlar().filter((t) => aciliDurumMu(t.durum)),
+  protected readonly urgent = computed(() =>
+    this.servis.toasts().filter((t) => isUrgentState(t.durum)),
   );
 
   protected ikon(toast: Toast): IkonAdi {
-    return IKON[toast.durum];
+    return ICON[toast.durum];
   }
 }

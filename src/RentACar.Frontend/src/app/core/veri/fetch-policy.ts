@@ -1,13 +1,13 @@
 import { Injectable, Injector, Signal, effect, inject, signal, untracked } from '@angular/core';
 
-import { OTURUM_BAGLAMI } from '@core/oturum/oturum-baglami';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { SESSION_CONTEXT } from '@core/oturum/oturum-baglami';
+import { tabContext } from '@core/sekme/tab-state';
 
 /**
  * Neden yüklendi: ilk açılış, sorgu (URL/parametre) değişti, oturum bağlamı değişti, elle yenileme,
  * arka plandaki sekmeye dönüldü (`sekmeyeDonunce: 'yenile'`).
  */
-export type GetirmeNedeni = 'ilk' | 'sorgu' | 'baglam' | 'elle' | 'sekme';
+export type FetchReason = 'ilk' | 'sorgu' | 'baglam' | 'elle' | 'sekme';
 
 export interface FetchPolicyAyari<P> {
   /**
@@ -17,7 +17,7 @@ export interface FetchPolicyAyari<P> {
    */
   readonly parametre: Signal<P>;
   /** Asıl yükleme — genellikle `store.yukle(p)`. İptal/yarış store'da (`switchMap`). */
-  readonly yukle: (parametre: P, neden: GetirmeNedeni) => void;
+  readonly yukle: (parameter: P, reason: FetchReason) => void;
   /** Oturum bağlamı düşünce (`null`) çağrılır — genellikle `store.sifirla()`. */
   readonly sifirla?: () => void;
   /**
@@ -61,23 +61,23 @@ export interface FetchPolicyAyari<P> {
  */
 @Injectable()
 export class FetchPolicy {
-  private readonly baglam = inject(OTURUM_BAGLAMI);
+  private readonly context = inject(SESSION_CONTEXT);
   private readonly injector = inject(Injector);
-  private readonly sekme = sekmeBaglami();
-  private readonly elleSayaci = signal(0);
-  private readonly _sonNeden = signal<GetirmeNedeni | null>(null);
+  private readonly sekme = tabContext();
+  private readonly manualCounter = signal(0);
+  private readonly _lastReason = signal<FetchReason | null>(null);
 
   /** Son yüklemenin nedeni (tanı/test için). */
-  readonly sonNeden = this._sonNeden.asReadonly();
+  readonly lastReason = this._lastReason.asReadonly();
 
   /** Bir parametre–yükleme çiftini politikaya bağlar. Aynı sayfada birden çok kez çağrılabilir. */
-  baglan<P>(ayar: FetchPolicyAyari<P>): void {
-    const esit = ayar.esit ?? Object.is;
-    const aktifSinyali = ayar.aktif ?? this.sekme.aktif;
+  connect<P>(setting: FetchPolicyAyari<P>): void {
+    const equal = setting.esit ?? Object.is;
+    const activeSignal = setting.aktif ?? this.sekme.aktif;
     // Arka plandaki sekmenin effect'i çalışmaz (görünüm ayrık); dönüş, sayfanın sekmesinin kaç kez
     // öne geldiğini sayan sinyalle anlaşılır — takılınca effect bu değişiklikle koşar.
-    const donusSayaci = ayar.sekmeyeDonunce === 'yenile' ? this.sekme.onaGelme : null;
-    let son: {
+    const returnCounter = setting.sekmeyeDonunce === 'yenile' ? this.sekme.onaGelme : null;
+    let last: {
       readonly parametre: P;
       readonly baglam: string;
       readonly elle: number;
@@ -86,39 +86,39 @@ export class FetchPolicy {
 
     effect(
       () => {
-        const baglam = this.baglam();
-        const aktif = aktifSinyali();
-        const parametre = ayar.parametre();
-        const elle = this.elleSayaci();
-        const donus = donusSayaci?.() ?? 0;
+        const context = this.context();
+        const active = activeSignal();
+        const parameter = setting.parametre();
+        const manual = this.manualCounter();
+        const returnInfo = returnCounter?.() ?? 0;
 
-        if (baglam === null) {
-          if (son !== null) {
-            son = null;
-            untracked(() => ayar.sifirla?.());
+        if (context === null) {
+          if (last !== null) {
+            last = null;
+            untracked(() => setting.sifirla?.());
           }
           return;
         }
-        if (!aktif) return;
+        if (!active) return;
 
-        const neden: GetirmeNedeni | null =
-          son === null
+        const reason: FetchReason | null =
+          last === null
             ? 'ilk'
-            : son.baglam !== baglam.anahtar
+            : last.baglam !== context.anahtar
               ? 'baglam'
-              : !esit(son.parametre, parametre)
+              : !equal(last.parametre, parameter)
                 ? 'sorgu'
-                : son.elle !== elle
+                : last.elle !== manual
                   ? 'elle'
-                  : son.donus !== donus
+                  : last.donus !== returnInfo
                     ? 'sekme'
                     : null;
-        if (neden === null) return;
+        if (reason === null) return;
 
-        son = { parametre, baglam: baglam.anahtar, elle, donus };
+        last = { parametre: parameter, baglam: context.anahtar, elle: manual, donus: returnInfo };
         untracked(() => {
-          this._sonNeden.set(neden);
-          ayar.yukle(parametre, neden);
+          this._lastReason.set(reason);
+          setting.yukle(parameter, reason);
         });
       },
       { injector: this.injector },
@@ -127,6 +127,6 @@ export class FetchPolicy {
 
   /** Aynı parametreyle yeniden yükler (sayfa görünür değilse görünür olunca). */
   yenile(): void {
-    this.elleSayaci.update((n) => n + 1);
+    this.manualCounter.update((n) => n + 1);
   }
 }

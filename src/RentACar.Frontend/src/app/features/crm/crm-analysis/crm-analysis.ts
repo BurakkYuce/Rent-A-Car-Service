@@ -11,22 +11,22 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { Sayfa } from '@core/api/sayfa';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import type { StoreDurumu } from '@core/veri/temel-store';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import type { StoreState } from '@core/veri/temel-store';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { ParaPipe, SayiPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, NumberPipe } from '@shared/bicim/bicim-pipe';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { Alan } from '@shared/form/alan/alan';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Tablo } from '@shared/tablo/tablo';
+import { Selection } from '@shared/form/kontroller/selection';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Table } from '@shared/tablo/table';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { segmentColumns } from '../crm-columns';
 import { CRM_LIST, type CrmAnalysis as Analysis, type CrmSegmentRow } from '../crm-model';
 import { CrmAnalysisStore } from '../crm.store';
@@ -42,17 +42,17 @@ import { CrmAnalysisStore } from '../crm.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    ParaPipe,
+    MoneyPipe,
     RouterLink,
-    SayiGirdisi,
-    SayiPipe,
-    Secim,
-    Tablo,
-    TarihSecici,
+    NumberInput,
+    NumberPipe,
+    Selection,
+    Table,
+    DatePicker,
   ],
   providers: [FetchPolicy, CrmAnalysisStore],
   templateUrl: './crm-analysis.html',
@@ -60,9 +60,9 @@ import { CrmAnalysisStore } from '../crm.store';
 })
 export class CrmAnalysis {
   protected readonly store = inject(CrmAnalysisStore);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(CRM_LIST);
+  protected readonly query = listQueryUrlSync(CRM_LIST);
   protected readonly columns = segmentColumns(this.t);
   protected readonly rowId = (r: CrmSegmentRow) => r.cariId;
   protected readonly num = toNumber;
@@ -75,7 +75,7 @@ export class CrmAnalysis {
   );
 
   /** Segment tablosu: analiz yanıtının sayfası (dört durum korunur — hata ASLA boş liste değil). */
-  protected readonly segment = computed<StoreDurumu<Sayfa<CrmSegmentRow>>>(() => {
+  protected readonly segment = computed<StoreState<Sayfa<CrmSegmentRow>>>(() => {
     const d = this.store.analysis.durum();
     const page = (a: Analysis): Sayfa<CrmSegmentRow> => ({
       kayitlar: a.segment.kayitlar,
@@ -94,8 +94,8 @@ export class CrmAnalysis {
   });
 
   protected readonly filterForm = new FormGroup({
-    tarihBas: new FormControl<GunMetni | null>(null),
-    tarihBit: new FormControl<GunMetni | null>(null),
+    tarihBas: new FormControl<DayText | null>(null),
+    tarihBit: new FormControl<DayText | null>(null),
     minKira: new FormControl<number | null>(null),
     kaynak: new FormControl<string | null>(null),
     ofis: new FormControl<string | null>(null),
@@ -103,18 +103,18 @@ export class CrmAnalysis {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.analysis.yukle(p),
-      sifirla: () => this.store.analysis.sifirla(),
+      sifirla: () => this.store.analysis.reset(),
     });
     this.store.options.yukle();
     effect(() => {
       const f = this.query.sorgu().filtreler;
       untracked(() =>
         this.filterForm.reset({
-          tarihBas: (f.tarihBas as GunMetni | undefined) ?? null,
-          tarihBit: (f.tarihBit as GunMetni | undefined) ?? null,
+          tarihBas: (f.tarihBas as DayText | undefined) ?? null,
+          tarihBit: (f.tarihBit as DayText | undefined) ?? null,
           minKira: f.minKira ?? null,
           kaynak: f.kaynak ?? null,
           ofis: f.ofis ?? null,

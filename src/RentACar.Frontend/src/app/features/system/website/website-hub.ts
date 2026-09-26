@@ -11,20 +11,20 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { Observable } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { TemelStore } from '@core/veri/temel-store';
-import { ParaPipe } from '@shared/bicim/bicim-pipe';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { MoneyPipe } from '@shared/bicim/bicim-pipe';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type ListingRow = Sema<'ListingRowDto'>;
-type ListingPage = Sema<'SayfaOfListingRowDto'>;
-type Summary = Sema<'WebsiteSummaryDto'>;
+type ListingRow = Schema<'ListingRowDto'>;
+type ListingPage = Schema<'SayfaOfListingRowDto'>;
+type Summary = Schema<'WebsiteSummaryDto'>;
 
 export const LISTINGS_ROOT = '/api/ui/v1/web-sitesi' as const;
 /** Fotoğrafsız ilan sitede görünmez: bu eksik rozeti tıklanınca özellik/foto adımına götürür (Blazor paritesi). */
@@ -37,18 +37,18 @@ export const MISSING_PHOTO = 'Foto yok';
 @Component({
   selector: 'rc-website-hub',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, RouterLink, TranslocoPipe, ParaPipe],
+  imports: [PageBand, RouterLink, TranslocoPipe, MoneyPipe],
   styleUrl: '../system.scss',
   templateUrl: './website-hub.html',
 })
 export class WebsiteHub {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   protected readonly module = computed(() => this.session.ben()?.moduller.webSitesi === true);
   protected readonly missingPhoto = MISSING_PHOTO;
   protected readonly summary = new TemelStore<Summary>(() =>
@@ -74,15 +74,17 @@ export class WebsiteHub {
     return r.eksikler.filter((e) => e !== MISSING_PHOTO);
   }
 
-  protected setStatus(r: ListingRow, durum: 'Yayinda' | 'Pasif'): void {
+  protected setStatus(r: ListingRow, status: 'Yayinda' | 'Pasif'): void {
     this.act(
       r.id,
-      this.api.post(`${LISTINGS_ROOT}/ilanlar/${encodeURIComponent(r.id)}/durum`, { durum }),
+      this.api.post(`${LISTINGS_ROOT}/ilanlar/${encodeURIComponent(r.id)}/durum`, {
+        durum: status,
+      }),
     );
   }
 
   protected async remove(r: ListingRow): Promise<void> {
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('sistem.web.silBaslik', { baslik: r.baslik }),
       mesaj: this.t('sistem.web.silMesaj'),
       onayEtiketi: this.t('sistem.ortak.sil'),
@@ -106,7 +108,7 @@ export class WebsiteHub {
       },
       error: (e: unknown) => {
         this.busy.set(null);
-        const h = apiHatasinaCevir(e);
+        const h = toApiError(e);
         this.actionError.set(h.alanlar?.['durum']?.[0] ?? h.detay);
       },
     });

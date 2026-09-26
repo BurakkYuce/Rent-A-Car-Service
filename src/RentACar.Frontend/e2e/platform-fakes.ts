@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import { problem, xsrfYaz } from './ortak';
+import { problem, writeXsrf } from './ortak';
 
 /**
  * Stateful fake of `/api/ui/v1/platform/*` (F12.2 e2e). Shapes follow the OpenAPI contract
@@ -17,14 +17,14 @@ type Detail = Record<string, unknown> & { id: string; kod: string; ad: string; d
 
 export function tenantDetail(
   id: string,
-  kod: string,
-  ad: string,
+  code: string,
+  name: string,
   extra: Partial<Detail> = {},
 ): Detail {
   return {
     id,
-    kod,
-    ad,
+    kod: code,
+    ad: name,
     durum: 'Aktif',
     kapanisTarihi: null,
     olusturma: '2026-01-10T09:00:00Z',
@@ -44,7 +44,7 @@ export function tenantDetail(
     webSitesiModulu: false,
     yeniArayuzPilot: false,
     halkaAcikSite: true,
-    domainler: [{ host: `${kod}.ornek.test`, tur: 'Alt alan', durum: 'Aktif' }],
+    domainler: [{ host: `${code}.ornek.test`, tur: 'Alt alan', durum: 'Aktif' }],
     logo: {
       var: false,
       bayt: null,
@@ -110,7 +110,7 @@ export async function fakePlatformApi(
     calls: [],
     bodies: [],
   };
-  await xsrfYaz(page, 'e2e-belirtec');
+  await writeXsrf(page, 'e2e-belirtec');
   await page.route('**/api/ui/v1/oturum/xsrf', (r) => r.fulfill({ status: 204 }));
   await page.route('**/api/ui/v1/platform/**', (route) => handle(route, state));
   return state;

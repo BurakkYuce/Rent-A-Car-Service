@@ -13,34 +13,31 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { trKucukHarf } from '@core/metin/tr-normalize';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { trLowerCase } from '@core/metin/tr-normalize';
+import { SessionService } from '@core/oturum/session-service';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { SayiPipe, TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { NumberPipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { serverSelectionSource } from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { SekmeliForm, SekmePaneli, type SekmeTanimi } from '@shared/form/sekmeli-form/sekmeli-form';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { Selection } from '@shared/form/kontroller/selection';
+import { TabbedForm, TabPanel, type SekmeTanimi } from '@shared/form/sekmeli-form/tabbed-form';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
 
 import { kmSourceKey } from '../vehicle-detail/vehicle-detail';
 import { suggestionList } from '../suggestions';
@@ -48,7 +45,7 @@ import { SCORECARD_ROLES } from '../vehicle-guards';
 import { toNumber, type VehicleCard } from '../vehicle-model';
 import {
   VehicleCardStore,
-  secimSuggestionFetch,
+  selectionSuggestionFetch,
   vehicleSuggestionFetch,
   type SuggestionFetch,
 } from '../vehicle.store';
@@ -63,7 +60,7 @@ import {
   type SuggestionKind,
 } from './vehicle-form-model';
 import { VehiclePhotos } from './vehicle-photos';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 /**
  * Araç kartı (`/app/araclar/yeni`, `/app/araclar/:id`) — Blazor `VehicleEdit.razor` + liste içi "Yeni Araç"
@@ -77,47 +74,47 @@ import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
   selector: 'rc-vehicle-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    OnayKutusu,
-    ParaGirdisi,
-    SayiGirdisi,
-    SayiPipe,
-    Secim,
-    SekmeliForm,
-    SekmePaneli,
-    TarihSaatPipe,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    Icon,
+    TextInput,
+    Checkbox,
+    MoneyInput,
+    NumberInput,
+    NumberPipe,
+    Selection,
+    TabbedForm,
+    TabPanel,
+    DateTimePipe,
+    DatePicker,
     VehiclePhotos,
   ],
   providers: [FetchPolicy, VehicleCardStore],
   templateUrl: './vehicle-form.html',
   styleUrls: ['../vehicle-screens.scss', './vehicle-form.scss'],
 })
-export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
+export class VehicleForm implements UnsavedChangesOwner {
   protected readonly store = inject(VehicleCardStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
-  private readonly tabs = viewChild(SekmeliForm);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
+  private readonly tabs = viewChild(TabbedForm);
 
   /** Düzenlenen aracın kimliği; `null` = yeni araç. */
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id');
   protected readonly isNew = this.id === null;
 
   protected readonly form = new FormGroup(buildControls());
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
   /** Son okunan sunucu hâli: `surum` PUT'a gider, birleştirmenin tabanıdır. */
   protected readonly base = signal<VehicleCard | null>(null);
 
@@ -129,7 +126,7 @@ export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
   );
   protected readonly num = toNumber;
   protected readonly kmSourceKey = kmSourceKey;
-  protected readonly groups = sunucuSecimKaynagi('arac-grubu');
+  protected readonly groups = serverSelectionSource('arac-grubu');
   protected readonly refreshPhotos = () => this.store.photos.yenile();
 
   protected readonly tabDefs = computed<readonly SekmeTanimi[]>(() => {
@@ -146,8 +143,8 @@ export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
     const card = this.base();
     const matches = this.store.groupMatches.veri();
     if (!card?.grup || matches === undefined) return null;
-    const name = trKucukHarf(card.grup.trim());
-    return matches.some((m) => trKucukHarf(m.etiket.trim()) === name) ? null : card.grup;
+    const name = trLowerCase(card.grup.trim());
+    return matches.some((m) => trLowerCase(m.etiket.trim()) === name) ? null : card.grup;
   });
 
   protected readonly lastKm = computed(() =>
@@ -168,7 +165,7 @@ export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
       renk: vehicleSuggestionFetch(this.api, 'renk'),
       segment: vehicleSuggestionFetch(this.api, 'segment'),
       sahip: vehicleSuggestionFetch(this.api, 'sahip'),
-      sube: secimSuggestionFetch(this.api, 'sube'),
+      sube: selectionSuggestionFetch(this.api, 'sube'),
     };
     const control = (kind: SuggestionKind) =>
       c[kind === 'sahip' ? 'aracSahibi' : kind] ?? c['plaka']!;
@@ -184,21 +181,21 @@ export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
     const policy = inject(FetchPolicy);
     if (this.id !== null) {
       const id = this.id;
-      policy.baglan({
+      policy.connect({
         parametre: signal(id).asReadonly(),
         yukle: (x) => {
           this.store.card.yukle(x);
           this.store.detail.yukle(x);
           this.store.photos.yukle(x);
         },
-        sifirla: () => this.store.card.sifirla(),
+        sifirla: () => this.store.card.reset(),
       });
       effect(() => {
         const d = this.store.card.durum();
         if (d.tur === 'hazir') untracked(() => this.cardArrived(d.veri));
       });
     } else {
-      policy.baglan({
+      policy.connect({
         parametre: signal(null).asReadonly(),
         yukle: () => this.store.defaultGroup.yukle(),
       });
@@ -218,10 +215,10 @@ export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
     effect(() => {
       if (!this.canWrite()) untracked(() => this.form.disable({ emitEvent: false }));
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -255,7 +252,7 @@ export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
   protected save(): void {
     if (!this.canWrite()) return;
     const base = this.base();
-    if (!this.isNew && (base === null || this.store.card.yukleniyor())) return;
+    if (!this.isNew && (base === null || this.store.card.isLoading())) return;
     const body = formToRequest(this.form.getRawValue(), base);
     const id = this.id;
     this.submission.gonder(
@@ -269,7 +266,7 @@ export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
               { islemAnahtari: key },
             ),
       {
-        gecersiz: () => this.tabs()?.ilkGecersizeGit(),
+        gecersiz: () => this.tabs()?.goToFirstInvalid(),
         basarili: (card) => {
           if (id === null) {
             this.toast.basari(this.t('arac.kart.olusturuldu', { plaka: card.plaka ?? '' }));
@@ -283,7 +280,7 @@ export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
         },
         hata: (h) => {
           if (h.kod === 'cakisma') this.store.card.yenile();
-          else if (h.alanlar) this.tabs()?.ilkGecersizeGit();
+          else if (h.alanlar) this.tabs()?.goToFirstInvalid();
         },
       },
     );
@@ -297,14 +294,14 @@ export class VehicleForm implements KaydedilmemisDegisiklikSahibi {
     if (!this.form.dirty || previous === null) {
       this.form.reset({ ...fresh });
     } else {
-      const conflicts = sunucuDegerleriniBirlestir(
+      const conflicts = mergeServerValues(
         this.form,
         fresh,
         cardToForm(previous),
         this.t('arac.kart.cakismaAlan'),
       );
       if (conflicts.length > 0) {
-        this.banner.goster({
+        this.banner.show({
           tur: 'uyari',
           mesaj: this.t('arac.kart.cakismaBant', { sayi: conflicts.length }),
           kod: 'cakisma',

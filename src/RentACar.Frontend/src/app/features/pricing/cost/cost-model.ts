@@ -1,19 +1,19 @@
 import type { Sayfa } from '@core/api/sayfa';
-import type { Sema } from '@core/api/ui-tipleri';
-import { invariantOndalik } from '@core/form/ondalik';
+import type { Schema } from '@core/api/ui-tipleri';
+import { invariantDecimal } from '@core/form/ondalik';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
+import { listDefinition } from '@core/veri/liste-sorgusu';
 
-export type CostInput = Sema<'CostInputDto'>;
-export type CostResult = Sema<'CostResultDto'>;
-export type CostOfferRow = Sema<'CostOfferRow'>;
+export type CostInput = Schema<'CostInputDto'>;
+export type CostResult = Schema<'CostResultDto'>;
+export type CostOfferRow = Schema<'CostOfferRow'>;
 /** Liste yanıtı: sayfa çekirdek `Sayfa<T>` biçiminde okunur (tablo motoru sözleşmesi). */
 export interface CostOfferList {
   readonly kayitlar: Sayfa<CostOfferRow>;
-  readonly ozet: Sema<'CostOfferList'>['ozet'];
+  readonly ozet: Schema<'CostOfferList'>['ozet'];
 }
-export type CostOfferDetail = Sema<'CostOfferDetail'>;
-export type CostOfferRequest = Sema<'CostOfferRequest'>;
+export type CostOfferDetail = Schema<'CostOfferDetail'>;
+export type CostOfferRequest = Schema<'CostOfferRequest'>;
 
 export const COST_OFFERS = '/api/ui/v1/maliyet-teklifleri';
 
@@ -102,7 +102,7 @@ export function costInputToForm(i: CostInput): CostFormValue {
       f.kind === 'money'
         ? raw === null || raw === ''
           ? null
-          : invariantOndalik(raw, { kesir: 2 })
+          : invariantDecimal(raw, { kesir: 2 })
         : toNum(raw);
   }
   return v as CostFormValue;
@@ -120,7 +120,7 @@ export function costFormToInput(v: CostFormValue): CostInput {
   return out as unknown as CostInput;
 }
 
-export const OFFER_LIST = listeTanimi({
+export const OFFER_LIST = listDefinition({
   filtreler: {
     metin: { tur: 'metin', enFazla: 100 },
     plaka: { tur: 'metin', enFazla: 32 },

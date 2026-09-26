@@ -2,18 +2,18 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { GonderimKilidi } from '@core/form/gonderim-kilidi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { Schema } from '@core/api/ui-tipleri';
+import { SubmitLock } from '@core/form/submit-lock';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { TemelStore } from '@core/veri/temel-store';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type CalendarLink = Sema<'CalendarLinkDto'>;
+type CalendarLink = Schema<'CalendarLinkDto'>;
 
 /**
  * F11.2a takvim aboneliği (Blazor `TakvimAbonelik`, oturum): kullanıcının KENDİ iCal bağlantısı + yenile (eski
@@ -22,7 +22,7 @@ type CalendarLink = Sema<'CalendarLinkDto'>;
 @Component({
   selector: 'rc-calendar-subscription-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, SayfaBandi],
+  imports: [TranslocoPipe, PageBand],
   styleUrl: '../definitions.scss',
   template: `
     <rc-sayfa-bandi [baslik]="'tanimlar.calendar.baslik' | transloco" ikon="calendar" />
@@ -74,11 +74,11 @@ type CalendarLink = Sema<'CalendarLinkDto'>;
 })
 export class CalendarSubscriptionPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
-  private readonly renewLock = new GonderimKilidi();
+  private readonly t = translationFunction();
+  private readonly renewLock = new SubmitLock();
 
   protected readonly link = new TemelStore<CalendarLink>(() =>
     this.api.get<CalendarLink>('/api/ui/v1/takvim-abonelik'),
@@ -104,7 +104,7 @@ export class CalendarSubscriptionPage {
   }
 
   protected async renew(): Promise<void> {
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('tanimlar.calendar.yenileBaslik'),
       mesaj: this.t('tanimlar.calendar.yenileMesaj'),
       onayEtiketi: this.t('tanimlar.calendar.yenile'),
@@ -124,7 +124,7 @@ export class CalendarSubscriptionPage {
           this.toast.basari(this.t('tanimlar.calendar.yenilendi'));
           this.link.yenile();
         },
-        error: (e: unknown) => this.renewError.set(apiHatasinaCevir(e).detay),
+        error: (e: unknown) => this.renewError.set(toApiError(e).detay),
       });
   }
 }

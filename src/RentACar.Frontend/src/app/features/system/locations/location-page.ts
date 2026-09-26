@@ -3,20 +3,20 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { type Observable, map } from 'rxjs';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema, SecimOgesi } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
+import type { Schema, SelectionItem } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
+import { translationFunction } from '@core/i18n/ceviri';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
 import {
   type TanimAlani,
-  type TanimKaynagi,
-  type TanimSatiri,
-  restTanimKaynagi,
-} from '@shared/form/tanim-crud/tanim-kaynagi';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+  type DefinitionSource,
+  type DefinitionRow,
+  restDefinitionSource,
+} from '@shared/form/tanim-crud/definition-source';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type LocationList = Sema<'SayfaOfLocationDto'>;
+type LocationList = Schema<'SayfaOfLocationDto'>;
 
 const ROOT = '/api/ui/v1/lokasyonlar' as const;
 /** Liste ucu sayfalı (`Sayfa<LocationDto>`); ofis sayısı küçük — tek sayfada en çok 200. */
@@ -33,9 +33,9 @@ export function locationFields(
   branchSuggestions: (q: string) => Observable<readonly string[]>,
 ): readonly TanimAlani[] {
   const l = (k: string) => t(`sistem.ofis.alan.${k}` as CeviriAnahtari);
-  const text = (ad: string, max: number, extra: Partial<TanimAlani> = {}): TanimAlani => ({
-    ad,
-    etiket: l(ad),
+  const text = (name: string, max: number, extra: Partial<TanimAlani> = {}): TanimAlani => ({
+    ad: name,
+    etiket: l(name),
     tur: 'metin',
     azamiUzunluk: max,
     inList: false,
@@ -93,7 +93,7 @@ export function locationFields(
 @Component({
   selector: 'rc-location-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, TranslocoPipe, TanimCrud],
+  imports: [PageBand, TranslocoPipe, DefinitionCrud],
   styleUrl: '../system.scss',
   template: `
     <rc-sayfa-bandi [baslik]="'sistem.ofis.baslik' | transloco" ikon="building" />
@@ -110,26 +110,26 @@ export function locationFields(
 })
 export class LocationPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly crud = viewChild(TanimCrud);
+  private readonly crud = viewChild(DefinitionCrud);
 
-  protected readonly fields = locationFields(ceviriFonksiyonu(), (q) =>
+  protected readonly fields = locationFields(translationFunction(), (q) =>
     this.api
-      .get<readonly SecimOgesi[]>('/api/ui/v1/secim/sube', { parametreler: { q, limit: 20 } })
+      .get<readonly SelectionItem[]>('/api/ui/v1/secim/sube', { parametreler: { q, limit: 20 } })
       .pipe(map((list) => list.map((o) => o.etiket))),
   );
-  protected readonly source: TanimKaynagi = {
-    ...restTanimKaynagi(ROOT),
+  protected readonly source: DefinitionSource = {
+    ...restDefinitionSource(ROOT),
     listele: () =>
       this.api
         .get<LocationList>(ROOT, { parametreler: { boyut: LOCATION_LIST_SIZE, sirala: 'kod' } })
-        .pipe(map((p) => p.kayitlar as unknown as readonly TanimSatiri[])),
+        .pipe(map((p) => p.kayitlar as unknown as readonly DefinitionRow[])),
   };
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return this.crud()?.kaydedilmemisDegisiklikVar() ?? false;
+  hasUnsavedChanges(): boolean {
+    return this.crud()?.hasUnsavedChanges() ?? false;
   }
 }

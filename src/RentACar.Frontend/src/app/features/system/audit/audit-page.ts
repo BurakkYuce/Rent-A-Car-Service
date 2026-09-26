@@ -3,17 +3,17 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { Schema } from '@core/api/ui-tipleri';
+import { translationFunction } from '@core/i18n/ceviri';
 import { TemelStore } from '@core/veri/temel-store';
-import { TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { Secim } from '@shared/form/kontroller/secim';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Selection } from '@shared/form/kontroller/selection';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type AuditPageDto = Sema<'SayfaOfAuditDto'>;
+type AuditPageDto = Schema<'SayfaOfAuditDto'>;
 
 export const AUDIT_PAGE_SIZE = 30;
 
@@ -39,21 +39,13 @@ export function pageCount(total: number | string, size: number | string): number
 @Component({
   selector: 'rc-audit-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    SayfaBandi,
-    ReactiveFormsModule,
-    TranslocoPipe,
-    TarihSaatPipe,
-    Alan,
-    MetinGirdisi,
-    Secim,
-  ],
+  imports: [PageBand, ReactiveFormsModule, TranslocoPipe, DateTimePipe, Alan, TextInput, Selection],
   styleUrl: '../system.scss',
   templateUrl: './audit-page.html',
 })
 export class AuditPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly filters = new FormGroup({
     tablo: new FormControl<string | null>(null, Validators.maxLength(128)),

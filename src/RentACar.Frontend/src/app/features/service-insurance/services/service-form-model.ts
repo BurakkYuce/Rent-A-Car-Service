@@ -1,6 +1,6 @@
-import { invariantOndalik } from '@core/form/ondalik';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { invariantDecimal } from '@core/form/ondalik';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { momentValue, dayValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 
 import type {
   PaymentMethod,
@@ -20,15 +20,15 @@ export interface ServiceInfoForm {
   readonly beyanTuru: string | null;
   readonly karsiPlaka: string | null;
   readonly karsiTrafikSigortasi: string | null;
-  readonly kazaTarihi: GunMetni | null;
+  readonly kazaTarihi: DayText | null;
   readonly kazaSorumlusu: string | null;
   readonly hasarDosyaNo: string | null;
   readonly degerKaybi: string | null;
-  readonly faturaTarihi: GunMetni | null;
+  readonly faturaTarihi: DayText | null;
   readonly faturaNo: string | null;
   readonly faturaTutar: string | null;
   readonly faturaKdv: string | null;
-  readonly odemeTarihi: GunMetni | null;
+  readonly odemeTarihi: DayText | null;
   readonly odeme: string | null;
   readonly odemeDoviz: string | null;
   readonly odemeKur: string | null;
@@ -37,8 +37,8 @@ export interface ServiceInfoForm {
   readonly hesapNo: string | null;
   readonly cikisYakit: number | null;
   readonly donusYakit: number | null;
-  readonly planBasTarihi: GunMetni | null;
-  readonly planBitTarihi: GunMetni | null;
+  readonly planBasTarihi: DayText | null;
+  readonly planBitTarihi: DayText | null;
 }
 
 export const INFO_TEXT_LIMITS: Readonly<Partial<Record<keyof ServiceInfoForm, number>>> = {
@@ -55,8 +55,8 @@ export const INFO_TEXT_LIMITS: Readonly<Partial<Record<keyof ServiceInfoForm, nu
   hesapNo: 64,
 };
 
-const money = (v: number | string | null | undefined, kesir = 2): string | null =>
-  v === null || v === undefined || v === '' ? null : invariantOndalik(v, { kesir });
+const money = (v: number | string | null | undefined, fraction = 2): string | null =>
+  v === null || v === undefined || v === '' ? null : invariantDecimal(v, { kesir: fraction });
 
 const int = (v: number | string | null | undefined): number | null => {
   if (v === null || v === undefined || v === '') return null;
@@ -101,15 +101,15 @@ export function infoToForm(i: ServiceInfo): ServiceInfoForm {
     beyanTuru: i.beyanTuru,
     karsiPlaka: i.karsiPlaka,
     karsiTrafikSigortasi: i.karsiTrafikSigortasi,
-    kazaTarihi: gunDegeri(i.kazaTarihi),
+    kazaTarihi: dayValue(i.kazaTarihi),
     kazaSorumlusu: i.kazaSorumlusu,
     hasarDosyaNo: i.hasarDosyaNo,
     degerKaybi: money(i.degerKaybi),
-    faturaTarihi: gunDegeri(i.faturaTarihi),
+    faturaTarihi: dayValue(i.faturaTarihi),
     faturaNo: i.faturaNo,
     faturaTutar: money(i.faturaTutar),
     faturaKdv: money(i.faturaKdv),
-    odemeTarihi: gunDegeri(i.odemeTarihi),
+    odemeTarihi: dayValue(i.odemeTarihi),
     odeme: money(i.odeme),
     odemeDoviz: i.odemeDoviz,
     odemeKur: money(i.odemeKur, 6),
@@ -118,8 +118,8 @@ export function infoToForm(i: ServiceInfo): ServiceInfoForm {
     hesapNo: i.hesapNo,
     cikisYakit: int(i.cikisYakit),
     donusYakit: int(i.donusYakit),
-    planBasTarihi: gunDegeri(i.planBasTarihi),
-    planBitTarihi: gunDegeri(i.planBitTarihi),
+    planBasTarihi: dayValue(i.planBasTarihi),
+    planBitTarihi: dayValue(i.planBitTarihi),
   };
 }
 
@@ -130,34 +130,34 @@ export function infoToForm(i: ServiceInfo): ServiceInfoForm {
 export function infoRequest(
   v: ServiceInfoForm,
   base: ServiceInfo | null,
-  surum: string | null,
+  version: string | null,
 ): ServiceInfoRequest {
   return {
-    atolyeAdi: metinDegeri(v.atolyeAdi),
-    aciklama: metinDegeri(v.aciklama),
-    beyanTuru: metinDegeri(v.beyanTuru),
-    karsiPlaka: metinDegeri(v.karsiPlaka),
-    karsiTrafikSigortasi: metinDegeri(v.karsiTrafikSigortasi),
-    kazaTarihi: anDegeri(v.kazaTarihi, base?.kazaTarihi),
-    kazaSorumlusu: metinDegeri(v.kazaSorumlusu),
-    hasarDosyaNo: metinDegeri(v.hasarDosyaNo),
+    atolyeAdi: textValue(v.atolyeAdi),
+    aciklama: textValue(v.aciklama),
+    beyanTuru: textValue(v.beyanTuru),
+    karsiPlaka: textValue(v.karsiPlaka),
+    karsiTrafikSigortasi: textValue(v.karsiTrafikSigortasi),
+    kazaTarihi: momentValue(v.kazaTarihi, base?.kazaTarihi),
+    kazaSorumlusu: textValue(v.kazaSorumlusu),
+    hasarDosyaNo: textValue(v.hasarDosyaNo),
     degerKaybi: v.degerKaybi,
-    faturaTarihi: anDegeri(v.faturaTarihi, base?.faturaTarihi),
-    faturaNo: metinDegeri(v.faturaNo),
+    faturaTarihi: momentValue(v.faturaTarihi, base?.faturaTarihi),
+    faturaNo: textValue(v.faturaNo),
     faturaTutar: v.faturaTutar,
     faturaKdv: v.faturaKdv,
-    odemeTarihi: anDegeri(v.odemeTarihi, base?.odemeTarihi),
+    odemeTarihi: momentValue(v.odemeTarihi, base?.odemeTarihi),
     odeme: v.odeme,
-    odemeDoviz: metinDegeri(v.odemeDoviz),
+    odemeDoviz: textValue(v.odemeDoviz),
     odemeKur: v.odemeKur,
     odemeTuru: v.odemeTuru,
-    kasaKodu: metinDegeri(v.kasaKodu),
-    hesapNo: metinDegeri(v.hesapNo),
+    kasaKodu: textValue(v.kasaKodu),
+    hesapNo: textValue(v.hesapNo),
     cikisYakit: v.cikisYakit,
     donusYakit: v.donusYakit,
-    planBasTarihi: anDegeri(v.planBasTarihi, base?.planBasTarihi),
-    planBitTarihi: anDegeri(v.planBitTarihi, base?.planBitTarihi),
-    surum,
+    planBasTarihi: momentValue(v.planBasTarihi, base?.planBasTarihi),
+    planBitTarihi: momentValue(v.planBitTarihi, base?.planBitTarihi),
+    surum: version,
   };
 }
 
@@ -173,7 +173,7 @@ export interface ServiceLineForm {
 
 export function lineRequest(v: ServiceLineForm): ServiceLineRequest {
   return {
-    aciklama: metinDegeri(v.aciklama),
+    aciklama: textValue(v.aciklama),
     birimFiyat: v.birimFiyat,
     miktar: v.miktar,
     indirim: v.indirim,

@@ -11,21 +11,21 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { SecimOgesi, Sema } from '@core/api/ui-tipleri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
-import { ParaPipe, SayiPipe } from '@shared/bicim/bicim-pipe';
+import type { SelectionItem, Schema } from '@core/api/ui-tipleri';
+import { requestContext } from '@core/oturum/request-context';
+import { SessionService } from '@core/oturum/session-service';
+import { textValue } from '@features/planlama-ortak/form-yardimcilari';
+import { MoneyPipe, NumberPipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { TarihSaatSecici } from '@shared/form/tarih/tarih-saat-secici';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { DateTimePicker } from '@shared/form/tarih/date-time-picker';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type PriceQuote = Sema<'PriceQuoteDto'>;
-type PriceQuoteRequest = Sema<'PriceQuoteRequest'>;
+type PriceQuote = Schema<'PriceQuoteDto'>;
+type PriceQuoteRequest = Schema<'PriceQuoteRequest'>;
 
 const toNum = (v: number | string | null | undefined): number | null => {
   if (v === null || v === undefined || v === '') return null;
@@ -56,31 +56,31 @@ export function parseCodes(text: string | null): string[] {
   selector: 'rc-quote-calculator',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    ParaPipe,
-    SayiGirdisi,
-    SayiPipe,
-    TarihSaatSecici,
+    FormErrors,
+    TextInput,
+    MoneyPipe,
+    NumberInput,
+    NumberPipe,
+    DateTimePicker,
   ],
   templateUrl: './quote-calculator.html',
   styleUrl: '../pricing.scss',
 })
 export class QuoteCalculator {
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly num = toNum;
   protected readonly result = signal<PriceQuote | null>(null);
-  protected readonly groups = signal<readonly SecimOgesi[]>([]);
-  protected readonly branches = signal<readonly SecimOgesi[]>([]);
-  protected readonly channels = signal<readonly SecimOgesi[]>([]);
-  protected readonly products = signal<readonly SecimOgesi[]>([]);
+  protected readonly groups = signal<readonly SelectionItem[]>([]);
+  protected readonly branches = signal<readonly SelectionItem[]>([]);
+  protected readonly channels = signal<readonly SelectionItem[]>([]);
+  protected readonly products = signal<readonly SelectionItem[]>([]);
   protected readonly productCodes = computed(() =>
     this.products()
       .map((p) => p.kod)
@@ -103,7 +103,7 @@ export class QuoteCalculator {
     musteriSegment: new FormControl<string | null>(null, Validators.maxLength(64)),
     kampanyaKodu: new FormControl<string | null>(null, Validators.maxLength(64)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   constructor() {
     if (this.session.izinVar('OperationsWrite')) {
@@ -117,16 +117,16 @@ export class QuoteCalculator {
   protected calculate(): void {
     const v = this.form.getRawValue();
     const body: PriceQuoteRequest = {
-      aracGrupKod: metinDegeri(v.aracGrupKod),
-      kanal: metinDegeri(v.kanal),
-      sube: metinDegeri(v.sube),
+      aracGrupKod: textValue(v.aracGrupKod),
+      kanal: textValue(v.kanal),
+      sube: textValue(v.sube),
       basTar: v.basTar,
       bitTar: v.bitTar,
       surucuYas: v.surucuYas,
       tahminiKm: v.tahminiKm,
       sigortaUrunKodlari: parseCodes(v.sigortaUrunKodlari),
-      musteriSegment: metinDegeri(v.musteriSegment),
-      kampanyaKodu: metinDegeri(v.kampanyaKodu),
+      musteriSegment: textValue(v.musteriSegment),
+      kampanyaKodu: textValue(v.kampanyaKodu),
     };
     this.submission.gonder(
       this.form,
@@ -135,11 +135,11 @@ export class QuoteCalculator {
     );
   }
 
-  private load(endpoint: string, target: { set(v: readonly SecimOgesi[]): void }): void {
+  private load(endpoint: string, target: { set(v: readonly SelectionItem[]): void }): void {
     this.api
-      .get<readonly SecimOgesi[]>(`/api/ui/v1/secim/${endpoint}`, {
+      .get<readonly SelectionItem[]>(`/api/ui/v1/secim/${endpoint}`, {
         parametreler: { limit: 20 },
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({ next: (items) => target.set(items), error: () => undefined });

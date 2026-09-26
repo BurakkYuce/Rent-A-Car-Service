@@ -3,20 +3,23 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { SecimOgesi } from '@core/api/ui-tipleri';
+import type { SelectionItem } from '@core/api/ui-tipleri';
 import { type MoneyNotice, errorNotice } from '@core/form/money-notice';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { requestContext } from '@core/oturum/request-context';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneyNoticeView } from '@shared/form/money-submit/money-notice';
 
 import {
@@ -44,11 +47,11 @@ import { INCOMING, recordPath } from '../document.store';
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
+    SearchSelection,
     MoneyNoticeView,
-    FormHatalari,
-    MetinGirdisi,
-    Secim,
+    FormErrors,
+    TextInput,
+    Selection,
   ],
   template: `
     <section class="rc-bolum" aria-labelledby="rc-gelen-gider">
@@ -105,16 +108,16 @@ import { INCOMING, recordPath } from '../document.store';
 })
 export class IncomingExpenseForm {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   readonly invoice = input.required<IncomingInvoiceRow>();
-  readonly branches = input<readonly SecimOgesi[] | undefined>(undefined);
+  readonly branches = input<readonly SelectionItem[] | undefined>(undefined);
   readonly done = output<IncomingInvoiceExpenseResult | null>();
   readonly closed = output<void>();
 
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly methodOptions: readonly SecenekOgesi<PaymentMethod>[] = PAYMENT_METHODS.map(
     (x) => ({ deger: x, etiket: this.t(`finansBelge.odemeYontemleri.${x}`) }),
   );
@@ -124,12 +127,12 @@ export class IncomingExpenseForm {
     cari: new FormControl<SecimSecenegi | null>(null),
     sube: new FormControl<string | null>(null, Validators.maxLength(64)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   protected async submit(): Promise<void> {
     if (this.submission.gonderiliyor()) return;
     this.notice.set(null);
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('finansBelge.gelen.giderlestir'),
       // r300 M4: deftere gidecek kırılım (KAYITLI değerler) onayda görünür; kaydedilmemiş bağlama burada yoktur.
       mesaj: this.t('finansBelge.gelen.giderlestirOnay', {
@@ -147,7 +150,7 @@ export class IncomingExpenseForm {
           recordPath(INCOMING, id, '/giderlestir'),
           body,
           {
-            context: istekBaglami({ mukerrerCagiranGosterir: true }),
+            context: requestContext({ mukerrerCagiranGosterir: true }),
           },
         ),
       {

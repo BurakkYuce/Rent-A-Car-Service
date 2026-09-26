@@ -14,9 +14,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
 import { moneySubmission } from '@core/form/money-submission';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { dovizKodu, onDoldurmaTutari } from '@features/kira-formu/finans-paneli/finans-modeli';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { currencyCode, prefillAmount } from '@features/kira-formu/finans-paneli/finans-modeli';
 
 import {
   type AccountKind,
@@ -63,8 +63,8 @@ export class CashOperationForm implements OnInit {
   readonly refreshing = input(false, { transform: booleanAttribute });
   readonly settled = output<void>();
 
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
   protected readonly accounts = inject(AccountList);
   protected readonly action = moneySubmission<CollectionRequest>({
     scope: () => `nakit-${this.kind()}:${this.cariId()}`,
@@ -92,7 +92,7 @@ export class CashOperationForm implements OnInit {
     initialValue: this.form.controls.doviz.value,
   });
   protected readonly accountOptions = computed(() => this.accounts.options(this.accountKind()));
-  protected readonly isForeign = computed(() => dovizKodu(this.currency()) !== 'TRY');
+  protected readonly isForeign = computed(() => currencyCode(this.currency()) !== 'TRY');
   protected readonly titleKey = computed(() =>
     this.kind() === 'tahsilat' ? 'finans.nakit.tahsilat' : 'finans.nakit.odeme',
   );
@@ -111,9 +111,9 @@ export class CashOperationForm implements OnInit {
     // olarak gidiyordu), dokunulmamış tutara, donmuş/uçan işlem yokken ve 409 sonrası değilken. Döviz değişince
     // dokunulmamış tutar yeniden hesaplanır: TRY dışında boşalır.
     effect(() => {
-      const tryCurrency = dovizKodu(this.currency()) === 'TRY';
+      const tryCurrency = currencyCode(this.currency()) === 'TRY';
       const suggested =
-        this.kind() === 'tahsilat' && tryCurrency ? onDoldurmaTutari(this.balance()) : null;
+        this.kind() === 'tahsilat' && tryCurrency ? prefillAmount(this.balance()) : null;
       untracked(() => {
         const c = this.form.controls.tutar;
         if (!c.pristine || this.action.pending()) return;
@@ -137,14 +137,14 @@ export class CashOperationForm implements OnInit {
   }
 
   protected submit(): void {
-    const tahsilat = this.kind() === 'tahsilat';
+    const collection = this.kind() === 'tahsilat';
     void this.action.run<{ id: string }>({
       form: this.form,
       build: () => {
         const v = this.form.getRawValue() as CashFormValue;
-        const body = tahsilat ? collectionBody(this.cariId(), v) : paymentBody(this.cariId(), v);
+        const body = collection ? collectionBody(this.cariId(), v) : paymentBody(this.cariId(), v);
         return {
-          path: financePath(tahsilat ? '/tahsilat' : '/odeme'),
+          path: financePath(collection ? '/tahsilat' : '/odeme'),
           body,
           content: { tutar: body.tutar, doviz: body.doviz ?? 'TRY' },
         };
@@ -152,7 +152,7 @@ export class CashOperationForm implements OnInit {
       success: () => {
         this.prefillAllowed = true;
         this.toast.basari(
-          this.t(tahsilat ? 'finans.nakit.tahsilatYapildi' : 'finans.nakit.odemeYapildi'),
+          this.t(collection ? 'finans.nakit.tahsilatYapildi' : 'finans.nakit.odemeYapildi'),
         );
         this.resetForm();
       },

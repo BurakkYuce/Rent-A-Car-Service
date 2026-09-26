@@ -1,0 +1,85 @@
+<form [formGroup]="form" (ngSubmit)="gonder()" novalidate>
+  @if (hata(); as hataAnahtari) {
+    <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ hataAnahtari | transloco }}</p>
+  } @else if (bilgi(); as bilgiAnahtari) {
+    <p class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+      {{ bilgiAnahtari | transloco }}
+    </p>
+  }
+
+  <div class="rc-alan">
+    <label class="rc-alan__etiket" [for]="onek() + '-firma'">{{
+      'oturum.giris.firma' | transloco
+    }}</label>
+    <input
+      class="rc-girdi"
+      [id]="onek() + '-firma'"
+      formControlName="firma"
+      autocomplete="organization"
+      autocapitalize="none"
+      spellcheck="false"
+      [readOnly]="kilitli()"
+      [attr.aria-invalid]="invalid('firma')"
+      [attr.aria-describedby]="invalid('firma') ? onek() + '-firma-hata' : null"
+    />
+    @if (invalid('firma')) {
+      <p class="rc-alan__hata" [id]="onek() + '-firma-hata'">
+        {{ 'oturum.giris.zorunlu' | transloco }}
+      </p>
+    }
+  </div>
+
+  <div class="rc-alan">
+    <label class="rc-alan__etiket" [for]="onek() + '-kullanici'">{{
+      'oturum.giris.kullanici' | transloco
+    }}</label>
+    <input
+      class="rc-girdi"
+      [id]="onek() + '-kullanici'"
+      formControlName="kullanici"
+      autocomplete="username"
+      autocapitalize="none"
+      spellcheck="false"
+      [readOnly]="kilitli()"
+      [attr.aria-invalid]="invalid('kullanici')"
+      [attr.aria-describedby]="invalid('kullanici') ? onek() + '-kullanici-hata' : null"
+    />
+    @if (invalid('kullanici')) {
+      <p class="rc-alan__hata" [id]="onek() + '-kullanici-hata'">
+        {{ 'oturum.giris.zorunlu' | transloco }}
+      </p>
+    }
+  </div>
+
+  <div class="rc-alan">
+    <label class="rc-alan__etiket" [for]="onek() + '-sifre'">{{
+      'oturum.giris.sifre' | transloco
+    }}</label>
+    <input
+      class="rc-girdi"
+      type="password"
+      [id]="onek() + '-sifre'"
+      formControlName="sifre"
+      autocomplete="current-password"
+      [attr.aria-invalid]="invalid('sifre')"
+      [attr.aria-describedby]="invalid('sifre') ? onek() + '-sifre-hata' : null"
+    />
+    @if (invalid('sifre')) {
+      <p class="rc-alan__hata" [id]="onek() + '-sifre-hata'">
+        {{ 'oturum.giris.zorunlu' | transloco }}
+      </p>
+    }
+  </div>
+
+  <div class="eylemler">
+    <ng-content />
+    <button
+      type="submit"
+      class="rc-dugme rc-dugme--birincil"
+      [attr.aria-disabled]="submitting()"
+      [attr.aria-busy]="submitting()"
+    >
+      {{ (submitting() ? 'oturum.giris.gonderiliyor' : gonderEtiketi()) | transloco }}
+    </button>
+  </div>
+</form>

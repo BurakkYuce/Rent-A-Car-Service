@@ -31,16 +31,21 @@ function upperRoot(text: string): string {
 }
 
 export function normalizePlate(input: string | null | undefined): NormalizedPlate {
-  const ham = input ?? '';
-  const upper = upperRoot(ham.trim());
-  const kanonik = upper.replace(/[\s-]+/g, '');
-  const match = PLATE_PATTERN.exec(kanonik);
+  const raw = input ?? '';
+  const upper = upperRoot(raw.trim());
+  const canonical = upper.replace(/[\s-]+/g, '');
+  const match = PLATE_PATTERN.exec(canonical);
   if (match) {
-    const [, il, harfler, rakamlar] = match as unknown as [string, string, string, string];
-    const [min, max] = DIGIT_RANGE[harfler.length] ?? [0, -1];
-    if (rakamlar.length >= min && rakamlar.length <= max) {
-      return { ham, kanonik, gosterim: `${il} ${harfler} ${rakamlar}`, gecerli: true };
+    const [, il, letters, digits] = match as unknown as [string, string, string, string];
+    const [min, max] = DIGIT_RANGE[letters.length] ?? [0, -1];
+    if (digits.length >= min && digits.length <= max) {
+      return {
+        ham: raw,
+        kanonik: canonical,
+        gosterim: `${il} ${letters} ${digits}`,
+        gecerli: true,
+      };
     }
   }
-  return { ham, kanonik, gosterim: upper, gecerli: false };
+  return { ham: raw, kanonik: canonical, gosterim: upper, gecerli: false };
 }

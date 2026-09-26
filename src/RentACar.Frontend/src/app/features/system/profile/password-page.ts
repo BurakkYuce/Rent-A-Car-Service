@@ -3,14 +3,14 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 const PASSWORD_MAX = 128;
 
@@ -21,7 +21,7 @@ const PASSWORD_MAX = 128;
 @Component({
   selector: 'rc-password-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, ReactiveFormsModule, TranslocoPipe, Alan, FormHatalari, MetinGirdisi],
+  imports: [PageBand, ReactiveFormsModule, TranslocoPipe, Alan, FormErrors, TextInput],
   styleUrl: '../system.scss',
   template: `
     <rc-sayfa-bandi [baslik]="'sistem.profil.baslik' | transloco" ikon="key" />
@@ -69,8 +69,8 @@ const PASSWORD_MAX = 128;
 })
 export class PasswordPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   protected readonly form = new FormGroup({
     eskiSifre: new FormControl<string | null>(null, [
@@ -86,13 +86,13 @@ export class PasswordPage {
       Validators.maxLength(PASSWORD_MAX),
     ]),
   });
-  protected readonly submit = formGonderimi();
+  protected readonly submit = formSubmission();
 
   constructor() {
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { Ikon } from '@shared/ikon/ikon';
+import { Icon } from '@shared/ikon/icon';
 
 import { PlatformSessionService } from './platform-session';
 
@@ -14,7 +14,7 @@ import { PlatformSessionService } from './platform-session';
 @Component({
   selector: 'rc-platform-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, TranslocoPipe, Ikon],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, TranslocoPipe, Icon],
   template: `
     <header class="top">
       <a class="brand" routerLink="/platform">

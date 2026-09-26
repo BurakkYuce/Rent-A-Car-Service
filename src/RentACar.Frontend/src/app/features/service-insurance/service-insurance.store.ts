@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import type { FinansHesapOgesi } from '@core/api/ui-tipleri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import type { FinanceAccountItem } from '@core/api/ui-tipleri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
 
 import {
@@ -30,7 +30,7 @@ export class ServiceListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<ServiceRecordRow>>(SERVICES, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<ServiceRecordRow>>(SERVICES, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
   /**
@@ -38,17 +38,17 @@ export class ServiceListStore {
    * sekmeler sayaçsız kalır, liste kendi hatasını gösterir.
    */
   readonly counts = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<ServiceCounts>(`${SERVICES}/sayaclar`, {
         parametreler: countParameters(p),
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       }),
     { oncekiVeriyiKoru: true },
   );
 }
 
 /** Sayaç ucu durum ve sayfalama almaz: her sekme kendi sayısını gösterir. */
-export function countParameters(p: SorguParametreleri): SorguParametreleri {
+export function countParameters(p: QueryParameters): QueryParameters {
   const skip = new Set(['durum', 'sayfa', 'boyut', 'sirala']);
   return Object.fromEntries(Object.entries(p).filter(([k]) => !skip.has(k)));
 }
@@ -58,7 +58,7 @@ export class EndorsementListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<Sayfa<EndorsementRow>>(`${REGULATION}/zeyiller`, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
@@ -79,7 +79,7 @@ export class PolicyListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<Sayfa<PolicyRow>>(`${REGULATION}/sigortalar`, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
@@ -90,8 +90,7 @@ export class MtvListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
-      this.api.get<Sayfa<MtvRow>>(`${REGULATION}/mtv`, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<MtvRow>>(`${REGULATION}/mtv`, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 }
@@ -101,7 +100,7 @@ export class InspectionListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<Sayfa<InspectionRow>>(`${REGULATION}/muayeneler`, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
@@ -114,7 +113,7 @@ export class RegulationOptionsStore {
 
   readonly options = new TemelStore(() =>
     this.api.get<RegulationOptions>(`${REGULATION}/secenekler`, {
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
 }
@@ -153,16 +152,16 @@ export class DueBoardStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly board = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<DueBoard>(DUE_BOARD, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<DueBoard>(DUE_BOARD, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 }
 
 /** Aktif kasa/banka hesapları (seçim isteğe bağlı; hata sessiz — seçici görünmez, tür yine seçilir). */
-function accountsStore(api: ApiIstemcisi): TemelStore<readonly FinansHesapOgesi[]> {
+function accountsStore(api: ApiIstemcisi): TemelStore<readonly FinanceAccountItem[]> {
   return new TemelStore(() =>
-    api.get<readonly FinansHesapOgesi[]>('/api/ui/v1/finans/hesaplar', {
-      context: istekBaglami({ sessiz: true }),
+    api.get<readonly FinanceAccountItem[]>('/api/ui/v1/finans/hesaplar', {
+      context: requestContext({ sessiz: true }),
     }),
   );
 }

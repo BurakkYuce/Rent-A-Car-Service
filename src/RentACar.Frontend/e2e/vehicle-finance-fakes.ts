@@ -9,12 +9,12 @@ export const ORDER_1 = 'e1e1e1e1-0000-4000-8000-000000000001';
 export const ALLOCATION_1 = 'f1f1f1f1-0000-4000-8000-000000000001';
 export const DAMAGE_1 = 'f2f2f2f2-0000-4000-8000-000000000001';
 export const PLAN_1 = 'f3f3f3f3-0000-4000-8000-000000000001';
-const CARI_1 = 'c0c0c0c0-0000-4000-8000-000000000001';
+const ACCOUNT_1 = 'c0c0c0c0-0000-4000-8000-000000000001';
 const VEHICLE_1 = 'a1a1a1a1-0000-4000-8000-000000000001';
 
 /** 12 taksit × 2.500 TRY, 3'ü ödenmiş → sonraki 4. taksit (vade 15.12.2026). */
 export function loanDetail(paid = 3): Record<string, unknown> {
-  const taksitler = Array.from({ length: 12 }, (_, i) => ({
+  const installments = Array.from({ length: 12 }, (_, i) => ({
     sira: i + 1,
     vade: `2026-${String(((8 + i) % 12) + 1).padStart(2, '0')}-14T21:00:00Z`,
     tutar: 2500,
@@ -44,13 +44,13 @@ export function loanDetail(paid = 3): Record<string, unknown> {
       aylikTaksit: 2500,
       odenenTutar: paid * 2500,
       kalanBakiye: 30000 - paid * 2500,
-      taksitler,
+      taksitler: installments,
       sonVadeGunu: '2027-08-14T21:00:00Z',
       sonTaksitTutari: 2500,
       buAyToplamTaksit: 2500,
     },
     sonrakiTaksit:
-      paid < 12 ? { sira: paid + 1, vade: taksitler[paid]?.vade ?? null, tutar: 2500 } : null,
+      paid < 12 ? { sira: paid + 1, vade: installments[paid]?.vade ?? null, tutar: 2500 } : null,
     yetkiler: { taksitOde: paid < 12, iptal: true },
   };
 }
@@ -83,7 +83,7 @@ export function installment(extra: Record<string, unknown> = {}): Record<string,
   return {
     id: INSTALLMENT_1,
     sira: 1,
-    cariId: CARI_1,
+    cariId: ACCOUNT_1,
     cariAd: 'Ayşe Yılmaz',
     vehicleId: null,
     plaka: null,
@@ -204,11 +204,11 @@ export function fleetPlan(extra: Record<string, unknown> = {}): Record<string, u
   };
 }
 
-const page1 = (kayitlar: unknown[], boyut = 50) => ({
-  kayitlar,
-  toplam: kayitlar.length,
+const page1 = (records: unknown[], size = 50) => ({
+  kayitlar: records,
+  toplam: records.length,
   sayfaNo: 1,
-  boyut,
+  boyut: size,
 });
 
 export interface FinanceEndpoints {
@@ -247,7 +247,7 @@ export async function financeEndpoints(
     (r) => {
       const p = new URL(r.request().url()).pathname;
       if (p.startsWith('/api/ui/v1/secim/musteri'))
-        return json(r, [{ id: CARI_1, etiket: 'Ayşe Yılmaz' }]);
+        return json(r, [{ id: ACCOUNT_1, etiket: 'Ayşe Yılmaz' }]);
       if (p.startsWith('/api/ui/v1/secim/arac'))
         return json(
           r,

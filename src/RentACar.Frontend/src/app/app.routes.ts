@@ -1,6 +1,6 @@
 import type { Routes } from '@angular/router';
 
-import { misafirGuard, oturumGuard } from '@core/oturum/oturum-guard';
+import { guestGuard, sessionGuard } from '@core/oturum/session-guard';
 
 /**
  * Uygulama rotaları (`/app/` altında). Giriş sayfası kabuk DIŞINDA; geri kalan her şey oturum ister
@@ -11,9 +11,9 @@ import { misafirGuard, oturumGuard } from '@core/oturum/oturum-guard';
 export const routes: Routes = [
   {
     path: 'giris',
-    canMatch: [misafirGuard],
+    canMatch: [guestGuard],
     title: 'Giriş — RentACar',
-    loadComponent: () => import('@features/giris/giris-sayfasi').then((m) => m.GirisSayfasi),
+    loadComponent: () => import('@features/giris/login-page').then((m) => m.LoginPage),
   },
   // F12.2 platform console: its own session and layout, OUTSIDE the tenant shell (no tenant menu/tabs).
   {
@@ -22,8 +22,8 @@ export const routes: Routes = [
   },
   {
     path: '',
-    canMatch: [oturumGuard],
-    loadChildren: () => import('./kabuk/kabuk.routes').then((m) => m.KABUK_ROTALARI),
+    canMatch: [sessionGuard],
+    loadChildren: () => import('./kabuk/kabuk.routes').then((m) => m.SHELL_ROUTES),
   },
   { path: '**', redirectTo: '' },
 ];

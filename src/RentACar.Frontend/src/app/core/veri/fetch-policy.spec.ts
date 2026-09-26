@@ -3,246 +3,242 @@ import { TestBed } from '@angular/core/testing';
 
 import { ActivatedRoute } from '@angular/router';
 
-import { OTURUM_BAGLAMI, OturumBaglami } from '@core/oturum/oturum-baglami';
-import { SekmeDurumu } from '@core/sekme/sekme-durumu';
-import { FetchPolicy, GetirmeNedeni } from './fetch-policy';
+import { SESSION_CONTEXT, OturumBaglami } from '@core/oturum/oturum-baglami';
+import { TabState } from '@core/sekme/tab-state';
+import { FetchPolicy, FetchReason } from './fetch-policy';
 
 describe('FetchPolicy', () => {
-  const baglam = signal<OturumBaglami | null>({ anahtar: 'kiraci-a|kullanici-1' });
-  const parametre = signal<{ readonly arama: string }>({ arama: '' });
-  const aktif = signal(true);
-  let yuklemeler: [{ readonly arama: string }, GetirmeNedeni][];
-  let sifirlamalar: number;
-  let politika: FetchPolicy;
+  const context = signal<OturumBaglami | null>({ anahtar: 'kiraci-a|kullanici-1' });
+  const parameter = signal<{ readonly arama: string }>({ arama: '' });
+  const active = signal(true);
+  let loads: [{ readonly arama: string }, FetchReason][];
+  let resets: number;
+  let policy: FetchPolicy;
 
   beforeEach(() => {
-    baglam.set({ anahtar: 'kiraci-a|kullanici-1' });
-    parametre.set({ arama: '' });
-    aktif.set(true);
-    yuklemeler = [];
-    sifirlamalar = 0;
+    context.set({ anahtar: 'kiraci-a|kullanici-1' });
+    parameter.set({ arama: '' });
+    active.set(true);
+    loads = [];
+    resets = 0;
     TestBed.configureTestingModule({
-      providers: [FetchPolicy, { provide: OTURUM_BAGLAMI, useValue: baglam.asReadonly() }],
+      providers: [FetchPolicy, { provide: SESSION_CONTEXT, useValue: context.asReadonly() }],
     });
-    politika = TestBed.inject(FetchPolicy);
+    policy = TestBed.inject(FetchPolicy);
   });
 
-  function bagla(aktifSinyali?: typeof aktif): void {
-    politika.baglan({
-      parametre,
-      yukle: (p, neden) => yuklemeler.push([p, neden]),
-      sifirla: () => sifirlamalar++,
-      ...(aktifSinyali === undefined ? {} : { aktif: aktifSinyali }),
+  function bind(activeSignal?: typeof active): void {
+    policy.connect({
+      parametre: parameter,
+      yukle: (p, reason) => loads.push([p, reason]),
+      sifirla: () => resets++,
+      ...(activeSignal === undefined ? {} : { aktif: activeSignal }),
     });
     TestBed.tick();
   }
 
-  function nedenler(): GetirmeNedeni[] {
-    return yuklemeler.map(([, neden]) => neden);
+  function reasons(): FetchReason[] {
+    return loads.map(([, reason]) => reason);
   }
 
   it('ilk açılışta TEK yükleme (ilk)', () => {
-    bagla();
+    bind();
     TestBed.tick();
-    expect(yuklemeler).toEqual([[{ arama: '' }, 'ilk']]);
-    expect(politika.sonNeden()).toBe('ilk');
+    expect(loads).toEqual([[{ arama: '' }, 'ilk']]);
+    expect(policy.lastReason()).toBe('ilk');
   });
 
   it('parametre değişince sorgu; aynı referans tekrar yazılınca yükleme yok', () => {
-    bagla();
-    const yeni = { arama: 'İzmir' };
-    parametre.set(yeni);
+    bind();
+    const newItem = { arama: 'İzmir' };
+    parameter.set(newItem);
     TestBed.tick();
-    parametre.set(yeni);
+    parameter.set(newItem);
     TestBed.tick();
-    expect(yuklemeler).toEqual([
+    expect(loads).toEqual([
       [{ arama: '' }, 'ilk'],
       [{ arama: 'İzmir' }, 'sorgu'],
     ]);
   });
 
   it('aynı tikteki çoklu değişiklik tek yükleme üretir (son değerle)', () => {
-    bagla();
-    parametre.set({ arama: 'a' });
-    parametre.set({ arama: 'ab' });
-    parametre.set({ arama: 'abc' });
+    bind();
+    parameter.set({ arama: 'a' });
+    parameter.set({ arama: 'ab' });
+    parameter.set({ arama: 'abc' });
     TestBed.tick();
-    expect(yuklemeler.slice(1)).toEqual([[{ arama: 'abc' }, 'sorgu']]);
+    expect(loads.slice(1)).toEqual([[{ arama: 'abc' }, 'sorgu']]);
   });
 
   it('oturum bağlamı değişince baglam nedeniyle yeniden yükler', () => {
-    bagla();
-    baglam.set({ anahtar: 'kiraci-b|kullanici-2' });
+    bind();
+    context.set({ anahtar: 'kiraci-b|kullanici-2' });
     TestBed.tick();
-    expect(nedenler()).toEqual(['ilk', 'baglam']);
+    expect(reasons()).toEqual(['ilk', 'baglam']);
   });
 
   it('bağlam düşünce (çıkış) yüklemez, sifirla çağrılır; geri gelince ilk gibi yükler', () => {
-    bagla();
-    baglam.set(null);
+    bind();
+    context.set(null);
     TestBed.tick();
-    expect(sifirlamalar).toBe(1);
-    expect(nedenler()).toEqual(['ilk']);
+    expect(resets).toBe(1);
+    expect(reasons()).toEqual(['ilk']);
 
-    parametre.set({ arama: 'x' });
+    parameter.set({ arama: 'x' });
     TestBed.tick();
-    expect(nedenler()).toEqual(['ilk']);
+    expect(reasons()).toEqual(['ilk']);
 
-    baglam.set({ anahtar: 'kiraci-a|kullanici-1' });
+    context.set({ anahtar: 'kiraci-a|kullanici-1' });
     TestBed.tick();
-    expect(nedenler()).toEqual(['ilk', 'ilk']);
-    expect(yuklemeler[1]?.[0]).toEqual({ arama: 'x' });
+    expect(reasons()).toEqual(['ilk', 'ilk']);
+    expect(loads[1]?.[0]).toEqual({ arama: 'x' });
   });
 
   it('başta bağlam yoksa ne yükler ne sıfırlar', () => {
-    baglam.set(null);
-    bagla();
-    expect(yuklemeler).toEqual([]);
-    expect(sifirlamalar).toBe(0);
+    context.set(null);
+    bind();
+    expect(loads).toEqual([]);
+    expect(resets).toBe(0);
   });
 
   it('görünür değilken değişiklikler birikir; görünür olunca TEK yükleme', () => {
-    aktif.set(false);
-    bagla(aktif);
-    expect(yuklemeler).toEqual([]);
+    active.set(false);
+    bind(active);
+    expect(loads).toEqual([]);
 
-    aktif.set(true);
+    active.set(true);
     TestBed.tick();
-    expect(nedenler()).toEqual(['ilk']);
+    expect(reasons()).toEqual(['ilk']);
 
-    aktif.set(false);
+    active.set(false);
     TestBed.tick();
-    parametre.set({ arama: '1' });
+    parameter.set({ arama: '1' });
     TestBed.tick();
-    parametre.set({ arama: '2' });
+    parameter.set({ arama: '2' });
     TestBed.tick();
-    expect(nedenler()).toEqual(['ilk']);
+    expect(reasons()).toEqual(['ilk']);
 
-    aktif.set(true);
+    active.set(true);
     TestBed.tick();
-    expect(yuklemeler.slice(1)).toEqual([[{ arama: '2' }, 'sorgu']]);
+    expect(loads.slice(1)).toEqual([[{ arama: '2' }, 'sorgu']]);
   });
 
   it('gizliyken değişip eski değerine dönen parametre yükleme üretmez', () => {
-    const ilk = parametre();
-    bagla(aktif);
-    aktif.set(false);
+    const first = parameter();
+    bind(active);
+    active.set(false);
     TestBed.tick();
-    parametre.set({ arama: 'gecici' });
+    parameter.set({ arama: 'gecici' });
     TestBed.tick();
-    parametre.set(ilk);
+    parameter.set(first);
     TestBed.tick();
-    aktif.set(true);
+    active.set(true);
     TestBed.tick();
-    expect(nedenler()).toEqual(['ilk']);
+    expect(reasons()).toEqual(['ilk']);
   });
 
   it('yenile aynı parametreyle elle nedeniyle yükler', () => {
-    bagla();
-    politika.yenile();
+    bind();
+    policy.yenile();
     TestBed.tick();
-    expect(yuklemeler).toEqual([
+    expect(loads).toEqual([
       [{ arama: '' }, 'ilk'],
       [{ arama: '' }, 'elle'],
     ]);
   });
 
   it('esit verilirse anlamca aynı parametre yükleme üretmez', () => {
-    politika.baglan({
-      parametre,
-      yukle: (p, neden) => yuklemeler.push([p, neden]),
+    policy.connect({
+      parametre: parameter,
+      yukle: (p, reason) => loads.push([p, reason]),
       esit: (a, b) => a.arama === b.arama,
     });
     TestBed.tick();
-    parametre.set({ arama: '' });
+    parameter.set({ arama: '' });
     TestBed.tick();
-    expect(nedenler()).toEqual(['ilk']);
+    expect(reasons()).toEqual(['ilk']);
   });
 });
 
 describe('FetchPolicy + sekmeli çalışma alanı (F3.2)', () => {
-  const kabukRotasi = { path: '', data: { kabuk: true }, children: [] };
-  const sayfaRotasi = { path: 'kayit/:id', component: class {} };
+  const shellRoute = { path: '', data: { kabuk: true }, children: [] };
+  const pageRoute = { path: 'kayit/:id', component: class {} };
   const snapshot = {
-    routeConfig: sayfaRotasi,
+    routeConfig: pageRoute,
     params: { id: '5' },
-    pathFromRoot: [
-      { routeConfig: null },
-      { routeConfig: kabukRotasi },
-      { routeConfig: sayfaRotasi },
-    ],
+    pathFromRoot: [{ routeConfig: null }, { routeConfig: shellRoute }, { routeConfig: pageRoute }],
   };
-  const BU_SEKME = '/kayit/:id?id=5';
-  const parametre = signal(1);
-  let nedenler: GetirmeNedeni[];
-  let durum: SekmeDurumu;
-  let politika: FetchPolicy;
+  const THIS_TAB = '/kayit/:id?id=5';
+  const parameter = signal(1);
+  let reasons: FetchReason[];
+  let status: TabState;
+  let policy: FetchPolicy;
 
   beforeEach(() => {
-    parametre.set(1);
-    nedenler = [];
+    parameter.set(1);
+    reasons = [];
     TestBed.configureTestingModule({
       providers: [
         FetchPolicy,
-        { provide: OTURUM_BAGLAMI, useValue: signal({ anahtar: 'k|u|*' }).asReadonly() },
+        { provide: SESSION_CONTEXT, useValue: signal({ anahtar: 'k|u|*' }).asReadonly() },
         { provide: ActivatedRoute, useValue: { snapshot } },
       ],
     });
-    durum = TestBed.inject(SekmeDurumu);
-    politika = TestBed.inject(FetchPolicy);
+    status = TestBed.inject(TabState);
+    policy = TestBed.inject(FetchPolicy);
   });
 
-  function bagla(sekmeyeDonunce?: 'yenile'): void {
-    politika.baglan({
-      parametre,
-      yukle: (_p, neden) => nedenler.push(neden),
-      ...(sekmeyeDonunce ? { sekmeyeDonunce } : {}),
+  function bind(onTabReturn?: 'yenile'): void {
+    policy.connect({
+      parametre: parameter,
+      yukle: (_p, reason) => reasons.push(reason),
+      ...(onTabReturn ? { sekmeyeDonunce: onTabReturn } : {}),
     });
     TestBed.tick();
   }
 
   it('aktif verilmezse sayfanın SEKMESİ belirler: arkadayken biriktirir, öne gelince tek yükleme', () => {
-    durum.etkinlestir(BU_SEKME);
-    bagla();
-    expect(nedenler).toEqual(['ilk']);
+    status.activate(THIS_TAB);
+    bind();
+    expect(reasons).toEqual(['ilk']);
 
-    durum.etkinlestir('/diger');
-    parametre.set(2);
+    status.activate('/diger');
+    parameter.set(2);
     TestBed.tick();
-    parametre.set(3);
+    parameter.set(3);
     TestBed.tick();
-    expect(nedenler).toEqual(['ilk']);
+    expect(reasons).toEqual(['ilk']);
 
-    durum.etkinlestir(BU_SEKME);
+    status.activate(THIS_TAB);
     TestBed.tick();
-    expect(nedenler).toEqual(['ilk', 'sorgu']);
+    expect(reasons).toEqual(['ilk', 'sorgu']);
 
     // Değişiklik yoksa dönüşte yükleme yok (varsayılan: degisirse).
-    durum.etkinlestir('/diger');
+    status.activate('/diger');
     TestBed.tick();
-    durum.etkinlestir(BU_SEKME);
+    status.activate(THIS_TAB);
     TestBed.tick();
-    expect(nedenler).toEqual(['ilk', 'sorgu']);
+    expect(reasons).toEqual(['ilk', 'sorgu']);
   });
 
   it("sekmeyeDonunce: 'yenile' her dönüşte yükler (sekme nedeni); aynı sekmede kalınca yüklemez", () => {
-    durum.etkinlestir(BU_SEKME);
-    bagla('yenile');
-    durum.etkinlestir(BU_SEKME);
+    status.activate(THIS_TAB);
+    bind('yenile');
+    status.activate(THIS_TAB);
     TestBed.tick();
-    expect(nedenler).toEqual(['ilk']);
+    expect(reasons).toEqual(['ilk']);
 
-    durum.etkinlestir('/diger');
+    status.activate('/diger');
     TestBed.tick();
-    durum.etkinlestir(BU_SEKME);
+    status.activate(THIS_TAB);
     TestBed.tick();
-    expect(nedenler).toEqual(['ilk', 'sekme']);
+    expect(reasons).toEqual(['ilk', 'sekme']);
   });
 
   it('kabuk yokken (etkin sekme null) sayfa her zaman görünür sayılır', () => {
-    bagla();
-    parametre.set(2);
+    bind();
+    parameter.set(2);
     TestBed.tick();
-    expect(nedenler).toEqual(['ilk', 'sorgu']);
+    expect(reasons).toEqual(['ilk', 'sorgu']);
   });
 });

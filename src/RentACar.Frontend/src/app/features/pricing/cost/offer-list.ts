@@ -14,36 +14,39 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
-import { invariantOndalik } from '@core/form/ondalik';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import { toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
+import { invariantDecimal } from '@core/form/ondalik';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { type StoreDurumu, TemelStore } from '@core/veri/temel-store';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { type StoreState, TemelStore } from '@core/veri/temel-store';
 import type { Sayfa } from '@core/api/sayfa';
-import { metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { CustomerLabels } from '@features/vehicle-finance/labels';
-import { ParaPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
 import { COST_OFFERS, type CostOfferList, type CostOfferRow, OFFER_LIST } from './cost-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 const toNum = (v: number | string | null | undefined): number | null => {
   if (v === null || v === undefined || v === '') return null;
@@ -61,19 +64,19 @@ const toNum = (v: number | string | null | undefined): number | null => {
   selector: 'rc-offer-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    Ikon,
-    MetinGirdisi,
-    ParaGirdisi,
-    ParaPipe,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    SearchSelection,
+    Icon,
+    TextInput,
+    MoneyInput,
+    MoneyPipe,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, CustomerLabels],
   templateUrl: './offer-list.html',
@@ -81,25 +84,25 @@ const toNum = (v: number | string | null | undefined): number | null => {
 })
 export class OfferList {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly session = inject(OturumServisi);
+  private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly session = inject(SessionService);
   private readonly customerLabels = inject(CustomerLabels);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly num = toNum;
-  protected readonly query = listeSorgusuUrlSenkronu(OFFER_LIST);
+  protected readonly query = listQueryUrlSync(OFFER_LIST);
   protected readonly store = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<CostOfferList>(COST_OFFERS, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<CostOfferList>(COST_OFFERS, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
   protected readonly canWrite = computed(() => this.session.izinVar('FinanceWrite'));
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly busy = signal<string | null>(null);
   protected readonly rowId = (r: CostOfferRow) => r.id;
   protected readonly summary = computed(() => this.store.veri()?.ozet ?? null);
-  protected readonly rows = computed<StoreDurumu<Sayfa<CostOfferRow>>>(() => {
+  protected readonly rows = computed<StoreState<Sayfa<CostOfferRow>>>(() => {
     const d = this.store.durum();
     switch (d.tur) {
       case 'hazir':
@@ -116,31 +119,31 @@ export class OfferList {
     metin: new FormControl<string | null>(null),
     plaka: new FormControl<string | null>(null),
     cari: new FormControl<SecimSecenegi | null>(null),
-    bas: new FormControl<GunMetni | null>(null),
-    bit: new FormControl<GunMetni | null>(null),
+    bas: new FormControl<DayText | null>(null),
+    bit: new FormControl<DayText | null>(null),
     fiyatMin: new FormControl<string | null>(null),
     fiyatMax: new FormControl<string | null>(null),
   });
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.yukle(p),
-      sifirla: () => this.store.sifirla(),
+      sifirla: () => this.store.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
       const f = this.query.sorgu().filtreler;
-      const cari = this.customerLabels.label(f.cariId);
+      const account = this.customerLabels.label(f.cariId);
       untracked(() =>
         this.filterForm.reset({
           metin: f.metin ?? null,
           plaka: f.plaka ?? null,
-          cari,
+          cari: account,
           bas: f.bas ?? null,
           bit: f.bit ?? null,
-          fiyatMin: f.fiyatMin === undefined ? null : invariantOndalik(f.fiyatMin, { kesir: 2 }),
-          fiyatMax: f.fiyatMax === undefined ? null : invariantOndalik(f.fiyatMax, { kesir: 2 }),
+          fiyatMin: f.fiyatMin === undefined ? null : invariantDecimal(f.fiyatMin, { kesir: 2 }),
+          fiyatMax: f.fiyatMax === undefined ? null : invariantDecimal(f.fiyatMax, { kesir: 2 }),
         }),
       );
     });
@@ -152,8 +155,8 @@ export class OfferList {
     void this.query.degistir({
       sayfa: 1,
       filtreler: {
-        metin: metinDegeri(v.metin) ?? undefined,
-        plaka: metinDegeri(v.plaka) ?? undefined,
+        metin: textValue(v.metin) ?? undefined,
+        plaka: textValue(v.plaka) ?? undefined,
         cariId: v.cari?.id ?? undefined,
         bas: v.bas ?? undefined,
         bit: v.bit ?? undefined,
@@ -169,7 +172,7 @@ export class OfferList {
 
   protected async remove(row: CostOfferRow): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('fiyatTarife.maliyet.silBaslik'),
       mesaj: this.t('fiyatTarife.maliyet.silMesaj', { no: row.kayitNo, baslik: row.baslik }),
       onayEtiketi: this.t('fiyatTarife.sil'),
@@ -189,7 +192,7 @@ export class OfferList {
           this.store.yenile();
         },
         error: (raw: unknown) => {
-          const e = apiHatasinaCevir(raw);
+          const e = toApiError(raw);
           if (!genelGosterilir(e)) this.toast.hata(e.detay);
           this.store.yenile();
         },

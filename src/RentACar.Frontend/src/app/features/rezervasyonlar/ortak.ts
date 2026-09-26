@@ -1,39 +1,39 @@
 import { PercentPipe } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
-import { BICIM_PIPELARI } from '@shared/bicim/bicim-pipe';
+import { FORMAT_PIPES } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinAlani } from '@shared/form/kontroller/metin-alani';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSaatSecici } from '@shared/form/tarih/tarih-saat-secici';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextArea } from '@shared/form/kontroller/text-area';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DateTimePicker } from '@shared/form/tarih/date-time-picker';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
-import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../kabuk/sayfa-bandi/page-band';
 
 /** Rezervasyon ve teklif formlarının ortak içe aktarımları (form seti + biçim pipe'ları + sayfa bandı, plaka). */
-export const RF_ORTAK = [
+export const RF_SHARED = [
   ReactiveFormsModule,
   TranslocoPipe,
   PercentPipe,
-  ...BICIM_PIPELARI,
+  ...FORMAT_PIPES,
   Alan,
-  AramaSecim,
-  FormHatalari,
-  Ikon,
+  SearchSelection,
+  FormErrors,
+  Icon,
   PlateChipComponent,
-  SayfaBandi,
-  MetinAlani,
-  MetinGirdisi,
-  ParaGirdisi,
-  SayiGirdisi,
-  Secim,
-  TarihSaatSecici,
-  TarihSecici,
+  PageBand,
+  TextArea,
+  TextInput,
+  MoneyInput,
+  NumberInput,
+  Selection,
+  DateTimePicker,
+  DatePicker,
 ] as const;

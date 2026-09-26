@@ -1,17 +1,17 @@
 import { inject } from '@angular/core';
 import { type Observable, EMPTY, expand, map, reduce } from 'rxjs';
 
-import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
 import {
   type RestDefinitionOptions,
-  type TanimKaynagi,
-  type TanimSatiri,
-  restTanimKaynagi,
-} from '@shared/form/tanim-crud/tanim-kaynagi';
+  type DefinitionSource,
+  type DefinitionRow,
+  restDefinitionSource,
+} from '@shared/form/tanim-crud/definition-source';
 
 /** Sayfalı liste yanıtı (`Sayfa<T>`: kayitlar/toplam/sayfaNo/boyut). */
 interface DefinitionPage {
-  readonly kayitlar: readonly TanimSatiri[];
+  readonly kayitlar: readonly DefinitionRow[];
   readonly toplam: number;
 }
 
@@ -25,12 +25,12 @@ export const PAGE_SIZE = 200;
  * kayıt tekil okunur (`read` → güncel `surum`), 409 birleştirmesi de aynı yoldan.
  */
 export function pagedDefinitionSource(
-  root: ApiYolu,
+  root: ApiPath,
   sort = 'kod',
   options: RestDefinitionOptions = {},
-): TanimKaynagi {
+): DefinitionSource {
   const api = inject(ApiIstemcisi);
-  const toRow = options.toRow ?? ((raw: Readonly<Record<string, unknown>>) => raw as TanimSatiri);
+  const toRow = options.toRow ?? ((raw: Readonly<Record<string, unknown>>) => raw as DefinitionRow);
   const page = (no: number): Observable<DefinitionPage> =>
     api
       .get<DefinitionPage>(root, {
@@ -38,7 +38,7 @@ export function pagedDefinitionSource(
       })
       .pipe(map((p) => ({ ...p, kayitlar: p.kayitlar.map(toRow) })));
   return {
-    ...restTanimKaynagi(root, options),
+    ...restDefinitionSource(root, options),
     listele: () =>
       page(1).pipe(
         map((p) => ({ p, no: 1 })),
@@ -47,7 +47,7 @@ export function pagedDefinitionSource(
             ? page(no + 1).pipe(map((next) => ({ p: next, no: no + 1 })))
             : EMPTY,
         ),
-        reduce<{ p: DefinitionPage }, TanimSatiri[]>((all, { p }) => [...all, ...p.kayitlar], []),
+        reduce<{ p: DefinitionPage }, DefinitionRow[]>((all, { p }) => [...all, ...p.kayitlar], []),
       ),
   };
 }

@@ -5,22 +5,25 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { moneySubmission } from '@core/form/money-submission';
-import { paraBicimle } from '@core/bicim/bicim';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import { formatMoney } from '@core/bicim/bicim';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { requestContext } from '@core/oturum/request-context';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import {
   type DocumentResult,
@@ -55,28 +58,28 @@ const EMPTY = { kdvOrani: '0.20' } as const;
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
+    SearchSelection,
     MoneySubmitBar,
-    MetinGirdisi,
-    ParaGirdisi,
-    SayiGirdisi,
-    Secim,
-    TarihSecici,
+    TextInput,
+    MoneyInput,
+    NumberInput,
+    Selection,
+    DatePicker,
   ],
   templateUrl: './manual-invoice-form.html',
   styleUrl: '../finance-documents.scss',
 })
 export class ManualInvoiceForm {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   readonly saved = output<DocumentResult | null>();
   readonly dirtyChange = output<boolean>();
 
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly paymentTypes = INVOICE_PAYMENT_TYPES;
   protected readonly deliveryTypes = INVOICE_DELIVERY_TYPES;
   protected readonly vatOptions: readonly SecenekOgesi<VatRate>[] = VAT_RATES.map((v) => ({
@@ -139,14 +142,14 @@ export class ManualInvoiceForm {
   /** Başarı mesajı sunucunun kestiği genel toplamla (fatura yanıtı yalnız no döner; detay okunur). */
   private announce(r: DocumentResult): void {
     this.api
-      .get<InvoiceDetail>(recordPath(INVOICES, r.id), { context: istekBaglami({ sessiz: true }) })
+      .get<InvoiceDetail>(recordPath(INVOICES, r.id), { context: requestContext({ sessiz: true }) })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (d) =>
           this.toast.basari(
             this.t('finansBelge.fatura.manuelKesildiTutar', {
               no: d.no,
-              tutar: paraBicimle(toNumber(d.genelToplam), d.doviz),
+              tutar: formatMoney(toNumber(d.genelToplam), d.doviz),
             }),
           ),
         error: () => this.toast.basari(this.t('finansBelge.fatura.manuelKesildi', { no: r.no })),

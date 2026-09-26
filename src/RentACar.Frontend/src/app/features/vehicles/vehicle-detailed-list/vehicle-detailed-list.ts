@@ -11,17 +11,17 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { suggestionList } from '../suggestions';
 import {
@@ -32,9 +32,9 @@ import {
   type DetailedRow,
   type VehicleStatus,
 } from '../vehicle-model';
-import { DetailedListStore, secimSuggestionFetch } from '../vehicle.store';
+import { DetailedListStore, selectionSuggestionFetch } from '../vehicle.store';
 import { detailedColumns } from './detailed-columns';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -49,16 +49,16 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    Ikon,
-    MetinGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
+    Icon,
+    TextInput,
+    Selection,
+    Table,
+    TableCell,
   ],
   providers: [FetchPolicy, DetailedListStore],
   templateUrl: './vehicle-detailed-list.html',
@@ -67,11 +67,11 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
 export class VehicleDetailedList {
   protected readonly store = inject(DetailedListStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(DETAILED_LIST);
+  protected readonly query = listQueryUrlSync(DETAILED_LIST);
   protected readonly columns = detailedColumns(this.t);
   protected readonly rowId = (r: DetailedRow) => r.id;
 
@@ -85,7 +85,7 @@ export class VehicleDetailedList {
   );
   protected readonly branchSuggestions = suggestionList(
     this.filterForm.controls.sube,
-    secimSuggestionFetch(this.api, 'sube'),
+    selectionSuggestionFetch(this.api, 'sube'),
     () => this.session.izinVar('OperationsWrite'),
   );
   protected readonly summary = computed(() => {
@@ -94,10 +94,10 @@ export class VehicleDetailedList {
   });
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {

@@ -6,59 +6,56 @@ import type { TabloSiralamaDuzeni, TabloSutunu } from './tablo-modeli';
  * sessizce yok saymaz (400) — bu yüzden yalnız `sirala` tanımlı sütunlar metne çevrilir.
  */
 
-type Sutunlar = readonly TabloSutunu<never>[];
+type Columns = readonly TabloSutunu<never>[];
 
 /** Sütunun sunucu sıralama alanı; sıralanamazsa `null`. */
-export function siralamaAlani(sutun: TabloSutunu<never>): string | null {
-  if (sutun.sirala === true) return sutun.kod;
-  if (typeof sutun.sirala === 'string' && sutun.sirala.trim() !== '') return sutun.sirala.trim();
+export function sortField(column: TabloSutunu<never>): string | null {
+  if (column.sirala === true) return column.kod;
+  if (typeof column.sirala === 'string' && column.sirala.trim() !== '') return column.sirala.trim();
   return null;
 }
 
 /** `"-gunlukFiyat"` → `{ kod: 'gunluk', azalan: true }` (alan → sütun kodu). Bilinmeyen → `null`. */
-export function siralamaCoz(sutunlar: Sutunlar, sirala: string | null): TabloSiralamaDuzeni | null {
-  if (sirala === null) return null;
-  const metin = sirala.trim();
-  const azalan = metin.startsWith('-');
-  const alan = azalan ? metin.slice(1) : metin;
+export function parseSort(columns: Columns, sort: string | null): TabloSiralamaDuzeni | null {
+  if (sort === null) return null;
+  const text = sort.trim();
+  const descending = text.startsWith('-');
+  const alan = descending ? text.slice(1) : text;
   if (alan === '') return null;
-  const sutun = sutunlar.find((s) => siralamaAlani(s) === alan);
-  return sutun === undefined ? null : { kod: sutun.kod, azalan };
+  const column = columns.find((s) => sortField(s) === alan);
+  return column === undefined ? null : { kod: column.kod, azalan: descending };
 }
 
 /** `{ kod, azalan }` → sunucu metni. Sütun yoksa ya da sıralanamazsa `null`. */
-export function siralamaMetni(
-  sutunlar: Sutunlar,
-  siralama: TabloSiralamaDuzeni | null,
-): string | null {
-  if (siralama === null) return null;
-  const sutun = sutunlar.find((s) => s.kod === siralama.kod);
-  const alan = sutun === undefined ? null : siralamaAlani(sutun);
+export function sortText(columns: Columns, sort: TabloSiralamaDuzeni | null): string | null {
+  if (sort === null) return null;
+  const column = columns.find((s) => s.kod === sort.kod);
+  const alan = column === undefined ? null : sortField(column);
   if (alan === null) return null;
-  return siralama.azalan ? `-${alan}` : alan;
+  return sort.azalan ? `-${alan}` : alan;
 }
 
 /**
  * Başlığa tıklama döngüsü: başka sütun/yok → artan → azalan → yok (`null` = sayfanın varsayılan
  * sıralaması). Sıralanamaz sütunda mevcut durum değişmez.
  */
-export function sonrakiSiralama(
-  sutunlar: Sutunlar,
-  mevcut: TabloSiralamaDuzeni | null,
-  kod: string,
+export function nextSort(
+  columns: Columns,
+  existing: TabloSiralamaDuzeni | null,
+  code: string,
 ): TabloSiralamaDuzeni | null {
-  const sutun = sutunlar.find((s) => s.kod === kod);
-  if (sutun === undefined || siralamaAlani(sutun) === null) return mevcut;
-  if (mevcut === null || mevcut.kod !== kod) return { kod, azalan: false };
-  if (!mevcut.azalan) return { kod, azalan: true };
+  const column = columns.find((s) => s.kod === code);
+  if (column === undefined || sortField(column) === null) return existing;
+  if (existing === null || existing.kod !== code) return { kod: code, azalan: false };
+  if (!existing.azalan) return { kod: code, azalan: true };
   return null;
 }
 
 /** `aria-sort` değeri. */
-export function ariaSiralama(
-  siralama: TabloSiralamaDuzeni | null,
-  kod: string,
+export function ariaSort(
+  sort: TabloSiralamaDuzeni | null,
+  code: string,
 ): 'ascending' | 'descending' | null {
-  if (siralama?.kod !== kod) return null;
-  return siralama.azalan ? 'descending' : 'ascending';
+  if (sort?.kod !== code) return null;
+  return sort.azalan ? 'descending' : 'ascending';
 }

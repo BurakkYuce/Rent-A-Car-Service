@@ -1,16 +1,16 @@
 import {
-  TAKVIM,
-  ayGecerli,
-  ayinGunleri,
+  CALENDAR,
+  isMonthValid,
+  daysOfMonth,
   doluluk,
-  kiralaSorgusu,
-  takvimParametreleri,
+  rentQuery,
+  calendarParameters,
 } from './takvim-modeli';
-import { apiParametreleri, sorguyuCoz } from '@core/veri/liste-sorgusu';
+import { apiParams, parseQuery } from '@core/veri/liste-sorgusu';
 
 describe('takvim modeli', () => {
   it('ayın günleri: Şubat 2026 = 28 gün; 1 Şubat pazar (hafta sonu), 2 Şubat pazartesi', () => {
-    const gunler = ayinGunleri('2026-02', 28);
+    const gunler = daysOfMonth('2026-02', 28);
     expect(gunler).toHaveLength(28);
     expect(gunler[0]).toEqual({ no: 1, gun: '2026-02-01', haftaSonu: true });
     expect(gunler[1]).toEqual({ no: 2, gun: '2026-02-02', haftaSonu: false });
@@ -21,21 +21,27 @@ describe('takvim modeli', () => {
   });
 
   it('ay biçimi: yalnız yyyy-MM (01–12)', () => {
-    expect(ayGecerli('2026-09')).toBe(true);
-    expect(ayGecerli('2026-13')).toBe(false);
-    expect(ayGecerli('2026-9')).toBe(false);
-    expect(ayGecerli('bozuk')).toBe(false);
-    expect(ayGecerli(undefined)).toBe(false);
+    expect(isMonthValid('2026-09')).toBe(true);
+    expect(isMonthValid('2026-13')).toBe(false);
+    expect(isMonthValid('2026-9')).toBe(false);
+    expect(isMonthValid('bozuk')).toBe(false);
+    expect(isMonthValid(undefined)).toBe(false);
   });
 
   it('API parametreleri: sayfa/boyut gitmez, bozuk ay düşer (sunucu bu ayı açar), süzgeçler aynı adla', () => {
-    const p = apiParametreleri(
-      TAKVIM,
-      sorguyuCoz(TAKVIM, { ay: '2026-13', plaka: '34 AB', grup: 'C', sube: 'Merkez', sayfa: '3' }),
+    const p = apiParams(
+      CALENDAR,
+      parseQuery(CALENDAR, {
+        ay: '2026-13',
+        plaka: '34 AB',
+        grup: 'C',
+        sube: 'Merkez',
+        sayfa: '3',
+      }),
     );
-    expect(takvimParametreleri(p)).toEqual({ plaka: '34 AB', grup: 'C', sube: 'Merkez' });
+    expect(calendarParameters(p)).toEqual({ plaka: '34 AB', grup: 'C', sube: 'Merkez' });
     expect(
-      takvimParametreleri(apiParametreleri(TAKVIM, sorguyuCoz(TAKVIM, { ay: '2026-10' }))),
+      calendarParameters(apiParams(CALENDAR, parseQuery(CALENDAR, { ay: '2026-10' }))),
     ).toEqual({
       ay: '2026-10',
     });
@@ -49,6 +55,6 @@ describe('takvim modeli', () => {
   });
 
   it('plaka bağlantısı kira formuna penceresiz ?varac= taşır', () => {
-    expect(kiralaSorgusu('a1')).toEqual({ varac: 'a1' });
+    expect(rentQuery('a1')).toEqual({ varac: 'a1' });
   });
 });

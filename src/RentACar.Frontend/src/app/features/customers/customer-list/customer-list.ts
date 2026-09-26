@@ -14,26 +14,26 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { Ikon } from '@shared/ikon/ikon';
+import { Selection } from '@shared/form/kontroller/selection';
+import { Icon } from '@shared/ikon/icon';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { customerColumns } from '../customer-columns';
 import {
   CUSTOMER_LIST,
@@ -67,12 +67,12 @@ const fromTri = (v: Tri | null): boolean | undefined =>
     TranslocoPipe,
     Alan,
     FilterPanelComponent,
-    Ikon,
-    MetinGirdisi,
-    Secim,
-    SayfaBandi,
-    Tablo,
-    TabloHucre,
+    Icon,
+    TextInput,
+    Selection,
+    PageBand,
+    Table,
+    TableCell,
   ],
   providers: [FetchPolicy, CustomerListStore],
   templateUrl: './customer-list.html',
@@ -81,14 +81,14 @@ const fromTri = (v: Tri | null): boolean | undefined =>
 export class CustomerList {
   protected readonly store = inject(CustomerListStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(CUSTOMER_LIST);
+  protected readonly query = listQueryUrlSync(CUSTOMER_LIST);
   protected readonly columns = customerColumns(this.t);
   protected readonly rowId = (r: CustomerRow) => r.id;
   protected readonly badges = rowBadges;
@@ -148,10 +148,10 @@ export class CustomerList {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.parameters,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -200,7 +200,7 @@ export class CustomerList {
 
   protected async remove(row: CustomerRow): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('cari.silBaslik'),
       mesaj: this.t('cari.silMesaj', { ad: row.ad }),
       onayEtiketi: this.t('cari.sil'),
@@ -220,7 +220,7 @@ export class CustomerList {
           this.store.list.yenile();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.store.list.yenile();
         },

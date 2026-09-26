@@ -1,26 +1,26 @@
 import { expect, test } from '@playwright/test';
 
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem } from './ortak';
 import { ADMIN_BEN, USER_ADMIN, USER_OP, record, usersEndpoints, type Write } from './system-fakes';
 
 /**
  * F11.2b kullanıcı yönetimi, ekran yetkileri, mesaj şablonları, denetim, ofisler: izin kapıları uçlarla birebir,
  * Admin hesabı yalnız Admin'e (M2), parola alanları new-password, tam PUT'ta surum, ofis adı çakışması alan hatası.
  */
-const AG_HATASI = [/Failed to load resource: the server responded with a status of 4\d\d/];
+const NETWORK_ERROR = [/Failed to load resource: the server responded with a status of 4\d\d/];
 const body = (w: Write | undefined) => JSON.parse(w?.govde ?? '{}') as Record<string, unknown>;
 
 test('kullanıcılar (Admin): oluştur new-password + aktif şube; istisna ver; axe iki tema', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
-  await oturumAc(page, ADMIN_BEN);
+  const errors = collectErrors(page);
+  await logIn(page, ADMIN_BEN);
   const writes = await usersEndpoints(page);
   await page.goto('/app/kullanicilar');
   await expect(page.getByRole('cell', { name: 'operator1', exact: true }).first()).toBeVisible();
-  expect(await ciddiIhlaller(page), 'açık').toEqual([]);
+  expect(await seriousViolations(page), 'açık').toEqual([]);
   await page.emulateMedia({ colorScheme: 'dark' });
-  expect(await ciddiIhlaller(page), 'koyu').toEqual([]);
+  expect(await seriousViolations(page), 'koyu').toEqual([]);
 
   const password = page.getByLabel(/^Parola/);
   await expect(password).toHaveAttribute('autocomplete', 'new-password');
@@ -59,7 +59,7 @@ test('kullanıcılar (Admin): oluştur new-password + aktif şube; istisna ver; 
 test('kullanıcılar (ManageUsers istisnalı Yönetici): Admin hesabı ve ManageUsers izni kapalı (M2)', async ({
   page,
 }) => {
-  await oturumAc(page, { ...ADMIN_BEN, rol: 'Yonetici' });
+  await logIn(page, { ...ADMIN_BEN, rol: 'Yonetici' });
   await usersEndpoints(page);
   await page.goto('/app/kullanicilar');
   await expect(page.getByRole('cell', { name: 'patron', exact: true })).toBeVisible();
@@ -80,14 +80,14 @@ test('kullanıcılar (ManageUsers istisnalı Yönetici): Admin hesabı ve Manage
 });
 
 test('kullanıcılar: ManageUsers yoksa rota açılmaz (uç kapısıyla birebir)', async ({ page }) => {
-  await oturumAc(page, BEN);
+  await logIn(page, BEN);
   await page.goto('/app/kullanicilar');
   await expect(page.getByText('Bu sayfayı görüntüleme yetkiniz yok.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Kullanıcı Yönetimi' })).toHaveCount(0);
 });
 
 test('parola sıfırlama: satır formu new-password, gövde yalnız parola', async ({ page }) => {
-  await oturumAc(page, ADMIN_BEN);
+  await logIn(page, ADMIN_BEN);
   const writes = await usersEndpoints(page);
   await page.goto('/app/kullanicilar');
   const opRow = page.getByRole('row').filter({ hasText: 'operator1' }).first();
@@ -105,7 +105,7 @@ test('parola sıfırlama: satır formu new-password, gövde yalnız parola', asy
 test('kendi satırı (M1): parola sıfırla / pasifleştir yok, profil parola sayfasına bağlantı', async ({
   page,
 }) => {
-  await oturumAc(page, ADMIN_BEN);
+  await logIn(page, ADMIN_BEN);
   await usersEndpoints(page);
   await page.goto('/app/kullanicilar');
   const selfRow = page.getByRole('row').filter({ hasText: 'Ayşe Yılmaz' }).first();
@@ -116,7 +116,7 @@ test('kendi satırı (M1): parola sıfırla / pasifleştir yok, profil parola sa
 });
 
 test('ekran yetkileri: override kaydı rol listesiyle, rol kopyalama onaylı', async ({ page }) => {
-  await oturumAc(page, ADMIN_BEN);
+  await logIn(page, ADMIN_BEN);
   const writes: Write[] = [];
   await page.route(
     (u) => u.pathname.startsWith('/api/ui/v1/yetki'),
@@ -143,7 +143,7 @@ test('ekran yetkileri: override kaydı rol listesiyle, rol kopyalama onaylı', a
   );
   await page.goto('/app/yetki');
   await expect(page.getByRole('cell', { name: 'personel' })).toBeVisible();
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
   await page.getByRole('textbox', { name: 'Ekran kodu' }).fill('donem-kapanis');
   await page.getByRole('checkbox', { name: 'Muhasebe' }).check();
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
@@ -166,7 +166,7 @@ test('ekran yetkileri: override kaydı rol listesiyle, rol kopyalama onaylı', a
 test('mesaj şablonları: tanımsız şablon surum null, kayıtlı şablon surum ile PUT', async ({
   page,
 }) => {
-  await oturumAc(page, ADMIN_BEN);
+  await logIn(page, ADMIN_BEN);
   const writes: Write[] = [];
   const templates = [
     {
@@ -223,7 +223,7 @@ test('mesaj şablonları: tanımsız şablon surum null, kayıtlı şablon surum
 });
 
 test('denetim: maskeli değerler düz metin, sayfalama sayfa=2 ister', async ({ page }) => {
-  await oturumAc(page, ADMIN_BEN);
+  await logIn(page, ADMIN_BEN);
   const queries: string[] = [];
   await page.route('**/api/ui/v1/denetim?*', (r) => {
     queries.push(new URL(r.request().url()).search);
@@ -257,8 +257,8 @@ test('denetim: maskeli değerler düz metin, sayfalama sayfa=2 ister', async ({ 
 test('ofisler: tam PUT surum + gizli haftalık saatler korunur; ad çakışması alan hatası', async ({
   page,
 }) => {
-  hatalariTopla(page, AG_HATASI);
-  await oturumAc(page, ADMIN_BEN);
+  collectErrors(page, NETWORK_ERROR);
+  await logIn(page, ADMIN_BEN);
   const writes: Write[] = [];
   const office = {
     id: 'o1',

@@ -1,11 +1,11 @@
 import {
-  duzeniBirlestir,
-  genislikAyarla,
-  gorunurlukAyarla,
-  sutunuKaydir,
-  sutunuYerlestir,
-  tanstackDurumu,
-  varsayilanDuzen,
+  mergeLayout,
+  setWidth,
+  setVisibility,
+  scrollColumn,
+  placeColumn,
+  tanstackState,
+  defaultLayout,
 } from './tablo-duzeni';
 import type { TabloDuzeni, TabloSutunu } from './tablo-modeli';
 
@@ -16,7 +16,7 @@ interface Satir {
   km: number;
 }
 
-const SUTUNLAR: readonly TabloSutunu<Satir>[] = [
+const COLUMNS: readonly TabloSutunu<Satir>[] = [
   { kod: 'marka', baslik: 'Marka', deger: (s) => s.marka, sirala: true },
   { kod: 'plaka', baslik: 'Plaka', deger: (s) => s.plaka, sabit: true, genislik: 110 },
   { kod: 'tutar', baslik: 'Tutar', deger: (s) => s.tutar, tur: 'para', sirala: 'toplamTutar' },
@@ -27,7 +27,7 @@ const kodlar = (d: TabloDuzeni) => d.sutunlar.map((s) => s.kod);
 
 describe('Tablo düzeni (saf)', () => {
   it('varsayılan: sabit sütun en solda, gizli kapalı, genişlik tanımdan (null)', () => {
-    const d = varsayilanDuzen(SUTUNLAR);
+    const d = defaultLayout(COLUMNS);
     expect(kodlar(d)).toEqual(['plaka', 'marka', 'tutar', 'km']);
     expect(d.sutunlar.map((s) => s.gorunur)).toEqual([true, true, true, false]);
     expect(d.sutunlar.every((s) => s.genislik === null)).toBe(true);
@@ -35,7 +35,7 @@ describe('Tablo düzeni (saf)', () => {
   });
 
   it('kayıtlı düzen: sıra/görünürlük/genişlik korunur, bilinmeyen ve yinelenen kod atılır', () => {
-    const kayitli: TabloDuzeni = {
+    const saved: TabloDuzeni = {
       sutunlar: [
         { kod: 'km', gorunur: true, genislik: 90 },
         { kod: 'silinmis', gorunur: true, genislik: 100 },
@@ -45,7 +45,7 @@ describe('Tablo düzeni (saf)', () => {
       ],
       siralama: [{ kod: 'tutar', azalan: true }],
     };
-    const d = duzeniBirlestir(SUTUNLAR, kayitli);
+    const d = mergeLayout(COLUMNS, saved);
     expect(kodlar(d)).toEqual(['plaka', 'km', 'tutar', 'marka']);
     expect(d.sutunlar).toEqual([
       { kod: 'plaka', gorunur: true, genislik: null },
@@ -57,7 +57,7 @@ describe('Tablo düzeni (saf)', () => {
   });
 
   it('kayıtta olmayan yeni sütun tanımdaki önceli ardına, tanımdaki görünürlükle girer', () => {
-    const kayitli: TabloDuzeni = {
+    const saved: TabloDuzeni = {
       sutunlar: [
         { kod: 'tutar', gorunur: true, genislik: null },
         { kod: 'marka', gorunur: true, genislik: null },
@@ -65,28 +65,28 @@ describe('Tablo düzeni (saf)', () => {
       siralama: [],
     };
     // km'nin tanımdaki önceli "tutar" → onun hemen ardına; km tanımda gizli → kapalı.
-    const d = duzeniBirlestir(SUTUNLAR, kayitli);
+    const d = mergeLayout(COLUMNS, saved);
     expect(kodlar(d)).toEqual(['plaka', 'tutar', 'km', 'marka']);
     expect(d.sutunlar.find((s) => s.kod === 'km')?.gorunur).toBe(false);
   });
 
   it('sabit sütun kayıtta gizli/başka yerde olsa da en solda ve görünür kalır', () => {
-    const kayitli: TabloDuzeni = {
+    const saved: TabloDuzeni = {
       sutunlar: [
         { kod: 'marka', gorunur: true, genislik: null },
         { kod: 'plaka', gorunur: false, genislik: 150 },
       ],
       siralama: [],
     };
-    const d = duzeniBirlestir(SUTUNLAR, kayitli);
+    const d = mergeLayout(COLUMNS, saved);
     expect(d.sutunlar[0]).toEqual({ kod: 'plaka', gorunur: true, genislik: 150 });
   });
 
   it('bozuk kayıt (null, sutunlar dizi değil) varsayılana düşer; sıralanamaz sütunun sıralaması atılır', () => {
-    expect(duzeniBirlestir(SUTUNLAR, null)).toEqual(varsayilanDuzen(SUTUNLAR));
-    const bozuk = { sutunlar: 'x', siralama: [] } as unknown as TabloDuzeni;
-    expect(duzeniBirlestir(SUTUNLAR, bozuk)).toEqual(varsayilanDuzen(SUTUNLAR));
-    const d = duzeniBirlestir(SUTUNLAR, {
+    expect(mergeLayout(COLUMNS, null)).toEqual(defaultLayout(COLUMNS));
+    const corrupt = { sutunlar: 'x', siralama: [] } as unknown as TabloDuzeni;
+    expect(mergeLayout(COLUMNS, corrupt)).toEqual(defaultLayout(COLUMNS));
+    const d = mergeLayout(COLUMNS, {
       sutunlar: [],
       siralama: [
         { kod: 'plaka', azalan: false }, // sıralanamaz
@@ -97,56 +97,49 @@ describe('Tablo düzeni (saf)', () => {
   });
 
   it('gizleme: sabit sütun gizlenemez; son görünür sütun gizlenemez', () => {
-    const d = varsayilanDuzen(SUTUNLAR);
-    expect(gorunurlukAyarla(SUTUNLAR, d, 'plaka', false)).toBe(d);
-    const markaGizli = gorunurlukAyarla(SUTUNLAR, d, 'marka', false);
-    expect(markaGizli.sutunlar.find((s) => s.kod === 'marka')?.gorunur).toBe(false);
+    const d = defaultLayout(COLUMNS);
+    expect(setVisibility(COLUMNS, d, 'plaka', false)).toBe(d);
+    const brandHidden = setVisibility(COLUMNS, d, 'marka', false);
+    expect(brandHidden.sutunlar.find((s) => s.kod === 'marka')?.gorunur).toBe(false);
 
-    const tekSutun: readonly TabloSutunu<Satir>[] = [
+    const singleColumn: readonly TabloSutunu<Satir>[] = [
       { kod: 'a', baslik: 'A', deger: (s) => s.plaka },
     ];
-    const t = varsayilanDuzen(tekSutun);
-    expect(gorunurlukAyarla(tekSutun, t, 'a', false)).toBe(t);
+    const t = defaultLayout(singleColumn);
+    expect(setVisibility(singleColumn, t, 'a', false)).toBe(t);
   });
 
   it('genişlik sütunun alt sınırıyla kırpılır, yuvarlanır', () => {
-    const d = varsayilanDuzen(SUTUNLAR);
+    const d = defaultLayout(COLUMNS);
+    expect(setWidth(COLUMNS, d, 'km', 20).sutunlar.find((s) => s.kod === 'km')?.genislik).toBe(60);
     expect(
-      genislikAyarla(SUTUNLAR, d, 'km', 20).sutunlar.find((s) => s.kod === 'km')?.genislik,
-    ).toBe(60);
-    expect(
-      genislikAyarla(SUTUNLAR, d, 'marka', 151.6).sutunlar.find((s) => s.kod === 'marka')?.genislik,
+      setWidth(COLUMNS, d, 'marka', 151.6).sutunlar.find((s) => s.kod === 'marka')?.genislik,
     ).toBe(152);
   });
 
   it('kaydırma sabitin önüne geçmez; sürükle-bırak önüne/ardına yerleştirir', () => {
-    const d = varsayilanDuzen(SUTUNLAR); // plaka, marka, tutar, km
-    expect(sutunuKaydir(SUTUNLAR, d, 'marka', -1)).toBe(d);
-    expect(kodlar(sutunuKaydir(SUTUNLAR, d, 'marka', 1))).toEqual([
-      'plaka',
-      'tutar',
-      'marka',
-      'km',
-    ]);
-    expect(sutunuKaydir(SUTUNLAR, d, 'km', 1)).toBe(d);
-    expect(kodlar(sutunuYerlestir(SUTUNLAR, d, 'km', 'marka', 'once'))).toEqual([
+    const d = defaultLayout(COLUMNS); // plaka, marka, tutar, km
+    expect(scrollColumn(COLUMNS, d, 'marka', -1)).toBe(d);
+    expect(kodlar(scrollColumn(COLUMNS, d, 'marka', 1))).toEqual(['plaka', 'tutar', 'marka', 'km']);
+    expect(scrollColumn(COLUMNS, d, 'km', 1)).toBe(d);
+    expect(kodlar(placeColumn(COLUMNS, d, 'km', 'marka', 'once'))).toEqual([
       'plaka',
       'km',
       'marka',
       'tutar',
     ]);
-    expect(kodlar(sutunuYerlestir(SUTUNLAR, d, 'marka', 'tutar', 'sonra'))).toEqual([
+    expect(kodlar(placeColumn(COLUMNS, d, 'marka', 'tutar', 'sonra'))).toEqual([
       'plaka',
       'tutar',
       'marka',
       'km',
     ]);
-    expect(sutunuYerlestir(SUTUNLAR, d, 'marka', 'plaka', 'once')).toBe(d);
+    expect(placeColumn(COLUMNS, d, 'marka', 'plaka', 'once')).toBe(d);
   });
 
   it('TanStack durumu: seçim sütunu en solda sabit, genişlik varsayılan/kayıtlı', () => {
-    const d = genislikAyarla(SUTUNLAR, varsayilanDuzen(SUTUNLAR), 'tutar', 200);
-    const t = tanstackDurumu(SUTUNLAR, d, true);
+    const d = setWidth(COLUMNS, defaultLayout(COLUMNS), 'tutar', 200);
+    const t = tanstackState(COLUMNS, d, true);
     expect(t.columnOrder).toEqual(['__secim', 'plaka', 'marka', 'tutar', 'km']);
     expect(t.columnPinning).toEqual({ left: ['__secim', 'plaka'], right: [] });
     expect(t.columnVisibility).toEqual({ plaka: true, marka: true, tutar: true, km: false });

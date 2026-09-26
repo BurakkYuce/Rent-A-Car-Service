@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, booleanAttribute, input, output } f
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import type { MoneySubmissionState } from '@core/form/money-submission';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { Ikon } from '@shared/ikon/ikon';
+import { FormErrors } from '@shared/form/form-errors';
+import { Icon } from '@shared/ikon/icon';
 import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
 
 import { MoneyNoticeView } from './money-notice';
@@ -18,7 +18,7 @@ import { MoneyNoticeView } from './money-notice';
 @Component({
   selector: 'rc-money-submit',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, FormHatalari, Ikon, MoneyNoticeView],
+  imports: [TranslocoPipe, FormErrors, Icon, MoneyNoticeView],
   template: `
     <rc-money-notice [notice]="submission().notice()" />
     <rc-form-hatalari [hatalar]="submission().errors()" />

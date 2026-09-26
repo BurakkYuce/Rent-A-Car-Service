@@ -1,15 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
 import { OWNER_1, VEHICLE_1, vehicleCard, vehicleEndpoints } from './vehicle-fakes';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F6.2a araç ekranları: liste (49 sütun, sabit plaka, modele göre grupla), detaylı liste, kart (yeni/düzenle +
  * foto), detay, durum panosu, tanımlar. Üç zorunlu senaryo (doğrulama hatasında form korunur, oturum düşünce
  * form kaybolmaz, `cakisma` formu silmez) + axe iki tema + 320/390/768/1440 taşma.
  */
-const AG_HATASI = [/Failed to load resource: the server responded with a status of 4\d\d/];
+const NETWORK_ERROR = [/Failed to load resource: the server responded with a status of 4\d\d/];
 
 const LIST: VitrinSayfasi = {
   ad: 'araclar',
@@ -92,25 +92,25 @@ const owner = (extra: Record<string, unknown> = {}) => ({
 });
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
 });
 
 test('liste: sabit plaka, sağa yaslı para, dışa aktarma; modele göre grupla; axe iki tema', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page);
+  const errors = collectErrors(page);
   await vehicleEndpoints(page);
   await page.goto(LIST.yol);
-  await hazirBekle(page, LIST);
+  await waitReady(page, LIST);
   await expect(page.getByText('Kayıt: 1')).toBeVisible();
   await expect(page.getByRole('gridcell', { name: '850.000,50 ₺' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Excel' })).toHaveAttribute(
     'href',
     '/listeler/export/araclar?format=excel',
   );
-  expect(await ciddiIhlaller(page), 'liste açık').toEqual([]);
+  expect(await seriousViolations(page), 'liste açık').toEqual([]);
   await page.emulateMedia({ colorScheme: 'dark' });
-  expect(await ciddiIhlaller(page), 'liste koyu').toEqual([]);
+  expect(await seriousViolations(page), 'liste koyu').toEqual([]);
 
   await page.getByRole('button', { name: 'Modele göre grupla' }).click();
   await expect(page).toHaveURL(/gorunum=grup/);
@@ -119,12 +119,12 @@ test('liste: sabit plaka, sağa yaslı para, dışa aktarma; modele göre grupla
   await page.mouse.move(0, 0);
   await page.locator('body').click({ position: { x: 1, y: 1 } });
   await page.waitForFunction(() => document.getAnimations().length === 0);
-  expect(await ciddiIhlaller(page), 'gruplu').toEqual([]);
-  expect(hatalar).toEqual([]);
+  expect(await seriousViolations(page), 'gruplu').toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('yeni araç: doğrulama hatasında form korunur; başarıda karta gider', async ({ page }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let n = 0;
   const written = await vehicleEndpoints(page, {
     write: (r) =>
@@ -135,16 +135,16 @@ test('yeni araç: doğrulama hatasında form korunur; başarıda karta gider', a
         : r.fulfill({ status: 201, json: vehicleCard() }),
   });
   await page.goto(NEW.yol);
-  await hazirBekle(page, NEW);
+  await waitReady(page, NEW);
   await expect(page.getByRole('combobox', { name: 'Grup' })).toHaveValue('Ekonomik');
   await page.getByRole('textbox', { name: 'Plaka' }).fill('34ABC123');
   await page.getByRole('combobox', { name: 'Marka' }).fill('Fiat');
   await page.getByRole('button', { name: 'Oluştur' }).click();
 
-  const plaka = page.getByRole('textbox', { name: 'Plaka' });
-  await expect(plaka).toHaveAttribute('aria-invalid', 'true');
+  const plate = page.getByRole('textbox', { name: 'Plaka' });
+  await expect(plate).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByText('34 ABC 123 plakası zaten kayıtlı.')).toBeVisible();
-  await expect(plaka).toHaveValue('34ABC123');
+  await expect(plate).toHaveValue('34ABC123');
   await expect(page.getByRole('combobox', { name: 'Marka' })).toHaveValue('Fiat');
   expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({
     plaka: '34ABC123',
@@ -155,12 +155,12 @@ test('yeni araç: doğrulama hatasında form korunur; başarıda karta gider', a
     km: 0,
     yakit: null,
   });
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
 
   await page.getByRole('button', { name: 'Oluştur' }).click();
   await expect(page).toHaveURL(new RegExp(`/app/araclar/${VEHICLE_1}$`));
   await expect(page.getByText('34ABC123 plakalı araç oluşturuldu.')).toBeVisible();
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('kart: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (aynı anahtar) tekrarlanır', async ({
@@ -174,15 +174,15 @@ test('kart: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (ayn
         : r.fulfill({ json: vehicleCard({ surum: 'surum-2', aciklama: 'yeni not' }) }),
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
+    await writeXsrf(page, 'yeni-belirtec');
     return route.fulfill({ json: BEN });
   });
   await page.goto(EDIT.yol);
-  await hazirBekle(page, EDIT);
+  await waitReady(page, EDIT);
   await page.getByRole('tab', { name: 'Kart derinliği' }).click();
   await page.getByRole('textbox', { name: 'Açıklama' }).fill('yeni not');
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
@@ -203,23 +203,23 @@ test('kart: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (ayn
 test('kart: cakisma formu silmez — güncel kart birleşir, dokunulmayan tarih aynen, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
-  let surum = 'surum-1';
-  let sube = 'Merkez';
+  const errors = collectErrors(page, NETWORK_ERROR);
+  let version = 'surum-1';
+  let branch = 'Merkez';
   let put = 0;
   const written = await vehicleEndpoints(page, {
-    card: () => vehicleCard({ surum, sube }),
+    card: () => vehicleCard({ surum: version, sube: branch }),
     write: (r) => {
       if (++put === 1) {
-        surum = 'surum-2';
-        sube = 'Havalimanı'; // başka oturum şubeyi değiştirdi
+        version = 'surum-2';
+        branch = 'Havalimanı'; // başka oturum şubeyi değiştirdi
         return problem(r, 409, 'cakisma', 'Kayıt siz düzenlerken değişti; güncel hâli yükleyin.');
       }
-      return r.fulfill({ json: vehicleCard({ surum: 'surum-3', sube, marka: 'Renault' }) });
+      return r.fulfill({ json: vehicleCard({ surum: 'surum-3', sube: branch, marka: 'Renault' }) });
     },
   });
   await page.goto(EDIT.yol);
-  await hazirBekle(page, EDIT);
+  await waitReady(page, EDIT);
   const brand = page.getByRole('combobox', { name: 'Marka' });
   await brand.fill('Renault');
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
@@ -242,36 +242,36 @@ test('kart: cakisma formu silmez — güncel kart birleşir, dokunulmayan tarih 
     sube: 'Havalimanı',
     tescilTarihi: '1995-03-09T22:00:00Z',
   });
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('detay, detaylı liste, durum panosu, foto sekmesi: içerik + axe', async ({ page }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   await vehicleEndpoints(page);
   for (const s of [DETAIL, DETAILED, BOARD]) {
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await ciddiIhlaller(page), s.ad).toEqual([]);
+    await waitReady(page, s);
+    expect(await seriousViolations(page), s.ad).toEqual([]);
   }
   await expect(page.getByRole('gridcell', { name: '2 gün gecikme' })).toBeVisible();
   await expect(page.getByRole('gridcell', { name: 'Ayşe Yılmaz' })).toBeVisible();
 
   await page.goto(`${EDIT.yol}#sekme=fotograflar`);
-  await hazirBekle(page, { ...EDIT, hazir: undefined });
+  await waitReady(page, { ...EDIT, hazir: undefined });
   await expect(page.getByText('1/20 fotoğraf')).toBeVisible();
   await expect(page.getByText('Kapak', { exact: true })).toBeVisible();
-  expect(await ciddiIhlaller(page), 'foto').toEqual([]);
-  expect(hatalar).toEqual([]);
+  expect(await seriousViolations(page), 'foto').toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('tanım (araç sahipleri): düzenle → tekil okunan surum ile PUT; aktif durum korunur', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page);
+  const errors = collectErrors(page);
   const puts = await ownerEndpoints(page, () => owner());
   await page.goto(OWNERS.yol);
-  await hazirBekle(page, OWNERS);
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  await waitReady(page, OWNERS);
+  expect(await seriousViolations(page)).toEqual([]);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   await page.getByRole('textbox', { name: 'Tür' }).fill('Dış');
   await page.getByRole('button', { name: 'Kaydet' }).click();
@@ -283,7 +283,7 @@ test('tanım (araç sahipleri): düzenle → tekil okunan surum ile PUT; aktif d
     aktif: true,
     surum: 'o-1',
   });
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 for (const s of [LIST, DETAILED, NEW, EDIT, DETAIL, BOARD, OWNERS]) {
@@ -295,8 +295,8 @@ for (const s of [LIST, DETAILED, NEW, EDIT, DETAIL, BOARD, OWNERS]) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -305,7 +305,7 @@ for (const s of [LIST, DETAILED, NEW, EDIT, DETAIL, BOARD, OWNERS]) {
     await ownerEndpoints(page, () => owner());
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

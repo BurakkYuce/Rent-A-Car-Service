@@ -1,10 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { map, type Observable } from 'rxjs';
 
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import type { SecimUcuOgesi } from '@core/api/ui-tipleri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import type { SelectionEndpointItem } from '@core/api/ui-tipleri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
 
 import {
@@ -22,7 +22,7 @@ export class CustomerListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<CustomerRow>>(CUSTOMERS, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<CustomerRow>>(CUSTOMERS, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 }
@@ -69,7 +69,7 @@ export function addressSuggestionFetch(api: ApiIstemcisi, kind: 'il' | 'ilce'): 
     api
       .get<readonly { readonly deger: string }[]>(`${CUSTOMERS}/secim/${kind}`, {
         parametreler: { q: q === '' ? null : q, limit: 20 },
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       })
       .pipe(map((list) => list.map((x) => x.deger)));
 }
@@ -78,11 +78,11 @@ export function addressSuggestionFetch(api: ApiIstemcisi, kind: 'il' | 'ilce'): 
 export function sourceSuggestionFetch(api: ApiIstemcisi): SuggestionFetch {
   return (q) =>
     api
-      .get<readonly SecimUcuOgesi<'rezervasyon-kaynagi'>[]>(
+      .get<readonly SelectionEndpointItem<'rezervasyon-kaynagi'>[]>(
         '/api/ui/v1/secim/rezervasyon-kaynagi',
         {
           parametreler: { q: q === '' ? null : q, limit: 20 },
-          context: istekBaglami({ sessiz: true }),
+          context: requestContext({ sessiz: true }),
         },
       )
       .pipe(map((list) => list.map((x) => x.etiket)));

@@ -1,8 +1,8 @@
-import type { Sema } from '@core/api/ui-tipleri';
-import { trBuyukHarf } from '@core/metin/tr-normalize';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
+import type { Schema } from '@core/api/ui-tipleri';
+import { trUpperCase } from '@core/metin/tr-normalize';
+import { listDefinition } from '@core/veri/liste-sorgusu';
 
-const currencyKey = (c: string | null | undefined) => trBuyukHarf((c ?? '').trim());
+const currencyKey = (c: string | null | undefined) => trUpperCase((c ?? '').trim());
 
 /**
  * Gönderilecek kur (inceleme M2): kaydın dövizi değiştiyse ve kullanıcı kuru AÇIKÇA değiştirmediyse (formdaki kur hâlâ
@@ -21,35 +21,35 @@ export function rateToSend(
 }
 
 // ---- Araç kredisi (`/api/ui/v1/arac-kredileri`)
-export type LoanRow = Sema<'AracKrediListeSatiri'>;
-export type LoanBoard = Sema<'AracKrediPano'>;
-export type LoanDetail = Sema<'AracKrediDetayYaniti'>;
-export type LoanInstallment = Sema<'AracKrediTaksit'>;
-export type LoanRequest = Sema<'AracKrediIstegi'>;
-export type LoanCreated = Sema<'AracKrediOlusturYaniti'>;
-export type InstallmentPayRequest = Sema<'TaksitOdeIstegi'>;
-export type InstallmentPayResponse = Sema<'TaksitOdeYaniti'>;
-export type BulkCancelResponse = Sema<'KrediTopluIptalYaniti'>;
+export type LoanRow = Schema<'AracKrediListeSatiri'>;
+export type LoanBoard = Schema<'AracKrediPano'>;
+export type LoanDetail = Schema<'AracKrediDetayYaniti'>;
+export type LoanInstallment = Schema<'AracKrediTaksit'>;
+export type LoanRequest = Schema<'AracKrediIstegi'>;
+export type LoanCreated = Schema<'AracKrediOlusturYaniti'>;
+export type InstallmentPayRequest = Schema<'TaksitOdeIstegi'>;
+export type InstallmentPayResponse = Schema<'TaksitOdeYaniti'>;
+export type BulkCancelResponse = Schema<'KrediTopluIptalYaniti'>;
 
 // ---- Müşteri taksiti (`/api/ui/v1/musteri-taksitleri`)
-export type CustomerInstallment = Sema<'MusteriTaksitSatiri'>;
-export type CustomerInstallmentRequest = Sema<'MusteriTaksitIstegi'>;
-export type CustomerInstallmentSummary = Sema<'TaksitOzet'>;
-export type InstallmentPlanRequest = Sema<'TaksitPlanIstegi'>;
+export type CustomerInstallment = Schema<'MusteriTaksitSatiri'>;
+export type CustomerInstallmentRequest = Schema<'MusteriTaksitIstegi'>;
+export type CustomerInstallmentSummary = Schema<'TaksitOzet'>;
+export type InstallmentPlanRequest = Schema<'TaksitPlanIstegi'>;
 
 // ---- Araç siparişi (`/api/ui/v1/arac-siparisleri`)
-export type OrderRow = Sema<'AracSiparisSatiri'>;
-export type OrderDetail = Sema<'AracSiparisDto'>;
-export type OrderRequest = Sema<'AracSiparisIstegi'>;
+export type OrderRow = Schema<'AracSiparisSatiri'>;
+export type OrderDetail = Schema<'AracSiparisDto'>;
+export type OrderRequest = Schema<'AracSiparisIstegi'>;
 
 // ---- BAF, hasar, filo plan
-export type Allocation = Sema<'BafDto'>;
-export type AllocationRequest = Sema<'BafIstegi'>;
-export type AllocationReturnRequest = Sema<'BafTeslimIstegi'>;
-export type DamageFile = Sema<'HasarDto'>;
-export type DamageFileRequest = Sema<'HasarIstegi'>;
-export type FleetPlan = Sema<'FiloPlanDto'>;
-export type FleetPlanRequest = Sema<'FiloPlanIstegi'>;
+export type Allocation = Schema<'BafDto'>;
+export type AllocationRequest = Schema<'BafIstegi'>;
+export type AllocationReturnRequest = Schema<'BafTeslimIstegi'>;
+export type DamageFile = Schema<'HasarDto'>;
+export type DamageFileRequest = Schema<'HasarIstegi'>;
+export type FleetPlan = Schema<'FiloPlanDto'>;
+export type FleetPlanRequest = Schema<'FiloPlanIstegi'>;
 
 /** Sunucu enum ADLARI (tanımsız ad 400). */
 export const LOAN_STATUSES = ['Aktif', 'Kapandi', 'Iptal'] as const;
@@ -80,7 +80,7 @@ export type AccountKind = (typeof ACCOUNT_KINDS)[number];
 export const ORDER_CURRENCIES = ['TRY', 'USD', 'EUR'] as const;
 
 /** Blazor `/arac-kredi` süzgeçleri (cari, plaka, dosya no, durum, başlangıç aralığı). */
-export const LOAN_LIST = listeTanimi({
+export const LOAN_LIST = listDefinition({
   filtreler: {
     cariId: { tur: 'kimlik' },
     plaka: { tur: 'metin', enFazla: 20 },
@@ -104,7 +104,7 @@ export const LOAN_LIST = listeTanimi({
 });
 
 /** Blazor `/musteri-taksit` süzgeçleri (müşteri, araç, durum, vade aralığı, yalnız gecikenler). */
-export const CUSTOMER_INSTALLMENT_LIST = listeTanimi({
+export const CUSTOMER_INSTALLMENT_LIST = listDefinition({
   filtreler: {
     cariId: { tur: 'kimlik' },
     vehicleId: { tur: 'kimlik' },
@@ -119,7 +119,7 @@ export const CUSTOMER_INSTALLMENT_LIST = listeTanimi({
 });
 
 /** Blazor `/arac-siparis` süzgeçleri. */
-export const ORDER_LIST = listeTanimi({
+export const ORDER_LIST = listDefinition({
   filtreler: {
     cariId: { tur: 'kimlik' },
     ara: { tur: 'metin', enFazla: 100 },
@@ -135,7 +135,7 @@ export const ORDER_LIST = listeTanimi({
 });
 
 /** Blazor `/baf` süzgeçleri (FAZ-18 arama paneli). */
-export const ALLOCATION_LIST = listeTanimi({
+export const ALLOCATION_LIST = listDefinition({
   filtreler: {
     personelId: { tur: 'kimlik' },
     plaka: { tur: 'metin', enFazla: 20 },
@@ -152,7 +152,7 @@ export const ALLOCATION_LIST = listeTanimi({
 });
 
 /** `/hasar` (Blazor süzgeçsiz; API durum + araç süzgeci verir). */
-export const DAMAGE_LIST = listeTanimi({
+export const DAMAGE_LIST = listDefinition({
   filtreler: {
     durum: { tur: 'secim', degerler: DAMAGE_STATUSES },
   },
@@ -162,7 +162,7 @@ export const DAMAGE_LIST = listeTanimi({
 });
 
 /** `/filo-plan`: süzgeçsiz; toplam satırı TÜM hedeflerden (Blazor gibi) → tek sayfada en çok 200. */
-export const FLEET_PLAN_LIST = listeTanimi({
+export const FLEET_PLAN_LIST = listDefinition({
   filtreler: {},
   siralanabilir: ['aracGrupAdi', 'sipp', 'donem', 'hedefAdet', 'gerceklesen', 'fark'],
   varsayilanSirala: null,

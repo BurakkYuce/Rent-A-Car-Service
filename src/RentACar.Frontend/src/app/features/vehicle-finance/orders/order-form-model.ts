@@ -1,8 +1,8 @@
-import { invariantOndalik } from '@core/form/ondalik';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import { invariantDecimal } from '@core/form/ondalik';
+import type { DayText } from '@core/form/tarih-girdisi';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
-import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { momentValue, dayValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { toNumber } from '@features/vehicles/vehicle-model';
 
 import { type OrderDetail, type OrderRequest, rateToSend } from '../finance-model';
@@ -12,9 +12,9 @@ export interface OrderFormValue {
   readonly tedarikci: string | null;
   readonly tedarikciCari: SecimSecenegi | null;
   readonly dosyaNo: string | null;
-  readonly siparisTarihi: GunMetni | null;
-  readonly imzaTarih: GunMetni | null;
-  readonly beklenenTeslim: GunMetni | null;
+  readonly siparisTarihi: DayText | null;
+  readonly imzaTarih: DayText | null;
+  readonly beklenenTeslim: DayText | null;
   readonly satisTemsilci: string | null;
   readonly ozelTemsilci: string | null;
   readonly marka: string | null;
@@ -72,7 +72,7 @@ export function emptyOrder(): OrderFormValue {
   };
 }
 
-const money = (v: number | string | null) => invariantOndalik(v, { kesir: 2 });
+const money = (v: number | string | null) => invariantDecimal(v, { kesir: 2 });
 
 export function orderToForm(d: OrderDetail): OrderFormValue {
   return {
@@ -81,9 +81,9 @@ export function orderToForm(d: OrderDetail): OrderFormValue {
       ? { id: d.tedarikciCariId, etiket: d.tedarikciCariAd ?? d.tedarikciCariId }
       : null,
     dosyaNo: d.dosyaNo,
-    siparisTarihi: gunDegeri(d.siparisTarihi),
-    imzaTarih: gunDegeri(d.imzaTarih),
-    beklenenTeslim: gunDegeri(d.beklenenTeslim),
+    siparisTarihi: dayValue(d.siparisTarihi),
+    imzaTarih: dayValue(d.imzaTarih),
+    beklenenTeslim: dayValue(d.beklenenTeslim),
     satisTemsilci: d.satisTemsilci,
     ozelTemsilci: d.ozelTemsilci,
     marka: d.marka,
@@ -114,24 +114,24 @@ export function orderToForm(d: OrderDetail): OrderFormValue {
  */
 export function orderRequest(v: OrderFormValue, base: OrderDetail | null): OrderRequest {
   return {
-    tedarikci: metinDegeri(v.tedarikci),
+    tedarikci: textValue(v.tedarikci),
     tedarikciCariId: v.tedarikciCari?.id ?? null,
-    siparisTarihi: anDegeri(v.siparisTarihi, base?.siparisTarihi),
-    imzaTarih: anDegeri(v.imzaTarih, base?.imzaTarih),
-    beklenenTeslim: anDegeri(v.beklenenTeslim, base?.beklenenTeslim),
-    dosyaNo: metinDegeri(v.dosyaNo),
-    satisTemsilci: metinDegeri(v.satisTemsilci),
-    ozelTemsilci: metinDegeri(v.ozelTemsilci),
-    marka: metinDegeri(v.marka),
-    tip: metinDegeri(v.tip),
-    grup: metinDegeri(v.grup),
-    versiyon: metinDegeri(v.versiyon),
-    opsiyon: metinDegeri(v.opsiyon),
-    renk: metinDegeri(v.renk),
-    icRenk: metinDegeri(v.icRenk),
-    kaynakTip: metinDegeri(v.kaynakTip),
-    satisTipi: metinDegeri(v.satisTipi),
-    tsbKayitNo: metinDegeri(v.tsbKayitNo),
+    siparisTarihi: momentValue(v.siparisTarihi, base?.siparisTarihi),
+    imzaTarih: momentValue(v.imzaTarih, base?.imzaTarih),
+    beklenenTeslim: momentValue(v.beklenenTeslim, base?.beklenenTeslim),
+    dosyaNo: textValue(v.dosyaNo),
+    satisTemsilci: textValue(v.satisTemsilci),
+    ozelTemsilci: textValue(v.ozelTemsilci),
+    marka: textValue(v.marka),
+    tip: textValue(v.tip),
+    grup: textValue(v.grup),
+    versiyon: textValue(v.versiyon),
+    opsiyon: textValue(v.opsiyon),
+    renk: textValue(v.renk),
+    icRenk: textValue(v.icRenk),
+    kaynakTip: textValue(v.kaynakTip),
+    satisTipi: textValue(v.satisTipi),
+    tsbKayitNo: textValue(v.tsbKayitNo),
     krediId: v.krediId,
     adet: v.adet ?? 1,
     // Boş birim fiyat 0'a sessizce düşmez (inceleme L3): form alanı zorunludur; buraya boş gelirse sunucu reddeder.
@@ -141,7 +141,7 @@ export function orderRequest(v: OrderFormValue, base: OrderDetail | null): Order
     filoFiyat: v.filoFiyat,
     doviz: v.doviz,
     kur: rateToSend(v.doviz, v.kur, base),
-    aciklama: metinDegeri(v.aciklama),
+    aciklama: textValue(v.aciklama),
     ...(base === null ? {} : { surum: base.surum ?? null }),
   };
 }

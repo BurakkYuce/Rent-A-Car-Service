@@ -1,4 +1,4 @@
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 
 import {
   OPS_OR_VIEW,
@@ -19,7 +19,7 @@ import {
 const R = '/api/ui/v1/raporlar';
 
 // ── Rezervasyon kaynağı ─────────────────────────────────────────────────────────────────────
-const rk = columnsFor<Sema<'RezervasyonKaynakRow'>>();
+const rk = columnsFor<Schema<'RezervasyonKaynakRow'>>();
 export const RESERVATION_SOURCE = defineReport({
   kod: 'rezervasyon-kaynak',
   baslik: 'rapor.baslik.rezervasyonKaynak',
@@ -64,7 +64,7 @@ export const RESERVATION_SOURCE = defineReport({
 });
 
 // ── Otomatik servisler (iş günlüğü) ─────────────────────────────────────────────────────────
-type JobRun = Sema<'JobRunRow'>;
+type JobRun = Schema<'JobRunRow'>;
 const job = columnsFor<JobRun>();
 const jobColumns = (sort: boolean) => [
   job.computed('baslangic', 'tarihSaat', (r) => r.baslangicUtc, {
@@ -110,8 +110,8 @@ export const JOB_RUNS = defineReport({
 });
 
 // ── Araç durum takip (gün / araç) ───────────────────────────────────────────────────────────
-const takipGun = columnsFor<Sema<'AracDurumTakipRow'>>();
-const takipArac = columnsFor<RowOf<`${typeof R}/arac-durum-takip`>>();
+const trackingDays = columnsFor<Schema<'AracDurumTakipRow'>>();
+const trackingVehicle = columnsFor<RowOf<`${typeof R}/arac-durum-takip`>>();
 const trackingFilters = [
   { tur: 'donem', ipucu: 'rapor.ipucu.son30' },
   { tur: 'sube', ad: 'sube', baslik: 'rapor.alan.sube' },
@@ -139,12 +139,12 @@ export const VEHICLE_TRACKING = defineReport({
           baslik: 'rapor.bolum.gunluk',
           satirlar: (s) => s.gunler,
           sutunlar: [
-            takipGun.field('gun', 'tarih'),
-            takipGun.field('toplamArac', 'tamsayi'),
-            takipGun.field('dolu', 'tamsayi'),
-            takipGun.field('bakim', 'tamsayi'),
-            takipGun.field('bos', 'tamsayi'),
-            takipGun.field('toplamBaf', 'tamsayi'),
+            trackingDays.field('gun', 'tarih'),
+            trackingDays.field('toplamArac', 'tamsayi'),
+            trackingDays.field('dolu', 'tamsayi'),
+            trackingDays.field('bakim', 'tamsayi'),
+            trackingDays.field('bos', 'tamsayi'),
+            trackingDays.field('toplamBaf', 'tamsayi'),
           ],
         }),
       ],
@@ -158,16 +158,16 @@ export const VEHICLE_TRACKING = defineReport({
         siralanabilir: ['plaka', 'doluGun', 'bosGun', 'bakimGun', 'sube'],
         satirKimligi: (r) => r.vehicleId,
         sutunlar: [
-          takipArac.field('plaka', 'metin', { sirala: true, sabit: true }),
-          takipArac.field('sube', 'metin', { sirala: true }),
-          takipArac.field('grup', 'metin'),
-          takipArac.field('sipp', 'metin', { gizli: true }),
-          takipArac.field('aracSahibi', 'metin', { gizli: true }),
-          takipArac.field('toplamGun', 'tamsayi'),
-          takipArac.field('doluGun', 'tamsayi', { sirala: true }),
-          takipArac.field('bakimGun', 'tamsayi', { sirala: true }),
-          takipArac.field('bafGun', 'tamsayi'),
-          takipArac.field('bosGun', 'tamsayi', { sirala: true }),
+          trackingVehicle.field('plaka', 'metin', { sirala: true, sabit: true }),
+          trackingVehicle.field('sube', 'metin', { sirala: true }),
+          trackingVehicle.field('grup', 'metin'),
+          trackingVehicle.field('sipp', 'metin', { gizli: true }),
+          trackingVehicle.field('aracSahibi', 'metin', { gizli: true }),
+          trackingVehicle.field('toplamGun', 'tamsayi'),
+          trackingVehicle.field('doluGun', 'tamsayi', { sirala: true }),
+          trackingVehicle.field('bakimGun', 'tamsayi', { sirala: true }),
+          trackingVehicle.field('bafGun', 'tamsayi'),
+          trackingVehicle.field('bosGun', 'tamsayi', { sirala: true }),
         ],
       },
     }),
@@ -176,7 +176,7 @@ export const VEHICLE_TRACKING = defineReport({
 
 // ── Km detay ────────────────────────────────────────────────────────────────────────────────
 const km = cardsFor<SummaryOf<`${typeof R}/km-detay`>>();
-const kmSatir = columnsFor<RowOf<`${typeof R}/km-detay`>>();
+const kmRow = columnsFor<RowOf<`${typeof R}/km-detay`>>();
 export const MILEAGE = defineReport({
   kod: 'km-detay',
   baslik: 'rapor.baslik.kmDetay',
@@ -196,22 +196,22 @@ export const MILEAGE = defineReport({
         siralanabilir: ['sozlesmeNo', 'plaka', 'katedilenKm', 'fazlaKm', 'basTar'],
         satirKimligi: (r) => r.rentalId,
         sutunlar: [
-          kmSatir.field('sozlesmeNo', 'metin', {
+          kmRow.field('sozlesmeNo', 'metin', {
             sirala: true,
             sabit: true,
             bag: (r) => ['/kiralar', r.rentalId],
           }),
-          kmSatir.field('plaka', 'metin', { sirala: true }),
-          kmSatir.field('basTar', 'tarih', { sirala: true }),
-          kmSatir.field('bitTar', 'tarih'),
-          kmSatir.field('cikisKm', 'tamsayi'),
-          kmSatir.field('donusKm', 'tamsayi'),
-          kmSatir.field('katedilenKm', 'tamsayi', { sirala: true }),
-          kmSatir.field('kmLimit', 'tamsayi'),
-          kmSatir.field('fazlaKm', 'tamsayi', { sirala: true }),
-          kmSatir.field('fazlaKmBedeli', 'para'),
-          kmSatir.field('marka', 'metin', { gizli: true }),
-          kmSatir.field('tip', 'metin', { gizli: true }),
+          kmRow.field('plaka', 'metin', { sirala: true }),
+          kmRow.field('basTar', 'tarih', { sirala: true }),
+          kmRow.field('bitTar', 'tarih'),
+          kmRow.field('cikisKm', 'tamsayi'),
+          kmRow.field('donusKm', 'tamsayi'),
+          kmRow.field('katedilenKm', 'tamsayi', { sirala: true }),
+          kmRow.field('kmLimit', 'tamsayi'),
+          kmRow.field('fazlaKm', 'tamsayi', { sirala: true }),
+          kmRow.field('fazlaKmBedeli', 'para'),
+          kmRow.field('marka', 'metin', { gizli: true }),
+          kmRow.field('tip', 'metin', { gizli: true }),
         ],
       },
     }),

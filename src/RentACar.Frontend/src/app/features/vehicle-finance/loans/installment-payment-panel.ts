@@ -11,15 +11,15 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { FinansHesapOgesi } from '@core/api/ui-tipleri';
-import { paraBicimle, tarihBicimle } from '@core/bicim/bicim';
+import type { FinanceAccountItem } from '@core/api/ui-tipleri';
+import { formatMoney, tarihBicimle } from '@core/bicim/bicim';
 import { moneySubmission } from '@core/form/money-submission';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { Alan } from '@shared/form/alan/alan';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 
 import type {
@@ -40,21 +40,21 @@ import { LOANS, recordPath } from '../finance.store';
 @Component({
   selector: 'rc-installment-payment-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, Alan, MoneySubmitBar, Secim],
+  imports: [ReactiveFormsModule, TranslocoPipe, Alan, MoneySubmitBar, Selection],
   templateUrl: './installment-payment-panel.html',
   styleUrl: '../vehicle-finance.scss',
 })
 export class InstallmentPaymentPanel implements OnInit {
   readonly loan = input.required<LoanDetail>();
   /** Kasa/banka hesapları (sayfa yükler; hata sessiz → seçici görünmez). */
-  readonly accounts = input<readonly FinansHesapOgesi[]>([]);
+  readonly accounts = input<readonly FinanceAccountItem[]>([]);
   /** Kayıt yenileniyor: düğme pasif (bayat sıra/anahtarla gönderim olmasın). */
   readonly refreshing = input(false);
   /** 2xx ya da kesin 409: kredi yeniden okunmalı. */
   readonly settled = output<void>();
 
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   protected readonly form = new FormGroup({
     hesap: new FormControl<AccountKind | null>('Kasa', Validators.required),
@@ -87,7 +87,7 @@ export class InstallmentPaymentPanel implements OnInit {
       sira: n.sira,
       toplam: this.loan().taksitSayisi,
       vade: tarihBicimle(n.vade),
-      tutar: paraBicimle(toNumber(n.tutar), this.loan().doviz),
+      tutar: formatMoney(toNumber(n.tutar), this.loan().doviz),
     });
   });
   protected readonly retryLabel = this.t('aracFinans.kredi.tekrarDene');
@@ -130,7 +130,7 @@ export class InstallmentPaymentPanel implements OnInit {
           this.t('aracFinans.kredi.odendi', {
             sira: r.sira,
             no: r.giderNo,
-            tutar: paraBicimle(toNumber(r.tutar), r.doviz),
+            tutar: formatMoney(toNumber(r.tutar), r.doviz),
           }),
         ),
       settled: () => this.settled.emit(),

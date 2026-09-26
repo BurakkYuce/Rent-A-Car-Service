@@ -3,22 +3,22 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { endorsementColumns } from '../service-insurance-columns';
 import { ENDORSEMENT_LIST, type EndorsementRow } from '../service-insurance-model';
 import { EndorsementListStore } from '../service-insurance.store';
 import { RegulationTabs } from './regulation-tabs';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -33,16 +33,16 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    MetinGirdisi,
+    TextInput,
     RegulationTabs,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, EndorsementListStore],
   templateUrl: './endorsement-list.html',
@@ -50,24 +50,24 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
 })
 export class EndorsementList {
   protected readonly store = inject(EndorsementListStore);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(ENDORSEMENT_LIST);
+  protected readonly query = listQueryUrlSync(ENDORSEMENT_LIST);
   protected readonly columns = endorsementColumns(this.t);
   protected readonly rowId = (r: EndorsementRow) => r.id;
 
   protected readonly filterForm = new FormGroup({
     plaka: new FormControl<string | null>(null),
     tipi: new FormControl<string | null>(null),
-    bas: new FormControl<GunMetni | null>(null),
-    bit: new FormControl<GunMetni | null>(null),
+    bas: new FormControl<DayText | null>(null),
+    bit: new FormControl<DayText | null>(null),
   });
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -88,8 +88,8 @@ export class EndorsementList {
     void this.query.degistir({
       sayfa: 1,
       filtreler: {
-        plaka: metinDegeri(v.plaka) ?? undefined,
-        tipi: metinDegeri(v.tipi) ?? undefined,
+        plaka: textValue(v.plaka) ?? undefined,
+        tipi: textValue(v.tipi) ?? undefined,
         bas: v.bas ?? undefined,
         bit: v.bit ?? undefined,
       },

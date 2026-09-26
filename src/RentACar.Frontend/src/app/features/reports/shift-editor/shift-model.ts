@@ -1,15 +1,15 @@
-import type { Sema } from '@core/api/ui-tipleri';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { Schema } from '@core/api/ui-tipleri';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { textValue } from '@features/planlama-ortak/form-yardimcilari';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
 /**
  * F10.3 vardiya yazma formu — saf kurallar (Blazor `PersonelCalismaTablosu` formu paritesi). İş kuralları
  * (çakışma, gece vardiyası, sıfır süre, şube) sunucuda; burada yalnız form ↔ gövde eşlemesi.
  */
-export type Shift = Sema<'ShiftDto'>;
-export type ShiftRequest = Sema<'ShiftRequest'>;
-export type ShiftListRow = Sema<'ShiftRow'>;
+export type Shift = Schema<'ShiftDto'>;
+export type ShiftRequest = Schema<'ShiftRequest'>;
+export type ShiftListRow = Schema<'ShiftRow'>;
 
 export const SHIFTS = '/api/ui/v1/vardiyalar';
 
@@ -22,7 +22,7 @@ export const TIME_PATTERN = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 export interface ShiftFormValue {
   readonly personel: SecimSecenegi | null;
-  readonly tarih: GunMetni | null;
+  readonly tarih: DayText | null;
   readonly baslangicSaat: string | null;
   readonly bitisSaat: string | null;
   readonly sube: string | null;
@@ -30,7 +30,7 @@ export interface ShiftFormValue {
 }
 
 /** Yeni vardiya: Blazor varsayılanları — görüntülenen pencerenin ilk günü, 08:00–18:00. */
-export function emptyShift(day: GunMetni | null, branch: string | null): ShiftFormValue {
+export function emptyShift(day: DayText | null, branch: string | null): ShiftFormValue {
   return {
     personel: null,
     tarih: day,
@@ -75,10 +75,10 @@ export function shiftRequest(v: ShiftFormValue, base: Shift | null): ShiftReques
   return {
     personelId: v.personel?.id ?? null,
     tarih: v.tarih,
-    baslangicSaat: metinDegeri(v.baslangicSaat),
-    bitisSaat: metinDegeri(v.bitisSaat),
-    sube: metinDegeri(v.sube),
-    aciklama: metinDegeri(v.aciklama),
+    baslangicSaat: textValue(v.baslangicSaat),
+    bitisSaat: textValue(v.bitisSaat),
+    sube: textValue(v.sube),
+    aciklama: textValue(v.aciklama),
     surum: base?.surum ?? null,
   };
 }

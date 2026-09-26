@@ -2,17 +2,17 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { CanMatchFn, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { requestContext } from '@core/oturum/request-context';
+import { SessionService } from '@core/oturum/session-service';
 
 import { PLATFORM_API, type PlatformSession } from './platform-model';
 
 /** Session calls report their own errors to the caller: no band, no re-login dialog. */
 function sessionRequest() {
-  return { context: istekBaglami({ sessiz: true, yenidenGirisYok: true }) };
+  return { context: requestContext({ sessiz: true, yenidenGirisYok: true }) };
 }
 
 /** SPA route of the platform login (router path, without `/app`). */
@@ -33,7 +33,7 @@ export const PLATFORM_HOME_ROUTE = '/platform';
 export class PlatformSessionService {
   private readonly api = inject(ApiIstemcisi);
   private readonly router = inject(Router);
-  private readonly tenantSession = inject(OturumServisi);
+  private readonly tenantSession = inject(SessionService);
 
   private readonly value = signal<PlatformSession | null>(null);
   private firstLoad: Promise<PlatformSession | null> | null = null;
@@ -65,16 +65,16 @@ export class PlatformSessionService {
    * `POST platform/oturum/giris`; the server issues a new token bound to the new principal.
    * Errors are thrown as `ApiHatasi` — the page picks the message (`loginErrorMessage`).
    */
-  async signIn(kullanici: string, sifre: string): Promise<PlatformSession> {
+  async signIn(user: string, password: string): Promise<PlatformSession> {
     await firstValueFrom(this.api.get<unknown>('/api/ui/v1/oturum/xsrf', sessionRequest()));
     const me = await firstValueFrom(
       this.api.post<PlatformSession>(
         `${PLATFORM_API}/oturum/giris`,
-        { kullanici, sifre },
+        { kullanici: user, sifre: password },
         sessionRequest(),
       ),
     );
-    this.tenantSession.temizle();
+    this.tenantSession.clear();
     this.set(me);
     return me;
   }
@@ -100,7 +100,7 @@ export class PlatformSessionService {
    * drop the session and go to the login page. Returns whether it handled the error.
    */
   handleSessionLoss(error: unknown): boolean {
-    if (apiHatasinaCevir(error).kod !== 'oturum_yok') return false;
+    if (toApiError(error).kod !== 'oturum_yok') return false;
     this.set(null);
     void this.router.navigate([PLATFORM_LOGIN_ROUTE], {
       queryParams: { neden: 'oturum' },
@@ -117,7 +117,7 @@ export class PlatformSessionService {
 
 /** Login error → message. `dogrulama` is ALWAYS generic (which field was wrong is not disclosed). */
 export function loginErrorMessage(error: unknown): CeviriAnahtari {
-  switch (apiHatasinaCevir(error).kod) {
+  switch (toApiError(error).kod) {
     case 'dogrulama':
       return 'platform.giris.hata.hatali';
     case 'cok_istek':

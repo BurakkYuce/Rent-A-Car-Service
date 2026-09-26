@@ -2,18 +2,18 @@ import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/
 import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { ApiYolu } from '@core/api/api-istemcisi';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
-import type { TanimAlani } from '@shared/form/tanim-crud/tanim-kaynagi';
+import type { ApiPath } from '@core/api/api-istemcisi';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { translationFunction } from '@core/i18n/ceviri';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
+import type { TanimAlani } from '@shared/form/tanim-crud/definition-source';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { ACTIVE, PASSIVE, definitionSource } from './definition-source';
 
 export type DefinitionKind = 'sahip' | 'segment' | 'tip';
 
-const ROOTS: Readonly<Record<DefinitionKind, ApiYolu>> = {
+const ROOTS: Readonly<Record<DefinitionKind, ApiPath>> = {
   sahip: '/api/ui/v1/arac-sahipleri',
   segment: '/api/ui/v1/segmentler',
   tip: '/api/ui/v1/arac-tipleri',
@@ -27,7 +27,7 @@ const ROOTS: Readonly<Record<DefinitionKind, ApiYolu>> = {
 @Component({
   selector: 'rc-vehicle-definitions',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TanimCrud, SayfaBandi],
+  imports: [TranslocoPipe, DefinitionCrud, PageBand],
   styleUrl: '../vehicle-screens.scss',
   template: `
     <rc-sayfa-bandi [baslik]="'arac.tanim.' + kind + '.baslik' | transloco" ikon="tag" />
@@ -42,8 +42,8 @@ const ROOTS: Readonly<Record<DefinitionKind, ApiYolu>> = {
   `,
 })
 export class VehicleDefinitions {
-  private readonly t = ceviriFonksiyonu();
-  private readonly crud = viewChild(TanimCrud);
+  private readonly t = translationFunction();
+  private readonly crud = viewChild(DefinitionCrud);
   protected readonly kind: DefinitionKind =
     (inject(ActivatedRoute).snapshot.data['tanim'] as DefinitionKind | undefined) ?? 'sahip';
 
@@ -54,11 +54,11 @@ export class VehicleDefinitions {
   );
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return this.crud()?.kaydedilmemisDegisiklikVar() ?? false;
+  hasUnsavedChanges(): boolean {
+    return this.crud()?.hasUnsavedChanges() ?? false;
   }
 
   private buildFields(): readonly TanimAlani[] {

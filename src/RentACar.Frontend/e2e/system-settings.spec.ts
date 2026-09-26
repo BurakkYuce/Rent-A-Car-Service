@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
+import { seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
 import { ADMIN_BEN, record, settings, settingsEndpoints, type Write } from './system-fakes';
 
 /**
@@ -8,10 +8,10 @@ import { ADMIN_BEN, record, settings, settingsEndpoints, type Write } from './sy
  * üç zorunlu senaryo (doğrulama hatasında form korunur, oturum düşünce aynı istek tekrar, cakisma formu silmez),
  * alan adı TXT talimatı + doğrulama, dürüst test gönderimi.
  */
-const AG_HATASI = [/Failed to load resource: the server responded with a status of 4\d\d/];
+const NETWORK_ERROR = [/Failed to load resource: the server responded with a status of 4\d\d/];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, ADMIN_BEN);
+  await logIn(page, ADMIN_BEN);
 });
 
 async function open(page: Page) {
@@ -27,12 +27,12 @@ const body = (w: Write | undefined) => JSON.parse(w?.govde ?? '{}') as Record<st
 test('ayarlar: sır yalnız yazılabilir, PUT surum taşır, kayıttan sonra sır formdan silinir; axe iki tema', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
+  const errors = collectErrors(page);
   const writes = await settingsEndpoints(page);
   await open(page);
-  expect(await ciddiIhlaller(page), 'açık').toEqual([]);
+  expect(await seriousViolations(page), 'açık').toEqual([]);
   await page.emulateMedia({ colorScheme: 'dark' });
-  expect(await ciddiIhlaller(page), 'koyu').toEqual([]);
+  expect(await seriousViolations(page), 'koyu').toEqual([]);
 
   const smtp = page.getByLabel('SMTP şifre', { exact: true });
   await expect(smtp).toHaveAttribute('type', 'password');
@@ -66,7 +66,7 @@ test('ayarlar: sır yalnız yazılabilir, PUT surum taşır, kayıttan sonra sı
 test('ayarlar: kayıtlı sır yalnız işaretli kutu + onayla silinir; vazgeçince istek gitmez', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
+  const errors = collectErrors(page);
   const writes = await settingsEndpoints(page);
   await open(page);
   // Kutu yalnız kayıtlı sırda görünür (sahte yanıtta yalnız SMTP şifresi kayıtlı).
@@ -93,7 +93,7 @@ test('ayarlar: kayıtlı sır yalnız işaretli kutu + onayla silinir; vazgeçin
 test('ayarlar: doğrulama hatasında form korunur (sunucu alan hatası alanın altında)', async ({
   page,
 }) => {
-  hatalariTopla(page, AG_HATASI);
+  collectErrors(page, NETWORK_ERROR);
   const message =
     'SMTP şifresi: sunucu, port ya da kullanıcı değişince şifre yeniden girilmelidir.';
   await settingsEndpoints(page, {
@@ -111,7 +111,7 @@ test('ayarlar: doğrulama hatasında form korunur (sunucu alan hatası alanın a
 test('ayarlar: oturum düşünce form kaybolmaz — yeniden girişte aynı istek aynı anahtarla', async ({
   page,
 }) => {
-  hatalariTopla(page, [...AG_HATASI, /401/]);
+  collectErrors(page, [...NETWORK_ERROR, /401/]);
   let n = 0;
   const writes = await settingsEndpoints(page, {
     put: (r) =>
@@ -120,11 +120,11 @@ test('ayarlar: oturum düşünce form kaybolmaz — yeniden girişte aynı istek
         : r.fulfill({ json: settings() }),
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
+    await writeXsrf(page, 'yeni-belirtec');
     return route.fulfill({ json: ADMIN_BEN });
   });
   await open(page);
@@ -146,7 +146,7 @@ test('ayarlar: oturum düşünce form kaybolmaz — yeniden girişte aynı istek
 test('ayarlar: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  hatalariTopla(page, [...AG_HATASI, /409/]);
+  collectErrors(page, [...NETWORK_ERROR, /409/]);
   let current = settings();
   let n = 0;
   const writes = await settingsEndpoints(page, {
@@ -181,7 +181,7 @@ test('ayarlar: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT ye
 test('ayarlar: bekleyen alan adı TXT talimatı + doğrula; test e-postası onaylı ve dürüst sonuç', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
+  const errors = collectErrors(page);
   const tests: Write[] = [];
   const writes = await settingsEndpoints(page, {
     post: (r) =>

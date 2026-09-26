@@ -13,25 +13,28 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { FinansHesapOgesi, SecimOgesi } from '@core/api/ui-tipleri';
-import { paraBicimle } from '@core/bicim/bicim';
+import type { FinanceAccountItem, SelectionItem } from '@core/api/ui-tipleri';
+import { formatMoney } from '@core/bicim/bicim';
 import { moneySubmission } from '@core/form/money-submission';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { requestContext } from '@core/oturum/request-context';
+import { SessionService } from '@core/oturum/session-service';
 import { rentalPickSource } from '@features/crm/crm.store';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import {
   CURRENCIES,
@@ -65,31 +68,31 @@ import { currencyMismatch } from './currency-rules';
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
+    SearchSelection,
     MoneySubmitBar,
-    MetinGirdisi,
-    ParaGirdisi,
-    Secim,
-    TarihSecici,
+    TextInput,
+    MoneyInput,
+    Selection,
+    DatePicker,
   ],
   templateUrl: './expense-create-form.html',
   styleUrl: '../finance-documents.scss',
 })
 export class ExpenseCreateForm {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly session = inject(OturumServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly session = inject(SessionService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  readonly accounts = input<readonly FinansHesapOgesi[] | undefined>(undefined);
-  readonly branches = input<readonly SecimOgesi[] | undefined>(undefined);
+  readonly accounts = input<readonly FinanceAccountItem[] | undefined>(undefined);
+  readonly branches = input<readonly SelectionItem[] | undefined>(undefined);
   readonly saved = output<DocumentResult | null>();
   readonly dirtyChange = output<boolean>();
 
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly vehicles = serverSelectionSource('arac');
+  protected readonly customers = serverSelectionSource('musteri');
   /** Kira sözleşmesi (`/crm/secim/kira`: OperationsWrite VEYA FinanceWrite, şube kapsamlı; #300). */
   protected readonly rentals = rentalPickSource();
   protected readonly presets = EXPENSE_PRESETS;
@@ -151,9 +154,9 @@ export class ExpenseCreateForm {
       .subscribe(() => this.dirtyChange.emit(this.form.dirty));
     this.form.controls.doviz.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((doviz) => {
-        this.currency.set(doviz);
-        this.currencyChanged(doviz);
+      .subscribe((currencyCode) => {
+        this.currency.set(currencyCode);
+        this.currencyChanged(currencyCode);
       });
     this.reset();
     this.submission.restore(this.form);
@@ -181,16 +184,17 @@ export class ExpenseCreateForm {
   }
 
   /** Açık kur yalnız seçildiği dövize aittir; hesap dövizi uymuyorsa hesap da bırakılır. */
-  private currencyChanged(doviz: string | null): void {
+  private currencyChanged(currency: string | null): void {
     if (this.form.controls.kur.value !== null) this.form.controls.kur.reset(null);
     const account = (this.accounts() ?? []).find((a) => a.id === this.form.controls.hesapId.value);
-    if (account && currencyMismatch(account.doviz, doviz)) this.form.controls.hesapId.reset(null);
+    if (account && currencyMismatch(account.doviz, currency))
+      this.form.controls.hesapId.reset(null);
   }
 
   private announce(r: DocumentResult): void {
     this.api
       .get<{ gider: ExpenseRow }>(recordPath(EXPENSES, r.id), {
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -198,7 +202,7 @@ export class ExpenseCreateForm {
           this.toast.basari(
             this.t('finansBelge.gider.kaydedildiTutar', {
               no: d.gider.no,
-              tutar: paraBicimle(toNumber(d.gider.genelToplam), d.gider.doviz),
+              tutar: formatMoney(toNumber(d.gider.genelToplam), d.gider.doviz),
             }),
           ),
         error: () => this.toast.basari(this.t('finansBelge.gider.kaydedildi', { no: r.no })),

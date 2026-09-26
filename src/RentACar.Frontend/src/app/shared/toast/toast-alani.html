@@ -1,11 +1,11 @@
 <section class="alan" [attr.aria-label]="'geriBildirim.bildirimler' | transloco">
   <div class="bolge" role="alert">
-    @for (toast of acil(); track toast.id) {
+    @for (toast of urgent(); track toast.id) {
       <ng-container *ngTemplateOutlet="oge; context: { $implicit: toast }" />
     }
   </div>
   <div class="bolge" role="status">
-    @for (toast of kibar(); track toast.id) {
+    @for (toast of polite(); track toast.id) {
       <ng-container *ngTemplateOutlet="oge; context: { $implicit: toast }" />
     }
   </div>
@@ -16,10 +16,10 @@
     class="toast"
     [class]="'toast--' + toast.durum"
     [attr.data-durum]="toast.durum"
-    (mouseenter)="servis.duraklat(toast.id)"
-    (mouseleave)="servis.devamEt(toast.id)"
-    (focusin)="servis.duraklat(toast.id)"
-    (focusout)="servis.devamEt(toast.id)"
+    (mouseenter)="servis.pause(toast.id)"
+    (mouseleave)="servis.resume(toast.id)"
+    (focusin)="servis.pause(toast.id)"
+    (focusout)="servis.resume(toast.id)"
   >
     <rc-ikon class="ikon" [class.don]="toast.durum === 'bekleme'" [ad]="ikon(toast)" [boyut]="16" />
     <div class="icerik">
@@ -32,7 +32,7 @@
         <button
           type="button"
           class="rc-dugme rc-dugme--kucuk eylem"
-          (click)="servis.eylemCalistir(toast.id)"
+          (click)="servis.runAction(toast.id)"
         >
           {{ toast.eylem.etiket }}
         </button>

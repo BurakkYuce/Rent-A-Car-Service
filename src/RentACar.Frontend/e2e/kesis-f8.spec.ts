@@ -1,9 +1,9 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 import { INVOICE_1, documentEndpoints } from './finance-document-fakes';
-import { CARI_1, financeHubEndpoints } from './finance-fakes';
-import { KIRA_ID, sahteKiraApi } from './kira-sahte';
-import { BEN, oturumAc, problem } from './ortak';
+import { ACCOUNT_1, financeHubEndpoints } from './finance-fakes';
+import { RENTAL_ID, fakeRentalApi } from './kira-sahte';
+import { BEN, logIn, problem } from './ortak';
 
 /**
  * F8.3 finans kesişi (sahte `/api/ui/v1`, üretim derlemesi + CSP). Harness yalnız statik SPA sunar; Blazor sunucusunun
@@ -30,13 +30,13 @@ const ALL_PERMISSIONS = { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete', 
 
 async function hubFakes(page: Page): Promise<void> {
   await remainingEndpoints(page);
-  await oturumAc(page, ALL_PERMISSIONS);
+  await logIn(page, ALL_PERMISSIONS);
   await financeHubEndpoints(page);
 }
 
 async function documentFakes(page: Page): Promise<void> {
   await remainingEndpoints(page);
-  await oturumAc(page, ALL_PERMISSIONS);
+  await logIn(page, ALL_PERMISSIONS);
   await documentEndpoints(page);
 }
 
@@ -59,7 +59,7 @@ const SCREENS: readonly Screen[] = [
   { blazor: '/otomatik-tahsilat', heading: 'Otomatik Tahsilat — Elle Çalıştır', fakes: hubFakes },
   { blazor: '/donem-kapanis', heading: 'Dönem Kapanışı', fakes: hubFakes },
   { blazor: '/kurlar', heading: 'Döviz Kurları (TCMB)', fakes: hubFakes },
-  { blazor: `/cariler/${CARI_1}/ekstre`, heading: 'Ekstre — Ayşe Yılmaz', fakes: hubFakes },
+  { blazor: `/cariler/${ACCOUNT_1}/ekstre`, heading: 'Ekstre — Ayşe Yılmaz', fakes: hubFakes },
   { blazor: '/faturalar', heading: 'Faturalar', fakes: documentFakes },
   { blazor: '/faturalar/detay-listesi', heading: 'Fatura Detay Listesi', fakes: documentFakes },
   { blazor: '/cezalar', heading: 'Trafik Cezaları', fakes: documentFakes },
@@ -109,11 +109,11 @@ test('#295 M1: FinanceWrite/ViewReports olmayan operatör eski ekstre adresinden
   page,
 }) => {
   await remainingEndpoints(page);
-  await oturumAc(page, { ...BEN, rol: 'Operator', izinler: ['OperationsWrite'] });
+  await logIn(page, { ...BEN, rol: 'Operator', izinler: ['OperationsWrite'] });
   await financeHubEndpoints(page);
-  await serverRedirect(page, `/cariler/${CARI_1}/ekstre`, `/app/cariler/${CARI_1}/ekstre`);
+  await serverRedirect(page, `/cariler/${ACCOUNT_1}/ekstre`, `/app/cariler/${ACCOUNT_1}/ekstre`);
 
-  await page.goto(`/cariler/${CARI_1}/ekstre`);
+  await page.goto(`/cariler/${ACCOUNT_1}/ekstre`);
   await expect(page.getByText('Bu sayfayı görüntüleme yetkiniz yok.')).toBeVisible();
   await expect(page).not.toHaveURL((url) => url.pathname.endsWith('/ekstre'));
   await expect(page.getByRole('heading', { name: 'Ekstre — Ayşe Yılmaz' })).toHaveCount(0);
@@ -166,9 +166,9 @@ test('kira formu finans paneli: depozito, fatura ve ceza bağlantıları SPA rot
   page,
 }) => {
   await remainingEndpoints(page);
-  await oturumAc(page);
-  await sahteKiraApi(page);
-  await page.route(`**/api/ui/v1/kiralar/${KIRA_ID}/faturalar`, (route) =>
+  await logIn(page);
+  await fakeRentalApi(page);
+  await page.route(`**/api/ui/v1/kiralar/${RENTAL_ID}/faturalar`, (route) =>
     route.fulfill({
       json: [
         {
@@ -183,10 +183,10 @@ test('kira formu finans paneli: depozito, fatura ve ceza bağlantıları SPA rot
       ],
     }),
   );
-  await page.route(`**/api/ui/v1/kiralar/${KIRA_ID}/cezalar`, (route) =>
+  await page.route(`**/api/ui/v1/kiralar/${RENTAL_ID}/cezalar`, (route) =>
     route.fulfill({ json: { cezalar: [], hgsGecisleri: [] } }),
   );
-  await page.goto(`/app/kiralar/${KIRA_ID}`);
+  await page.goto(`/app/kiralar/${RENTAL_ID}`);
   const panel = page.getByTestId('finans-paneli');
 
   await expect(panel.getByRole('link', { name: 'Depozito ekranı' })).toHaveAttribute(

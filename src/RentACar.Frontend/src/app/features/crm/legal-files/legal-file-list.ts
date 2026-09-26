@@ -10,35 +10,35 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { ParaPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe } from '@shared/bicim/bicim-pipe';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { legalColumns } from '../crm-columns';
 import { emptyLegal, legalRequest, legalToForm } from '../crm-forms';
 import {
@@ -69,38 +69,38 @@ type LegalStatus = (typeof LEGAL_STATUSES)[number];
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    MetinGirdisi,
-    OnayKutusu,
-    ParaGirdisi,
-    ParaPipe,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    TextInput,
+    Checkbox,
+    MoneyInput,
+    MoneyPipe,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, LegalFileStore, CustomerFilterLabel],
   templateUrl: './legal-file-list.html',
   styleUrl: '../crm.scss',
 })
-export class LegalFileList implements KaydedilmemisDegisiklikSahibi {
+export class LegalFileList implements UnsavedChangesOwner {
   protected readonly store = inject(LegalFileStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly session = inject(SessionService);
+  private readonly toast = inject(ToastService);
   private readonly labels = inject(CustomerFilterLabel);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(LEGAL_LIST);
+  protected readonly query = listQueryUrlSync(LEGAL_LIST);
   protected readonly columns = legalColumns(this.t);
   protected readonly rowId = (r: LegalFile) => r.id;
   protected readonly num = toNumber;
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
 
   protected readonly typeOptions: readonly SecenekOgesi<string>[] = LEGAL_TYPES.map((x) => ({
     deger: x,
@@ -125,8 +125,8 @@ export class LegalFileList implements KaydedilmemisDegisiklikSahibi {
     cari: new FormControl<SecimSecenegi | null>(null),
     dosyaNo: new FormControl<string | null>(null),
     faturaNo: new FormControl<string | null>(null),
-    tarihBas: new FormControl<GunMetni | null>(null),
-    tarihBit: new FormControl<GunMetni | null>(null),
+    tarihBas: new FormControl<DayText | null>(null),
+    tarihBit: new FormControl<DayText | null>(null),
     tur: new FormControl<string | null>(null),
     durum: new FormControl<string | null>(null),
     ara: new FormControl<string | null>(null),
@@ -149,11 +149,11 @@ export class LegalFileList implements KaydedilmemisDegisiklikSahibi {
     tutar: new FormControl<string | null>(null),
     tahsilat: new FormControl<string | null>(null),
     durum: new FormControl<string | null>('Acik', Validators.required),
-    tarih: new FormControl<GunMetni | null>(null),
+    tarih: new FormControl<DayText | null>(null),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(1024)),
     aktif: new FormControl<boolean>(true, { nonNullable: true }),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   protected readonly editor = new RecordEditor<LegalFile, LegalFileCard>({
     path: LEGAL_FILES,
@@ -168,15 +168,15 @@ export class LegalFileList implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => {
         this.store.list.yukle(p);
         this.store.counts.yukle(p);
       },
       sifirla: () => {
-        this.store.list.sifirla();
-        this.store.counts.sifirla();
+        this.store.list.reset();
+        this.store.counts.reset();
       },
       sekmeyeDonunce: 'yenile',
     });
@@ -188,18 +188,18 @@ export class LegalFileList implements KaydedilmemisDegisiklikSahibi {
           cari: label,
           dosyaNo: f.dosyaNo ?? null,
           faturaNo: f.faturaNo ?? null,
-          tarihBas: (f.tarihBas as GunMetni | undefined) ?? null,
-          tarihBit: (f.tarihBit as GunMetni | undefined) ?? null,
+          tarihBas: (f.tarihBas as DayText | undefined) ?? null,
+          tarihBit: (f.tarihBit as DayText | undefined) ?? null,
           tur: f.tur ?? null,
           durum: f.durum ?? null,
           ara: f.ara ?? null,
         }),
       );
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 

@@ -1,18 +1,12 @@
 import type { TabloSutunu } from './tablo-modeli';
-import {
-  ariaSiralama,
-  siralamaAlani,
-  siralamaCoz,
-  siralamaMetni,
-  sonrakiSiralama,
-} from './tablo-siralama';
+import { ariaSort, sortField, parseSort, sortText, nextSort } from './tablo-siralama';
 
 interface Satir {
   plaka: string;
   tutar: number;
 }
 
-const SUTUNLAR: readonly TabloSutunu<Satir>[] = [
+const COLUMNS: readonly TabloSutunu<Satir>[] = [
   { kod: 'plaka', baslik: 'Plaka', deger: (s) => s.plaka, sirala: true },
   { kod: 'tutar', baslik: 'Tutar', deger: (s) => s.tutar, sirala: 'toplamTutar' },
   { kod: 'not', baslik: 'Not', deger: () => '' },
@@ -20,41 +14,41 @@ const SUTUNLAR: readonly TabloSutunu<Satir>[] = [
 
 describe('Sunucu sıralama eşlemesi (F3.4 `sirala` biçimi)', () => {
   it('alan: true → kod, metin → o alan, yok → sıralanamaz', () => {
-    expect(siralamaAlani(SUTUNLAR[0])).toBe('plaka');
-    expect(siralamaAlani(SUTUNLAR[1])).toBe('toplamTutar');
-    expect(siralamaAlani(SUTUNLAR[2])).toBeNull();
+    expect(sortField(COLUMNS[0])).toBe('plaka');
+    expect(sortField(COLUMNS[1])).toBe('toplamTutar');
+    expect(sortField(COLUMNS[2])).toBeNull();
   });
 
   it('metin → durum: "-alan" azalan, alan sütun koduna çözülür, bilinmeyen null', () => {
-    expect(siralamaCoz(SUTUNLAR, 'plaka')).toEqual({ kod: 'plaka', azalan: false });
-    expect(siralamaCoz(SUTUNLAR, '-toplamTutar')).toEqual({ kod: 'tutar', azalan: true });
-    expect(siralamaCoz(SUTUNLAR, 'tutar')).toBeNull(); // kod değil ALAN adı beklenir
-    expect(siralamaCoz(SUTUNLAR, 'not')).toBeNull();
-    expect(siralamaCoz(SUTUNLAR, '-')).toBeNull();
-    expect(siralamaCoz(SUTUNLAR, null)).toBeNull();
+    expect(parseSort(COLUMNS, 'plaka')).toEqual({ kod: 'plaka', azalan: false });
+    expect(parseSort(COLUMNS, '-toplamTutar')).toEqual({ kod: 'tutar', azalan: true });
+    expect(parseSort(COLUMNS, 'tutar')).toBeNull(); // kod değil ALAN adı beklenir
+    expect(parseSort(COLUMNS, 'not')).toBeNull();
+    expect(parseSort(COLUMNS, '-')).toBeNull();
+    expect(parseSort(COLUMNS, null)).toBeNull();
   });
 
   it('durum → metin (sunucuya giden)', () => {
-    expect(siralamaMetni(SUTUNLAR, { kod: 'tutar', azalan: true })).toBe('-toplamTutar');
-    expect(siralamaMetni(SUTUNLAR, { kod: 'plaka', azalan: false })).toBe('plaka');
-    expect(siralamaMetni(SUTUNLAR, { kod: 'not', azalan: false })).toBeNull();
-    expect(siralamaMetni(SUTUNLAR, null)).toBeNull();
+    expect(sortText(COLUMNS, { kod: 'tutar', azalan: true })).toBe('-toplamTutar');
+    expect(sortText(COLUMNS, { kod: 'plaka', azalan: false })).toBe('plaka');
+    expect(sortText(COLUMNS, { kod: 'not', azalan: false })).toBeNull();
+    expect(sortText(COLUMNS, null)).toBeNull();
   });
 
   it('başlık döngüsü: yok → artan → azalan → yok; başka sütun artan başlar', () => {
-    const a = sonrakiSiralama(SUTUNLAR, null, 'tutar');
+    const a = nextSort(COLUMNS, null, 'tutar');
     expect(a).toEqual({ kod: 'tutar', azalan: false });
-    const b = sonrakiSiralama(SUTUNLAR, a, 'tutar');
+    const b = nextSort(COLUMNS, a, 'tutar');
     expect(b).toEqual({ kod: 'tutar', azalan: true });
-    expect(sonrakiSiralama(SUTUNLAR, b, 'tutar')).toBeNull();
-    expect(sonrakiSiralama(SUTUNLAR, b, 'plaka')).toEqual({ kod: 'plaka', azalan: false });
-    expect(sonrakiSiralama(SUTUNLAR, b, 'not')).toBe(b);
+    expect(nextSort(COLUMNS, b, 'tutar')).toBeNull();
+    expect(nextSort(COLUMNS, b, 'plaka')).toEqual({ kod: 'plaka', azalan: false });
+    expect(nextSort(COLUMNS, b, 'not')).toBe(b);
   });
 
   it('aria-sort yalnız sıralı sütunda', () => {
-    expect(ariaSiralama({ kod: 'tutar', azalan: true }, 'tutar')).toBe('descending');
-    expect(ariaSiralama({ kod: 'tutar', azalan: false }, 'tutar')).toBe('ascending');
-    expect(ariaSiralama({ kod: 'tutar', azalan: false }, 'plaka')).toBeNull();
-    expect(ariaSiralama(null, 'plaka')).toBeNull();
+    expect(ariaSort({ kod: 'tutar', azalan: true }, 'tutar')).toBe('descending');
+    expect(ariaSort({ kod: 'tutar', azalan: false }, 'tutar')).toBe('ascending');
+    expect(ariaSort({ kod: 'tutar', azalan: false }, 'plaka')).toBeNull();
+    expect(ariaSort(null, 'plaka')).toBeNull();
   });
 });

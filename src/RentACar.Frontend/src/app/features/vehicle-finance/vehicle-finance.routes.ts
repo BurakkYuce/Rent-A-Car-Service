@@ -1,8 +1,8 @@
 import type { Routes } from '@angular/router';
 
-import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriBloguyla } from '@core/i18n/ceviri-blogu';
-import { izinGuard } from '@core/oturum/oturum-guard';
+import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { permissionGuard } from '@core/oturum/session-guard';
 import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
 
 /**
@@ -15,14 +15,14 @@ import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
  * - BAF ve hasar OperationsWrite (BAF iptal OperationsDelete); filo plan ViewReports ∨ OperationsWrite.
  * `yeni`, `:id`'den ÖNCE eşleşmeli.
  */
-export const VEHICLE_FINANCE_ROUTES: Routes = ceviriBloguyla('arac-finans', [
+export const VEHICLE_FINANCE_ROUTES: Routes = withTranslationBlock('arac-finans', [
   {
     path: 'arac-kredi',
     title: 'Araç Kredisi — RentACar',
     canMatch: [anyPermissionGuard('OperationsWrite', 'FinanceWrite', 'ViewReports')],
     loadComponent: () =>
       import('@features/vehicle-finance/loans/loan-list').then((m) => m.LoanList),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'arac-kredi/:id',
@@ -31,7 +31,7 @@ export const VEHICLE_FINANCE_ROUTES: Routes = ceviriBloguyla('arac-finans', [
     loadComponent: () =>
       import('@features/vehicle-finance/loans/loan-detail').then((m) => m.LoanDetail),
     // Sonucu bilinmeyen (donmuş) taksit ödemesi varken sekme kapatma / ayrılış sorulur.
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'musteri-taksit',
@@ -41,7 +41,7 @@ export const VEHICLE_FINANCE_ROUTES: Routes = ceviriBloguyla('arac-finans', [
       import('@features/vehicle-finance/customer-installments/customer-installment-list').then(
         (m) => m.CustomerInstallmentList,
       ),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'arac-siparis',
@@ -53,10 +53,10 @@ export const VEHICLE_FINANCE_ROUTES: Routes = ceviriBloguyla('arac-finans', [
   {
     path: 'arac-siparis/yeni',
     title: 'Yeni Araç Siparişi — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
       import('@features/vehicle-finance/orders/order-form').then((m) => m.OrderForm),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'arac-siparis/:id',
@@ -64,25 +64,25 @@ export const VEHICLE_FINANCE_ROUTES: Routes = ceviriBloguyla('arac-finans', [
     canMatch: [anyPermissionGuard('OperationsWrite', 'FinanceWrite', 'ViewReports')],
     loadComponent: () =>
       import('@features/vehicle-finance/orders/order-form').then((m) => m.OrderForm),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'baf',
     title: 'BAF — Personel Araç Tahsis — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
       import('@features/vehicle-finance/allocations/allocation-list').then((m) => m.AllocationList),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'hasar',
     title: 'Hasar Dosyaları — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
       import('@features/vehicle-finance/damage-files/damage-file-list').then(
         (m) => m.DamageFileList,
       ),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'filo-plan',
@@ -90,6 +90,6 @@ export const VEHICLE_FINANCE_ROUTES: Routes = ceviriBloguyla('arac-finans', [
     canMatch: [anyPermissionGuard('ViewReports', 'OperationsWrite')],
     loadComponent: () =>
       import('@features/vehicle-finance/fleet-plan/fleet-plan-list').then((m) => m.FleetPlanList),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
 ]);

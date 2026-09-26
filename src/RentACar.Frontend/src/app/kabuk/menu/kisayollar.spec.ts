@@ -1,27 +1,27 @@
-import type { MenuYaniti } from '@core/api/ui-tipleri';
+import type { MenuResponse } from '@core/api/ui-tipleri';
 
-import { kiraGorunumleri, kisayolCifti } from './kisayollar';
-import { grupIkonu, ogeIkonu } from './menu-ikonlari';
-import { menuModeliKur } from './menu-modeli';
+import { rentalViews, shortcutPair } from './kisayollar';
+import { groupIcon, itemIcon } from './menu-ikonlari';
+import { buildMenuModel } from './menu-modeli';
 
-type Oge = MenuYaniti['ogeler'][number];
+type Oge = MenuResponse['ogeler'][number];
 
-function oge(rota: string, etiket: string, ek: Partial<Oge> = {}): Oge {
+function oge(route: string, label: string, extra: Partial<Oge> = {}): Oge {
   return {
-    rota,
-    etiket,
+    rota: route,
+    etiket: label,
     grup: 'Kısa Yollar',
     sira: 10,
     sahip: 'spa',
     rozetKodu: null,
     hizliBaglanti: true,
-    ...ek,
+    ...extra,
   };
 }
 
 describe('kisayolCifti', () => {
   it('sunucunun hızlı bağlantılarından: Yeni Kira → form, Yeni Rezervasyon (SPA liste) → form', () => {
-    const model = menuModeliKur({
+    const model = buildMenuModel({
       ogeler: [
         oge('/app/rezervasyonlar', 'Yeni Rezervasyon', { sira: 10 }),
         oge('/app/kiralar/yeni', 'Yeni Kira', { sira: 20 }),
@@ -29,23 +29,23 @@ describe('kisayolCifti', () => {
       ],
       rozetler: {},
     });
-    const cift = kisayolCifti(model);
-    expect(cift.kira?.hedef).toEqual({ tur: 'spa', yol: '/kiralar/yeni' });
-    expect(cift.kira?.etiket).toBe('Yeni Kira');
-    expect(cift.rezervasyon?.hedef).toEqual({ tur: 'spa', yol: '/rezervasyonlar/yeni' });
-    expect(cift.rezervasyon?.etiket).toBe('Yeni Rezervasyon');
+    const duplicate = shortcutPair(model);
+    expect(duplicate.kira?.hedef).toEqual({ tur: 'spa', yol: '/kiralar/yeni' });
+    expect(duplicate.kira?.etiket).toBe('Yeni Kira');
+    expect(duplicate.rezervasyon?.hedef).toEqual({ tur: 'spa', yol: '/rezervasyonlar/yeni' });
+    expect(duplicate.rezervasyon?.etiket).toBe('Yeni Rezervasyon');
   });
 
   it('izin yoksa sunucu öğeyi göndermez → düğme de yok (istemci eklemez); Blazor hedefi olduğu gibi', () => {
-    const model = menuModeliKur({
+    const model = buildMenuModel({
       ogeler: [oge('/rezervasyonlar', 'Yeni Rezervasyon', { sahip: 'blazor' })],
       rozetler: {},
     });
-    expect(kisayolCifti(model)).toEqual({
+    expect(shortcutPair(model)).toEqual({
       kira: null,
       rezervasyon: expect.objectContaining({ hedef: { tur: 'blazor', adres: '/rezervasyonlar' } }),
     });
-    expect(kisayolCifti(menuModeliKur({ ogeler: [], rozetler: {} }))).toEqual({
+    expect(shortcutPair(buildMenuModel({ ogeler: [], rozetler: {} }))).toEqual({
       kira: null,
       rezervasyon: null,
     });
@@ -54,13 +54,13 @@ describe('kisayolCifti', () => {
 
 describe('kiraGorunumleri', () => {
   it('ilk görünüm listenin kendisi; diğerleri gorunum sorgusuyla, tekil kimlikli', () => {
-    const [kiralar] = menuModeliKur({
+    const [rentals] = buildMenuModel({
       ogeler: [oge('/app/kiralar', 'Kiralar', { grup: 'Kira', hizliBaglanti: false })],
       rozetler: {},
     }).tumu;
-    if (!kiralar) throw new Error('öğe yok');
-    const g = kiraGorunumleri(kiralar);
-    expect(g[0]?.kayit).toBe(kiralar);
+    if (!rentals) throw new Error('öğe yok');
+    const g = rentalViews(rentals);
+    expect(g[0]?.kayit).toBe(rentals);
     expect(g.map((x) => (x.kayit.hedef.tur === 'spa' ? x.kayit.hedef.yol : ''))).toEqual([
       '/kiralar',
       '/kiralar?gorunum=kirada',
@@ -77,11 +77,11 @@ describe('kiraGorunumleri', () => {
 
 describe('menü ikonları', () => {
   it('grup adı Türkçe-gevşek eşleşir; bilinmeyen grup genel ikon', () => {
-    expect(grupIkonu('Araçlar')).toBe('car');
-    expect(grupIkonu('ARAÇLAR')).toBe('car');
-    expect(grupIkonu('Tanımlar')).toBe('adjustments-horizontal');
-    expect(grupIkonu('Bilinmeyen')).toBe('file-text');
-    expect(ogeIkonu({ hedef: { tur: 'spa', yol: '/panel' } })).toBe('home');
-    expect(ogeIkonu({ hedef: { tur: 'blazor', adres: '/bildirimler' } })).toBe('bell');
+    expect(groupIcon('Araçlar')).toBe('car');
+    expect(groupIcon('ARAÇLAR')).toBe('car');
+    expect(groupIcon('Tanımlar')).toBe('adjustments-horizontal');
+    expect(groupIcon('Bilinmeyen')).toBe('file-text');
+    expect(itemIcon({ hedef: { tur: 'spa', yol: '/panel' } })).toBe('home');
+    expect(itemIcon({ hedef: { tur: 'blazor', adres: '/bildirimler' } })).toBe('bell');
   });
 });

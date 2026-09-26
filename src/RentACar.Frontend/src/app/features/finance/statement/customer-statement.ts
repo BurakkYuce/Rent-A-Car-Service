@@ -15,18 +15,15 @@ import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { ConfirmGate } from '@core/form/money-submission';
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
@@ -44,7 +41,7 @@ import { AccountList, FIN_COMMON, balanceSide, toAmount } from '../finance-share
 
 interface StatementQuery {
   readonly id: string;
-  readonly p: SorguParametreleri;
+  readonly p: QueryParameters;
 }
 
 /**
@@ -61,14 +58,14 @@ interface StatementQuery {
   templateUrl: './customer-statement.html',
   styleUrl: '../finance.scss',
 })
-export class CustomerStatementPage implements KaydedilmemisDegisiklikSahibi {
+export class CustomerStatementPage implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly session = inject(SessionService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
 
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
   protected readonly canWrite = computed(() => this.session.izinVar('FinanceWrite'));
@@ -90,7 +87,7 @@ export class CustomerStatementPage implements KaydedilmemisDegisiklikSahibi {
     kiraDurum: new FormControl<string | null>(null),
     mod: new FormControl<string | null>(null),
   });
-  private readonly params = signal<SorguParametreleri>({});
+  private readonly params = signal<QueryParameters>({});
   protected readonly filtered = computed(() => Object.keys(this.params()).length > 0);
   protected readonly summaryMode = computed(() => this.params()['mod'] === 'ozet');
   protected readonly rentalFilter = computed(() => this.params()['kiraDurum'] !== undefined);
@@ -115,8 +112,8 @@ export class CustomerStatementPage implements KaydedilmemisDegisiklikSahibi {
   ];
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
-    inject(FetchPolicy).baglan({
+    pageLeaveGuard(() => this.hasUnsavedChanges());
+    inject(FetchPolicy).connect({
       parametre: computed(() => ({ id: this.id, p: this.params() })),
       yukle: (q) => this.statement.yukle(q),
     });
@@ -127,11 +124,11 @@ export class CustomerStatementPage implements KaydedilmemisDegisiklikSahibi {
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.forms().some((f) => f.pending() || f.dirty());
   }
 
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.forms().some((f) => f.pending()) ? this.t('finans.islem.terkMesaji') : null;
   }
 
@@ -160,7 +157,7 @@ export class CustomerStatementPage implements KaydedilmemisDegisiklikSahibi {
     const txId = line.kasaIslemId;
     if (!txId || this.reversing()) return;
     const yes = await this.gate.ask(() =>
-      this.confirm.sor({
+      this.confirm.ask({
         baslik: this.t('finans.ekstre.tersBaslik'),
         mesaj: this.t('finans.ekstre.tersMesaj'),
         onayEtiketi: this.t('finans.ekstre.ters'),
@@ -181,7 +178,7 @@ export class CustomerStatementPage implements KaydedilmemisDegisiklikSahibi {
           this.reload();
         },
         error: (raw: unknown) => {
-          const e = apiHatasinaCevir(raw);
+          const e = toApiError(raw);
           if (!genelGosterilir(e)) this.toast.hata(e.detay);
           this.reload();
         },

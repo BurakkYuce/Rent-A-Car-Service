@@ -3,18 +3,18 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
 import { moneySubmission } from '@core/form/money-submission';
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { bugun } from '@core/form/tarih-girdisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
-import { dovizKodu } from '@features/kira-formu/finans-paneli/finans-modeli';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
+import { currencyCode } from '@features/kira-formu/finans-paneli/finans-modeli';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
 
 import {
   type CustomerTransferRequest,
@@ -38,25 +38,25 @@ import { CURRENCY_OPTIONS, FIN_COMMON, clearRateOnCurrencyChange } from '../fina
   templateUrl: './customer-transfer-page.html',
   styleUrl: '../finance.scss',
 })
-export class CustomerTransferPage implements KaydedilmemisDegisiklikSahibi {
+export class CustomerTransferPage implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
-  protected readonly customers = sunucuSecimKaynagi('musteri');
-  protected readonly branches = sunucuSecimKaynagi('sube');
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
+  protected readonly customers = serverSelectionSource('musteri');
+  protected readonly branches = serverSelectionSource('sube');
   protected readonly currencyOptions = CURRENCY_OPTIONS;
   protected readonly action = moneySubmission<CustomerTransferRequest>({
     scope: () => 'cari-virman',
   });
 
   protected readonly history = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<readonly CustomerTransferRow[]>(financePath('/cari-virmanlar'), {
         parametreler: p,
       }),
     { oncekiVeriyiKoru: true },
   );
-  private readonly params = signal<SorguParametreleri>({});
+  private readonly params = signal<QueryParameters>({});
   protected readonly filtered = computed(() => Object.keys(this.params()).length > 0);
 
   protected readonly form = new FormGroup({
@@ -80,21 +80,21 @@ export class CustomerTransferPage implements KaydedilmemisDegisiklikSahibi {
   protected readonly currency = toSignal(this.form.controls.doviz.valueChanges, {
     initialValue: this.form.controls.doviz.value,
   });
-  protected readonly isForeign = computed(() => dovizKodu(this.currency()) !== 'TRY');
+  protected readonly isForeign = computed(() => currencyCode(this.currency()) !== 'TRY');
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
     this.action.restore(this.form);
     clearRateOnCurrencyChange(this.form.controls.doviz, this.form.controls.kur);
-    inject(FetchPolicy).baglan({ parametre: this.params, yukle: (p) => this.history.yukle(p) });
+    inject(FetchPolicy).connect({ parametre: this.params, yukle: (p) => this.history.yukle(p) });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.action.pending() || this.form.dirty;
   }
 
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.action.pending() ? this.t('finans.islem.terkMesaji') : null;
   }
 

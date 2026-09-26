@@ -1,8 +1,8 @@
 import type { Routes } from '@angular/router';
 
-import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriBloguyla } from '@core/i18n/ceviri-blogu';
-import { izinGuard } from '@core/oturum/oturum-guard';
+import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { permissionGuard } from '@core/oturum/session-guard';
 
 import { anyPermissionGuard } from './vehicle-guards';
 
@@ -12,7 +12,7 @@ import { anyPermissionGuard } from './vehicle-guards';
  * OperationsWrite VEYA ViewReports, detaylı liste ViewReports, durum panosu ve tanımlar OperationsWrite.
  * `araclar/yeni` ve `araclar/detayli`, `araclar/:id`'den ÖNCE eşleşmeli.
  */
-export const VEHICLE_ROUTES: Routes = ceviriBloguyla('arac', [
+export const VEHICLE_ROUTES: Routes = withTranslationBlock('arac', [
   {
     path: 'araclar',
     title: 'Araçlar — RentACar',
@@ -23,7 +23,7 @@ export const VEHICLE_ROUTES: Routes = ceviriBloguyla('arac', [
   {
     path: 'araclar/detayli',
     title: 'Detaylı Araç Listesi — RentACar',
-    canMatch: [izinGuard('ViewReports')],
+    canMatch: [permissionGuard('ViewReports')],
     loadComponent: () =>
       import('@features/vehicles/vehicle-detailed-list/vehicle-detailed-list').then(
         (m) => m.VehicleDetailedList,
@@ -32,10 +32,10 @@ export const VEHICLE_ROUTES: Routes = ceviriBloguyla('arac', [
   {
     path: 'araclar/yeni',
     title: 'Yeni Araç — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
       import('@features/vehicles/vehicle-form/vehicle-form').then((m) => m.VehicleForm),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'araclar/:id',
@@ -43,7 +43,7 @@ export const VEHICLE_ROUTES: Routes = ceviriBloguyla('arac', [
     canMatch: [anyPermissionGuard('OperationsWrite', 'ViewReports')],
     loadComponent: () =>
       import('@features/vehicles/vehicle-form/vehicle-form').then((m) => m.VehicleForm),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'araclar/:id/detay',
@@ -55,25 +55,25 @@ export const VEHICLE_ROUTES: Routes = ceviriBloguyla('arac', [
   {
     path: 'arac-durum',
     title: 'Araç Güncel Durum — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
       import('@features/vehicles/vehicle-status-board/vehicle-status-board').then(
         (m) => m.VehicleStatusBoard,
       ),
   },
-  ...(['sahip', 'segment', 'tip'] as const).map((tanim) => ({
-    path: { sahip: 'arac-sahipleri', segment: 'segmentler', tip: 'arac-tipleri' }[tanim],
+  ...(['sahip', 'segment', 'tip'] as const).map((definition) => ({
+    path: { sahip: 'arac-sahipleri', segment: 'segmentler', tip: 'arac-tipleri' }[definition],
     title: {
       sahip: 'Araç Sahipleri — RentACar',
       segment: 'Araç Segmentleri — RentACar',
       tip: 'Araç Tipleri — RentACar',
-    }[tanim],
-    data: { tanim },
-    canMatch: [izinGuard('OperationsWrite')],
+    }[definition],
+    data: { tanim: definition },
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
       import('@features/vehicles/vehicle-definitions/vehicle-definitions').then(
         (m) => m.VehicleDefinitions,
       ),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   })),
 ]);

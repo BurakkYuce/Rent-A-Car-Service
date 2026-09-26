@@ -1,21 +1,21 @@
 import type { Routes } from '@angular/router';
 
-import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriBloguyla } from '@core/i18n/ceviri-blogu';
-import { izinGuard } from '@core/oturum/oturum-guard';
+import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { permissionGuard } from '@core/oturum/session-guard';
 import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
 
 const catalog = () => import('@features/pricing/catalog/catalog-page').then((m) => m.CatalogPage);
 
 /** Tanım ekranı rotası (ortak bileşen, rota verisi `catalog`). */
-function catalogRoute(path: string, title: string, guard = izinGuard('OperationsWrite')) {
+function catalogRoute(path: string, title: string, guard = permissionGuard('OperationsWrite')) {
   return {
     path,
     title: `${title} — RentACar`,
     canMatch: [guard],
     data: { catalog: path },
     loadComponent: catalog,
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   };
 }
 
@@ -27,7 +27,7 @@ function catalogRoute(path: string, title: string, guard = izinGuard('Operations
  * - maliyet hesapla FinanceWrite; kayıtlı teklifler FinanceWrite ∨ ViewReports (kaydet/sil FinanceWrite);
  * - tarife aktar ManageUsers.
  */
-export const PRICING_ROUTES: Routes = ceviriBloguyla('fiyat-tarife', [
+export const PRICING_ROUTES: Routes = withTranslationBlock('fiyat-tarife', [
   catalogRoute('tarifeler', 'Tarifeler'),
   catalogRoute('tarife-gruplari', 'Tarife Grupları'),
   catalogRoute('sigorta-urunleri', 'Sigorta Ürünleri'),
@@ -50,10 +50,10 @@ export const PRICING_ROUTES: Routes = ceviriBloguyla('fiyat-tarife', [
   {
     path: 'maliyet-hesapla',
     title: 'Maliyet Hesapla — RentACar',
-    canMatch: [izinGuard('FinanceWrite')],
+    canMatch: [permissionGuard('FinanceWrite')],
     loadComponent: () =>
       import('@features/pricing/cost/cost-calculator').then((m) => m.CostCalculator),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'maliyet-teklifleri',
@@ -67,12 +67,12 @@ export const PRICING_ROUTES: Routes = ceviriBloguyla('fiyat-tarife', [
     canMatch: [anyPermissionGuard('FinanceWrite', 'ViewReports')],
     loadComponent: () =>
       import('@features/pricing/cost/cost-calculator').then((m) => m.CostCalculator),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'tarife-aktar',
     title: 'Tarife İçe Aktar — RentACar',
-    canMatch: [izinGuard('ManageUsers')],
+    canMatch: [permissionGuard('ManageUsers')],
     loadComponent: () => import('@features/pricing/import/rate-import').then((m) => m.RateImport),
   },
 ]);

@@ -1,0 +1,248 @@
+<div class="arac-cubugu">
+  <div class="arac-cubugu__icerik"><ng-content select="[rcTabloAraclari]" /></div>
+  @if (saveError()) {
+    <span class="rc-rozet rc-rozet--uyari">{{ 'tablo.duzenKaydedilemedi' | transloco }}</span>
+  }
+  @if (disaAktarma(); as d) {
+    <span
+      class="rc-dugme-grubu"
+      role="group"
+      [attr.aria-label]="'tablo.disaAktar.etiket' | transloco"
+    >
+      @for (bicim of d.bicimler ?? ['excel', 'csv']; track bicim) {
+        <a class="rc-dugme rc-dugme--kucuk" [href]="exportUrl(bicim)">
+          @if ($first) {
+            <rc-ikon ad="download" [boyut]="14" />
+          }
+          {{ 'tablo.disaAktar.' + bicim | transloco }}
+        </a>
+      }
+    </span>
+  }
+  <rc-tablo-sutun-secici
+    [ogeler]="pickerItems()"
+    (gorunurluk)="toggleVisibility($event.kod, $event.gorunur)"
+    (kaydir)="scrollColumn($event.kod, $event.yon)"
+    (sifirla)="resetToDefault()"
+  />
+</div>
+
+<div #kaydirici class="kaydirici" [style.--rc-tablo-sabit-genislik.px]="fixedWidth()">
+  <table
+    class="izgara"
+    role="grid"
+    [class.izgara--soluk]="hal().eskiVeri"
+    [style.width.px]="totalWidth()"
+    [attr.aria-label]="etiket()"
+    [attr.aria-rowcount]="totalRows() + 1"
+    [attr.aria-colcount]="visibleColumns().length"
+    [attr.aria-busy]="hal().tur === 'yukleniyor'"
+    [attr.aria-multiselectable]="secilebilir() || null"
+  >
+    <colgroup>
+      @for (s of visibleColumns(); track s.kod) {
+        <col [style.width.px]="s.genislik" />
+      }
+    </colgroup>
+    <thead>
+      <tr aria-rowindex="1">
+        @for (s of visibleColumns(); track s.kod; let c = $index) {
+          <th
+            scope="col"
+            class="hucre baslik"
+            [class.hucre--son]="s.hiza === 'son'"
+            [class.hucre--orta]="s.hiza === 'orta'"
+            [class.hucre--sabit]="s.sol !== null"
+            [class.hucre--son-sabit]="s.sonSabit"
+            [style.left.px]="s.sol"
+            [attr.aria-sort]="ariaSort(s.kod)"
+            [attr.data-hucre]="'0:' + c"
+            [attr.data-kod]="s.kod"
+            [attr.tabindex]="s.tanim && !s.siralanabilir ? tabOrder(0, c) : null"
+            [attr.draggable]="s.tasinabilir || null"
+            (dragstart)="dragStart($event, s.kod)"
+            (dragover)="dragOver($event, s)"
+            (drop)="release($event, s)"
+            (dragend)="dragEnd()"
+          >
+            @if (s.tanim === null) {
+              <input
+                type="checkbox"
+                class="secim-kutusu"
+                data-odak
+                [tabindex]="tabOrder(0, c)"
+                [checked]="pageSelection() === 'hepsi'"
+                [indeterminate]="pageSelection() === 'bazi'"
+                [disabled]="satirlar().length === 0"
+                [attr.aria-label]="'tablo.tumunuSec' | transloco"
+                (change)="selectPage(pageSelection() !== 'hepsi')"
+              />
+            } @else if (s.siralanabilir) {
+              <button
+                type="button"
+                class="baslik__dugme"
+                data-odak
+                [tabindex]="tabOrder(0, c)"
+                (click)="sortClick(s.kod)"
+              >
+                <span class="baslik__metin">{{ s.tanim.baslik }}</span>
+                <rc-ikon
+                  class="baslik__siralama"
+                  [class.baslik__siralama--etkin]="ariaSort(s.kod) !== null"
+                  [ad]="
+                    ariaSort(s.kod) === 'ascending'
+                      ? 'arrow-up'
+                      : ariaSort(s.kod) === 'descending'
+                        ? 'arrow-down'
+                        : 'arrows-sort'
+                  "
+                  [boyut]="12"
+                />
+              </button>
+            } @else {
+              <span class="baslik__metin">{{ s.tanim.baslik }}</span>
+            }
+            @if (s.tanim !== null) {
+              <span
+                class="boyutlayici"
+                aria-hidden="true"
+                (mousedown)="startResize($event, s.baslik)"
+                (touchstart)="startResize($event, s.baslik)"
+                (dblclick)="resetWidth(s.kod)"
+                (click)="$event.stopPropagation()"
+              ></span>
+            }
+          </th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @if (hal().tur === 'yukleniyor' && !hal().eskiVeri) {
+        @for (i of skeletonRows; track i) {
+          <tr class="satir" aria-hidden="true">
+            @for (s of visibleColumns(); track s.kod) {
+              <td
+                class="hucre"
+                [class.hucre--sabit]="s.sol !== null"
+                [class.hucre--son-sabit]="s.sonSabit"
+                [style.left.px]="s.sol"
+              >
+                <span class="rc-iskelet"></span>
+              </td>
+            }
+          </tr>
+        }
+      } @else {
+        @if (render().ust > 0) {
+          <tr class="bosluk" aria-hidden="true">
+            <td [attr.colspan]="visibleColumns().length" [style.height.px]="render().ust"></td>
+          </tr>
+        }
+        @for (c of render().satirlar; track c.kimlik) {
+          <tr
+            class="satir"
+            [class]="satirSinifi()?.(c.satir) ?? ''"
+            [class.satir--secili]="selectedSet().has(c.kimlik)"
+            [attr.aria-rowindex]="rowOffset() + c.index + 2"
+            [attr.aria-selected]="secilebilir() ? selectedSet().has(c.kimlik) : null"
+            (dblclick)="doubleClick(c.satir, $event)"
+          >
+            @for (s of visibleColumns(); track s.kod; let k = $index) {
+              @if (s.tanim; as t) {
+                <td
+                  class="hucre"
+                  [class.hucre--son]="s.hiza === 'son'"
+                  [class.hucre--orta]="s.hiza === 'orta'"
+                  [class.hucre--sabit]="s.sol !== null"
+                  [class.hucre--son-sabit]="s.sonSabit"
+                  [style.left.px]="s.sol"
+                  [attr.data-hucre]="c.index + 1 + ':' + k"
+                  [tabindex]="tabOrder(c.index + 1, k)"
+                >
+                  @if (sablon(t.kod); as sb) {
+                    <ng-container *ngTemplateOutlet="sb; context: context(c.satir, t)" />
+                  } @else {
+                    @switch (t.tur) {
+                      @case ('para') {
+                        {{ numberValue(t, c.satir) | para: currency(t, c.satir) }}
+                      }
+                      @case ('sayi') {
+                        {{ numberValue(t, c.satir) | sayi: t.haneler }}
+                      }
+                      @case ('tarih') {
+                        {{ dateValue(t, c.satir) | tarih }}
+                      }
+                      @case ('tarihSaat') {
+                        {{ dateValue(t, c.satir) | tarihSaat }}
+                      }
+                      @default {
+                        {{ textValue(t, c.satir) }}
+                      }
+                    }
+                  }
+                </td>
+              } @else {
+                <td
+                  class="hucre hucre--orta hucre--sabit"
+                  [class.hucre--son-sabit]="s.sonSabit"
+                  [style.left.px]="s.sol"
+                  [attr.data-hucre]="c.index + 1 + ':' + k"
+                >
+                  <input
+                    type="checkbox"
+                    class="secim-kutusu"
+                    data-odak
+                    [tabindex]="tabOrder(c.index + 1, k)"
+                    [checked]="selectedSet().has(c.kimlik)"
+                    [attr.aria-label]="'tablo.satiriSec' | transloco"
+                    (change)="rowSelection(c.kimlik, !selectedSet().has(c.kimlik))"
+                  />
+                </td>
+              }
+            }
+          </tr>
+        }
+        @if (render().alt > 0) {
+          <tr class="bosluk" aria-hidden="true">
+            <td [attr.colspan]="visibleColumns().length" [style.height.px]="render().alt"></td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
+
+@switch (hal().tur) {
+  @case ('hata') {
+    <div class="durum durum--hata" role="alert">
+      <rc-ikon ad="alert-triangle" [boyut]="20" />
+      <div class="durum__metin">
+        <p class="durum__baslik">{{ 'tablo.hataBaslik' | transloco }}</p>
+        <p>{{ hal().hata?.detay || ('tablo.hataAciklama' | transloco) }}</p>
+      </div>
+      <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="yenidenDene.emit()">
+        <rc-ikon ad="refresh" [boyut]="14" />
+        {{ 'tablo.yenidenDene' | transloco }}
+      </button>
+    </div>
+  }
+  @case ('hazir') {
+    @if (hal().kayitYok) {
+      <rc-bos-durum
+        [baslik]="'tablo.bosBaslik' | transloco"
+        [aciklama]="'tablo.bosAciklama' | transloco"
+      />
+    }
+  }
+}
+
+@if (hal().sayfa; as sayfa) {
+  <rc-tablo-sayfalama
+    [sayfa]="sayfa"
+    [boyutlar]="boyutSecenekleri()"
+    (sayfaDegisti)="sayfaDegisti.emit($event)"
+    (boyutDegisti)="boyutDegisti.emit($event)"
+  />
+}
+
+<p class="rc-gorunmez" aria-live="polite">{{ announcement() }}</p>

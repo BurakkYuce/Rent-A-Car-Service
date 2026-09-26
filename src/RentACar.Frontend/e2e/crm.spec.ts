@@ -1,15 +1,15 @@
 import { expect, test } from '@playwright/test';
 
 import { RENTAL_1, customerCrmEndpoints, survey } from './customers-crm-fakes';
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem } from './ortak';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { BEN, seriousViolations, collectErrors, logIn, problem } from './ortak';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F7.2 CRM ekranları: anket, şikayet, assistans, hukuk, CRM analiz. Anket/şikayet/assistans/hukuk: liste + satırda
  * Düzenle (tekil okuma, `surum`) + onaylı Sil + Yeni formu. Senaryolar: doğrulama hatasında form korunur, `cakisma`
  * formu silmez, sayaçlar sunucudan, hukuk "bilgi" çiti + dışa aktarma süzgeçle; axe iki tema + taşma.
  */
-const AG_HATASI = [
+const NETWORK_ERROR = [
   /Failed to load resource: the server responded with a status of 4\d\d/,
   /Failed to load resource: net::ERR_FAILED/,
 ];
@@ -56,20 +56,20 @@ const [SURVEYS, COMPLAINTS, ASSISTANCE, LEGAL, ANALYSIS] = PAGES as [
 ];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, BEN);
+  await logIn(page, BEN);
 });
 
 // Sayfa başına ayrı test (#305 deseni): tek testte 5 sayfa × 2 tema axe taraması yük altında 30 sn sınırına dayanıyordu.
 for (const s of PAGES) {
   test(`CRM ${s.ad}: içerik + axe iki tema, konsol hatası yok`, async ({ page }) => {
-    const errors = hatalariTopla(page, AG_HATASI);
+    const errors = collectErrors(page, NETWORK_ERROR);
     await customerCrmEndpoints(page);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
+    await waitReady(page, s);
+    expect(await seriousViolations(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
+    expect(await seriousViolations(page), `${s.ad} koyu`).toEqual([]);
     expect(errors).toEqual([]);
   });
 }
@@ -84,7 +84,7 @@ test('anket: yeni kayıt — kira seçimi, varsayılan sorular, sorusu boş sat�
     },
   });
   await page.goto(SURVEYS.yol);
-  await hazirBekle(page, SURVEYS);
+  await waitReady(page, SURVEYS);
   await expect(page.getByText('1 anket · 1 yapıldı · 1 yapılmadı')).toBeVisible();
   const form = page.getByRole('region', { name: 'Yeni Anket' });
   await form.getByRole('combobox', { name: 'Sözleşme (opsiyonel)' }).fill('2026');
@@ -104,22 +104,22 @@ test('anket: yeni kayıt — kira seçimi, varsayılan sorular, sorusu boş sat�
 test('anket düzenleme: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  let surum = 'a-1';
-  let puan = 9;
+  let version = 'a-1';
+  let score = 9;
   let put = 0;
   const written = await customerCrmEndpoints(page, {
-    survey: () => survey({ surum, puan }),
+    survey: () => survey({ surum: version, puan: score }),
     write: async (r) => {
       if (++put === 1) {
-        surum = 'a-2';
-        puan = 4; // başka oturum puanı değiştirdi
+        version = 'a-2';
+        score = 4; // başka oturum puanı değiştirdi
         await problem(r, 409, 'cakisma', 'Kayıt siz düzenlerken değişti; güncel hâli yükleyin.');
       } else await r.fulfill({ json: { anket: survey({ puan: 4 }), surum: 'a-3', cevaplar: [] } });
       return true;
     },
   });
   await page.goto(SURVEYS.yol);
-  await hazirBekle(page, SURVEYS);
+  await waitReady(page, SURVEYS);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const form = page.getByRole('region', { name: 'Anketi Düzenle' });
   const save = form.getByRole('button', { name: 'Kaydet' });
@@ -151,7 +151,7 @@ test('şikayet: doğrulama hatasında form korunur, hata alana yazılır', async
     },
   });
   await page.goto(COMPLAINTS.yol);
-  await hazirBekle(page, COMPLAINTS);
+  await waitReady(page, COMPLAINTS);
   await expect(page.getByText('1 şikayet · 1 açık')).toBeVisible();
   const form = page.getByRole('region', { name: 'Yeni Şikayet' });
   await form.getByRole('textbox', { name: 'Konu' }).fill('Klima çalışmıyor');
@@ -171,7 +171,7 @@ test('hukuk: bilgi çiti, kalan sunucudan, dışa aktarma süzgeçle, silme onay
 }) => {
   const written = await customerCrmEndpoints(page);
   await page.goto(`${LEGAL.yol}?durum=Acik`);
-  await hazirBekle(page, LEGAL);
+  await waitReady(page, LEGAL);
   await expect(page.getByText('muhasebe defterine ve cari bakiyeye İŞLEMEZ')).toBeVisible();
   await expect(page.getByRole('gridcell', { name: '7.500,00 ₺' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Excel' })).toHaveAttribute(
@@ -192,11 +192,11 @@ test('hukuk: bilgi çiti, kalan sunucudan, dışa aktarma süzgeçle, silme onay
 test('assistans + CRM analiz: rozetler ve sunucu özetleri', async ({ page }) => {
   await customerCrmEndpoints(page);
   await page.goto(ASSISTANCE.yol);
-  await hazirBekle(page, ASSISTANCE);
+  await waitReady(page, ASSISTANCE);
   await expect(page.getByRole('gridcell', { name: 'Edemiyor' })).toBeVisible();
   await expect(page.getByText('1 talep · 1 açık · 1 araç hareket edemiyor')).toBeVisible();
   await page.goto(ANALYSIS.yol);
-  await hazirBekle(page, ANALYSIS);
+  await waitReady(page, ANALYSIS);
   await expect(
     page.locator('dl[aria-label="Segment özeti"]').getByText('Toplam Ciro').locator('..'),
   ).toContainText('12.500,75 ₺');
@@ -211,8 +211,8 @@ for (const s of PAGES) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -220,7 +220,7 @@ for (const s of PAGES) {
     await customerCrmEndpoints(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

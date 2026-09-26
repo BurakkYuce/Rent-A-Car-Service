@@ -21,19 +21,19 @@ const actions = <T>(t: Translate, width = 180): TabloSutunu<T> => ({
 });
 
 function money<T>(
-  kod: string,
-  baslik: string,
+  code: string,
+  title: string,
   value: (r: T) => number | string | null | undefined,
   currency: (r: T) => string,
-  sirala: boolean | string = false,
+  sort: boolean | string = false,
 ): TabloSutunu<T> {
   return {
-    kod,
-    baslik,
+    kod: code,
+    baslik: title,
     deger: (r) => toNumber(value(r)),
     tur: 'para',
     paraBirimi: currency,
-    sirala,
+    sirala: sort,
     genislik: 120,
   };
 }

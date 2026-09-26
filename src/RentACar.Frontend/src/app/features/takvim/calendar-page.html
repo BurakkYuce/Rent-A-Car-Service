@@ -1,0 +1,156 @@
+<rc-sayfa-bandi [baslik]="'takvimSayfasi.baslik' | transloco" ikon="calendar" />
+
+<div class="rc-sayfa">
+  <nav class="ay-gezinme" [attr.aria-label]="'takvimSayfasi.ayGezinme' | transloco">
+    <button
+      type="button"
+      class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
+      (click)="goToMonth(previousMonth())"
+    >
+      <rc-ikon ad="chevron-left" [boyut]="14" />
+      {{ previousLabel() }}
+    </button>
+    <strong class="ay-gezinme__ay" aria-live="polite">{{ monthLabel() }}</strong>
+    <button
+      type="button"
+      class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
+      (click)="goToMonth(nextMonth())"
+    >
+      {{ nextLabel() }}
+      <rc-ikon ad="chevron-right" [boyut]="14" />
+    </button>
+  </nav>
+
+  <form
+    class="rc-kart filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'takvimSayfasi.filtre.baslik' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'takvimSayfasi.filtre.plaka' | transloco">
+        <rc-metin-girdisi
+          formControlName="plaka"
+          tur="search"
+          [azamiUzunluk]="64"
+          [yerTutucu]="'takvimSayfasi.filtre.plakaYerTutucu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'takvimSayfasi.filtre.grup' | transloco">
+        <rc-metin-girdisi formControlName="grup" liste="dl-takvim-grup" [azamiUzunluk]="64" />
+      </rc-alan>
+      <rc-alan [etiket]="'takvimSayfasi.filtre.sube' | transloco">
+        <rc-secim
+          formControlName="sube"
+          [secenekler]="branchOptions()"
+          [bosEtiket]="'takvimSayfasi.filtre.tumu' | transloco"
+        />
+      </rc-alan>
+    </div>
+    <datalist id="dl-takvim-grup">
+      @for (g of groupSuggestions(); track g) {
+        <option [value]="g"></option>
+      }
+    </datalist>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--birincil rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'takvimSayfasi.filtre.filtrele' | transloco }}
+      </button>
+      @if (hasFilter()) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'takvimSayfasi.filtre.temizle' | transloco }}
+        </button>
+      }
+      <span class="rc-rozet rc-rozet--notr">{{
+        'takvimSayfasi.aracSayisi' | transloco: { sayi: araclar().length }
+      }}</span>
+    </div>
+  </form>
+
+  @if (issued()) {
+    <p class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
+      {{ 'takvimSayfasi.kesildi' | transloco: { sinir: limit, toplam: vehicleTotal() } }}
+    </p>
+  }
+
+  <ul class="lejant" [attr.aria-label]="'takvimSayfasi.lejant' | transloco">
+    <li>
+      <span class="kare kare--rez" aria-hidden="true"></span
+      >{{ 'takvimSayfasi.doluluk.Rezervasyon' | transloco }}
+    </li>
+    <li>
+      <span class="kare kare--kira" aria-hidden="true"></span
+      >{{ 'takvimSayfasi.doluluk.Kira' | transloco }}
+    </li>
+  </ul>
+
+  @switch (store.grid.tur()) {
+    @case ('hata') {
+      <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
+        <span>{{ store.grid.hata()?.detay }}</span>
+        <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="store.grid.yenile()">
+          {{ 'takvimSayfasi.yenidenDene' | transloco }}
+        </button>
+      </div>
+    }
+    @default {
+      <div
+        class="izgara-kap"
+        role="region"
+        tabindex="0"
+        [attr.aria-label]="'takvimSayfasi.izgara' | transloco: { ay: monthLabel() }"
+        [attr.aria-busy]="store.grid.isLoading()"
+      >
+        <table class="rc-duz-tablo izgara">
+          <thead>
+            <tr>
+              <th scope="col" class="arac">{{ 'takvimSayfasi.arac' | transloco }}</th>
+              @for (g of gunler(); track g.gun) {
+                <th scope="col" [class.hafta-sonu]="g.haftaSonu">{{ g.no }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of araclar(); track a.id) {
+              <tr>
+                <th scope="row" class="arac">
+                  <a
+                    class="bag"
+                    routerLink="/kiralar/yeni"
+                    [queryParams]="rentQuery(a)"
+                    [title]="'takvimSayfasi.kiralaBasligi' | transloco"
+                    ><rc-plaka [plaka]="a.plaka" boyut="sm" /><span class="rc-gorunmez">
+                      {{ 'takvimSayfasi.kiralaEtiketi' | transloco }}</span
+                    ></a
+                  >
+                </th>
+                @for (g of gunler(); track g.gun; let i = $index) {
+                  @let d = cell(a, i);
+                  <td
+                    [class.kira]="d === 'Kira'"
+                    [class.rez]="d === 'Rezervasyon'"
+                    [class.hafta-sonu]="d === null && g.haftaSonu"
+                    [attr.title]="cellHeader(a, i)"
+                  >
+                    {{ d === 'Kira' ? 'K' : d === 'Rezervasyon' ? 'R' : '' }}
+                  </td>
+                }
+              </tr>
+            } @empty {
+              @if (store.grid.tur() === 'hazir') {
+                <tr>
+                  <td class="rc-bos bos-hucre" [attr.colspan]="gunler().length + 1">
+                    {{ 'takvimSayfasi.aracYok' | transloco }}
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <p class="not">{{ 'takvimSayfasi.not' | transloco }}</p>
+</div>

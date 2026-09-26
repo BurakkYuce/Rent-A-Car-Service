@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ciddiIhlaller, hatalariTopla, oturumAc } from './ortak';
+import { seriousViolations, collectErrors, logIn } from './ortak';
 import { fakePlatformApi, OPERATOR, OPERATOR_SECRET, TENANT_A, TENANT_B } from './platform-fakes';
-import { tasmaOlc } from './vitrin-sayfalari';
+import { measureOverflow } from './vitrin-sayfalari';
 
 /**
  * F12.2 platform console (`/app/platform/*`): separate session and layout from the tenant shell.
@@ -32,7 +32,7 @@ const confirmDialog = (page: Page) => page.getByRole('alertdialog').or(page.getB
 test('giriş / çıkış: yanlış parola genel mesaj, doğru giriş özete, çıkış giriş sayfasına', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page, EXPECTED_4XX);
+  const errors = collectErrors(page, EXPECTED_4XX);
   const api = await fakePlatformApi(page);
   await page.goto('/app/platform/kiracilar');
   await ready(page, 'Platform Girişi');
@@ -91,7 +91,7 @@ test('firma oluştur: gövde sözleşmeye uygun, yeni firmanın detayına gidili
 test('firma kapatma: yanlış onay kodu alanda hata + kapanmaz; doğru kod Kapalı, yeniden açılabilir', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page, EXPECTED_4XX);
+  const errors = collectErrors(page, EXPECTED_4XX);
   const api = await fakePlatformApi(page, { signedIn: true });
   await page.goto(`/app/platform/kiracilar/${TENANT_A}`);
   await ready(page, /Yüce Rent A Car/);
@@ -155,7 +155,7 @@ test('yeni arayüz pilotu aç / kapat (onaylı; vazgeç istek göndermez)', asyn
 test('firma oturumu platform ekranlarına erişemez: platform girişi görünür, platform verisi istenmez', async ({
   page,
 }) => {
-  await oturumAc(page); // tenant session (Admin) — tenant `ben` answers 200
+  await logIn(page); // tenant session (Admin) — tenant `ben` answers 200
   const calls: string[] = [];
   await page.route('**/api/ui/v1/platform/**', (r) => {
     calls.push(new URL(r.request().url()).pathname);
@@ -206,21 +206,21 @@ const PAGES = [
 ] as const;
 
 test('axe: giriş + dört ekran, açık ve koyu temada ciddi/kritik ihlal yok', async ({ page }) => {
-  const errors = hatalariTopla(page, EXPECTED_4XX);
+  const errors = collectErrors(page, EXPECTED_4XX);
   await fakePlatformApi(page);
   await page.goto('/app/platform/giris');
   await ready(page, 'Platform Girişi');
-  expect(await ciddiIhlaller(page), 'giriş açık').toEqual([]);
+  expect(await seriousViolations(page), 'giriş açık').toEqual([]);
   await page.emulateMedia({ colorScheme: 'dark' });
-  expect(await ciddiIhlaller(page), 'giriş koyu').toEqual([]);
+  expect(await seriousViolations(page), 'giriş koyu').toEqual([]);
   await page.emulateMedia({ colorScheme: 'light' });
   await signIn(page);
   for (const p of PAGES) {
     await page.goto(p.path);
     await ready(page, p.heading);
-    expect(await ciddiIhlaller(page), `${p.path} açık`).toEqual([]);
+    expect(await seriousViolations(page), `${p.path} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await ciddiIhlaller(page), `${p.path} koyu`).toEqual([]);
+    expect(await seriousViolations(page), `${p.path} koyu`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'light' });
   }
   expect(errors).toEqual([]);
@@ -235,12 +235,15 @@ test.describe('mobil taşma (dokunmatik öykünme)', () => {
       api.signedIn = false;
       await page.goto('/app/platform/giris');
       await ready(page, 'Platform Girişi');
-      expect(await tasmaOlc(page), `${width}px giriş`).toEqual({ tasma: 0, suclular: [] });
+      expect(await measureOverflow(page), `${width}px giriş`).toEqual({ tasma: 0, suclular: [] });
       api.signedIn = true;
       for (const p of PAGES) {
         await page.goto(p.path);
         await ready(page, p.heading);
-        expect(await tasmaOlc(page), `${width}px ${p.path}`).toEqual({ tasma: 0, suclular: [] });
+        expect(await measureOverflow(page), `${width}px ${p.path}`).toEqual({
+          tasma: 0,
+          suclular: [],
+        });
       }
     }
   });
@@ -252,6 +255,6 @@ test('1440 px: dört ekranda gövde yatay taşması yok', async ({ page }) => {
   for (const p of PAGES) {
     await page.goto(p.path);
     await ready(page, p.heading);
-    expect(await tasmaOlc(page), p.path).toEqual({ tasma: 0, suclular: [] });
+    expect(await measureOverflow(page), p.path).toEqual({ tasma: 0, suclular: [] });
   }
 });

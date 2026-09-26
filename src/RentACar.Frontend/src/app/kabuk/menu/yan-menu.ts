@@ -12,18 +12,18 @@ import {
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { KabukSayaclari } from '@core/sayac/kabuk-sayaclari';
-import { Ikon } from '@shared/ikon/ikon';
+import { ShellCounters } from '@core/sayac/shell-counters';
+import { Icon } from '@shared/ikon/icon';
 
-import { type KayitliGorunum, kiraGorunumleri, kiraListesiMi, kisayolCifti } from './kisayollar';
-import { grupIkonu, ogeIkonu } from './menu-ikonlari';
+import { type KayitliGorunum, rentalViews, isRentalList, shortcutPair } from './kisayollar';
+import { groupIcon, itemIcon } from './menu-ikonlari';
 import type { MenuKaydi, MenuModeli } from './menu-modeli';
 
 /** Menü durumu: model yoksa yükleniyor/hata kutusu; varsa menü (+ güncellenemedi uyarısı). */
-export type YanMenuDurumu = 'yukleniyor' | 'hata' | 'hazir';
+export type SideMenuState = 'yukleniyor' | 'hata' | 'hazir';
 
 /** Açık grup (akordeon) kalıcı anahtarı (Yol v2 §5.1). */
-export const MENU_ACIK_ANAHTARI = 'rc.menu.acik';
+export const MENU_OPEN_KEY = 'rc.menu.acik';
 
 /**
  * Yan menü (Yol v2 §5.1, lacivert kenar çubuğu): kısayol çifti (`+ Kira` / `+ Rezervasyon`), grupsuz öğeler ve
@@ -38,18 +38,18 @@ export const MENU_ACIK_ANAHTARI = 'rc.menu.acik';
 @Component({
   selector: 'rc-yan-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Ikon, NgTemplateOutlet, TranslocoPipe],
+  imports: [Icon, NgTemplateOutlet, TranslocoPipe],
   templateUrl: './yan-menu.html',
   styleUrl: './yan-menu.scss',
   host: { '[class.dar]': 'dar()' },
 })
 export class YanMenu {
-  private readonly konum = inject(LocationStrategy);
-  private readonly depo = depoAl(inject(DOCUMENT));
-  private readonly sayaclar = inject(KabukSayaclari).sayaclar;
+  private readonly location = inject(LocationStrategy);
+  private readonly store = getStore(inject(DOCUMENT));
+  private readonly counters = inject(ShellCounters).counters;
 
   readonly model = input<MenuModeli | null>(null);
-  readonly durum = input<YanMenuDurumu>('yukleniyor');
+  readonly durum = input<SideMenuState>('yukleniyor');
   /** Menü daha önce yüklendi ama son yenileme başarısız (eski menü gösterilir). */
   readonly guncellenemedi = input(false);
   readonly etkin = input<MenuKaydi | null>(null);
@@ -61,116 +61,116 @@ export class YanMenu {
   readonly yenile = output<void>();
   readonly genislet = output<void>();
 
-  private readonly acikGrup = signal<string | null>(this.depoOku());
-  protected readonly etkinKimlik = computed(() => this.etkin()?.kimlik ?? null);
+  private readonly openGroup = signal<string | null>(this.readStore());
+  protected readonly activeId = computed(() => this.etkin()?.kimlik ?? null);
   /** Hızlı bağlantı grubu ("Kısa Yollar") menüde grup olarak çizilmez; açılacak grup yok. */
-  private readonly etkinGrup = computed(() => {
-    const etkin = this.etkin();
-    return etkin && !etkin.hizli ? etkin.grup || null : null;
+  private readonly activeGroup = computed(() => {
+    const active = this.etkin();
+    return active && !active.hizli ? active.grup || null : null;
   });
-  protected readonly kisayollar = computed(() => {
+  protected readonly shortcuts = computed(() => {
     const model = this.model();
-    return model ? kisayolCifti(model) : { kira: null, rezervasyon: null };
+    return model ? shortcutPair(model) : { kira: null, rezervasyon: null };
   });
 
-  protected readonly grupIkonu = grupIkonu;
-  protected readonly ogeIkonu = ogeIkonu;
-  protected readonly kiraListesiMi = kiraListesiMi;
+  protected readonly groupIcon = groupIcon;
+  protected readonly itemIcon = itemIcon;
+  protected readonly isRentalList = isRentalList;
 
   constructor() {
     // Etkin sayfanın grubu açılır (akordeon: diğeri kapanır). Yalnız etkin GRUP değişince — kullanıcının
     // elle açtığı grup menü tazelemesinde geri kapanmaz.
     effect(() => {
-      const grup = this.etkinGrup();
-      if (grup) untracked(() => this.grubuAc(grup));
+      const group = this.activeGroup();
+      if (group) untracked(() => this.openGroupAction(group));
     });
   }
 
-  protected acikMi(grup: string): boolean {
-    return !this.dar() && this.acikGrup() === grup;
+  protected isOpen(group: string): boolean {
+    return !this.dar() && this.openGroup() === group;
   }
 
-  protected grubuDegistir(grup: string): void {
+  protected toggleGroup(group: string): void {
     if (this.dar()) {
       this.genislet.emit();
-      this.grubuAc(grup);
+      this.openGroupAction(group);
       return;
     }
-    this.acikGrupYaz(this.acikGrup() === grup ? null : grup);
+    this.writeOpenGroup(this.openGroup() === group ? null : group);
   }
 
-  protected gorunumler(kiralar: MenuKaydi): KayitliGorunum[] {
-    return kiraGorunumleri(kiralar);
+  protected views(rentals: MenuKaydi): KayitliGorunum[] {
+    return rentalViews(rentals);
   }
 
   /** Kira listesindeyken işaretli görünüm: sorgudaki kod, yoksa "Tüm sözleşmeler". */
-  protected gorunumEtkin(g: KayitliGorunum, kiralar: MenuKaydi): boolean {
-    return this.etkinKimlik() === kiralar.kimlik && (this.gorunum() ?? null) === g.kod;
+  protected isViewActive(g: KayitliGorunum, rentals: MenuKaydi): boolean {
+    return this.activeId() === rentals.kimlik && (this.gorunum() ?? null) === g.kod;
   }
 
-  protected gorunumSayaci(g: KayitliGorunum): string | null {
-    const s = this.sayaclar();
-    return g.sayac && s ? rozetMetni(s[g.sayac], true) : null;
+  protected viewCounter(g: KayitliGorunum): string | null {
+    const s = this.counters();
+    return g.sayac && s ? badgeText(s[g.sayac], true) : null;
   }
 
-  protected href(kayit: MenuKaydi): string {
-    return kayit.hedef.tur === 'spa'
-      ? this.konum.prepareExternalUrl(kayit.hedef.yol)
-      : kayit.hedef.adres;
+  protected href(record: MenuKaydi): string {
+    return record.hedef.tur === 'spa'
+      ? this.location.prepareExternalUrl(record.hedef.yol)
+      : record.hedef.adres;
   }
 
-  protected rozet(kayit: MenuKaydi): string | null {
-    return rozetMetni(this.sayac(kayit));
+  protected rozet(record: MenuKaydi): string | null {
+    return badgeText(this.sayac(record));
   }
 
   /** Kapalı grubun başlığında içindeki rozetlerin toplamı (açılmadan görünsün). */
-  protected grupRozeti(kayitlar: readonly MenuKaydi[]): string | null {
-    return rozetMetni(kayitlar.reduce((t, k) => t + this.sayac(k), 0));
+  protected groupBadge(records: readonly MenuKaydi[]): string | null {
+    return badgeText(records.reduce((t, k) => t + this.sayac(k), 0));
   }
 
-  private sayac(kayit: MenuKaydi): number {
-    return kayit.rozetKodu ? (this.model()?.rozetler.get(kayit.rozetKodu) ?? 0) : 0;
+  private sayac(record: MenuKaydi): number {
+    return record.rozetKodu ? (this.model()?.rozetler.get(record.rozetKodu) ?? 0) : 0;
   }
 
   /** Düz sol tık uygulama içinde; değiştirici tuşlu ya da orta tık tarayıcıya bırakılır (yeni sekme). */
-  protected tikla(olay: MouseEvent, kayit: MenuKaydi): void {
-    if (olay.button !== 0 || olay.ctrlKey || olay.metaKey || olay.shiftKey || olay.altKey) return;
-    olay.preventDefault();
-    this.sec.emit(kayit);
+  protected click(evt: MouseEvent, record: MenuKaydi): void {
+    if (evt.button !== 0 || evt.ctrlKey || evt.metaKey || evt.shiftKey || evt.altKey) return;
+    evt.preventDefault();
+    this.sec.emit(record);
   }
 
-  private grubuAc(grup: string): void {
-    if (this.acikGrup() !== grup) this.acikGrupYaz(grup);
+  private openGroupAction(group: string): void {
+    if (this.openGroup() !== group) this.writeOpenGroup(group);
   }
 
-  private acikGrupYaz(grup: string | null): void {
-    this.acikGrup.set(grup);
+  private writeOpenGroup(group: string | null): void {
+    this.openGroup.set(group);
     try {
-      if (grup === null) this.depo?.removeItem(MENU_ACIK_ANAHTARI);
-      else this.depo?.setItem(MENU_ACIK_ANAHTARI, grup);
+      if (group === null) this.store?.removeItem(MENU_OPEN_KEY);
+      else this.store?.setItem(MENU_OPEN_KEY, group);
     } catch {
       // Depo kapalı (gizli pencere, kota): yalnız bu oturumda hatırlanır.
     }
   }
 
-  private depoOku(): string | null {
+  private readStore(): string | null {
     try {
-      return this.depo?.getItem(MENU_ACIK_ANAHTARI) || null;
+      return this.store?.getItem(MENU_OPEN_KEY) || null;
     } catch {
       return null;
     }
   }
 }
 
-function depoAl(belge: Document): Storage | null {
+function getStore(document: Document): Storage | null {
   try {
-    return belge.defaultView?.localStorage ?? null;
+    return document.defaultView?.localStorage ?? null;
   } catch {
     return null;
   }
 }
 
-function rozetMetni(sayi: number, sifirGoster = false): string | null {
-  if (!Number.isFinite(sayi) || sayi < 0 || (sayi === 0 && !sifirGoster)) return null;
-  return sayi > 99 ? '99+' : String(sayi);
+function badgeText(count: number, showZero = false): string | null {
+  if (!Number.isFinite(count) || count < 0 || (count === 0 && !showZero)) return null;
+  return count > 99 ? '99+' : String(count);
 }

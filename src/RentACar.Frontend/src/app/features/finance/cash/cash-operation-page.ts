@@ -12,13 +12,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
 
 import {
   AccountList,
@@ -43,21 +43,21 @@ import { CashOperationForm } from './cash-operation-form';
   templateUrl: './cash-operation-page.html',
   styleUrl: '../finance.scss',
 })
-export class CashOperationPage implements KaydedilmemisDegisiklikSahibi {
+export class CashOperationPage implements UnsavedChangesOwner {
   protected readonly balance = inject(CustomerBalanceSource).store;
-  private readonly t = ceviriFonksiyonu();
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  private readonly t = translationFunction();
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly customer = new FormControl<SecimSecenegi | null>(null);
-  protected readonly cariId = signal<string | null>(
+  protected readonly customerId = signal<string | null>(
     inject(ActivatedRoute).snapshot.queryParamMap.get('cariId'),
   );
   protected readonly side = computed(() => balanceSide(this.balance.veri()?.bakiye));
   private readonly forms = viewChildren(CashOperationForm);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     this.customer.valueChanges.pipe(takeUntilDestroyed()).subscribe((c) => {
-      if (c && c.id !== this.cariId()) this.cariId.set(c.id);
+      if (c && c.id !== this.customerId()) this.customerId.set(c.id);
     });
     // Sonucu bilinmeyen işlem varken cari değiştirilemez: donmuş kopya o cariye aittir, form yeniden kurulursa kaybolur.
     effect(() => {
@@ -65,27 +65,32 @@ export class CashOperationPage implements KaydedilmemisDegisiklikSahibi {
       untracked(() => (locked ? this.customer.disable() : this.customer.enable()));
     });
     // `?cariId=` izlenir (kalıcı sekmede başka cariyle açılış); seçici etiketi bakiye yanıtının (KVKK kurallı) adından.
-    followCustomerQuery(this.cariId, this.customer, () => this.forms().some((f) => f.pending()), {
-      dirty: () => this.forms().some((f) => f.dirty()),
-      discard: () => this.forms().forEach((f) => f.resetForm()),
-    });
+    followCustomerQuery(
+      this.customerId,
+      this.customer,
+      () => this.forms().some((f) => f.pending()),
+      {
+        dirty: () => this.forms().some((f) => f.dirty()),
+        discard: () => this.forms().forEach((f) => f.resetForm()),
+      },
+    );
     effect(() => {
       const b = this.balance.veri();
-      const id = this.cariId();
+      const id = this.customerId();
       untracked(() => labelFromData(this.customer, id, b));
     });
-    inject(FetchPolicy).baglan({
-      parametre: this.cariId.asReadonly(),
-      yukle: (id) => (id ? this.balance.yukle(id) : this.balance.sifirla()),
-      sifirla: () => this.balance.sifirla(),
+    inject(FetchPolicy).connect({
+      parametre: this.customerId.asReadonly(),
+      yukle: (id) => (id ? this.balance.yukle(id) : this.balance.reset()),
+      sifirla: () => this.balance.reset(),
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.forms().some((f) => f.pending() || f.dirty());
   }
 
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.forms().some((f) => f.pending()) ? this.t('finans.islem.terkMesaji') : null;
   }
 

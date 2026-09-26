@@ -1,8 +1,8 @@
 import { formatDate } from '@angular/common';
 
-import type { TahsilatIstegi, TahsilatBilgisi } from '@core/api/ui-tipleri';
-import { trKucukHarf } from '@core/metin/tr-normalize';
-import { ISTANBUL_OFSETI, YEREL } from '@core/yerel/tr-yerel';
+import type { CollectionRequest, CollectionInfo } from '@core/api/ui-tipleri';
+import { trLowerCase } from '@core/metin/tr-normalize';
+import { ISTANBUL_OFFSET, LOCALE } from '@core/yerel/tr-yerel';
 
 /**
  * Panel (F4.5) saf kuralları: sekme seçimi, sayı çevirisi, otomatik tazeleme kararı ve tahsilat gövdesi.
@@ -10,14 +10,14 @@ import { ISTANBUL_OFSETI, YEREL } from '@core/yerel/tr-yerel';
  */
 
 /** Gün kovaları — Blazor `PanelSekme` sabitleriyle aynı değerler (`?df=`/`?cf=` sorgu sözleşmesi). */
-export const PANEL_SEKMELERI = ['gec', 'bugun', 'yarin'] as const;
-export type PanelSekme = (typeof PANEL_SEKMELERI)[number];
+export const PANEL_TABS = ['gec', 'bugun', 'yarin'] as const;
+export type PanelTab = (typeof PANEL_TABS)[number];
 
 /** Kullanıcının AÇIKÇA seçtiği sekme (büyük/küçük harf duyarsız); tanınmayan/boş → `null` (seçim yok). */
-export function sekmeCoz(ham: unknown): PanelSekme | null {
-  if (typeof ham !== 'string') return null;
-  const deger = trKucukHarf(ham.trim());
-  return (PANEL_SEKMELERI as readonly string[]).includes(deger) ? (deger as PanelSekme) : null;
+export function resolveTab(raw: unknown): PanelTab | null {
+  if (typeof raw !== 'string') return null;
+  const value = trLowerCase(raw.trim());
+  return (PANEL_TABS as readonly string[]).includes(value) ? (value as PanelTab) : null;
 }
 
 interface Kovalar {
@@ -32,9 +32,11 @@ interface Kovalar {
  * Seçim ham tutulur (etkin değer yazılmaz): seçimsiz açılan panel her tazelemede kuralı yeniden işler —
  * gecikmişler kapanınca kendiliğinden Bugün'e döner, "Gecikmiş 0 — Kayıt yok."ta takılı kalmaz.
  */
-export function donusEtkinSekme(secilen: PanelSekme | null, kovalar: Kovalar): PanelSekme {
+export function returnActiveTab(selected: PanelTab | null, buckets: Kovalar): PanelTab {
   return (
-    secilen ?? sekmeCoz(kovalar.varsayilanSekme) ?? (kovalar.gecikmis.length > 0 ? 'gec' : 'bugun')
+    selected ??
+    resolveTab(buckets.varsayilanSekme) ??
+    (buckets.gecikmis.length > 0 ? 'gec' : 'bugun')
   );
 }
 
@@ -42,43 +44,43 @@ export function donusEtkinSekme(secilen: PanelSekme | null, kovalar: Kovalar): P
  * ÇIKIŞLAR kartında açık sekme: seçim yoksa DAİMA "bugun" (Blazor `PanelSekme.CikisEtkin`). Gecikmiş çıkış
  * kapanmayan bayat no-show'dur; varsayılan olsaydı günün asıl işi gizlenirdi. Gecikmiş çipi yine "acil" görünür.
  */
-export function cikisEtkinSekme(secilen: PanelSekme | null): PanelSekme {
-  return secilen ?? 'bugun';
+export function pickupActiveTab(selected: PanelTab | null): PanelTab {
+  return selected ?? 'bugun';
 }
 
 /** Kovadaki satırlar (sekmeye göre). */
-export function kovaSatirlari<T>(
-  kovalar: {
+export function bucketRows<T>(
+  buckets: {
     readonly gecikmis: readonly T[];
     readonly bugun: readonly T[];
     readonly yarin: readonly T[];
   },
-  sekme: PanelSekme,
+  tab: PanelTab,
 ): readonly T[] {
-  return sekme === 'gec' ? kovalar.gecikmis : sekme === 'yarin' ? kovalar.yarin : kovalar.bugun;
+  return tab === 'gec' ? buckets.gecikmis : tab === 'yarin' ? buckets.yarin : buckets.bugun;
 }
 
 /**
  * OpenAPI tipleri sayıları `number | string` bildirir (sunucu sayı olarak yazar). Gösterim için sayıya çevirir;
  * çevrilemeyen değer `null` (ekranda boş/tire). PARA HESABI YAPILMAZ — yalnız biçimleme ve karşılaştırma.
  */
-export function sayi(deger: number | string | null | undefined): number | null {
-  if (deger === null || deger === undefined || deger === '') return null;
-  const n = typeof deger === 'number' ? deger : Number(deger);
+export function count(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
 /** Toplamın yüzdesi (tam sayı, Blazor `Yuzde`); toplam 0 → 0. */
-export function yuzde(parca: number | string, toplam: number | string): number {
-  const p = sayi(parca) ?? 0;
-  const t = sayi(toplam) ?? 0;
+export function percent(part: number | string, total: number | string): number {
+  const p = count(part) ?? 0;
+  const t = count(total) ?? 0;
   return t <= 0 ? 0 : Math.round((100 * p) / t);
 }
 
 /** Gelir trendi ay etiketi (`Eyl 26`), İstanbul ayına göre (ayBaşı UTC gece yarısına yakın olabilir). */
-export function ayEtiketi(ayBas: string): string {
+export function monthLabel(monthStart: string): string {
   try {
-    return formatDate(ayBas, 'MMM yy', YEREL, ISTANBUL_OFSETI);
+    return formatDate(monthStart, 'MMM yy', LOCALE, ISTANBUL_OFFSET);
   } catch {
     return '';
   }
@@ -88,10 +90,10 @@ export function ayEtiketi(ayBas: string): string {
  * Band alt metnindeki gün başlığı (`Cuma, 25 Eylül 2026`). Girdi sunucunun İstanbul takvim günü
  * (`yyyy-MM-dd`); saat dilimi uygulanmaz (takvim günü yerel güne çevrilip kaydırılmaz).
  */
-export function gunBasligi(gun: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(gun)) return '';
+export function dayTitle(day: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return '';
   try {
-    return formatDate(gun, 'EEEE, d MMMM y', YEREL);
+    return formatDate(day, 'EEEE, d MMMM y', LOCALE);
   } catch {
     return '';
   }
@@ -137,9 +139,9 @@ export interface KpiKarti {
 // ------------------------------------------------------------------ otomatik tazeleme
 
 /** Blazor `data-rc-tazele="120"` karşılığı. */
-export const TAZELEME_SURESI_MS = 120_000;
+export const REFRESH_DURATION_MS = 120_000;
 /** Koşul denetimi sıklığı: ertelenen tazeleme koşul kalkınca en geç bu kadar sonra yapılır. */
-export const TAZELEME_DENETIM_MS = 15_000;
+export const REFRESH_CHECK_MS = 15_000;
 
 export interface TazelemeDurumu {
   /** Son yüklemeden bu yana geçen süre (ms). */
@@ -159,33 +161,35 @@ export interface TazelemeDurumu {
  * panoya fırlatıyordu); zamanlayıcı sayfa bileşenine bağlı, sayfa kapanınca ölür. Yazarken ertelenir: açık
  * tahsilat formunun anahtarı ve tutarı tazelemeyle değişmesin.
  */
-export function tazelemeZamaniMi(d: TazelemeDurumu): boolean {
-  return d.gecen >= TAZELEME_SURESI_MS && d.belgeGorunur && d.sekmeAktif && !d.yaziyor && !d.mesgul;
+export function isRefreshDue(d: TazelemeDurumu): boolean {
+  return (
+    d.gecen >= REFRESH_DURATION_MS && d.belgeGorunur && d.sekmeAktif && !d.yaziyor && !d.mesgul
+  );
 }
 
 /** Odaktaki eleman yazılabilir bir alan mı (girdi, metin alanı, seçim, contenteditable). */
-export function yazilabilirAlanMi(eleman: Element | null): boolean {
-  if (eleman === null) return false;
-  if (eleman instanceof HTMLTextAreaElement || eleman instanceof HTMLSelectElement) return true;
-  if (eleman instanceof HTMLInputElement) {
+export function isWritableField(element: Element | null): boolean {
+  if (element === null) return false;
+  if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) return true;
+  if (element instanceof HTMLInputElement) {
     return !['button', 'submit', 'reset', 'checkbox', 'radio', 'hidden', 'image'].includes(
-      eleman.type,
+      element.type,
     );
   }
-  return eleman instanceof HTMLElement && eleman.isContentEditable === true;
+  return element instanceof HTMLElement && element.isContentEditable === true;
 }
 
 // ------------------------------------------------------------------ tahsilat
 
-export type HesapTuru = 'Kasa' | 'Banka';
+export type AccountType = 'Kasa' | 'Banka';
 
 /** `POST /api/ui/v1/finans/tahsilat` gövdesi (F4.4a `TahsilatIstegi`): panelin doldurduğu alanlar zorunlu. */
-export type PanelTahsilatGovdesi = Required<
+export type PanelCollectionBody = Required<
   Pick<
-    TahsilatIstegi,
+    CollectionRequest,
     'cariId' | 'kiraId' | 'hesapId' | 'doviz' | 'kanal' | 'aciklama' | 'tahsilatAnahtar'
   >
-> & { readonly tutar: string; readonly hesap: HesapTuru };
+> & { readonly tutar: string; readonly hesap: AccountType };
 
 /**
  * Tahsilat gövdesi. PARA KURALLARI:
@@ -195,20 +199,24 @@ export type PanelTahsilatGovdesi = Required<
  * - `tutar` invariant ondalık metin (`rc-para-girdisi` değeri); kayan noktaya girmez.
  * - `kanal` "Masaüstü" (Blazor panosu FAZ-84: tek tık hızlı tahsilat).
  */
-export function tahsilatGovdesi(
-  bilgi: TahsilatBilgisi,
-  secim: { readonly tutar: string; readonly hesap: HesapTuru; readonly hesapId: string | null },
-  aciklama: string,
-): PanelTahsilatGovdesi {
+export function collectionBody(
+  info: CollectionInfo,
+  selection: {
+    readonly tutar: string;
+    readonly hesap: AccountType;
+    readonly hesapId: string | null;
+  },
+  description: string,
+): PanelCollectionBody {
   return {
-    cariId: bilgi.cariId,
-    kiraId: bilgi.rentalId,
-    tutar: secim.tutar,
-    hesap: secim.hesap,
-    hesapId: secim.hesapId,
-    doviz: bilgi.doviz,
+    cariId: info.cariId,
+    kiraId: info.rentalId,
+    tutar: selection.tutar,
+    hesap: selection.hesap,
+    hesapId: selection.hesapId,
+    doviz: info.doviz,
     kanal: 'Masaüstü',
-    aciklama,
-    tahsilatAnahtar: bilgi.anahtar,
+    aciklama: description,
+    tahsilatAnahtar: info.anahtar,
   };
 }

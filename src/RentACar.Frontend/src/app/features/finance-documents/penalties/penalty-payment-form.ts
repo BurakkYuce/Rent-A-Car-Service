@@ -12,19 +12,19 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { paraBicimle } from '@core/bicim/bicim';
+import { formatMoney } from '@core/bicim/bicim';
 import { moneySubmission } from '@core/form/money-submission';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneyNoticeView } from '@shared/form/money-submit/money-notice';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import {
   ACCOUNT_KINDS,
@@ -57,17 +57,17 @@ export const penaltyPaymentScope = (id: string) => `ceza-odeme:${id}`;
     Alan,
     MoneyNoticeView,
     MoneySubmitBar,
-    MetinGirdisi,
-    ParaGirdisi,
-    Secim,
-    TarihSecici,
+    TextInput,
+    MoneyInput,
+    Selection,
+    DatePicker,
   ],
   templateUrl: './penalty-payment-form.html',
   styleUrl: '../finance-documents.scss',
 })
 export class PenaltyPaymentForm implements OnInit {
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   readonly detail = input.required<PenaltyDetail>();
   readonly paid = output<PenaltyPaymentResult | null>();
@@ -81,7 +81,7 @@ export class PenaltyPaymentForm implements OnInit {
         etiket: this.t('finansBelge.ceza.kalemSecenek', {
           sira: k.sira,
           sebep: k.sebep ?? '—',
-          kalan: paraBicimle(toNumber(k.kalan)),
+          kalan: formatMoney(toNumber(k.kalan)),
         }),
       })),
   );
@@ -127,8 +127,8 @@ export class PenaltyPaymentForm implements OnInit {
       success: (r) => {
         this.toast.basari(
           this.t('finansBelge.ceza.odemeYazildi', {
-            tutar: paraBicimle(toNumber(r.tutar)),
-            kalan: paraBicimle(toNumber(r.cezaKalan)),
+            tutar: formatMoney(toNumber(r.tutar)),
+            kalan: formatMoney(toNumber(r.cezaKalan)),
           }),
         );
         this.reset();

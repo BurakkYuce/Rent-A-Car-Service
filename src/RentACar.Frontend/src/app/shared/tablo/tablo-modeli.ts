@@ -1,5 +1,5 @@
 import type { Sayfa } from '@core/api/sayfa';
-import type { StoreDurumu } from '@core/veri/temel-store';
+import type { StoreState } from '@core/veri/temel-store';
 
 /**
  * Tablo motoru sözleşmesi (F3.5). Özellik ekranları yalnız bu tipleri ve `<rc-tablo>`'yu kullanır;
@@ -7,9 +7,9 @@ import type { StoreDurumu } from '@core/veri/temel-store';
  */
 
 /** Hücre biçimi. `para` ve `sayi` sağa yaslanır ve tabular rakamla yazılır. */
-export type TabloSutunTuru = 'metin' | 'para' | 'sayi' | 'tarih' | 'tarihSaat';
+export type TableColumnType = 'metin' | 'para' | 'sayi' | 'tarih' | 'tarihSaat';
 
-export type TabloHizalama = 'bas' | 'son' | 'orta';
+export type TableAlignment = 'bas' | 'son' | 'orta';
 
 /**
  * Sütun tanımı. `kod` kalıcıdır: kullanıcının kayıtlı düzeni (`TabloDuzenleri`) ve hücre şablonu
@@ -22,11 +22,11 @@ export interface TabloSutunu<T> {
   /** Görünen başlık (çevrilmiş metin). */
   readonly baslik: string;
   /** Hücre değeri. Şablonsuz sütunda `tur`'a göre biçimlenir. */
-  readonly deger: (satir: T) => unknown;
+  readonly deger: (row: T) => unknown;
   /** Varsayılan `metin`. */
-  readonly tur?: TabloSutunTuru;
+  readonly tur?: TableColumnType;
   /** `para` için para birimi (ISO kodu); sabit ya da satırdan. Varsayılan `TRY`. */
-  readonly paraBirimi?: string | ((satir: T) => string);
+  readonly paraBirimi?: string | ((row: T) => string);
   /** `sayi` için Angular `digitsInfo` (varsayılan `1.0-2`). */
   readonly haneler?: string;
   /** Varsayılan genişlik (px). */
@@ -48,7 +48,7 @@ export interface TabloSutunu<T> {
    */
   readonly sabit?: boolean;
   /** Varsayılan hizalama türden gelir (`para`/`sayi` → `son`). */
-  readonly hizala?: TabloHizalama;
+  readonly hizala?: TableAlignment;
 }
 
 /**
@@ -57,7 +57,7 @@ export interface TabloSutunu<T> {
  * soluk), `hazir` (satırlar; sıfır kayıtsa "Kayıt bulunamadı"), `hata` (hata bandı + yeniden dene —
  * ASLA "kayıt yok" gibi görünmez). `Sayfa<T>` sunucu sayfalamasını, dizi sayfasız listeyi çizer.
  */
-export type TabloKaynagi<T> = StoreDurumu<Sayfa<T>> | StoreDurumu<readonly T[]>;
+export type TableSource<T> = StoreState<Sayfa<T>> | StoreState<readonly T[]>;
 
 /** Sayfalama çubuğunun girdisi (`Sayfa<T>`'den). */
 export interface TabloSayfasi {
@@ -91,10 +91,10 @@ export interface TabloDuzeni {
 }
 
 /** Satır seçim sütununun iç kimliği (sütun kodlarıyla çakışmaz: `_` ile başlayan kod sunucuda da geçerli ama motor ayırır). */
-export const SECIM_SUTUNU = '__secim';
+export const SELECTION_COLUMN = '__secim';
 
 /** Sunucu doğrulamasıyla aynı sınırlar (`TabloDuzeniService`). */
-export const TABLO_SINIRLARI = {
+export const TABLE_LIMITS = {
   enAzGenislik: 24,
   enFazlaGenislik: 2000,
   enFazlaSutun: 200,
@@ -103,6 +103,6 @@ export const TABLO_SINIRLARI = {
   tabloKoduDeseni: /^[a-z0-9]+([.-][a-z0-9]+)*$/,
 } as const;
 
-export const VARSAYILAN_SUTUN_GENISLIGI = 140;
-export const VARSAYILAN_EN_AZ_GENISLIK = 48;
-export const SECIM_SUTUNU_GENISLIGI = 36;
+export const DEFAULT_COLUMN_WIDTH = 140;
+export const DEFAULT_MIN_WIDTH = 48;
+export const SELECTION_COLUMN_WIDTH = 36;

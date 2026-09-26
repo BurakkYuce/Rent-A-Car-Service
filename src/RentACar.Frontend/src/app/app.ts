@@ -10,11 +10,11 @@ import {
   RouterOutlet,
 } from '@angular/router';
 
-import { SorguMesajlari } from '@core/geri-bildirim/sorgu-mesajlari';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { SurumServisi } from '@core/surum/surum-servisi';
+import { QueryMessages } from '@core/geri-bildirim/query-messages';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { VersionService } from '@core/surum/version-service';
 import { ToastAlani } from '@shared/toast/toast-alani';
-import { UyariBandi } from '@shared/uyari-bandi/uyari-bandi';
+import { WarningBanner } from '@shared/uyari-bandi/warning-banner';
 
 /**
  * Uygulama kökü: uyarı bandı + sayfa + toast yığını. Gezinme olaylarını banda bildirir, `?bilgi=`/`?hata=`
@@ -24,7 +24,7 @@ import { UyariBandi } from '@shared/uyari-bandi/uyari-bandi';
 @Component({
   selector: 'rc-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, ToastAlani, UyariBandi],
+  imports: [RouterOutlet, ToastAlani, WarningBanner],
   template: `
     <rc-uyari-bandi />
     <router-outlet />
@@ -33,20 +33,20 @@ import { UyariBandi } from '@shared/uyari-bandi/uyari-bandi';
 })
 export class App {
   constructor() {
-    const bant = inject(UyariBandiServisi);
-    const abonelik = inject(Router).events.subscribe((olay) => {
-      if (olay instanceof NavigationStart) bant.gezinmeBasladi();
-      else if (olay instanceof NavigationEnd) bant.gezinmeBitti('tamamlandi');
-      else if (olay instanceof NavigationCancel) {
-        bant.gezinmeBitti(
-          olay.code === NavigationCancellationCode.Redirect ? 'yonlendirme' : 'iptal',
+    const banner = inject(WarningBannerService);
+    const subscription = inject(Router).events.subscribe((evt) => {
+      if (evt instanceof NavigationStart) banner.navigationStarted();
+      else if (evt instanceof NavigationEnd) banner.navigationEnded('tamamlandi');
+      else if (evt instanceof NavigationCancel) {
+        banner.navigationEnded(
+          evt.code === NavigationCancellationCode.Redirect ? 'yonlendirme' : 'iptal',
         );
-      } else if (olay instanceof NavigationError || olay instanceof NavigationSkipped) {
-        bant.gezinmeBitti('iptal');
+      } else if (evt instanceof NavigationError || evt instanceof NavigationSkipped) {
+        banner.navigationEnded('iptal');
       }
     });
-    inject(DestroyRef).onDestroy(() => abonelik.unsubscribe());
-    inject(SorguMesajlari).baslat();
-    inject(SurumServisi).baslat();
+    inject(DestroyRef).onDestroy(() => subscription.unsubscribe());
+    inject(QueryMessages).start();
+    inject(VersionService).start();
   }
 }

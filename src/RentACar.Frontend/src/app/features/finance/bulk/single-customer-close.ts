@@ -13,17 +13,17 @@ import { ActivatedRoute } from '@angular/router';
 
 import { moneySubmission } from '@core/form/money-submission';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { paraBicimle } from '@core/bicim/bicim';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { formatMoney } from '@core/bicim/bicim';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
 
 import {
   type AccountKind,
@@ -64,20 +64,20 @@ type ItemRow = FormGroup<{
   templateUrl: './single-customer-close.html',
   styleUrl: '../finance.scss',
 })
-export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
+export class SingleCustomerClose implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly t = ceviriFonksiyonu();
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly t = translationFunction();
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly customer = new FormControl<SecimSecenegi | null>(null);
-  protected readonly cariId = signal<string | null>(
+  protected readonly customerId = signal<string | null>(
     inject(ActivatedRoute).snapshot.queryParamMap.get('cariId'),
   );
   protected readonly kindOptions = kindOptions(this.t);
   protected readonly channelOptions = CHANNEL_OPTIONS;
   protected readonly action = moneySubmission<CloseItemsRequest>({
-    scope: () => `tek-cari:${this.cariId() ?? ''}`,
+    scope: () => `tek-cari:${this.customerId() ?? ''}`,
   });
 
   protected readonly items = new TemelStore(
@@ -100,7 +100,7 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
   protected readonly isZero = (v: number | string) => (toAmount(v) ?? 0) === 0;
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     // Sonucu bilinmeyen kapatma (sayfa kapanıp açıldıysa) AYNI seçimle + anahtarla KİLİTLİ geri gelir.
     this.action.restore(this.form, (value) => {
       const v = value as ReturnType<typeof this.form.getRawValue>;
@@ -118,7 +118,7 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
       this.form.reset(v, { emitEvent: false });
     });
     this.customer.valueChanges.pipe(takeUntilDestroyed()).subscribe((c) => {
-      if (c && c.id !== this.cariId()) this.cariId.set(c.id);
+      if (c && c.id !== this.customerId()) this.customerId.set(c.id);
     });
     effect(() => {
       const locked = this.action.pending();
@@ -127,29 +127,29 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
     // Kalemler gelince satır formları kalem kimliğiyle kurulur; açık kalemin kullanıcı seçimi korunur, kapanan düşer.
     effect(() => {
       const data = this.items.veri();
-      const id = this.cariId();
+      const id = this.customerId();
       untracked(() => {
         labelFromData(this.customer, id, data);
         if (!this.action.pending()) this.buildRows(data?.cariId === id ? data.kalemler : []);
       });
     });
-    followCustomerQuery(this.cariId, this.customer, () => this.action.pending(), {
+    followCustomerQuery(this.customerId, this.customer, () => this.action.pending(), {
       dirty: () => this.form.dirty,
       // Seçimler ve kısmi tutarlar önceki carinin kalemlerine aittir: yeni cariye taşınmaz.
       discard: () => this.form.reset({ hesap: 'Kasa', kanal: 'Masaüstü' }),
     });
-    inject(FetchPolicy).baglan({
-      parametre: this.cariId.asReadonly(),
-      yukle: (id) => (id ? this.items.yukle(id) : this.items.sifirla()),
-      sifirla: () => this.items.sifirla(),
+    inject(FetchPolicy).connect({
+      parametre: this.customerId.asReadonly(),
+      yukle: (id) => (id ? this.items.yukle(id) : this.items.reset()),
+      sifirla: () => this.items.reset(),
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.action.pending() || this.form.dirty;
   }
 
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.action.pending() ? this.t('finans.islem.terkMesaji') : null;
   }
 
@@ -158,7 +158,7 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected submit(): void {
-    const id = this.cariId();
+    const id = this.customerId();
     const name = this.items.veri()?.cariAd ?? '';
     // Kalemler hâlâ önceki cariye aitse (yeni cari yükleniyor) gönderim yok: kalem kimlikleri başka cariye gitmesin.
     if (!id || (this.action.frozen() === null && this.items.veri()?.cariId !== id)) return;
@@ -169,7 +169,7 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
         const rows = this.form.controls.rows.controls;
         const selection = Object.entries(rows)
           .filter(([, r]) => r.controls.secili.value === true)
-          .map(([kalemId, r]) => ({ kalemId, tutar: r.controls.tutar.value }));
+          .map(([itemId, r]) => ({ kalemId: itemId, tutar: r.controls.tutar.value }));
         if (selection.length === 0) {
           this.noSelection.set(true);
           return null;
@@ -182,7 +182,7 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
         };
       },
       confirm: () =>
-        this.confirm.sor({
+        this.confirm.ask({
           baslik: this.t('finans.tekCari.onayBaslik'),
           mesaj: this.t('finans.tekCari.onayMesaj', { ad: name }),
         }),
@@ -190,7 +190,7 @@ export class SingleCustomerClose implements KaydedilmemisDegisiklikSahibi {
         this.toast.basari(
           this.t('finans.tekCari.kapatildi', {
             no: r.belgeNo,
-            tutar: paraBicimle(toAmount(r.tutar)),
+            tutar: formatMoney(toAmount(r.tutar)),
           }),
         );
         this.form.controls.rows.markAsPristine();

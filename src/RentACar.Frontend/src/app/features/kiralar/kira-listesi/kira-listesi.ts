@@ -15,70 +15,73 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize, map } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
-import type { KiraListeSatiri } from '@core/api/ui-tipleri';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
+import type { RentalListRow } from '@core/api/ui-tipleri';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { DUGME_IZINLERI, type DugmeAdi } from '@core/oturum/dugme-izinleri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { DUGME_IZINLERI, type ButtonName } from '@core/oturum/dugme-izinleri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import { sayiBicimle } from '@core/bicim/bicim';
-import { bugun, gunBicimle } from '@core/form/tarih-girdisi';
-import { KabukSayaclari, type KabukSayaclariDegeri } from '@core/sayac/kabuk-sayaclari';
+import { bugun, formatDay } from '@core/form/tarih-girdisi';
+import { ShellCounters, type KabukSayaclariDegeri } from '@core/sayac/shell-counters';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { sorguyuCoz, urlParametreleri } from '@core/veri/liste-sorgusu';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { parseQuery, urlParameters } from '@core/veri/liste-sorgusu';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { SavedViewChipsComponent, type SavedView } from '@shared/gorunum-cipleri/gorunum-cipleri';
-import { Ikon } from '@shared/ikon/ikon';
-import { PlateChipComponent } from '@shared/plaka/plaka';
-import { disaAktarmaAdresi, type DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
-
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
 import {
-  KIRA_GORUNUM_KODLARI,
-  gorunumFiltreleri,
-  gorunumKoduMu,
-  rozetSinifi,
-  satirGorunumu,
-  satirSinifi,
-  suzgeclerAyni,
-  tumSuzgecler,
-  type KiraFiltreleri,
-  type KiraGorunumKodu,
-  type SatirGorunumu,
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { SavedViewChipsComponent, type SavedView } from '@shared/gorunum-cipleri/gorunum-cipleri';
+import { Icon } from '@shared/ikon/icon';
+import { PlateChipComponent } from '@shared/plaka/plaka';
+import { exportUrl, type DisaAktarma } from '@shared/tablo/disa-aktarma';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
+
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
+import {
+  RENTAL_VIEW_CODES,
+  viewFilters,
+  isViewCode,
+  badgeClass,
+  rowView,
+  rowClass,
+  filtersEqual,
+  allFilters,
+  type RentalFilters,
+  type RentalViewCode,
+  type RowView,
 } from './kira-gorunumleri';
 
 import {
-  KIRA_DURUMLARI,
-  KIRA_LISTESI,
-  KiraListesiStore,
-  OFIS_DURUMLARI,
-  TARIH_TURLERI,
-  ozetParametreleri,
-  type KiraDurumu,
-  type OfisDurumu,
-  type TarihTuru,
-} from './kira-listesi.store';
-import { kiraSutunlari, sayi } from './kira-sutunlari';
-import { TahsilPaneli } from './tahsil-paneli';
+  RENTAL_STATUSES,
+  RENTAL_LIST,
+  RentalListStore,
+  OFFICE_STATUSES,
+  DATE_TYPES,
+  summaryParameters,
+  type RentalStatus,
+  type OfficeStatus,
+  type DateType,
+} from './rental-list.store';
+import { rentalColumns, count } from './rental-columns';
+import { CollectPanel } from './collect-panel';
 
 /** Kayıtlı görünüm → kabuk sayaç anahtarı + çeviri (kenar çubuğuyla aynı sözlük: `kabuk.gorunum.*`). */
-const GORUNUM_TANIMI: Readonly<
+const VIEW_DEFINITION: Readonly<
   Record<
-    KiraGorunumKodu,
+    RentalViewCode,
     {
       readonly etiket: CeviriAnahtari;
       readonly sayac: keyof KabukSayaclariDegeri | null;
@@ -94,7 +97,7 @@ const GORUNUM_TANIMI: Readonly<
   kapali: { etiket: 'kabuk.gorunum.kapali', sayac: null },
 };
 
-const jsonEsit = (a: SorguParametreleri, b: SorguParametreleri) =>
+const jsonEqual = (a: QueryParameters, b: QueryParameters) =>
   JSON.stringify(a) === JSON.stringify(b);
 
 /**
@@ -115,49 +118,49 @@ const jsonEsit = (a: SorguParametreleri, b: SorguParametreleri) =>
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
+    SearchSelection,
     FilterPanelComponent,
-    Ikon,
-    MetinGirdisi,
+    Icon,
+    TextInput,
     PlateChipComponent,
     SavedViewChipsComponent,
-    SayfaBandi,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TahsilPaneli,
-    TarihSecici,
+    PageBand,
+    Selection,
+    Table,
+    TableCell,
+    CollectPanel,
+    DatePicker,
   ],
-  providers: [FetchPolicy, KiraListesiStore],
+  providers: [FetchPolicy, RentalListStore],
   templateUrl: './kira-listesi.html',
   styleUrl: './kira-listesi.scss',
 })
-export class KiraListesi {
-  protected readonly store = inject(KiraListesiStore);
-  private readonly oturum = inject(OturumServisi);
+export class RentalList {
+  protected readonly store = inject(RentalListStore);
+  private readonly oturum = inject(SessionService);
   private readonly router = inject(Router);
   private readonly rota = inject(ActivatedRoute);
-  private readonly sayaclar = inject(KabukSayaclari);
+  private readonly counters = inject(ShellCounters);
   private readonly api = inject(ApiIstemcisi);
-  private readonly onay = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly yikim = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly approval = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly teardown = inject(DestroyRef);
+  private readonly t = translationFunction();
 
-  protected readonly liste = listeSorgusuUrlSenkronu(KIRA_LISTESI);
-  protected readonly sutunlar = kiraSutunlari(this.t);
-  protected readonly varsayilanSirala = KIRA_LISTESI.varsayilanSirala;
-  protected readonly kimlik = (r: KiraListeSatiri) => r.id;
-  protected readonly disaAktarmaAdresi = disaAktarmaAdresi;
+  protected readonly liste = listQueryUrlSync(RENTAL_LIST);
+  protected readonly columns = rentalColumns(this.t);
+  protected readonly defaultSort = RENTAL_LIST.varsayilanSirala;
+  protected readonly identity = (r: RentalListRow) => r.id;
+  protected readonly exportUrl = exportUrl;
 
   /** İstanbul'da bugün; her liste yüklemesinde tazelenir (gece yarısını geçen sekme bayat kalmasın). */
-  private readonly gun = computed(() => {
+  private readonly day = computed(() => {
     this.store.liste.durum();
     return bugun();
   });
-  protected readonly satirSinifi = computed(() => {
-    const gun = this.gun();
-    return (s: KiraListeSatiri) => satirSinifi(s, gun);
+  protected readonly rowClass = computed(() => {
+    const day = this.day();
+    return (s: RentalListRow) => rowClass(s, day);
   });
 
   // ---- kayıtlı görünümler (`?gorunum=`; kenar çubuğu aynı parametreyle işaretler)
@@ -165,27 +168,27 @@ export class KiraListesi {
     this.rota.queryParamMap.pipe(map((p) => p.get('gorunum'))),
     { requireSync: true },
   );
-  protected readonly gorunumler = computed<readonly SavedView[]>(() => {
-    const secili = this.gorunum();
-    const sayac = this.sayaclar.sayaclar();
-    const tum: SavedView = {
+  protected readonly views = computed<readonly SavedView[]>(() => {
+    const selected = this.gorunum();
+    const counter = this.counters.counters();
+    const all: SavedView = {
       id: 'tum',
       ad: this.t('kabuk.gorunum.tum'),
-      aktif: secili === null && this.liste.etkinFiltreSayisi() === 0,
+      aktif: selected === null && this.liste.etkinFiltreSayisi() === 0,
       link: '/kiralar',
     };
     return [
-      tum,
-      ...KIRA_GORUNUM_KODLARI.map((kod): SavedView => {
-        const tanim = GORUNUM_TANIMI[kod];
+      all,
+      ...RENTAL_VIEW_CODES.map((code): SavedView => {
+        const definition = VIEW_DEFINITION[code];
         return {
-          id: kod,
-          ad: this.t(tanim.etiket),
-          sayac: tanim.sayac && sayac ? sayac[tanim.sayac] : null,
-          tur: tanim.hata ? 'hata' : undefined,
-          aktif: secili === kod,
+          id: code,
+          ad: this.t(definition.etiket),
+          sayac: definition.sayac && counter ? counter[definition.sayac] : null,
+          tur: definition.hata ? 'hata' : undefined,
+          aktif: selected === code,
           link: '/kiralar',
-          sorgu: this.gorunumSorgusu(kod),
+          sorgu: this.viewQuery(code),
         };
       }),
     ];
@@ -193,19 +196,19 @@ export class KiraListesi {
 
   // ---- izinler (görünürlük; asıl kapı sunucuda). Her kapı DUGME_IZINLERI'nden — UiDugmeIzinTests her girişi
   // tetiklediği ucun izin kapısıyla karşılaştırır (düğme görünür ⇔ uç izin verir).
-  private readonly izin = (ad: DugmeAdi) =>
-    computed(() => this.oturum.izinlerVar(DUGME_IZINLERI[ad].izinler));
-  protected readonly yeniKiraIzni = this.izin('kiraYeni');
-  protected readonly ornekSozlesmeIzni = this.izin('kiraOrnekSozlesme');
-  protected readonly pdfIzni = this.izin('kiraPdf');
-  protected readonly iptalIzni = this.izin('kiraIptal');
-  protected readonly lokasyonSecimIzni = this.izin('kiraSecimLokasyon');
-  protected readonly kaynakSecimIzni = this.izin('kiraSecimKaynak');
-  protected readonly personelSecimIzni = this.izin('kiraSecimPersonel');
+  private readonly izin = (name: ButtonName) =>
+    computed(() => this.oturum.hasPermissions(DUGME_IZINLERI[name].izinler));
+  protected readonly newRentalPermission = this.izin('kiraYeni');
+  protected readonly sampleContractPermission = this.izin('kiraOrnekSozlesme');
+  protected readonly pdfPermission = this.izin('kiraPdf');
+  protected readonly cancelPermission = this.izin('kiraIptal');
+  protected readonly locationSelectionPermission = this.izin('kiraSecimLokasyon');
+  protected readonly sourceSelectionPermission = this.izin('kiraSecimKaynak');
+  protected readonly staffSelectionPermission = this.izin('kiraSecimPersonel');
   private readonly rapor = this.izin('kiraDisaAktar');
 
   /** Dışa aktarma: Blazor liste export ucu; ekrandaki süzgeçler taşınır (sayfa taşınmaz). */
-  protected readonly disaAktarma = computed<DisaAktarma | null>(() =>
+  protected readonly exportItem = computed<DisaAktarma | null>(() =>
     this.rapor()
       ? {
           yol: '/listeler/export/kiralar',
@@ -216,150 +219,152 @@ export class KiraListesi {
   );
 
   /** Bant pill'i: etkin görünüm (ya da "Tüm sözleşmeler"/"Süzgeçli") · kayıt sayısı. */
-  protected readonly bantPill = computed(() => {
-    const kod = this.gorunum();
-    const ad = gorunumKoduMu(kod)
-      ? this.t(GORUNUM_TANIMI[kod].etiket)
+  protected readonly bannerPill = computed(() => {
+    const code = this.gorunum();
+    const name = isViewCode(code)
+      ? this.t(VIEW_DEFINITION[code].etiket)
       : this.liste.etkinFiltreSayisi() > 0
         ? this.t('kiraListesi.bant.suzgecli')
         : this.t('kabuk.gorunum.tum');
     const d = this.store.liste.durum();
     return d.tur === 'hazir'
-      ? this.t('kiraListesi.bant.pill', { ad, adet: sayiBicimle(sayi(d.veri.toplam), '1.0-0') })
-      : ad;
+      ? this.t('kiraListesi.bant.pill', {
+          ad: name,
+          adet: sayiBicimle(count(d.veri.toplam), '1.0-0'),
+        })
+      : name;
   });
 
   /** Bant ikincil metni: şube (süzgeç ya da oturum kapsamı) · tarih aralığı. */
-  protected readonly bantAltMetni = computed(() => {
+  protected readonly bannerSubtext = computed(() => {
     const f = this.liste.sorgu().filtreler;
-    const kapsam = this.oturum.ben()?.subeKapsami;
-    const sube = f.ofis ?? (kapsam && !kapsam.tumSubeler ? kapsam.subeAd : null);
-    const aralik =
+    const scope = this.oturum.ben()?.subeKapsami;
+    const branch = f.ofis ?? (scope && !scope.tumSubeler ? scope.subeAd : null);
+    const range =
       f.basMin || f.basMax
-        ? `${f.basMin ? gunBicimle(f.basMin) : '…'} – ${f.basMax ? gunBicimle(f.basMax) : '…'}`
+        ? `${f.basMin ? formatDay(f.basMin) : '…'} – ${f.basMax ? formatDay(f.basMax) : '…'}`
         : null;
-    const parcalar = [sube, aralik].filter((p): p is string => !!p);
-    return parcalar.length ? parcalar.join(' · ') : null;
+    const parts = [branch, range].filter((p): p is string => !!p);
+    return parts.length ? parts.join(' · ') : null;
   });
 
   protected readonly ozet = computed(() => {
     const o = this.store.ozet.veri();
     return o
       ? this.t('kiraListesi.ozet', {
-          toplam: sayiBicimle(sayi(o.toplam), '1.0-0'),
-          kirada: sayiBicimle(sayi(o.kirada), '1.0-0'),
-          faturasiz: sayiBicimle(sayi(o.faturasiz), '1.0-0'),
+          toplam: sayiBicimle(count(o.toplam), '1.0-0'),
+          kirada: sayiBicimle(count(o.kirada), '1.0-0'),
+          faturasiz: sayiBicimle(count(o.faturasiz), '1.0-0'),
         })
       : null;
   });
 
   // ---- süzgeç formu (uygula düğmesiyle; URL'e yazılır, URL'den geri okunur)
-  protected readonly filtreFormu = new FormGroup({
+  protected readonly filterForm = new FormGroup({
     q: new FormControl<string | null>(null),
-    durum: new FormControl<KiraDurumu | null>(null),
+    durum: new FormControl<RentalStatus | null>(null),
     fatura: new FormControl<boolean | null>(null),
-    tarihTuru: new FormControl<TarihTuru | null>(null),
+    tarihTuru: new FormControl<DateType | null>(null),
     basMin: new FormControl<string | null>(null),
     basMax: new FormControl<string | null>(null),
     ofis: new FormControl<SecimSecenegi | null>(null),
-    ofisDurum: new FormControl<OfisDurumu | null>(null),
+    ofisDurum: new FormControl<OfficeStatus | null>(null),
     sahip: new FormControl<string | null>(null),
     grup: new FormControl<string | null>(null),
     kaynak: new FormControl<SecimSecenegi | null>(null),
     personel: new FormControl<SecimSecenegi | null>(null),
   });
 
-  protected readonly durumSecenekleri: readonly SecenekOgesi<KiraDurumu>[] = KIRA_DURUMLARI.map(
+  protected readonly statusOptions: readonly SecenekOgesi<RentalStatus>[] = RENTAL_STATUSES.map(
     (d) => ({ deger: d, etiket: this.t(`kiraListesi.durumlar.${d}`) }),
   );
-  protected readonly faturaSecenekleri: readonly SecenekOgesi<boolean>[] = [
+  protected readonly invoiceOptions: readonly SecenekOgesi<boolean>[] = [
     { deger: true, etiket: this.t('kiraListesi.filtre.faturali') },
     { deger: false, etiket: this.t('kiraListesi.filtre.faturasiz') },
   ];
-  protected readonly tarihTuruSecenekleri: readonly SecenekOgesi<TarihTuru>[] = TARIH_TURLERI.map(
-    (d) => ({ deger: d, etiket: this.t(`kiraListesi.tarihTurleri.${d}`) }),
+  protected readonly dateTypeOptions: readonly SecenekOgesi<DateType>[] = DATE_TYPES.map((d) => ({
+    deger: d,
+    etiket: this.t(`kiraListesi.tarihTurleri.${d}`),
+  }));
+  protected readonly officeStatusOptions: readonly SecenekOgesi<OfficeStatus>[] =
+    OFFICE_STATUSES.map((d) => ({ deger: d, etiket: this.t(`kiraListesi.ofisDurumlari.${d}`) }));
+  protected readonly ownerOptions = computed(() =>
+    this.textOptions(this.store.options.veri()?.sahipler, this.liste.sorgu().filtreler.sahip),
   );
-  protected readonly ofisDurumSecenekleri: readonly SecenekOgesi<OfisDurumu>[] = OFIS_DURUMLARI.map(
-    (d) => ({ deger: d, etiket: this.t(`kiraListesi.ofisDurumlari.${d}`) }),
-  );
-  protected readonly sahipSecenekleri = computed(() =>
-    this.metinSecenekleri(
-      this.store.secenekler.veri()?.sahipler,
-      this.liste.sorgu().filtreler.sahip,
-    ),
-  );
-  protected readonly grupSecenekleri = computed(() =>
-    this.metinSecenekleri(this.store.secenekler.veri()?.gruplar, this.liste.sorgu().filtreler.grup),
+  protected readonly groupOptions = computed(() =>
+    this.textOptions(this.store.options.veri()?.gruplar, this.liste.sorgu().filtreler.grup),
   );
 
   // Seçim uçları OperationsWrite ister; bu alanlar yalnız o izinle çizilir (Muhasebe'de 403 bandı olmasın).
-  protected readonly lokasyonlar = sunucuSecimKaynagi('lokasyon');
-  protected readonly kaynaklar = sunucuSecimKaynagi('rezervasyon-kaynagi');
-  protected readonly personeller = sunucuSecimKaynagi('personel');
+  protected readonly lokasyonlar = serverSelectionSource('lokasyon');
+  protected readonly sources = serverSelectionSource('rezervasyon-kaynagi');
+  protected readonly staff = serverSelectionSource('personel');
   /** Seçilen personelin etiketi (URL'de yalnız kimlik durur — ad yazılmaz). Yalnız bellekte. */
-  private readonly personelEtiketleri = new Map<string, string>();
+  private readonly staffLabels = new Map<string, string>();
 
   // ---- satır işlemleri
-  protected readonly tahsilSatiri = signal<KiraListeSatiri | null>(null);
+  protected readonly collectRow = signal<RentalListRow | null>(null);
   /** Yeni anahtarı beklenen açık tahsil panelinin kirası (3. tur M-A). */
-  private anahtarBekleyen: string | null = null;
-  private readonly tahsilPaneli = viewChild(TahsilPaneli);
+  private keyPending: string | null = null;
+  private readonly tahsilPaneli = viewChild(CollectPanel);
   /** Tahsilat isteği uçarken başka satır açılamaz (uçan istek iptal edilip sonucu kaybolmasın). */
-  protected readonly tahsilSuruyor = computed(() => this.tahsilPaneli()?.gonderiliyor() ?? false);
-  protected readonly iptalEdilen = signal<string | null>(null);
+  protected readonly isCollectInProgress = computed(
+    () => this.tahsilPaneli()?.submitting() ?? false,
+  );
+  protected readonly cancelled = signal<string | null>(null);
 
   constructor() {
-    const politika = inject(FetchPolicy);
-    politika.baglan({
+    const policy = inject(FetchPolicy);
+    policy.connect({
       parametre: this.liste.apiParametreleri,
       yukle: (p) => this.store.liste.yukle(p),
-      sifirla: () => this.store.liste.sifirla(),
+      sifirla: () => this.store.liste.reset(),
       // Bakiye ve tahsilat anahtarı başka sekmede (kira formu, panel) değişebilir: dönüşte taze veri.
       sekmeyeDonunce: 'yenile',
     });
-    politika.baglan({
-      parametre: computed(() => ozetParametreleri(this.liste.apiParametreleri()), {
-        equal: jsonEsit,
+    policy.connect({
+      parametre: computed(() => summaryParameters(this.liste.apiParametreleri()), {
+        equal: jsonEqual,
       }),
       yukle: (p) => this.store.ozet.yukle(p),
-      sifirla: () => this.store.ozet.sifirla(),
+      sifirla: () => this.store.ozet.reset(),
       sekmeyeDonunce: 'yenile',
-      esit: jsonEsit,
+      esit: jsonEqual,
     });
-    politika.baglan({
+    policy.connect({
       parametre: signal(0).asReadonly(),
-      yukle: () => this.store.secenekler.yukle(),
-      sifirla: () => this.store.secenekler.sifirla(),
+      yukle: () => this.store.options.yukle(),
+      sifirla: () => this.store.options.reset(),
     });
 
-    this.gorunumOnAyariniUygula();
+    this.applyViewPreset();
 
     // URL → form (geri/ileri tuşu, paylaşılan bağlantı, "Temizle").
     effect(() => {
       const f = this.liste.sorgu().filtreler;
-      untracked(() => this.filtreFormu.reset(this.formDegeri(f)));
+      untracked(() => this.filterForm.reset(this.formValue(f)));
     });
 
     // Açık tahsilat paneli bayat veriyle kalmasın: liste yenilenince satır yoksa ya da sunucu yeni
     // anahtar verdiyse (bakiye/işlem sayısı değişti) panel kapanır; kullanıcı güncel satırdan yeniden açar.
     effect(() => {
-      const acik = this.tahsilSatiri();
-      const durum = this.store.liste.durum();
-      if (acik === null || durum.tur !== 'hazir' || this.tahsilSuruyor()) return;
-      const guncel = durum.veri.kayitlar.find((r) => r.id === acik.id);
+      const open = this.collectRow();
+      const status = this.store.liste.durum();
+      if (open === null || status.tur !== 'hazir' || this.isCollectInProgress()) return;
+      const current = status.veri.kayitlar.find((r) => r.id === open.id);
       // M-A: "başka tahsilat yazıldı" sonrası beklenen tazeleme → panel AÇIK kalır, güncel satırı (yeni anahtar)
       // alır; yazılan tutar panelde korunur.
-      if (this.anahtarBekleyen === acik.id) {
-        this.anahtarBekleyen = null;
-        if (guncel?.tahsilat) {
-          untracked(() => this.tahsilSatiri.set(guncel));
+      if (this.keyPending === open.id) {
+        this.keyPending = null;
+        if (current?.tahsilat) {
+          untracked(() => this.collectRow.set(current));
           return;
         }
       }
-      if (guncel?.tahsilat && guncel.tahsilat.anahtar === acik.tahsilat?.anahtar) return;
+      if (current?.tahsilat && current.tahsilat.anahtar === open.tahsilat?.anahtar) return;
       untracked(() => {
-        this.tahsilSatiri.set(null);
-        this.toast.uyari(this.t('kiraListesi.tahsil.satirDegisti', { no: acik.sozlesmeNo }));
+        this.collectRow.set(null);
+        this.toast.uyari(this.t('kiraListesi.tahsil.satirDegisti', { no: open.sozlesmeNo }));
       });
     });
   }
@@ -367,14 +372,14 @@ export class KiraListesi {
   // ------------------------------------------------------------------ kayıtlı görünüm
 
   /** Görünüm bağlantısı: `gorunum` + ön ayarın URL süzgeçleri (liste ilk istekte doğru süzgeçle yüklenir). */
-  private gorunumSorgusu(kod: KiraGorunumKodu): Record<string, string | null> {
-    const temel = sorguyuCoz(KIRA_LISTESI, {});
+  private viewQuery(code: RentalViewCode): Record<string, string | null> {
+    const baseline = parseQuery(RENTAL_LIST, {});
     return {
-      ...urlParametreleri(KIRA_LISTESI, {
-        ...temel,
-        filtreler: gorunumFiltreleri(kod, this.gun()),
+      ...urlParameters(RENTAL_LIST, {
+        ...baseline,
+        filtreler: viewFilters(code, this.day()),
       }),
-      gorunum: kod,
+      gorunum: code,
     };
   }
 
@@ -383,40 +388,40 @@ export class KiraListesi {
    * çubuğu bağlantısı yalnız `gorunum` taşır); kullanıcı süzgeci sonra değiştirirse `gorunum` URL'den düşer
    * (çip ve kenar çubuğu artık o görünümü işaretlemez). Bilinmeyen kod düşürülür. URL tek doğruluk kaynağı kalır.
    */
-  private gorunumOnAyariniUygula(): void {
-    let uygulanan: KiraGorunumKodu | null = null;
-    let bekliyor = false;
+  private applyViewPreset(): void {
+    let applied: RentalViewCode | null = null;
+    let waiting = false;
     effect(() => {
-      const kod = this.gorunum();
-      const filtreler = this.liste.sorgu().filtreler;
+      const code = this.gorunum();
+      const filters = this.liste.sorgu().filtreler;
       untracked(() => {
-        if (bekliyor) return;
-        if (kod === null) {
-          uygulanan = null;
+        if (waiting) return;
+        if (code === null) {
+          applied = null;
           return;
         }
-        if (!gorunumKoduMu(kod)) {
-          this.gorunumuDusur();
+        if (!isViewCode(code)) {
+          this.dropView();
           return;
         }
-        const onAyar = gorunumFiltreleri(kod, bugun());
-        const ayni = suzgeclerAyni(filtreler, onAyar);
-        if (kod !== uygulanan) {
-          uygulanan = kod;
-          if (!ayni) {
-            bekliyor = true;
+        const preset = viewFilters(code, bugun());
+        const same = filtersEqual(filters, preset);
+        if (code !== applied) {
+          applied = code;
+          if (!same) {
+            waiting = true;
             void this.liste
-              .degistir({ filtreler: tumSuzgecler(onAyar) }, { yaziyor: true })
-              .finally(() => (bekliyor = false));
+              .degistir({ filtreler: allFilters(preset) }, { yaziyor: true })
+              .finally(() => (waiting = false));
           }
           return;
         }
-        if (!ayni) this.gorunumuDusur();
+        if (!same) this.dropView();
       });
     });
   }
 
-  private gorunumuDusur(): void {
+  private dropView(): void {
     void this.router.navigate([], {
       relativeTo: this.rota,
       queryParams: { gorunum: null },
@@ -428,9 +433,9 @@ export class KiraListesi {
 
   // ------------------------------------------------------------------ süzgeç
 
-  protected filtrele(): void {
-    const v = this.filtreFormu.getRawValue();
-    if (v.personel) this.personelEtiketleri.set(v.personel.id, v.personel.etiket);
+  protected filter(): void {
+    const v = this.filterForm.getRawValue();
+    if (v.personel) this.staffLabels.set(v.personel.id, v.personel.etiket);
     void this.liste.degistir({
       filtreler: {
         q: v.q ?? undefined,
@@ -449,13 +454,13 @@ export class KiraListesi {
     });
   }
 
-  protected temizle(): void {
+  protected clear(): void {
     void this.liste.sifirla();
   }
 
-  private formDegeri(f: KiraFiltreleri) {
-    const secenek = (deger: string | undefined): SecimSecenegi | null =>
-      deger === undefined ? null : { id: deger, etiket: deger };
+  private formValue(f: RentalFilters) {
+    const option = (value: string | undefined): SecimSecenegi | null =>
+      value === undefined ? null : { id: value, etiket: value };
     return {
       q: f.q ?? null,
       durum: f.durum ?? null,
@@ -463,109 +468,108 @@ export class KiraListesi {
       tarihTuru: f.tarihTuru ?? null,
       basMin: f.basMin ?? null,
       basMax: f.basMax ?? null,
-      ofis: secenek(f.ofis),
+      ofis: option(f.ofis),
       ofisDurum: f.ofisDurum ?? null,
       sahip: f.sahip ?? null,
       grup: f.grup ?? null,
-      kaynak: secenek(f.kaynak),
+      kaynak: option(f.kaynak),
       personel:
         f.personelId === undefined
           ? null
           : {
               id: f.personelId,
               etiket:
-                this.personelEtiketleri.get(f.personelId) ??
-                this.t('kiraListesi.filtre.seciliPersonel'),
+                this.staffLabels.get(f.personelId) ?? this.t('kiraListesi.filtre.seciliPersonel'),
             },
     };
   }
 
   /** Sunucu öneri listesi + URL'deki değer (listede yoksa da görünsün; seçim kutusu boş kalmasın). */
-  private metinSecenekleri(
-    liste: readonly string[] | undefined,
-    secili: string | undefined,
+  private textOptions(
+    list: readonly string[] | undefined,
+    selected: string | undefined,
   ): readonly SecenekOgesi<string>[] {
-    const degerler = [...(liste ?? [])];
-    if (secili !== undefined && !degerler.includes(secili)) degerler.unshift(secili);
-    return degerler.map((d) => ({ deger: d, etiket: d }));
+    const values = [...(list ?? [])];
+    if (selected !== undefined && !values.includes(selected)) values.unshift(selected);
+    return values.map((d) => ({ deger: d, etiket: d }));
   }
 
   // ------------------------------------------------------------------ satır
 
-  protected satiriAc(satir: KiraListeSatiri): void {
-    void this.router.navigate(['/kiralar', satir.id]);
+  protected openRow(row: RentalListRow): void {
+    void this.router.navigate(['/kiralar', row.id]);
   }
 
-  protected durumGorunumu(satir: KiraListeSatiri): SatirGorunumu {
-    return satirGorunumu(satir, this.gun());
+  protected statusView(row: RentalListRow): RowView {
+    return rowView(row, this.day());
   }
 
-  protected rozet(g: SatirGorunumu): string {
-    return rozetSinifi(g);
+  protected rozet(g: RowView): string {
+    return badgeClass(g);
   }
 
-  protected durumEtiketi(g: SatirGorunumu): string {
+  protected statusLabel(g: RowView): string {
     if (g.tur === 'gecikmis') {
       return this.t('kiraListesi.gecikti', { gun: sayiBicimle(g.gun, '1.0-0') });
     }
     if (g.tur === 'bugunDonuyor') return this.t('kiraListesi.bugunDonuyor');
-    return (KIRA_DURUMLARI as readonly string[]).includes(g.durum)
-      ? this.t(`kiraListesi.durumlar.${g.durum as KiraDurumu}`)
+    return (RENTAL_STATUSES as readonly string[]).includes(g.durum)
+      ? this.t(`kiraListesi.durumlar.${g.durum as RentalStatus}`)
       : g.durum;
   }
 
   /** Blazor sözleşme PDF'i (tarayıcıda görüntülenir; SPA'ya yönlenmez). */
-  protected pdfAdresi(satir: KiraListeSatiri): string {
-    return `/kiralar/${encodeURIComponent(satir.id)}/pdf`;
+  protected pdfUrl(row: RentalListRow): string {
+    return `/kiralar/${encodeURIComponent(row.id)}/pdf`;
   }
 
-  protected tahsilAc(satir: KiraListeSatiri): void {
-    if (this.tahsilSuruyor() || satir.tahsilat === null) return;
-    this.tahsilSatiri.set(satir);
+  protected openCollect(row: RentalListRow): void {
+    if (this.isCollectInProgress() || row.tahsilat === null) return;
+    this.collectRow.set(row);
   }
 
-  protected tahsilKapat(): void {
-    if (this.tahsilSuruyor()) return;
-    this.tahsilSatiri.set(null);
+  protected closeCollect(): void {
+    if (this.isCollectInProgress()) return;
+    this.collectRow.set(null);
   }
 
   /** M-A: panel açık kalır; liste yeniden yüklenince açık satır güncel hâliyle (yeni anahtar) değişir. */
-  protected tahsilAnahtariniTazele(): void {
-    this.anahtarBekleyen = this.tahsilSatiri()?.id ?? null;
+  protected refreshCollectKey(): void {
+    this.keyPending = this.collectRow()?.id ?? null;
     this.yenile();
   }
 
   /** 2xx ya da 409 `mukerrer`: panel kapanır, liste (yeni anahtarla) yeniden yüklenir. Yeniden gönderim YOK. */
-  protected tahsilSonuclandi(): void {
-    this.tahsilSatiri.set(null);
+  protected collectSettled(): void {
+    this.collectRow.set(null);
     this.yenile();
   }
 
-  protected async iptal(satir: KiraListeSatiri): Promise<void> {
-    if (this.iptalEdilen() !== null) return;
-    const evet = await this.onay.sor({
+  protected async iptal(row: RentalListRow): Promise<void> {
+    if (this.cancelled() !== null) return;
+    const yes = await this.approval.ask({
       baslik: this.t('kiraListesi.iptalBaslik'),
-      mesaj: this.t('kiraListesi.iptalMesaj', { no: satir.sozlesmeNo }),
+      mesaj: this.t('kiraListesi.iptalMesaj', { no: row.sozlesmeNo }),
       onayEtiketi: this.t('kiraListesi.iptalOnay'),
       tehlikeli: true,
     });
-    if (!evet || this.iptalEdilen() !== null) return;
-    this.iptalEdilen.set(satir.id);
+    if (!yes || this.cancelled() !== null) return;
+    this.cancelled.set(row.id);
     this.api
-      .post<unknown>(`/api/ui/v1/kiralar/${satir.id}/iptal`, null)
+      .post<unknown>(`/api/ui/v1/kiralar/${row.id}/iptal`, null)
       .pipe(
-        finalize(() => this.iptalEdilen.set(null)),
-        takeUntilDestroyed(this.yikim),
+        finalize(() => this.cancelled.set(null)),
+        takeUntilDestroyed(this.teardown),
       )
       .subscribe({
         next: () => {
-          this.toast.basari(this.t('kiraListesi.iptalEdildi', { no: satir.sozlesmeNo }));
+          this.toast.basari(this.t('kiraListesi.iptalEdildi', { no: row.sozlesmeNo }));
           this.yenile();
         },
-        error: (ham: unknown) => {
+        error: (raw: unknown) => {
           // Bant/toast'ta gösterilenler (yetki, 5xx…) interceptor'da; iş kuralı hatası (400) burada.
-          const hata = apiHatasinaCevir(ham);
-          if (!genelGosterilir(hata)) this.toast.hata(hata.detay);
+          const error = toApiError(raw);
+          if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.yenile();
         },
       });

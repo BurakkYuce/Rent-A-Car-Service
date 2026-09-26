@@ -8,7 +8,7 @@
     </rc-alan>
   </div>
 
-  @if (cariId(); as id) {
+  @if (customerId(); as id) {
     @if (balance.veri(); as b) {
       <section class="rc-bolum" aria-labelledby="rc-nakit-cari">
         <h2 id="rc-nakit-cari">{{ b.cariAd }}</h2>
@@ -32,14 +32,14 @@
           kind="tahsilat"
           withDate
           [balance]="balance.veri()?.bakiye ?? null"
-          [refreshing]="balance.yukleniyor()"
+          [refreshing]="balance.isLoading()"
           (settled)="reload()"
         />
         <rc-fin-cash-form
           [cariId]="key"
           kind="odeme"
           withDate
-          [refreshing]="balance.yukleniyor()"
+          [refreshing]="balance.isLoading()"
           (settled)="reload()"
         />
       </div>

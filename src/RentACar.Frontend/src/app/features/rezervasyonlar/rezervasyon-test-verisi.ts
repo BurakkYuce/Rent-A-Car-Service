@@ -1,21 +1,21 @@
-import type { RezervasyonDetayYaniti, RezervasyonDto } from './rezervasyon-modeli';
+import type { ReservationDetailResponse, ReservationDto } from './rezervasyon-modeli';
 
 /**
  * Birim testlerinin elle kurulmuş sunucu kaydı (bağımsız oracle: beklenen değerler buradan, model kodundan
  * türetilmez). Uygulama kodu bunu içe aktarmaz.
  */
-export const REZ_ID = '0b0e7c1a-7777-4aaa-8bbb-000000000007';
-export const MUSTERI_ID = '0b0e7c1a-2222-4aaa-8bbb-000000000002';
-export const ARAC_ID = '0b0e7c1a-3333-4aaa-8bbb-000000000003';
+export const RES_ID = '0b0e7c1a-7777-4aaa-8bbb-000000000007';
+export const CUSTOMER_ID = '0b0e7c1a-2222-4aaa-8bbb-000000000002';
+export const VEHICLE_ID = '0b0e7c1a-3333-4aaa-8bbb-000000000003';
 
-export function rezervasyonDto(ek: Partial<RezervasyonDto> = {}): RezervasyonDto {
+export function reservationDto(extra: Partial<ReservationDto> = {}): ReservationDto {
   return {
-    id: REZ_ID,
+    id: RES_ID,
     no: 'RZ-000042',
     durum: 'Rezerv',
     surum: '812',
-    musteriId: MUSTERI_ID,
-    vehicleId: ARAC_ID,
+    musteriId: CUSTOMER_ID,
+    vehicleId: VEHICLE_ID,
     basTar: '2026-10-01T06:00:00+00:00',
     bitTar: '2026-10-04T06:00:00+00:00',
     cikisOfisi: 'Merkez',
@@ -55,13 +55,13 @@ export function rezervasyonDto(ek: Partial<RezervasyonDto> = {}): RezervasyonDto
     projeAdi: 'Fuar',
     kiraId: null,
     olusturmaUtc: '2026-09-20T08:00:00+00:00',
-    ...ek,
+    ...extra,
   };
 }
 
-export function rezervasyonDetayi(ek: Partial<RezervasyonDto> = {}): RezervasyonDetayYaniti {
+export function reservationDetail(extra: Partial<ReservationDto> = {}): ReservationDetailResponse {
   return {
-    rezervasyon: rezervasyonDto(ek),
+    rezervasyon: reservationDto(extra),
     musteriAd: 'Ayşe Yılmaz',
     plaka: '34 ABC 123',
     yetkiler: { duzenle: true, onayla: true, kirayaCevir: true, iptal: true },

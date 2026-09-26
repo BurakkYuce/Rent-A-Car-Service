@@ -10,16 +10,16 @@ import { FormGroup } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type ImportCounts = Sema<'ImportCountsDto'>;
+type ImportCounts = Schema<'ImportCountsDto'>;
 export type ImportKind = 'arac' | 'cari';
 
 /** Sunucu sınırıyla aynı (5 MB); daha büyüğü gönderilmeden reddedilir. */
@@ -34,14 +34,14 @@ const ACCEPT = '.xlsx,.xls,.csv';
 @Component({
   selector: 'rc-import-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, FormHatalari, SayfaBandi],
+  imports: [TranslocoPipe, FormErrors, PageBand],
   styleUrl: '../definitions.scss',
   templateUrl: './import-page.html',
 })
 export class ImportPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   protected readonly accept = ACCEPT;
   protected readonly kinds: readonly ImportKind[] = ['arac', 'cari'];
@@ -58,13 +58,13 @@ export class ImportPage {
     cari: signal<ImportCounts | null>(null),
   };
   private readonly forms = { arac: new FormGroup({}), cari: new FormGroup({}) };
-  protected readonly submits = { arac: formGonderimi(), cari: formGonderimi() };
+  protected readonly submits = { arac: formSubmission(), cari: formSubmission() };
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.files.arac() !== null || this.files.cari() !== null;
   }
 

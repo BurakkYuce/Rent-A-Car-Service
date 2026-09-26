@@ -14,37 +14,37 @@ import { Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { readAllocationPrefill } from '@features/vehicles/allocation-prefill';
 import { suggestionList } from '@features/vehicles/suggestions';
-import { secimSuggestionFetch } from '@features/vehicles/vehicle.store';
+import { selectionSuggestionFetch } from '@features/vehicles/vehicle.store';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { allocationColumns } from '../finance-columns';
 import {
@@ -63,7 +63,7 @@ import {
   emptyAllocation,
 } from './allocation-model';
 import { AllocationReturnPanel } from './allocation-return-panel';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -81,39 +81,39 @@ type AllocationLocation = (typeof ALLOCATION_LOCATIONS)[number];
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
     AllocationReturnPanel,
-    AramaSecim,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    OnayKutusu,
-    SayiGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    Icon,
+    TextInput,
+    Checkbox,
+    NumberInput,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, AllocationStore],
   templateUrl: './allocation-list.html',
   styleUrl: '../vehicle-finance.scss',
 })
-export class AllocationList implements KaydedilmemisDegisiklikSahibi {
+export class AllocationList implements UnsavedChangesOwner {
   protected readonly store = inject(AllocationStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly session = inject(SessionService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(ALLOCATION_LIST);
+  protected readonly query = listQueryUrlSync(ALLOCATION_LIST);
   protected readonly rowId = (r: Allocation) => r.id;
-  protected readonly staff = sunucuSecimKaynagi('personel');
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
+  protected readonly staff = serverSelectionSource('personel');
+  protected readonly vehicles = serverSelectionSource('arac');
   protected readonly canCancel = computed(() => this.session.izinVar('OperationsDelete'));
   protected readonly busy = signal<string | null>(null);
   protected readonly createOpen = signal(false);
@@ -162,18 +162,18 @@ export class AllocationList implements KaydedilmemisDegisiklikSahibi {
     kirayaVer: new FormControl<boolean | null>(false),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
   protected readonly branchSuggestions = suggestionList(
     this.form.controls.sube,
-    secimSuggestionFetch(this.api, 'sube'),
+    selectionSuggestionFetch(this.api, 'sube'),
   );
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -208,10 +208,10 @@ export class AllocationList implements KaydedilmemisDegisiklikSahibi {
       });
       this.createOpen.set(true);
     }
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.createOpen() && this.form.dirty;
   }
 
@@ -288,7 +288,7 @@ export class AllocationList implements KaydedilmemisDegisiklikSahibi {
 
   protected async cancel(row: Allocation): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('aracFinans.baf.iptalBaslik'),
       mesaj: this.t('aracFinans.baf.iptalMesaj', { no: row.no }),
       onayEtiketi: this.t('aracFinans.baf.iptal'),
@@ -309,7 +309,7 @@ export class AllocationList implements KaydedilmemisDegisiklikSahibi {
           this.store.list.yenile();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.store.list.yenile();
         },

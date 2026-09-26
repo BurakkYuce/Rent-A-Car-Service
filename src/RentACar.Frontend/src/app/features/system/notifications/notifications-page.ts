@@ -4,17 +4,17 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { Observable } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { Schema } from '@core/api/ui-tipleri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { TemelStore } from '@core/veri/temel-store';
-import { TarihPipe, TarihSaatPipe } from '@shared/bicim/bicim-pipe';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type NotificationCenter = Sema<'NotificationCenterDto'>;
-type NotificationItem = Sema<'NotificationDto'>;
+type NotificationCenter = Schema<'NotificationCenterDto'>;
+type NotificationItem = Schema<'NotificationDto'>;
 type ReadFilter = 'hepsi' | 'okunmamis' | 'okunmus';
 
 const ROOT = '/api/ui/v1/bildirimler' as const;
@@ -31,15 +31,15 @@ export function readParam(f: ReadFilter): boolean | null {
 @Component({
   selector: 'rc-notifications-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, RouterLink, TranslocoPipe, TarihPipe, TarihSaatPipe],
+  imports: [PageBand, RouterLink, TranslocoPipe, DatePipe, DateTimePipe],
   styleUrl: '../system.scss',
   templateUrl: './notifications-page.html',
 })
 export class NotificationsPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly filter = signal<ReadFilter>('okunmamis');
   protected readonly filters: readonly ReadFilter[] = ['okunmamis', 'okunmus', 'hepsi'];
@@ -79,7 +79,7 @@ export class NotificationsPage {
       },
       error: (e: unknown) => {
         this.busy.set(false);
-        this.actionError.set(apiHatasinaCevir(e).detay);
+        this.actionError.set(toApiError(e).detay);
       },
     });
   }

@@ -11,22 +11,22 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { ParaPipe, SayiPipe, TarihPipe, TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, NumberPipe, DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { Ikon } from '@shared/ikon/ikon';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { Icon } from '@shared/ikon/icon';
 
 import { SCORECARD_ROLES } from '../vehicle-guards';
 import { STATUS_BADGE, toNumber, vehicleStatus } from '../vehicle-model';
 import { VehicleDetailStore } from '../vehicle.store';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /** KM kaydı kaynağı → etiket anahtarı (Blazor: Kira dönüşü / Servis çıkışı / Manuel). */
@@ -48,18 +48,18 @@ export function kmSourceKey(
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PlateChipComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    Ikon,
-    ParaPipe,
-    SayiGirdisi,
-    SayiPipe,
-    TarihPipe,
-    TarihSaatPipe,
+    FormErrors,
+    Icon,
+    MoneyPipe,
+    NumberInput,
+    NumberPipe,
+    DatePipe,
+    DateTimePipe,
   ],
   providers: [FetchPolicy, VehicleDetailStore],
   templateUrl: './vehicle-detail.html',
@@ -68,10 +68,10 @@ export function kmSourceKey(
 export class VehicleDetail {
   protected readonly store = inject(VehicleDetailStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
+  private readonly session = inject(SessionService);
+  private readonly toast = inject(ToastService);
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
 
   protected readonly detail = computed(() => this.store.detail.veri() ?? null);
@@ -85,13 +85,13 @@ export class VehicleDetail {
   protected readonly kmForm = new FormGroup({
     km: new FormControl<number | null>(null, [Validators.required, Validators.min(0)]),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: signal(this.id).asReadonly(),
       yukle: (id) => this.store.detail.yukle(id),
-      sifirla: () => this.store.detail.sifirla(),
+      sifirla: () => this.store.detail.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {

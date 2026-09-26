@@ -103,7 +103,7 @@
           <rc-policy-pay-panel
             [policy]="d.police"
             [accounts]="store.accounts.veri() ?? []"
-            [refreshing]="store.detail.yukleniyor()"
+            [refreshing]="store.detail.isLoading()"
             (settled)="reload()"
           />
         }

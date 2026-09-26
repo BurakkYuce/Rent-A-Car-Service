@@ -9,7 +9,7 @@
     </rc-alan>
   </div>
 
-  @if (cariId(); as id) {
+  @if (customerId(); as id) {
     <section class="rc-bolum" aria-labelledby="rc-duzeltme-form">
       <h2 id="rc-duzeltme-form">{{ balance.veri()?.cariAd ?? '' }}</h2>
       @if (balance.veri(); as b) {
@@ -70,7 +70,7 @@
         [submission]="action"
         ikon="cash"
         [label]="'finans.duzeltme.kaydet' | transloco"
-        [disabled]="balance.yukleniyor()"
+        [disabled]="balance.isLoading()"
         (send)="submit()"
         (abandoned)="balance.yenile()"
       />

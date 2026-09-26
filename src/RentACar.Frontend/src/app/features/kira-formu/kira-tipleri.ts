@@ -1,5 +1,5 @@
-import type { Sema } from '@core/api/ui-tipleri';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { Schema } from '@core/api/ui-tipleri';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
 /**
  * Kira formu (F4.3) sözleşme tipleri — `docs/api/ui-v1.json`'dan üretilen şemaların takma adları.
@@ -10,41 +10,41 @@ import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
  * isteğe bağlı görünür; sunucu (varsayılan System.Text.Json, yok-sayma koşulu yok) HER alanı yazar —
  * null dahil. Burada o gerçek tipe daraltılır (`?` kalkar, `null` kalır).
  */
-export type KiraSozlesmesi = Required<Sema<'KiraSozlesmesiDto'>>;
-export type KiraDetayYaniti = Omit<Sema<'KiraDetayYaniti'>, 'kira'> & {
-  readonly kira: KiraSozlesmesi;
+export type RentalContract = Required<Schema<'KiraSozlesmesiDto'>>;
+export type RentalDetailResponse = Omit<Schema<'KiraDetayYaniti'>, 'kira'> & {
+  readonly kira: RentalContract;
 };
-export type KiraOlusturIstegi = Sema<'KiraOlusturIstegi'>;
-export type KiraOlusturYaniti = Sema<'KiraOlusturYaniti'>;
-export type KiraGuncelleIstegi = Sema<'KiraGuncelleIstegi'>;
-export type KiraHesapSonuc = Sema<'KiraHesapSonuc'>;
-export type KiraFormVarsayilanlari = Sema<'KiraFormVarsayilanlari'>;
-export type MusaitArac = Sema<'MusaitAracDto'>;
-export type KiraAraci = Sema<'KiraAracDto'>;
-export type KiraDonusOnizleme = Sema<'KiraDonusOnizleme'>;
-export type EkHizmetKalemi = Sema<'EkHizmetKalemiDto'>;
-export type KiraEkHizmetYaniti = Sema<'KiraEkHizmetYaniti'>;
-export type KaynakRezervasyonYaniti = Sema<'KaynakRezervasyonYaniti'>;
-export type KarneOzeti = Sema<'KarneOzetiDto'>;
-export type MusteriHizliIstegi = Sema<'MusteriHizliIstegi'>;
-export type MusteriHizliYaniti = Sema<'MusteriHizliYaniti'>;
-export type TeslimIstegi = Sema<'TeslimIstegi'>;
-export type DonusIstegi = Sema<'DonusIstegi'>;
-export type UzatIstegi = Sema<'UzatIstegi'>;
-export type ProvizyonKapatIstegi = Sema<'ProvizyonKapatIstegi'>;
-export type EkHizmetEkleIstegi = Sema<'EkHizmetEkleIstegi'>;
+export type CreateRentalRequest = Schema<'KiraOlusturIstegi'>;
+export type CreateRentalResponse = Schema<'KiraOlusturYaniti'>;
+export type UpdateRentalRequest = Schema<'KiraGuncelleIstegi'>;
+export type RentalCalculationResult = Schema<'KiraHesapSonuc'>;
+export type RentalFormDefaults = Schema<'KiraFormVarsayilanlari'>;
+export type AvailableVehicle = Schema<'MusaitAracDto'>;
+export type RentalVehicle = Schema<'KiraAracDto'>;
+export type RentalReturnPreview = Schema<'KiraDonusOnizleme'>;
+export type AddOnItem = Schema<'EkHizmetKalemiDto'>;
+export type RentalAddOnResponse = Schema<'KiraEkHizmetYaniti'>;
+export type SourceReservationResponse = Schema<'KaynakRezervasyonYaniti'>;
+export type ScorecardSummary = Schema<'KarneOzetiDto'>;
+export type QuickCustomerRequest = Schema<'MusteriHizliIstegi'>;
+export type QuickCustomerResponse = Schema<'MusteriHizliYaniti'>;
+export type DeliveryRequest = Schema<'TeslimIstegi'>;
+export type ReturnRequest = Schema<'DonusIstegi'>;
+export type ExtendRequest = Schema<'UzatIstegi'>;
+export type ClosePreAuthRequest = Schema<'ProvizyonKapatIstegi'>;
+export type AddAddOnRequest = Schema<'EkHizmetEkleIstegi'>;
 // F4.3b parite ekleri
-export type KiraMusteriOzeti = Sema<'KiraMusteriOzeti'>;
-export type KiraToplamlari = Sema<'KiraToplamlari'>;
-export type KiraEkHizmetKatalogu = Sema<'KiraEkHizmetKatalogu'>;
-export type EkHizmetKatalogOgesi = Sema<'EkHizmetKatalogOgesi'>;
+export type RentalCustomerSummary = Schema<'KiraMusteriOzeti'>;
+export type RentalTotals = Schema<'KiraToplamlari'>;
+export type RentalAddOnCatalog = Schema<'KiraEkHizmetKatalogu'>;
+export type AddOnCatalogItem = Schema<'EkHizmetKatalogOgesi'>;
 /** `GET /secim/musteri/{id}` — arama ucunun öğesiyle aynı (kimlik + ad + tip; PII yok). */
-export type SecimMusterisi = Sema<'MusteriSecimOgesi'>;
+export type SelectionCustomer = Schema<'MusteriSecimOgesi'>;
 /** `GET /secim/arac/{id}` — arama ucunun öğesiyle aynı (plaka, grup, durum). */
-export type SecimAraci = Sema<'AracSecimOgesi'>;
+export type SelectionVehicle = Schema<'AracSecimOgesi'>;
 
 /** Sunucu sayıları `number | string` (NumberHandling); gösterim için sayıya çevrilir, HESAP YAPILMAZ. */
-export type SunucuSayisi = number | string | null | undefined;
+export type ServerNumber = number | string | null | undefined;
 
 /**
  * Araç seçimi: F1.6 `secim/arac` öğesi (`plaka`, `grup`, `durum`) ya da müsait araç satırı (tam kart).
@@ -54,12 +54,12 @@ export interface AracSecenegi extends SecimSecenegi {
   readonly plaka?: string | null;
   readonly marka?: string | null;
   readonly tip?: string | null;
-  readonly modelYili?: SunucuSayisi;
+  readonly modelYili?: ServerNumber;
   readonly vites?: string | null;
   readonly yakit?: string | null;
   readonly grup?: string | null;
   readonly segment?: string | null;
-  readonly km?: SunucuSayisi;
+  readonly km?: ServerNumber;
   readonly sube?: string | null;
   readonly konum?: string | null;
   readonly durum?: string | null;

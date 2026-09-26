@@ -1,7 +1,7 @@
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { DayText } from '@core/form/tarih-girdisi';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
-import { anDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 
 import type { LoanRequest, LoanRow } from '../finance-model';
 
@@ -16,7 +16,7 @@ export interface LoanFormValue {
   /** Kesir (0,20 = yıllık %20 basit faiz) — Blazor alanıyla aynı birim; yüzdeye çevrilmez (ölçek kaybı olmasın). */
   readonly faizOran: number | null;
   readonly taksitSayisi: number | null;
-  readonly baslangic: GunMetni | null;
+  readonly baslangic: DayText | null;
   readonly aciklama: string | null;
 }
 
@@ -37,15 +37,15 @@ export function emptyLoanForm(): LoanFormValue {
 /** Form → `POST /arac-kredileri` gövdesi. Tutar invariant METİN olarak AYNEN gider (yuvarlanmaz). */
 export function loanRequest(v: LoanFormValue): LoanRequest {
   return {
-    bankaAdi: metinDegeri(v.bankaAdi),
+    bankaAdi: textValue(v.bankaAdi),
     cariId: v.cari?.id ?? null,
-    dosyaNo: metinDegeri(v.dosyaNo),
+    dosyaNo: textValue(v.dosyaNo),
     vehicleId: v.arac?.id ?? null,
     krediTutari: v.krediTutari ?? '',
     faizOran: v.faizOran ?? 0,
     taksitSayisi: v.taksitSayisi ?? 0,
-    baslangicTarihi: anDegeri(v.baslangic, null),
-    aciklama: metinDegeri(v.aciklama),
+    baslangicTarihi: momentValue(v.baslangic, null),
+    aciklama: textValue(v.aciklama),
   };
 }
 

@@ -2,7 +2,7 @@ import { EnvironmentProviders, inject, provideAppInitializer } from '@angular/co
 import { TemaServisi } from './tema-servisi';
 
 /** Saklı tema tercihi ilk çizimden önce `<html data-theme>`'e yazılır. */
-export function provideTema(): EnvironmentProviders {
+export function provideTheme(): EnvironmentProviders {
   return provideAppInitializer(() => {
     inject(TemaServisi);
   });

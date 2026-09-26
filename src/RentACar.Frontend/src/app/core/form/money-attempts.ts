@@ -10,13 +10,13 @@ import {
   untracked,
 } from '@angular/core';
 
-import type { ApiYolu } from '@core/api/api-istemcisi';
+import type { ApiPath } from '@core/api/api-istemcisi';
 import {
   contextOfSession,
   identityOfContext,
   identityOfSession,
 } from '@core/oturum/oturum-baglami';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { SessionService } from '@core/oturum/session-service';
 
 import type { MoneyContent, MoneyNotice } from './money-notice';
 
@@ -24,7 +24,7 @@ import type { MoneyContent, MoneyNotice } from './money-notice';
 export interface MoneyAttempt<TBody = unknown> {
   /** Anahtarın bağlı olduğu kayıt (bu MTV'nin ödemesi, bu servisin kalemi…); başka kayıt → yeni anahtar. */
   readonly target: string;
-  readonly path: ApiYolu;
+  readonly path: ApiPath;
   readonly method: 'post' | 'put';
   readonly key: string;
   readonly body: TBody;
@@ -68,8 +68,8 @@ export const MONEY_SESSION_CHANNEL = new InjectionToken<string | null>('MONEY_SE
  * tutarı yeniden girip ikinci işlemi yazardı. Kayıt, temizleme, bayat yanıt ve sekmeler arası karşılaştırmaların HEPSİ
  * bunu kullanır; anahtarın biçimi tek kaynaktan (`contextOfSession` → `identityOfContext`).
  */
-export function sessionContext(session: OturumServisi | null): string | null {
-  const key = session?.baglam?.()?.anahtar;
+export function sessionContext(session: SessionService | null): string | null {
+  const key = session?.context?.()?.anahtar;
   return key == null ? null : identityOfContext(key);
 }
 
@@ -77,8 +77,8 @@ export function sessionContext(session: OturumServisi | null): string | null {
  * TAM oturum bağlamı (kiracı|kullanıcı|şube; `OturumServisi.baglam`); oturum yoksa `null`. YALNIZ sekmeler arası
  * duyuru/karşılaştırma içindir — para denemelerinin kaydı ve düşürülmesi {@link sessionContext} (şube HARİÇ) kullanır.
  */
-function fullContext(session: OturumServisi | null): string | null {
-  return session?.baglam?.()?.anahtar ?? null;
+function fullContext(session: SessionService | null): string | null {
+  return session?.context?.()?.anahtar ?? null;
 }
 
 /**
@@ -93,7 +93,7 @@ function fullContext(session: OturumServisi | null): string | null {
  */
 @Injectable({ providedIn: 'root' })
 export class PendingMoneyAttempts {
-  private readonly session = inject(OturumServisi, { optional: true });
+  private readonly session = inject(SessionService, { optional: true });
   private readonly attempts = signal<ReadonlyMap<string, MoneyAttempt>>(new Map());
   /** Güncel bağlamın denemeleri. */
   private readonly current = computed(() => {
@@ -106,7 +106,7 @@ export class PendingMoneyAttempts {
   readonly inFlight: Signal<boolean> = computed(() => this.current().some((a) => a.inFlight));
 
   constructor() {
-    this.session?.temizlikKaydet(() => this.attempts.set(new Map()));
+    this.session?.registerCleanup(() => this.attempts.set(new Map()));
     // Kimlik değişince (çıkış, başka kullanıcı/kiracı) önceki kimliğin denemeleri düşer; şube değişimi düşürmez.
     let last = sessionContext(this.session);
     effect(() => {

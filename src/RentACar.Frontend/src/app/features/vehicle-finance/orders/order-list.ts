@@ -14,26 +14,29 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { orderColumns } from '../finance-columns';
 import {
@@ -46,7 +49,7 @@ import {
 } from '../finance-model';
 import { ORDERS, OrderListStore, recordPath } from '../finance.store';
 import { CustomerLabels } from '../labels';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 
 type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -62,18 +65,18 @@ type Transition = 'onayla' | 'teslim-al' | 'iptal';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    Ikon,
-    MetinGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    SearchSelection,
+    Icon,
+    TextInput,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, OrderListStore, CustomerLabels],
   templateUrl: './order-list.html',
@@ -82,17 +85,17 @@ type Transition = 'onayla' | 'teslim-al' | 'iptal';
 export class OrderList {
   protected readonly store = inject(OrderListStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly labels = inject(CustomerLabels);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(ORDER_LIST);
+  protected readonly query = listQueryUrlSync(ORDER_LIST);
   protected readonly rowId = (r: OrderRow) => r.id;
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly canCreate = computed(() => this.session.izinVar('OperationsWrite'));
   protected readonly busy = signal<string | null>(null);
 
@@ -131,23 +134,23 @@ export class OrderList {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
-    policy.baglan({
+    policy.connect({
       parametre: signal(0).asReadonly(),
       yukle: () => this.store.loans.yukle(),
-      sifirla: () => this.store.loans.sifirla(),
+      sifirla: () => this.store.loans.reset(),
     });
     effect(() => {
       const f = this.query.sorgu().filtreler;
-      const cari = this.labels.label(f.cariId);
+      const account = this.labels.label(f.cariId);
       untracked(() =>
         this.filterForm.reset({
-          cari,
+          cari: account,
           ara: f.ara ?? null,
           arac: f.arac ?? null,
           dosyaNo: f.dosyaNo ?? null,
@@ -193,7 +196,7 @@ export class OrderList {
   protected async transition(row: OrderRow, kind: Transition): Promise<void> {
     if (this.busy() !== null) return;
     if (kind === 'iptal') {
-      const yes = await this.confirm.sor({
+      const yes = await this.confirm.ask({
         baslik: this.t('aracFinans.siparis.iptalBaslik'),
         mesaj: this.t(
           row.durum === 'Onaylandi'
@@ -219,7 +222,7 @@ export class OrderList {
           this.store.list.yenile();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.store.list.yenile();
         },

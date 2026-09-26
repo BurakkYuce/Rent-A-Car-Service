@@ -4,17 +4,17 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { Schema } from '@core/api/ui-tipleri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { TemelStore } from '@core/veri/temel-store';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 
-type Suggestion = Sema<'ServiceDefinitionSuggestionDto'>;
+type Suggestion = Schema<'ServiceDefinitionSuggestionDto'>;
 
 interface SuggestionRow {
   readonly key: string;
@@ -37,7 +37,7 @@ const DEFAULT_KM = 15000;
 @Component({
   selector: 'rc-service-definition-suggestions',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, Alan, FormHatalari, MetinGirdisi, SayiGirdisi],
+  imports: [ReactiveFormsModule, TranslocoPipe, Alan, FormErrors, TextInput, NumberInput],
   styleUrl: '../pricing.scss',
   template: `
     <section class="rc-bolum" aria-labelledby="rc-servis-oneri-baslik">
@@ -91,15 +91,15 @@ export class ServiceDefinitionSuggestions {
   readonly accepted = output<void>();
 
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   protected readonly store = new TemelStore(() =>
     this.api
       .get<readonly Suggestion[]>('/api/ui/v1/servis-tanimlari/oneriler')
       .pipe(map((list) => list.map((s) => this.row(s)))),
   );
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   constructor() {
     this.store.yukle();

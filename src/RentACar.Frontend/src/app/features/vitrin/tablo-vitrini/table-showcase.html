@@ -1,0 +1,55 @@
+<div class="vitrin">
+  <header class="rc-sayfa-basligi">
+    <h1>{{ 'vitrin.tablo.baslik' | transloco }}</h1>
+    <p class="not">{{ 'vitrin.tablo.aciklama' | transloco }}</p>
+  </header>
+
+  <rc-tablo
+    class="vitrin-tablosu"
+    tabloKodu="vitrin.araclar"
+    [etiket]="'vitrin.tablo.etiket' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.liste.durum()"
+    [satirKimligi]="identity"
+    [sirala]="liste.sorgu().sirala"
+    [varsayilanSirala]="defaultSort"
+    [secilebilir]="true"
+    [(secim)]="secim"
+    [satirSinifi]="rowClass"
+    [disaAktarma]="exportItem()"
+    (siralaDegisti)="liste.degistir({ sirala: $event })"
+    (sayfaDegisti)="liste.degistir({ sayfa: $event })"
+    (boyutDegisti)="liste.degistir({ boyut: $event })"
+    (yenidenDene)="store.liste.yenile()"
+    (satirAc)="opened.set($event)"
+  >
+    <div rcTabloAraclari class="araclar">
+      <span class="etiket" id="senaryo-etiket">{{ 'vitrin.tablo.senaryo' | transloco }}</span>
+      <span class="rc-dugme-grubu" role="group" aria-labelledby="senaryo-etiket">
+        @for (s of scenarios; track s) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [attr.aria-pressed]="scenario() === s"
+            (click)="selectScenario(s)"
+          >
+            {{ 'vitrin.tablo.senaryolar.' + s | transloco }}
+          </button>
+        }
+      </span>
+      <span class="bilgi" aria-live="polite">
+        {{ 'vitrin.tablo.secili' | transloco: { adet: secim().length } }}
+        @if (opened(); as a) {
+          ·
+          <span data-testid="acilan">{{
+            'vitrin.tablo.acilan' | transloco: { plaka: a.plaka }
+          }}</span>
+        }
+      </span>
+    </div>
+
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-arac>
+      <span [class]="rozet(arac.durum)">{{ arac.durum }}</span>
+    </ng-template>
+  </rc-tablo>
+</div>

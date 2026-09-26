@@ -2,9 +2,9 @@ import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import { translationFunction } from '@core/i18n/ceviri';
+import { requestContext } from '@core/oturum/request-context';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
 type Kind = 'musteri' | 'arac';
 
@@ -43,7 +43,7 @@ class LabelCache {
     this.requested.add(id);
     this.api
       .get<SecimSecenegi>(`/api/ui/v1/secim/${this.kind}/${encodeURIComponent(id)}`, {
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -60,7 +60,7 @@ export class CustomerLabels extends LabelCache {
       inject(ApiIstemcisi),
       inject(DestroyRef),
       'musteri',
-      ceviriFonksiyonu()('aracFinans.seciliMusteri'),
+      translationFunction()('aracFinans.seciliMusteri'),
     );
   }
 }
@@ -72,7 +72,7 @@ export class VehicleLabels extends LabelCache {
       inject(ApiIstemcisi),
       inject(DestroyRef),
       'arac',
-      ceviriFonksiyonu()('aracFinans.seciliArac'),
+      translationFunction()('aracFinans.seciliArac'),
     );
   }
 }

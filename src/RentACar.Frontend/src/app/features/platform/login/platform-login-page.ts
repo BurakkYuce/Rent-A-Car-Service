@@ -170,8 +170,8 @@ export class PlatformLoginPage {
     this.sending.set(true);
     this.error.set(null);
     try {
-      const { kullanici, sifre } = this.form.getRawValue();
-      await this.session.signIn(kullanici.trim(), sifre);
+      const { kullanici: user, sifre: password } = this.form.getRawValue();
+      await this.session.signIn(user.trim(), password);
       await this.router.navigateByUrl(PLATFORM_HOME_ROUTE, { replaceUrl: true });
     } catch (e: unknown) {
       this.error.set(loginErrorMessage(e));

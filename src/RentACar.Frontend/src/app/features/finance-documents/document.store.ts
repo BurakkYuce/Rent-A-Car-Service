@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import type { FinansHesapOgesi, SecimOgesi } from '@core/api/ui-tipleri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import type { FinanceAccountItem, SelectionItem } from '@core/api/ui-tipleri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
 
 import type {
@@ -33,7 +33,7 @@ export function recordPath(base: string, id: string, suffix = ''): `/api/ui/v1/$
 }
 
 /** Liste parametrelerinden sayfalama/sıralama düşer: özet uçları tüm eşleşen kümeyi toplar. */
-export function summaryParameters(p: SorguParametreleri): SorguParametreleri {
+export function summaryParameters(p: QueryParameters): QueryParameters {
   return Object.fromEntries(
     Object.entries(p).filter(([k]) => k !== 'sayfa' && k !== 'boyut' && k !== 'sirala'),
   );
@@ -41,14 +41,14 @@ export function summaryParameters(p: SorguParametreleri): SorguParametreleri {
 
 /** Öneri listeleri (şube adları, kasa/banka hesapları): hata SESSİZ — alan serbest metin/boş kalır. */
 function quiet() {
-  return { context: istekBaglami({ sessiz: true }) };
+  return { context: requestContext({ sessiz: true }) };
 }
 
 @Injectable()
 export class BranchNames {
   private readonly api = inject(ApiIstemcisi);
   readonly list = new TemelStore(() =>
-    this.api.get<readonly SecimOgesi[]>('/api/ui/v1/secim/sube', {
+    this.api.get<readonly SelectionItem[]>('/api/ui/v1/secim/sube', {
       parametreler: { limit: 20 },
       ...quiet(),
     }),
@@ -59,7 +59,7 @@ export class BranchNames {
 export class InvoiceStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<InvoiceRow>>(INVOICES, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<InvoiceRow>>(INVOICES, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
   readonly detail = new TemelStore((id: string) =>
@@ -70,7 +70,7 @@ export class InvoiceStore {
    * (liste kendi hatasını zaten gösterir, toplam satırı yalnız görünmez).
    */
   readonly summary = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<InvoiceSummary>(`${INVOICES}/ozet`, { parametreler: p, ...quiet() }),
     { oncekiVeriyiKoru: true },
   );
@@ -86,7 +86,7 @@ export class InvoiceStore {
 export class InvoiceLineStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<Sayfa<InvoiceLineRow>>(`${INVOICES}/satirlar`, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
@@ -96,7 +96,7 @@ export class InvoiceLineStore {
 export class PenaltyStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<PenaltyRow>>(PENALTIES, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<PenaltyRow>>(PENALTIES, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
   readonly detail = new TemelStore(
@@ -116,11 +116,11 @@ export class PenaltyStore {
 export class ExpenseStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<ExpenseRow>>(EXPENSES, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<ExpenseRow>>(EXPENSES, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
   readonly accounts = new TemelStore(() =>
-    this.api.get<readonly FinansHesapOgesi[]>('/api/ui/v1/finans/hesaplar', quiet()),
+    this.api.get<readonly FinanceAccountItem[]>('/api/ui/v1/finans/hesaplar', quiet()),
   );
 }
 
@@ -128,8 +128,7 @@ export class ExpenseStore {
 export class IncomingInvoiceStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
-      this.api.get<Sayfa<IncomingInvoiceRow>>(INCOMING, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<IncomingInvoiceRow>>(INCOMING, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
   readonly detail = new TemelStore((id: string) =>
@@ -141,7 +140,7 @@ export class IncomingInvoiceStore {
 export class SaleStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<VehicleSaleRow>>(SALES, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<VehicleSaleRow>>(SALES, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 }

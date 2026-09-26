@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Izin } from '@core/oturum/oturum-tipleri';
+import type { Permission } from '@core/oturum/oturum-tipleri';
 
 import {
   cardToForm,
@@ -8,7 +8,12 @@ import {
   taxNumberIsSecret,
   taxNumberRequiredOnTypeChange,
 } from './customer-form/customer-form-model';
-import { canSeeStatement, looksLikeTc, splitSearch, type CustomerCard } from './customer-model';
+import {
+  canSeeStatement,
+  looksLikeNationalId,
+  splitSearch,
+  type CustomerCard,
+} from './customer-model';
 
 /** PR #295 KVKK incelemesi çiti (H1 SPA, M1, M2). Beklenenler elle kurulmuş senaryodan. */
 const individual = {
@@ -65,7 +70,7 @@ describe('H1: tür değişikliğinde gizli vergi no', () => {
 });
 
 describe('M1: ekstre yalnız FinanceWrite ∨ ViewReports', () => {
-  const has = (list: Izin[]) => (p: Izin) => list.includes(p);
+  const has = (list: Permission[]) => (p: Permission) => list.includes(p);
   it('izin tablosu', () => {
     expect(canSeeStatement(has(['FinanceWrite']))).toBe(true);
     expect(canSeeStatement(has(['ViewReports']))).toBe(true);
@@ -78,10 +83,10 @@ describe('M1: ekstre yalnız FinanceWrite ∨ ViewReports', () => {
 
 describe('M2: TC benzeri arama URL’ye yazılmaz', () => {
   it('11 hane rakam bellekte, diğer her şey URL’de', () => {
-    expect(looksLikeTc('10000000146')).toBe(true);
-    expect(looksLikeTc(' 10000000146 ')).toBe(true);
-    expect(looksLikeTc('1000000014')).toBe(false);
-    expect(looksLikeTc('1000000014a')).toBe(false);
+    expect(looksLikeNationalId('10000000146')).toBe(true);
+    expect(looksLikeNationalId(' 10000000146 ')).toBe(true);
+    expect(looksLikeNationalId('1000000014')).toBe(false);
+    expect(looksLikeNationalId('1000000014a')).toBe(false);
     expect(splitSearch('10000000146')).toEqual({ url: undefined, memory: '10000000146' });
     expect(splitSearch(' Ayşe ')).toEqual({ url: 'Ayşe', memory: null });
     expect(splitSearch('1234567890')).toEqual({ url: '1234567890', memory: null });
@@ -90,11 +95,11 @@ describe('M2: TC benzeri arama URL’ye yazılmaz', () => {
   });
 
   it('#295b L-B: boşluklu, tireli ve karışık biçimli TC de URL’ye yazılmaz (yalnız rakamlar sayılır)', () => {
-    expect(looksLikeTc('100 000 001 46')).toBe(true);
-    expect(looksLikeTc('100-00000146')).toBe(true);
-    expect(looksLikeTc('100.000.001.46 ')).toBe(true);
-    expect(looksLikeTc('100 000 001 4')).toBe(false);
-    expect(looksLikeTc('100 000 001 467')).toBe(false);
+    expect(looksLikeNationalId('100 000 001 46')).toBe(true);
+    expect(looksLikeNationalId('100-00000146')).toBe(true);
+    expect(looksLikeNationalId('100.000.001.46 ')).toBe(true);
+    expect(looksLikeNationalId('100 000 001 4')).toBe(false);
+    expect(looksLikeNationalId('100 000 001 467')).toBe(false);
     expect(splitSearch(' 100 000 001 46 ')).toEqual({ url: undefined, memory: '100 000 001 46' });
     expect(splitSearch('100-00000146')).toEqual({ url: undefined, memory: '100-00000146' });
     expect(splitSearch('Ayşe 2024')).toEqual({ url: 'Ayşe 2024', memory: null });

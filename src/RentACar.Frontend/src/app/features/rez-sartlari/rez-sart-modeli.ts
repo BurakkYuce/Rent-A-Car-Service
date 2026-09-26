@@ -1,28 +1,28 @@
-import type { SorguParametreleri } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { QueryParameters } from '@core/api/api-istemcisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
-import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { momentValue, dayValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 
-export type RezSart = Sema<'RezSartDto'>;
-export type RezSartIstegi = Sema<'RezSartIstegi'>;
-export type RezSartGuncelleIstegi = Sema<'RezSartGuncelleIstegi'>;
+export type ReservationTerm = Schema<'RezSartDto'>;
+export type ReservationTermRequest = Schema<'RezSartIstegi'>;
+export type UpdateReservationTermRequest = Schema<'RezSartGuncelleIstegi'>;
 
 /** API `durum` değerleri (`RezSartListeFiltresi`; tanımsız değer 400). */
-export const REZ_SART_DURUMLARI = ['bekleyen', 'karsilanan'] as const;
-export type RezSartDurumu = (typeof REZ_SART_DURUMLARI)[number];
+export const RESERVATION_TERM_STATUSES = ['bekleyen', 'karsilanan'] as const;
+export type ReservationTermStatus = (typeof RESERVATION_TERM_STATUSES)[number];
 
 /**
  * Rez şartı listesi URL ↔ API sözleşmesi (`GET /api/ui/v1/rez-sartlari`): Blazor süzgeçleri (müşteri,
  * durum, talep günü aralığı) + sunucu sayfalama/sıralama (`SiralamaHaritasi`). Varsayılan sıra sunucunun
  * (Blazor listesinin) sırası.
  */
-export const REZ_SART_LISTESI = listeTanimi({
+export const RESERVATION_TERM_LIST = listDefinition({
   filtreler: {
     musteriId: { tur: 'kimlik' },
-    durum: { tur: 'secim', degerler: REZ_SART_DURUMLARI },
+    durum: { tur: 'secim', degerler: RESERVATION_TERM_STATUSES },
     bas: { tur: 'tarih' },
     bit: { tur: 'tarih' },
   },
@@ -32,13 +32,13 @@ export const REZ_SART_LISTESI = listeTanimi({
 });
 
 /** "N bekleyen" sayacı: aynı süzgeçler + `durum=bekleyen`, tek kayıtlık sayfa (yalnız `toplam` okunur). */
-export function bekleyenParametreleri(p: SorguParametreleri): SorguParametreleri | null {
+export function pendingParams(p: QueryParameters): QueryParameters | null {
   if (p['durum'] === 'karsilanan') return null; // süzgeç karşılananlar: bekleyen 0
-  const sonuc: Record<string, SorguParametreleri[string]> = {};
-  for (const [ad, deger] of Object.entries(p)) {
-    if (ad !== 'sayfa' && ad !== 'boyut' && ad !== 'sirala') sonuc[ad] = deger;
+  const result: Record<string, QueryParameters[string]> = {};
+  for (const [name, value] of Object.entries(p)) {
+    if (name !== 'sayfa' && name !== 'boyut' && name !== 'sirala') result[name] = value;
   }
-  return { ...sonuc, durum: 'bekleyen', sayfa: 1, boyut: 1 };
+  return { ...result, durum: 'bekleyen', sayfa: 1, boyut: 1 };
 }
 
 /** Form değerleri (Blazor oluştur/düzenle formunun alanları). Tarihler İstanbul takvim günü. */
@@ -46,36 +46,36 @@ export interface RezSartFormDegeri {
   readonly musteri: SecimSecenegi | null;
   readonly sart: string | null;
   readonly grup: string | null;
-  readonly basTar: GunMetni | null;
-  readonly bitTar: GunMetni | null;
-  readonly talepTarihi: GunMetni | null;
-  readonly karsilamaTarihi: GunMetni | null;
+  readonly basTar: DayText | null;
+  readonly bitTar: DayText | null;
+  readonly talepTarihi: DayText | null;
+  readonly karsilamaTarihi: DayText | null;
   readonly teslimEden: string | null;
 }
 
 /** Kayıt → form değeri. */
-export function kayittanDegerler(s: RezSart): RezSartFormDegeri {
+export function valuesFromRecord(s: ReservationTerm): RezSartFormDegeri {
   return {
     musteri: { id: s.musteriId, etiket: s.musteriAd },
     sart: s.sart,
     grup: s.grup,
-    basTar: gunDegeri(s.basTar),
-    bitTar: gunDegeri(s.bitTar),
-    talepTarihi: gunDegeri(s.talepTarihi),
-    karsilamaTarihi: gunDegeri(s.karsilamaTarihi),
+    basTar: dayValue(s.basTar),
+    bitTar: dayValue(s.bitTar),
+    talepTarihi: dayValue(s.talepTarihi),
+    karsilamaTarihi: dayValue(s.karsilamaTarihi),
     teslimEden: s.teslimEden,
   };
 }
 
 /** Yeni kayıt formu: talep tarihi bugün (Blazor varsayılanı). */
-export function yeniDegerler(bugun: GunMetni): RezSartFormDegeri {
+export function newValues(today: DayText): RezSartFormDegeri {
   return {
     musteri: null,
     sart: null,
     grup: null,
     basTar: null,
     bitTar: null,
-    talepTarihi: bugun,
+    talepTarihi: today,
     karsilamaTarihi: null,
     teslimEden: null,
   };
@@ -87,18 +87,21 @@ export function yeniDegerler(bugun: GunMetni): RezSartFormDegeri {
  * `surum` zorunludur. Dokunulmayan tarih sunucunun anıyla gider (gün yuvarlaması yok). Oluşturmada
  * karşılama tarihi gönderilmez (Blazor oluştur formunda yok).
  */
-export function rezSartGovdesi(v: RezSartFormDegeri, taban: RezSart | null): RezSartGuncelleIstegi {
-  const govde: RezSartIstegi = {
+export function reservationTermBody(
+  v: RezSartFormDegeri,
+  floor: ReservationTerm | null,
+): UpdateReservationTermRequest {
+  const body: ReservationTermRequest = {
     musteriId: v.musteri?.id ?? '',
-    sart: metinDegeri(v.sart),
-    grup: metinDegeri(v.grup),
-    basTar: anDegeri(v.basTar, taban?.basTar),
-    bitTar: anDegeri(v.bitTar, taban?.bitTar),
-    talepTarihi: anDegeri(v.talepTarihi, taban?.talepTarihi),
-    karsilamaTarihi: taban === null ? null : anDegeri(v.karsilamaTarihi, taban.karsilamaTarihi),
-    teslimEden: metinDegeri(v.teslimEden),
-    reservationId: taban?.reservationId ?? null,
-    quotationId: taban?.quotationId ?? null,
+    sart: textValue(v.sart),
+    grup: textValue(v.grup),
+    basTar: momentValue(v.basTar, floor?.basTar),
+    bitTar: momentValue(v.bitTar, floor?.bitTar),
+    talepTarihi: momentValue(v.talepTarihi, floor?.talepTarihi),
+    karsilamaTarihi: floor === null ? null : momentValue(v.karsilamaTarihi, floor.karsilamaTarihi),
+    teslimEden: textValue(v.teslimEden),
+    reservationId: floor?.reservationId ?? null,
+    quotationId: floor?.quotationId ?? null,
   };
-  return taban === null ? govde : { ...govde, surum: taban.surum ?? null };
+  return floor === null ? body : { ...body, surum: floor.surum ?? null };
 }

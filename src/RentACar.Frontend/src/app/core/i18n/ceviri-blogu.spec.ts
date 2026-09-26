@@ -5,8 +5,8 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { Translation, TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideCeviri } from './ceviri';
-import { CEVIRI_BLOK_KAYNAKLARI, ceviriBlogu, ceviriBloguyla } from './ceviri-blogu';
+import { provideTranslation } from './ceviri';
+import { TRANSLATION_BLOCK_SOURCES, ceviriBlogu, withTranslationBlock } from './ceviri-blogu';
 import { CEVIRI_BLOKLARI } from './ceviri-bloklari';
 import { ONYUKLU_CEVIRI_BLOKLARI } from './onyuklu-ceviri';
 
@@ -16,31 +16,31 @@ import { ONYUKLU_CEVIRI_BLOKLARI } from './onyuklu-ceviri';
   imports: [TranslocoPipe],
   template: `<h1>{{ 'panel.baslik' | transloco }}</h1>`,
 })
-class PanelDeneme {}
+class PanelTest {}
 
 @Component({ selector: 'rc-bos', changeDetection: ChangeDetectionStrategy.OnPush, template: '' })
-class Bos {}
+class Empty {}
 
 // Bağımsız oracle: beklenen metinler elle yazıldı (blok dosyasından okunmadı).
-const SAHTE_PANEL: Translation = { panel: { baslik: 'Panel (sahte blok)' } };
+const FAKE_PANEL: Translation = { panel: { baslik: 'Panel (sahte blok)' } };
 
 describe('rota bazlı tembel çeviri (ceviriBlogu)', () => {
-  let panelYukle: ReturnType<typeof vi.fn<() => Promise<Translation>>>;
+  let loadPanel: ReturnType<typeof vi.fn<() => Promise<Translation>>>;
 
   beforeEach(async () => {
-    panelYukle = vi.fn(() => Promise.resolve(SAHTE_PANEL));
+    loadPanel = vi.fn(() => Promise.resolve(FAKE_PANEL));
     TestBed.configureTestingModule({
       providers: [
-        ...provideCeviri(),
+        ...provideTranslation(),
         // Üretimdeki gibi: testlerin önyüklü blokları YOK, blok yalnız rotayla gelir.
         { provide: ONYUKLU_CEVIRI_BLOKLARI, useValue: [] },
         {
-          provide: CEVIRI_BLOK_KAYNAKLARI,
-          useValue: { ...CEVIRI_BLOKLARI, panel: () => panelYukle() },
+          provide: TRANSLATION_BLOCK_SOURCES,
+          useValue: { ...CEVIRI_BLOKLARI, panel: () => loadPanel() },
         },
         provideRouter([
-          { path: 'panel', component: PanelDeneme, canActivate: [ceviriBlogu('panel')] },
-          { path: '', component: Bos },
+          { path: 'panel', component: PanelTest, canActivate: [ceviriBlogu('panel')] },
+          { path: '', component: Empty },
         ]),
       ],
     });
@@ -64,23 +64,23 @@ describe('rota bazlı tembel çeviri (ceviriBlogu)', () => {
 
   it('blok bir kez yüklenir; eşzamanlı ve sonraki gezinmeler aynı yüklemeyi kullanır', async () => {
     const guard = ceviriBlogu('panel');
-    const calistir = () =>
+    const run = () =>
       TestBed.runInInjectionContext(() => guard(null as never, null as never)) as Promise<boolean>;
-    const [a, b] = await Promise.all([calistir(), calistir()]);
-    await calistir();
+    const [a, b] = await Promise.all([run(), run()]);
+    await run();
     expect([a, b]).toEqual([true, true]);
-    expect(panelYukle).toHaveBeenCalledTimes(1);
+    expect(loadPanel).toHaveBeenCalledTimes(1);
   });
 
   it('yükleme hatası gezinmeyi düşürür, sonraki deneme yeniden yükler', async () => {
-    panelYukle.mockImplementationOnce(() =>
+    loadPanel.mockImplementationOnce(() =>
       Promise.reject(new TypeError('Failed to fetch dynamically imported module')),
     );
     const router = TestBed.inject(Router);
     await expect(router.navigateByUrl('/panel')).rejects.toThrow('dynamically imported module');
     expect(await router.navigateByUrl('/panel')).toBe(true);
     expect(TestBed.inject(TranslocoService).translate('panel.baslik')).toBe('Panel (sahte blok)');
-    expect(panelYukle).toHaveBeenCalledTimes(2);
+    expect(loadPanel).toHaveBeenCalledTimes(2);
   });
 
   it('gerçek blok kaydı: her blok ayrı dinamik parça, kendi üst düzey anahtarını taşır', async () => {
@@ -92,12 +92,12 @@ describe('rota bazlı tembel çeviri (ceviriBlogu)', () => {
   });
 
   it('ceviriBloguyla her rotaya bloğu ilk koruyucu olarak ekler, mevcutları korur', () => {
-    const mevcut = () => true;
-    const rotalar = ceviriBloguyla('vitrin', [
-      { path: 'a', component: Bos },
-      { path: 'b', component: Bos, canActivate: [mevcut] },
+    const existing = () => true;
+    const routes = withTranslationBlock('vitrin', [
+      { path: 'a', component: Empty },
+      { path: 'b', component: Empty, canActivate: [existing] },
     ]);
-    expect(rotalar.map((r) => r.canActivate?.length)).toEqual([1, 2]);
-    expect(rotalar[1].canActivate?.[1]).toBe(mevcut);
+    expect(routes.map((r) => r.canActivate?.length)).toEqual([1, 2]);
+    expect(routes[1].canActivate?.[1]).toBe(existing);
   });
 });

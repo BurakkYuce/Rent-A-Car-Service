@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { Ikon } from '@shared/ikon/ikon';
+import { Icon } from '@shared/ikon/icon';
 
 let nextNo = 0;
 
@@ -39,13 +39,13 @@ function writeState(key: string, open: boolean): void {
 @Component({
   selector: 'rc-filtre-paneli',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Ikon, TranslocoPipe],
+  imports: [Icon, TranslocoPipe],
   template: `
     <div class="ust">
       <button
         type="button"
         class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk ac-kapa"
-        [id]="dugmeId"
+        [id]="buttonId"
         [attr.aria-expanded]="acik()"
         [attr.aria-controls]="panelId"
         (click)="degistir()"
@@ -63,7 +63,7 @@ function writeState(key: string, open: boolean): void {
       class="govde"
       role="region"
       [id]="panelId"
-      [attr.aria-labelledby]="dugmeId"
+      [attr.aria-labelledby]="buttonId"
       [hidden]="!acik()"
       (submit)="gonder($event)"
     >
@@ -124,7 +124,7 @@ export class FilterPanelComponent implements OnInit {
 
   protected readonly acik = signal(true);
   private readonly no = ++nextNo;
-  protected readonly dugmeId = `rc-filtre-paneli-${this.no}-dugme`;
+  protected readonly buttonId = `rc-filtre-paneli-${this.no}-dugme`;
   protected readonly panelId = `rc-filtre-paneli-${this.no}-panel`;
 
   ngOnInit(): void {

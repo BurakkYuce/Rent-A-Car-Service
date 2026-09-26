@@ -2,27 +2,27 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page, Request, Route } from '@playwright/test';
 
 /** Konsol hatalarını (CSP ihlali dahil) ve çalışma zamanı hatalarını toplar. */
-export function hatalariTopla(page: Page, beklenen: RegExp[] = []): string[] {
-  const hatalar: string[] = [];
-  page.on('console', (mesaj) => {
-    if (mesaj.type() !== 'error') return;
-    const metin = mesaj.text();
-    if (!beklenen.some((k) => k.test(metin))) hatalar.push(metin);
+export function collectErrors(page: Page, expected: RegExp[] = []): string[] {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    const text = message.text();
+    if (!expected.some((k) => k.test(text))) errors.push(text);
   });
-  page.on('pageerror', (hata) => hatalar.push(hata.message));
-  return hatalar;
+  page.on('pageerror', (error) => errors.push(error.message));
+  return errors;
 }
 
-export async function ciddiIhlaller(page: Page, kapsam?: string): Promise<string[]> {
+export async function seriousViolations(page: Page, scope?: string): Promise<string[]> {
   const axe = new AxeBuilder({ page });
-  if (kapsam) axe.include(kapsam);
-  const sonuc = await axe.analyze();
-  return sonuc.violations
-    .filter((ihlal) => ihlal.impact === 'serious' || ihlal.impact === 'critical')
+  if (scope) axe.include(scope);
+  const result = await axe.analyze();
+  return result.violations
+    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
     .map(
-      (ihlal) =>
-        `${ihlal.id}: ${ihlal.help} → ` +
-        ihlal.nodes.map((n) => `${n.target.join(' ')} (${n.any[0]?.message ?? ''})`).join('; '),
+      (violation) =>
+        `${violation.id}: ${violation.help} → ` +
+        violation.nodes.map((n) => `${n.target.join(' ')} (${n.any[0]?.message ?? ''})`).join('; '),
     );
 }
 
@@ -48,23 +48,30 @@ export const BEN = {
 export function problem(
   route: Route,
   status: number,
-  kod: string,
+  code: string,
   detail: string,
-  ek: object = {},
+  extra: object = {},
 ) {
   return route.fulfill({
     status,
     contentType: 'application/problem+json',
-    body: JSON.stringify({ type: 'about:blank', title: 'Hata', status, detail, kod, ...ek }),
+    body: JSON.stringify({
+      type: 'about:blank',
+      title: 'Hata',
+      status,
+      detail,
+      kod: code,
+      ...extra,
+    }),
   });
 }
 
 /** XSRF çerezini sunucu gibi yazar (SPA `document.cookie`'den okur, başlığa koyar). */
-export async function xsrfYaz(page: Page, deger: string): Promise<void> {
+export async function writeXsrf(page: Page, value: string): Promise<void> {
   const url = new URL(page.url() === 'about:blank' ? 'http://127.0.0.1' : page.url());
   await page
     .context()
-    .addCookies([{ name: 'XSRF-TOKEN', value: deger, domain: url.hostname, path: '/' }]);
+    .addCookies([{ name: 'XSRF-TOKEN', value: value, domain: url.hostname, path: '/' }]);
 }
 
 /**
@@ -149,15 +156,15 @@ export const MENU = {
   rozetler: { 'okunmamis-bildirim': 4 },
 };
 
-export async function menuyuSahtele(page: Page, menu: object = MENU): Promise<void> {
+export async function fakeMenu(page: Page, menu: object = MENU): Promise<void> {
   await page.route('**/api/ui/v1/menu', (route) => route.fulfill({ json: menu }));
 }
 
 /** Oturum açık: `ben` 200 döner, XSRF çerezi yazılı, kabuk menüsü sahte. */
-export async function oturumAc(page: Page, ben: object = BEN): Promise<void> {
-  await xsrfYaz(page, 'eski-belirtec');
+export async function logIn(page: Page, ben: object = BEN): Promise<void> {
+  await writeXsrf(page, 'eski-belirtec');
   await page.route('**/api/ui/v1/oturum/ben', (route) => route.fulfill({ json: ben }));
-  await menuyuSahtele(page);
+  await fakeMenu(page);
 }
 
 export interface KayitliIstek {
@@ -166,7 +173,7 @@ export interface KayitliIstek {
   readonly anahtar: string | undefined;
 }
 
-export function kaydet(istek: Request): KayitliIstek {
-  const h = istek.headers();
-  return { govde: istek.postData(), xsrf: h['x-xsrf-token'], anahtar: h['idempotency-key'] };
+export function kaydet(request: Request): KayitliIstek {
+  const h = request.headers();
+  return { govde: request.postData(), xsrf: h['x-xsrf-token'], anahtar: h['idempotency-key'] };
 }

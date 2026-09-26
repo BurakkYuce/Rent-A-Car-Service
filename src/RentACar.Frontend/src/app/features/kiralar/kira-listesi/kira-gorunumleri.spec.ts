@@ -1,18 +1,18 @@
-import type { KiraListeSatiri } from '@core/api/ui-tipleri';
+import type { RentalListRow } from '@core/api/ui-tipleri';
 
 import {
-  gorunumFiltreleri,
-  gorunumKoduMu,
-  rozetSinifi,
-  satirGorunumu,
-  satirSinifi,
-  suzgeclerAyni,
-  tumSuzgecler,
+  viewFilters,
+  isViewCode,
+  badgeClass,
+  rowView,
+  rowClass,
+  filtersEqual,
+  allFilters,
 } from './kira-gorunumleri';
 
-const BUGUN = '2026-09-25';
+const TODAY = '2026-09-25';
 
-function satir(ek: Partial<KiraListeSatiri>): KiraListeSatiri {
+function satir(extra: Partial<RentalListRow>): RentalListRow {
   return {
     id: '00000001-0000-4000-8000-000000000000',
     sozlesmeNo: '2026250901001',
@@ -42,43 +42,43 @@ function satir(ek: Partial<KiraListeSatiri>): KiraListeSatiri {
     durum: 'Kirada',
     faturali: false,
     tahsilat: null,
-    ...ek,
+    ...extra,
   };
 }
 
 describe('kayıtlı görünüm ön ayarları', () => {
   it('her görünüm yalnız mevcut sunucu süzgeçlerine çevrilir (İstanbul günü)', () => {
-    expect(gorunumFiltreleri('kirada', BUGUN)).toEqual({ durum: 'Kirada' });
-    expect(gorunumFiltreleri('geciken', BUGUN)).toEqual({
+    expect(viewFilters('kirada', TODAY)).toEqual({ durum: 'Kirada' });
+    expect(viewFilters('geciken', TODAY)).toEqual({
       durum: 'Kirada',
       tarihTuru: 'Bitis',
       basMax: '2026-09-24',
     });
-    expect(gorunumFiltreleri('bugun-cikan', BUGUN)).toEqual({
+    expect(viewFilters('bugun-cikan', TODAY)).toEqual({
       tarihTuru: 'Baslangic',
       basMin: '2026-09-25',
       basMax: '2026-09-25',
     });
-    expect(gorunumFiltreleri('bugun-donecek', BUGUN)).toEqual({
+    expect(viewFilters('bugun-donecek', TODAY)).toEqual({
       durum: 'Kirada',
       tarihTuru: 'Bitis',
       basMin: '2026-09-25',
       basMax: '2026-09-25',
     });
-    expect(gorunumFiltreleri('faturasiz', BUGUN)).toEqual({ fatura: false });
-    expect(gorunumFiltreleri('kapali', BUGUN)).toEqual({ durum: 'Tamamlandi' });
+    expect(viewFilters('faturasiz', TODAY)).toEqual({ fatura: false });
+    expect(viewFilters('kapali', TODAY)).toEqual({ durum: 'Tamamlandi' });
     // Ay başı: dün önceki ayın son günü.
-    expect(gorunumFiltreleri('geciken', '2026-10-01').basMax).toBe('2026-09-30');
+    expect(viewFilters('geciken', '2026-10-01').basMax).toBe('2026-09-30');
   });
 
   it('kod doğrulama: yalnız bilinen kodlar', () => {
-    expect(gorunumKoduMu('kirada')).toBe(true);
-    expect(gorunumKoduMu('tum')).toBe(false);
-    expect(gorunumKoduMu(null)).toBe(false);
+    expect(isViewCode('kirada')).toBe(true);
+    expect(isViewCode('tum')).toBe(false);
+    expect(isViewCode(null)).toBe(false);
   });
 
   it('tumSuzgecler katalogdaki her adı verir (ön ayar önceki süzgeçleri siler)', () => {
-    const f = tumSuzgecler({ durum: 'Kirada' });
+    const f = allFilters({ durum: 'Kirada' });
     expect(Object.keys(f)).toContain('q');
     expect(Object.keys(f)).toContain('personelId');
     expect(f.durum).toBe('Kirada');
@@ -86,45 +86,45 @@ describe('kayıtlı görünüm ön ayarları', () => {
   });
 
   it('suzgeclerAyni undefined alanları yok sayar, sıraya bakmaz', () => {
-    expect(suzgeclerAyni({ durum: 'Kirada', q: undefined }, { durum: 'Kirada' })).toBe(true);
+    expect(filtersEqual({ durum: 'Kirada', q: undefined }, { durum: 'Kirada' })).toBe(true);
     expect(
-      suzgeclerAyni(
+      filtersEqual(
         { tarihTuru: 'Bitis', durum: 'Kirada' },
         { durum: 'Kirada', tarihTuru: 'Bitis' },
       ),
     ).toBe(true);
-    expect(suzgeclerAyni({ durum: 'Kirada' }, { durum: 'Kirada', q: 'x' })).toBe(false);
+    expect(filtersEqual({ durum: 'Kirada' }, { durum: 'Kirada', q: 'x' })).toBe(false);
   });
 });
 
 describe('satır görünümü (yalnız gösterim)', () => {
   it('kirada + bitiş geçmiş gün → n gün gecikti (kırmızı), satır vurgusu yok', () => {
     // 2026-09-17 10:00 İstanbul (07:00Z) → 25'ine 8 gün.
-    const g = satirGorunumu(satir({ bitTar: '2026-09-17T07:00:00Z' }), BUGUN);
+    const g = rowView(satir({ bitTar: '2026-09-17T07:00:00Z' }), TODAY);
     expect(g).toEqual({ tur: 'gecikmis', gun: 8 });
-    expect(rozetSinifi(g)).toBe('rc-rozet rc-rozet--hata');
-    expect(satirSinifi(satir({ bitTar: '2026-09-17T07:00:00Z' }), BUGUN)).toBeNull();
+    expect(badgeClass(g)).toBe('rc-rozet rc-rozet--hata');
+    expect(rowClass(satir({ bitTar: '2026-09-17T07:00:00Z' }), TODAY)).toBeNull();
   });
 
   it('bitiş bugün (İstanbul) → bugün dönüyor (sarı) + satır vurgusu; UTC günü farklı olsa da', () => {
     // 2026-09-24T22:30Z = 25.09.2026 01:30 İstanbul.
     const s = satir({ bitTar: '2026-09-24T22:30:00Z' });
-    expect(satirGorunumu(s, BUGUN)).toEqual({ tur: 'bugunDonuyor' });
-    expect(rozetSinifi(satirGorunumu(s, BUGUN))).toBe('rc-rozet rc-rozet--uyari');
-    expect(satirSinifi(s, BUGUN)).toBe('rc-satir-bugun');
+    expect(rowView(s, TODAY)).toEqual({ tur: 'bugunDonuyor' });
+    expect(badgeClass(rowView(s, TODAY))).toBe('rc-rozet rc-rozet--uyari');
+    expect(rowClass(s, TODAY)).toBe('rc-satir-bugun');
   });
 
   it('bugün çıkan satır vurgulanır; durum rozeti değişmez', () => {
     const s = satir({ basTar: '2026-09-25T06:00:00Z' });
-    expect(satirSinifi(s, BUGUN)).toBe('rc-satir-bugun');
-    expect(rozetSinifi(satirGorunumu(s, BUGUN))).toBe('rc-rozet rc-rozet--basari');
+    expect(rowClass(s, TODAY)).toBe('rc-satir-bugun');
+    expect(badgeClass(rowView(s, TODAY))).toBe('rc-rozet rc-rozet--basari');
   });
 
   it('kapalı/iptal sözleşmede gecikme hesaplanmaz', () => {
-    const kapali = satir({ durum: 'Tamamlandi', bitTar: '2026-09-17T07:00:00Z' });
-    expect(satirGorunumu(kapali, BUGUN)).toEqual({ tur: 'durum', durum: 'Tamamlandi' });
-    expect(rozetSinifi(satirGorunumu(kapali, BUGUN))).toBe('rc-rozet rc-rozet--notr');
-    const iptal = satir({ durum: 'Iptal' });
-    expect(rozetSinifi(satirGorunumu(iptal, BUGUN))).toBe('rc-rozet rc-rozet--hata');
+    const closed = satir({ durum: 'Tamamlandi', bitTar: '2026-09-17T07:00:00Z' });
+    expect(rowView(closed, TODAY)).toEqual({ tur: 'durum', durum: 'Tamamlandi' });
+    expect(badgeClass(rowView(closed, TODAY))).toBe('rc-rozet rc-rozet--notr');
+    const cancel = satir({ durum: 'Iptal' });
+    expect(badgeClass(rowView(cancel, TODAY))).toBe('rc-rozet rc-rozet--hata');
   });
 });

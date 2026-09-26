@@ -2,24 +2,29 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Observable, of, throwError } from 'rxjs';
 import { ApiHatasi } from '@core/api/api-hatasi';
-import { provideCeviri } from '@core/i18n/ceviri';
-import { TanimCrud } from './tanim-crud';
-import type { TanimAlani, TanimDegeri, TanimKaynagi, TanimSatiri } from './tanim-kaynagi';
+import { provideTranslation } from '@core/i18n/ceviri';
+import { DefinitionCrud } from './definition-crud';
+import type {
+  TanimAlani,
+  DefinitionValue,
+  DefinitionSource,
+  DefinitionRow,
+} from './definition-source';
 
 /**
  * F11.2a çekirdek eki: satır `surum`'u PUT'a gider; sürümsüz satır düzenlemede tekil okunur; 409 `cakisma`
  * formu silmez — dokunulmayan alan sunucu değerine çekilir, iki tarafça değişen alan işaretlenir, sonraki
  * kayıt yeni sürümle gider (otomatik yeniden gönderme yok). Beklenen değerler elle kurulmuş senaryodan.
  */
-let server: Record<string, TanimSatiri>;
-let listRows: TanimSatiri[];
-let puts: { id: string; value: TanimDegeri; version: string | null | undefined }[];
+let server: Record<string, DefinitionRow>;
+let listRows: DefinitionRow[];
+let puts: { id: string; value: DefinitionValue; version: string | null | undefined }[];
 let reads: string[];
 let conflictOnce: boolean;
 let suggestQueries: string[];
 
-const source: TanimKaynagi = {
-  listele: (): Observable<readonly TanimSatiri[]> => of(listRows),
+const source: DefinitionSource = {
+  listele: (): Observable<readonly DefinitionRow[]> => of(listRows),
   read: (id) => {
     reads.push(id);
     const row = server[id];
@@ -44,7 +49,7 @@ const source: TanimKaynagi = {
 @Component({
   selector: 'rc-version-host',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TanimCrud],
+  imports: [DefinitionCrud],
   template: `<rc-tanim-crud baslik="Markalar" [alanlar]="fields" [kaynak]="source" />`,
 })
 class VersionHost {
@@ -64,14 +69,14 @@ class VersionHost {
   ];
 }
 
-async function setup(rows: TanimSatiri[]) {
+async function setup(rows: DefinitionRow[]) {
   listRows = rows;
   server = Object.fromEntries(rows.map((r) => [r.id, r]));
   puts = [];
   reads = [];
   conflictOnce = false;
   suggestQueries = [];
-  TestBed.configureTestingModule({ providers: [...provideCeviri()] });
+  TestBed.configureTestingModule({ providers: [...provideTranslation()] });
   const fixture = TestBed.createComponent(VersionHost);
   await fixture.whenStable();
   const root = fixture.nativeElement as HTMLElement;

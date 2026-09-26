@@ -1,7 +1,7 @@
 import type { AbstractControl, FormGroup } from '@angular/forms';
 
-import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
-import { type GunMetni, anBirlestir, anParcala } from '@core/form/tarih-girdisi';
+import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
+import { type DayText, mergeMoment, parseMoment } from '@core/form/tarih-girdisi';
 
 /**
  * F5.2b ekranlarının (rez şartları, filo kiralama) ortak saf form yardımcıları. Çekirdeğe konmadı:
@@ -10,8 +10,8 @@ import { type GunMetni, anBirlestir, anParcala } from '@core/form/tarih-girdisi'
  */
 
 /** Sunucu anı → İstanbul takvim günü (gün seçicinin değeri). */
-export function gunDegeri(an: string | null | undefined): GunMetni | null {
-  return an ? (anParcala(an)?.gun ?? null) : null;
+export function dayValue(an: string | null | undefined): DayText | null {
+  return an ? (parseMoment(an)?.gun ?? null) : null;
 }
 
 /**
@@ -19,17 +19,17 @@ export function gunDegeri(an: string | null | undefined): GunMetni | null {
  * gider (dokunulmayan tarih yuvarlanıp kaymaz — kira formu provizyon tarihi dersi; ayrıca belge tarihi
  * sınırı yalnız DEĞİŞEN tarihe uygulanır). Yeni gün İstanbul gece yarısıdır (UTC anı).
  */
-export function anDegeri(
-  gun: GunMetni | null,
-  orijinalAn: string | null | undefined,
+export function momentValue(
+  day: DayText | null,
+  originalMoment: string | null | undefined,
 ): string | null {
-  if (gun === null) return null;
-  if (orijinalAn && gunDegeri(orijinalAn) === gun) return orijinalAn;
-  return anBirlestir(gun, '00:00');
+  if (day === null) return null;
+  if (originalMoment && dayValue(originalMoment) === day) return originalMoment;
+  return mergeMoment(day, '00:00');
 }
 
 /** Boş/boşluk → `null`, aksi kırpılmış metin. */
-export function metinDegeri(s: string | null | undefined): string | null {
+export function textValue(s: string | null | undefined): string | null {
   const k = s?.trim() ?? '';
   return k === '' ? null : k;
 }
@@ -40,29 +40,29 @@ function anahtar(d: unknown): string {
   return JSON.stringify(d ?? null);
 }
 
-const esit = (a: unknown, b: unknown) => anahtar(a) === anahtar(b);
+const equal = (a: unknown, b: unknown) => anahtar(a) === anahtar(b);
 
 /**
  * Bayat sürüm (409 `cakisma`) ya da işlem sonrası güncel kayıt KİRLİ forma birleştirilir: kullanıcının
  * DOKUNMADIĞI alan sunucu değerine çekilir, dokunduğu alan korunur; ikisi de değiştiyse (sunucu değeri
  * tabandan farklı) alan işaretlenir. Form ASLA silinmez. Dönen: çakışan alan adları.
  */
-export function sunucuDegerleriniBirlestir(
+export function mergeServerValues(
   form: FormGroup,
-  yeni: Readonly<Record<string, unknown>>,
-  taban: Readonly<Record<string, unknown>>,
-  cakismaMesaji: string,
+  newItem: Readonly<Record<string, unknown>>,
+  floor: Readonly<Record<string, unknown>>,
+  conflictMessage: string,
 ): string[] {
-  const cakisan: string[] = [];
-  for (const [ad, kontrol] of Object.entries(form.controls) as [string, AbstractControl][]) {
-    if (!(ad in yeni)) continue;
-    if (kontrol.pristine) {
-      kontrol.setValue(yeni[ad], { emitEvent: false });
-    } else if (!esit(yeni[ad], taban[ad]) && !esit(yeni[ad], kontrol.value)) {
-      kontrol.setErrors({ ...(kontrol.errors ?? {}), [SUNUCU_HATASI]: [cakismaMesaji] });
-      kontrol.markAsTouched();
-      cakisan.push(ad);
+  const conflicting: string[] = [];
+  for (const [name, check] of Object.entries(form.controls) as [string, AbstractControl][]) {
+    if (!(name in newItem)) continue;
+    if (check.pristine) {
+      check.setValue(newItem[name], { emitEvent: false });
+    } else if (!equal(newItem[name], floor[name]) && !equal(newItem[name], check.value)) {
+      check.setErrors({ ...(check.errors ?? {}), [SERVER_ERROR]: [conflictMessage] });
+      check.markAsTouched();
+      conflicting.push(name);
     }
   }
-  return cakisan;
+  return conflicting;
 }

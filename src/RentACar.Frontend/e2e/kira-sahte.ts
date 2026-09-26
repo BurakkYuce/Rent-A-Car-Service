@@ -5,14 +5,14 @@ import { expect, type Page, type Request, type Route } from '@playwright/test';
  * `kesis.spec.ts` (Blazor "Kirala" bağlantısı → 302 → SPA formu) ORTAK kullanır. Beklenen değerler sahte
  * yanıtlardan ELLE kurulur.
  */
-export const KIRA_ID = '0b0e7c1a-1111-4aaa-8bbb-000000000001';
+export const RENTAL_ID = '0b0e7c1a-1111-4aaa-8bbb-000000000001';
 export const MUSTERI_ID = '0b0e7c1a-2222-4aaa-8bbb-000000000002';
 export const ARAC_ID = '0b0e7c1a-3333-4aaa-8bbb-000000000003';
-export const TANIM_ID = '0b0e7c1a-6666-4aaa-8bbb-000000000006';
+export const DEFINITION_ID = '0b0e7c1a-6666-4aaa-8bbb-000000000006';
 
 export const YENI = `/app/kiralar/yeni?varac=${ARAC_ID}&vfrom=2026-10-01&vto=2026-10-04&musteriId=${MUSTERI_ID}`;
 
-export const MUSAIT = [
+export const AVAILABLE = [
   {
     id: ARAC_ID,
     plaka: '34 ABC 123',
@@ -29,7 +29,7 @@ export const MUSAIT = [
   },
 ];
 
-export const HESAP = {
+export const CALCULATION = {
   ok: true,
   hata: null,
   gun: 3,
@@ -52,8 +52,8 @@ export const HESAP = {
   notlar: null,
 };
 
-export const KIRA = {
-  id: KIRA_ID,
+export const RENTAL = {
+  id: RENTAL_ID,
   sozlesmeNo: '2026220901001',
   durum: 'Kirada',
   reservationId: null,
@@ -159,11 +159,11 @@ export const KIRA = {
   surum: 'v1',
 };
 
-export const DETAY = {
-  kira: KIRA,
+export const DETAIL = {
+  kira: RENTAL,
   musteri: { id: MUSTERI_ID, ad: 'Ayşe Yılmaz' },
   ikinciSurucu: null,
-  arac: { ...MUSAIT[0] },
+  arac: { ...AVAILABLE[0] },
   islemSubeAdi: 'Merkez Şube',
   teslimAlanPersonelAd: null,
   teslimEdenPersonelAd: null,
@@ -176,7 +176,7 @@ export const DETAY = {
 };
 
 /** F4.3b müşteri özeti — TC hiç gelmez; ehliyet/pasaport no sunucudan MASKELİ (SPA düz numara görmez). */
-export const MUSTERI_OZETI = {
+export const CUSTOMER_SUMMARY = {
   id: MUSTERI_ID,
   ad: 'Ayşe Yılmaz',
   tip: 'Bireysel',
@@ -199,10 +199,10 @@ export const MUSTERI_OZETI = {
   uyariNedeni: 'Geç iade geçmişi',
 };
 
-export const KATALOG = {
+export const CATALOG = {
   ogeler: [
     {
-      id: TANIM_ID,
+      id: DEFINITION_ID,
       kod: 'BEBEK',
       ad: 'Bebek koltuğu',
       birimUcret: 75.5,
@@ -216,12 +216,12 @@ export const KATALOG = {
 
 export interface Sahte {
   /** Kira yazma uçları (POST/PUT/DELETE) — test karar verir. */
-  yazma?: (route: Route, istek: Request) => Promise<unknown> | unknown;
+  yazma?: (route: Route, request: Request) => Promise<unknown> | unknown;
 }
 
 /** Tek işleyici: `/api/ui/v1/kiralar/**` + seçim uçları (yöntem + yola göre). */
-export async function sahteKiraApi(page: Page, { yazma }: Sahte = {}): Promise<string[]> {
-  const hesapSorgulari: string[] = [];
+export async function fakeRentalApi(page: Page, { yazma }: Sahte = {}): Promise<string[]> {
+  const calculationQueries: string[] = [];
   // F4.4 sabit finans paneli (tembel) kayıtlı kirada kasa/banka hesaplarını okur — bu dosyanın testleri panele
   // dokunmaz; boş liste yeter (sahte olmayan istek 404 konsol hatası üretirdi).
   await page.route(/\/api\/ui\/v1\/finans\//, (route) =>
@@ -230,24 +230,24 @@ export async function sahteKiraApi(page: Page, { yazma }: Sahte = {}): Promise<s
       : route.fulfill({ status: 500 }),
   );
   await page.route(/\/api\/ui\/v1\/secim\//, (route) => {
-    const yol = new URL(route.request().url()).pathname;
+    const path = new URL(route.request().url()).pathname;
     // F4.3b kimlikle etiket uçları.
-    if (yol === `/api/ui/v1/secim/musteri/${MUSTERI_ID}`) {
+    if (path === `/api/ui/v1/secim/musteri/${MUSTERI_ID}`) {
       return route.fulfill({ json: { id: MUSTERI_ID, etiket: 'Ayşe Yılmaz', tip: 'Bireysel' } });
     }
     return route.fulfill({
-      json: yol.endsWith('/secim/ek-hizmet')
-        ? [{ id: TANIM_ID, etiket: 'Bebek koltuğu', kod: 'BEBEK' }]
+      json: path.endsWith('/secim/ek-hizmet')
+        ? [{ id: DEFINITION_ID, etiket: 'Bebek koltuğu', kod: 'BEBEK' }]
         : [],
     });
   });
   await page.route(/\/api\/ui\/v1\/kiralar(\/|\?|$)/, async (route) => {
-    const istek = route.request();
-    const url = new URL(istek.url());
-    const yol = url.pathname.replace('/api/ui/v1/kiralar', '');
-    if (istek.method() !== 'GET')
-      return (yazma ?? ((r) => r.fulfill({ status: 500 })))(route, istek);
-    if (yol === '/form-varsayilanlari') {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace('/api/ui/v1/kiralar', '');
+    if (request.method() !== 'GET')
+      return (yazma ?? ((r) => r.fulfill({ status: 500 })))(route, request);
+    if (path === '/form-varsayilanlari') {
       return route.fulfill({
         json: {
           cikisYakit: 8,
@@ -261,18 +261,18 @@ export async function sahteKiraApi(page: Page, { yazma }: Sahte = {}): Promise<s
         },
       });
     }
-    if (yol === '/musait-arac') return route.fulfill({ json: MUSAIT });
-    if (yol === '/ek-hizmet-katalogu') return route.fulfill({ json: KATALOG });
-    if (yol === `/${KIRA_ID}/musteri-ozet`) return route.fulfill({ json: MUSTERI_OZETI });
-    if (yol === '/hesapla') {
-      hesapSorgulari.push(url.search);
-      return route.fulfill({ json: HESAP });
+    if (path === '/musait-arac') return route.fulfill({ json: AVAILABLE });
+    if (path === '/ek-hizmet-katalogu') return route.fulfill({ json: CATALOG });
+    if (path === `/${RENTAL_ID}/musteri-ozet`) return route.fulfill({ json: CUSTOMER_SUMMARY });
+    if (path === '/hesapla') {
+      calculationQueries.push(url.search);
+      return route.fulfill({ json: CALCULATION });
     }
-    if (yol === `/${KIRA_ID}`) return route.fulfill({ json: DETAY });
-    if (yol === `/${KIRA_ID}/karne-ozeti`) {
+    if (path === `/${RENTAL_ID}`) return route.fulfill({ json: DETAIL });
+    if (path === `/${RENTAL_ID}/karne-ozeti`) {
       return route.fulfill({ json: { vehicleId: ARAC_ID, dolulukYuzde: 61.5 } });
     }
-    if (yol.startsWith(`/${KIRA_ID}/donus-hesapla`)) {
+    if (path.startsWith(`/${RENTAL_ID}/donus-hesapla`)) {
       return route.fulfill({
         json: {
           ok: true,
@@ -292,14 +292,14 @@ export async function sahteKiraApi(page: Page, { yazma }: Sahte = {}): Promise<s
     }
     return route.fulfill({ status: 404, json: { status: 404, detail: 'yok' } });
   });
-  return hesapSorgulari;
+  return calculationQueries;
 }
 
 /** Hızlı Giriş paneli (CSS ile: diyalog açıkken arka plan `aria-hidden`, rol sorgusu onu görmez). */
-export const hizli = (page: Page) => page.locator('[data-rc-sekme="hizli"]');
+export const quick = (page: Page) => page.locator('[data-rc-sekme="hizli"]');
 
-export async function formHazir(page: Page): Promise<void> {
-  await expect(hizli(page).getByLabel('Araç', { exact: true })).toHaveValue(
+export async function formReady(page: Page): Promise<void> {
+  await expect(quick(page).getByLabel('Araç', { exact: true })).toHaveValue(
     '34 ABC 123 — Fiat Egea',
   );
   await expect(page.getByTestId('canli-hesap').first()).toBeVisible();

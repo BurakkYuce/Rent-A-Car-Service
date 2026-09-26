@@ -16,17 +16,17 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { type Observable, switchMap } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { TarihPipe } from '@shared/bicim/bicim-pipe';
+import { translationFunction } from '@core/i18n/ceviri';
+import { DatePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
 
 import {
   type DomainDto,
@@ -50,7 +50,7 @@ type TestKind = 'eposta' | 'sms' | 'whatsapp';
 @Component({
   selector: 'rc-settings-actions',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, TarihPipe, Alan, FormHatalari, MetinGirdisi],
+  imports: [ReactiveFormsModule, TranslocoPipe, DatePipe, Alan, FormErrors, TextInput],
   styleUrl: '../system.scss',
   templateUrl: './settings-actions.html',
 })
@@ -59,10 +59,10 @@ export class SettingsActions implements OnInit {
   readonly updated = output<SettingsDto>();
 
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
   private readonly logoInput = viewChild<ElementRef<HTMLInputElement>>('logoInput');
 
   protected readonly needsTxtRecord = needsTxtRecord;
@@ -77,7 +77,7 @@ export class SettingsActions implements OnInit {
   protected readonly domainForm = new FormGroup({
     host: new FormControl<string | null>(null, [Validators.required, Validators.maxLength(253)]),
   });
-  protected readonly domainSubmit = formGonderimi();
+  protected readonly domainSubmit = formSubmission();
 
   protected readonly testForms: Readonly<Record<TestKind, FormGroup>> = {
     eposta: new FormGroup({
@@ -96,10 +96,10 @@ export class SettingsActions implements OnInit {
       ]),
     }),
   };
-  protected readonly testSubmits: Readonly<Record<TestKind, ReturnType<typeof formGonderimi>>> = {
-    eposta: formGonderimi(),
-    sms: formGonderimi(),
-    whatsapp: formGonderimi(),
+  protected readonly testSubmits: Readonly<Record<TestKind, ReturnType<typeof formSubmission>>> = {
+    eposta: formSubmission(),
+    sms: formSubmission(),
+    whatsapp: formSubmission(),
   };
   protected readonly testResults = signal<Readonly<Partial<Record<TestKind, SendTestResult>>>>({});
   protected readonly testKinds: readonly TestKind[] = ['eposta', 'sms', 'whatsapp'];
@@ -134,7 +134,7 @@ export class SettingsActions implements OnInit {
   }
 
   protected async removeLogo(): Promise<void> {
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('sistem.ayarlar.logo.kaldirBaslik'),
       mesaj: this.t('sistem.ayarlar.logo.kaldirMesaj'),
       onayEtiketi: this.t('sistem.ayarlar.logo.kaldir'),
@@ -145,7 +145,7 @@ export class SettingsActions implements OnInit {
 
   // ---- site ve alan adları
   protected async openSite(): Promise<void> {
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('sistem.ayarlar.site.acBaslik'),
       mesaj: this.t('sistem.ayarlar.site.acMesaj'),
       onayEtiketi: this.t('sistem.ayarlar.site.ac'),
@@ -185,7 +185,7 @@ export class SettingsActions implements OnInit {
         },
         error: (e: unknown) => {
           this.busy.set(null);
-          const h = apiHatasinaCevir(e);
+          const h = toApiError(e);
           this.domainErrors.update((x) => ({
             ...x,
             [d.host]: h.alanlar?.['host']?.[0] ?? h.detay,
@@ -208,7 +208,7 @@ export class SettingsActions implements OnInit {
   // ---- test gönderimleri (gerçek mesaj: önce onay)
   protected async sendTest(kind: TestKind): Promise<void> {
     const form = this.testForms[kind];
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t(`sistem.ayarlar.test.${kind}.baslik` as CeviriAnahtari),
       mesaj: this.t(`sistem.ayarlar.test.${kind}.onay` as CeviriAnahtari),
       onayEtiketi: this.t('sistem.ayarlar.test.gonder'),
@@ -244,7 +244,7 @@ export class SettingsActions implements OnInit {
         },
         error: (e: unknown) => {
           this.busy.set(null);
-          const h = apiHatasinaCevir(e);
+          const h = toApiError(e);
           (tag === 'logo' ? this.logoError : this.actionError).set(
             h.alanlar?.['dosya']?.[0] ?? h.detay,
           );

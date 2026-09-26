@@ -12,19 +12,19 @@ import {
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { KiraDetayYaniti } from '../kira-tipleri';
-import { FinansDepozito } from './finans-depozito';
-import { FinansDisHizmet } from './finans-dis-hizmet';
-import { FinansDonem } from './finans-donem';
-import { FinansFaturalar } from './finans-faturalar';
-import { FinansCezalar, FinansKurlar } from './finans-listeler';
-import { FinansOdeme } from './finans-odeme';
-import { FinansTahsilat } from './finans-tahsilat';
-import { paraGoster } from './finans-modeli';
-import { KiraFinansDurumu } from './kira-finans-durumu';
+import type { RentalDetailResponse } from '../kira-tipleri';
+import { FinanceDeposit } from './finance-deposit';
+import { FinanceOutsourcedService } from './finance-outsourced-service';
+import { FinancePeriod } from './finance-period';
+import { FinanceInvoices } from './finance-invoices';
+import { FinancePenalties, FinanceRates } from './finans-listeler';
+import { FinancePayment } from './finance-payment';
+import { FinanceCollection } from './finance-collection';
+import { displayMoney } from './finans-modeli';
+import { RentalFinanceState } from './rental-finance-state';
 
 /** Alt sekmeler — Blazor sabit paneli: Nakit, Kredi Kart/Havale, Faturalar, Fatura Dönemleri, Dış Hizmet, Kur, Ceza/HGS. */
-export const FINANS_SEKMELERI = [
+export const FINANCE_TABS = [
   'nakit',
   'kart',
   'faturalar',
@@ -33,7 +33,7 @@ export const FINANS_SEKMELERI = [
   'kurlar',
   'ceza',
 ] as const;
-export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
+export type FinanceTab = (typeof FINANCE_TABS)[number];
 
 /**
  * Sabit yan paneldeki FİNANS işlemleri (F4.4; Blazor `StickyPanel.razor` paritesi). Kira formunun tembel
@@ -53,17 +53,17 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
   selector: 'rc-kira-finans-paneli',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  providers: [KiraFinansDurumu],
+  providers: [RentalFinanceState],
   imports: [
     TranslocoPipe,
-    FinansTahsilat,
-    FinansOdeme,
-    FinansDepozito,
-    FinansFaturalar,
-    FinansDonem,
-    FinansDisHizmet,
-    FinansKurlar,
-    FinansCezalar,
+    FinanceCollection,
+    FinancePayment,
+    FinanceDeposit,
+    FinanceInvoices,
+    FinancePeriod,
+    FinanceOutsourcedService,
+    FinanceRates,
+    FinancePenalties,
   ],
   host: { class: 'kf-finans' },
   styles: `
@@ -114,7 +114,7 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
         <h2 class="kf-kart__baslik" id="kf-finans-baslik">{{ 'kiraFinans.baslik' | transloco }}</h2>
         @if (f.kira(); as k) {
           <span class="rc-rozet" data-testid="finans-kalan">{{
-            'kiraFinans.kalan' | transloco: { tutar: para(k.bakiye, k.doviz) }
+            'kiraFinans.kalan' | transloco: { tutar: money(k.bakiye, k.doviz) }
           }}</span>
         }
       </div>
@@ -124,7 +124,7 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
           role="tablist"
           [attr.aria-label]="'kiraFinans.bolumler' | transloco"
         >
-          @for (s of sekmeler; track s) {
+          @for (s of tabs; track s) {
             <button
               type="button"
               role="tab"
@@ -133,10 +133,10 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
               [attr.aria-selected]="aktif() === s"
               [attr.aria-controls]="aktif() === s ? 'kf-fin-panel-' + s : null"
               [tabindex]="aktif() === s ? 0 : -1"
-              (click)="sec(s)"
+              (click)="select(s)"
               (keydown)="tus($event)"
             >
-              {{ etiket(s) | transloco }}
+              {{ label(s) | transloco }}
             </button>
           }
         </div>
@@ -179,69 +179,69 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
   `,
 })
 export class KiraFinansPaneli {
-  readonly detay = input<KiraDetayYaniti | null>(null);
+  readonly detay = input<RentalDetailResponse | null>(null);
   /** Sayfanın kira tazelemesi belirsiz hatayla (5xx/ağ) bitti; `detay` son iyi okumadır (#318 L1). */
   readonly tazelemeHatasi = input(false);
   /** Finans işlemi sonuçlandı → sayfa kaydı yeniden yükler. */
   readonly degisti = output<void>();
 
-  protected readonly f = inject(KiraFinansDurumu);
+  protected readonly f = inject(RentalFinanceState);
   private readonly belge = inject(DOCUMENT);
-  protected readonly sekmeler = FINANS_SEKMELERI;
-  protected readonly aktif = signal<FinansSekmesi>('nakit');
-  protected readonly para = paraGoster;
+  protected readonly tabs = FINANCE_TABS;
+  protected readonly aktif = signal<FinanceTab>('nakit');
+  protected readonly money = displayMoney;
 
   constructor() {
-    this.f.degisti = () => this.degisti.emit();
+    this.f.changed = () => this.degisti.emit();
     effect(() => {
       const d = this.detay();
       untracked(() => {
-        this.f.detayAyarla(d);
-        this.f.sekmeAcildi(this.aktif());
+        this.f.setDetail(d);
+        this.f.tabOpened(this.aktif());
       });
     });
     effect(() => {
-      const hata = this.tazelemeHatasi();
-      untracked(() => this.f.detayHatasiAyarla(hata));
+      const error = this.tazelemeHatasi();
+      untracked(() => this.f.setDetailError(error));
     });
   }
 
   /** Sayfa terk koruması için (yuva üzerinden sayfaya). */
-  kirliMi(): boolean {
-    return this.f.kirliMi();
+  isDirty(): boolean {
+    return this.f.isDirty();
   }
 
-  sonucuBilinmeyenVar(): boolean {
-    return this.f.sonucuBilinmeyenVar();
+  hasUnknownOutcome(): boolean {
+    return this.f.hasUnknownOutcome();
   }
 
-  protected etiket(s: FinansSekmesi): CeviriAnahtari {
+  protected label(s: FinanceTab): CeviriAnahtari {
     return `kiraFinans.sekme.${s}`;
   }
 
-  protected sec(s: FinansSekmesi): void {
+  protected select(s: FinanceTab): void {
     this.aktif.set(s);
-    this.f.sekmeAcildi(s);
+    this.f.tabOpened(s);
   }
 
   /** APG sekme klavyesi: ←/→ dolaşır, Home/End uçlar. */
-  protected tus(olay: KeyboardEvent): void {
-    const n = FINANS_SEKMELERI.length;
-    const sira = FINANS_SEKMELERI.indexOf(this.aktif());
-    const hedef =
-      olay.key === 'ArrowRight'
-        ? (sira + 1) % n
-        : olay.key === 'ArrowLeft'
-          ? (sira - 1 + n) % n
-          : olay.key === 'Home'
+  protected tus(evt: KeyboardEvent): void {
+    const n = FINANCE_TABS.length;
+    const order = FINANCE_TABS.indexOf(this.aktif());
+    const target =
+      evt.key === 'ArrowRight'
+        ? (order + 1) % n
+        : evt.key === 'ArrowLeft'
+          ? (order - 1 + n) % n
+          : evt.key === 'Home'
             ? 0
-            : olay.key === 'End'
+            : evt.key === 'End'
               ? n - 1
               : null;
-    const s = hedef === null ? undefined : FINANS_SEKMELERI[hedef];
+    const s = target === null ? undefined : FINANCE_TABS[target];
     if (s === undefined) return;
-    olay.preventDefault();
-    this.sec(s);
+    evt.preventDefault();
+    this.select(s);
     this.belge.getElementById(`kf-fin-${s}`)?.focus();
   }
 }

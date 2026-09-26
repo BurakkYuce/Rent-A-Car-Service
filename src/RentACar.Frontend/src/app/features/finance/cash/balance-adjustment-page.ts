@@ -11,17 +11,17 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { moneySubmission } from '@core/form/money-submission';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { dovizKodu } from '@features/kira-formu/finans-paneli/finans-modeli';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
+import { currencyCode } from '@features/kira-formu/finans-paneli/finans-modeli';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
 import {
@@ -54,19 +54,19 @@ import {
   templateUrl: './balance-adjustment-page.html',
   styleUrl: '../finance.scss',
 })
-export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
+export class BalanceAdjustmentPage implements UnsavedChangesOwner {
   protected readonly balance = inject(CustomerBalanceSource).store;
-  private readonly toast = inject(ToastServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly t = ceviriFonksiyonu();
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly t = translationFunction();
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly customer = new FormControl<SecimSecenegi | null>(null);
-  protected readonly cariId = signal<string | null>(
+  protected readonly customerId = signal<string | null>(
     inject(ActivatedRoute).snapshot.queryParamMap.get('cariId'),
   );
   protected readonly side = computed(() => balanceSide(this.balance.veri()?.bakiye));
   protected readonly action = moneySubmission<BalanceAdjustmentRequest>({
-    scope: () => `bakiye-duzeltme:${this.cariId() ?? ''}`,
+    scope: () => `bakiye-duzeltme:${this.customerId() ?? ''}`,
   });
 
   protected readonly form = new FormGroup({
@@ -87,46 +87,46 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
   protected readonly currency = toSignal(this.form.controls.doviz.valueChanges, {
     initialValue: this.form.controls.doviz.value,
   });
-  protected readonly isForeign = computed(() => dovizKodu(this.currency()) !== 'TRY');
+  protected readonly isForeign = computed(() => currencyCode(this.currency()) !== 'TRY');
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
     this.action.restore(this.form);
     clearRateOnCurrencyChange(this.form.controls.doviz, this.form.controls.kur);
     this.customer.valueChanges.pipe(takeUntilDestroyed()).subscribe((c) => {
-      if (c && c.id !== this.cariId()) this.cariId.set(c.id);
+      if (c && c.id !== this.customerId()) this.customerId.set(c.id);
     });
     effect(() => {
       const locked = this.action.pending();
       untracked(() => (locked ? this.customer.disable() : this.customer.enable()));
     });
-    followCustomerQuery(this.cariId, this.customer, () => this.action.pending(), {
+    followCustomerQuery(this.customerId, this.customer, () => this.action.pending(), {
       dirty: () => this.form.dirty,
       discard: () => this.resetForm(),
     });
     effect(() => {
       const b = this.balance.veri();
-      const id = this.cariId();
+      const id = this.customerId();
       untracked(() => labelFromData(this.customer, id, b));
     });
-    inject(FetchPolicy).baglan({
-      parametre: this.cariId.asReadonly(),
-      yukle: (id) => (id ? this.balance.yukle(id) : this.balance.sifirla()),
-      sifirla: () => this.balance.sifirla(),
+    inject(FetchPolicy).connect({
+      parametre: this.customerId.asReadonly(),
+      yukle: (id) => (id ? this.balance.yukle(id) : this.balance.reset()),
+      sifirla: () => this.balance.reset(),
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.action.pending() || this.form.dirty;
   }
 
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.action.pending() ? this.t('finans.islem.terkMesaji') : null;
   }
 
   protected submit(): void {
-    const id = this.cariId();
+    const id = this.customerId();
     if (!id) return;
     void this.action.run<{ id: string }>({
       form: this.form,
@@ -139,7 +139,7 @@ export class BalanceAdjustmentPage implements KaydedilmemisDegisiklikSahibi {
         };
       },
       confirm: () =>
-        this.confirm.sor({
+        this.confirm.ask({
           baslik: this.t('finans.duzeltme.onayBaslik'),
           // #299 L-new-1: onay metni HANGİ carinin düzeltileceğini söyler (sorgu ile cari değişmiş olabilir).
           mesaj: this.t('finans.duzeltme.onayMesaj', { ad: this.customerName(id) }),
