@@ -28,7 +28,8 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
                     "Platform operatörü firma arayüzünü kullanamaz.");
                 return;
             }
-            ctx.Response.Redirect("/platform/tenants");
+            // F12 kesiş: konsol artık yeni arayüzde (Blazor /platform/tenants oraya 302 verirdi; tek adım).
+            ctx.Response.Redirect(RentACar.Web.Spa.Cutover.SpaPlatformTenants);
             return;
         }
         await next(ctx);

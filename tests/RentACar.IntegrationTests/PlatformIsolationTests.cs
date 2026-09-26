@@ -38,7 +38,7 @@ public sealed class PlatformIsolationTests
     {
         var (status, location, nextCalled) = await RunAsync(path, Platform);
         Assert.Equal(StatusCodes.Status302Found, status);
-        Assert.Equal("/platform/tenants", location);
+        Assert.Equal("/app/platform/kiracilar", location); // F12 kesiş: SPA konsolu (tek adım)
         Assert.False(nextCalled); // istek tenant sayfasına ULAŞMAZ
     }
 

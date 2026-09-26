@@ -29,8 +29,10 @@ public sealed class CutoverMiddleware(RequestDelegate next, ILogger<CutoverMiddl
                 return;
             }
 
-            if (CompanySession(ctx) && Cutover.SpaTarget(request.Method, request.Path, request.QueryString) is { } target
-                && await IsPilotAsync(ctx))
+            // F12: platform konsolu sayfaları pilot/oturum koşulu olmadan yönlenir (platform bir kiracı değil). Korumalı
+            // sayfaların oturumsuz isteği cookie challenge'ı ÖNCE alır (/platform/login → buradan /app/platform/giris).
+            if (Cutover.SpaTarget(request.Method, request.Path, request.QueryString) is { } target
+                && (Cutover.IsPlatformConsolePath(request.Path) || (CompanySession(ctx) && await IsPilotAsync(ctx))))
             {
                 ctx.Response.Redirect(request.PathBase + target);
                 return;
@@ -45,7 +47,7 @@ public sealed class CutoverMiddleware(RequestDelegate next, ILogger<CutoverMiddl
         if (user.Identity?.IsAuthenticated == true)
         {
             // Login.razor'un eski davranışı: girişli platform operatörü konsola (tenant girişine değil).
-            if (user.HasClaim(PlatformClaims.PlatformAdmin, "true")) return "/platform/tenants";
+            if (user.HasClaim(PlatformClaims.PlatformAdmin, "true")) return Cutover.SpaPlatformTenants;
             if (CompanySession(ctx))
             {
                 var returnInfo = ctx.Request.Query[PermissionRedirect.ReturnParameter].ToString();

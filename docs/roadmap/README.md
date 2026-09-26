@@ -20,8 +20,8 @@
 | [F9](F9.md) | Servis & Sigorta + Vade + Fiyat & Tarife | 5 | ✔ | kod ✔ (#292 #301 + F9.3 parite + kesiş) · Blazor sayfa silme pilot sonrası |
 | [F10](F10.md) | Raporlar | 4 | — | kod ✔ (#287 #296 #302 + F10.3b parite + kesiş) · Blazor sayfa silme pilot sonrası |
 | [F11](F11.md) | Tanımlar + Sistem + Web Sitesi + kabuk sayfaları | 6 | — | kod ✔ (#282 #288 #297 #304 #306 #308 + F11.3 parite + kesiş) · Blazor sayfa silme pilot sonrası |
-| [F12](F12.md) | Platform konsolu | 2 | — | bekliyor |
-| [F13](F13.md) | Blazor söküm ve kapanış | 2 | — | bekliyor |
+| [F12](F12.md) | Platform konsolu | 3 | — | kod ✔ (#281 #293 + F12 parite + kesiş; canlı parite yok, kullanıcı kararı) |
+| [F13](F13.md) | Blazor söküm ve kapanış | 4 | — | sürüyor (F13.0 karar + F12 kesiş, F13.1a, F13.1b, F13.2) · yayın F2.2 sonrası |
 
 Her faz bir öncekinin **Exit**'i sağlanınca başlar (tek istisna F2.1). Faz içindeki PR'lar tek tek merge edilir.
 `/api/ui/v1`'de yalnız eklemeli değişiklik yapılır. Sıra ya da kapsam değişikliği: [DEGISIKLIKLER.md](DEGISIKLIKLER.md).

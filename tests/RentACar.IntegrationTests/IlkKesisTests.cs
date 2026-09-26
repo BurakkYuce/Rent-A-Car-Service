@@ -162,6 +162,12 @@ public sealed class IlkKesisKararTests
     [InlineData("/maliyet-hesapla", "/app/maliyet-hesapla")]
     [InlineData("/MALIYET-TEKLIFLERI/", "/app/maliyet-teklifleri")]
     [InlineData("/ek-hizmetler", "/app/ek-hizmetler")]
+    // F12 platform konsolu: SPA adları farklı (tenants → kiracilar, login → giris)
+    [InlineData("/platform/login", "/app/platform/giris")]
+    [InlineData("/platform/tenants", "/app/platform/kiracilar")]
+    [InlineData("/Platform/Tenants/", "/app/platform/kiracilar")]
+    [InlineData("/platform/tenants/" + G, "/app/platform/kiracilar/" + G)]
+    [InlineData("/platform/belgeler", "/app/platform/belgeler")]
     public void Haritadaki_sablon_SPA_yoluna_esler(string path, string expected)
         => Assert.Equal(expected, Cutover.SpaPath(path));
 
@@ -352,7 +358,18 @@ public sealed class IlkKesisKararTests
     [InlineData("/login")]
     [InlineData("/app/kiralar")]
     [InlineData("/api/ui/v1/kiralar")]
-    [InlineData("/platform/tenants")]
+    // F12: platform POST uçlarının GET'i, dosya GET'leri, Guid'siz detay, benzer adlar, SPA ve API yolları
+    [InlineData("/platform")]
+    [InlineData("/platform/tenants/5")]
+    [InlineData("/platform/tenants/create")]
+    [InlineData("/platform/tenants/toggle")]
+    [InlineData("/platform/tenants/" + G + "/x")]
+    [InlineData("/platform/auth/login")]
+    [InlineData("/platform/belgeler/yukle")]
+    [InlineData("/platform/belgeler/" + G + "/indir")]
+    [InlineData("/platformx/tenants")]
+    [InlineData("/app/platform/kiracilar")]
+    [InlineData("/api/ui/v1/platform/kiracilar")]
     [InlineData("kiralar")]
     [InlineData("")]
     [InlineData(null)]
@@ -564,6 +581,8 @@ public sealed class IlkKesisKararTests
         var pages = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match s in rows)
         {
+            // Kabuk (layout) satırı rota değil: F12 PlatformLayout gibi (@page yok, "(kabuk)" yazılı).
+            if (s.Groups["rotalar"].Value.Trim() == "`(kabuk)`") continue;
             foreach (var r in s.Groups["rotalar"].Value.Split("<br>")) inventory.Add(Normal(r.Trim('`', ' ')));
             var file = Path.Combine(root, "src/RentACar.Web/Components/Pages", s.Groups["dosya"].Value);
             foreach (Match p in Regex.Matches(File.ReadAllText(file), @"^@page\s+""(?<r>[^""]+)""", RegexOptions.Multiline))
@@ -654,8 +673,12 @@ public sealed class IlkKesisKararTests
         var f11 = InventoryRoutes("F11", 47);
         Assert.Equal(F11Sources.OrderBy(x => x, StringComparer.Ordinal), f11.OrderBy(x => x, StringComparer.Ordinal));
         Assert.Empty(f11.Intersect(f4.Concat(f5).Concat(f6).Concat(f7).Concat(f10).Concat(f9).Concat(f8)));
+        var f12 = InventoryRoutes("F12", 5); // PlatformLayout kabuk satırı sayılır ama rota üretmez
+        Assert.Equal(new[] { "/platform/belgeler", "/platform/login", "/platform/tenants", "/platform/tenants/{id:guid}" },
+            f12.OrderBy(x => x, StringComparer.Ordinal));
+        Assert.Empty(f12.Intersect(f4.Concat(f5).Concat(f6).Concat(f7).Concat(f10).Concat(f9).Concat(f8).Concat(f11)));
 
-        Assert.Equal(f4.Concat(f5).Concat(f6).Concat(f7).Concat(f10).Concat(f9).Concat(f8).Concat(f11).OrderBy(x => x), Cutover.Map.Select(e => e.Kaynak).OrderBy(x => x));
+        Assert.Equal(f4.Concat(f5).Concat(f6).Concat(f7).Concat(f10).Concat(f9).Concat(f8).Concat(f11).Concat(f12).OrderBy(x => x), Cutover.Map.Select(e => e.Kaynak).OrderBy(x => x));
         Assert.All(Cutover.Map, e => Assert.StartsWith("/app/", e.Hedef));
         Assert.Equal(Cutover.Map.Count, Cutover.Map.Select(e => e.Hedef).Distinct().Count());
     }
@@ -868,6 +891,44 @@ public sealed class IlkKesisKararTests
             },
             f9Targets);
     }
+
+    /// <summary>
+    /// F12 haritasının hedefleri SPA'da GERÇEK rota (<c>app.routes.ts</c> <c>platform</c> + <c>platform.routes.ts</c>
+    /// metin olarak). Hedefler elle yazılmıştır ve kaynakla seçilir (konumla değil).
+    /// </summary>
+    [Fact]
+    public void F12_targets_are_defined_in_SPA_route_files()
+    {
+        var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app");
+        Assert.Contains("path: 'platform',", File.ReadAllText(Path.Combine(app, "app.routes.ts")));
+        var text = File.ReadAllText(Path.Combine(app, "features/platform/platform.routes.ts"));
+        foreach (var path in new[] { "giris", "kiracilar", "kiracilar/:id", "belgeler" })
+            Assert.Contains($"path: '{path}',", text);
+
+        string[] f12Sources = ["/platform/login", "/platform/tenants", "/platform/tenants/{id:guid}", "/platform/belgeler"];
+        var f12Targets = Cutover.Map.Where(e => f12Sources.Contains(e.Kaynak))
+            .Select(e => e.Hedef.Replace("{id}", ":id", StringComparison.Ordinal)).OrderBy(x => x, StringComparer.Ordinal);
+        Assert.Equal(new[]
+            {
+                "/app/platform/belgeler", "/app/platform/giris", "/app/platform/kiracilar", "/app/platform/kiracilar/:id",
+            },
+            f12Targets);
+        // Platform bloğu dışında hiçbir şablon platform alanında değil (pilotsuz yönlenme yalnız bu dört sayfa).
+        Assert.Equal(f12Sources.OrderBy(x => x, StringComparer.Ordinal),
+            Cutover.Map.Where(e => Cutover.IsPlatformConsolePath(e.Kaynak.Replace("{id:guid}", "x", StringComparison.Ordinal)))
+                .Select(e => e.Kaynak).OrderBy(x => x, StringComparer.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("/platform", true)]
+    [InlineData("/platform/tenants", true)]
+    [InlineData("/PLATFORM/login", true)]
+    [InlineData("/platformx", false)]          // segment eşleşmesi, önek değil
+    [InlineData("/app/platform/kiracilar", false)]
+    [InlineData("/api/ui/v1/platform/kiracilar", false)]
+    [InlineData("/", false)]
+    public void Platform_console_path_is_segment_match(string path, bool expected)
+        => Assert.Equal(expected, Cutover.IsPlatformConsolePath(new PathString(path)));
 }
 
 /// <summary>
@@ -1344,9 +1405,13 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await RedirectsAsync(c, "/login?ReturnUrl=%2F%2Fevil.com", "/app/giris");
         await RedirectsAsync(c, "/login?hata=kapali", "/app/giris?neden=kiraci_kapali");
 
-        var platform = await c.GetAsync("/platform/login");
-        Assert.Equal(HttpStatusCode.OK, platform.StatusCode);
-        Assert.Null(platform.Headers.Location);
+        // F12 kesiş: platform girişi de yeni arayüzde; pilot/oturum koşulu yok (platform bir kiracı değil).
+        await RedirectsAsync(c, "/platform/login", "/app/platform/giris");
+        await RedirectsAsync(c, "/platform/login?hata=1", "/app/platform/giris?hata=1");
+        await RedirectsAsync(c, "/platform/login", "/app/platform/giris", HttpMethod.Head);
+        // Korumalı konsol sayfası: önce challenge (/platform/login, dönüşsüz), sonra SPA platform girişi — döngü yok.
+        var chain = await ChainAsync(c, "/platform/tenants");
+        Assert.Equal(new[] { "/platform/tenants", "/platform/login", "/app/platform/giris" }, chain.Select(z => z.Adres));
 
         // Cookie challenge ve AccessDeniedPath DEĞİŞMEDİ (/login, /yetkisiz): challenge dönüşü taşır.
         await RedirectsAsync(c, "/vehicles?x=1", "/login?ReturnUrl=%2Fvehicles%3Fx%3D1");
@@ -1377,7 +1442,32 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await RedirectsAsync(other, "/login?ReturnUrl=%2Fvehicles%3Fx%3D1", "/vehicles?x=1");
 
         var platform = await PlatformSessionAsync();
-        await RedirectsAsync(platform, "/login", "/platform/tenants");
+        await RedirectsAsync(platform, "/login", "/app/platform/kiracilar");
+    }
+
+    /// <summary>
+    /// F12 kesiş: dört platform konsolu sayfası HER oturumda (platform operatörü, pilot olmayan firma, oturumsuz giriş)
+    /// SPA platform rotasına 302; sorgu AYNEN. Firma kullanıcısı konsola giremez (403 → platform girişi). Platform
+    /// operatörünün firma sayfası isteği tek adımda SPA konsoluna. POST ve dosya GET'leri yönlenmez.
+    /// </summary>
+    [Fact]
+    public async Task F12_platform_pages_redirect_to_SPA_for_every_session()
+    {
+        var platform = await PlatformSessionAsync();
+        await RedirectsAsync(platform, "/platform/tenants", "/app/platform/kiracilar");
+        await RedirectsAsync(platform, "/platform/tenants?ok=1", "/app/platform/kiracilar?ok=1");
+        await RedirectsAsync(platform, "/platform/tenants/" + G, "/app/platform/kiracilar/" + G);
+        await RedirectsAsync(platform, "/platform/belgeler", "/app/platform/belgeler");
+        await RedirectsAsync(platform, "/platform/login", "/app/platform/giris");
+        await RedirectsAsync(platform, "/kiralar", "/app/platform/kiracilar"); // PlatformIsolation: tek adım
+        await RedirectsAsync(platform, "/", "/app/platform/kiracilar");
+        // SPA konsolu kendisi yönlenmez (döngü yok). Dosya GET'leri ve POST'lar birim testlerde (Harita_disi_yol_yonlenmez).
+        Assert.Null(await LocationAsync(platform, "/app/platform/kiracilar"));
+
+        // Pilot OLMAYAN firmanın kullanıcısı: konsol sayfası 403 → platform girişi (SPA). Firma verisi yok.
+        var other = await SessionAsync(fx.OtherAdmin);
+        var chain = await ChainAsync(other, "/platform/tenants");
+        Assert.Equal(new[] { "/platform/tenants", "/platform/login", "/app/platform/giris" }, chain.Select(z => z.Adres));
     }
 
     /// <summary>
@@ -1484,8 +1574,8 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         Assert.False(await IsPilotAsync(user));
 
         var platform = await PlatformSessionAsync();
-        var detail = await (await platform.GetAsync($"/platform/tenants/{id}")).Content.ReadAsStringAsync();
-        Assert.Contains("/platform/tenants/yeni-arayuz-pilot", detail); // anahtar formu detay sayfasında
+        // F12 kesiş: detay sayfası artık SPA'da (anahtar orada, /api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot).
+        await RedirectsAsync(platform, $"/platform/tenants/{id}", $"/app/platform/kiracilar/{id}");
 
         var open = await platform.PostAsync("/platform/tenants/yeni-arayuz-pilot", Form(id, true));
         Assert.Equal($"/platform/tenants/{id}?ok=1", open.Headers.Location?.OriginalString);
