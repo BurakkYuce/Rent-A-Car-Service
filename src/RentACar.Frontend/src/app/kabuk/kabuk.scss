@@ -1,3 +1,5 @@
+@use 'kirilim' as k;
+
 :host {
   display: block;
 }
@@ -170,7 +172,7 @@
   background-color: var(--rc-perde);
 }
 
-@media (max-width: 900px) {
+@media (max-width: k.$rc-kirilim-mobil) {
   .kabuk,
   .kabuk--dar {
     grid-template-columns: minmax(0, 1fr);

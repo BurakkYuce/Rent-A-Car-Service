@@ -1,5 +1,7 @@
 // Yol v2 §5.4 — sayfa bandı (52 px lacivert; mobilde 44 px). Kapsüllenmemiş: projeksiyonla gelen `.rc-dugme`
 // burada yeniden boyanır; her seçici `rc-sayfa-bandi` altında. Renkler yalnız `--rc-bant-*`.
+@use 'kirilim' as k;
+
 rc-sayfa-bandi {
   display: block;
   color: var(--rc-bant-metin);
@@ -107,7 +109,7 @@ rc-sayfa-bandi {
     cursor: pointer;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: k.$rc-kirilim-mobil) {
     .bant {
       min-height: 2.75rem;
       padding: var(--rc-bosluk-1-5) var(--rc-bosluk-4);

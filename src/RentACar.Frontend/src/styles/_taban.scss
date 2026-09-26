@@ -6,7 +6,8 @@
 }
 
 html {
-  font-size: 16px; // rem tabanı; yoğunluk token'larla (gövde 14 px)
+  // stil-denetimi: izin — rem tabanı (ölçek token'ları buna göre); yoğunluk token'larla (gövde 14 px)
+  font-size: 16px;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
