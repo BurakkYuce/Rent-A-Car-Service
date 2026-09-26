@@ -39,7 +39,7 @@ interface KabukParcasi {
       background-color: var(--rc-kenar-cubugu-zemin);
     }
     .bant-ornegi {
-      margin: calc(var(--rc-bosluk-4) * -1) calc(var(--rc-bosluk-4) * -1) var(--rc-bosluk-4);
+      margin: calc(var(--rc-bosluk-4) * -1) calc(var(--rc-bosluk-4) * -1) 0;
     }
     @media (max-width: 30rem) {
       dl {
@@ -69,7 +69,7 @@ interface KabukParcasi {
       dolu birincil <code>[birincil]</code> yuvasına; ≤ 900 px’te ikinciller “…” menüsüne iner.
     </p>
 
-    <section class="bolum" aria-labelledby="parcalar">
+    <section class="rc-bolum" aria-labelledby="parcalar">
       <h2 id="parcalar">Parçalar</h2>
       <dl>
         @for (p of parcalar; track p.ad) {
@@ -79,7 +79,7 @@ interface KabukParcasi {
       </dl>
     </section>
 
-    <section class="bolum" aria-labelledby="klavye">
+    <section class="rc-bolum" aria-labelledby="klavye">
       <h2 id="klavye">Klavye</h2>
       <dl>
         <dt><kbd>Ctrl</kbd> + <kbd>K</kbd> / <kbd>⌘</kbd> + <kbd>K</kbd></dt>
@@ -91,7 +91,7 @@ interface KabukParcasi {
       </dl>
     </section>
 
-    <section class="bolum" aria-labelledby="menu-durumlari">
+    <section class="rc-bolum" aria-labelledby="menu-durumlari">
       <h2 id="menu-durumlari">Menü durumları</h2>
       <div class="satir">
         <div class="menu-ornegi"><rc-yan-menu [durum]="'yukleniyor'" /></div>

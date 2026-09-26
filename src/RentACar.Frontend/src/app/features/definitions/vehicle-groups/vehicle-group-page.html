@@ -1,22 +1,22 @@
-<div class="sayfa">
-  <h1>{{ 'tanimlar.vehicleGroup.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'tanimlar.vehicleGroup.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'tanimlar.vehicleGroup.baslik' | transloco" ikon="car" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'tanimlar.vehicleGroup.aciklama' | transloco }}</p>
 
   @if ((unmatched() ?? []).length > 0) {
-    <section class="bolum" aria-labelledby="ag-eslesmeyen-baslik">
+    <section class="rc-bolum" aria-labelledby="ag-eslesmeyen-baslik">
       <h2 id="ag-eslesmeyen-baslik">
         {{
           'tanimlar.vehicleGroup.eslesmeyen.baslik'
             | transloco: { sayi: (unmatched() ?? []).length }
         }}
       </h2>
-      <p class="aciklama">{{ 'tanimlar.vehicleGroup.eslesmeyen.aciklama' | transloco }}</p>
-      <div class="kaydirma">
-        <table class="tablo">
+      <p class="not">{{ 'tanimlar.vehicleGroup.eslesmeyen.aciklama' | transloco }}</p>
+      <div class="rc-tablo-kap">
+        <table class="rc-duz-tablo">
           <thead>
             <tr>
               <th scope="col">{{ 'tanimlar.vehicleGroup.eslesmeyen.deger' | transloco }}</th>
-              <th scope="col" class="sayi">
+              <th scope="col" class="rc-num">
                 {{ 'tanimlar.vehicleGroup.eslesmeyen.aracSayisi' | transloco }}
               </th>
             </tr>
@@ -27,7 +27,7 @@
                 <td>
                   {{ u.bos ? ('tanimlar.vehicleGroup.eslesmeyen.bos' | transloco) : u.grup }}
                 </td>
-                <td class="sayi">{{ u.aracSayisi }}</td>
+                <td class="rc-num">{{ u.aracSayisi }}</td>
               </tr>
             }
           </tbody>

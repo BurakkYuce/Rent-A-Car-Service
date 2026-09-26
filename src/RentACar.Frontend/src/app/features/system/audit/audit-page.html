@@ -1,6 +1,6 @@
-<div class="sayfa">
-  <h1>{{ 'sistem.denetim.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'sistem.denetim.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'sistem.denetim.baslik' | transloco" ikon="shield" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'sistem.denetim.aciklama' | transloco }}</p>
 
   <div class="rc-form-izgara" [formGroup]="filters">
     <rc-alan [etiket]="'sistem.denetim.tablo' | transloco">
@@ -41,8 +41,8 @@
         @if (d.kayitlar.length === 0) {
           <p class="bos">{{ 'sistem.denetim.bos' | transloco }}</p>
         } @else {
-          <div class="kaydirma">
-            <table class="tablo" [attr.aria-busy]="list.yukleniyor()">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo" [attr.aria-busy]="list.yukleniyor()">
               <thead>
                 <tr>
                   <th scope="col">{{ 'sistem.denetim.zaman' | transloco }}</th>

@@ -27,8 +27,15 @@ kısa kurallardır; genel bağlam kökteki `CLAUDE.md` ve `docs/roadmap/` altın
 
 ## Tasarım sistemi (F3.1)
 
-- **Tasarım dili "Yol"** — tek kaynak `docs/tasarim/YOL-PLANI-v2.md` (token, tipografi, kabuk, bileşen,
-  ekran kalıpları; hedef görünüm `docs/tasarim/referans/`). Renk = durum (plan §1.2 filo durum sözlüğü).
+- **Tasarım dili "Yol"** — ÖNCE `docs/tasarim/TASARIM-DILI.md` (kısa kural kitabı: ilkeler, token katmanları,
+  durum sözlüğü, bileşen/düzen kullanımı, yap/yapma, ekran kalıpları); ayrıntılı spesifikasyon ve göç reçetesi
+  (§18) `docs/tasarim/YOL-PLANI-v2.md`, hedef görünüm `docs/tasarim/referans/`. Renk = durum. Sayfa başlığı
+  `rc-sayfa-bandi` (gövdede ikinci `<h1>` yok), gövde global düzen katmanı (`src/styles/_duzen.scss`: `.rc-sayfa`,
+  `.rc-bolum`, `.rc-kart`, `.rc-tablo-kap > .rc-duz-tablo`, `.rc-num`…); feature SCSS'te `.sayfa/.ust/.kart/
+.tablo/.num/.bolum/.aciklama/.islemler` ya da `.rc-*` tanımlanmaz, `box-shadow` yazılmaz.
+- **Stil denetimi** `npm run stil` (`scripts/stil-denetimi.mjs --kati`; `npm run lint` içinde HATA kipi): renk,
+  yazı, medya, global sınıf, gölge, plaka-tr, gövde `<h1>` kuralları; bulgu varsa lint kırmızı. Feature dışındaki zorunlu
+  istisna gerekçeli `// stil-denetimi: izin — <gerekçe>` yorumuyla (aynı/önceki satır); `features/**` istisna alamaz.
 - **Token'lar** `src/styles/_tokenlar.scss`, önek `--rc-*`, üç katman: **ham** `--rc-ham-*` (tema
   bağımsız palet; bileşen stilinde OKUNMAZ) → **anlamsal** (`--rc-zemin`, `--rc-metin`, `--rc-vurgu`,
   `--rc-{basari,uyari,hata,bilgi,notr}-{metin,zemin,kenar}`, `--rc-satir-vurgu`, `--rc-uyari-dolgu`,

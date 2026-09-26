@@ -1,26 +1,10 @@
-// Shared layout of the platform console pages (each page lists it in `styleUrls`; lazy chunks only).
+// Shared rules of the platform console pages (each page lists it in `styleUrls`; lazy chunks only). Page skeleton,
+// sections, cards, plain tables and number cells come from the GLOBAL layout layer (`src/styles/_duzen.scss`:
+// `.rc-sayfa`, `.rc-bolum`, `.rc-kart`, `.rc-tablo-kap`, `.rc-duz-tablo`, `.rc-num`, `.rc-bos`); the page title is
+// `rc-sayfa-bandi`. Only console-specific rules stay here; no global class is redefined.
 :host {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-4);
+  display: block;
   min-width: 0;
-}
-
-.head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--rc-bosluk-2);
-}
-
-h1 {
-  font-size: var(--rc-yazi-xl);
-  overflow-wrap: anywhere;
-}
-
-h2 {
-  font-size: var(--rc-yazi-lg);
 }
 
 .muted {
@@ -39,17 +23,6 @@ h2 {
   color: var(--rc-vurgu-metin);
 }
 
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  padding: var(--rc-bosluk-4);
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-lg);
-  background-color: var(--rc-yuzey);
-  min-width: 0;
-}
-
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -57,20 +30,11 @@ h2 {
   gap: var(--rc-bosluk-2);
 }
 
+// Count cards: each card is `.rc-kart`; only the grid and the figure typography live here.
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
   gap: var(--rc-bosluk-3);
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-1);
-  padding: var(--rc-bosluk-3);
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-md);
-  background-color: var(--rc-yuzey);
 }
 
 .card__num {
@@ -84,44 +48,10 @@ h2 {
   font-size: var(--rc-yazi-sm);
 }
 
-// Tables scroll inside their own box: the page body never scrolls sideways (320 px).
-.table-wrap {
-  position: relative;
-  overflow-x: auto;
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-md);
-  background-color: var(--rc-yuzey);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: var(--rc-tablo-hucre-bosluk);
-  border-bottom: 1px solid var(--rc-kenar);
-  text-align: left;
-  vertical-align: top;
-  // `rc-gorunmez` (position: absolute) inside a cell stays inside the scroller (AGENTS "Tablo motoru").
-  position: relative;
-}
-
-th {
-  color: var(--rc-metin-ikincil);
-  font-weight: var(--rc-agirlik-orta);
-  white-space: nowrap;
-}
-
-tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+// Wrapping cells (tenant name, document title); the plain table defaults to `nowrap`.
+.wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .actions {
@@ -131,8 +61,9 @@ tbody tr:last-child td {
   gap: var(--rc-bosluk-1) var(--rc-bosluk-2);
 }
 
+// On `.rc-bolum` (column flex): message + retry button side by side.
 .error-panel {
-  display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--rc-bosluk-2);

@@ -2,11 +2,11 @@
   <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ actionError() }}</p>
 }
 
-<section class="bolum" aria-labelledby="ayar-logo">
+<section class="rc-bolum" aria-labelledby="ayar-logo">
   <h2 id="ayar-logo">{{ 'sistem.ayarlar.logo.baslik' | transloco }}</h2>
   @if (dto().logoVar) {
     <div class="kutu">
-      <p class="aciklama">{{ 'sistem.ayarlar.logo.onizleme' | transloco }}</p>
+      <p class="not">{{ 'sistem.ayarlar.logo.onizleme' | transloco }}</p>
       <img class="gorsel logo" [src]="logoSrc()" [alt]="'sistem.ayarlar.logo.alt' | transloco" />
     </div>
   } @else {
@@ -41,10 +41,10 @@
   @if (logoError()) {
     <span id="ayar-logo-hata" class="hata" role="alert">{{ logoError() }}</span>
   }
-  <p class="aciklama">{{ 'sistem.ayarlar.logo.kural' | transloco }}</p>
+  <p class="not">{{ 'sistem.ayarlar.logo.kural' | transloco }}</p>
 </section>
 
-<section class="bolum" aria-labelledby="ayar-site">
+<section class="rc-bolum" aria-labelledby="ayar-site">
   <h2 id="ayar-site">{{ 'sistem.ayarlar.site.baslik' | transloco }}</h2>
   @if (dto().webSitesiAcik) {
     <p>
@@ -52,7 +52,7 @@
       <span class="kod-metin">{{ dto().webSitesiAdresi }}</span>
     </p>
   } @else {
-    <p class="aciklama">{{ 'sistem.ayarlar.site.kapali' | transloco }}</p>
+    <p class="not">{{ 'sistem.ayarlar.site.kapali' | transloco }}</p>
     <div class="eylemler">
       <button type="button" class="rc-dugme" [disabled]="busy() !== null" (click)="openSite()">
         {{ 'sistem.ayarlar.site.ac' | transloco }}
@@ -61,8 +61,8 @@
   }
 
   @if ((dto().domainler ?? []).length > 0) {
-    <div class="kaydirma">
-      <table class="tablo">
+    <div class="rc-tablo-kap">
+      <table class="rc-duz-tablo">
         <caption class="rc-gorunmez">
           {{
             'sistem.ayarlar.domain.tablo' | transloco
@@ -95,7 +95,7 @@
                       {{ 'sistem.ayarlar.domain.txtDeger' | transloco }}
                       <span class="kod-metin">{{ d.dogrulamaDegeri }}</span>
                     </p>
-                    <p class="aciklama">{{ 'sistem.ayarlar.domain.txtNot' | transloco }}</p>
+                    <p class="not">{{ 'sistem.ayarlar.domain.txtNot' | transloco }}</p>
                     <div class="eylemler">
                       <button
                         type="button"
@@ -120,7 +120,7 @@
   }
 
   <h3>{{ 'sistem.ayarlar.domain.ekleBaslik' | transloco }}</h3>
-  <p class="aciklama">{{ 'sistem.ayarlar.domain.ekleAciklama' | transloco }}</p>
+  <p class="not">{{ 'sistem.ayarlar.domain.ekleAciklama' | transloco }}</p>
   <rc-form-hatalari [hatalar]="domainSubmit.genelHatalar()" />
   <div class="rc-form-izgara" [formGroup]="domainForm">
     <rc-alan [etiket]="'sistem.ayarlar.domain.host' | transloco">
@@ -144,9 +144,9 @@
 </section>
 
 @for (kind of testKinds; track kind) {
-  <section class="bolum" [attr.aria-labelledby]="'ayar-test-' + kind">
+  <section class="rc-bolum" [attr.aria-labelledby]="'ayar-test-' + kind">
     <h2 [id]="'ayar-test-' + kind">{{ 'sistem.ayarlar.test.' + kind + '.baslik' | transloco }}</h2>
-    <p class="aciklama">{{ 'sistem.ayarlar.test.' + kind + '.aciklama' | transloco }}</p>
+    <p class="not">{{ 'sistem.ayarlar.test.' + kind + '.aciklama' | transloco }}</p>
     @if (kind !== 'eposta' && !dto().twilioTanimli) {
       <p class="rc-form-mesaji rc-form-mesaji--uyari">
         {{ 'sistem.ayarlar.test.twilioYok' | transloco }}
@@ -188,10 +188,10 @@
 }
 
 @if ((dto().whatsAppGonderimleri ?? []).length > 0) {
-  <section class="bolum" aria-labelledby="ayar-wa-gecmis">
+  <section class="rc-bolum" aria-labelledby="ayar-wa-gecmis">
     <h2 id="ayar-wa-gecmis">{{ 'sistem.ayarlar.whatsappGecmis' | transloco }}</h2>
-    <div class="kaydirma">
-      <table class="tablo">
+    <div class="rc-tablo-kap">
+      <table class="rc-duz-tablo">
         <thead>
           <tr>
             <th scope="col">{{ 'sistem.ayarlar.gun' | transloco }}</th>

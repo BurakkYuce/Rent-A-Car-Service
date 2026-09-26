@@ -12,6 +12,8 @@ import { TemelStore } from '@core/veri/temel-store';
 import { formGonderimi } from '@shared/form/form-gonderimi';
 import { FormHatalari } from '@shared/form/form-hatalari';
 
+import { PlateChipComponent } from '@shared/plaka/plaka';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { LISTINGS_ROOT } from './website-hub';
 
 type Cluster = Sema<'VehicleClusterDto'>;
@@ -32,7 +34,7 @@ export function listingCreateBody(mode: ListingMode, selected: ReadonlySet<strin
 @Component({
   selector: 'rc-listing-create',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslocoPipe, FormHatalari],
+  imports: [SayfaBandi, PlateChipComponent, RouterLink, TranslocoPipe, FormHatalari],
   styleUrl: '../system.scss',
   templateUrl: './listing-create.html',
 })

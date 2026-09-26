@@ -20,6 +20,7 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { TemelStore } from '@core/veri/temel-store';
 import { ParaPipe } from '@shared/bicim/bicim-pipe';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type ListingRow = Sema<'ListingRowDto'>;
 type ListingPage = Sema<'SayfaOfListingRowDto'>;
@@ -36,7 +37,7 @@ export const MISSING_PHOTO = 'Foto yok';
 @Component({
   selector: 'rc-website-hub',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslocoPipe, ParaPipe],
+  imports: [SayfaBandi, RouterLink, TranslocoPipe, ParaPipe],
   styleUrl: '../system.scss',
   templateUrl: './website-hub.html',
 })

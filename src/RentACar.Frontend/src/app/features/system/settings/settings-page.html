@@ -1,6 +1,6 @@
-<div class="sayfa">
-  <h1>{{ 'sistem.ayarlar.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'sistem.ayarlar.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'sistem.ayarlar.baslik' | transloco" ikon="settings" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'sistem.ayarlar.aciklama' | transloco }}</p>
 
   @if (loadError()) {
     <div class="rc-form-hatalari" role="alert">
@@ -14,7 +14,7 @@
   } @else {
     <rc-form-hatalari [hatalar]="submit.genelHatalar()" />
     <div [formGroup]="form">
-      <section class="bolum" aria-labelledby="ayar-firma">
+      <section class="rc-bolum" aria-labelledby="ayar-firma">
         <h2 id="ayar-firma">{{ 'sistem.ayarlar.firma' | transloco }}</h2>
         <div class="rc-form-izgara">
           @for (
@@ -37,9 +37,9 @@
         </div>
       </section>
 
-      <section class="bolum" aria-labelledby="ayar-entegrasyon">
+      <section class="rc-bolum" aria-labelledby="ayar-entegrasyon">
         <h2 id="ayar-entegrasyon">{{ 'sistem.ayarlar.entegrasyon' | transloco }}</h2>
-        <p class="aciklama">{{ 'sistem.ayarlar.sirAciklama' | transloco }}</p>
+        <p class="not">{{ 'sistem.ayarlar.sirAciklama' | transloco }}</p>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'sistem.ayarlar.alan.eFaturaKullanici' | transloco">
             <rc-metin-girdisi formControlName="eFaturaKullanici" [azamiUzunluk]="128" />
@@ -95,7 +95,7 @@
         </div>
       </section>
 
-      <section class="bolum" aria-labelledby="ayar-operasyon">
+      <section class="rc-bolum" aria-labelledby="ayar-operasyon">
         <h2 id="ayar-operasyon">{{ 'sistem.ayarlar.operasyon' | transloco }}</h2>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'sistem.ayarlar.alan.logoUrl' | transloco">
@@ -139,9 +139,9 @@
         </div>
       </section>
 
-      <section class="bolum" aria-labelledby="ayar-fiyat">
+      <section class="rc-bolum" aria-labelledby="ayar-fiyat">
         <h2 id="ayar-fiyat">{{ 'sistem.ayarlar.fiyat' | transloco }}</h2>
-        <p class="aciklama">{{ 'sistem.ayarlar.fiyatAciklama' | transloco }}</p>
+        <p class="not">{{ 'sistem.ayarlar.fiyatAciklama' | transloco }}</p>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'sistem.ayarlar.alan.varsayilanFiyatTuru' | transloco">
             <rc-secim
@@ -157,7 +157,7 @@
             {{ 'sistem.ayarlar.alan.kurElleGirisKilitli' | transloco }}
           </rc-onay-kutusu>
         </div>
-        <p class="aciklama">{{ 'sistem.ayarlar.beklemede' | transloco }}</p>
+        <p class="not">{{ 'sistem.ayarlar.beklemede' | transloco }}</p>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'sistem.ayarlar.alan.dropMesafeYokIseSifir' | transloco">
             <rc-secim
@@ -174,9 +174,9 @@
           </rc-alan>
         </div>
       </section>
-      <section class="bolum" aria-labelledby="ayar-renk">
+      <section class="rc-bolum" aria-labelledby="ayar-renk">
         <h2 id="ayar-renk">{{ 'sistem.ayarlar.renkler' | transloco }}</h2>
-        <p class="aciklama">{{ 'sistem.ayarlar.renkAciklama' | transloco }}</p>
+        <p class="not">{{ 'sistem.ayarlar.renkAciklama' | transloco }}</p>
         <div class="rc-form-izgara">
           @for (f of colorFields; track f) {
             <rc-alan [etiket]="'sistem.ayarlar.alan.' + f | transloco">
@@ -186,9 +186,9 @@
         </div>
       </section>
 
-      <section class="bolum" aria-labelledby="ayar-smtp">
+      <section class="rc-bolum" aria-labelledby="ayar-smtp">
         <h2 id="ayar-smtp">{{ 'sistem.ayarlar.smtp' | transloco }}</h2>
-        <p class="aciklama">{{ 'sistem.ayarlar.smtpAciklama' | transloco }}</p>
+        <p class="not">{{ 'sistem.ayarlar.smtpAciklama' | transloco }}</p>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'sistem.ayarlar.alan.smtpHost' | transloco">
             <rc-metin-girdisi
@@ -236,7 +236,7 @@
         </div>
       </section>
 
-      <section class="bolum" aria-labelledby="ayar-fatura">
+      <section class="rc-bolum" aria-labelledby="ayar-fatura">
         <h2 id="ayar-fatura">{{ 'sistem.ayarlar.fatura' | transloco }}</h2>
         <div class="rc-form-izgara">
           <rc-alan
@@ -248,9 +248,9 @@
         </div>
       </section>
 
-      <section class="bolum" aria-labelledby="ayar-whatsapp">
+      <section class="rc-bolum" aria-labelledby="ayar-whatsapp">
         <h2 id="ayar-whatsapp">{{ 'sistem.ayarlar.whatsapp' | transloco }}</h2>
-        <p class="aciklama">{{ 'sistem.ayarlar.whatsappAciklama' | transloco }}</p>
+        <p class="not">{{ 'sistem.ayarlar.whatsappAciklama' | transloco }}</p>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'sistem.ayarlar.alan.whatsAppNumarasi' | transloco">
             <rc-metin-girdisi
@@ -266,7 +266,7 @@
         </div>
       </section>
 
-      <div class="eylemler bolum">
+      <div class="rc-form-eylemler">
         <button
           type="button"
           class="rc-dugme rc-dugme--birincil"

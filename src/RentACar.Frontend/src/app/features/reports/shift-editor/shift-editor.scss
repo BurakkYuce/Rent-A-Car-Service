@@ -1,5 +1,5 @@
-// F10.3 vardiya yazma bölümü: rapor ekranının yerleşim sözlüğü (bölüm, düz tablo) aynen; yalnız form eklemeleri.
-@use '../report-page';
+// F10.3 vardiya yazma bölümü (Yol v2 PR-D4): bölüm, düz tablo ve form eylem satırı GLOBAL düzen katmanından
+// (`.rc-bolum`, `.rc-tablo-kap`, `.rc-duz-tablo`, `.rc-num`, `.rc-form-eylemler`); burada yalnız form eklemeleri.
 
 :host {
   display: flex;
@@ -8,7 +8,8 @@
   min-width: 0;
 }
 
-.bolum > h2:focus {
+// Başlık kaydet/düzenle sonrası programatik odak alır (tabindex="-1"); halka yalnız klavye odağında.
+#rc-vardiya-formu:focus {
   outline: none;
 }
 
@@ -18,7 +19,6 @@
   gap: var(--rc-bosluk-3);
 }
 
-.form__eylemler,
 .satir-eylem {
   display: flex;
   flex-wrap: wrap;

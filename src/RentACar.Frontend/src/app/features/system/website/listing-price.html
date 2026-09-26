@@ -1,9 +1,18 @@
-<div class="sayfa">
+@let bantDetay = detail();
+<rc-sayfa-bandi
+  ikon="world"
+  [baslik]="
+    !module()
+      ? ('sistem.web.baslik' | transloco)
+      : !loadError() && bantDetay
+        ? bantDetay.baslik + ' — ' + ('sistem.web.fiyatSayfa.adim' | transloco)
+        : ('sistem.web.fiyatSayfa.baslik' | transloco)
+  "
+/>
+<div class="rc-sayfa">
   @if (!module()) {
-    <h1>{{ 'sistem.web.baslik' | transloco }}</h1>
     <p class="bos">{{ 'sistem.ortak.modulYok' | transloco }}</p>
   } @else if (loadError()) {
-    <h1>{{ 'sistem.web.fiyatSayfa.baslik' | transloco }}</h1>
     <div class="rc-form-hatalari" role="alert">
       {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ loadError() }}
       <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="load()">
@@ -11,11 +20,10 @@
       </button>
     </div>
   } @else if (detail(); as d) {
-    <h1>{{ d.baslik }} — {{ 'sistem.web.fiyatSayfa.adim' | transloco }}</h1>
-    <p class="aciklama">
+    <p class="not">
       <a routerLink="/web-sitesi">{{ 'sistem.web.geri' | transloco }}</a>
     </p>
-    <p class="aciklama">{{ 'sistem.web.fiyatSayfa.aciklama' | transloco }}</p>
+    <p class="not">{{ 'sistem.web.fiyatSayfa.aciklama' | transloco }}</p>
     @if (+d.kardesTaslakSayisi > 0) {
       <p class="rc-form-mesaji rc-form-mesaji--uyari" role="status">
         {{ 'sistem.web.fiyatSayfa.kardes' | transloco: { adet: d.kardesTaslakSayisi } }}
@@ -53,7 +61,6 @@
       </div>
     </div>
   } @else {
-    <h1>{{ 'sistem.web.fiyatSayfa.baslik' | transloco }}</h1>
     <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
   }
 </div>

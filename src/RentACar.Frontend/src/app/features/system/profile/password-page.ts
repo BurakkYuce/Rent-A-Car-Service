@@ -10,6 +10,7 @@ import { Alan } from '@shared/form/alan/alan';
 import { formGonderimi } from '@shared/form/form-gonderimi';
 import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 const PASSWORD_MAX = 128;
 
@@ -20,12 +21,12 @@ const PASSWORD_MAX = 128;
 @Component({
   selector: 'rc-password-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, Alan, FormHatalari, MetinGirdisi],
+  imports: [SayfaBandi, ReactiveFormsModule, TranslocoPipe, Alan, FormHatalari, MetinGirdisi],
   styleUrl: '../system.scss',
   template: `
-    <div class="sayfa">
-      <h1>{{ 'sistem.profil.baslik' | transloco }}</h1>
-      <p class="aciklama">{{ 'sistem.profil.aciklama' | transloco }}</p>
+    <rc-sayfa-bandi [baslik]="'sistem.profil.baslik' | transloco" ikon="key" />
+    <div class="rc-sayfa">
+      <p class="not">{{ 'sistem.profil.aciklama' | transloco }}</p>
       <rc-form-hatalari [hatalar]="submit.genelHatalar()" />
       <div class="rc-form-izgara" [formGroup]="form">
         <rc-alan [etiket]="'sistem.profil.eski' | transloco">

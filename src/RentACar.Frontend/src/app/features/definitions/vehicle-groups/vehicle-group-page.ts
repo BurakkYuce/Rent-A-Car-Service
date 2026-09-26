@@ -25,6 +25,7 @@ import { Secim } from '@shared/form/kontroller/secim';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { pagedDefinitionSource } from '../paged-source';
 import { vehicleGroupFields } from './vehicle-group-fields';
 
@@ -44,7 +45,7 @@ export const EMPTY_GROUP_KEY = '\u0000bos';
 @Component({
   selector: 'rc-vehicle-group-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, TanimCrud, Alan, FormHatalari, Secim],
+  imports: [ReactiveFormsModule, TranslocoPipe, TanimCrud, Alan, FormHatalari, Secim, SayfaBandi],
   styleUrl: '../definitions.scss',
   templateUrl: './vehicle-group-page.html',
 })

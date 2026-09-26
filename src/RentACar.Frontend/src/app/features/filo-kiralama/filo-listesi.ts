@@ -22,10 +22,12 @@ import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
-import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
+import { PlateChipComponent } from '@shared/plaka/plaka';
+import { disaAktarmaAdresi, type DisaAktarma } from '@shared/tablo/disa-aktarma';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 import {
   FILO_DURUMLARI,
   FILO_LISTESI,
@@ -37,8 +39,8 @@ import { filoSutunlari } from './filo-sutunlari';
 import { FiloListesiStore } from './filo.store';
 
 export const DURUM_ROZETI: Readonly<Record<FiloDurumu, string>> = {
-  Aktif: 'rc-rozet--bilgi',
-  Tamamlandi: 'rc-rozet--basari',
+  Aktif: 'rc-rozet--basari',
+  Tamamlandi: 'rc-rozet--notr',
   Iptal: 'rc-rozet--hata',
 };
 
@@ -63,6 +65,8 @@ export const DURUM_ROZETI: Readonly<Record<FiloDurumu, string>> = {
     Tablo,
     TabloHucre,
     TarihSecici,
+    PlateChipComponent,
+    SayfaBandi,
   ],
   providers: [FetchPolicy, FiloListesiStore],
   templateUrl: './filo-listesi.html',
@@ -93,6 +97,7 @@ export class FiloListesi {
   );
 
   /** Blazor liste dışa aktarması (ViewReports); uç ekran süzgeçlerini okumaz — tüm sözleşmeler. */
+  protected readonly disaAktarmaAdresi = disaAktarmaAdresi;
   protected readonly disaAktarma = computed<DisaAktarma | null>(() =>
     this.oturum.izinVar('ViewReports')
       ? { yol: '/listeler/export/filo-kiralama', bicimler: ['excel', 'csv', 'pdf'] }

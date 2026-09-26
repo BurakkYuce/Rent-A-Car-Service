@@ -1,4 +1,6 @@
-.sayfa {
+// Geri bildirim vitrini: başlık satırı (`.rc-sayfa-basligi`) ve bölüm kutusu (`.rc-bolum`) GLOBAL düzen
+// katmanından; burada yalnız dar sütun ve vitrine özgü kurallar.
+.vitrin-sutunu {
   display: flex;
   flex-direction: column;
   gap: var(--rc-bosluk-4);
@@ -7,25 +9,8 @@
   padding: var(--rc-bosluk-6) var(--rc-bosluk-4);
 }
 
-.ust {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--rc-bosluk-2);
-}
-
-.kart {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  padding: var(--rc-bosluk-4);
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-xl);
-  background-color: var(--rc-yuzey);
-}
-
-.aciklama {
+.not {
+  margin: 0;
   color: var(--rc-metin-ikincil);
 }
 

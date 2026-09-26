@@ -6,6 +6,7 @@ import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { TemelStore } from '@core/veri/temel-store';
 import { SayiPipe } from '@shared/bicim/bicim-pipe';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { PLATFORM_API, type PlatformSummary, toNumber } from '../platform-model';
 import { PlatformSessionService } from '../platform-session';
 
@@ -16,45 +17,46 @@ import { PlatformSessionService } from '../platform-session';
 @Component({
   selector: 'rc-platform-summary-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslocoPipe, SayiPipe],
+  imports: [RouterLink, TranslocoPipe, SayiPipe, SayfaBandi],
   styleUrls: ['../platform-page.scss'],
   template: `
-    <div class="head">
-      <h1>{{ 'platform.ozet.baslik' | transloco }}</h1>
-      <div class="actions">
-        <a class="rc-dugme rc-dugme--kucuk" routerLink="/platform/kiracilar">{{
+    <rc-sayfa-bandi [baslik]="'platform.ozet.baslik' | transloco" ikon="chart-bar">
+      <ng-container eylemler>
+        <a class="rc-dugme" routerLink="/platform/kiracilar">{{
           'platform.ozet.firmalaraGit' | transloco
         }}</a>
-        <a class="rc-dugme rc-dugme--kucuk" routerLink="/platform/belgeler">{{
+        <a class="rc-dugme" routerLink="/platform/belgeler">{{
           'platform.ozet.belgelereGit' | transloco
         }}</a>
-      </div>
-    </div>
-    @switch (summary.durum().tur) {
-      @case ('hata') {
-        <div class="panel error-panel" role="alert">
-          <span>{{ 'platform.yuklenemedi' | transloco }}</span>
-          <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="summary.yenile()">
-            {{ 'platform.yenidenDene' | transloco }}
-          </button>
-        </div>
-      }
-      @case ('hazir') {
-        @if (summary.veri(); as s) {
-          <div class="cards" data-testid="platform-ozet">
-            @for (card of cards(s); track card.key) {
-              <div class="card">
-                <span class="card__num">{{ card.value | sayi }}</span>
-                <span class="card__label">{{ card.key | transloco }}</span>
-              </div>
-            }
+      </ng-container>
+    </rc-sayfa-bandi>
+    <div class="rc-sayfa">
+      @switch (summary.durum().tur) {
+        @case ('hata') {
+          <div class="rc-bolum error-panel" role="alert">
+            <span>{{ 'platform.yuklenemedi' | transloco }}</span>
+            <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="summary.yenile()">
+              {{ 'platform.yenidenDene' | transloco }}
+            </button>
           </div>
         }
+        @case ('hazir') {
+          @if (summary.veri(); as s) {
+            <div class="cards" data-testid="platform-ozet">
+              @for (card of cards(s); track card.key) {
+                <div class="rc-kart">
+                  <span class="card__num">{{ card.value | sayi }}</span>
+                  <span class="card__label">{{ card.key | transloco }}</span>
+                </div>
+              }
+            </div>
+          }
+        }
+        @default {
+          <p class="muted" aria-busy="true">{{ 'platform.yukleniyor' | transloco }}</p>
+        }
       }
-      @default {
-        <p class="muted" aria-busy="true">{{ 'platform.yukleniyor' | transloco }}</p>
-      }
-    }
+    </div>
   `,
 })
 export class PlatformSummaryPage {

@@ -5,11 +5,12 @@
   padding: var(--rc-bosluk-4);
 }
 
-.aciklama {
+.not {
+  margin: 0;
   color: var(--rc-metin-ikincil);
 }
 
-.tablo {
+.vitrin-tablosu {
   // Kabuk (üst çubuk + sekmeler ≈ 5 rem) ve sayfa başlığı düşülür: tablo ekrana sığar, kendi içinde kayar.
   --rc-tablo-en-fazla-yukseklik: calc(100vh - 17rem);
 }

@@ -1,34 +1,23 @@
+// Yer tutucu ana sayfa: sayfa iskeleti ve bölüm kutusu GLOBAL düzen katmanından (`.rc-sayfa`, `.rc-bolum`);
+// burada yalnız ekrana özgü kurallar. Gölge yok (kağıt üstüne yazı, §1.1).
+:host {
+  display: block;
+  min-width: 0;
+}
+
 .yer-tutucu {
-  padding: var(--rc-bosluk-8) var(--rc-bosluk-4);
-}
-
-.kart {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
   max-width: 40rem;
-  margin: 0 auto;
-  padding: var(--rc-bosluk-6);
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-xl);
-  background-color: var(--rc-yuzey);
-  box-shadow: var(--rc-golge-2);
 }
 
-.ust {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--rc-bosluk-2);
-}
-
-.aciklama {
+.not {
+  margin: 0;
   color: var(--rc-metin-ikincil);
 }
 
 .oturum {
   display: flex;
   flex-direction: column;
+  margin: 0;
 }
 
 .kullanici {

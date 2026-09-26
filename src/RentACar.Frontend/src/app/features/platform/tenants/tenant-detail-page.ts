@@ -39,6 +39,7 @@ import {
   toNumber,
   updateBody,
 } from '../platform-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { PlatformSessionService } from '../platform-session';
 
 type InfoKey = keyof TenantInfoValue;
@@ -63,6 +64,7 @@ const INFO_KEYS: readonly InfoKey[] = ['ad', 'yetkiliAd', 'eposta', 'telefon', '
     MetinAlani,
     MetinGirdisi,
     ParaPipe,
+    SayfaBandi,
     SayiPipe,
     TarihPipe,
     TarihSaatPipe,

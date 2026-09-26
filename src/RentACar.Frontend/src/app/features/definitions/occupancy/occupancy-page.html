@@ -1,15 +1,15 @@
-<div class="sayfa">
-  <h1>{{ 'tanimlar.occupancy.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'tanimlar.occupancy.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'tanimlar.occupancy.baslik' | transloco" ikon="chart-bar" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'tanimlar.occupancy.aciklama' | transloco }}</p>
 
-  <details class="bolum">
+  <details class="rc-bolum">
     <summary>{{ 'tanimlar.occupancy.toplu.baslik' | transloco }}</summary>
-    <p class="aciklama">{{ 'tanimlar.occupancy.toplu.aciklama' | transloco }}</p>
+    <p class="not">{{ 'tanimlar.occupancy.toplu.aciklama' | transloco }}</p>
     <rc-form-hatalari [hatalar]="bulkSubmit.genelHatalar()" />
     @if (bulkError()) {
       <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ bulkError() }}</p>
     }
-    <div [formGroup]="bulkForm" class="bolum">
+    <div [formGroup]="bulkForm" class="toplu-form">
       <div class="rc-form-izgara">
         <rc-alan [etiket]="'tanimlar.occupancy.toplu.kodOnEk' | transloco">
           <rc-metin-girdisi formControlName="kodOnEk" [azamiUzunluk]="24" yerTutucu="YAZ-EKO" />

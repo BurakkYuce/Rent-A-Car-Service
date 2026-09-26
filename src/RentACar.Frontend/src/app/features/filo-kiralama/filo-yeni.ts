@@ -20,6 +20,7 @@ import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 import { Ikon } from '@shared/ikon/ikon';
 
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 import { FiloKunyeAlanlari, kunyeKontrolleri } from './filo-kunye-alanlari';
 import {
   type FiloOlusturYaniti,
@@ -48,6 +49,7 @@ import {
     ParaGirdisi,
     SayiGirdisi,
     TarihSecici,
+    SayfaBandi,
   ],
   templateUrl: './filo-yeni.html',
   styleUrl: './filo.scss',

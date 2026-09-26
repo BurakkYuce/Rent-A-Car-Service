@@ -16,7 +16,7 @@
     "watch": "ng build --watch --configuration development",
     "lint": "eslint --max-warnings 0 . && npm run --silent uretim:kontrol && npm run --silent kontrast && npm run --silent stil",
     "kontrast": "node scripts/kontrast-denetimi.mjs",
-    "stil": "node scripts/stil-denetimi.mjs",
+    "stil": "node scripts/stil-denetimi.mjs --kati",
     "ikonlar": "node scripts/ikon-kaydi.mjs",
     "i18n:tipler": "node scripts/i18n-tipleri.mjs",
     "uretim:kontrol": "node scripts/ikon-kaydi.mjs --kontrol && node scripts/i18n-tipleri.mjs --kontrol",

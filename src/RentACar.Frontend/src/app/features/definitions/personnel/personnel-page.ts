@@ -5,6 +5,7 @@ import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { selectionSuggestions } from '../definition-catalog';
 import { pagedDefinitionSource } from '../paged-source';
 import { personnelFields, personnelToBody, personnelToRow } from './personnel-model';
@@ -16,12 +17,12 @@ import { personnelFields, personnelToBody, personnelToRow } from './personnel-mo
 @Component({
   selector: 'rc-personnel-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TanimCrud],
+  imports: [TranslocoPipe, TanimCrud, SayfaBandi],
   styleUrl: '../definitions.scss',
   template: `
-    <div class="sayfa">
-      <h1>{{ 'tanimlar.personnel.baslik' | transloco }}</h1>
-      <p class="aciklama">{{ 'tanimlar.personnel.aciklama' | transloco }}</p>
+    <rc-sayfa-bandi [baslik]="'tanimlar.personnel.baslik' | transloco" ikon="users" />
+    <div class="rc-sayfa">
+      <p class="not">{{ 'tanimlar.personnel.aciklama' | transloco }}</p>
       <rc-tanim-crud
         layout="panel"
         [baslik]="'tanimlar.personnel.tablo' | transloco"

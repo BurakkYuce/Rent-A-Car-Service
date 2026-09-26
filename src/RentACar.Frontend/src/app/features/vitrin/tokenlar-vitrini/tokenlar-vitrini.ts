@@ -132,7 +132,7 @@ const DURUM_SOZLUGU: readonly DurumOrnegi[] = [
     }
   `,
   template: `
-    <div class="sayfa-ust">
+    <div class="rc-sayfa-basligi">
       <h1>Token’lar</h1>
       <a routerLink="/vitrin">Vitrin</a>
     </div>
@@ -142,7 +142,7 @@ const DURUM_SOZLUGU: readonly DurumOrnegi[] = [
     </p>
 
     @for (grup of renkGruplari; track grup.ad) {
-      <section class="bolum" [attr.aria-labelledby]="'renk-' + $index">
+      <section class="rc-bolum" [attr.aria-labelledby]="'renk-' + $index">
         <h2 [id]="'renk-' + $index">{{ grup.ad }}</h2>
         <ul class="izgara">
           @for (token of grup.tokenlar; track token) {
@@ -155,7 +155,7 @@ const DURUM_SOZLUGU: readonly DurumOrnegi[] = [
       </section>
     }
 
-    <section class="bolum" aria-labelledby="durum-sozlugu">
+    <section class="rc-bolum" aria-labelledby="durum-sozlugu">
       <h2 id="durum-sozlugu">Filo durum sözlüğü</h2>
       <p class="not">
         Renk = durum. Rozet anlamsal token'la (tema döner), tabela kartı iki temada aynı.
@@ -191,7 +191,7 @@ const DURUM_SOZLUGU: readonly DurumOrnegi[] = [
       </p>
     </section>
 
-    <section class="bolum" aria-labelledby="durum-renkleri">
+    <section class="rc-bolum" aria-labelledby="durum-renkleri">
       <h2 id="durum-renkleri">Durum renkleri (metin / zemin / kenar)</h2>
       <ul class="izgara">
         @for (durum of durumlar; track durum) {
@@ -208,7 +208,7 @@ const DURUM_SOZLUGU: readonly DurumOrnegi[] = [
     </section>
 
     @for (grup of hamPalet; track grup.ad) {
-      <section class="bolum" [attr.aria-labelledby]="'ham-' + $index">
+      <section class="rc-bolum" [attr.aria-labelledby]="'ham-' + $index">
         <h2 [id]="'ham-' + $index">Ham palet: {{ grup.ad }}</h2>
         <ul class="izgara">
           @for (token of grup.tokenlar; track token) {
@@ -221,7 +221,7 @@ const DURUM_SOZLUGU: readonly DurumOrnegi[] = [
       </section>
     }
 
-    <section class="bolum" aria-labelledby="yazi-olcegi">
+    <section class="rc-bolum" aria-labelledby="yazi-olcegi">
       <h2 id="yazi-olcegi">Yazı ölçeği (IBM Plex Sans, gövde 14 px)</h2>
       @for (adim of yaziOlcegi; track adim) {
         <p class="yazi" [style.font-size]="'var(--rc-yazi-' + adim + ')'">
@@ -236,7 +236,7 @@ const DURUM_SOZLUGU: readonly DurumOrnegi[] = [
       </p>
     </section>
 
-    <section class="bolum" aria-labelledby="bosluk-olcegi">
+    <section class="rc-bolum" aria-labelledby="bosluk-olcegi">
       <h2 id="bosluk-olcegi">Boşluk (4 px ızgarası)</h2>
       <ul class="izgara">
         @for (adim of bosluklar; track adim) {
@@ -248,7 +248,7 @@ const DURUM_SOZLUGU: readonly DurumOrnegi[] = [
       </ul>
     </section>
 
-    <section class="bolum" aria-labelledby="kose-golge">
+    <section class="rc-bolum" aria-labelledby="kose-golge">
       <h2 id="kose-golge">Köşe ve gölge</h2>
       <ul class="izgara">
         @for (y of yaricaplar; track y) {

@@ -17,6 +17,7 @@ import { MetinAlani } from '@shared/form/kontroller/metin-alani';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { mergeServerValues } from '../shared/version-merge';
 
 type MessageTemplate = Sema<'MessageTemplateDto'>;
@@ -63,6 +64,7 @@ function templateValues(m: MessageTemplate): Record<string, unknown> {
   selector: 'rc-message-templates-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,

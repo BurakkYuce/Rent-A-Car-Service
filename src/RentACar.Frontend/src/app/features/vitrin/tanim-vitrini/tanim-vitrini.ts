@@ -21,20 +21,16 @@ import type {
   imports: [RouterLink, TanimCrud],
   styles: `
     :host {
-      display: block;
-      max-width: 60rem;
-      padding: var(--rc-bosluk-4);
-    }
-    .sayfa-ust {
       display: flex;
-      gap: var(--rc-bosluk-3);
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: var(--rc-bosluk-4);
+      flex-direction: column;
+      gap: var(--rc-bosluk-4);
+      max-width: 60rem;
+      min-width: 0;
+      padding: var(--rc-bosluk-4);
     }
   `,
   template: `
-    <div class="sayfa-ust">
+    <div class="rc-sayfa-basligi">
       <h1>Tanım vitrini</h1>
       <a routerLink="/" class="rc-yazdirma-gizle">Ana sayfa</a>
     </div>

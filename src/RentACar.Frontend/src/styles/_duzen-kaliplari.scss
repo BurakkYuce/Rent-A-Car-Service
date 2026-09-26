@@ -1,7 +1,6 @@
-// Düzen kalıpları (Yol v2 §7): YALNIZ mixin — bu dosya CSS üretmez. İki tüketicisi var:
-// 1. `_duzen.scss` → global `.rc-*` düzen sınıfları (tek kaynak; ızgara/medya kuralları orada gruplu).
-// 2. Göç sürerken eski feature sınıfları (`features/vehicles/vehicles.scss`: `.sayfa`, `.bolum`, `.duz-tablo`…)
-//    aynı kalıbı buradan alır; böylece ekranlar PR-D'de `.rc-*`'ye geçene kadar görünüm tek yerden döner.
+// Düzen kalıpları (Yol v2 §7): YALNIZ mixin — bu dosya CSS üretmez. Tüketicisi `_duzen.scss` (global `.rc-*` düzen
+// sınıfları; ızgara/medya kuralları orada gruplu). Göç (PR-D1–D4) bitti: feature'lar bu mixin'leri değil global
+// sınıfları kullanır.
 // Renk yalnız var(--rc-*); kırılım yalnız `_kirilim.scss` değişkeniyle.
 @use 'kirilim' as k;
 
@@ -155,8 +154,7 @@
     margin-inline-start: var(--rc-bosluk-2);
   }
 
-  .rc-num,
-  .num {
+  .rc-num {
     @include num;
   }
 

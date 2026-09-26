@@ -30,6 +30,7 @@ import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import { Secim } from '@shared/form/kontroller/secim';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { mergeServerValues } from '../shared/version-merge';
 import {
   COLOR_FIELDS,
@@ -87,6 +88,7 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
   selector: 'rc-settings-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,

@@ -58,16 +58,11 @@ type OdemeTuru = 'nakit' | 'kart';
   templateUrl: './form-vitrini.html',
   styles: `
     :host {
-      display: block;
-      padding: var(--rc-bosluk-4);
-    }
-    .sayfa-ust {
       display: flex;
-      flex-wrap: wrap;
-      gap: var(--rc-bosluk-3);
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: var(--rc-bosluk-4);
+      flex-direction: column;
+      gap: var(--rc-bosluk-4);
+      min-width: 0;
+      padding: var(--rc-bosluk-4);
     }
     .ozet {
       display: grid;

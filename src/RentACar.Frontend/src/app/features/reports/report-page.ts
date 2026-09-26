@@ -32,11 +32,14 @@ import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { type SavedView, SavedViewChipsComponent } from '@shared/gorunum-cipleri/gorunum-cipleri';
 import { Ikon } from '@shared/ikon/ikon';
 import { type DisaAktarmaBicimi, disaAktarmaAdresi } from '@shared/tablo/disa-aktarma';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
+
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 
 import { findReport } from './report-catalog';
 import { ShiftEditor } from './shift-editor/shift-editor';
@@ -93,6 +96,8 @@ type FilterValue = string | number | boolean | GunAraligi | SecimSecenegi | null
     Tablo,
     TabloHucre,
     ShiftEditor,
+    SayfaBandi,
+    SavedViewChipsComponent,
   ],
   providers: [FetchPolicy],
   templateUrl: './report-page.html',
@@ -243,6 +248,15 @@ export class ReportPage {
     const s = this.summary();
     return s ? f.oneriler(s) : [];
   }
+
+  /** Görünüm seçimi kayıtlı görünüm çipleri olarak (düğme kipi; `id` = görünüm kodu). */
+  protected readonly viewChips = computed<readonly SavedView[]>(() =>
+    this.def.gorunumler.map((v) => ({
+      id: v.kod,
+      ad: this.t(v.baslik ?? this.def.baslik),
+      aktif: v.kod === this.view().kod,
+    })),
+  );
 
   protected switchView(kod: string): void {
     if (kod === this.view().kod) return;

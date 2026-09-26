@@ -1,10 +1,15 @@
-<div class="sayfa">
-  <p class="aciklama">
+@let onizlenen = preview.tur() === 'hazir' ? preview.veri() : null;
+<rc-sayfa-bandi
+  ikon="file-text"
+  [baslik]="onizlenen?.baslik ?? ('sistem.blog.onizleme' | transloco)"
+  [pill]="onizlenen ? ('sistem.blog.onizleme' | transloco) : null"
+/>
+<div class="rc-sayfa">
+  <p class="not">
     <a routerLink="/blog-yonetim">{{ 'sistem.blog.geri' | transloco }}</a>
   </p>
   @switch (preview.tur()) {
     @case ('hata') {
-      <h1>{{ 'sistem.blog.onizleme' | transloco }}</h1>
       <div class="rc-form-hatalari" role="alert">
         {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ preview.hata()?.detay }}
         <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="preview.yenile()">
@@ -26,10 +31,10 @@
             <strong>{{ p.aramaBasligi }}</strong>
           </p>
           @if (p.aramaAciklamasi) {
-            <p class="aciklama">{{ p.aramaAciklamasi }}</p>
+            <p class="not">{{ p.aramaAciklamasi }}</p>
           }
           @if (p.anahtarKelimeler.length > 0) {
-            <p class="aciklama">
+            <p class="not">
               {{ 'sistem.blog.kelimeler' | transloco }} {{ p.anahtarKelimeler.join(', ') }}
             </p>
           }
@@ -39,10 +44,9 @@
             </p>
           }
         </section>
-        <article class="bolum">
-          <h1>{{ p.baslik }}</h1>
+        <article class="rc-bolum">
           @if (p.altBaslik) {
-            <p class="aciklama">{{ p.altBaslik }}</p>
+            <p class="not">{{ p.altBaslik }}</p>
           }
           @for (b of p.bloklar; track $index) {
             @switch (b.tur) {
@@ -61,7 +65,6 @@
       }
     }
     @default {
-      <h1>{{ 'sistem.blog.onizleme' | transloco }}</h1>
       <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
     }
   }

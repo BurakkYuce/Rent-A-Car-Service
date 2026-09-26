@@ -11,6 +11,8 @@ import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { TemelStore } from '@core/veri/temel-store';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+
 type CalendarLink = Sema<'CalendarLinkDto'>;
 
 /**
@@ -20,11 +22,11 @@ type CalendarLink = Sema<'CalendarLinkDto'>;
 @Component({
   selector: 'rc-calendar-subscription-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe],
+  imports: [TranslocoPipe, SayfaBandi],
   styleUrl: '../definitions.scss',
   template: `
-    <div class="sayfa">
-      <h1>{{ 'tanimlar.calendar.baslik' | transloco }}</h1>
+    <rc-sayfa-bandi [baslik]="'tanimlar.calendar.baslik' | transloco" ikon="calendar" />
+    <div class="rc-sayfa">
       @switch (link.tur()) {
         @case ('hata') {
           <div class="rc-form-hatalari" role="alert">
@@ -35,7 +37,7 @@ type CalendarLink = Sema<'CalendarLinkDto'>;
           </div>
         }
         @case ('hazir') {
-          <p class="aciklama">{{ 'tanimlar.calendar.aciklama' | transloco }}</p>
+          <p class="not">{{ 'tanimlar.calendar.aciklama' | transloco }}</p>
           <div class="baglanti">
             <input
               class="rc-girdi"
@@ -48,7 +50,7 @@ type CalendarLink = Sema<'CalendarLinkDto'>;
               {{ 'tanimlar.calendar.kopyala' | transloco }}
             </button>
           </div>
-          <p class="aciklama">{{ 'tanimlar.calendar.uyari' | transloco }}</p>
+          <p class="not">{{ 'tanimlar.calendar.uyari' | transloco }}</p>
           @if (renewError()) {
             <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ renewError() }}</p>
           }
@@ -64,7 +66,7 @@ type CalendarLink = Sema<'CalendarLinkDto'>;
           </div>
         }
         @default {
-          <p class="bos" role="status">{{ 'form.tanim.yukleniyor' | transloco }}</p>
+          <p class="not" role="status">{{ 'form.tanim.yukleniyor' | transloco }}</p>
         }
       }
     </div>
