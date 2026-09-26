@@ -17,6 +17,8 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { formGonderimi } from '@shared/form/form-gonderimi';
 import { FormHatalari } from '@shared/form/form-hatalari';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+
 type ImportCounts = Sema<'ImportCountsDto'>;
 export type ImportKind = 'arac' | 'cari';
 
@@ -32,7 +34,7 @@ const ACCEPT = '.xlsx,.xls,.csv';
 @Component({
   selector: 'rc-import-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, FormHatalari],
+  imports: [TranslocoPipe, FormHatalari, SayfaBandi],
   styleUrl: '../definitions.scss',
   templateUrl: './import-page.html',
 })

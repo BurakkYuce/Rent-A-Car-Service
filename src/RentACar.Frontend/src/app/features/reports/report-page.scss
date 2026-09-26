@@ -1,47 +1,40 @@
-// F10.2 ortak rapor ekranı: araç ekranlarının yerleşim sözlüğü (başlık, süzgeç, özet şerit, bölüm, düz tablo)
-// burada da aynı adlarla; rapor ekranları başka özelliğin stil dosyasına bağlanmaz.
-.sayfa {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  padding: var(--rc-bosluk-4);
+@use 'kirilim' as k;
+
+// F10.2 ortak rapor ekranı (Yol v2 PR-D4): sayfa iskeleti, bölüm, kart, düz tablo ve hücre yardımcıları GLOBAL
+// düzen katmanından (`src/styles/_duzen.scss`: `.rc-sayfa`, `.rc-bolum`, `.rc-kart`, `.rc-tablo-kap`,
+// `.rc-duz-tablo`, `.rc-num`). Burada yalnız rapora özgü kurallar kalır; global sınıf yeniden tanımlanmaz.
+
+:host {
+  display: block;
   min-width: 0;
 }
 
-.ust {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rc-bosluk-3);
-  align-items: center;
-  justify-content: space-between;
-
-  > h1 {
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
-}
-
-.aciklama {
+.not {
   margin: 0;
   color: var(--rc-metin-ikincil);
   font-size: var(--rc-yazi-xs);
 }
 
-.gorunumler,
+// Süzgeç formu (`.rc-bolum` + `.rc-filtre-izgara`): eylemler sağda (filtre paneli kalıbı, §8). Dönem aralığı iki
+// tarih taşır: iki sütun kaplar (tek sütunlu dar ekranda kendi satırı).
+.alan-genis {
+  grid-column: span 2;
+
+  @media (max-width: k.$rc-kirilim-dar) {
+    grid-column: auto;
+  }
+}
+
 .filtre__eylemler {
   display: flex;
   flex-wrap: wrap;
   gap: var(--rc-bosluk-2);
   align-items: center;
+  justify-content: flex-end;
 }
 
-.filtre {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-}
-
-.rc-form-mesaji {
+// Mesaj kutusu içinde metin + "Yeniden dene" düğmesi yan yana.
+.mesaj-satiri {
   display: flex;
   flex-wrap: wrap;
   gap: var(--rc-bosluk-2);
@@ -54,30 +47,20 @@
   grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
   gap: var(--rc-bosluk-2);
 
-  > .rc-iskelet {
+  > span {
     height: calc(var(--rc-bosluk-4) * 3);
   }
 }
 
+// Özet kutuları: her kutu `.rc-kart`; burada yalnız ızgara ve künye tipografisi.
 .ozet-serit {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: var(--rc-bosluk-2);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  gap: var(--rc-bosluk-3);
   margin: 0;
 
   &.soluk {
     opacity: 0.6;
-  }
-
-  > div {
-    display: flex;
-    flex-direction: column;
-    gap: var(--rc-bosluk-0-5);
-    min-width: 0;
-    padding: var(--rc-bosluk-2) var(--rc-bosluk-3);
-    border: 1px solid var(--rc-kenar);
-    border-radius: var(--rc-yaricap-lg);
-    background: var(--rc-yuzey);
   }
 
   dt {
@@ -87,7 +70,7 @@
 
   dd {
     margin: 0;
-    font-size: var(--rc-yazi-lg);
+    font-size: var(--rc-yazi-xl);
     font-weight: var(--rc-agirlik-kalin);
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
@@ -98,55 +81,14 @@
   color: var(--rc-hata-metin);
 }
 
-.bolum {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  min-width: 0;
-  padding: var(--rc-bosluk-4);
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-lg);
-  background: var(--rc-yuzey);
-
-  > h2 {
-    margin: 0;
-    font-size: var(--rc-yazi-lg);
-  }
-}
-
-.tablo-kap {
-  position: relative;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.duz-tablo {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--rc-yazi-sm);
-  font-variant-numeric: tabular-nums;
-
-  th,
-  td {
-    padding: var(--rc-bosluk-1) var(--rc-bosluk-2);
-    border-bottom: 1px solid var(--rc-kenar);
-    text-align: start;
-    white-space: nowrap;
-  }
-
-  .num {
-    text-align: end;
-  }
-
-  .toplam-satiri td {
-    font-weight: var(--rc-agirlik-kalin);
-  }
+.toplam-satiri td {
+  font-weight: var(--rc-agirlik-kalin);
 }
 
 .bag {
   font-variant-numeric: tabular-nums;
 }
 
-.tablo {
+.rapor-tablosu {
   --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
 }

@@ -28,6 +28,8 @@ import { formGonderimi } from '@shared/form/form-gonderimi';
 import { FormHatalari } from '@shared/form/form-hatalari';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+
 type CompanyDocument = Sema<'CompanyDocumentDto'>;
 
 /** Sunucu sınırları (`FirmaDokumanService.MaxBayt` / `MaxDokuman`); asıl dayatma serviste. */
@@ -54,6 +56,7 @@ export function kilobytes(size: number | string): number {
     Alan,
     FormHatalari,
     MetinGirdisi,
+    SayfaBandi,
   ],
   styleUrl: '../definitions.scss',
   templateUrl: './documents-page.html',

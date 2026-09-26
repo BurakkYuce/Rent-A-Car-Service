@@ -1,10 +1,11 @@
-<div class="yer-tutucu">
-  <div class="kart">
-    <header class="ust">
-      <h1>{{ 'yerTutucu.baslik' | transloco }}</h1>
-      <span class="rc-rozet rc-rozet--uyari">{{ 'yerTutucu.durumYapimda' | transloco }}</span>
-    </header>
-    <p class="aciklama">{{ 'yerTutucu.aciklama' | transloco }}</p>
+<rc-sayfa-bandi
+  [baslik]="'yerTutucu.baslik' | transloco"
+  ikon="home"
+  [pill]="'yerTutucu.durumYapimda' | transloco"
+/>
+<div class="rc-sayfa">
+  <section class="rc-bolum yer-tutucu">
+    <p class="not">{{ 'yerTutucu.aciklama' | transloco }}</p>
     @if (oturum.ben(); as ben) {
       <p class="oturum">
         <span class="kullanici">{{ ben.kullanici.adSoyad || ben.kullanici.kullaniciAdi }}</span>
@@ -28,5 +29,5 @@
         'yerTutucu.tabloVitrini' | transloco
       }}</a>
     </nav>
-  </div>
+  </section>
 </div>

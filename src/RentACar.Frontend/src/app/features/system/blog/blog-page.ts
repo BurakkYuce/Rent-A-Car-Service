@@ -32,6 +32,7 @@ import {
   type TanimSatiri,
   restTanimKaynagi,
 } from '@shared/form/tanim-crud/tanim-kaynagi';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type BlogList = Sema<'SayfaOfBlogRowDto'>;
 
@@ -85,7 +86,7 @@ export function blogFields(t: Translate): readonly TanimAlani[] {
 @Component({
   selector: 'rc-blog-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, TranslocoPipe, TanimCrud, Alan, Secim],
+  imports: [SayfaBandi, ReactiveFormsModule, RouterLink, TranslocoPipe, TanimCrud, Alan, Secim],
   styleUrl: '../system.scss',
   templateUrl: './blog-page.html',
 })

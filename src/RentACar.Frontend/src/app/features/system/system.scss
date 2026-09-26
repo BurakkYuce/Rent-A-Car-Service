@@ -1,33 +1,16 @@
-// F11.2b sistem ve web sitesi ekranlarının ortak yerleşimi (F11.2a `definitions.scss` ile aynı dil).
-.sayfa {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  padding: var(--rc-bosluk-4);
-  min-width: 0;
+// F11.2b sistem ve web sitesi ekranları (Yol v2 PR-D4): sayfa iskeleti, bölüm, düz tablo ve hücre yardımcıları
+// GLOBAL düzen katmanından (`src/styles/_duzen.scss`: `.rc-sayfa`, `.rc-bolum`, `.rc-tablo-kap`, `.rc-duz-tablo`,
+// `.rc-num`, `.rc-form-eylemler`…). Burada yalnız bu ekranlara özgü kurallar kalır; global sınıf yeniden tanımlanmaz.
 
-  > h1 {
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
+:host {
+  display: block;
+  min-width: 0;
 }
 
-.aciklama {
+.not {
   margin: 0;
   color: var(--rc-metin-ikincil);
   font-size: var(--rc-yazi-xs);
-}
-
-.bolum {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  min-width: 0;
-  margin-top: var(--rc-bosluk-4);
-
-  > h2 {
-    margin: 0;
-  }
 }
 
 .eylemler {
@@ -37,51 +20,15 @@
   align-items: end;
 }
 
-.kaydirma {
-  overflow-x: auto;
-  border: 1px solid var(--rc-kenar);
-  border-radius: var(--rc-yaricap-md);
-  background-color: var(--rc-yuzey);
+// Satır sonundaki eylem sütunu: içerik kadar dar, kırılmaz.
+.satir-eylemleri {
+  width: 1%;
+  white-space: nowrap;
 }
 
-.tablo {
-  width: 100%;
-  border-collapse: collapse;
-
-  th,
-  td {
-    height: var(--rc-tablo-satir);
-    padding: var(--rc-bosluk-1) var(--rc-tablo-hucre-bosluk);
-    border-bottom: 1px solid var(--rc-kenar);
-    text-align: start;
-    vertical-align: middle;
-  }
-
-  th {
-    background-color: var(--rc-yuzey-alt);
-    color: var(--rc-metin-ikincil);
-    font-size: var(--rc-yazi-xs);
-    font-weight: var(--rc-agirlik-kalin);
-  }
-
-  tbody tr:last-child td {
-    border-bottom: 0;
-  }
-
-  .sayi {
-    font-variant-numeric: tabular-nums;
-    text-align: end;
-  }
-
-  .islemler {
-    width: 1%;
-    white-space: nowrap;
-  }
-
-  .kod {
-    font-family: var(--rc-font-mono, monospace);
-    overflow-wrap: anywhere;
-  }
+.kod {
+  font-family: var(--rc-font-mono, monospace);
+  overflow-wrap: anywhere;
 }
 
 .alt-metin {
@@ -109,7 +56,9 @@
   }
 }
 
+// Satır içi düzenleme kutusu tablo hücresinde de açılır: düz tablonun `nowrap`'ı burada kırılır.
 .kutu {
+  white-space: normal;
   display: flex;
   flex-direction: column;
   gap: var(--rc-bosluk-2);
@@ -172,4 +121,10 @@
 .kucuk-foto {
   width: calc(var(--rc-bosluk-1) * 24);
   border-radius: var(--rc-yaricap-md);
+}
+
+// Arama sonuçları bir `.rc-bolum` içinde liste: tarayıcı liste boşlukları sıfırlanır.
+.sonuc-listesi {
+  margin: 0;
+  list-style: none;
 }

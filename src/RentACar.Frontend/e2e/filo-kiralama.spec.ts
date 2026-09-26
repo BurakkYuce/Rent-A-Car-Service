@@ -48,7 +48,7 @@ const LISTE: VitrinSayfasi = {
 const DETAY: VitrinSayfasi = {
   ad: 'filo-detay',
   yol: `/app/filo-kiralama/${FILO_1}`,
-  baslik: 'Filo sözleşmesi FK-000001 Aktif',
+  baslik: 'Filo sözleşmesi FK-000001',
   hazir: async (page) => {
     await expect(page.getByRole('textbox', { name: 'Satış temsilcisi' })).toHaveValue('Ali');
   },

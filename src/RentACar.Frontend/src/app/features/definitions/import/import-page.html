@@ -1,13 +1,13 @@
-<div class="sayfa">
-  <h1>{{ 'tanimlar.import.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'tanimlar.import.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'tanimlar.import.baslik' | transloco" ikon="download" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'tanimlar.import.aciklama' | transloco }}</p>
 
   @for (kind of kinds; track kind) {
-    <section class="bolum" [attr.aria-labelledby]="'ia-' + kind + '-baslik'">
+    <section class="rc-bolum" [attr.aria-labelledby]="'ia-' + kind + '-baslik'">
       <h2 [id]="'ia-' + kind + '-baslik'">
         {{ 'tanimlar.import.' + kind + '.baslik' | transloco }}
       </h2>
-      <p class="aciklama">{{ 'tanimlar.import.' + kind + '.sutunlar' | transloco }}</p>
+      <p class="not">{{ 'tanimlar.import.' + kind + '.sutunlar' | transloco }}</p>
       <rc-form-hatalari [hatalar]="submits[kind].genelHatalar()" />
       <div class="rc-form-izgara">
         <div class="rc-alan">
@@ -57,7 +57,7 @@
             }}</strong>
           </p>
           @if (r.hataOzeti.length > 0) {
-            <ul class="aciklama">
+            <ul class="not">
               @for (h of r.hataOzeti; track h.mesaj) {
                 <li>{{ h.mesaj }} ({{ h.adet }})</li>
               }

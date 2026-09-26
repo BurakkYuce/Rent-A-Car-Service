@@ -1,6 +1,6 @@
 // Düzen katmanı (Yol v2 §7): sayfa iskeleti, bölüm/kart, araç çubuğu, filtre ızgarası, düz tablo ve hücre
 // yardımcıları. GLOBAL: feature SCSS'te `.sayfa/.kart/.tablo/.num` yeniden tanımlanmaz, bu sınıflar kullanılır.
-// Gövde kalıpları `_duzen-kaliplari.scss`'te (göç süresince eski feature sınıfları da oradan beslenir). İlk paket
+// Gövde kalıpları `_duzen-kaliplari.scss`'te (mixin; göç köprüleri PR-D4'te kaldırıldı). İlk paket
 // bütçesi için ortak bildirimler seçici gruplarıyla, duyarlı kurallar dosya sonundaki İKİ medya bloğunda.
 @use 'kirilim' as k;
 @use 'duzen-kaliplari' as d;
@@ -102,16 +102,11 @@
   min-width: 0;
 }
 
-.rc-tablo-kap,
-.tablo-kap {
+.rc-tablo-kap {
   @include d.tablo-kap;
 }
 
-// `.duz-tablo` / `.tablo-kap`: GÖÇ KÖPRÜSÜ — eski feature şablonlarının (araç, cari, CRM, finans, fiyat, servis,
-// rapor) aynı adlı yerel kuralı her bileşene kopyalanıyordu; artık tek global kalıp. PR-D şablonları
-// `.rc-duz-tablo`/`.rc-tablo-kap`'a taşıyınca bu iki ad silinir.
-.rc-duz-tablo,
-.duz-tablo {
+.rc-duz-tablo {
   @include d.duz-tablo;
 }
 

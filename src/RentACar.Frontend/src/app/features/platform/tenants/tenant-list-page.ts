@@ -38,6 +38,7 @@ import {
   toggleTarget,
   toNumber,
 } from '../platform-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { PlatformSessionService } from '../platform-session';
 
 interface ListQuery {
@@ -63,6 +64,7 @@ interface ListQuery {
     Ikon,
     MetinGirdisi,
     Secim,
+    SayfaBandi,
     SayiPipe,
     TarihPipe,
     TarihSaatPipe,

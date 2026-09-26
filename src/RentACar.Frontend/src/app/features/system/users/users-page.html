@@ -1,13 +1,13 @@
-<div class="sayfa">
-  <h1>{{ 'sistem.kullanici.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'sistem.kullanici.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'sistem.kullanici.baslik' | transloco" ikon="users" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'sistem.kullanici.aciklama' | transloco }}</p>
   @if (actorRole() !== 'Admin') {
     <p class="rc-form-mesaji rc-form-mesaji--uyari">
       {{ 'sistem.kullanici.adminNotu' | transloco }}
     </p>
   }
 
-  <section class="bolum" aria-labelledby="kullanici-yeni">
+  <section class="rc-bolum" aria-labelledby="kullanici-yeni">
     <h2 id="kullanici-yeni">{{ 'sistem.kullanici.yeni' | transloco }}</h2>
     <rc-form-hatalari [hatalar]="createSubmit.genelHatalar()" />
     <div class="rc-form-izgara" [formGroup]="createForm">
@@ -55,7 +55,7 @@
     <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ rowError() }}</p>
   }
 
-  <section class="bolum" aria-labelledby="kullanici-liste">
+  <section class="rc-bolum" aria-labelledby="kullanici-liste">
     <h2 id="kullanici-liste">{{ 'sistem.kullanici.liste' | transloco }}</h2>
     @switch (list.tur()) {
       @case ('hata') {
@@ -67,8 +67,8 @@
         </div>
       }
       @case ('hazir') {
-        <div class="kaydirma">
-          <table class="tablo">
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <thead>
               <tr>
                 <th scope="col">{{ 'sistem.kullanici.kullaniciAdi' | transloco }}</th>
@@ -76,7 +76,9 @@
                 <th scope="col">{{ 'sistem.kullanici.rolBaslik' | transloco }}</th>
                 <th scope="col">{{ 'sistem.kullanici.sube' | transloco }}</th>
                 <th scope="col">{{ 'sistem.kullanici.durum' | transloco }}</th>
-                <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+                <th scope="col" class="satir-eylemleri">
+                  {{ 'sistem.ortak.islemler' | transloco }}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -87,7 +89,7 @@
                   <td>{{ roleLabel(u.rol) }}</td>
                   <td>{{ u.atanmisSube ?? ('sistem.kullanici.tumSubeler' | transloco) }}</td>
                   <td>{{ (u.aktif ? 'sistem.ortak.aktif' : 'sistem.ortak.pasif') | transloco }}</td>
-                  <td class="islemler">
+                  <td class="satir-eylemleri">
                     @if (canManage(u) && u.id !== actorId()) {
                       <button
                         type="button"
@@ -173,21 +175,21 @@
     }
   </section>
 
-  <section class="bolum" aria-labelledby="kullanici-istisna">
+  <section class="rc-bolum" aria-labelledby="kullanici-istisna">
     <h2 id="kullanici-istisna">{{ 'sistem.kullanici.istisna.baslik' | transloco }}</h2>
-    <p class="aciklama">{{ 'sistem.kullanici.istisna.aciklama' | transloco }}</p>
+    <p class="not">{{ 'sistem.kullanici.istisna.aciklama' | transloco }}</p>
     @if (exceptions().length === 0) {
       <p class="bos">{{ 'sistem.kullanici.istisna.bos' | transloco }}</p>
     } @else {
-      <div class="kaydirma">
-        <table class="tablo">
+      <div class="rc-tablo-kap">
+        <table class="rc-duz-tablo">
           <thead>
             <tr>
               <th scope="col">{{ 'sistem.kullanici.kullaniciAdi' | transloco }}</th>
               <th scope="col">{{ 'sistem.kullanici.istisna.izin' | transloco }}</th>
               <th scope="col">{{ 'sistem.kullanici.istisna.tur' | transloco }}</th>
               <th scope="col">{{ 'sistem.kullanici.istisna.tanimlayan' | transloco }}</th>
-              <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+              <th scope="col" class="satir-eylemleri">{{ 'sistem.ortak.islemler' | transloco }}</th>
             </tr>
           </thead>
           <tbody>
@@ -207,7 +209,7 @@
                   {{ x.tanimlayan ?? '—' }}
                   <span class="alt-metin">{{ x.tarihUtc | tarih }}</span>
                 </td>
-                <td class="islemler">
+                <td class="satir-eylemleri">
                   @if (x.duzenlenebilir) {
                     <button
                       type="button"

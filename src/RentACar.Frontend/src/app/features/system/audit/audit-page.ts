@@ -11,6 +11,7 @@ import { Alan } from '@shared/form/alan/alan';
 import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { Secim } from '@shared/form/kontroller/secim';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type AuditPageDto = Sema<'SayfaOfAuditDto'>;
 
@@ -38,7 +39,15 @@ export function pageCount(total: number | string, size: number | string): number
 @Component({
   selector: 'rc-audit-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, TarihSaatPipe, Alan, MetinGirdisi, Secim],
+  imports: [
+    SayfaBandi,
+    ReactiveFormsModule,
+    TranslocoPipe,
+    TarihSaatPipe,
+    Alan,
+    MetinGirdisi,
+    Secim,
+  ],
   styleUrl: '../system.scss',
   templateUrl: './audit-page.html',
 })

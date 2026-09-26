@@ -30,6 +30,7 @@ import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
 import { Secim } from '@shared/form/kontroller/secim';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { pageCount } from '../audit/audit-page';
 
 type RequestPage = Sema<'BookingRequestPageDto'>;
@@ -84,6 +85,7 @@ interface RequestQuery {
   selector: 'rc-booking-requests-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

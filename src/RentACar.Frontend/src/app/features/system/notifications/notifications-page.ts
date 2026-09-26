@@ -11,6 +11,7 @@ import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import { TemelStore } from '@core/veri/temel-store';
 import { TarihPipe, TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type NotificationCenter = Sema<'NotificationCenterDto'>;
 type NotificationItem = Sema<'NotificationDto'>;
@@ -30,7 +31,7 @@ export function readParam(f: ReadFilter): boolean | null {
 @Component({
   selector: 'rc-notifications-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslocoPipe, TarihPipe, TarihSaatPipe],
+  imports: [SayfaBandi, RouterLink, TranslocoPipe, TarihPipe, TarihSaatPipe],
   styleUrl: '../system.scss',
   templateUrl: './notifications-page.html',
 })

@@ -1,9 +1,18 @@
-<div class="sayfa">
+@let bantDetay = detail();
+<rc-sayfa-bandi
+  ikon="world"
+  [baslik]="
+    !module()
+      ? ('sistem.web.baslik' | transloco)
+      : !loadError() && bantDetay
+        ? bantDetay.baslik + ' — ' + ('sistem.web.ozellik.adim' | transloco)
+        : ('sistem.web.ozellik.baslik' | transloco)
+  "
+/>
+<div class="rc-sayfa">
   @if (!module()) {
-    <h1>{{ 'sistem.web.baslik' | transloco }}</h1>
     <p class="bos">{{ 'sistem.ortak.modulYok' | transloco }}</p>
   } @else if (loadError()) {
-    <h1>{{ 'sistem.web.ozellik.baslik' | transloco }}</h1>
     <div class="rc-form-hatalari" role="alert">
       {{ 'sistem.ortak.yuklenemedi' | transloco }} {{ loadError() }}
       <button type="button" class="rc-dugme rc-dugme--kucuk" (click)="load()">
@@ -11,27 +20,28 @@
       </button>
     </div>
   } @else if (detail(); as d) {
-    <h1>{{ d.baslik }} — {{ 'sistem.web.ozellik.adim' | transloco }}</h1>
-    <p class="aciklama">
+    <p class="not">
       <a routerLink="/web-sitesi">{{ 'sistem.web.geri' | transloco }}</a>
       ·
       <a [routerLink]="['/web-sitesi/ilan', id, 'fiyat']">{{ 'sistem.web.fiyat' | transloco }}</a>
     </p>
 
-    <section class="bolum" aria-labelledby="ilan-foto">
+    <section class="rc-bolum" aria-labelledby="ilan-foto">
       <h2 id="ilan-foto">{{ 'sistem.web.ozellik.fotograflar' | transloco }}</h2>
       @if (d.fotograflar.length === 0) {
         <p class="rc-form-mesaji rc-form-mesaji--uyari">
           {{ 'sistem.web.ozellik.fotoYok' | transloco }}
         </p>
       } @else {
-        <div class="kaydirma">
-          <table class="tablo">
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <thead>
               <tr>
                 <th scope="col">{{ 'sistem.web.ozellik.foto' | transloco }}</th>
                 <th scope="col">{{ 'sistem.web.ekle.plaka' | transloco }}</th>
-                <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+                <th scope="col" class="satir-eylemleri">
+                  {{ 'sistem.ortak.islemler' | transloco }}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -44,8 +54,8 @@
                       [alt]="'sistem.web.ozellik.fotoAlt' | transloco: { plaka: p.plaka }"
                     />
                   </td>
-                  <td class="kod">{{ p.plaka }}</td>
-                  <td class="islemler">
+                  <td><rc-plaka boyut="sm" [plaka]="p.plaka" /></td>
+                  <td class="satir-eylemleri">
                     <button
                       type="button"
                       class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
@@ -81,15 +91,15 @@
         <span id="ilan-foto-hata" class="hata" role="alert">{{ photoError() }}</span>
       }
       @if (d.araclar.length > 1) {
-        <p class="aciklama">
+        <p class="not">
           {{ 'sistem.web.ozellik.cokArac' | transloco: { adet: d.araclar.length } }}
         </p>
       }
     </section>
 
-    <section class="bolum" aria-labelledby="ilan-ozellik">
+    <section class="rc-bolum" aria-labelledby="ilan-ozellik">
       <h2 id="ilan-ozellik">{{ 'sistem.web.ozellik.ozellikler' | transloco }}</h2>
-      <p class="aciklama">{{ 'sistem.web.ozellik.aciklama' | transloco }}</p>
+      <p class="not">{{ 'sistem.web.ozellik.aciklama' | transloco }}</p>
       @if (serverRows(); as fresh) {
         <div class="rc-form-mesaji rc-form-mesaji--uyari" role="alert">
           {{ 'sistem.web.ozellik.cakisma' | transloco: { adet: fresh.length } }}
@@ -99,14 +109,14 @@
         </div>
       }
       <rc-form-hatalari [hatalar]="submit.genelHatalar()" />
-      <div class="kaydirma" [formGroup]="form">
-        <table class="tablo" formArrayName="satirlar">
+      <div class="rc-tablo-kap" [formGroup]="form">
+        <table class="rc-duz-tablo" formArrayName="satirlar">
           <thead>
             <tr>
               <th scope="col">{{ 'sistem.web.ozellik.gorunur' | transloco }}</th>
               <th scope="col">{{ 'sistem.web.ozellik.etiket' | transloco }}</th>
               <th scope="col">{{ 'sistem.web.ozellik.deger' | transloco }}</th>
-              <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+              <th scope="col" class="satir-eylemleri">{{ 'sistem.ortak.islemler' | transloco }}</th>
             </tr>
           </thead>
           <tbody>
@@ -132,7 +142,7 @@
                     [ariaEtiketi]="'sistem.web.ozellik.degerSatir' | transloco: { sira: i + 1 }"
                   />
                 </td>
-                <td class="islemler">
+                <td class="satir-eylemleri">
                   <button
                     type="button"
                     class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
@@ -166,7 +176,6 @@
       </div>
     </section>
   } @else {
-    <h1>{{ 'sistem.web.ozellik.baslik' | transloco }}</h1>
     <p class="bos" role="status">{{ 'sistem.ortak.yukleniyor' | transloco }}</p>
   }
 </div>

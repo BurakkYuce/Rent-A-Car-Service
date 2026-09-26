@@ -4,6 +4,8 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import { OturumServisi } from '@core/oturum/oturum-servisi';
 
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
+
 /**
  * Yer tutucu ana sayfa (kabuk içinde; tema, çıkış ve menü F3.2'den beri kabukta). Oturumdaki kullanıcıyı
  * ve vitrin bağlantılarını gösterir; e2e ve axe kabuğu burada denetler.
@@ -11,7 +13,7 @@ import { OturumServisi } from '@core/oturum/oturum-servisi';
 @Component({
   selector: 'rc-yer-tutucu',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, RouterLink],
+  imports: [TranslocoPipe, RouterLink, SayfaBandi],
   templateUrl: './yer-tutucu.html',
   styleUrl: './yer-tutucu.scss',
 })

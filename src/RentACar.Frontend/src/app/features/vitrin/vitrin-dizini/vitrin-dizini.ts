@@ -20,22 +20,15 @@ interface VitrinBaglantisi {
   imports: [RouterLink],
   styleUrl: '../vitrin-ortak.scss',
   styles: `
-    .kart {
-      display: flex;
-      flex-direction: column;
-      gap: var(--rc-bosluk-1);
+    .vitrin-karti {
       height: 100%;
-      padding: var(--rc-bosluk-3);
-      border: 1px solid var(--rc-kenar);
-      border-radius: var(--rc-yaricap-lg);
-      background-color: var(--rc-yuzey);
     }
-    .kart a {
+    .vitrin-karti a {
       font-weight: var(--rc-agirlik-kalin);
     }
   `,
   template: `
-    <div class="sayfa-ust">
+    <div class="rc-sayfa-basligi">
       <h1>Vitrin</h1>
       <a routerLink="/">Ana sayfa</a>
     </div>
@@ -45,7 +38,7 @@ interface VitrinBaglantisi {
     </p>
     <ul class="izgara" aria-label="Vitrin sayfaları">
       @for (b of baglantilar; track b.yol) {
-        <li class="kart">
+        <li class="rc-kart vitrin-karti">
           <a [routerLink]="b.yol">{{ b.ad }}</a>
           <span>{{ b.aciklama }}</span>
           <span class="not">{{ b.faz }}</span>

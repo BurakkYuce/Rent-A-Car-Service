@@ -1,7 +1,7 @@
-<div class="sayfa">
-  <h1>{{ 'tanimlar.document.baslik' | transloco }}</h1>
-  <p class="aciklama">{{ 'tanimlar.document.aciklama' | transloco }}</p>
-  <p class="aciklama">
+<rc-sayfa-bandi [baslik]="'tanimlar.document.baslik' | transloco" ikon="file-text" />
+<div class="rc-sayfa">
+  <p class="not">{{ 'tanimlar.document.aciklama' | transloco }}</p>
+  <p class="not">
     {{ 'tanimlar.document.firmaBelgeleriNotu' | transloco }}
     <a routerLink="/firma-belgeleri">{{ 'tanimlar.document.firmaBelgeleri' | transloco }}</a>
   </p>
@@ -12,7 +12,7 @@
         {{ 'tanimlar.document.sinir' | transloco }}
       </p>
     } @else {
-      <section class="bolum" aria-labelledby="dokuman-yukle-baslik">
+      <section class="rc-bolum" aria-labelledby="dokuman-yukle-baslik">
         <h2 id="dokuman-yukle-baslik">{{ 'tanimlar.document.yukleBaslik' | transloco }}</h2>
         <rc-form-hatalari [hatalar]="upload.genelHatalar()" />
         <div class="rc-form-izgara" [formGroup]="form">
@@ -66,17 +66,17 @@
     }
     @case ('hazir') {
       @if (rows().length === 0) {
-        <p class="bos">{{ 'tanimlar.document.bos' | transloco }}</p>
+        <p class="not">{{ 'tanimlar.document.bos' | transloco }}</p>
       } @else {
-        <div class="kaydirma">
-          <table class="tablo">
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <thead>
               <tr>
                 <th scope="col">{{ 'tanimlar.document.belge' | transloco }}</th>
-                <th scope="col" class="sayi">{{ 'tanimlar.document.boyut' | transloco }}</th>
+                <th scope="col" class="rc-num">{{ 'tanimlar.document.boyut' | transloco }}</th>
                 <th scope="col">{{ 'tanimlar.document.yukleyen' | transloco }}</th>
                 <th scope="col">{{ 'tanimlar.document.tarih' | transloco }}</th>
-                <th scope="col" class="islemler">{{ 'form.tanim.islemler' | transloco }}</th>
+                <th scope="col" class="satir-eylemleri">{{ 'form.tanim.islemler' | transloco }}</th>
               </tr>
             </thead>
             <tbody>
@@ -85,15 +85,15 @@
                   <td>
                     {{ d.baslik }}
                     @if (d.aciklama) {
-                      <span class="alt-metin">{{ d.aciklama }}</span>
+                      <span class="rc-hucre-alt">{{ d.aciklama }}</span>
                     }
                   </td>
-                  <td class="sayi">
+                  <td class="rc-num">
                     {{ 'tanimlar.document.kb' | transloco: { kb: kilobytes(d.boyut) } }}
                   </td>
                   <td>{{ d.yukleyenKullanici ?? '—' }}</td>
                   <td>{{ d.olusturma | tarih }}</td>
-                  <td class="islemler">
+                  <td class="satir-eylemleri">
                     <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" [href]="d.indirmeYolu">
                       {{ 'tanimlar.document.indir' | transloco }}
                     </a>
@@ -116,7 +116,7 @@
       }
     }
     @default {
-      <p class="bos" role="status">{{ 'form.tanim.yukleniyor' | transloco }}</p>
+      <p class="not" role="status">{{ 'form.tanim.yukleniyor' | transloco }}</p>
     }
   }
 </div>

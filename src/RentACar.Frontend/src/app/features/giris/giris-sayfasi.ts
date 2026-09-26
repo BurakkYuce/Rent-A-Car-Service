@@ -35,103 +35,17 @@ const NEDEN_MESAJI: Readonly<Record<string, CeviriAnahtari>> = {
         <p class="tanitim__cumle">{{ 'oturum.giris.tanitim' | transloco }}</p>
       </section>
       <section class="form-alani">
-        <div class="kart">
-          <header class="ust">
+        <div class="giris-kutusu">
+          <header class="giris-basligi">
             <h1>{{ 'oturum.giris.baslik' | transloco }}</h1>
-            <p class="aciklama">{{ 'oturum.giris.aciklama' | transloco }}</p>
+            <p class="not">{{ 'oturum.giris.aciklama' | transloco }}</p>
           </header>
           <rc-giris-formu [bilgi]="bilgi()" (girisYapildi)="girildi($event)" />
         </div>
       </section>
     </main>
   `,
-  // Yol v2 §5.5: sol lacivert panel (logo + tek cümle), sağ kağıt zeminde form. Plaka motifi yok.
-  // Lacivert panel kenar çubuğu tokenlarını kullanır (koyu temada asfalt varyantı aynı katmandan).
-  styles: `
-    .giris {
-      display: grid;
-      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-      min-height: 100vh;
-      min-height: 100dvh;
-      background-color: var(--rc-zemin);
-    }
-    .tanitim {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: var(--rc-bosluk-8);
-      padding: var(--rc-bosluk-8) var(--rc-bosluk-8) var(--rc-bosluk-12);
-      background-color: var(--rc-kenar-cubugu-zemin);
-      color: var(--rc-kenar-cubugu-metin);
-    }
-    .marka {
-      display: flex;
-      align-items: center;
-      gap: var(--rc-bosluk-3);
-    }
-    .logo {
-      display: inline-grid;
-      place-items: center;
-      width: 2.5rem;
-      height: 2.5rem;
-      border-radius: var(--rc-yaricap-md);
-      background-color: var(--rc-kenar-cubugu-rozet-zemin);
-      color: var(--rc-kenar-cubugu-rozet-metin);
-      font-size: var(--rc-yazi-md);
-      font-weight: var(--rc-agirlik-cok-kalin);
-    }
-    .marka__ad {
-      font-size: var(--rc-yazi-lg);
-      font-weight: var(--rc-agirlik-kalin);
-    }
-    .tanitim__cumle {
-      max-width: 22rem;
-      color: var(--rc-kenar-cubugu-metin);
-      font-size: var(--rc-yazi-2xl);
-      font-weight: var(--rc-agirlik-orta);
-      line-height: var(--rc-satir-sik);
-    }
-    .form-alani {
-      display: grid;
-      place-items: center;
-      padding: var(--rc-bosluk-8) var(--rc-bosluk-4);
-    }
-    .kart {
-      display: flex;
-      flex-direction: column;
-      gap: var(--rc-bosluk-5);
-      width: min(24rem, 100%);
-    }
-    .ust {
-      display: flex;
-      flex-direction: column;
-      gap: var(--rc-bosluk-1);
-    }
-    .ust h1 {
-      font-size: var(--rc-yazi-2xl);
-    }
-    .aciklama {
-      color: var(--rc-metin-ikincil);
-    }
-    @media (max-width: 900px) {
-      .giris {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto 1fr;
-      }
-      .tanitim {
-        gap: var(--rc-bosluk-2);
-        padding: var(--rc-bosluk-4);
-      }
-      .tanitim__cumle {
-        font-size: var(--rc-yazi-sm);
-        color: var(--rc-kenar-cubugu-ikincil);
-      }
-      .form-alani {
-        place-items: start center;
-        padding-block: var(--rc-bosluk-6);
-      }
-    }
-  `,
+  styleUrl: './giris-sayfasi.scss',
 })
 export class GirisSayfasi {
   private readonly router = inject(Router);

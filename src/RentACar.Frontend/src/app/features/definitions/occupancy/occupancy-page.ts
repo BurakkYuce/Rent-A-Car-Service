@@ -19,6 +19,7 @@ import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
 import { restTanimKaynagi } from '@shared/form/tanim-crud/tanim-kaynagi';
 import { TarihSecici } from '@shared/form/tarih/tarih-secici';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { occupancyFields, selectionSuggestions } from '../definition-catalog';
 
 type BulkResult = Sema<'OccupancyBulkResult'>;
@@ -64,6 +65,7 @@ export function ladderSteps(
     SayiGirdisi,
     Secim,
     TarihSecici,
+    SayfaBandi,
   ],
   styleUrl: '../definitions.scss',
   templateUrl: './occupancy-page.html',

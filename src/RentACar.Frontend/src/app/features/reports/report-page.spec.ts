@@ -86,7 +86,7 @@ describe('ReportPage', () => {
     expect(root.querySelector('[aria-labelledby="rc-rapor-b-gider"]')?.textContent).toContain(
       'Kayıt bulunamadı.',
     );
-    const hrefs = [...root.querySelectorAll('header a')].map((a) => a.getAttribute('href'));
+    const hrefs = [...root.querySelectorAll('rc-sayfa-bandi a')].map((a) => a.getAttribute('href'));
     expect(hrefs).toEqual([
       '/raporlar/export/gelir-gider?format=excel&from=2026-09-01',
       '/raporlar/export/gelir-gider?format=csv&from=2026-09-01',
@@ -97,7 +97,7 @@ describe('ReportPage', () => {
     const { root, stable } = await open();
     http.expectOne((r) => r.url === INCOME).flush({ ...RESPONSE, export: null });
     await stable();
-    expect(root.querySelectorAll('header a')).toHaveLength(0);
+    expect(root.querySelectorAll('rc-sayfa-bandi a')).toHaveLength(0);
   });
 
   it('403: yetki mesajı, özet yok (hata "kayıt yok" gibi görünmez)', async () => {

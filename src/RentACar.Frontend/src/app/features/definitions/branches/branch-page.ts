@@ -32,6 +32,7 @@ import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
 import { restTanimKaynagi } from '@shared/form/tanim-crud/tanim-kaynagi';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { branchFields } from '../definition-catalog';
 
 type BranchService = Sema<'BranchServiceDto'>;
@@ -60,6 +61,7 @@ const ROOT: ApiYolu = '/api/ui/v1/subeler';
     MetinGirdisi,
     OnayKutusu,
     Secim,
+    SayfaBandi,
   ],
   styleUrl: '../definitions.scss',
   templateUrl: './branch-page.html',

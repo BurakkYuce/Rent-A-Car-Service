@@ -41,16 +41,15 @@ type Gorunum = (typeof GORUNUMLER)[number];
       display: flex;
       flex-direction: column;
       gap: var(--rc-bosluk-4);
-      margin-bottom: var(--rc-bosluk-4);
     }
   `,
   template: `
-    <div class="sayfa-ust">
+    <div class="rc-sayfa-basligi">
       <h1>Primitifler</h1>
       <a routerLink="/vitrin">Vitrin</a>
     </div>
 
-    <section class="bolum" aria-labelledby="dugmeler">
+    <section class="rc-bolum" aria-labelledby="dugmeler">
       <h2 id="dugmeler">Düğmeler</h2>
       <div class="satir">
         <button type="button" class="rc-dugme rc-dugme--birincil">Birincil</button>
@@ -93,7 +92,7 @@ type Gorunum = (typeof GORUNUMLER)[number];
       </div>
     </section>
 
-    <section class="bolum" aria-labelledby="rozetler">
+    <section class="rc-bolum" aria-labelledby="rozetler">
       <h2 id="rozetler">Durum rozeti</h2>
       <div class="satir">
         <span class="rc-rozet rc-rozet--basari">Kirada</span>
@@ -108,7 +107,7 @@ type Gorunum = (typeof GORUNUMLER)[number];
 
     <rc-yol-bilesenleri class="yol" />
 
-    <section class="bolum" aria-labelledby="iskelet">
+    <section class="rc-bolum" aria-labelledby="iskelet">
       <h2 id="iskelet">İskelet</h2>
       <div class="iskelet" aria-hidden="true">
         <span class="rc-iskelet"></span>
@@ -117,7 +116,7 @@ type Gorunum = (typeof GORUNUMLER)[number];
       </div>
     </section>
 
-    <section class="bolum" aria-labelledby="bos-durum">
+    <section class="rc-bolum" aria-labelledby="bos-durum">
       <h2 id="bos-durum">Boş durum</h2>
       <rc-bos-durum />
       <rc-bos-durum ikon="car" baslik="Henüz araç yok" aciklama="İlk aracınızı ekleyerek başlayın.">
@@ -127,7 +126,7 @@ type Gorunum = (typeof GORUNUMLER)[number];
       </rc-bos-durum>
     </section>
 
-    <section class="bolum" aria-labelledby="ikonlar">
+    <section class="rc-bolum" aria-labelledby="ikonlar">
       <h2 id="ikonlar">İkonlar ({{ ikonlar.length }})</h2>
       <p class="not">
         Tabler alt kümesi; yeni ikon <code>ikon-listesi.json</code> + <code>npm run ikonlar</code>.

@@ -1,9 +1,9 @@
-<div class="sayfa">
-  <h1>{{ 'sistem.web.baslik' | transloco }}</h1>
+<rc-sayfa-bandi [baslik]="'sistem.web.baslik' | transloco" ikon="world" />
+<div class="rc-sayfa">
   @if (!module()) {
     <p class="bos">{{ 'sistem.ortak.modulYok' | transloco }}</p>
   } @else {
-    <p class="aciklama">{{ 'sistem.web.aciklama' | transloco }}</p>
+    <p class="not">{{ 'sistem.web.aciklama' | transloco }}</p>
     <div class="eylemler">
       <a class="rc-dugme rc-dugme--birincil" routerLink="/web-sitesi/arac-ekle">
         {{ 'sistem.web.aracEkle' | transloco }}
@@ -32,16 +32,18 @@
         @if (rows().length === 0) {
           <p class="bos">{{ 'sistem.web.ilanYok' | transloco }}</p>
         } @else {
-          <div class="kaydirma">
-            <table class="tablo">
+          <div class="rc-tablo-kap">
+            <table class="rc-duz-tablo">
               <thead>
                 <tr>
                   <th scope="col">{{ 'sistem.web.ilan' | transloco }}</th>
-                  <th scope="col" class="sayi">{{ 'sistem.web.arac' | transloco }}</th>
-                  <th scope="col" class="sayi">{{ 'sistem.web.vitrinde' | transloco }}</th>
-                  <th scope="col" class="sayi">{{ 'sistem.web.gunluk' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'sistem.web.arac' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'sistem.web.vitrinde' | transloco }}</th>
+                  <th scope="col" class="rc-num">{{ 'sistem.web.gunluk' | transloco }}</th>
                   <th scope="col">{{ 'sistem.web.durum' | transloco }}</th>
-                  <th scope="col" class="islemler">{{ 'sistem.ortak.islemler' | transloco }}</th>
+                  <th scope="col" class="satir-eylemleri">
+                    {{ 'sistem.ortak.islemler' | transloco }}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -55,9 +57,9 @@
                         }}</span>
                       }
                     </td>
-                    <td class="sayi">{{ r.aracSayisi }}</td>
-                    <td class="sayi">{{ r.adet }}</td>
-                    <td class="sayi">
+                    <td class="rc-num">{{ r.aracSayisi }}</td>
+                    <td class="rc-num">{{ r.adet }}</td>
+                    <td class="rc-num">
                       @if (+r.gunlukFiyat > 0) {
                         {{ +r.gunlukFiyat | para }}
                         <span class="alt-metin">
@@ -93,7 +95,7 @@
                         </span>
                       }
                     </td>
-                    <td class="islemler">
+                    <td class="satir-eylemleri">
                       <a
                         class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
                         [routerLink]="['/web-sitesi/ilan', r.id, 'fiyat']"

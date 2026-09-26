@@ -1,17 +1,16 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'filoKiralama.yeniBaslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" routerLink="/filo-kiralama">
-        <rc-ikon ad="chevron-left" [boyut]="14" />
-        {{ 'filoKiralama.listeyeDon' | transloco }}
-      </a>
-    </div>
-  </header>
+<rc-sayfa-bandi ikon="car" [baslik]="'filoKiralama.yeniBaslik' | transloco">
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/filo-kiralama">
+      <rc-ikon ad="chevron-left" [boyut]="14" />
+      {{ 'filoKiralama.listeyeDon' | transloco }}
+    </a>
+  </ng-container>
+</rc-sayfa-bandi>
 
+<div class="rc-sayfa">
   <form class="form" novalidate [formGroup]="form" (ngSubmit)="kaydet()">
     <rc-form-hatalari [hatalar]="gonderim.genelHatalar()" />
-    <section class="bolum" aria-labelledby="filo-yeni-sozlesme">
+    <section class="rc-bolum" aria-labelledby="filo-yeni-sozlesme">
       <h2 id="filo-yeni-sozlesme">{{ 'filoKiralama.bolum.sozlesme' | transloco }}</h2>
       <div class="rc-form-izgara">
         <rc-alan [etiket]="'filoKiralama.alan.musteri' | transloco">
@@ -40,13 +39,13 @@
         </rc-alan>
       </div>
     </section>
-    <section class="bolum" aria-labelledby="filo-yeni-kunye">
+    <section class="rc-bolum" aria-labelledby="filo-yeni-kunye">
       <h2 id="filo-yeni-kunye">{{ 'filoKiralama.bolum.kunye' | transloco }}</h2>
       <div class="rc-form-izgara">
         <rc-filo-kunye-alanlari [grup]="form" />
       </div>
     </section>
-    <div class="form__eylemler">
+    <div class="rc-form-eylemler">
       <button
         type="submit"
         class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"

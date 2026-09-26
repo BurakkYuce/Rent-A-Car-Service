@@ -15,6 +15,7 @@ import {
   type TanimSatiri,
   restTanimKaynagi,
 } from '@shared/form/tanim-crud/tanim-kaynagi';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 type PageList = Sema<'SayfaOfPageRowDto'>;
 
@@ -91,15 +92,15 @@ export function faqFields(t: Translate): readonly TanimAlani[] {
 @Component({
   selector: 'rc-site-content-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TanimCrud],
+  imports: [SayfaBandi, TranslocoPipe, TanimCrud],
   styleUrl: '../system.scss',
   template: `
-    <div class="sayfa">
-      <h1>{{ 'sistem.icerik.baslik' | transloco }}</h1>
+    <rc-sayfa-bandi [baslik]="'sistem.icerik.baslik' | transloco" ikon="world" />
+    <div class="rc-sayfa">
       @if (!module()) {
         <p class="bos">{{ 'sistem.ortak.modulYok' | transloco }}</p>
       } @else {
-        <p class="aciklama">{{ 'sistem.icerik.aciklama' | transloco }}</p>
+        <p class="not">{{ 'sistem.icerik.aciklama' | transloco }}</p>
         <rc-tanim-crud
           [baslik]="'sistem.icerik.sayfalar' | transloco"
           [alanlar]="pages"
