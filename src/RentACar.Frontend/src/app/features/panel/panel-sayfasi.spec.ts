@@ -177,14 +177,23 @@ describe('PanelSayfasi', () => {
     expect(var_.kok.querySelectorAll('.trend__sutun')).toHaveLength(2);
   });
 
-  it('KPI: toplamdan yüzde ve vade kademesi', async () => {
+  it('KPI: tabela kartları (toplamdan yüzde), hatırlatma matrisi ve rozet satırları', async () => {
     const { kok } = await ac(ozet());
-    const kartlar = [...kok.querySelectorAll('.kpi')].map((k) =>
-      [...k.querySelectorAll('span')].map((s) => s.textContent?.trim()).filter(Boolean),
+    const kartlar = [...kok.querySelectorAll('rc-tabela-karti')].map((k) =>
+      [...k.querySelectorAll('p')].map((s) => s.textContent?.trim()).filter(Boolean),
     );
     expect(kartlar[0]).toEqual(['Kiradaki araçlar', '4', 'Toplamdan %40']);
     expect(kartlar[3]).toEqual(['Açık rezervasyonlar', '3', 'Bekleyen rezervasyon']);
-    expect(kok.querySelectorAll('.vade__kutu')).toHaveLength(11);
+    expect(kok.querySelector('rc-tabela-karti')?.getAttribute('data-durum')).toBe('kirada');
+    expect(kok.querySelectorAll('rc-hatirlatma-listesi tbody tr')).toHaveLength(3);
+    expect(kok.querySelectorAll('rc-hatirlatma-listesi .rozet-satiri')).toHaveLength(2);
+    // Band: sayfanın tek h1'i; alt metin sunucunun günü (saat dilimi kaydırmadan) + toplam araç.
+    expect(kok.querySelectorAll('h1')).toHaveLength(1);
+    expect(kok.querySelector('.bant__alt')?.textContent?.trim()).toBe(
+      'Salı, 22 Eylül 2026 · 10 araç',
+    );
+    // Oturum yok (izin yok) → hızlı işlemler bölümü çizilmez.
+    expect(kok.querySelector('rc-hizli-islemler')).toBeNull();
   });
 
   it('tahsilat anahtarı yoksa "Tahsil Et" ve İşlem sütunu yok (FinanceWrite sunucuda)', async () => {
@@ -194,7 +203,7 @@ describe('PanelSayfasi', () => {
       }),
     );
     expect(kok.querySelector('th.islem')).toBeNull();
-    expect(kok.textContent).not.toContain('Tahsil Et');
+    expect(kok.textContent).not.toContain('Tahsil et');
   });
 
   describe('Tahsil Et', () => {
@@ -471,7 +480,7 @@ describe('PanelSayfasi', () => {
 
     it('form açıkken panel tazelenip yeni anahtar gelse de form AÇILDIĞI anahtarla gönderir (bayat → 409)', async () => {
       const s = await formuAc();
-      [...s.kok.querySelectorAll<HTMLButtonElement>('.ust button')]
+      [...s.kok.querySelectorAll<HTMLButtonElement>('rc-sayfa-bandi button')]
         .find((d) => d.textContent?.includes('Yenile'))
         ?.click();
       await s.stabil();

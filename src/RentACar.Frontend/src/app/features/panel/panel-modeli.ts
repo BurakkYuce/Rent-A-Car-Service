@@ -84,33 +84,54 @@ export function ayEtiketi(ayBas: string): string {
   }
 }
 
+/**
+ * Band alt metnindeki gün başlığı (`Cuma, 25 Eylül 2026`). Girdi sunucunun İstanbul takvim günü
+ * (`yyyy-MM-dd`); saat dilimi uygulanmaz (takvim günü yerel güne çevrilip kaydırılmaz).
+ */
+export function gunBasligi(gun: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(gun)) return '';
+  try {
+    return formatDate(gun, 'EEEE, d MMMM y', YEREL);
+  } catch {
+    return '';
+  }
+}
+
 // ------------------------------------------------------------------ KPI kartları
 
 export type Ton = 'notr' | 'uyari' | 'hata';
 
 /**
- * KPI kartı altındaki vade/uyarı kutusu (Blazor `VadeTier` + ek kutular). `href` Blazor ekranı (tam sayfa);
- * `rota` verilmişse ekran yeni arayüzdedir (F5.4: rezervasyonlar) ve bağlantı SPA içinde (`routerLink`) açılır;
- * `sorgu` rotaya sorgu parametresi olarak eklenir (F11.3: gelen talepler `?durum=Yeni`).
+ * Hatırlatma rozet satırı (Blazor `Home.razor` ek kutuları: KM geçen bakım, site talebi, görülmeyen rezervasyon).
+ * `rota` yeni arayüz ekranıdır (SPA içinde `routerLink`); `sorgu` rotaya sorgu parametresi olarak eklenir
+ * (F11.3: gelen talepler `?durum=Yeni`).
  */
 export interface VadeKutusu {
   readonly sayi: number;
   readonly etiket: string;
-  readonly href?: string;
-  readonly rota?: string;
+  readonly rota: string;
   readonly sorgu?: Readonly<Record<string, string>>;
   readonly ton: Ton;
   readonly ipucu?: string;
 }
 
+/** Hatırlatma matrisi satırı (Blazor `VadeTier`): 1 hafta / 30 gün kalan ve tarihi geçen sayıları. */
+export interface VadeSatiri {
+  readonly kod: 'trafik' | 'kasko' | 'muayene';
+  readonly etiket: string;
+  readonly rota: string;
+  readonly yediGun: number;
+  readonly otuzGun: number;
+  readonly gecmis: number;
+}
+
+/** Filo durum kartı (tabela kartı): toplamdan yüzde (tam sayı) ve alt metin. */
 export interface KpiKarti {
   readonly kod: 'kirada' | 'musait' | 'serviste' | 'rezervasyon';
   readonly etiket: string;
   readonly sayi: number;
   readonly yuzde: number;
   readonly alt: string;
-  readonly altBaslik: string | null;
-  readonly kutular: readonly VadeKutusu[];
 }
 
 // ------------------------------------------------------------------ otomatik tazeleme

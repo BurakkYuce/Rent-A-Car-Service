@@ -15,15 +15,25 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { PanelDonusSatiri, PanelOzetiYaniti } from '@core/api/ui-tipleri';
 import { GonderimKilidi } from '@core/form/gonderim-kilidi';
 import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { OturumServisi } from '@core/oturum/oturum-servisi';
 import { sekmeBaglami } from '@core/sekme/sekme-durumu';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { BICIM_PIPELARI } from '@shared/bicim/bicim-pipe';
+import { Ikon } from '@shared/ikon/ikon';
+import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
+import { StatusSignCardComponent, type FleetStatus } from '@shared/tabela-karti/tabela-karti';
 
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
+import { HatirlatmaListesi } from './hatirlatma-listesi';
+import { HIZLI_ISLEMLER, HizliIslemler, type HizliIslem } from './hizli-islemler';
 import {
   PANEL_SEKMELERI,
   type KpiKarti,
   type PanelSekme,
   type VadeKutusu,
+  type VadeSatiri,
+  gunBasligi,
   TAZELEME_DENETIM_MS,
   cikisEtkinSekme,
   donusEtkinSekme,
@@ -35,7 +45,6 @@ import {
   yuzde,
 } from './panel-modeli';
 import { PanelFinans } from './panel-finans';
-import { PanelKpi } from './panel-kpi';
 import { PANEL_TAHSILAT_KILIDI, PanelTahsilatFormu } from './panel-tahsilat-formu';
 import { PanelStore } from './panel.store';
 
@@ -54,6 +63,8 @@ interface Cip {
  *   her yüklemede yeniden işler (`donusEtkinSekme`).
  * - 2 dakikada bir tazelenir (Blazor `data-rc-tazele="120"`); kullanıcı bir alana yazarken ya da tahsilat formu
  *   açıkken ertelenir; uygulama sekmesi arkadayken yüklemez, öne gelince yeniler. Meta-refresh yok.
+ * - Görünüm (Yol v2 §8 "Panel"): sayfa bandı, 4 tabela kartı; solda Dönüşler + Çıkışlar, sağ sütunda
+ *   Hatırlatmalar (vade kademeleri + uyarı rozetleri) ve Hızlı işlemler. Hepsi aynı özet yanıtından.
  */
 @Component({
   selector: 'rc-panel-sayfasi',
@@ -68,8 +79,13 @@ interface Cip {
     TranslocoPipe,
     ...BICIM_PIPELARI,
     PanelFinans,
-    PanelKpi,
     PanelTahsilatFormu,
+    SayfaBandi,
+    StatusSignCardComponent,
+    PlateChipComponent,
+    Ikon,
+    HatirlatmaListesi,
+    HizliIslemler,
   ],
   templateUrl: './panel-sayfasi.html',
   styleUrl: './panel-sayfasi.scss',
@@ -82,6 +98,7 @@ export class PanelSayfasi {
   private readonly belge = inject(DOCUMENT);
   private readonly sekme = sekmeBaglami();
   private readonly t = ceviriFonksiyonu();
+  private readonly oturum = inject(OturumServisi);
   /** Tüm satırların ortak tahsilat kilidi: istek uçarken tablodaki "Tahsil Et"ler ve "Yenile" pasif. */
   protected readonly tahsilatSuruyor = inject(PANEL_TAHSILAT_KILIDI).gonderiliyor;
 
@@ -89,6 +106,19 @@ export class PanelSayfasi {
   protected readonly veri = this.ozet.veri;
   protected readonly sekmeler = PANEL_SEKMELERI;
   protected readonly sayi = sayi;
+  /** Filo durum sözlüğü (Yol v2 §1.2): kart kodu → tabela rengi ve ikonu. */
+  protected readonly tabelaDurumu: Readonly<Record<KpiKarti['kod'], FleetStatus>> = {
+    kirada: 'kirada',
+    musait: 'bosta',
+    serviste: 'serviste',
+    rezervasyon: 'rezerve',
+  };
+  protected readonly tabelaIkonu: Readonly<Record<KpiKarti['kod'], IkonAdi>> = {
+    kirada: 'key',
+    musait: 'car',
+    serviste: 'tool',
+    rezervasyon: 'calendar',
+  };
 
   private readonly sorgu = this.rota.snapshot.queryParamMap;
   /** Kullanıcının açık seçimi (ham); `null` = varsayılan kural. */
@@ -145,6 +175,33 @@ export class PanelSayfasi {
     const v = this.veri();
     return v ? this.kartlar(v) : [];
   });
+  protected readonly vadeListesi = computed<readonly VadeSatiri[]>(() => {
+    const v = this.veri();
+    return v ? this.vadeSatirlari(v) : [];
+  });
+  protected readonly hatirlatmaRozetleri = computed<readonly VadeKutusu[]>(() => {
+    const v = this.veri();
+    return v ? this.rozetler(v) : [];
+  });
+
+  /** Band alt metni: bugünün tarihi (sunucunun İstanbul günü) · toplam araç. */
+  protected readonly bantAltMetni = computed(() => {
+    const v = this.veri();
+    if (!v) return null;
+    return this.t('panel.bant.altMetin', {
+      tarih: gunBasligi(v.bugun),
+      arac: sayi(v.kpi.toplamArac) ?? 0,
+    });
+  });
+
+  /** Hızlı işlemler: yalnız kullanıcının açabileceği ekranlar (rota kapısıyla aynı izin). */
+  protected readonly hizliIslemler = computed<readonly HizliIslem[]>(() =>
+    HIZLI_ISLEMLER.filter((h) => this.oturum.izinVar(h.izin)).map((h) => ({
+      etiket: this.t(h.etiket),
+      ikon: h.ikon,
+      rota: h.rota,
+    })),
+  );
 
   protected readonly vadeUyarisi = computed(() => {
     const vade = this.veri()?.vade;
@@ -267,40 +324,10 @@ export class PanelSayfasi {
   private kartlar(v: PanelOzetiYaniti): readonly KpiKarti[] {
     const k = v.kpi;
     const toplam = sayi(k.toplamArac) ?? 0;
-    const vadeKutulari = (kademe: {
-      yediGun: number | string;
-      otuzGun: number | string;
-      gecmis: number | string;
-    }): VadeKutusu[] => {
-      const otuz = sayi(kademe.otuzGun) ?? 0;
-      const gecmis = sayi(kademe.gecmis) ?? 0;
-      return [
-        {
-          sayi: sayi(kademe.yediGun) ?? 0,
-          etiket: this.t('panel.vade.yediGun'),
-          rota: '/vade', // F9.3: SPA rotası
-          ton: 'notr',
-        },
-        {
-          sayi: otuz,
-          etiket: this.t('panel.vade.otuzGun'),
-          rota: '/vade', // F9.3: SPA rotası
-          ton: otuz > 0 ? 'uyari' : 'notr',
-        },
-        {
-          sayi: gecmis,
-          etiket: this.t('panel.vade.gecmis'),
-          rota: '/vade', // F9.3: SPA rotası
-          ton: gecmis > 0 ? 'hata' : 'notr',
-        },
-      ];
-    };
     const kart = (
       kod: KpiKarti['kod'],
       etiket: string,
       deger: number | string,
-      altBaslik: string | null,
-      kutular: VadeKutusu[],
       alt?: string,
     ): KpiKarti => {
       const y = yuzde(deger, toplam);
@@ -310,32 +337,60 @@ export class PanelSayfasi {
         sayi: sayi(deger) ?? 0,
         yuzde: y,
         alt: alt ?? this.t('panel.kpi.toplamdan', { yuzde: y }),
-        altBaslik,
-        kutular,
       };
     };
+    return [
+      kart('kirada', this.t('panel.kpi.kirada'), k.kirada),
+      kart('musait', this.t('panel.kpi.musait'), k.musait),
+      kart('serviste', this.t('panel.kpi.serviste'), k.serviste),
+      kart(
+        'rezervasyon',
+        this.t('panel.kpi.acikRezervasyon'),
+        k.acikRezervasyon,
+        this.t('panel.kpi.bekleyenRezervasyon'),
+      ),
+    ];
+  }
 
+  /** Vade kademeleri (trafik, kasko, muayene) — hepsi vade panosuna gider (F9.3: SPA rotası). */
+  private vadeSatirlari(v: PanelOzetiYaniti): readonly VadeSatiri[] {
+    const satir = (
+      kod: VadeSatiri['kod'],
+      etiket: string,
+      kademe: { yediGun: number | string; otuzGun: number | string; gecmis: number | string },
+    ): VadeSatiri => ({
+      kod,
+      etiket,
+      rota: '/vade',
+      yediGun: sayi(kademe.yediGun) ?? 0,
+      otuzGun: sayi(kademe.otuzGun) ?? 0,
+      gecmis: sayi(kademe.gecmis) ?? 0,
+    });
+    return [
+      satir('trafik', this.t('panel.vade.trafik'), v.vade.trafik),
+      satir('kasko', this.t('panel.vade.kasko'), v.vade.kasko),
+      satir('muayene', this.t('panel.vade.muayene'), v.vade.muayene),
+    ];
+  }
+
+  /** KM geçen bakım, site talebi (yalnız modül açıkken), görülmeyen rezervasyon. */
+  private rozetler(v: PanelOzetiYaniti): readonly VadeKutusu[] {
+    const k = v.kpi;
     const kmGecen = sayi(k.kmGecenBakim) ?? 0;
     const gorulmeyen = sayi(k.gorulmeyenRezervasyon) ?? 0;
-    const ekKutular: VadeKutusu[] = [
+    const kutular: VadeKutusu[] = [
       {
         sayi: kmGecen,
         etiket: this.t('panel.vade.kmGecenBakim'),
         rota: '/raporlar/periyodik-servis', // F10.3: SPA rotası
         ton: kmGecen > 0 ? 'hata' : 'notr',
       },
-      {
-        sayi: gorulmeyen,
-        etiket: this.t('panel.vade.gorulmeyenRezervasyon'),
-        rota: '/rezervasyonlar', // F5.4: SPA rotası (sunucu yönlendirmesine düşmez)
-        ton: gorulmeyen > 0 ? 'uyari' : 'notr',
-      },
     ];
     // Site talebi yalnız Web Sitesi modülü açıkken gelir (kapalıyken hep 0 olurdu; kutu gürültü).
     if (k.siteTalebi) {
       const yeni = sayi(k.siteTalebi.yeni) ?? 0;
       const enEski = sayi(k.siteTalebi.enEskiGun);
-      ekKutular.push({
+      kutular.push({
         sayi: yeni,
         etiket: this.t('panel.vade.siteTalebi'),
         rota: '/gelen-talepler', // F11.3: SPA rotası (Blazor `?durum=0` = Yeni)
@@ -347,37 +402,12 @@ export class PanelSayfasi {
             : this.t('panel.vade.siteTalebiYok'),
       });
     }
-
-    return [
-      kart(
-        'kirada',
-        this.t('panel.kpi.kirada'),
-        k.kirada,
-        this.t('panel.vade.trafik'),
-        vadeKutulari(v.vade.trafik),
-      ),
-      kart(
-        'musait',
-        this.t('panel.kpi.musait'),
-        k.musait,
-        this.t('panel.vade.kasko'),
-        vadeKutulari(v.vade.kasko),
-      ),
-      kart(
-        'serviste',
-        this.t('panel.kpi.serviste'),
-        k.serviste,
-        this.t('panel.vade.muayene'),
-        vadeKutulari(v.vade.muayene),
-      ),
-      kart(
-        'rezervasyon',
-        this.t('panel.kpi.acikRezervasyon'),
-        k.acikRezervasyon,
-        null,
-        ekKutular,
-        this.t('panel.kpi.bekleyenRezervasyon'),
-      ),
-    ];
+    kutular.push({
+      sayi: gorulmeyen,
+      etiket: this.t('panel.vade.gorulmeyenRezervasyon'),
+      rota: '/rezervasyonlar', // F5.4: SPA rotası (sunucu yönlendirmesine düşmez)
+      ton: gorulmeyen > 0 ? 'uyari' : 'notr',
+    });
+    return kutular;
   }
 }

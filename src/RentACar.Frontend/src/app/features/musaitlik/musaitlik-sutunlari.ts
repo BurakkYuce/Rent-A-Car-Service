@@ -53,7 +53,7 @@ export function musaitlikSutunlari(t: Ceviri): readonly TabloSutunu<MusaitlikSat
   const tam = { tur: 'sayi', haneler: '1.0-0' } as const;
   const doviz = (r: MusaitlikSatiri) => r.fiyat?.paraBirimi ?? 'TRY';
   return [
-    { kod: 'plaka', baslik: s('plaka'), deger: (r) => r.plaka, sabit: true, genislik: 110 },
+    { kod: 'plaka', baslik: s('plaka'), deger: (r) => r.plaka, sabit: true, genislik: 124 },
     { kod: 'marka', baslik: s('marka'), deger: (r) => r.marka, genislik: 100 },
     { kod: 'tip', baslik: s('tip'), deger: (r) => r.tip, genislik: 100 },
     // Yıl binlik ayraçsız ("2.024" değil): metin olarak, sağa yaslı.

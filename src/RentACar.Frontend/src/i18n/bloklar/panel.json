@@ -5,10 +5,30 @@
     "yeniRezervasyon": "+ Rezervasyon",
     "yeniKira": "+ Kira",
     "musaitlik": "Müsaitlik",
+    "takvim": "Takvim",
     "yenile": "Yenile",
     "yukleniyor": "Panel yükleniyor…",
     "hata": "Panel yüklenemedi.",
     "yenidenDene": "Yeniden dene",
+    "bant": {
+      "altMetin": "{{tarih}} · {{arac}} araç"
+    },
+    "yanSutun": "Hatırlatmalar ve hızlı işlemler",
+    "hatirlatma": {
+      "baslik": "Hatırlatmalar",
+      "gecikmis": "{{sayi}} gecikmiş",
+      "matris": "Vade kademeleri",
+      "tur": "Tür",
+      "yediGun": "1 hf",
+      "otuzGun": "30 g",
+      "gecmis": "Geçen"
+    },
+    "hizli": {
+      "yeniKira": "Yeni kira sözleşmesi",
+      "musaitlik": "Müsaitlik ve rezervasyon",
+      "cari": "Cari kartı aç",
+      "kasa": "Kasa ve banka"
+    },
     "kpi": {
       "bolum": "Filo durumu",
       "kirada": "Kiradaki araçlar",
@@ -57,7 +77,7 @@
     "kayitYok": "Kayıt yok.",
     "kiraAc": "{{no}} kira sözleşmesini aç",
     "tahsilat": {
-      "tahsilEt": "Tahsil Et",
+      "tahsilEt": "Tahsil et",
       "tahsilEtEtiket": "{{plaka}} için tahsil et",
       "baslik": "Tahsilat — {{plaka}} · {{no}}",
       "tutar": "Tutar",

@@ -1,28 +1,24 @@
-<div class="sayfa">
+<rc-sayfa-bandi [baslik]="'teklif.yeniBaslik' | transloco" ikon="file-text">
+  <button
+    birincil
+    type="button"
+    class="rc-dugme rc-dugme--birincil"
+    [disabled]="kayit.gonderiliyor()"
+    (click)="kaydet()"
+  >
+    {{ (kayit.gonderiliyor() ? 'teklif.eylem.kaydediliyor' : 'teklif.eylem.olustur') | transloco }}
+  </button>
+</rc-sayfa-bandi>
+
+<div class="rc-sayfa">
   <nav class="yol">
     <a routerLink="/teklifler">{{ 'teklif.listeyeDon' | transloco }}</a>
   </nav>
 
-  <header class="ust">
-    <h1>{{ 'teklif.yeniBaslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <button
-        type="button"
-        class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-        [disabled]="kayit.gonderiliyor()"
-        (click)="kaydet()"
-      >
-        {{
-          (kayit.gonderiliyor() ? 'teklif.eylem.kaydediliyor' : 'teklif.eylem.olustur') | transloco
-        }}
-      </button>
-    </div>
-  </header>
-
   <rc-form-hatalari [hatalar]="kayit.genelHatalar()" />
 
   <div class="bolumler" [formGroup]="form">
-    <section class="kart">
+    <section class="rc-bolum">
       <div class="rc-form-izgara">
         <rc-alan [etiket]="'teklif.alan.musteri' | transloco" class="rc-form-izgara__genis">
           <rc-arama-secim

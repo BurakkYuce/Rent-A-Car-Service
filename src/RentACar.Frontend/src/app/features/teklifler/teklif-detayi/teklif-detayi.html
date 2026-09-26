@@ -1,50 +1,48 @@
-<div class="sayfa">
+<rc-sayfa-bandi
+  [baslik]="'teklif.detayBaslik' | transloco: { no: teklif()?.no ?? '…' }"
+  ikon="file-text"
+>
+  <ng-container eylemler>
+    @if (yetkiler()?.gonder) {
+      <button
+        type="button"
+        class="rc-dugme"
+        [disabled]="islemler.suruyor() !== null"
+        (click)="gonder()"
+      >
+        {{ 'teklif.eylem.gonder' | transloco }}
+      </button>
+    }
+    @if (yetkiler()?.reddet) {
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--tehlike"
+        [disabled]="islemler.suruyor() !== null"
+        (click)="reddet()"
+      >
+        <rc-ikon ad="x" [boyut]="14" />
+        {{ 'teklif.eylem.reddet' | transloco }}
+      </button>
+    }
+  </ng-container>
+  @if (yetkiler()?.kabul) {
+    <button
+      birincil
+      type="button"
+      class="rc-dugme rc-dugme--birincil"
+      [disabled]="islemler.suruyor() !== null"
+      (click)="kabul()"
+    >
+      <rc-ikon ad="check" [boyut]="14" />
+      {{ 'teklif.eylem.kabul' | transloco }}
+    </button>
+  }
+</rc-sayfa-bandi>
+
+<div class="rc-sayfa">
   <nav class="yol">
     <a routerLink="/teklifler">{{ 'teklif.listeyeDon' | transloco }}</a>
   </nav>
-
-  <header class="ust">
-    <h1>{{ 'teklif.detayBaslik' | transloco: { no: teklif()?.no ?? '…' } }}</h1>
-    @if (teklif(); as k) {
-      <span [class]="rozet(k.durum)" data-testid="teklif-durum">{{ durumEtiketi(k.durum) }}</span>
-    }
-    @if (yetkiler(); as y) {
-      <div class="ust__eylemler">
-        @if (y.gonder) {
-          <button
-            type="button"
-            class="rc-dugme rc-dugme--kucuk"
-            [disabled]="islemler.suruyor() !== null"
-            (click)="gonder()"
-          >
-            {{ 'teklif.eylem.gonder' | transloco }}
-          </button>
-        }
-        @if (y.kabul) {
-          <button
-            type="button"
-            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-            [disabled]="islemler.suruyor() !== null"
-            (click)="kabul()"
-          >
-            <rc-ikon ad="check" [boyut]="14" />
-            {{ 'teklif.eylem.kabul' | transloco }}
-          </button>
-        }
-        @if (y.reddet) {
-          <button
-            type="button"
-            class="rc-dugme rc-dugme--kucuk rc-dugme--tehlike"
-            [disabled]="islemler.suruyor() !== null"
-            (click)="reddet()"
-          >
-            <rc-ikon ad="x" [boyut]="14" />
-            {{ 'teklif.eylem.reddet' | transloco }}
-          </button>
-        }
-      </div>
-    }
-  </header>
 
   @if (bulunamadi()) {
     <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
@@ -66,15 +64,27 @@
         }}</a>
       </p>
     }
-    <section class="kart">
+    <section class="rc-bolum">
       <dl class="ozet__liste" data-testid="teklif-ozet">
+        <div>
+          <dt>{{ 'teklif.sutun.durum' | transloco }}</dt>
+          <dd>
+            <span [class]="rozet(k.durum)" data-testid="teklif-durum">{{
+              durumEtiketi(k.durum)
+            }}</span>
+          </dd>
+        </div>
         <div>
           <dt>{{ 'teklif.ozet.musteri' | transloco }}</dt>
           <dd>{{ detay.veri()?.musteriAd }}</dd>
         </div>
         <div>
           <dt>{{ 'teklif.ozet.arac' | transloco }}</dt>
-          <dd>{{ detay.veri()?.plaka }}</dd>
+          <dd>
+            @if (detay.veri()?.plaka; as plaka) {
+              <rc-plaka [plaka]="plaka" boyut="sm" />
+            }
+          </dd>
         </div>
         <div>
           <dt>{{ 'teklif.ozet.tarih' | transloco }}</dt>

@@ -1,30 +1,18 @@
-.sayfa {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rc-bosluk-3);
-  padding: var(--rc-bosluk-4);
-  min-width: 0;
-}
-
-.ust > h1 {
-  margin: 0;
-}
+// Sayfa iskeleti global düzen katmanından (`.rc-sayfa`, `.rc-kart`); başlık `rc-sayfa-bandi`.
 
 .arama {
-  display: flex;
-  flex-direction: column;
   gap: var(--rc-bosluk-3);
 }
 
 .arama__eylemler,
-.islemler {
+.satir-islemleri {
   display: flex;
   flex-wrap: wrap;
   gap: var(--rc-bosluk-2);
   align-items: center;
 }
 
-.islemler {
+.satir-islemleri {
   // Görünmez etiket (`rc-gorunmez`) hücrenin içinde konumlansın (tablo kaydırıcısının dışına taşmasın).
   position: relative;
   flex-wrap: nowrap;
@@ -46,6 +34,6 @@
   color: var(--rc-uyari-metin);
 }
 
-.tablo {
-  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
+.liste-tablosu {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 19rem);
 }

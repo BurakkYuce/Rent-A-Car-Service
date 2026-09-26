@@ -18,9 +18,11 @@ import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 import { Secim } from '@shared/form/kontroller/secim';
 import { Ikon } from '@shared/ikon/ikon';
 import { KatlanirFiltre } from '@shared/katlanir-filtre/katlanir-filtre';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 import { Tablo } from '@shared/tablo/tablo';
 import { TabloHucre } from '@shared/tablo/tablo-hucre';
 
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 import { TeklifIslemleri } from '../teklif-islemleri';
 import {
   TEKLIF_DURUMLARI,
@@ -41,6 +43,8 @@ import { TEKLIF_LISTESI, TeklifListesiStore, teklifSutunlari } from './teklif-li
   selector: 'rc-teklif-listesi',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

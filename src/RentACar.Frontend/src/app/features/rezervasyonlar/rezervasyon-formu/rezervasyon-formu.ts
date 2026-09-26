@@ -99,6 +99,12 @@ export class RezervasyonFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
   protected readonly kaynakKaynagi = sunucuSecimKaynagi('rezervasyon-kaynagi');
 
   protected readonly rez = computed(() => this.detay.veri()?.rezervasyon ?? null);
+  /** Sayfa bandı başlığı (sayfanın tek `<h1>`'i). */
+  protected readonly baslik = computed(() =>
+    this.yeni
+      ? this.t('rezervasyon.yeniBaslik')
+      : this.t('rezervasyon.detayBaslik', { no: this.rez()?.no ?? '…' }),
+  );
   protected readonly yetkiler = computed(() => this.detay.veri()?.yetkiler ?? null);
   protected readonly bulunamadi = computed(() => this.detay.hata()?.status === 404);
   protected readonly duzenlenebilir = computed(

@@ -1,10 +1,8 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'musaitlikSayfasi.baslik' | transloco }}</h1>
-  </header>
+<rc-sayfa-bandi [baslik]="'musaitlikSayfasi.baslik' | transloco" ikon="search" />
 
+<div class="rc-sayfa">
   <form
-    class="arama"
+    class="rc-kart arama"
     novalidate
     [formGroup]="form"
     [attr.aria-label]="'musaitlikSayfasi.arama' | transloco"
@@ -104,7 +102,7 @@
     </div>
 
     <rc-tablo
-      class="tablo"
+      class="liste-tablosu"
       tabloKodu="musaitlik.liste"
       [etiket]="'musaitlikSayfasi.tabloEtiketi' | transloco"
       [sutunlar]="sutunlar"
@@ -112,9 +110,15 @@
       [satirKimligi]="kimlik"
       (yenidenDene)="store.sonuc.yenile()"
     >
+      <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="sutunlar" let-satir>
+        @if (satir.plaka) {
+          <rc-plaka [plaka]="satir.plaka" boyut="sm" />
+        }
+      </ng-template>
+
       <ng-template rcTabloHucre="kirala" [rcTabloHucreSutunlar]="sutunlar" let-satir>
         @if (kiralaSorgusu(satir); as sorgu) {
-          <span class="islemler">
+          <span class="satir-islemleri">
             <a class="rc-dugme rc-dugme--kucuk" routerLink="/kiralar/yeni" [queryParams]="sorgu">
               {{ 'musaitlikSayfasi.kirala' | transloco }}
               <span class="rc-gorunmez">{{ satir.plaka }}</span>
@@ -124,6 +128,10 @@
       </ng-template>
     </rc-tablo>
   } @else if (!aramaVar()) {
-    <p class="ozet">{{ 'musaitlikSayfasi.baslangic' | transloco }}</p>
+    <rc-bos-durum
+      ikon="search"
+      [baslik]="'musaitlikSayfasi.bosBaslik' | transloco"
+      [aciklama]="'musaitlikSayfasi.baslangic' | transloco"
+    />
   }
 </div>

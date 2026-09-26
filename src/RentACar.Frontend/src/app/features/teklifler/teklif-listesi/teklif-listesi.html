@@ -1,14 +1,11 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'teklif.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--birincil rc-dugme--kucuk" routerLink="/teklifler/yeni">
-        <rc-ikon ad="plus" [boyut]="14" />
-        {{ 'teklif.yeni' | transloco }}
-      </a>
-    </div>
-  </header>
+<rc-sayfa-bandi [baslik]="'teklif.baslik' | transloco" ikon="file-text">
+  <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/teklifler/yeni">
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'teklif.yeni' | transloco }}
+  </a>
+</rc-sayfa-bandi>
 
+<div class="rc-sayfa">
   <rc-katlanir-filtre
     class="filtre"
     [baslik]="'teklif.filtre.baslik' | transloco"
@@ -49,7 +46,7 @@
   </rc-katlanir-filtre>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablosu"
     tabloKodu="teklifler.liste"
     [etiket]="'teklif.tabloEtiketi' | transloco"
     [sutunlar]="sutunlar"
@@ -67,6 +64,12 @@
       <a class="bag" [routerLink]="['/teklifler', satir.id]">{{ satir.no }}</a>
     </ng-template>
 
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="sutunlar" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka [plaka]="satir.plaka" boyut="sm" />
+      }
+    </ng-template>
+
     <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="sutunlar" let-satir>
       @if (satir.durum === 'Kabul' && satir.rezervasyonId) {
         <a [class]="rozet(satir.durum)" [routerLink]="['/rezervasyonlar', satir.rezervasyonId]">{{
@@ -78,7 +81,7 @@
     </ng-template>
 
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="sutunlar" let-satir>
-      <span class="islemler">
+      <span class="satir-islemleri">
         @if (satir.durum === 'Taslak') {
           <button
             type="button"
