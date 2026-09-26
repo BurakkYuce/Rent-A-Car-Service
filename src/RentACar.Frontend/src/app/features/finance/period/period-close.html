@@ -1,7 +1,5 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finans.donem.baslik' | transloco }}</h1>
-  </header>
+<rc-sayfa-bandi [baslik]="'finans.donem.baslik' | transloco" ikon="calendar" />
+<div class="rc-sayfa">
   @if (state.tur() === 'hata') {
     <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">{{ state.hata()?.detay }}</p>
   }
@@ -10,44 +8,44 @@
       {{ 'finans.donem.mevcutKilit' | transloco }}
       <strong>{{ lockText() ?? ('finans.donem.kilitYok' | transloco) }}</strong>
     </p>
-    <p class="aciklama">{{ 'finans.donem.aciklama' | transloco }}</p>
+    <p class="not">{{ 'finans.donem.aciklama' | transloco }}</p>
 
-    <section class="bolum" aria-labelledby="rc-donem-mizan">
+    <section class="rc-bolum" aria-labelledby="rc-donem-mizan">
       <h2 id="rc-donem-mizan">{{ 'finans.donem.mizan' | transloco }}</h2>
       @if (s.mizan.length > 0) {
-        <div class="tablo-kap">
-          <table class="duz-tablo">
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <thead>
               <tr>
                 <th>{{ 'finans.donem.hesap' | transloco }}</th>
-                <th class="num">{{ 'finans.ekstre.borc' | transloco }}</th>
-                <th class="num">{{ 'finans.ekstre.alacak' | transloco }}</th>
-                <th class="num">{{ 'finans.ekstre.bakiyeKolon' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.ekstre.borc' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.ekstre.alacak' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.ekstre.bakiyeKolon' | transloco }}</th>
               </tr>
             </thead>
             <tbody>
               @for (m of s.mizan; track m.hesap) {
                 <tr>
                   <td>{{ m.ad }}</td>
-                  <td class="num">{{ m.borc | fsayi }}</td>
-                  <td class="num">{{ m.alacak | fsayi }}</td>
-                  <td class="num">{{ m.bakiye | fsayi }}</td>
+                  <td class="rc-num">{{ m.borc | fsayi }}</td>
+                  <td class="rc-num">{{ m.alacak | fsayi }}</td>
+                  <td class="rc-num">{{ m.bakiye | fsayi }}</td>
                 </tr>
               }
             </tbody>
             <tfoot>
               <tr class="toplam-satiri">
                 <td>{{ 'finans.donem.toplam' | transloco }}</td>
-                <td class="num">{{ s.toplamBorc | fsayi }}</td>
-                <td class="num">{{ s.toplamAlacak | fsayi }}</td>
-                <td class="num">{{ s.toplamBakiye | fsayi }}</td>
+                <td class="rc-num">{{ s.toplamBorc | fsayi }}</td>
+                <td class="rc-num">{{ s.toplamAlacak | fsayi }}</td>
+                <td class="rc-num">{{ s.toplamBakiye | fsayi }}</td>
               </tr>
             </tfoot>
           </table>
         </div>
         <p class="not">{{ 'finans.donem.dengeNot' | transloco }}</p>
       } @else {
-        <p class="ozet">{{ 'finans.donem.defterBos' | transloco }}</p>
+        <p class="not">{{ 'finans.donem.defterBos' | transloco }}</p>
       }
       <p>
         {{ 'finans.donem.onizleme' | transloco }}
@@ -58,7 +56,7 @@
       </p>
     </section>
 
-    <section class="bolum" aria-labelledby="rc-donem-kapat">
+    <section class="rc-bolum" aria-labelledby="rc-donem-kapat">
       <h2 id="rc-donem-kapat">{{ 'finans.donem.kapatBolum' | transloco }}</h2>
       <div class="rc-form-izgara" [formGroup]="form">
         <rc-alan [etiket]="'finans.donem.kapanisTarihi' | transloco">
@@ -66,7 +64,7 @@
         </rc-alan>
       </div>
       <rc-form-hatalari [hatalar]="errors()" />
-      <div class="form__eylemler">
+      <div class="rc-form-eylemler">
         <button
           type="button"
           class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"

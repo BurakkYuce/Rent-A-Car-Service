@@ -1,4 +1,4 @@
-<section class="bolum duzenleyici" aria-labelledby="rc-gelen-bagla">
+<section class="rc-bolum duzenleyici" aria-labelledby="rc-gelen-bagla">
   <h2 id="rc-gelen-bagla">
     {{ 'finansBelge.gelen.baglaBaslik' | transloco: { ettn: base()?.fatura?.ettn ?? '' } }}
   </h2>
@@ -56,7 +56,7 @@
       </rc-alan>
     </div>
     <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-    <div class="form__eylemler">
+    <div class="rc-form-eylemler">
       <button
         type="submit"
         class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"

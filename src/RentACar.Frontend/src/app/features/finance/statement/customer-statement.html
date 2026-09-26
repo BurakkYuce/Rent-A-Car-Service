@@ -1,14 +1,15 @@
-<div class="sayfa">
+@if (statement.veri(); as s) {
+  <rc-sayfa-bandi [baslik]="'finans.ekstre.baslik' | transloco: { ad: s.cariAd }" ikon="file-text">
+    <ng-container eylemler>
+      <a class="rc-dugme" [href]="exportUrl('excel')">Excel</a>
+      <a class="rc-dugme" [href]="exportUrl('csv')">CSV</a>
+      <a class="rc-dugme" [href]="exportUrl('pdf')">PDF</a>
+    </ng-container>
+  </rc-sayfa-bandi>
+}
+<div class="rc-sayfa">
   @if (statement.veri(); as s) {
-    <header class="ust">
-      <h1>{{ 'finans.ekstre.baslik' | transloco: { ad: s.cariAd } }}</h1>
-      <div class="ust__eylemler">
-        <a [href]="exportUrl('excel')">Excel</a>
-        <a [href]="exportUrl('csv')">CSV</a>
-        <a [href]="exportUrl('pdf')">PDF</a>
-      </div>
-    </header>
-    <p class="ozet">
+    <p class="not">
       {{ 'finans.ekstre.bakiye' | transloco }}
       <strong [class.negatif]="side() === 'borclu'" [class.pozitif]="side() === 'alacakli'">{{
         s.bakiye | fpara
@@ -36,10 +37,10 @@
       </div>
     }
 
-    <section class="bolum" aria-labelledby="rc-ekstre-hareketler">
+    <section class="rc-bolum" aria-labelledby="rc-ekstre-hareketler">
       <h2 id="rc-ekstre-hareketler">{{ 'finans.ekstre.hareketler' | transloco }}</h2>
       <form class="filtre" [formGroup]="filter" (ngSubmit)="applyFilter()">
-        <div class="rc-form-izgara">
+        <div class="rc-filtre-izgara">
           <rc-alan [etiket]="'finans.alan.tarihBas' | transloco">
             <rc-tarih-secici formControlName="bas" />
           </rc-alan>
@@ -95,16 +96,16 @@
       }
 
       @if (summaryMode()) {
-        <div class="tablo-kap">
-          <table class="duz-tablo">
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <thead>
               <tr>
                 <th>{{ 'finans.ekstre.ay' | transloco }}</th>
                 <th>{{ 'finans.ekstre.kaynak' | transloco }}</th>
-                <th class="num">{{ 'finans.ekstre.adet' | transloco }}</th>
-                <th class="num">{{ 'finans.ekstre.borc' | transloco }}</th>
-                <th class="num">{{ 'finans.ekstre.alacak' | transloco }}</th>
-                <th class="num">{{ 'finans.ekstre.net' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.ekstre.adet' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.ekstre.borc' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.ekstre.alacak' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.ekstre.net' | transloco }}</th>
               </tr>
             </thead>
             <tbody>
@@ -112,14 +113,14 @@
                 <tr>
                   <td>{{ o.ay }}</td>
                   <td>{{ o.kaynak }}</td>
-                  <td class="num">{{ o.adet }}</td>
-                  <td class="num">{{ o.borc | fsayi }}</td>
-                  <td class="num">{{ o.alacak | fsayi }}</td>
-                  <td class="num">{{ o.net | fsayi }}</td>
+                  <td class="rc-num">{{ o.adet }}</td>
+                  <td class="rc-num">{{ o.borc | fsayi }}</td>
+                  <td class="rc-num">{{ o.alacak | fsayi }}</td>
+                  <td class="rc-num">{{ o.net | fsayi }}</td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6">{{ 'finans.ekstre.hareketYok' | transloco }}</td>
+                  <td colspan="6" class="rc-bos">{{ 'finans.ekstre.hareketYok' | transloco }}</td>
                 </tr>
               }
             </tbody>
@@ -127,17 +128,17 @@
         </div>
         <p class="not">{{ 'finans.ekstre.ozetNot' | transloco }}</p>
       } @else {
-        <div class="tablo-kap" [attr.aria-busy]="statement.yukleniyor()">
-          <table class="duz-tablo">
+        <div class="rc-tablo-kap" [attr.aria-busy]="statement.yukleniyor()">
+          <table class="rc-duz-tablo">
             <thead>
               <tr>
                 <th>{{ 'finans.alan.tarih' | transloco }}</th>
                 <th>{{ 'finans.alan.aciklama' | transloco }}</th>
                 <th>{{ 'finans.ekstre.kaynak' | transloco }}</th>
                 <th>{{ 'finans.alan.doviz' | transloco }}</th>
-                <th class="num">{{ 'finans.ekstre.borc' | transloco }}</th>
-                <th class="num">{{ 'finans.ekstre.alacak' | transloco }}</th>
-                <th class="num">
+                <th class="rc-num">{{ 'finans.ekstre.borc' | transloco }}</th>
+                <th class="rc-num">{{ 'finans.ekstre.alacak' | transloco }}</th>
+                <th class="rc-num">
                   {{
                     (s.yuruyenBakiyeMi ? 'finans.ekstre.bakiyeKolon' : 'finans.ekstre.birikim')
                       | transloco
@@ -157,9 +158,9 @@
                   </td>
                   <td>{{ 'finans.ekstre.devirKaynak' | transloco }}</td>
                   <td>—</td>
-                  <td class="num">{{ (s.devir | negatif) ? '' : (s.devir | fsayi) }}</td>
-                  <td class="num">{{ (s.devir | negatif) ? (abs(s.devir) | fsayi) : '' }}</td>
-                  <td class="num">{{ s.devir | fsayi }}</td>
+                  <td class="rc-num">{{ (s.devir | negatif) ? '' : (s.devir | fsayi) }}</td>
+                  <td class="rc-num">{{ (s.devir | negatif) ? (abs(s.devir) | fsayi) : '' }}</td>
+                  <td class="rc-num">{{ s.devir | fsayi }}</td>
                   <td></td>
                 </tr>
               }
@@ -169,9 +170,9 @@
                   <td>{{ e.aciklama }}</td>
                   <td>{{ e.kaynak }}</td>
                   <td>{{ e.doviz }}</td>
-                  <td class="num">{{ isZero(e.borc) ? '' : (e.borc | fsayi) }}</td>
-                  <td class="num">{{ isZero(e.alacak) ? '' : (e.alacak | fsayi) }}</td>
-                  <td class="num">{{ e.yuruyen | fsayi }}</td>
+                  <td class="rc-num">{{ isZero(e.borc) ? '' : (e.borc | fsayi) }}</td>
+                  <td class="rc-num">{{ isZero(e.alacak) ? '' : (e.alacak | fsayi) }}</td>
+                  <td class="rc-num">{{ e.yuruyen | fsayi }}</td>
                   <td>
                     @if (e.kasaIslemId && canReverse()) {
                       <button
@@ -188,7 +189,7 @@
               } @empty {
                 @if (isZero(s.devir)) {
                   <tr>
-                    <td colspan="8">
+                    <td colspan="8" class="rc-bos">
                       {{
                         (filtered() ? 'finans.ekstre.filtreyeUyanYok' : 'finans.ekstre.hareketYok')
                           | transloco

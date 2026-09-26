@@ -1,30 +1,28 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finansBelge.satis.baslik' | transloco }}</h1>
+<rc-sayfa-bandi [baslik]="'finansBelge.satis.baslik' | transloco" ikon="car">
+  <ng-container birincil>
     @if (canWrite()) {
-      <div class="ust__eylemler">
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-          [attr.aria-expanded]="createOpen()"
-          aria-controls="rc-yeni-satis"
-          [disabled]="pending.inFlight()"
-          (click)="toggleCreate()"
-        >
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ 'finansBelge.satis.yeni' | transloco }}
-        </button>
-      </div>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--birincil"
+        [attr.aria-expanded]="createOpen()"
+        aria-controls="rc-yeni-satis"
+        [disabled]="pending.inFlight()"
+        (click)="toggleCreate()"
+      >
+        <rc-ikon ad="plus" [boyut]="14" />
+        {{ 'finansBelge.satis.yeni' | transloco }}
+      </button>
     }
-  </header>
-
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
   <form
-    class="filtre"
+    class="rc-bolum filtre"
     [formGroup]="filterForm"
     [attr.aria-label]="'finansBelge.filtre' | transloco"
     (ngSubmit)="filter()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan [etiket]="'finansBelge.plaka' | transloco">
         <rc-metin-girdisi formControlName="plaka" [azamiUzunluk]="16" />
       </rc-alan>
@@ -77,7 +75,7 @@
   }
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablo"
     tabloKodu="satislar.liste"
     [etiket]="'finansBelge.satis.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -100,6 +98,13 @@
       <span class="rc-rozet" [class.rc-rozet--hata]="satir.durum === 'Iptal'">{{
         statusLabel(satir.durum)
       }}</span>
+    </ng-template>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka boyut="sm" [plaka]="satir.plaka" />
+      } @else {
+        —
+      }
     </ng-template>
   </rc-tablo>
 </div>

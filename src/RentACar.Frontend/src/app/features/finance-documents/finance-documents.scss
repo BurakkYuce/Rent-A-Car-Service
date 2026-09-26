@@ -1,6 +1,5 @@
-// F8.2b finans belge ekranları: F6.2a/F6.2b liste yerleşimi (başlık, süzgeç, bölüm, düz tablo) aynen; yalnız bu
-// ekranlara özgü birkaç kural.
-@use '../vehicles/vehicles';
+// F8.2b finans belge ekranları (Yol v2 PR-D3): sayfa iskeleti, bölüm, düz tablo ve hücre yardımcıları GLOBAL düzen
+// katmanından (`src/styles/_duzen.scss`); burada yalnız bu ekranlara özgü kurallar. Global sınıf yeniden tanımlanmaz.
 
 .not {
   margin: 0;
@@ -8,8 +7,49 @@
   font-size: var(--rc-yazi-xs);
 }
 
-.toplam-satiri td {
-  font-weight: var(--rc-agirlik-kalin);
+.filtre,
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  min-width: 0;
+}
+
+.filtre__eylemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+// Liste ızgarası (rc-tablo) görünür alanı doldursun; sayfa başı + süzgeç kadar pay bırakılır.
+.liste-tablo {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
+}
+
+.kunye {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2) var(--rc-bosluk-4);
+  margin: 0;
+
+  > div {
+    display: flex;
+    gap: var(--rc-bosluk-1);
+    align-items: baseline;
+  }
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 .duzenleyici {

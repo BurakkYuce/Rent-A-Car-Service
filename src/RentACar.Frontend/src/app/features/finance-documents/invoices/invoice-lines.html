@@ -1,21 +1,20 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'finansBelge.faturaSatir.baslik' | transloco }}</h1>
-    <div class="ust__eylemler">
-      <a class="rc-dugme rc-dugme--kucuk" routerLink="/faturalar">
-        {{ 'finansBelge.fatura.baslik' | transloco }}
-      </a>
-    </div>
-  </header>
-  <p class="aciklama">{{ 'finansBelge.faturaSatir.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'finansBelge.faturaSatir.baslik' | transloco" ikon="file-text">
+  <ng-container eylemler>
+    <a class="rc-dugme" routerLink="/faturalar">
+      {{ 'finansBelge.fatura.baslik' | transloco }}
+    </a>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'finansBelge.faturaSatir.aciklama' | transloco }}</p>
 
   <form
-    class="filtre"
+    class="rc-bolum filtre"
     [formGroup]="filterForm"
     [attr.aria-label]="'finansBelge.filtre' | transloco"
     (ngSubmit)="filter()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan [etiket]="'finansBelge.fatura.ara' | transloco">
         <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="128" />
       </rc-alan>
@@ -52,7 +51,7 @@
   </form>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablo"
     tabloKodu="faturalar.detay-listesi"
     [etiket]="'finansBelge.faturaSatir.tabloEtiketi' | transloco"
     [sutunlar]="columns"
@@ -64,5 +63,13 @@
     (sayfaDegisti)="query.degistir({ sayfa: $event })"
     (boyutDegisti)="query.degistir({ boyut: $event })"
     (yenidenDene)="store.list.yenile()"
-  />
+  >
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
+      @if (satir.plaka) {
+        <rc-plaka boyut="sm" [plaka]="satir.plaka" />
+      } @else {
+        —
+      }
+    </ng-template>
+  </rc-tablo>
 </div>

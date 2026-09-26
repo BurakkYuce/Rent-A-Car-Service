@@ -1,21 +1,20 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ config.title | transloco }}</h1>
+<rc-sayfa-bandi [baslik]="config.title | transloco" ikon="tag">
+  <ng-container birincil>
     @if (canWrite()) {
-      <div class="ust__eylemler">
-        <button
-          type="button"
-          class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
-          [disabled]="editing()?.kind === 'new'"
-          (click)="startNew()"
-        >
-          <rc-ikon ad="plus" [boyut]="14" />
-          {{ config.newTitle | transloco }}
-        </button>
-      </div>
+      <button
+        type="button"
+        class="rc-dugme rc-dugme--birincil"
+        [disabled]="editing()?.kind === 'new'"
+        (click)="startNew()"
+      >
+        <rc-ikon ad="plus" [boyut]="14" />
+        {{ config.newTitle | transloco }}
+      </button>
     }
-  </header>
-  <p class="aciklama">{{ config.description | transloco }}</p>
+  </ng-container>
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ config.description | transloco }}</p>
 
   @if (config.key === 'tarife-matris') {
     <rc-rate-price-query />
@@ -27,14 +26,14 @@
   @if (editing(); as e) {
     <section
       id="rc-tanim-duzenleyici"
-      class="bolum duzenleyici"
+      class="rc-bolum duzenleyici"
       aria-labelledby="rc-tanim-duzenleyici-baslik"
     >
       <h2 id="rc-tanim-duzenleyici-baslik" tabindex="-1">
         {{ (e.kind === 'new' ? config.newTitle : config.editTitle) | transloco }}
       </h2>
       @if (e.kind === 'record' && base() === null) {
-        <p class="aciklama" role="status">{{ 'fiyatTarife.kayitOkunuyor' | transloco }}</p>
+        <p class="not" role="status">{{ 'fiyatTarife.kayitOkunuyor' | transloco }}</p>
       }
       <form class="form" [formGroup]="form" (ngSubmit)="save()">
         @for (g of groups; track $index) {
@@ -56,7 +55,7 @@
           }
         }
         @for (f of readonlyFields; track f.name) {
-          <p class="aciklama">{{ f.label | transloco }}: {{ readonlyText(f) }}</p>
+          <p class="not">{{ f.label | transloco }}: {{ readonlyText(f) }}</p>
         }
         @for (f of editableFields; track f.name) {
           @if (f.suggestion) {
@@ -68,7 +67,7 @@
           }
         }
         <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-        <div class="form__eylemler">
+        <div class="rc-form-eylemler">
           <button
             type="submit"
             class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -181,12 +180,12 @@
   }
 
   <form
-    class="filtre"
+    class="rc-bolum filtre"
     [formGroup]="filterForm"
     [attr.aria-label]="'fiyatTarife.filtre' | transloco"
     (ngSubmit)="filter()"
   >
-    <div class="rc-form-izgara">
+    <div class="rc-filtre-izgara">
       <rc-alan [etiket]="'fiyatTarife.ara' | transloco">
         <rc-metin-girdisi formControlName="q" tur="search" [azamiUzunluk]="100" />
       </rc-alan>
@@ -222,7 +221,7 @@
   </form>
 
   <rc-tablo
-    class="tablo"
+    class="liste-tablo"
     [tabloKodu]="'fiyat.' + config.key"
     [etiket]="config.title | transloco"
     [sutunlar]="columns"
@@ -235,7 +234,7 @@
     (yenidenDene)="list.yenile()"
   >
     <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
-      <span class="satir-eylem">
+      <span class="rc-form-eylemler">
         <button
           type="button"
           class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"

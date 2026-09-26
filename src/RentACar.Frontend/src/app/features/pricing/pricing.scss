@@ -1,6 +1,69 @@
-// F9.2 fiyat / tarife ekranları: F6.2a araç ekranlarının yerleşimi (başlık, süzgeç, özet şerit, bölüm, düz tablo)
-// aynen kullanılır; yalnız bu ekranlara özgü birkaç kural eklenir.
-@use '../vehicles/vehicles';
+// F9.2 fiyat / tarife ekranları (Yol v2 PR-D3): sayfa iskeleti, bölüm, kart, düz tablo ve hücre yardımcıları GLOBAL
+// düzen katmanından (`src/styles/_duzen.scss`); burada yalnız bu ekranlara özgü kurallar. Global sınıf yeniden
+// tanımlanmaz.
+
+.not {
+  margin: 0;
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+}
+
+.filtre,
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rc-bosluk-3);
+  min-width: 0;
+}
+
+.filtre__eylemler {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.liste-tablo {
+  --rc-tablo-en-fazla-yukseklik: calc(100vh - 16rem);
+}
+
+// Özet kutuları: her kutu `.rc-kart`; burada yalnız ızgara ve künye tipografisi.
+.ozet-serit {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  gap: var(--rc-bosluk-3);
+  margin: 0;
+
+  dt {
+    color: var(--rc-metin-ikincil);
+    font-size: var(--rc-yazi-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--rc-yazi-lg);
+    font-weight: var(--rc-agirlik-kalin);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.rozet-sayac {
+  color: var(--rc-metin-ikincil);
+  font-size: var(--rc-yazi-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.satir-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rc-bosluk-2);
+  align-items: flex-end;
+}
+
+.toplam-satiri td {
+  font-weight: var(--rc-agirlik-kalin);
+}
 
 .sonraki {
   margin: 0;
@@ -33,7 +96,7 @@ fieldset.grup {
   }
 }
 
-details.bolum > summary {
+details.acilir > summary {
   cursor: pointer;
   font-weight: var(--rc-agirlik-kalin);
 }
@@ -55,9 +118,4 @@ details.bolum > summary {
 .alt-baslik {
   margin: 0;
   font-size: var(--rc-yazi-md);
-}
-
-.kalem-tablosu td.num,
-.kalem-tablosu th.num {
-  text-align: end;
 }

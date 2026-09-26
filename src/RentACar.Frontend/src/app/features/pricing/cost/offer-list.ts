@@ -43,6 +43,7 @@ import { TabloHucre } from '@shared/tablo/tablo-hucre';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
 import { COST_OFFERS, type CostOfferList, type CostOfferRow, OFFER_LIST } from './cost-model';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 
 const toNum = (v: number | string | null | undefined): number | null => {
   if (v === null || v === undefined || v === '') return null;
@@ -60,6 +61,7 @@ const toNum = (v: number | string | null | undefined): number | null => {
   selector: 'rc-offer-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SayfaBandi,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,

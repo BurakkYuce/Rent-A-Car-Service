@@ -49,6 +49,8 @@ import {
 import { PENALTIES, PenaltyStore, recordPath } from '../document.store';
 import { PenaltyCreateForm } from './penalty-create-form';
 import { PenaltyPaymentForm, penaltyPaymentScope } from './penalty-payment-form';
+import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type PenaltyStatus = (typeof PENALTY_STATUSES)[number];
 type PaymentStatus = (typeof PENALTY_PAYMENT_STATUSES)[number];
@@ -63,6 +65,8 @@ type PaymentStatus = (typeof PENALTY_PAYMENT_STATUSES)[number];
   selector: 'rc-penalty-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PlateChipComponent,
+    SayfaBandi,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,

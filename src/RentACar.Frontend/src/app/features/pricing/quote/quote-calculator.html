@@ -1,10 +1,9 @@
-<div class="sayfa">
-  <header class="ust">
-    <h1>{{ 'fiyatTarife.fiyatHesapla.baslik' | transloco }}</h1>
-  </header>
-  <p class="aciklama">{{ 'fiyatTarife.fiyatHesapla.aciklama' | transloco }}</p>
+<rc-sayfa-bandi [baslik]="'fiyatTarife.fiyatHesapla.baslik' | transloco" ikon="tag">
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <p class="not">{{ 'fiyatTarife.fiyatHesapla.aciklama' | transloco }}</p>
 
-  <section class="bolum" aria-labelledby="rc-fiyat-girdi">
+  <section class="rc-bolum" aria-labelledby="rc-fiyat-girdi">
     <h2 id="rc-fiyat-girdi">{{ 'fiyatTarife.fiyatHesapla.girdi' | transloco }}</h2>
     <form class="form" [formGroup]="form" (ngSubmit)="calculate()">
       <div class="rc-form-izgara">
@@ -62,7 +61,7 @@
         }
       </datalist>
       <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
-      <div class="form__eylemler">
+      <div class="rc-form-eylemler">
         <button
           type="submit"
           class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
@@ -79,50 +78,50 @@
   </section>
 
   @if (result(); as r) {
-    <section class="bolum" aria-labelledby="rc-fiyat-sonuc" aria-live="polite">
+    <section class="rc-bolum" aria-labelledby="rc-fiyat-sonuc" aria-live="polite">
       <h2 id="rc-fiyat-sonuc">
         {{ 'fiyatTarife.fiyatHesapla.sonuc' | transloco: { tarife: r.tarifeKodu ?? '—' } }}
       </h2>
-      <div class="tablo-kap">
-        <table class="duz-tablo">
+      <div class="rc-tablo-kap">
+        <table class="rc-duz-tablo">
           <tbody>
             <tr>
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.gun' | transloco }}</th>
-              <td class="num">{{ r.gun }}</td>
+              <td class="rc-num">{{ r.gun }}</td>
             </tr>
             @if (num(r.hediyeGun)) {
               <tr>
                 <th scope="row">{{ 'fiyatTarife.fiyatHesapla.hediyeGun' | transloco }}</th>
-                <td class="num">{{ r.hediyeGun }}</td>
+                <td class="rc-num">{{ r.hediyeGun }}</td>
               </tr>
               <tr>
                 <th scope="row">{{ 'fiyatTarife.fiyatHesapla.faturalananGun' | transloco }}</th>
-                <td class="num">{{ r.faturalananGun }}</td>
+                <td class="rc-num">{{ r.faturalananGun }}</td>
               </tr>
             }
             <tr>
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.gunlukUcret' | transloco }}</th>
-              <td class="num">{{ num(r.gunlukUcret) | para: r.paraBirimi }}</td>
+              <td class="rc-num">{{ num(r.gunlukUcret) | para: r.paraBirimi }}</td>
             </tr>
             <tr>
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.bazTutar' | transloco }}</th>
-              <td class="num">{{ num(r.bazTutar) | para: r.paraBirimi }}</td>
+              <td class="rc-num">{{ num(r.bazTutar) | para: r.paraBirimi }}</td>
             </tr>
             <tr>
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.haftaSonuFark' | transloco }}</th>
-              <td class="num">{{ num(r.haftaSonuFark) | para: r.paraBirimi }}</td>
+              <td class="rc-num">{{ num(r.haftaSonuFark) | para: r.paraBirimi }}</td>
             </tr>
             <tr>
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.kmAsim' | transloco }}</th>
-              <td class="num">{{ num(r.kmAsimTutar) | para: r.paraBirimi }}</td>
+              <td class="rc-num">{{ num(r.kmAsimTutar) | para: r.paraBirimi }}</td>
             </tr>
             <tr>
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.sigortaToplam' | transloco }}</th>
-              <td class="num">{{ num(r.sigortaToplam) | para: r.paraBirimi }}</td>
+              <td class="rc-num">{{ num(r.sigortaToplam) | para: r.paraBirimi }}</td>
             </tr>
             <tr>
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.araToplam' | transloco }}</th>
-              <td class="num">{{ num(r.araToplam) | para: r.paraBirimi }}</td>
+              <td class="rc-num">{{ num(r.araToplam) | para: r.paraBirimi }}</td>
             </tr>
             <tr>
               <th scope="row">
@@ -131,37 +130,41 @@
                     | transloco: { oran: (num(r.iskontoOran) | sayi) }
                 }}
               </th>
-              <td class="num">−{{ num(r.iskontoTutar) | para: r.paraBirimi }}</td>
+              <td class="rc-num">−{{ num(r.iskontoTutar) | para: r.paraBirimi }}</td>
             </tr>
             <tr class="toplam-satiri">
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.genelToplam' | transloco }}</th>
-              <td class="num">{{ num(r.genelToplam) | para: r.paraBirimi }}</td>
+              <td class="rc-num">{{ num(r.genelToplam) | para: r.paraBirimi }}</td>
             </tr>
             <tr>
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.provizyon' | transloco }}</th>
-              <td class="num">{{ num(r.provizyon) | para: r.paraBirimi }}</td>
+              <td class="rc-num">{{ num(r.provizyon) | para: r.paraBirimi }}</td>
             </tr>
             <tr>
               <th scope="row">{{ 'fiyatTarife.fiyatHesapla.muafiyet' | transloco }}</th>
-              <td class="num">{{ num(r.muafiyet) | para: r.paraBirimi }}</td>
+              <td class="rc-num">{{ num(r.muafiyet) | para: r.paraBirimi }}</td>
             </tr>
           </tbody>
         </table>
       </div>
       @if (r.gencSurucu) {
-        <p class="aciklama">{{ 'fiyatTarife.fiyatHesapla.gencSurucu' | transloco }}</p>
+        <p class="not">{{ 'fiyatTarife.fiyatHesapla.gencSurucu' | transloco }}</p>
       }
       @if (r.sigortaKalemleri.length > 0) {
         <h3 class="alt-baslik">{{ 'fiyatTarife.fiyatHesapla.sigortaKalemleri' | transloco }}</h3>
-        <div class="tablo-kap">
-          <table class="duz-tablo">
+        <div class="rc-tablo-kap">
+          <table class="rc-duz-tablo">
             <thead>
               <tr>
                 <th scope="col">{{ 'fiyatTarife.alan.kod' | transloco }}</th>
                 <th scope="col">{{ 'fiyatTarife.alan.ad' | transloco }}</th>
-                <th scope="col" class="num">{{ 'fiyatTarife.fiyatHesapla.birim' | transloco }}</th>
-                <th scope="col" class="num">{{ 'fiyatTarife.fiyatHesapla.gun' | transloco }}</th>
-                <th scope="col" class="num">{{ 'fiyatTarife.fiyatHesapla.tutar' | transloco }}</th>
+                <th scope="col" class="rc-num">
+                  {{ 'fiyatTarife.fiyatHesapla.birim' | transloco }}
+                </th>
+                <th scope="col" class="rc-num">{{ 'fiyatTarife.fiyatHesapla.gun' | transloco }}</th>
+                <th scope="col" class="rc-num">
+                  {{ 'fiyatTarife.fiyatHesapla.tutar' | transloco }}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -169,9 +172,9 @@
                 <tr>
                   <td>{{ k.kod }}</td>
                   <td>{{ k.ad }}</td>
-                  <td class="num">{{ num(k.birimUcret) | para: r.paraBirimi }}</td>
-                  <td class="num">{{ k.gun }}</td>
-                  <td class="num">{{ num(k.tutar) | para: r.paraBirimi }}</td>
+                  <td class="rc-num">{{ num(k.birimUcret) | para: r.paraBirimi }}</td>
+                  <td class="rc-num">{{ k.gun }}</td>
+                  <td class="rc-num">{{ num(k.tutar) | para: r.paraBirimi }}</td>
                 </tr>
               }
             </tbody>
@@ -179,7 +182,7 @@
         </div>
       }
       @if (r.notlar.length > 0) {
-        <ul class="aciklama">
+        <ul class="not">
           @for (n of r.notlar; track $index) {
             <li>{{ n }}</li>
           }
