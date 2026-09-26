@@ -4,8 +4,8 @@ namespace RentACar.IntegrationTests;
 
 /// <summary>
 /// <b>F13 Exit çiti (kaynak taraması):</b> Blazor söküldükten sonra Web projesinde yazma ucu (POST/PUT/PATCH/DELETE)
-/// yalnız <c>/api/ui/v1</c> (<c>src/RentACar.Web/Api/</c>) ve oturum uçlarındadır; kalan minimal-API GET'lerinin her biri
-/// açık bir yetki kararı taşır; <c>@page</c> yalnız bilinen kabuk sayfalarında.
+/// yalnız <c>/api/ui/v1</c> (<c>src/RentACar.Web/Api/</c>) ve oturum uçlarındadır; <c>@page</c> yalnız bilinen kabuk
+/// sayfalarında. Kalan uçların uç bazında yetki kararı <c>NonApiEndpointAuthorizationTests</c>'te (gerçek host metadatası).
 ///
 /// <para><b>Önceki anlamı (F13.1a'ya kadar):</b> "grup kapısından dar izin isteyen her Blazor POST ucunun tetikleyici
 /// razor ekranı o dar izinle kapılı" kilidi (canlı hata 2026-08-26: 13/13 dar uç yanlış kapıdaydı). Blazor ekranları ve
@@ -57,31 +57,6 @@ public sealed class UcIzinKapsamaTests
         var extra = found.Where(f => !AllowedWrites.Contains(f)).ToList();
         Assert.True(extra.Count == 0, "Api/ dışında yazma ucu (Blazor form ucu geri mi geldi?):\n  " + string.Join("\n  ", extra));
         Assert.Contains("Program.cs /internal/alert", found); // tarama çalışıyor (boş kümede sessiz yeşil olmasın)
-    }
-
-    [Fact]
-    public void Remaining_non_api_GET_endpoints_declare_authorization()
-    {
-        var get = new Regex(@"\.MapGet\(\s*""(?<rota>[^""]*)""");
-        var gates = new Regex(@"\.(RequirePermission|RequireAuthorization|AllowAnonymous|RequireAnyPermission)\(");
-        var findings = new List<string>();
-        var count = 0;
-        foreach (var (rel, text) in NonApiSources(RepoRoot()))
-        {
-            if (rel is "Program.cs" or "Spa/SpaHosting.cs") continue; // sağlık uçları + SPA kabuğu (anonim; ayrı testler)
-            var starts = get.Matches(text);
-            for (var i = 0; i < starts.Count; i++)
-            {
-                count++;
-                // Ucun kendi zinciri ya da dosyadaki grup tanımı (MapGroup(...).RequireX) kapı taşımalı.
-                var end = i + 1 < starts.Count ? starts[i + 1].Index : text.Length;
-                var window = text[starts[i].Index..end];
-                if (!gates.IsMatch(window) && !Regex.IsMatch(text, @"MapGroup\([^;]*\.(RequirePermission|RequireAuthorization)\("))
-                    findings.Add($"{rel} {starts[i].Groups["rota"].Value}");
-            }
-        }
-        Assert.True(count >= 5, $"Tarama şüpheli: {count} GET ucu.");
-        Assert.True(findings.Count == 0, "Yetki kararı açık olmayan GET ucu:\n  " + string.Join("\n  ", findings));
     }
 
     /// <summary>
