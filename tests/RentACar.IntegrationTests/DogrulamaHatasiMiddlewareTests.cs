@@ -34,10 +34,16 @@ public sealed class DogrulamaHatasiMiddlewareTests
 
         Assert.Equal(StatusCodes.Status302Found, ctx.Response.StatusCode);
         var target = ctx.Response.Headers.Location.ToString();
-        // F13.1b: Blazor /hata sayfası yerine yeni arayüzün Panel'i + hata bandı.
-        Assert.StartsWith("/app/panel?hata=", target, StringComparison.Ordinal);
-        // Mesaj kaçışlanmış olarak taşınır (Türkçe karakter + boşluk).
-        Assert.Contains(Uri.EscapeDataString("Bu kayıt şube kapsamınız dışında."), target, StringComparison.Ordinal);
+        // F13 sonrası güvenlik: yeni arayüzün Panel'i + hata KODU; mesaj metni URL'de taşınmaz (içerik sahteciliği).
+        Assert.Equal("/app/panel?hata=dogrulama", target);
+    }
+
+    [Fact]
+    public async Task Yetki_reddi_kendi_koduyla_yonlenir()
+    {
+        var ctx = Ctx("/raporlar/export/filo");
+        await Mw().InvokeAsync(ctx, _ => throw new NoPermissionException("Bu rapor için yetkiniz yok."));
+        Assert.Equal("/app/panel?hata=yetki_yok", ctx.Response.Headers.Location.ToString());
     }
 
     [Fact]
@@ -107,12 +113,12 @@ public sealed class DogrulamaHatasiMiddlewareTests
     }
 
     [Fact]
-    public async Task Cok_uzun_mesaj_kirpilir()
+    public async Task Mesaj_metni_URL_ye_hic_tasinmaz()
     {
         var ctx = Ctx("/kiralar");
         await Mw().InvokeAsync(ctx, _ => throw new ValidationException(new string('x', 500)));
 
         var target = ctx.Response.Headers.Location.ToString();
-        Assert.Equal("/app/panel?hata=" + new string('x', 300), target);
+        Assert.Equal("/app/panel?hata=dogrulama", target);
     }
 }

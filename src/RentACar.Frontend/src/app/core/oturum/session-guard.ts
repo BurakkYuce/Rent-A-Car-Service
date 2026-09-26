@@ -69,7 +69,7 @@ export const guestGuard: CanMatchFn = async () => {
   if (!session.loggedIn()) return true;
   const navigation = router.currentNavigation();
   const returnInfo = navigation?.extractedUrl.queryParamMap.get('returnUrl');
-  const target = postLoginTarget(session.ben()?.pilot === true, returnInfo);
+  const target = postLoginTarget(returnInfo);
   if (target.tur === 'spa') return router.parseUrl(target.yol);
   // Tam sayfa geçiş başladı; `false` dönülseydi router sonraki rotayı (kabuk `**`) dener ve sayfa
   // kapanana kadar boşuna kabuk + menü yüklerdi. Geçiş bitene dek giriş sayfası görünür kalır.

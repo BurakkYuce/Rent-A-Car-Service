@@ -1558,31 +1558,35 @@ public sealed class IlkKesisHostTests(WebFixture fx)
 
     // ------------------------------------------------------------ F13.1b: kabuk sayfaları, 404 ve 403 SPA'da
 
-    private const string NoPermission = "/app/panel?hata=Bu%20i%C5%9Flem%20i%C3%A7in%20yetkiniz%20yok.";
-    private const string NotFound = "/app/panel?hata=Arad%C4%B1%C4%9F%C4%B1n%C4%B1z%20sayfa%20ya%20da%20kay%C4%B1t%20bulunamad%C4%B1.";
+    // Elle yazılmış oracle: hata bandı KOD taşır (SPA kodu sabit çeviri metnine çevirir; serbest metin taşınmaz).
+    private const string NoPermission = "/app/panel?hata=yetki_yok";
+    private const string NotFound = "/app/panel?hata=bulunamadi";
 
     /// <summary>
-    /// Eski kabuk sayfaları ve gövdesiz 404 yeni arayüzün Panel'ine hata bandıyla (302). Hedef yol SABİT; kullanıcı girdisi
-    /// (<c>?mesaj=</c>) yalnız kodlanmış sorgu DEĞERİ olur — açık yönlendirme yok. Uzantılı dosya isteği, /api/ui ve
-    /// GET dışı istek ham durum kodunu alır (tarayıcının arka plan isteği SPA'ya yönlenmez).
+    /// Eski kabuk sayfaları ve gövdesiz 404 yeni arayüzün Panel'ine hata KODUYLA (302). Hedef yol ve kod SABİT; kullanıcı
+    /// girdisi (<c>?mesaj=</c>) TAŞINMAZ — açık yönlendirme ve içerik sahteciliği (kimlik avı) yok. Uzantılı dosya isteği,
+    /// /api/ui ve GET dışı istek ham durum kodunu alır (tarayıcının arka plan isteği SPA'ya yönlenmez).
     /// </summary>
     [Fact]
-    public async Task Shell_pages_and_404_go_to_SPA_panel_with_error_band()
+    public async Task Shell_pages_and_404_go_to_SPA_panel_with_error_code()
     {
         var c = fx.Web.Client();
-        await RedirectsAsync(c, "/hata?mesaj=Kapsam%20d%C4%B1%C5%9F%C4%B1", "/app/panel?hata=Kapsam%20d%C4%B1%C5%9F%C4%B1");
-        await RedirectsAsync(c, "/hata", "/app/panel");
+        // Serbest metin yok sayılır (L2): saldırganın metni bizim bandımıza taşınmaz.
+        await RedirectsAsync(c, "/hata?mesaj=Hesab%C4%B1n%C4%B1z%20ask%C4%B1ya%20al%C4%B1nd%C4%B1%2C%20aray%C4%B1n", "/app/panel?hata=dogrulama");
+        await RedirectsAsync(c, "/hata", "/app/panel?hata=dogrulama");
         await RedirectsAsync(c, "/yetkisiz?x=1", NoPermission);
+        await RedirectsAsync(c, "/Error", "/app/panel?hata=beklenmeyen");
         await RedirectsAsync(c, "/not-found", NotFound);
         await RedirectsAsync(c, "/boyle-bir-sayfa-yok?q=1", NotFound);
 
-        // Açık yönlendirme denemeleri: hedef daima /app/panel (yol sabit), girdi yalnız sorgu değeri.
+        // Açık yönlendirme denemeleri: hedef daima /app/panel (yol sabit), girdi taşınmaz.
         // ("//evil.com" HttpClient'ta şema-göreli URL olarak başka host'a gider; Kestrel'e aynı yol "/%2F%2Fevil.com" ile.)
         foreach (var evil in new[] { "/hata?mesaj=https://evil.com", "/hata?mesaj=%2F%2Fevil.com", "/%2F%2Fevil.com", "/%5Cevil.com" })
         {
             // Ya yönlendirme yok (".com" uzantılı yol dosya isteği sayılır → ham 404) ya da sabit Panel yolu.
             var location = await LocationAsync(c, evil);
-            Assert.True(location is null || location.StartsWith("/app/panel", StringComparison.Ordinal), $"{evil} → {location}");
+            Assert.True(location is null || location.StartsWith("/app/panel?hata=", StringComparison.Ordinal), $"{evil} → {location}");
+            Assert.DoesNotContain("evil", location ?? "", StringComparison.OrdinalIgnoreCase);
         }
 
         // Ham durum kodu: dosya isteği, API, GET dışı.
@@ -1602,14 +1606,40 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await RedirectsAsync(op, "/raporlar/export/gelir-gider", NoPermission);
     }
 
-    /// <summary>F13.1b: eski form çıkış ucu oturumu kapatır ve SPA girişine döner (sabit hedef).</summary>
+    /// <summary>
+    /// L1 (F13 sonrası güvenlik): eski form çıkış ucu üretimde CSRF korumasızdı (minimal API form bağlamayan uca
+    /// antiforgery doğrulaması eklemez) — başka bir siteden gelen başlıksız POST oturumu kapatabiliyordu. Uç KALDIRILDI.
+    /// Başlıksız çapraz POST'lar (eski uç ve yeni oturum ucu) oturumu KAPATMAZ; yeni uç X-XSRF-TOKEN ister.
+    /// </summary>
     [Fact]
-    public async Task Old_logout_signs_out_and_goes_to_SPA_login()
+    public async Task Cross_site_logout_without_xsrf_header_does_not_sign_out()
     {
         var c = await SessionAsync(fx.PilotAdmin);
-        var r = await c.PostAsync("/auth/logout", new FormUrlEncodedContent([]));
-        Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
-        Assert.Equal("/app/giris?neden=cikis", r.Headers.Location?.OriginalString);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await c.GetAsync("/api/ui/v1/oturum/ben")).StatusCode);
+        foreach (var url in new[] { "/auth/logout", "/api/ui/v1/oturum/cikis" })
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new FormUrlEncodedContent([]) };
+            request.Headers.Add("Origin", "https://evil.example");
+            var r = await c.SendAsync(request);
+            Assert.False(r.IsSuccessStatusCode, $"{url}: {(int)r.StatusCode}");
+            Assert.False(r.Headers.TryGetValues("Set-Cookie", out var cookies)
+                && cookies.Any(v => v.StartsWith("racar.session=;", StringComparison.Ordinal)), $"{url}: çerez silindi");
+        }
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/api/ui/v1/oturum/ben")).StatusCode); // oturum yerinde
+    }
+
+    /// <summary>
+    /// Müşteri bağlantısı (<c>/sozlesme/{token}</c>): geçersiz ya da iptal edilmiş token personel girişine/Panel'e
+    /// YÖNLENMEZ — sade metinli 404 (müşteri personel ekranını görmez). iCal beslemesi de aynı.
+    /// </summary>
+    [Theory]
+    [InlineData("/sozlesme/gecersiz-token")]
+    [InlineData("/feed/calendar/gecersiz-token.ics")]
+    public async Task Invalid_public_link_is_plain_404_not_staff_ui(string url)
+    {
+        var r = await fx.Web.Client().GetAsync(url);
+        Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
+        Assert.Null(r.Headers.Location);
+        if (!url.EndsWith(".ics", StringComparison.Ordinal))
+            Assert.Equal(Cutover.PublicLinkNotFoundText, await r.Content.ReadAsStringAsync());
     }
 }

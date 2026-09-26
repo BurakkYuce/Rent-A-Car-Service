@@ -40,11 +40,8 @@ public sealed class TenantActiveMiddleware(TenantStatusCache status) : IMiddlewa
     {
         var p = path.Value ?? "";
         return p.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
-            || p.StartsWith("/auth", StringComparison.OrdinalIgnoreCase)
             || p.StartsWith("/platform", StringComparison.OrdinalIgnoreCase)
-            || p.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)
-            || p.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
-            || p.StartsWith("/_content", StringComparison.OrdinalIgnoreCase)
+            // F13 sonrası: /auth (eski form çıkışı) ve Blazor altyapı yolları kalktı.
             || p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
             // F1.2: yeni arayüzün giriş/çıkışı (/auth'un karşılığı). ben ve veri uçları ATLANMAZ.
             || RentACar.Web.Api.UiApiExtensions.LoginLogoutPath(path)

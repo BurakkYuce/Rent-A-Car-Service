@@ -38,12 +38,11 @@ public sealed class UcIzinKapsamaTests
     private static readonly Regex WriteMap = new(@"\.Map(Post|Put|Patch|Delete)\(\s*""(?<rota>[^""]*)""");
 
     /// <summary>
-    /// Gerekçeli izin listesi: eski form çıkış ucu (oturum ucu; F13.1b'de SPA girişine döner, giriş formu ucu silindi)
-    /// ve makine webhook'u (Grafana alarm köprüsü; anonim, gizli anahtar kapılı, kullanıcı arayüzü değil).
+    /// Gerekçeli izin listesi: yalnız makine webhook'u (Grafana alarm köprüsü; anonim, gizli anahtar kapılı, kullanıcı
+    /// arayüzü değil). Eski form çıkış ucu (<c>/auth/logout</c>) F13 sonrası güvenlik düzeltmesinde kalktı (CSRF'siz).
     /// </summary>
     private static readonly HashSet<string> AllowedWrites = new(StringComparer.Ordinal)
     {
-        "Identity/AuthEndpoints.cs /auth/logout",
         "Program.cs /internal/alert",
     };
 

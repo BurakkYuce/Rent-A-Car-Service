@@ -34,9 +34,6 @@ public static class PermissionRedirect
     /// <summary>F13.1b: cookie şemasının giriş sayfası yeni arayüzün girişi (anonim; challenge almaz → döngü yok).</summary>
     private const string LoginPage = RentACar.Web.Spa.Cutover.SpaLogin;
 
-    /// <summary>403 mesajı — yeni arayüz <c>?hata=</c> sorgusunu hata bandında gösterir (metin olarak, kısaltarak).</summary>
-    public const string UnauthorizedMessage = "Bu işlem için yetkiniz yok.";
-
     /// <summary>Platform alanı ayrı bir kabuk kullanır; oradaki 401/403 kendi login'ine gider.</summary>
     private static bool Platform(PathString path) => path.StartsWithSegments("/platform");
 
@@ -51,7 +48,7 @@ public static class PermissionRedirect
     public static string UnauthorizedTarget(PathString path)
         => Platform(path)
             ? RentACar.Web.Spa.Cutover.SpaPlatformLogin
-            : RentACar.Web.Spa.Cutover.ErrorTarget(UnauthorizedMessage);
+            : RentACar.Web.Spa.Cutover.ErrorTarget(RentACar.Web.Spa.Cutover.ErrorCode.NoPermission);
 
     /// <summary>
     /// 401 yönlendirmesinin TAM adresi: <see cref="LoginTarget"/> + (uygunsa) SPA'nın <c>?returnUrl=</c>'i.

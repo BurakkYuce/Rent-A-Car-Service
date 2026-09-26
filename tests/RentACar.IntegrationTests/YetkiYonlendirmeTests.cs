@@ -19,7 +19,7 @@ public sealed class YetkiYonlendirmeTests
 {
     // F13.1b: 403 → Blazor /yetkisiz sayfası yerine yeni arayüzün Panel'i + hata bandı (kullanıcı nedenini görür);
     // 401 → yeni arayüzün girişi. Beklenenler elle yazılmış sabit (mesajın yüzde-kodlu hali).
-    private const string NoPermissionTarget = "/app/panel?hata=Bu%20i%C5%9Flem%20i%C3%A7in%20yetkiniz%20yok.";
+    private const string NoPermissionTarget = "/app/panel?hata=yetki_yok"; // kod (serbest metin değil)
 
     [Theory]
     [InlineData("/kiralar/cancel", NoPermissionTarget)]      // canlı hatanın tetikleyicisi

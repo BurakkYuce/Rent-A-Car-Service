@@ -420,10 +420,10 @@ public sealed class UiApiTests(WebFixture fx)
     {
         var c = fx.Web.Client();
 
-        // Eski form çıkışı SPA girişine döner (sabit hedef).
+        // Eski form çıkışı da kaldırıldı (F13 sonrası güvenlik — üretimde CSRF'siz); başarı dönmez.
         var pickup = await c.PostAsync("/auth/logout", new FormUrlEncodedContent([]));
-        Assert.Equal(HttpStatusCode.Redirect, pickup.StatusCode);
-        Assert.Equal("/app/giris?neden=cikis", pickup.Headers.Location?.OriginalString);
+        Assert.False(pickup.IsSuccessStatusCode);
+        Assert.NotEqual(HttpStatusCode.Redirect, pickup.StatusCode);
 
         // Blazor form girişi (POST /auth/login) silindi: oturum AÇILMAZ; giriş yalnız /api/ui/v1/oturum/giris'te.
         var entry = await c.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string>

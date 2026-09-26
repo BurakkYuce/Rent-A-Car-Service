@@ -17,8 +17,8 @@ namespace RentACar.Web.Spa;
 /// <b>301 (kalıcı)</b>: yer imleri ve bildirim bağlantıları kalıcı olarak SPA'ya taşınır.</para>
 ///
 /// <para><b>Kabuk sayfaları</b> (<see cref="ShellTarget"/>): eski Blazor <c>/Error</c>, <c>/not-found</c>, <c>/hata</c>,
-/// <c>/yetkisiz</c> yeni arayüzün Panel'ine gider; mesaj <c>?hata=</c> sorgusuyla (SPA hata bandında metin olarak,
-/// kısaltılarak gösterir). Hedef SABİT yol — kullanıcı girdisi yalnız sorgu DEĞERİ olarak kodlanır (açık yönlendirme yok).</para>
+/// <c>/yetkisiz</c> yeni arayüzün Panel'ine gider; <c>?hata=&lt;kod&gt;</c> (SPA kodu sabit çeviri metnine çevirir). Hedef
+/// SABİT yol ve sabit kod — kullanıcı girdisi taşınmaz (açık yönlendirme ve içerik sahteciliği yok).</para>
 ///
 /// <para><b>Tek giriş</b>: <c>GET /login</c> artık form çizmez. Oturumsuz → <c>/app/giris</c> (dönüş adresi
 /// <see cref="PermissionRedirect.SafeReturn"/>'ten geçerek taşınır); oturumlu → <see cref="AfterLogin"/>.
@@ -38,66 +38,88 @@ public static class Cutover
     /// <summary>Firma kullanıcısının varsayılan inişi (yeni arayüz Panel'i).</summary>
     public const string SpaPanel = SpaHosting.Prefix + "/panel";
 
-    /// <summary>SPA'nın hata bandı parametresi (<c>core/geri-bildirim/query-messages.ts</c>; metin olarak, 300 karakter).</summary>
+    /// <summary>SPA'nın hata bandı parametresi (<c>core/geri-bildirim/query-messages.ts</c>). Değeri bir KOD'dur.</summary>
     public const string SpaErrorParameter = "hata";
 
-    /// <summary>URL'de taşınan mesajın üst sınırı (SPA da aynı sınırla kısaltır).</summary>
-    public const int MaxMessage = 300;
-
-    /// <summary>Genel sistem hatası metni (ayrıntı YOK — istisna ayrıntısı bilgi sızıntısıdır).</summary>
-    public const string UnexpectedErrorMessage =
-        "Beklenmeyen bir hata oluştu; son işleminiz tamamlanmamış olabilir. Tekrar denemeden önce kaydın oluşup oluşmadığını kontrol edin.";
-
-    /// <summary>Bulunamayan sayfa/kayıt metni.</summary>
-    public const string NotFoundMessage = "Aradığınız sayfa ya da kayıt bulunamadı.";
+    /// <summary>500 destek kodu parametresi (trace id; SPA yalnız hex biçimini gösterir).</summary>
+    public const string SpaSupportParameter = "destek";
 
     /// <summary>
-    /// SPA Panel'i + hata bandı: <c>/app/panel?hata=…</c>. Mesaj kırpılır ve kodlanır; hedef yol sabit. Boş mesajda
-    /// yalnız Panel.
+    /// Hata bandı kodları — SPA <c>ERROR_CODES</c> ile AYNI küme; her biri SPA'da sabit bir çeviri metnine çevrilir.
+    /// F13 sonrası güvenlik: URL'de SERBEST METİN taşınmaz (içerik sahteciliği / kimlik avı — saldırganın kendi metnini
+    /// bizim bandımızda göstermesi). SPA bilinmeyen değeri genel metne düşürür.
     /// </summary>
-    public static string ErrorTarget(string? message)
+    public static class ErrorCode
     {
-        var text = message?.Trim();
-        if (string.IsNullOrEmpty(text)) return SpaPanel;
-        if (text.Length > MaxMessage) text = text[..MaxMessage];
-        return SpaPanel + QueryString.Create(SpaErrorParameter, text).ToUriComponent();
+        public const string NoPermission = "yetki_yok";
+        public const string NotFound = "bulunamadi";
+        public const string NoSession = "oturum_yok";
+        public const string Validation = "dogrulama";
+        public const string Unexpected = "beklenmeyen";
+
+        public static readonly IReadOnlyList<string> All = [NoPermission, NotFound, NoSession, Validation, Unexpected];
     }
+
+    /// <summary>
+    /// SPA Panel'i + hata bandı: <c>/app/panel?hata=&lt;kod&gt;</c>. Yalnız <see cref="ErrorCode"/> kabul edilir (başka
+    /// değer <see cref="ArgumentException"/> — sunucu içi programlama hatası); hedef yol sabit. <paramref name="supportCode"/>
+    /// yalnız 16–32 hane hex ise eklenir.
+    /// </summary>
+    public static string ErrorTarget(string code, string? supportCode = null)
+    {
+        if (!ErrorCode.All.Contains(code)) throw new ArgumentException($"Bilinmeyen hata kodu: {code}", nameof(code));
+        var query = QueryString.Create(SpaErrorParameter, code);
+        if (supportCode is { Length: >= 16 and <= 32 } && supportCode.All(Uri.IsHexDigit))
+            query = query.Add(SpaSupportParameter, supportCode);
+        return SpaPanel + query.ToUriComponent();
+    }
+
+    /// <summary>
+    /// Müşteriye/dış sisteme verilen anonim bağlantılar: <c>/sozlesme/{token}</c> (paylaşılan sözleşme), <c>/feed/…</c>
+    /// (iCal). Geçersiz ya da iptal edilmiş bağlantı personel arayüzüne (giriş/Panel) YÖNLENMEZ — müşteri personel
+    /// ekranını görmesin; sade bir metin alır (<see cref="PublicLinkNotFoundText"/>).
+    /// </summary>
+    public static bool IsPublicLinkPath(PathString path)
+        => path.StartsWithSegments("/sozlesme", StringComparison.OrdinalIgnoreCase)
+           || path.StartsWithSegments("/feed", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Geçersiz/iptal edilmiş anonim bağlantı metni (personel arayüzüne gönderilmez).</summary>
+    public const string PublicLinkNotFoundText =
+        "Bu bağlantı geçersiz ya da artık kullanılamıyor. Güncel bağlantı için kiralama firmanızla iletişime geçin.";
 
     /// <summary>
     /// Gövdesiz hata durumunun (StatusCodePages) ya da işlenmemiş istisnanın (ExceptionHandler) tarayıcı hedefi: YALNIZ
     /// sayfa gezinmesi sayılabilecek istek — GET/HEAD, <c>/api/ui</c> değil (orada ProblemDetails), <c>/app</c> değil
-    /// (SPA kendi 404'ünü verir), dosya adı taşımayan yol (<c>/favicon.ico</c> gibi uzantılı istek ham durum kodunu alır:
-    /// tarayıcının arka plan isteği SPA'ya yönlenmesin). 404 → bulunamadı mesajı; 500 → genel hata + destek kodu.
-    /// Diğer durumlar <c>null</c> (ham durum kodu).
+    /// (SPA kendi 404'ünü verir), müşteri bağlantısı değil (<see cref="IsPublicLinkPath"/>), dosya adı taşımayan yol
+    /// (<c>/favicon.ico</c> gibi uzantılı istek ham durum kodunu alır: tarayıcının arka plan isteği SPA'ya yönlenmesin).
+    /// 404 → <c>bulunamadi</c>; 500 → <c>beklenmeyen</c> + destek kodu. Diğer durumlar <c>null</c> (ham durum kodu).
     /// </summary>
     public static string? StatusTarget(string method, PathString path, int status, string? supportCode = null)
     {
         if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method)) return null;
-        if (RentACar.Web.Api.UiApiExtensions.UiPath(path) || IsSpaPath(path.Value ?? "")) return null;
+        if (RentACar.Web.Api.UiApiExtensions.UiPath(path) || IsSpaPath(path.Value ?? "") || IsPublicLinkPath(path)) return null;
         if (Path.HasExtension(path.Value)) return null;
         return status switch
         {
-            StatusCodes.Status404NotFound => ErrorTarget(NotFoundMessage),
-            StatusCodes.Status500InternalServerError => ErrorTarget(string.IsNullOrWhiteSpace(supportCode)
-                ? UnexpectedErrorMessage
-                : $"{UnexpectedErrorMessage} Destek kodu: {supportCode}"),
+            StatusCodes.Status404NotFound => ErrorTarget(ErrorCode.NotFound),
+            StatusCodes.Status500InternalServerError => ErrorTarget(ErrorCode.Unexpected, supportCode),
             _ => null,
         };
     }
 
     /// <summary>
-    /// Eski Blazor kabuk sayfalarının (GET/HEAD) SPA karşılığı ya da <c>null</c>. <c>/hata?mesaj=</c> mesajı taşınır
-    /// (kırpılmış, kodlanmış); <c>/yetkisiz</c> yetki mesajı; <c>/Error</c> genel hata; <c>/not-found</c> bulunamadı.
-    /// Segment eşitliği, büyük/küçük harf duyarsız (sondaki <c>/</c> yok sayılır).
+    /// Eski Blazor kabuk sayfalarının (GET/HEAD) SPA karşılığı ya da <c>null</c>: <c>/hata</c> → <c>dogrulama</c> (eski
+    /// <c>?mesaj=</c> serbest metni YOK SAYILIR — içerik sahteciliği), <c>/yetkisiz</c> → <c>yetki_yok</c>, <c>/Error</c>
+    /// → <c>beklenmeyen</c>, <c>/not-found</c> → <c>bulunamadi</c>. Segment eşitliği, büyük/küçük harf duyarsız.
     /// </summary>
     public static string? ShellTarget(PathString path, QueryString query)
     {
+        _ = query; // bilinçli: sorgu (ör. ?mesaj=) taşınmaz
         var p = (path.Value ?? "").TrimEnd('/');
-        if (p.Equals("/hata", StringComparison.OrdinalIgnoreCase))
-            return ErrorTarget(QueryHelpers.ParseQuery(query.Value).TryGetValue("mesaj", out var m) ? m.ToString() : null);
-        if (p.Equals("/yetkisiz", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(PermissionRedirect.UnauthorizedMessage);
-        if (p.Equals("/Error", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(UnexpectedErrorMessage);
-        if (p.Equals("/not-found", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(NotFoundMessage);
+        if (p.Equals("/hata", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(ErrorCode.Validation);
+        if (p.Equals("/yetkisiz", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(ErrorCode.NoPermission);
+        if (p.Equals("/Error", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(ErrorCode.Unexpected);
+        if (p.Equals("/not-found", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(ErrorCode.NotFound);
         return null;
     }
 

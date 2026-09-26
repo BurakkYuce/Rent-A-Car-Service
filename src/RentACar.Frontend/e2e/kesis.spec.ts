@@ -92,13 +92,11 @@ test('pilot girişi: dönüş yoksa SPA Panel’e iner', async ({ page }) => {
   await expect(page).toHaveURL(/\/app\/panel$/);
 });
 
-test('pilot OLMAYAN firma girişi: Blazor Panel’e tam sayfa geçer (yeni arayüzde kalmaz)', async ({
-  page,
-}) => {
+test('F13: pilot bayrağı girişi etkilemez — yeni arayüzde kalır (Blazor yok)', async ({ page }) => {
   await loginEndpoints(page, { ...BEN, pilot: false });
   await page.goto('/app/giris?returnUrl=%2Fapp%2Fkiralar');
   await submitLoginForm(page);
-  await expect(page).toHaveURL(/^http:\/\/127\.0\.0\.1:\d+\/$/);
+  await expect(page).toHaveURL(/\/app\/kiralar$/);
 });
 
 test('Blazor dönüş adresi sunucunun /login kapısına verilir (açık yönlendirme çiti sunucuda)', async ({

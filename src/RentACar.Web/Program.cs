@@ -315,12 +315,18 @@ if (!app.Environment.IsDevelopment())
     });
     app.UseHsts();
 }
-app.UseStatusCodePages(context =>
+app.UseStatusCodePages(async context =>
 {
     var http = context.HttpContext;
     if (RentACar.Web.Spa.Cutover.StatusTarget(http.Request.Method, http.Request.Path, http.Response.StatusCode) is { } target)
         http.Response.Redirect(target);
-    return Task.CompletedTask;
+    // Müşteri bağlantısı (/sozlesme/{token}, /feed): geçersiz/iptal → personel arayüzü DEĞİL, sade metin (aynı 404).
+    else if (http.Response.StatusCode == StatusCodes.Status404NotFound && HttpMethods.IsGet(http.Request.Method)
+             && RentACar.Web.Spa.Cutover.IsPublicLinkPath(http.Request.Path))
+    {
+        http.Response.ContentType = "text/plain; charset=utf-8";
+        await http.Response.WriteAsync(RentACar.Web.Spa.Cutover.PublicLinkNotFoundText);
+    }
 });
 // F1.2: /api/ui için no-store + StatusCodePages/istisna HTML'i yerine ProblemDetails (ikisinin İÇİNDE durmalı).
 app.UseUiApiPipeline();
@@ -448,7 +454,8 @@ app.MapPost("/internal/alert", async (HttpContext ctx, IConfiguration cfg, IServ
 // F1.5 — yeni arayüz kabuğu /app altında ANONİM (cookie challenge yok → /login döngüsü yok); Spa:Dizin
 // content root'a göreli (varsayılan ../app/browser). Güvenlik başlıkları/CSP yukarıdaki genel middleware'den.
 RentACar.Web.Spa.SpaHosting.MapSpaHosting(app);
-app.MapAuthEndpoints();
+// F13 sonrası: eski form çıkış ucu (POST /auth/logout) kaldırıldı — üretimde CSRF korumasızdı (minimal API form
+// bağlamayan uca antiforgery doğrulaması eklemez). Giriş/çıkış yalnız /api/ui/v1/oturum/* (X-XSRF-TOKEN zorunlu).
 app.MapUiApi();                   // F1.2 — /api/ui/v1 (yeni arayüz JSON katmanı: CSRF + pilot kapısı + ProblemDetails)
 // F13.1a: Blazor form POST uçları (~330) ve yalnız Blazor'un kullandığı GET'ler silindi — yazma yolu yalnız
 // /api/ui/v1 (ve harici /api/v1, ayrı proje). Kalan GET'ler yeni arayüzün bağlandığı dosya/indirme uçları.
