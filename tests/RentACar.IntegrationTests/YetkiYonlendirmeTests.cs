@@ -23,22 +23,22 @@ public sealed class YetkiYonlendirmeTests
     [InlineData("/", "/yetkisiz")]
     [InlineData("/platform/tenants", "/platform/login")]   // platform ayrı kabuk, kendi login'i
     [InlineData("/platform", "/platform/login")]
-    public void Yetkisiz_403_hedefi(string yol, string beklenen)
-        => Assert.Equal(beklenen, YetkiYonlendirme.YetkisizHedefi(yol));
+    public void Yetkisiz_403_hedefi(string path, string expected)
+        => Assert.Equal(expected, PermissionRedirect.UnauthorizedTarget(path));
 
     [Theory]
     [InlineData("/kiralar", "/login")]
     [InlineData("/platform/tenants", "/platform/login")]
-    public void Kimliksiz_401_hedefi(string yol, string beklenen)
-        => Assert.Equal(beklenen, YetkiYonlendirme.GirisHedefi(yol));
+    public void Kimliksiz_401_hedefi(string path, string expected)
+        => Assert.Equal(expected, PermissionRedirect.LoginTarget(path));
 
     [Fact]
     public void Platform_benzeri_ad_platform_sayilmaz()
     {
         // "/platformlar" gibi bir yol platform alanı DEĞİLDİR; StartsWithSegments bunu ayırt eder.
         // Düz string StartsWith kullanılsaydı bu yol yanlışlıkla platform login'ine giderdi.
-        Assert.Equal("/yetkisiz", YetkiYonlendirme.YetkisizHedefi("/platformlar"));
-        Assert.Equal("/login", YetkiYonlendirme.GirisHedefi("/platformlar"));
+        Assert.Equal("/yetkisiz", PermissionRedirect.UnauthorizedTarget("/platformlar"));
+        Assert.Equal("/login", PermissionRedirect.LoginTarget("/platformlar"));
     }
 
     [Fact]

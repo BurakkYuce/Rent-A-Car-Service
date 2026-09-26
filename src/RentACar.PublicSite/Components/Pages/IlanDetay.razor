@@ -10,23 +10,23 @@
    yalnız "müsaitlik sorgula" metin bağlantısı vardı. Artık fiyat kartında birincil eylem
    "Teklif İste" (`/rezervasyon-talebi?ilan={slug}`; tarihleri ziyaretçi formda giriyor). *@
 
-<PageTitle>@(_detay?.Baslik ?? "Araç") — @(_branding?.Marka ?? "RentPro")</PageTitle>
+<PageTitle>@(_detail?.Baslik ?? "Araç") — @(_branding?.Marka ?? "RentPro")</PageTitle>
 
-@if (_detay is not null)
+@if (_detail is not null)
 {
-    <YapisalVeriArac Detay="_detay" KanonikKok="@_kanonikKok" />
+    <YapisalVeriArac Detay="_detail" KanonikKok="@_canonicalRoot" />
     @* Araç detayı SEO iniş sayfasıdır: paylaşılan bağlantı görselsiz/açıklamasız çıkarsa
        tıklanmaz. Açıklama ilan verisinden kurulur (başlık + yıl + fiyat + adet). *@
-    <SayfaMeta Baslik="@($"{_detay.Baslik} — {_branding?.Marka ?? "RentPro"}")"
-               Aciklama="@AracAciklama" Yol="@($"/araclar/{_detay.Slug}")"
-               Marka="_branding" KanonikKok="@_kanonikKok"
-               Gorsel="@(_detay.PhotoIds.Count > 0 ? $"/foto/{_detay.PhotoIds[0]}/thumb" : null)" />
+    <SayfaMeta Baslik="@($"{_detail.Baslik} — {_branding?.Marka ?? "RentPro"}")"
+               Aciklama="@AracAciklama" Yol="@($"/araclar/{_detail.Slug}")"
+               Marka="_branding" KanonikKok="@_canonicalRoot"
+               Gorsel="@(_detail.PhotoIds.Count > 0 ? $"/foto/{_detail.PhotoIds[0]}/thumb" : null)" />
 }
 
 <div class="container">
     <a class="back-link" href="/">← Filo</a>
 
-    @if (_detay is null)
+    @if (_detail is null)
     {
         <h1>Araç bulunamadı</h1>
         <p class="empty-state">Bu araç yayından kaldırılmış olabilir. Filodaki diğer araçlara
@@ -36,33 +36,33 @@
     else
     {
         <header class="site-header">
-            <h1>@_detay.Baslik</h1>
+            <h1>@_detail.Baslik</h1>
             <div class="chips">
-                @if (!string.IsNullOrWhiteSpace(_detay.YilAralik))
+                @if (!string.IsNullOrWhiteSpace(_detail.YilAralik))
                 {
-                    <span class="chip">@_detay.YilAralik model</span>
+                    <span class="chip">@_detail.YilAralik model</span>
                 }
                 @* "adet" bir MÜSAİTLİK vaadi değil, ilana bağlı araç sayısı. *@
-                @if (_detay.Adet > 1)
+                @if (_detail.Adet > 1)
                 {
-                    <span class="chip">@_detay.Adet araç</span>
+                    <span class="chip">@_detail.Adet araç</span>
                 }
             </div>
         </header>
 
         <div class="detay-ust">
             <div class="detay-gorsel">
-                @if (_detay.PhotoIds.Count > 0)
+                @if (_detail.PhotoIds.Count > 0)
                 {
                     @* Kapak BÜYÜK, kalanlar küçük şerit. Eskiden tümü küçük thumbnail'di ve aracın
                        nasıl göründüğü ancak yakınlaştırınca anlaşılıyordu. *@
-                    <img class="detay-kapak" src="@($"/foto/{_detay.PhotoIds[0]}")" alt="@_detay.Baslik" />
-                    @if (_detay.PhotoIds.Count > 1)
+                    <img class="detay-kapak" src="@($"/foto/{_detail.PhotoIds[0]}")" alt="@_detail.Baslik" />
+                    @if (_detail.PhotoIds.Count > 1)
                     {
                         <div class="galeri">
-                            @foreach (var photoId in _detay.PhotoIds.Skip(1))
+                            @foreach (var photoId in _detail.PhotoIds.Skip(1))
                             {
-                                <img src="@($"/foto/{photoId}/thumb")" alt="@_detay.Baslik" loading="lazy" />
+                                <img src="@($"/foto/{photoId}/thumb")" alt="@_detail.Baslik" loading="lazy" />
                             }
                         </div>
                     }
@@ -77,26 +77,26 @@
                işaretinden (uydurulmaz). *@
             <aside class="fiyat-kart">
                 <div class="fiyat">
-                    <span class="fiyat-buyuk">@_detay.GunlukFiyat.ToString("N0") ₺<span class="fiyat-birim">/gün</span></span>
-                    <span class="fiyat-kucuk">@(_detay.KdvDahil ? "KDV dahil" : "+ KDV")</span>
+                    <span class="fiyat-buyuk">@_detail.GunlukFiyat.ToString("N0") ₺<span class="fiyat-birim">/gün</span></span>
+                    <span class="fiyat-kucuk">@(_detail.KdvDahil ? "KDV dahil" : "+ KDV")</span>
                 </div>
 
-                @if (_detay.HaftalikToplam is not null || _detay.AylikToplam is not null)
+                @if (_detail.HaftalikToplam is not null || _detail.AylikToplam is not null)
                 {
                     <ul class="fiyat-kademe">
-                        @if (_detay.HaftalikToplam is { } h)
+                        @if (_detail.HaftalikToplam is { } h)
                         {
                             <li><span>Haftalık</span><strong>@h.ToString("N0") ₺</strong></li>
                         }
-                        @if (_detay.AylikToplam is { } a)
+                        @if (_detail.AylikToplam is { } a)
                         {
                             <li><span>Aylık</span><strong>@a.ToString("N0") ₺</strong></li>
                         }
                     </ul>
                 }
 
-                <a class="btn-cta tam-genislik" href="@($"/rezervasyon-talebi?ilan={_detay.Slug}")">Teklif İste</a>
-                <a class="link" href="@($"/musaitlik?ilan={_detay.Slug}")">Tarihe göre müsaitlik ve toplam tutar →</a>
+                <a class="btn-cta tam-genislik" href="@($"/rezervasyon-talebi?ilan={_detail.Slug}")">Teklif İste</a>
+                <a class="link" href="@($"/musaitlik?ilan={_detail.Slug}")">Tarihe göre müsaitlik ve toplam tutar →</a>
                 @* Bu cümle bir firma taahhüdü DEĞİL, sistemin davranışı: talep bir lead kaydıdır,
                    rezervasyon değildir (PublicBookingRequest). *@
                 <p class="muted small">Teklif istemek ücretsizdir ve sizi bağlamaz; talebiniz bir
@@ -105,13 +105,13 @@
         </div>
 
         @* Teknik özellikler: sihirbazda "sitede görünsün" işaretlenen satırlar. Boşsa bölüm YOK (T2). *@
-        @if (_detay.Ozellikler.Count > 0)
+        @if (_detail.Ozellikler.Count > 0)
         {
             <h2 class="section-title">Teknik Özellikler</h2>
             <div class="table-scroll">
                 <table class="ozellik-tablo">
                     <tbody>
-                        @foreach (var o in _detay.Ozellikler)
+                        @foreach (var o in _detail.Ozellikler)
                         {
                             <tr><th scope="row">@o.Etiket</th><td>@o.Deger</td></tr>
                         }
@@ -122,7 +122,7 @@
     }
 </div>
 
-@if (_detay is not null)
+@if (_detail is not null)
 {
     @* Ana sayfayla AYNI bileşenler — anlatı tek yerde, iki sayfada kopyalanmıyor. *@
     <BolumGuvenSeridi />
@@ -134,34 +134,34 @@
     /// <summary>Statik SSR'da doğrudan kullanılabilir (circuit yok) — durum kodunu yazmak için.</summary>
     [CascadingParameter] public HttpContext? Http { get; set; }
 
-    private FleetShowcaseDetail? _detay;
+    private FleetShowcaseDetail? _detail;
     private FleetBranding? _branding;
-    private string? _kanonikKok;
+    private string? _canonicalRoot;
 
     /// <summary>Araç açıklaması — ilan verisinden; sabit pazarlama cümlesi YAZILMAZ (her tenant farklı).</summary>
     private string AracAciklama
     {
         get
         {
-            if (_detay is null) return "";
-            var yil = string.IsNullOrWhiteSpace(_detay.YilAralik) ? "" : $"{_detay.YilAralik} model ";
-            var kdv = _detay.KdvDahil ? "KDV dahil" : "+ KDV";
-            var adet = _detay.Adet > 1 ? $" Filoda {_detay.Adet} adet." : "";
-            return $"{_detay.Baslik} {yil}kiralama — günlük {_detay.GunlukFiyat:N0} TL ({kdv})."
-                 + $"{adet} Tarih seçerek müsaitliği ve toplam tutarı görün.";
+            if (_detail is null) return "";
+            var year = string.IsNullOrWhiteSpace(_detail.YilAralik) ? "" : $"{_detail.YilAralik} model ";
+            var vat = _detail.KdvDahil ? "KDV dahil" : "+ KDV";
+            var count = _detail.Adet > 1 ? $" Filoda {_detail.Adet} adet." : "";
+            return $"{_detail.Baslik} {year}kiralama — günlük {_detail.GunlukFiyat:N0} TL ({vat})."
+                 + $"{count} Tarih seçerek müsaitliği ve toplam tutarı görün.";
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
         _branding = await Showcase.GetBrandingAsync();
-        _detay = await Showcase.GetListingDetailAsync(Slug);
+        _detail = await Showcase.GetListingDetailAsync(Slug);
 
         // PR-11'den devralınan kural: yayında olmayan içerik GERÇEK 404 döner. HTTP 200 ile
         // "bulunamadı" basmak (soft-404) arama motoruna bunu geçerli içerik olarak indeksletirdi.
-        if (_detay is null && Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
+        if (_detail is null && Http is not null) Http.Response.StatusCode = StatusCodes.Status404NotFound;
 
-        if (_detay is not null && await Showcase.GetCanonicalHostAsync() is { } host)
-            _kanonikKok = $"https://{host}";
+        if (_detail is not null && await Showcase.GetCanonicalHostAsync() is { } host)
+            _canonicalRoot = $"https://{host}";
     }
 }

@@ -21,7 +21,7 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class UiHataTests
 {
-    public static TheoryData<Exception, int, string> EslemeTablosu() => new()
+    public static TheoryData<Exception, int, string> MappingTable() => new()
     {
         { new NoPermissionException("Bu işlem için yetkiniz yok (FinanceWrite)."), 403, "yetki_yok" },
         { new DuplicateOperationException("Bu işlem zaten kaydedilmiş."), 409, "mukerrer" },
@@ -33,43 +33,43 @@ public sealed class UiHataTests
     };
 
     [Theory]
-    [MemberData(nameof(EslemeTablosu))]
-    public void Esle_istisna_turunu_dogru_durum_ve_koda_cevirir(Exception ex, int durum, string kod)
+    [MemberData(nameof(MappingTable))]
+    public void Esle_istisna_turunu_dogru_durum_ve_koda_cevirir(Exception ex, int status, string code)
     {
-        var e = UiHata.Esle(ex);
+        var e = UiError.Map(ex);
         Assert.NotNull(e);
-        Assert.Equal(durum, e.Value.Status);
-        Assert.Equal(kod, e.Value.Kod);
+        Assert.Equal(status, e.Value.Status);
+        Assert.Equal(code, e.Value.Kod);
     }
 
     [Fact]
     public void Esle_taninmayan_istisnada_null_doner()
     {
-        Assert.Null(UiHata.Esle(new InvalidOperationException("iç ayrıntı")));
-        Assert.Null(UiHata.Esle(new DbUpdateException("x")));
+        Assert.Null(UiError.Map(new InvalidOperationException("iç ayrıntı")));
+        Assert.Null(UiError.Map(new DbUpdateException("x")));
     }
 
     [Fact]
     public void Kod_tablosu_sozlesmedeki_kodlari_ve_durumlarini_tasir()
     {
-        var beklenen = new Dictionary<string, int>
+        var expected = new Dictionary<string, int>
         {
             ["dogrulama"] = 400, ["yetki_yok"] = 403, ["pilot_degil"] = 403, ["cakisma"] = 409,
             ["mukerrer"] = 409, ["oturum_yok"] = 401, ["kiraci_kapali"] = 401, ["cok_istek"] = 429,
             ["xsrf_gecersiz"] = 400, // F1.2 eki: CSRF reddi (SPA token yenileyip tekrarlar)
         };
-        Assert.Equal(beklenen.Count, UiHata.Tablo.Count);
-        foreach (var (kod, durum) in beklenen)
+        Assert.Equal(expected.Count, UiError.Table.Count);
+        foreach (var (code, status) in expected)
         {
-            Assert.Equal(durum, UiHata.Tablo[kod].Status);
-            Assert.False(string.IsNullOrWhiteSpace(UiHata.Tablo[kod].Baslik));
+            Assert.Equal(status, UiError.Table[code].Status);
+            Assert.False(string.IsNullOrWhiteSpace(UiError.Table[code].Baslik));
         }
     }
 
     [Fact]
     public void Problem_alanli_dogrulamada_errors_uretir()
     {
-        var p = UiHata.Problem(new ValidationException("Plaka zorunludur.", "plaka")).ProblemDetails;
+        var p = UiError.Problem(new ValidationException("Plaka zorunludur.", "plaka")).ProblemDetails;
 
         Assert.Equal(400, p.Status);
         Assert.Equal("Plaka zorunludur.", p.Detail);
@@ -83,7 +83,7 @@ public sealed class UiHataTests
     [Fact]
     public void Problem_alansiz_istisnada_errors_yok()
     {
-        var p = UiHata.Problem(new NoPermissionException("Bu kayıt şube kapsamınız dışında.")).ProblemDetails;
+        var p = UiError.Problem(new NoPermissionException("Bu kayıt şube kapsamınız dışında.")).ProblemDetails;
 
         Assert.Equal(403, p.Status);
         Assert.Equal("yetki_yok", p.Extensions["kod"]);
@@ -94,7 +94,7 @@ public sealed class UiHataTests
     [Fact]
     public void Problem_taninmayan_istisnada_500_ve_mesaji_sizdirmaz()
     {
-        var p = UiHata.Problem(new InvalidOperationException("connection string: gizli")).ProblemDetails;
+        var p = UiError.Problem(new InvalidOperationException("connection string: gizli")).ProblemDetails;
 
         Assert.Equal(500, p.Status);
         Assert.DoesNotContain("gizli", p.Detail ?? string.Empty);
@@ -138,18 +138,18 @@ public sealed class IdempotencyKisitiTests
     [InlineData("IX_CashTransactions_TenantId_IslemAnahtari_Eski", false)] // sonek kuralı: "içerir" değil "biter"
     [InlineData("", false)]
     [InlineData(null, false)]
-    public void MukerrerKisitiMi_gercek_index_adlarini_dogru_siniflar(string? ad, bool beklenen)
-        => Assert.Equal(beklenen, IdempotencyConstraint.IsDuplicateConstraint(ad));
+    public void MukerrerKisitiMi_gercek_index_adlarini_dogru_siniflar(string? name, bool expected)
+        => Assert.Equal(expected, IdempotencyConstraint.IsDuplicateConstraint(name));
 
-    private static DbUpdateException UniqueIhlali(string? kisit) =>
+    private static DbUpdateException UniqueViolation(string? constraint) =>
         new("kaydetme hatası", new PostgresException(
             "duplicate key value violates unique constraint", "ERROR", "ERROR",
-            PostgresErrorCodes.UniqueViolation, constraintName: kisit));
+            PostgresErrorCodes.UniqueViolation, constraintName: constraint));
 
     [Fact]
     public void Red_idempotency_kisitinda_Mukerrer_doner_mesaj_korunur()
     {
-        var ex = IdempotencyConstraint.Red(UniqueIhlali("IX_CashTransactions_TenantId_IslemAnahtari"), "Bu işlem zaten kaydedilmiş.");
+        var ex = IdempotencyConstraint.Red(UniqueViolation("IX_CashTransactions_TenantId_IslemAnahtari"), "Bu işlem zaten kaydedilmiş.");
         Assert.IsType<DuplicateOperationException>(ex);
         Assert.Equal("Bu işlem zaten kaydedilmiş.", ex.Message);
     }
@@ -157,7 +157,7 @@ public sealed class IdempotencyKisitiTests
     [Fact]
     public void Red_is_benzersizliginde_duz_ValidationException_doner()
     {
-        var ex = IdempotencyConstraint.Red(UniqueIhlali("IX_MtvOdemeleri_TenantId_MtvId_Sira"), "Bu MTV ödemesi zaten kaydedilmiş.");
+        var ex = IdempotencyConstraint.Red(UniqueViolation("IX_MtvOdemeleri_TenantId_MtvId_Sira"), "Bu MTV ödemesi zaten kaydedilmiş.");
         Assert.IsType<ValidationException>(ex); // tam tip: alt tip DEĞİL
         Assert.Equal("Bu MTV ödemesi zaten kaydedilmiş.", ex.Message);
     }
@@ -181,12 +181,12 @@ public sealed class IdempotencyKisitiTests
             .UseNpgsql("Host=localhost;Database=model_only").Options;
         using var db = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance);
 
-        var adlar = db.Model.GetEntityTypes()
+        var names = db.Model.GetEntityTypes()
             .SelectMany(et => et.GetIndexes())
             .Select(i => i.GetDatabaseName())
             .ToHashSet();
 
-        Assert.Contains(indexAdi, adlar);
+        Assert.Contains(indexAdi, names);
     }
 }
 
@@ -197,16 +197,16 @@ public sealed class ApiHataSozlesmesiTests(PostgresFixture fx)
     private sealed record ErrBody(string error, string message);
     private sealed record IdBody(Guid id);
 
-    private async Task KullaniciEkleAsync(Guid tenantId, string userName, string sifre, UserRole rol, string? sube)
+    private async Task AddUserAsync(Guid tenantId, string userName, string password, UserRole rol, string? branch)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options;
         await using var db = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance);
         var user = new User
         {
             TenantId = tenantId, UserName = userName, DisplayName = userName,
-            Rol = rol, AtanmisSube = sube, IsActive = true
+            Rol = rol, AtanmisSube = branch, IsActive = true
         };
-        user.PasswordHash = new PasswordHasher<User>().HashPassword(user, sifre);
+        user.PasswordHash = new PasswordHasher<User>().HashPassword(user, password);
         db.Users.Add(user);
         await db.SaveChangesAsync();
     }
@@ -216,7 +216,7 @@ public sealed class ApiHataSozlesmesiTests(PostgresFixture fx)
     {
         var code = $"f11{Guid.NewGuid():N}";
         var tenantId = await ApiSeed.TenantUserAsync(fx.OwnerConnectionString, code, "umit", "p");
-        await KullaniciEkleAsync(tenantId, "op", "p", UserRole.Operator, "Kadikoy");
+        await AddUserAsync(tenantId, "op", "p", UserRole.Operator, "Kadikoy");
         using var api = new ApiFactory(fx.AppConnectionString);
 
         var admin = await api.LoginClientAsync(code, "umit", "p");

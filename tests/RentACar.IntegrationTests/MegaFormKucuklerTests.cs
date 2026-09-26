@@ -18,11 +18,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class MegaFormKucuklerTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-2).AddHours(9);
 
-    private static BookingInput Kira(Guid musteri, Guid arac) => new()
-    { MusteriId = musteri, VehicleId = arac, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m };
+    private static BookingInput Rental(Guid customer, Guid vehicle) => new()
+    { MusteriId = customer, VehicleId = vehicle, BasTar = Start, BitTar = Start.AddDays(2), GunlukUcret = 100m };
 
     [Fact]
     public async Task Opsiyon_alanlari_persist_ve_update()
@@ -30,14 +30,14 @@ public sealed class MegaFormKucuklerTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 01" });
-        var musteri = await sp.GetRequiredService<CustomerService>()
+        var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 01" });
+        var customer = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ops", Soyad = "Cari" });
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var girdi = Kira(musteri, arac);
-        girdi.OpsiyonNet = 150.50m; girdi.OpsiyonGun = 3;
-        var id = await rentals.CreateDirectAsync(girdi);
+        var input = Rental(customer, vehicle);
+        input.OpsiyonNet = 150.50m; input.OpsiyonGun = 3;
+        var id = await rentals.CreateDirectAsync(input);
 
         var c = await rentals.GetAsync(id);
         Assert.Equal(150.50m, c!.OpsiyonNet);
@@ -58,21 +58,21 @@ public sealed class MegaFormKucuklerTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant); // Admin
         var sp = scope.ServiceProvider;
-        var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 02" });
-        var musteri = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 02" });
+        var customer = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Riskli", Soyad = "Cari", RiskLimiti = 100m });
         // Borç 150 (elle): manuel fatura → Borç Cari 150 > limit 100.
         await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
-        { CariId = musteri, NetTutar = 150m, KdvOrani = 0m, Aciklama = "borç" });
+        { CariId = customer, NetTutar = 150m, KdvOrani = 0m, Aciklama = "borç" });
 
         var rentals = sp.GetRequiredService<RentalService>();
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => rentals.CreateDirectAsync(Kira(musteri, arac)));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => rentals.CreateDirectAsync(Rental(customer, vehicle)));
         Assert.Contains("Risk limiti aşıldı", ex.Message);
 
         // Onaylı + Admin → geçer.
-        var onayli = Kira(musteri, arac);
-        onayli.RiskOnay = true;
-        var id = await rentals.CreateDirectAsync(onayli);
+        var approved = Rental(customer, vehicle);
+        approved.RiskOnay = true;
+        var id = await rentals.CreateDirectAsync(approved);
         Assert.True((await rentals.GetAsync(id))!.RiskOnay);
     }
 
@@ -81,31 +81,31 @@ public sealed class MegaFormKucuklerTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid arac, riskli, limitsiz;
+        Guid vehicle, risky, unlimited;
         using (var seed = host.ScopeFor(tenant))
         {
             var sp = seed.ServiceProvider;
-            arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 03" });
-            riskli = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+            vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 03" });
+            risky = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
             { Tip = CustomerType.Bireysel, Ad = "Riskli2", Soyad = "Cari", RiskLimiti = 100m });
-            limitsiz = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+            unlimited = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
             { Tip = CustomerType.Bireysel, Ad = "Limitsiz", Soyad = "Cari" }); // RiskLimiti 0 → guard yok
             await sp.GetRequiredService<InvoiceService>().CreateManualAsync(new ManualInvoiceInput
-            { CariId = riskli, NetTutar = 150m, KdvOrani = 0m, Aciklama = "borç" });
+            { CariId = risky, NetTutar = 150m, KdvOrani = 0m, Aciklama = "borç" });
         }
 
         // Operatör: onay işaretlese bile RED (rol doğrulaması serviste — UI gizlemesi yeterli değil).
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator))
         {
             var rentals = op.ServiceProvider.GetRequiredService<RentalService>();
-            var girdi = Kira(riskli, arac);
-            girdi.RiskOnay = true;
-            var ex = await Assert.ThrowsAsync<ValidationException>(() => rentals.CreateDirectAsync(girdi));
+            var input = Rental(risky, vehicle);
+            input.RiskOnay = true;
+            var ex = await Assert.ThrowsAsync<ValidationException>(() => rentals.CreateDirectAsync(input));
             Assert.Contains("Yönetici/Admin", ex.Message);
 
             // Limitsiz cari: borcu olsa da limit tanımsız (0) → guard devrede değil.
-            var serbest = await rentals.CreateDirectAsync(Kira(limitsiz, arac));
-            Assert.NotEqual(Guid.Empty, serbest);
+            var free = await rentals.CreateDirectAsync(Rental(unlimited, vehicle));
+            Assert.NotEqual(Guid.Empty, free);
         }
     }
 
@@ -115,14 +115,14 @@ public sealed class MegaFormKucuklerTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 04" });
-        var musteri = await sp.GetRequiredService<CustomerService>()
+        var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 MK 04" });
+        var customer = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ek", Soyad = "Kosul" });
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var girdi = Kira(musteri, arac);
-        girdi.EkKosullar = "Araç yurt dışına çıkarılamaz.";
-        var id = await rentals.CreateDirectAsync(girdi);
+        var input = Rental(customer, vehicle);
+        input.EkKosullar = "Araç yurt dışına çıkarılamaz.";
+        var id = await rentals.CreateDirectAsync(input);
 
         var view = await sp.GetRequiredService<ContractService>().GetAsync(id);
         Assert.Equal("Araç yurt dışına çıkarılamaz.", view!.EkKosullar); // PDF/print aynı view-model'den basar

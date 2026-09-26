@@ -20,12 +20,12 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class CanliGunKalibrasyonTests
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new(2026, 9, 1, 10, 0, 0, TimeSpan.Zero);   // saf matematik; DB/tarih politikası yok
 
-    private static int Gun(int gunFarki, int bitSaat, int bitDakika = 0)
-        => BookingMath.ComputeDays(Bas, Bas.AddDays(gunFarki)
-            .AddHours(bitSaat - 10).AddMinutes(bitDakika));
+    private static int Day(int dayDifference, int endHour, int endMinute = 0)
+        => BookingMath.ComputeDays(Start, Start.AddDays(dayDifference)
+            .AddHours(endHour - 10).AddMinutes(endMinute));
 
     [Theory]
     // (gün farkı, bitiş saati, bitiş dakikası, canlının verdiği gün)
@@ -37,15 +37,15 @@ public sealed class CanliGunKalibrasyonTests
     [InlineData(5, 11, 10, 5)]   // kalan 1sa10dk → 5       (eski eşikte de 5)
     [InlineData(1, 12, 30, 1)]   // aynı gün 2sa30dk → 1
     [InlineData(0, 15, 0, 1)]    // aynı gün 5sa → en az 1 gün
-    public void Canli_gun_sayisiyla_birebir(int gunFarki, int bitSaat, int bitDk, int beklenen)
-        => Assert.Equal(beklenen, Gun(gunFarki, bitSaat, bitDk));
+    public void Canli_gun_sayisiyla_birebir(int dayDifference, int endHour, int bitDk, int expected)
+        => Assert.Equal(expected, Day(dayDifference, endHour, bitDk));
 
     [Fact]
     public void Esik_TAM_3_saat_pencerenin_iki_yani_ayrisir()
     {
         // Sınırın kendisi dahil (canlı `>=` kullanıyor).
-        Assert.Equal(3, Gun(3, 12, 59));   // 2sa59dk → gün EKLENMEZ
-        Assert.Equal(4, Gun(3, 13, 0));    // 3sa00dk → gün eklenir
+        Assert.Equal(3, Day(3, 12, 59));   // 2sa59dk → gün EKLENMEZ
+        Assert.Equal(4, Day(3, 13, 0));    // 3sa00dk → gün eklenir
     }
 
     [Fact]
@@ -54,6 +54,6 @@ public sealed class CanliGunKalibrasyonTests
         // 2sa54dk .. 2sa59dk arası: eski sabit (2.9) burada +1 gün ekliyordu, canlı eklemiyor.
         // Müşteriye bir günlük kira fazla yansıyordu.
         for (var dk = 54; dk <= 59; dk++)
-            Assert.Equal(3, Gun(3, 12, dk));
+            Assert.Equal(3, Day(3, 12, dk));
     }
 }

@@ -15,7 +15,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DolulukTests(PostgresFixture fx)
 {
-    private static DateTimeOffset D(int gun) => new(2026, 6, gun, 0, 0, 0, TimeSpan.Zero);
+    private static DateTimeOffset D(int day) => new(2026, 6, day, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task Occupancy_is_rental_days_over_capacity()

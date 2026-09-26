@@ -23,7 +23,7 @@ public sealed class BafTests(PostgresFixture fx)
         { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 10_000, Sube = "Merkez" });
 
         var b = await svc.GetAsync(id);
-        BelgeNoOracle.BeklenenlerdenBiri(12, 1, b!.No);   // 12 = Baf (HasarDosyasi 11 ile ayrı)
+        DocumentNoOracle.OneOfExpected(12, 1, b!.No);   // 12 = Baf (HasarDosyasi 11 ile ayrı)
         Assert.Equal(BafStatus.Acik, b.Durum);
 
         Assert.True(await svc.ReceiveAsync(id, returnKm: 10_500, returnFuel: 6));

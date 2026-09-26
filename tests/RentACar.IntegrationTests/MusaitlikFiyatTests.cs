@@ -35,12 +35,12 @@ public sealed class MusaitlikFiyatTests(PostgresFixture fx)
 
         // (1) müsait araç bulunur
         var available = await sp.GetRequiredService<AvailabilityService>().FindAvailableAsync(From, From.AddDays(7), null, null);
-        var arac = Assert.Single(available);
-        Assert.Equal("34MS01", arac.Plaka); // plaka normalize edilir (boşluk silinir)
+        var vehicle = Assert.Single(available);
+        Assert.Equal("34MS01", vehicle.Plaka); // plaka normalize edilir (boşluk silinir)
 
         // (2) grubunun fiyat motoru teklifi (7 gün × 100 = 700)
         var q = await sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = arac.Grup!, BasTar = From, BitTar = From.AddDays(7), SigortaUrunKodlari = [] });
+        { AracGrupKod = vehicle.Grup!, BasTar = From, BitTar = From.AddDays(7), SigortaUrunKodlari = [] });
         Assert.Equal(100m, q.GunlukUcret);
         Assert.Equal(700m, q.GenelToplam);
     }

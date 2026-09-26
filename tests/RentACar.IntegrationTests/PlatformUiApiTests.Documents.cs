@@ -32,8 +32,8 @@ public sealed partial class PlatformUiApiTests
             HttpStatusCode.BadRequest, "dogrulama", "durum");
 
         var v2 = Pdf("v2");
-        var ver = await Send(s, HttpMethod.Post, P + $"/belgeler/{id}/surum", FileForm("dosya", v2, "yeni.pdf", "application/pdf"));
-        Assert.Equal(2, (await Json(ver)).GetProperty("surum").GetInt32());
+        var give = await Send(s, HttpMethod.Post, P + $"/belgeler/{id}/surum", FileForm("dosya", v2, "yeni.pdf", "application/pdf"));
+        Assert.Equal(2, (await Json(give)).GetProperty("surum").GetInt32());
 
         var content = await s.C.GetAsync(P + $"/belgeler/{id}/icerik");
         Assert.Equal("application/pdf", content.Content.Headers.ContentType?.MediaType);

@@ -18,10 +18,10 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TestZamanTests(PostgresFixture fx)
 {
-    private static async Task<DateTimeOffset> YazOkuAsync(IServiceProvider sp, Guid musteri, DateTimeOffset t)
+    private static async Task<DateTimeOffset> WriteReadAsync(IServiceProvider sp, Guid customer, DateTimeOffset t)
     {
         var svc = sp.GetRequiredService<ReservationTermService>();
-        var id = await svc.CreateAsync(new RezSartInput { MusteriId = musteri, Sart = "zaman", TalepTarihi = t });
+        var id = await svc.CreateAsync(new RezSartInput { MusteriId = customer, Sart = "zaman", TalepTarihi = t });
         return (await svc.GetAsync(id))!.TalepTarihi;
     }
 
@@ -31,18 +31,18 @@ public sealed class TestZamanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var musteri = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        var customer = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Zaman", Soyad = "Testi" });
 
         // 1 tick = 100ns → µs'nin altında. PG bunu saklayamaz; yazılan ≠ okunan.
-        var tickli = TestZaman.Simdi().AddTicks(3);
-        Assert.NotEqual(tickli, await YazOkuAsync(sp, musteri, tickli));
+        var tickli = TestZaman.Now().AddTicks(3);
+        Assert.NotEqual(tickli, await WriteReadAsync(sp, customer, tickli));
 
         // TestZaman.Simdi() tam saniyeye hizalı → kayıpsız.
-        var hizali = TestZaman.Simdi();
-        Assert.Equal(hizali, await YazOkuAsync(sp, musteri, hizali));
+        var aligned = TestZaman.Now();
+        Assert.Equal(aligned, await WriteReadAsync(sp, customer, aligned));
 
         // Uzantı de aynı garantiyi vermeli.
-        Assert.Equal(0, tickli.SaniyeyeHizala().Ticks % TimeSpan.TicksPerSecond);
+        Assert.Equal(0, tickli.AlignToSecond().Ticks % TimeSpan.TicksPerSecond);
     }
 }

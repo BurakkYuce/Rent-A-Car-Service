@@ -27,9 +27,9 @@ public static class FuelKindEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/yakit-turleri", mesaj); }
+        try { await action(); return Result.Ok("/yakit-turleri", message); }
         catch (ValidationException ex) { return Results.Redirect($"/yakit-turleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

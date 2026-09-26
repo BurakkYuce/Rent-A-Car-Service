@@ -15,15 +15,15 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KiraUzatmaTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 8, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 8, 1, 9, 0, 0, TimeSpan.Zero);
 
-    private static async Task<(IServiceProvider sp, Guid rentalId)> SeedRental(TestHost host, IServiceScope scope, string plaka)
+    private static async Task<(IServiceProvider sp, Guid rentalId)> SeedRental(TestHost host, IServiceScope scope, string plate)
     {
         var sp = scope.ServiceProvider;
         var cust = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Uzatma" });
-        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cust, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m });
+        { MusteriId = cust, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m, KmLimit = 0, FazlaKmUcret = 0m });
         return (sp, id);
     }
 
@@ -35,7 +35,7 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
         var (sp, id) = await SeedRental(host, scope, "34 UZ 01");
         var svc = sp.GetRequiredService<RentalService>();
 
-        Assert.True(await svc.ExtendAsync(id, Bas.AddDays(5)));   // +2 gün
+        Assert.True(await svc.ExtendAsync(id, Start.AddDays(5)));   // +2 gün
         var c1 = await svc.GetAsync(id);
         Assert.Equal(5, c1!.Gun);
         Assert.Equal(500m, c1.Tutar);              // baz kira: 5 × 100 (K1 — uzatma bazın parçası)
@@ -44,7 +44,7 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
         Assert.Equal(500m, c1.GenelToplam);        // 300 + 200
         Assert.Equal(500m, c1.Bakiye);
 
-        Assert.True(await svc.ExtendAsync(id, Bas.AddDays(7)));   // tekrar +2
+        Assert.True(await svc.ExtendAsync(id, Start.AddDays(7)));   // tekrar +2
         var c2 = await svc.GetAsync(id);
         Assert.Equal(700m, c2!.Tutar);             // kümülatif: 7 × 100
         Assert.Equal(0m, c2.UzatmaBedeli);
@@ -58,7 +58,7 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (sp, id) = await SeedRental(host, scope, "34 UZ 04");
 
-        Assert.True(await sp.GetRequiredService<RentalService>().ExtendAsync(id, Bas.AddDays(5))); // 3→5 gün
+        Assert.True(await sp.GetRequiredService<RentalService>().ExtendAsync(id, Start.AddDays(5))); // 3→5 gün
         var invoices = sp.GetRequiredService<RentACar.Application.Finance.InvoiceService>();
         var inv = await invoices.GetAsync(await invoices.CreateFromRentalAsync(id));
 
@@ -72,11 +72,11 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (sp, id) = await SeedRental(host, scope, "34 UZ 05");
 
-        Assert.True(await sp.GetRequiredService<RentalService>().ExtendAsync(id, Bas.AddDays(5))); // toplam 500
+        Assert.True(await sp.GetRequiredService<RentalService>().ExtendAsync(id, Start.AddDays(5))); // toplam 500
         // Ek hizmet: net 100, %20 KDV → brüt 120 → GenelToplam 500+120=620 (eski bug: 700+120).
-        var tanimId = await sp.GetRequiredService<RentACar.Application.EkHizmetler.AddOnDefinitionService>().CreateAsync(
+        var definitionId = await sp.GetRequiredService<RentACar.Application.EkHizmetler.AddOnDefinitionService>().CreateAsync(
             new RentACar.Application.EkHizmetler.EkHizmetTanimInput { Kod = "KLT", Ad = "Koltuk", BirimUcret = 100m, KdvOrani = 0.20m });
-        await sp.GetRequiredService<RentACar.Application.RentalAddOns.RentalAddOnService>().AddAsync(id, tanimId, 1m);
+        await sp.GetRequiredService<RentACar.Application.RentalAddOns.RentalAddOnService>().AddAsync(id, definitionId, 1m);
 
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(620m, c!.GenelToplam); // BAĞIMSIZ ORACLE: 500 baz + 120 ek hizmet brüt
@@ -89,7 +89,7 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var (sp, id) = await SeedRental(host, scope, "34 UZ 02");
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<RentalService>().ExtendAsync(id, Bas.AddDays(3))); // = mevcut bitiş
+            () => sp.GetRequiredService<RentalService>().ExtendAsync(id, Start.AddDays(3))); // = mevcut bitiş
     }
 
     [Fact]
@@ -101,9 +101,9 @@ public sealed class KiraUzatmaTests(PostgresFixture fx)
         // Aynı araca, uzatma penceresine denk gelen ikinci aktif kira.
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = await TestCari.YeniAsync(sp), VehicleId = c!.VehicleId, BasTar = Bas.AddDays(4), BitTar = Bas.AddDays(6), GunlukUcret = 100m });
+        { MusteriId = await TestCustomer.NewAsync(sp), VehicleId = c!.VehicleId, BasTar = Start.AddDays(4), BitTar = Start.AddDays(6), GunlukUcret = 100m });
 
         await Assert.ThrowsAsync<AvailabilityConflictException>(
-            () => sp.GetRequiredService<RentalService>().ExtendAsync(id, Bas.AddDays(5))); // [bas,bas+5] ∩ [bas+4,bas+6]
+            () => sp.GetRequiredService<RentalService>().ExtendAsync(id, Start.AddDays(5))); // [bas,bas+5] ∩ [bas+4,bas+6]
     }
 }

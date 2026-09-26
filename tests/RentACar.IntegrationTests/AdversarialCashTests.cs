@@ -19,10 +19,10 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class AdversarialCashTests(PostgresFixture fx)
 {
-    private static async Task<Guid> SeedCariAsync(IServiceScope scope, string ad)
+    private static async Task<Guid> SeedCustomerAsync(IServiceScope scope, string name)
     {
         var customers = scope.ServiceProvider.GetRequiredService<CustomerService>();
-        return await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test" });
+        return await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name, Soyad = "Test" });
     }
 
     private static IDbContextFactory<AppDbContext> Factory(IServiceScope scope)
@@ -36,15 +36,15 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var cari = await SeedCariAsync(scope, "UsdOdeme");
+        var account = await SeedCustomerAsync(scope, "UsdOdeme");
 
         // Ödeme 100 USD @30 = 3000 base. Borç Cari (+3000) / Alacak Kasa (−3000).
         await cash.PayAsync(new CashInput
         {
-            CariId = cari, Tutar = 100m, Doviz = "USD", Kur = 30m, Hesap = LedgerAccountType.Kasa
+            CariId = account, Tutar = 100m, Doviz = "USD", Kur = 30m, Hesap = LedgerAccountType.Kasa
         });
 
-        Assert.Equal(3000m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(3000m, await cash.GetAccountBalanceAsync(account));
         var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(3000m, s.KasaCikis);
         Assert.Equal(-3000m, s.KasaBakiye);
@@ -65,17 +65,17 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var cari = await SeedCariAsync(scope, "UsdTers");
+        var account = await SeedCustomerAsync(scope, "UsdTers");
 
         var id = await cash.PayAsync(new CashInput
         {
-            CariId = cari, Tutar = 100m, Doviz = "USD", Kur = 30m, Hesap = LedgerAccountType.Kasa
+            CariId = account, Tutar = 100m, Doviz = "USD", Kur = 30m, Hesap = LedgerAccountType.Kasa
         });
-        Assert.Equal(3000m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(3000m, await cash.GetAccountBalanceAsync(account));
 
         await cash.ReverseAsync(id);
 
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account));
         var s = await reports.GetCashBankSummaryAsync();
         Assert.Equal(3000m, s.KasaGiris);
         Assert.Equal(3000m, s.KasaCikis);
@@ -89,14 +89,14 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope, "DoubleRev");
+        var account = await SeedCustomerAsync(scope, "DoubleRev");
 
-        var id = await cash.PayAsync(new CashInput { CariId = cari, Tutar = 500m, Hesap = LedgerAccountType.Kasa });
+        var id = await cash.PayAsync(new CashInput { CariId = account, Tutar = 500m, Hesap = LedgerAccountType.Kasa });
         await cash.ReverseAsync(id);
         await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.ReverseAsync(id)); // F1.4: mükerrer tipi
 
         // Net cari must still be exactly zero, not double-zeroed.
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account));
     }
 
     // ---- 3b. Cannot reverse a reversal ----
@@ -106,9 +106,9 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope, "RevRev");
+        var account = await SeedCustomerAsync(scope, "RevRev");
 
-        var id = await cash.PayAsync(new CashInput { CariId = cari, Tutar = 500m, Hesap = LedgerAccountType.Kasa });
+        var id = await cash.PayAsync(new CashInput { CariId = account, Tutar = 500m, Hesap = LedgerAccountType.Kasa });
         var revId = await cash.ReverseAsync(id);
         await Assert.ThrowsAsync<ValidationException>(() => cash.ReverseAsync(revId));
     }
@@ -120,8 +120,8 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash0 = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope, "RaceRev");
-        var id = await cash0.PayAsync(new CashInput { CariId = cari, Tutar = 500m, Hesap = LedgerAccountType.Kasa });
+        var account = await SeedCustomerAsync(scope, "RaceRev");
+        var id = await cash0.PayAsync(new CashInput { CariId = account, Tutar = 500m, Hesap = LedgerAccountType.Kasa });
 
         // Two independent scopes (independent DbContexts) reversing at the same time.
         var tenant = scope.ServiceProvider.GetRequiredService<TestIdentity>().TenantId!.Value;
@@ -137,7 +137,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
 
         // Exactly one succeeds.
         Assert.Equal(1, results.Count(r => r.ok));
-        Assert.Equal(0m, await cash0.GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await cash0.GetAccountBalanceAsync(account));
 
         static async Task<(bool ok, string? err)> Wrap(Task t)
         {
@@ -154,7 +154,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope, "RentalOdeme");
+        var account = await SeedCustomerAsync(scope, "RentalOdeme");
 
         // Seed a rental with GenelToplam 5000, already Tahsilat 5000, Bakiye 0.
         var rentalId = Guid.NewGuid();
@@ -162,7 +162,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         {
             db.Rentals.Add(new RentalContract
             {
-                Id = rentalId, SozlesmeNo = "KS-TEST1", MusteriId = cari, VehicleId = Guid.NewGuid(),
+                Id = rentalId, SozlesmeNo = "KS-TEST1", MusteriId = account, VehicleId = Guid.NewGuid(),
                 BasTar = DateTimeOffset.UtcNow, BitTar = DateTimeOffset.UtcNow.AddDays(1),
                 GenelToplam = 5000m, Tahsilat = 5000m, Bakiye = 0m
             });
@@ -172,7 +172,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         // Ödeme (refund) 1000 on the rental → Tahsilat 4000, Bakiye 1000.
         var id = await cash.PayAsync(new CashInput
         {
-            CariId = cari, RentalId = rentalId, Tutar = 1000m, Hesap = LedgerAccountType.Kasa
+            CariId = account, RentalId = rentalId, Tutar = 1000m, Hesap = LedgerAccountType.Kasa
         });
 
         await using (var db = await Factory(scope).CreateDbContextAsync())
@@ -200,14 +200,14 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope, "RentalTahsilat");
+        var account = await SeedCustomerAsync(scope, "RentalTahsilat");
 
         var rentalId = Guid.NewGuid();
         await using (var db = await Factory(scope).CreateDbContextAsync())
         {
             db.Rentals.Add(new RentalContract
             {
-                Id = rentalId, SozlesmeNo = "KS-TEST2", MusteriId = cari, VehicleId = Guid.NewGuid(),
+                Id = rentalId, SozlesmeNo = "KS-TEST2", MusteriId = account, VehicleId = Guid.NewGuid(),
                 BasTar = DateTimeOffset.UtcNow, BitTar = DateTimeOffset.UtcNow.AddDays(1),
                 GenelToplam = 5000m, Tahsilat = 0m, Bakiye = 5000m
             });
@@ -216,7 +216,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
 
         var id = await cash.CollectAsync(new CashInput
         {
-            CariId = cari, RentalId = rentalId, Tutar = 2000m, Hesap = LedgerAccountType.Kasa
+            CariId = account, RentalId = rentalId, Tutar = 2000m, Hesap = LedgerAccountType.Kasa
         });
         await using (var db = await Factory(scope).CreateDbContextAsync())
         {
@@ -245,8 +245,8 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using (var a = host.ScopeFor(tenantA))
         {
             var cashA = a.ServiceProvider.GetRequiredService<CashService>();
-            var cariA = await SeedCariAsync(a, "A");
-            await cashA.CollectAsync(new CashInput { CariId = cariA, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
+            var accountA = await SeedCustomerAsync(a, "A");
+            await cashA.CollectAsync(new CashInput { CariId = accountA, Tutar = 1000m, Hesap = LedgerAccountType.Kasa });
             await cashA.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 400m);
         }
 
@@ -281,8 +281,8 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(tenant))
         {
             var cashA = admin.ServiceProvider.GetRequiredService<CashService>();
-            var cari = await SeedCariAsync(admin, "RevPerm");
-            id = await cashA.PayAsync(new CashInput { CariId = cari, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
+            var account = await SeedCustomerAsync(admin, "RevPerm");
+            id = await cashA.PayAsync(new CashInput { CariId = account, Tutar = 100m, Hesap = LedgerAccountType.Kasa });
         }
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
@@ -297,12 +297,12 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         var tenantA = Guid.NewGuid();
         var tenantB = Guid.NewGuid();
         Guid id;
-        Guid cariA;
+        Guid accountA;
         using (var a = host.ScopeFor(tenantA))
         {
             var cashA = a.ServiceProvider.GetRequiredService<CashService>();
-            cariA = await SeedCariAsync(a, "AOwner");
-            id = await cashA.PayAsync(new CashInput { CariId = cariA, Tutar = 700m, Hesap = LedgerAccountType.Kasa });
+            accountA = await SeedCustomerAsync(a, "AOwner");
+            id = await cashA.PayAsync(new CashInput { CariId = accountA, Tutar = 700m, Hesap = LedgerAccountType.Kasa });
         }
 
         using var b = host.ScopeFor(tenantB);
@@ -313,7 +313,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         // A's balance is untouched and still reversible by A.
         using var a2 = host.ScopeFor(tenantA);
         var cashA2 = a2.ServiceProvider.GetRequiredService<CashService>();
-        Assert.Equal(700m, await cashA2.GetAccountBalanceAsync(cariA));
+        Assert.Equal(700m, await cashA2.GetAccountBalanceAsync(accountA));
     }
 
     // ---- 4. Guard: FX with high-precision rate stays balanced (both legs same Money) ----
@@ -323,12 +323,12 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await SeedCariAsync(scope, "Precision");
+        var account = await SeedCustomerAsync(scope, "Precision");
 
         // Rate with many decimals: 33.333333. 100 * that = 3333.3333 base.
         await cash.PayAsync(new CashInput
         {
-            CariId = cari, Tutar = 100m, Doviz = "USD", Kur = 33.333333m, Hesap = LedgerAccountType.Banka
+            CariId = account, Tutar = 100m, Doviz = "USD", Kur = 33.333333m, Hesap = LedgerAccountType.Banka
         });
 
         await using var db = await Factory(scope).CreateDbContextAsync();
@@ -336,7 +336,7 @@ public sealed class AdversarialCashTests(PostgresFixture fx)
         var debit = rows.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Amount.AmountInBase);
         var credit = rows.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Amount.AmountInBase);
         Assert.Equal(debit, credit);
-        Assert.Equal(3333.3333m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(3333.3333m, await cash.GetAccountBalanceAsync(account));
     }
 
     // ---- 7. Virman FX: does kur=1 hardcode in endpoint silently lose value? ----

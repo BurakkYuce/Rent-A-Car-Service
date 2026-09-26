@@ -19,31 +19,31 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class GrupEslemeTests(PostgresFixture fx)
 {
-    private static VehicleGroupInput Grup(string kod, string ad, bool aktif = true)
-        => new() { Kod = kod, Ad = ad, Aktif = aktif };
+    private static VehicleGroupInput Group(string code, string name, bool active = true)
+        => new() { Kod = code, Ad = name, Aktif = active };
 
-    private static async Task<Guid> AracAsync(VehicleService svc, string plaka, string? grup)
-        => await svc.CreateAsync(new VehicleInput { Plaka = plaka, Grup = grup, GrupBilincliBos = grup is null });
+    private static async Task<Guid> VehicleAsync(VehicleService svc, string plate, string? group)
+        => await svc.CreateAsync(new VehicleInput { Plaka = plate, Grup = group, GrupBilincliBos = group is null });
 
     [Fact]
     public async Task Ata_eslesen_araclari_hedef_gruba_tasir_TURKCE_duyarli()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        var ekoId = await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
-        await AracAsync(araclar, "34 EGE 001", "FİAT-EGEA");
-        await AracAsync(araclar, "34 EGE 002", "fiat-egea");   // Türkçe İ/i farkı — AYNI değer sayılmalı
-        await AracAsync(araclar, "34 OTH 003", "OPEL-CORSA");  // kapsam dışı
+        var ekoId = await groups.CreateAsync(Group("EKO", "Ekonomi"));
+        await VehicleAsync(vehicles, "34 EGE 001", "FİAT-EGEA");
+        await VehicleAsync(vehicles, "34 EGE 002", "fiat-egea");   // Türkçe İ/i farkı — AYNI değer sayılmalı
+        await VehicleAsync(vehicles, "34 OTH 003", "OPEL-CORSA");  // kapsam dışı
 
-        var n = await gruplar.AssignGroupValueAsync("FİAT-EGEA", emptyOnes: false, ekoId);
+        var n = await groups.AssignGroupValueAsync("FİAT-EGEA", emptyOnes: false, ekoId);
 
         Assert.Equal(2, n); // senaryoda 2 Egea var
-        var filo = await araclar.ListAsync();
-        Assert.Equal(2, filo.Count(v => v.Grup == "Ekonomi"));
-        Assert.Equal("OPEL-CORSA", filo.Single(v => v.Plaka == "34OTH003").Grup); // dokunulmadı
+        var fleet = await vehicles.ListAsync();
+        Assert.Equal(2, fleet.Count(v => v.Grup == "Ekonomi"));
+        Assert.Equal("OPEL-CORSA", fleet.Single(v => v.Plaka == "34OTH003").Grup); // dokunulmadı
     }
 
     [Fact]
@@ -51,20 +51,20 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        var ekoId = await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
-        await AracAsync(araclar, "34 BOS 001", null);
-        await AracAsync(araclar, "34 BOS 002", null);
+        var ekoId = await groups.CreateAsync(Group("EKO", "Ekonomi"));
+        await VehicleAsync(vehicles, "34 BOS 001", null);
+        await VehicleAsync(vehicles, "34 BOS 002", null);
         // Gerçekten "(boş)" YAZAN bir değer: string sentinel kullanılsaydı bu da taşınırdı.
-        await AracAsync(araclar, "34 LIT 003", "(boş)");
+        await VehicleAsync(vehicles, "34 LIT 003", "(boş)");
 
-        var n = await gruplar.AssignGroupValueAsync(sourceValue: null, emptyOnes: true, ekoId);
+        var n = await groups.AssignGroupValueAsync(sourceValue: null, emptyOnes: true, ekoId);
 
         Assert.Equal(2, n);
-        var filo = await araclar.ListAsync();
-        Assert.Equal("(boş)", filo.Single(v => v.Plaka == "34LIT003").Grup); // literal değer korundu
+        var fleet = await vehicles.ListAsync();
+        Assert.Equal("(boş)", fleet.Single(v => v.Plaka == "34LIT003").Grup); // literal değer korundu
     }
 
     [Fact]
@@ -72,17 +72,17 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        var pasifId = await gruplar.CreateAsync(Grup("ESK", "Eski", aktif: false));
-        await AracAsync(araclar, "34 XXX 001", "FİAT-EGEA");
+        var inactiveId = await groups.CreateAsync(Group("ESK", "Eski", active: false));
+        await VehicleAsync(vehicles, "34 XXX 001", "FİAT-EGEA");
 
         // Pasif grup vitrinde okunmaz → atama araçları sessizce görünmez yapardı.
         await Assert.ThrowsAsync<ValidationException>(
-            () => gruplar.AssignGroupValueAsync("FİAT-EGEA", false, pasifId));
+            () => groups.AssignGroupValueAsync("FİAT-EGEA", false, inactiveId));
 
-        Assert.Equal("FİAT-EGEA", (await araclar.ListAsync()).Single().Grup); // hiçbir şey taşınmadı
+        Assert.Equal("FİAT-EGEA", (await vehicles.ListAsync()).Single().Grup); // hiçbir şey taşınmadı
     }
 
     [Fact]
@@ -90,17 +90,17 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        var ekoId = await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
-        var aracId = await AracAsync(araclar, "34 AUD 001", "FİAT-EGEA");
-        Assert.Null((await araclar.GetAsync(aracId))!.UpdatedAtUtc); // başlangıçta yok
+        var ekoId = await groups.CreateAsync(Group("EKO", "Ekonomi"));
+        var vehicleId = await VehicleAsync(vehicles, "34 AUD 001", "FİAT-EGEA");
+        Assert.Null((await vehicles.GetAsync(vehicleId))!.UpdatedAtUtc); // başlangıçta yok
 
-        await gruplar.AssignGroupValueAsync("FİAT-EGEA", false, ekoId);
+        await groups.AssignGroupValueAsync("FİAT-EGEA", false, ekoId);
 
         // ExecuteUpdateAsync kullanılsaydı bu alan (ve audit) sessizce yazılmazdı.
-        Assert.NotNull((await araclar.GetAsync(aracId))!.UpdatedAtUtc);
+        Assert.NotNull((await vehicles.GetAsync(vehicleId))!.UpdatedAtUtc);
     }
 
     [Fact]
@@ -108,20 +108,20 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        var ekoId = await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
-        await AracAsync(araclar, "34 REN 001", "Ekonomi");
-        await AracAsync(araclar, "34 REN 002", "EKONOMİ"); // Türkçe varyant da taşınmalı
-        await AracAsync(araclar, "34 REN 003", "SUV");     // kapsam dışı
+        var ekoId = await groups.CreateAsync(Group("EKO", "Ekonomi"));
+        await VehicleAsync(vehicles, "34 REN 001", "Ekonomi");
+        await VehicleAsync(vehicles, "34 REN 002", "EKONOMİ"); // Türkçe varyant da taşınmalı
+        await VehicleAsync(vehicles, "34 REN 003", "SUV");     // kapsam dışı
 
-        await gruplar.UpdateAsync(ekoId, Grup("EKO", "Ekonomi Sınıfı"));
+        await groups.UpdateAsync(ekoId, Group("EKO", "Ekonomi Sınıfı"));
 
         // REGRESYON KİLİDİ: cascade olmasaydı bu araçlar hiçbir gruba eşleşmez, vitrin/arama boşalırdı.
-        var filo = await araclar.ListAsync();
-        Assert.Equal(2, filo.Count(v => v.Grup == "Ekonomi Sınıfı"));
-        Assert.Equal("SUV", filo.Single(v => v.Plaka == "34REN003").Grup);
+        var fleet = await vehicles.ListAsync();
+        Assert.Equal(2, fleet.Count(v => v.Grup == "Ekonomi Sınıfı"));
+        Assert.Equal("SUV", fleet.Single(v => v.Plaka == "34REN003").Grup);
     }
 
     [Fact]
@@ -129,13 +129,13 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
 
-        await gruplar.CreateAsync(Grup("EKO", "EKONOMİ"));
+        await groups.CreateAsync(Group("EKO", "EKONOMİ"));
 
         // Kodlar farklı ama Ad aynı → iki grubun filosu tek isim havuzunda birleşirdi.
         await Assert.ThrowsAsync<ValidationException>(
-            () => gruplar.CreateAsync(Grup("EKO2", "ekonomi")));
+            () => groups.CreateAsync(Group("EKO2", "ekonomi")));
     }
 
     [Fact]
@@ -143,13 +143,13 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
 
-        await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
-        var suvId = await gruplar.CreateAsync(Grup("SUV", "SUV"));
+        await groups.CreateAsync(Group("EKO", "Ekonomi"));
+        var suvId = await groups.CreateAsync(Group("SUV", "SUV"));
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => gruplar.UpdateAsync(suvId, Grup("SUV", "Ekonomi")));
+            () => groups.UpdateAsync(suvId, Group("SUV", "Ekonomi")));
     }
 
     [Fact]
@@ -157,13 +157,13 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
 
-        var id = await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
+        var id = await groups.CreateAsync(Group("EKO", "Ekonomi"));
         // excludeId çalışmazsa grup kendi adıyla çakışır ve hiçbir alan güncellenemezdi.
-        await gruplar.UpdateAsync(id, new VehicleGroupInput { Kod = "EKO", Ad = "Ekonomi", Aciklama = "not", Aktif = true });
+        await groups.UpdateAsync(id, new VehicleGroupInput { Kod = "EKO", Ad = "Ekonomi", Aciklama = "not", Aktif = true });
 
-        Assert.Equal("not", (await gruplar.GetAsync(id))!.Aciklama);
+        Assert.Equal("not", (await groups.GetAsync(id))!.Aciklama);
     }
 
     [Fact]
@@ -173,11 +173,11 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         Guid ekoId;
         using (var admin = host.ScopeFor(tenant))
-            ekoId = await admin.ServiceProvider.GetRequiredService<VehicleGroupService>().CreateAsync(Grup("EKO", "Ekonomi"));
+            ekoId = await admin.ServiceProvider.GetRequiredService<VehicleGroupService>().CreateAsync(Group("EKO", "Ekonomi"));
 
-        using var muhasebe = host.ScopeFor(tenant, role: UserRole.Muhasebe); // OperationsWrite YOK
+        using var accounting = host.ScopeFor(tenant, role: UserRole.Muhasebe); // OperationsWrite YOK
         await Assert.ThrowsAsync<NoPermissionException>(
-            () => muhasebe.ServiceProvider.GetRequiredService<VehicleGroupService>()
+            () => accounting.ServiceProvider.GetRequiredService<VehicleGroupService>()
                 .AssignGroupValueAsync("FİAT-EGEA", false, ekoId));
     }
 
@@ -189,19 +189,19 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
         var t2 = Guid.NewGuid();
 
         using var s1 = host.ScopeFor(t1);
-        var ekoId = await s1.ServiceProvider.GetRequiredService<VehicleGroupService>().CreateAsync(Grup("EKO", "Ekonomi"));
-        await AracAsync(s1.ServiceProvider.GetRequiredService<VehicleService>(), "34 ISO 001", "FİAT-EGEA");
+        var ekoId = await s1.ServiceProvider.GetRequiredService<VehicleGroupService>().CreateAsync(Group("EKO", "Ekonomi"));
+        await VehicleAsync(s1.ServiceProvider.GetRequiredService<VehicleService>(), "34 ISO 001", "FİAT-EGEA");
 
         using (var s2 = host.ScopeFor(t2))
-            await AracAsync(s2.ServiceProvider.GetRequiredService<VehicleService>(), "34 ISO 002", "FİAT-EGEA");
+            await VehicleAsync(s2.ServiceProvider.GetRequiredService<VehicleService>(), "34 ISO 002", "FİAT-EGEA");
 
         var n = await s1.ServiceProvider.GetRequiredService<VehicleGroupService>()
             .AssignGroupValueAsync("FİAT-EGEA", false, ekoId);
 
         Assert.Equal(1, n); // T2'nin aracı SAYILMADI
-        using var s2Kontrol = host.ScopeFor(t2);
+        using var s2Check = host.ScopeFor(t2);
         Assert.Equal("FİAT-EGEA",
-            (await s2Kontrol.ServiceProvider.GetRequiredService<VehicleService>().ListAsync()).Single().Grup);
+            (await s2Check.ServiceProvider.GetRequiredService<VehicleService>().ListAsync()).Single().Grup);
     }
 
     [Fact]
@@ -209,19 +209,19 @@ public sealed class GrupEslemeTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var gruplar = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
-        var araclar = scope.ServiceProvider.GetRequiredService<VehicleService>();
+        var groups = scope.ServiceProvider.GetRequiredService<VehicleGroupService>();
+        var vehicles = scope.ServiceProvider.GetRequiredService<VehicleService>();
 
-        await gruplar.CreateAsync(Grup("EKO", "Ekonomi"));
-        await AracAsync(araclar, "34 TAN 001", "FİAT-EGEA");
-        await AracAsync(araclar, "34 TAN 002", null);
-        await AracAsync(araclar, "34 TAN 003", "Ekonomi"); // eşleşiyor → listede OLMAMALI
+        await groups.CreateAsync(Group("EKO", "Ekonomi"));
+        await VehicleAsync(vehicles, "34 TAN 001", "FİAT-EGEA");
+        await VehicleAsync(vehicles, "34 TAN 002", null);
+        await VehicleAsync(vehicles, "34 TAN 003", "Ekonomi"); // eşleşiyor → listede OLMAMALI
 
-        var liste = await gruplar.ListUnmatchedGroupValuesAsync();
+        var list = await groups.ListUnmatchedGroupValuesAsync();
 
-        Assert.Equal(1, liste.Single(x => x.Grup == "FİAT-EGEA").AracSayisi);
-        var bos = liste.Single(x => x.Bos);
-        Assert.Equal(1, bos.AracSayisi);
-        Assert.DoesNotContain(liste, x => x.Grup == "Ekonomi");
+        Assert.Equal(1, list.Single(x => x.Grup == "FİAT-EGEA").AracSayisi);
+        var empty = list.Single(x => x.Bos);
+        Assert.Equal(1, empty.AracSayisi);
+        Assert.DoesNotContain(list, x => x.Grup == "Ekonomi");
     }
 }

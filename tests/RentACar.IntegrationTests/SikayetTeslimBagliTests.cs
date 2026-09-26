@@ -24,22 +24,22 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SikayetTeslimBagliTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset T0 = TestZaman.Simdi().AddDays(-5);
+    private static readonly DateTimeOffset T0 = TestZaman.Now().AddDays(-5);
 
-    private static async Task<Guid> CariAsync(IServiceProvider sp, string unvan, string? tel = null)
+    private static async Task<Guid> CustomerAsync(IServiceProvider sp, string title, string? tel = null)
         => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CustomerType.Kurumsal, Unvan = unvan, CepTel = tel });
+        { Tip = CustomerType.Kurumsal, Unvan = title, CepTel = tel });
 
-    private static async Task<(Guid kira, Guid arac)> KiraAsync(
-        IServiceProvider sp, Guid cari, string plaka, string? ofis = null)
+    private static async Task<(Guid kira, Guid arac)> RentalAsync(
+        IServiceProvider sp, Guid account, string plate, string? office = null)
     {
-        var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
-        var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
+        var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = cari, VehicleId = arac, BasTar = T0, BitTar = T0.AddDays(3),
-            GunlukUcret = 1000m, CikisOfisi = ofis
+            MusteriId = account, VehicleId = vehicle, BasTar = T0, BitTar = T0.AddDays(3),
+            GunlukUcret = 1000m, CikisOfisi = office
         });
-        return (kira, arac);
+        return (kira: rental, arac: vehicle);
     }
 
     [Fact]
@@ -48,24 +48,24 @@ public sealed class SikayetTeslimBagliTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var cari = await CariAsync(sp, "Alfa A.Ş.", "05551112233");
-        var (kira, _) = await KiraAsync(sp, cari, "34 SK 01", "Merkez Ofis");
-        var personel = sp.GetRequiredService<PersonnelService>();
-        var alan = await personel.CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
-        var eden = await personel.CreateAsync(new PersonelInput { Kod = "P2", Ad = "Mehmet", Soyad = "Kaya" });
+        var account = await CustomerAsync(sp, "Alfa A.Ş.", "05551112233");
+        var (rental, _) = await RentalAsync(sp, account, "34 SK 01", "Merkez Ofis");
+        var staff = sp.GetRequiredService<PersonnelService>();
+        var alan = await staff.CreateAsync(new PersonelInput { Kod = "P1", Ad = "Ayşe", Soyad = "Yılmaz" });
+        var complainant = await staff.CreateAsync(new PersonelInput { Kod = "P2", Ad = "Mehmet", Soyad = "Kaya" });
 
         var svc = sp.GetRequiredService<ComplaintService>();
         var id = await svc.CreateAsync(new SikayetInput
         {
-            CariId = cari, Konu = "Araç kirliydi", Detay = "Teslimde temizlik yapılmamış",
-            RentalId = kira, TeslimAlanPersonelId = alan, TeslimEdenPersonelId = eden,
+            CariId = account, Konu = "Araç kirliydi", Detay = "Teslimde temizlik yapılmamış",
+            RentalId = rental, TeslimAlanPersonelId = alan, TeslimEdenPersonelId = complainant,
             Puan = 2, SikayetKanali = " Telefon ", SikayetYeri = ComplaintLocation.Kira,
             CikisOfisi = " Merkez Ofis "
         });
 
         var r = Assert.Single(await svc.SearchAsync());
         Assert.Equal(id, r.Sikayet.Id);
-        Assert.Equal(kira, r.Sikayet.RentalId);
+        Assert.Equal(rental, r.Sikayet.RentalId);
         Assert.Equal(2, r.Sikayet.Puan);
         Assert.Equal("Telefon", r.Sikayet.SikayetKanali);       // trim
         Assert.Equal(ComplaintLocation.Kira, r.Sikayet.SikayetYeri);
@@ -86,16 +86,16 @@ public sealed class SikayetTeslimBagliTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var cari = await CariAsync(sp, "Beta");
-        var (kira, arac) = await KiraAsync(sp, cari, "34 ES 01");
+        var account = await CustomerAsync(sp, "Beta");
+        var (rental, vehicle) = await RentalAsync(sp, account, "34 ES 01");
         await sp.GetRequiredService<ComplaintService>().CreateAsync(new SikayetInput
-        { CariId = cari, Konu = "Test", RentalId = kira });
+        { CariId = account, Konu = "Test", RentalId = rental });
 
         Assert.Equal("34ES01", Assert.Single(await sp.GetRequiredService<ComplaintService>().SearchAsync()).Plaka);
 
         // Aracın plakası değişirse (devir/yeni tescil) liste de değişmeli — kopya tutulmuyor.
         Assert.True(await sp.GetRequiredService<VehicleService>()
-            .UpdateAsync(arac, new VehicleInput { Plaka = "06 YN 02" }));
+            .UpdateAsync(vehicle, new VehicleInput { Plaka = "06 YN 02" }));
 
         Assert.Equal("06YN02", Assert.Single(await sp.GetRequiredService<ComplaintService>().SearchAsync()).Plaka);
     }
@@ -127,12 +127,12 @@ public sealed class SikayetTeslimBagliTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<ComplaintService>();
-        var a = await CariAsync(sp, "Alfa Lojistik");
-        var b = await CariAsync(sp, "Beta Turizm");
-        var (kiraA, _) = await KiraAsync(sp, a, "34 FL 01", "Merkez");
+        var a = await CustomerAsync(sp, "Alfa Lojistik");
+        var b = await CustomerAsync(sp, "Beta Turizm");
+        var (rentalA, _) = await RentalAsync(sp, a, "34 FL 01", "Merkez");
 
         await svc.CreateAsync(new SikayetInput
-        { CariId = a, Konu = "Gecikme", RentalId = kiraA, CikisOfisi = "Merkez",
+        { CariId = a, Konu = "Gecikme", RentalId = rentalA, CikisOfisi = "Merkez",
           SikayetKanali = "Telefon", SikayetYeri = ComplaintLocation.Kira });
         await svc.CreateAsync(new SikayetInput
         { CariId = b, Konu = "Yanlış araç", CikisOfisi = "Şube2",
@@ -167,10 +167,10 @@ public sealed class SikayetTeslimBagliTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
         {
             var sp = s1.ServiceProvider;
-            var cari = await CariAsync(sp, "Gizli");
-            var (kira, _) = await KiraAsync(sp, cari, "34 GZ 01");
+            var account = await CustomerAsync(sp, "Gizli");
+            var (rental, _) = await RentalAsync(sp, account, "34 GZ 01");
             await sp.GetRequiredService<ComplaintService>().CreateAsync(new SikayetInput
-            { CariId = cari, Konu = "Gizli şikayet", RentalId = kira, SikayetKanali = "Telefon" });
+            { CariId = account, Konu = "Gizli şikayet", RentalId = rental, SikayetKanali = "Telefon" });
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());

@@ -78,7 +78,7 @@ public static class PlatformTenantEndpoints
         {
             try
             {
-                await svc.SetWebSitesiModuluAsync(id, aktif, http.User.Identity?.Name ?? "platform");
+                await svc.SetWebsiteModuleAsync(id, aktif, http.User.Identity?.Name ?? "platform");
                 return Results.Redirect($"/platform/tenants/{id}?ok=1");
             }
             catch (ValidationException ex)
@@ -93,7 +93,7 @@ public static class PlatformTenantEndpoints
         {
             try
             {
-                await svc.SetYeniArayuzPilotAsync(id, aktif, http.User.Identity?.Name ?? "platform");
+                await svc.SetNewUiPilotAsync(id, aktif, http.User.Identity?.Name ?? "platform");
                 return Results.Redirect($"/platform/tenants/{id}?ok=1");
             }
             catch (ValidationException ex)
@@ -143,8 +143,8 @@ public static class PlatformTenantEndpoints
         {
             try
             {
-                var detay = await svc.GetTenantAsync(id) ?? throw new ValidationException("Tenant bulunamadı.");
-                if (!string.Equals((onayKod ?? "").Trim(), detay.Code, StringComparison.Ordinal))
+                var detail = await svc.GetTenantAsync(id) ?? throw new ValidationException("Tenant bulunamadı.");
+                if (!string.Equals((onayKod ?? "").Trim(), detail.Code, StringComparison.Ordinal))
                     return Results.Redirect($"/platform/tenants/{id}?hata=onay"); // kod uyuşmadı — kapatılmadı
                 await svc.CloseAsync(id, http.User.Identity?.Name ?? "platform");
                 return Results.Redirect($"/platform/tenants/{id}?ok=1");

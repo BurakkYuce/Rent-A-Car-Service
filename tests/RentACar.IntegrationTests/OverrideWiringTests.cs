@@ -17,7 +17,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class OverrideWiringTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task No_override_personel_works()
@@ -61,6 +61,6 @@ public sealed class OverrideWiringTests(PostgresFixture fx)
 
         await sp.GetRequiredService<ScreenPermissionService>().SetAsync("donem-kapanis", new[] { UserRole.Operator });
         await Assert.ThrowsAsync<NoPermissionException>(
-            () => sp.GetRequiredService<PeriodLockService>().LockAsync(Bas));
+            () => sp.GetRequiredService<PeriodLockService>().LockAsync(Start));
     }
 }

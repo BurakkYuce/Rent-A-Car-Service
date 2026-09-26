@@ -26,15 +26,15 @@ internal static partial class RegulationApi
         string? plaka, bool? odendi, string? tip, DateOnly? bitisBas, DateOnly? bitisBit, int? sayfa, int? boyut, string? sirala,
         RegulationService reg, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var t = F5Ortak.EnumAdi<InsuranceType>(tip, "tip");
-        var (min, max) = F5Ortak.GunAraligi(bitisBas, bitisBit, "bitisBas", "bitisBit");
+        var t = F5Shared.EnumAdi<InsuranceType>(tip, "tip");
+        var (min, max) = F5Shared.DayRange(bitisBas, bitisBit, "bitisBas", "bitisBit");
         var rows = (await reg.ListInsuranceAsync(ct)).Where(p => (odendi is null || p.Odendi == odendi) && (t is null || p.Tip == t)
             && (min is null || p.Bitis >= min) && (max is null || p.Bitis <= max));
         var visible = await S.VisibleAsync(dbf, user, rows, p => p.VehicleId, ct);
         var plates = await S.PlatesAsync(dbf, visible.Select(p => p.VehicleId), ct);
-        var list = visible.Select(p => InsurancePolicyRow.From(p, F5Ortak.Plaka(plates, p.VehicleId)))
-            .Where(r => F5Ortak.Nz(plaka) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
-        return TypedResults.Ok(F5Ortak.Sayfala(list, PolicySort, sayfa, boyut, sirala));
+        var list = visible.Select(p => InsurancePolicyRow.From(p, F5Shared.Plate(plates, p.VehicleId)))
+            .Where(r => F5Shared.Nz(plaka) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        return TypedResults.Ok(F5Shared.Paginate(list, PolicySort, sayfa, boyut, sirala));
     }
 
     /// <summary>Policy passed through the vehicle-branch gate (403 BEFORE any state), or null (404).</summary>
@@ -56,11 +56,11 @@ internal static partial class RegulationApi
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
         if (await ScopedPolicyAsync(id, reg, dbf, user, ct) is not { } p) return null;
-        var zeyiller = (await reg.ListEndorsementsAsync(id, ct)).Select(EndorsementDto.From).ToList();
+        var endorsements = (await reg.ListEndorsementsAsync(id, ct)).Select(EndorsementDto.From).ToList();
         var trace = await LedgerTraceAsync(dbf, "SigortaOdeme", id, ct);
         var actions = new RegulationActions(!p.Odendi && AuthExtensions.HasPermission(http.User, Permission.FinanceWrite),
             AuthExtensions.HasPermission(http.User, Permission.OperationsWrite));
-        return new InsurancePolicyDetail(InsurancePolicyRow.From(p, await S.PlateAsync(dbf, p.VehicleId, ct)), zeyiller, trace, actions);
+        return new InsurancePolicyDetail(InsurancePolicyRow.From(p, await S.PlateAsync(dbf, p.VehicleId, ct)), endorsements, trace, actions);
     }
 
     /// <summary>Payment trace from the LEDGER (credit leg = cash/bank account).</summary>
@@ -79,13 +79,13 @@ internal static partial class RegulationApi
         InsurancePolicyRequest r, HttpContext http, RegulationService reg, IDbContextFactory<AppDbContext> dbf, ICurrentUser user,
         CancellationToken ct)
     {
-        var key = IdempotencyBasligi.Anahtar(http);
+        var key = IdempotencyHeader.Key(http);
         if (key is { } k && await ScopedPolicyAsync(k, reg, dbf, user, ct) is { } m) // (1) ÖNCE mevcut kayıt
             throw PolicyDuplicate(m, r);
         S.RecordAmount(r.Prim, "prim");
         S.RecordAmount(r.AracDegeri, "aracDegeri"); S.RecordAmount(r.ImmDegeri, "immDegeri"); S.RecordAmount(r.AksesuarDegeri, "aksesuarDegeri");
         S.Text(r.PoliceNo, 64, "policeNo"); S.Text(r.Firma, 128, "firma"); S.Text(r.Acenta, 128, "acenta");
-        var tip = F5Ortak.EnumAdi<InsuranceType>(r.Tip, "tip") ?? throw new ValidationException("Sigorta tipi seçilmelidir.", "tip");
+        var tip = F5Shared.EnumAdi<InsuranceType>(r.Tip, "tip") ?? throw new ValidationException("Sigorta tipi seçilmelidir.", "tip");
         var start = S.RequiredDate(r.Baslangic, "baslangic");
         var end = S.RequiredDate(r.Bitis, "bitis");
         await S.VehicleForWriteAsync(dbf, user, r.VehicleId, "vehicleId", ct);
@@ -98,13 +98,13 @@ internal static partial class RegulationApi
         catch (DbUpdateException ex) when (key is { } k2 && S.IsPrimaryKeyViolation(ex))
         {
             if (await ScopedPolicyAsync(k2, reg, dbf, user, ct) is { } won) throw PolicyDuplicate(won, r);
-            throw new DuplicateOperationException(AnahtarBaskaIslemde);
+            throw new DuplicateOperationException(KeyInOtherOperation);
         }
         var d = await PolicyDetailAsync(id, http, reg, dbf, user, ct);
         return TypedResults.Created($"{Root}/sigortalar/{id}", d!);
     }
 
-    public const string AnahtarBaskaIslemde =
+    public const string KeyInOtherOperation =
         "Bu işlem anahtarı başka bir işlemde kullanılmış; kayıt yazılmadı. Kayıtları kontrol edip yeni işlem başlatın.";
 
     private static DuplicateOperationException PolicyDuplicate(InsurancePolicy m, InsurancePolicyRequest r)

@@ -12,21 +12,21 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FleetReportTests(PostgresFixture fx)
 {
-    private static async Task SeedVehiclesAsync(IServiceScope scope, params VehicleStatus[] durumlar)
+    private static async Task SeedVehiclesAsync(IServiceScope scope, params VehicleStatus[] statuses)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         var i = 0;
-        foreach (var d in durumlar)
+        foreach (var d in statuses)
             db.Vehicles.Add(new Vehicle { Plaka = $"34FL{i++:D3}", Durum = d });
         await db.SaveChangesAsync();
     }
 
-    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plaka)
+    private static async Task<Guid> SeedVehicleAsync(IServiceScope scope, string plate)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var v = new Vehicle { Plaka = plaka, Durum = VehicleStatus.Musait };
+        var v = new Vehicle { Plaka = plate, Durum = VehicleStatus.Musait };
         db.Vehicles.Add(v);
         await db.SaveChangesAsync();
         return v.Id;
@@ -70,9 +70,9 @@ public sealed class FleetReportTests(PostgresFixture fx)
         await svc.CompleteAsync(done, pickupKm: 1010);
 
         // Açık (tamamlanmamış) servis → özete GİRMEMELİ.
-        var acik = await svc.CreateAsync(new ServiceRecordInput
+        var open = await svc.CreateAsync(new ServiceRecordInput
         { VehicleId = vid, Tip = ServiceType.Ariza, GirisKm = 1010, Lines = [new ServiceLineInput { Aciklama = "X", Tutar = 5000m }] });
-        await svc.StartAsync(acik);
+        await svc.StartAsync(open);
 
         var summary = await reports.GetServiceCostSummaryAsync();
         var row = Assert.Single(summary);

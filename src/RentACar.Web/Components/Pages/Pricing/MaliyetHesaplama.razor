@@ -16,13 +16,13 @@
     Kaydedilen teklif de bir planlama belgesidir; gelir/gider ve cari bakiye raporlarına HİÇBİR satır eklemez.
     <em>Makul varsayım; canlı kuruş paritesi değil.</em></p>
 
-@if (!string.IsNullOrEmpty(Hata))
+@if (!string.IsNullOrEmpty(ErrorMessage))
 {
-    <p class="error">@Hata</p>
+    <p class="error">@ErrorMessage</p>
 }
-@if (!string.IsNullOrEmpty(Bilgi))
+@if (!string.IsNullOrEmpty(Info))
 {
-    <p class="muted"><strong>@Bilgi</strong></p>
+    <p class="muted"><strong>@Info</strong></p>
 }
 
 <form method="get" class="grid-form">
@@ -34,7 +34,7 @@
         <select name="kredi">
             @foreach (var k in Enum.GetValues<LoanCalculationMethod>())
             {
-                <option value="@k" selected="@(k.ToString() == (Kredi ?? nameof(LoanCalculationMethod.EsitTaksitli)))">@KrediAd(k)</option>
+                <option value="@k" selected="@(k.ToString() == (Kredi ?? nameof(LoanCalculationMethod.EsitTaksitli)))">@LoanName(k)</option>
             }
         </select>
     </label>
@@ -69,7 +69,7 @@
     <button type="submit">Hesapla</button>
 </form>
 
-@if (_sonuc is { } s)
+@if (_result is { } s)
 {
     <div class="cards">
         <div class="card"><div class="card-num">@s.ToplamMaliyet.ToString("N2")</div><div class="card-label">Toplam Maliyet (araç başı)</div></div>
@@ -105,7 +105,7 @@
             {
                 <tr>
                     <td>@k.Ad</td>
-                    <td>@PeriyotAd(k.Periyot)</td>
+                    <td>@PeriodName(k.Periyot)</td>
                     <td class="num">@k.Birim.ToString("N2")</td>
                     <td class="num">@k.DonemTutar.ToString("N2")</td>
                 </tr>
@@ -146,13 +146,13 @@
         <label>Cari (ops.)
             <select name="cariId">
                 <option value="">—</option>
-                @foreach (var c in _cariler) { <option value="@c.Id">@c.DisplayName</option> }
+                @foreach (var c in _accounts) { <option value="@c.Id">@c.DisplayName</option> }
             </select>
         </label>
         <label>Hazırlayan (ops.)
             <select name="hazirlayanId">
                 <option value="">—</option>
-                @foreach (var p in _personeller) { <option value="@p.Id">@p.Ad @p.Soyad</option> }
+                @foreach (var p in _personnel) { <option value="@p.Id">@p.Ad @p.Soyad</option> }
             </select>
         </label>
         <label class="u-col-full">Açıklama<input name="aciklama" maxlength="1024" /></label>
@@ -190,20 +190,20 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? HataQ { get; set; }
     [SupplyParameterFromQuery(Name = "kayit")] public string? Kayit { get; set; }
 
-    private MaliyetHesapSonuc? _sonuc;
-    private string? Hata;
-    private string? Bilgi;
-    private IReadOnlyList<Customer> _cariler = [];
-    private IReadOnlyList<PersonelSecim> _personeller = [];
+    private MaliyetHesapSonuc? _result;
+    private string? ErrorMessage;
+    private string? Info;
+    private IReadOnlyList<Customer> _accounts = [];
+    private IReadOnlyList<PersonelSecim> _personnel = [];
 
-    private static string KrediAd(LoanCalculationMethod k) => k switch
+    private static string LoanName(LoanCalculationMethod k) => k switch
     {
         LoanCalculationMethod.EsitTaksitli => "Eşit Taksitli",
         LoanCalculationMethod.Rotatif => "Rotatif (yakında)",
         _ => k.ToString()
     };
 
-    private static string PeriyotAd(CostItemPeriod p) => p switch
+    private static string PeriodName(CostItemPeriod p) => p switch
     {
         CostItemPeriod.Yillik => "Yıllık",
         CostItemPeriod.Aylik => "Aylık",
@@ -227,7 +227,7 @@
 
     /// <summary>Hesap girdisini kayıt formuna AYNEN taşıyan gizli alanlar.</summary>
     private RenderFragment GizliGirdi => @<text>
-        @foreach (var alan in MaliyetHesapGirdi.AlanAdlari)
+        @foreach (var alan in CostCalculationInput.FieldNames)
         {
             <input type="hidden" name="@alan" value="@Girdi.GetValueOrDefault(alan)" />
         }
@@ -235,22 +235,22 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Hata = HataQ;
-        if (!string.IsNullOrWhiteSpace(Kayit)) Bilgi = $"Teklif kaydedildi: {Kayit}";
+        ErrorMessage = HataQ;
+        if (!string.IsNullOrWhiteSpace(Kayit)) Info = $"Teklif kaydedildi: {Kayit}";
 
         if (string.IsNullOrWhiteSpace(AlisBedeli)) return; // ilk açılış: hesap yok
         var q = Girdi;
         try
         {
-            _sonuc = CostCalculationService.Calculate(MaliyetHesapGirdi.Kur(ad => q.GetValueOrDefault(ad)));
+            _result = CostCalculationService.Calculate(CostCalculationInput.Setup(name => q.GetValueOrDefault(name)));
         }
-        catch (RentACar.Application.Common.ValidationException ex) { Hata = ex.Message; }
+        catch (RentACar.Application.Common.ValidationException ex) { ErrorMessage = ex.Message; }
 
         // Kaydet formunun dropdown'ları — yalnız hesap başarılıysa gerekli.
-        if (_sonuc is not null)
+        if (_result is not null)
         {
-            _cariler = await Cariler.ListAsync();
-            _personeller = await Personeller.ListForSelectAsync();
+            _accounts = await Cariler.ListAsync();
+            _personnel = await Personeller.ListForSelectAsync();
         }
     }
 }

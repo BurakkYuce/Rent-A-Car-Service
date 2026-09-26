@@ -31,42 +31,42 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SozlesmePaylasimTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3).AddHours(9);
 
     /// <summary>Sahte ama GEÇERLİ imzalı PDF — servis içeriği decode etmiyor, yalnız saklayıp veriyor.</summary>
-    private static byte[] Pdf(byte imza = 0x41) => [0x25, 0x50, 0x44, 0x46, 0x2D, .. Enumerable.Repeat(imza, 200)];
+    private static byte[] Pdf(byte signature = 0x41) => [0x25, 0x50, 0x44, 0x46, 0x2D, .. Enumerable.Repeat(signature, 200)];
 
     /// <summary>
     /// Gerçek <c>Tenants</c> satırı — <see cref="PaylasimLink"/> platform tablosu olduğu için
     /// <c>TenantId</c>'de FK var; uydurma Guid'le insert patlar (doğru davranış).
     /// </summary>
-    private async Task<Guid> TenantAsync(bool aktif = true)
+    private async Task<Guid> TenantAsync(bool active = true)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options;
         await using var db = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance);
-        var t = new Tenant { Code = "pc" + Guid.NewGuid().ToString("N")[..10], Name = "PC", IsActive = aktif };
+        var t = new Tenant { Code = "pc" + Guid.NewGuid().ToString("N")[..10], Name = "PC", IsActive = active };
         db.Tenants.Add(t);
         await db.SaveChangesAsync();
         return t.Id;
     }
 
     /// <summary>Anonim görüntüleme servisi — cookie/tenant context YOK, tıpkı müşterinin isteği gibi.</summary>
-    private SozlesmeGoruntuleService Anonim()
+    private ContractViewService Anonymous()
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?> { ["ConnectionStrings:Default"] = fx.AppConnectionString }).Build();
-        return new SozlesmeGoruntuleService(config, NullLogger<SozlesmeGoruntuleService>.Instance);
+        return new ContractViewService(config, NullLogger<ContractViewService>.Instance);
     }
 
-    private static async Task<Guid> KiraAsync(IServiceProvider sp, string plaka)
+    private static async Task<Guid> RentalAsync(IServiceProvider sp, string plate)
     {
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Paylas", Soyad = "Test" });
-        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         return await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m,
+            MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(2), GunlukUcret = 100m,
         });
     }
 
@@ -80,30 +80,30 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         string token;
         using (var scope = host.ScopeFor(tenantId))
         {
-            var rental = await KiraAsync(scope.ServiceProvider, "34 PC 01");
-            var durum = await scope.ServiceProvider.GetRequiredService<ContractShareService>()
+            var rental = await RentalAsync(scope.ServiceProvider, "34 PC 01");
+            var status = await scope.ServiceProvider.GetRequiredService<ContractShareService>()
                 .ShareAsync(rental, "RZ-PC-01", Pdf());
-            token = durum.Token;
-            Assert.False(durum.Bayat);              // yeni üretilen görüntü bayat olamaz
-            Assert.Equal(0, durum.ErisimSayisi);
-            Assert.Null(durum.SonErisimUtc);
+            token = status.Token;
+            Assert.False(status.Bayat);              // yeni üretilen görüntü bayat olamaz
+            Assert.Equal(0, status.ErisimSayisi);
+            Assert.Null(status.SonErisimUtc);
         }
 
         // Buradan sonrası MÜŞTERİNİN isteği: oturum yok, tenant context yok, GUC yok.
-        var sonuc = await Anonim().GoruntuleAsync(token);
-        Assert.NotNull(sonuc);
-        Assert.Equal(Pdf(), sonuc!.Pdf);
-        Assert.Equal("Sozlesme-RZ-PC-01.pdf", sonuc.DosyaAdi);
-        Assert.All(sonuc.DosyaAdi, c => Assert.True(char.IsAscii(c)));   // Content-Disposition ASCII bekler
+        var result = await Anonymous().ViewAsync(token);
+        Assert.NotNull(result);
+        Assert.Equal(Pdf(), result!.Pdf);
+        Assert.Equal("Sozlesme-RZ-PC-01.pdf", result.DosyaAdi);
+        Assert.All(result.DosyaAdi, c => Assert.True(char.IsAscii(c)));   // Content-Disposition ASCII bekler
     }
 
     [Fact]
     public async Task Gecersiz_ve_bos_token_null_doner()
     {
-        var svc = Anonim();
-        Assert.Null(await svc.GoruntuleAsync("yok-boyle-bir-token"));
-        Assert.Null(await svc.GoruntuleAsync(""));
-        Assert.Null(await svc.GoruntuleAsync(new string('x', 200)));      // uzunluk çiti
+        var svc = Anonymous();
+        Assert.Null(await svc.ViewAsync("yok-boyle-bir-token"));
+        Assert.Null(await svc.ViewAsync(""));
+        Assert.Null(await svc.ViewAsync(new string('x', 200)));      // uzunluk çiti
     }
 
     // ---- İZOLASYON ----
@@ -111,20 +111,20 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
     [Fact]
     public async Task Yabanci_tenant_anlik_goruntuyu_RLS_yuzunden_GOREMEZ()
     {
-        var sahip = await TenantAsync();
-        var yabanci = await TenantAsync();
+        var owner = await TenantAsync();
+        var foreign = await TenantAsync();
         using var host = new TestHost(fx.AppConnectionString);
 
         Guid rental;
-        using (var s1 = host.ScopeFor(sahip))
+        using (var s1 = host.ScopeFor(owner))
         {
-            rental = await KiraAsync(s1.ServiceProvider, "34 PC 02");
+            rental = await RentalAsync(s1.ServiceProvider, "34 PC 02");
             await s1.ServiceProvider.GetRequiredService<ContractShareService>()
                 .ShareAsync(rental, "RZ-PC-02", Pdf());
         }
 
         // Yabancı tenant, kira ID'sini BİLSE bile ne durumu ne PDF'i görebilir.
-        using (var s2 = host.ScopeFor(yabanci))
+        using (var s2 = host.ScopeFor(foreign))
         {
             Assert.Null(await s2.ServiceProvider.GetRequiredService<ContractShareService>()
                 .StatusAsync(rental));
@@ -143,11 +143,11 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         string token;
         using (var scope = host.ScopeFor(tenantId))
         {
-            var rental = await KiraAsync(scope.ServiceProvider, "34 PC 03");
+            var rental = await RentalAsync(scope.ServiceProvider, "34 PC 03");
             token = (await scope.ServiceProvider.GetRequiredService<ContractShareService>()
                 .ShareAsync(rental, "RZ-PC-03", Pdf())).Token;
         }
-        Assert.NotNull(await Anonim().GoruntuleAsync(token));   // önce çalışıyor
+        Assert.NotNull(await Anonymous().ViewAsync(token));   // önce çalışıyor
 
         // Firma kapatıldı → müşterinin elindeki link de durur (CalendarFeedService ile aynı kural).
         var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options;
@@ -157,7 +157,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
             t.IsActive = false;
             await db.SaveChangesAsync();
         }
-        Assert.Null(await Anonim().GoruntuleAsync(token));
+        Assert.Null(await Anonymous().ViewAsync(token));
     }
 
     // ---- YAŞAM DÖNGÜSÜ ----
@@ -169,7 +169,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenantId);
         var svc = scope.ServiceProvider.GetRequiredService<ContractShareService>();
-        var rental = await KiraAsync(scope.ServiceProvider, "34 PC 04");
+        var rental = await RentalAsync(scope.ServiceProvider, "34 PC 04");
 
         var bir = await svc.ShareAsync(rental, "RZ-PC-04", Pdf(0x41));
         var iki = await svc.ShareAsync(rental, "RZ-PC-04", Pdf(0x42));   // FARKLI bayt gönderildi
@@ -177,7 +177,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         Assert.Equal(bir.Token, iki.Token);        // müşterinin elindeki adres bozulmaz
         // …ve ikinci baytlar YAZILMADI: anlık görüntü ilk halini koruyor (aksi halde link sabit
         // ama belge değişken olurdu — paylaşımın anlamı biterdi).
-        Assert.Equal(Pdf(0x41), (await Anonim().GoruntuleAsync(bir.Token))!.Pdf);
+        Assert.Equal(Pdf(0x41), (await Anonymous().ViewAsync(bir.Token))!.Pdf);
     }
 
     [Fact]
@@ -185,18 +185,18 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
     {
         var tenantId = await TenantAsync();
         using var host = new TestHost(fx.AppConnectionString);
-        string eski, yeni;
+        string old, newItem;
         using (var scope = host.ScopeFor(tenantId))
         {
             var svc = scope.ServiceProvider.GetRequiredService<ContractShareService>();
-            var rental = await KiraAsync(scope.ServiceProvider, "34 PC 05");
-            eski = (await svc.ShareAsync(rental, "RZ-PC-05", Pdf(0x41))).Token;
-            yeni = (await svc.NewVersionAsync(rental, "RZ-PC-05", Pdf(0x42))).Token;
+            var rental = await RentalAsync(scope.ServiceProvider, "34 PC 05");
+            old = (await svc.ShareAsync(rental, "RZ-PC-05", Pdf(0x41))).Token;
+            newItem = (await svc.NewVersionAsync(rental, "RZ-PC-05", Pdf(0x42))).Token;
         }
 
-        Assert.NotEqual(eski, yeni);
-        Assert.Null(await Anonim().GoruntuleAsync(eski));                       // eski adres 404
-        Assert.Equal(Pdf(0x42), (await Anonim().GoruntuleAsync(yeni))!.Pdf);    // yeni adres taze belge
+        Assert.NotEqual(old, newItem);
+        Assert.Null(await Anonymous().ViewAsync(old));                       // eski adres 404
+        Assert.Equal(Pdf(0x42), (await Anonymous().ViewAsync(newItem))!.Pdf);    // yeni adres taze belge
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         using (var scope = host.ScopeFor(tenantId))
         {
             var svc = scope.ServiceProvider.GetRequiredService<ContractShareService>();
-            rental = await KiraAsync(scope.ServiceProvider, "34 PC 06");
+            rental = await RentalAsync(scope.ServiceProvider, "34 PC 06");
             token = (await svc.ShareAsync(rental, "RZ-PC-06", Pdf())).Token;
 
             Assert.True(await svc.CancelAsync(rental));
@@ -222,7 +222,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
             Assert.Empty(await ctx.SozlesmePdfler.Where(x => x.RentalId == rental).ToListAsync());
         }
 
-        Assert.Null(await Anonim().GoruntuleAsync(token));   // adres 404
+        Assert.Null(await Anonymous().ViewAsync(token));   // adres 404
 
         // …ama link KAYDI duruyor (erişim geçmişi kanıt).
         var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options;
@@ -238,7 +238,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenantId);
         var svc = scope.ServiceProvider.GetRequiredService<ContractShareService>();
-        var rental = await KiraAsync(scope.ServiceProvider, "34 PC 07");
+        var rental = await RentalAsync(scope.ServiceProvider, "34 PC 07");
 
         var bir = await svc.ShareAsync(rental, "RZ-PC-07", Pdf());
         await svc.CancelAsync(rental);
@@ -246,7 +246,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
 
         // Kısmi unique index `NOT "Iptal"` üzerinde: iptal edilen satır yeni linke yer açar.
         Assert.NotEqual(bir.Token, iki.Token);
-        Assert.NotNull(await Anonim().GoruntuleAsync(iki.Token));
+        Assert.NotNull(await Anonymous().ViewAsync(iki.Token));
     }
 
     // ---- ERİŞİM KAYDI ----
@@ -258,29 +258,29 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenantId);
         var svc = scope.ServiceProvider.GetRequiredService<ContractShareService>();
-        var rental = await KiraAsync(scope.ServiceProvider, "34 PC 08");
+        var rental = await RentalAsync(scope.ServiceProvider, "34 PC 08");
         var token = (await svc.ShareAsync(rental, "RZ-PC-08", Pdf())).Token;
 
-        var anonim = Anonim();
-        await anonim.GoruntuleAsync(token);
-        await anonim.GoruntuleAsync(token);
-        await anonim.GoruntuleAsync(token);
+        var anonymous = Anonymous();
+        await anonymous.ViewAsync(token);
+        await anonymous.ViewAsync(token);
+        await anonymous.ViewAsync(token);
 
-        var durum = await svc.StatusAsync(rental);
-        Assert.Equal(3, durum!.ErisimSayisi);
-        Assert.NotNull(durum.SonErisimUtc);
+        var status = await svc.StatusAsync(rental);
+        Assert.Equal(3, status!.ErisimSayisi);
+        Assert.NotNull(status.SonErisimUtc);
 
         // KVKK: bu tabloda IP / user-agent / müşteri kimliği gibi KİŞİSEL VERİ olmamalı. Kolon kümesi
         // TAM LİSTE olarak kilitli — "hızlıca IP de tutalım" diyen bir değişiklik bu testi kırar.
         // (Alt-dize araması yapmak yanlıştı: `Iptal` içinde "ip" geçiyor.)
         var f = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var ctx = await f.CreateDbContextAsync();
-        var kolonlar = ctx.Model.FindEntityType(typeof(PaylasimLink))!.GetProperties()
+        var columns = ctx.Model.FindEntityType(typeof(PaylasimLink))!.GetProperties()
             .Select(p => p.Name).OrderBy(n => n).ToArray();
         Assert.Equal(
             ["AnlikGoruntuUtc", "ErisimSayisi", "Id", "Iptal", "OlusturmaUtc", "RentalId",
              "SonErisimUtc", "SozlesmeNo", "TenantId", "Token"],
-            kolonlar);
+            columns);
     }
 
     [Fact]
@@ -291,7 +291,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenantId);
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ContractShareService>();
-        var rental = await KiraAsync(sp, "34 PC 09");
+        var rental = await RentalAsync(sp, "34 PC 09");
 
         Assert.False((await svc.ShareAsync(rental, "RZ-PC-09", Pdf())).Bayat);
 
@@ -299,8 +299,8 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         await sp.GetRequiredService<RentalService>()
             .UpdateOpenAsync(rental, new RentalUpdateInput { Aciklama = "uzatildi" });
 
-        var durum = await svc.StatusAsync(rental);
-        Assert.True(durum!.Bayat);
+        var status = await svc.StatusAsync(rental);
+        Assert.True(status!.Bayat);
 
         // Yeni sürüm bayrağı söndürür (görüntü tazelendi).
         Assert.False((await svc.NewVersionAsync(rental, "RZ-PC-09", Pdf(0x42))).Bayat);
@@ -315,7 +315,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         Guid rental;
         using (var admin = host.ScopeFor(tenantId))
-            rental = await KiraAsync(admin.ServiceProvider, "34 PC 10");
+            rental = await RentalAsync(admin.ServiceProvider, "34 PC 10");
 
         // Muhasebe rolü OperationsWrite taşımaz → hem paylaşamaz hem iptal edemez.
         using var scope = host.ScopeFor(tenantId, role: UserRole.Muhasebe);
@@ -333,7 +333,7 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenantId);
         var svc = scope.ServiceProvider.GetRequiredService<ContractShareService>();
-        var rental = await KiraAsync(scope.ServiceProvider, "34 PC 11");
+        var rental = await RentalAsync(scope.ServiceProvider, "34 PC 11");
 
         // PDF üretimi sessizce başarısız olursa müşteriye bozuk dosya gitmesin.
         await Assert.ThrowsAsync<Application.Common.ValidationException>(
@@ -357,24 +357,24 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenantId);
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<ContractShareService>();
-        var rental = await KiraAsync(sp, "34 PC 13");
+        var rental = await RentalAsync(sp, "34 PC 13");
         var token = (await svc.ShareAsync(rental, "RZ-PC-13", Pdf())).Token;
         await svc.CancelAsync(rental);
 
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var ctx = await f.CreateDbContextAsync();
-        var kayitlar = await ctx.AuditLogs.AsNoTracking()
+        var records = await ctx.AuditLogs.AsNoTracking()
             .Where(a => a.EntityName == "PaylasimLinkler")
             .Select(a => new { a.Action, Yeni = a.NewValues })
             .ToListAsync();
 
-        var olusturma = Assert.Single(kayitlar, k => k.Action == AuditAction.Create);
-        Assert.Contains("\"Token\": \"***\"", olusturma.Yeni);
-        Assert.DoesNotContain(token, olusturma.Yeni);        // sır denetim izinde YOK
-        Assert.Contains("RZ-PC-13", olusturma.Yeni);         // …ama olay izlenebilir
+        var creation = Assert.Single(records, k => k.Action == AuditAction.Create);
+        Assert.Contains("\"Token\": \"***\"", creation.Yeni);
+        Assert.DoesNotContain(token, creation.Yeni);        // sır denetim izinde YOK
+        Assert.Contains("RZ-PC-13", creation.Yeni);         // …ama olay izlenebilir
 
         // İptal de iz bırakıyor (adres kapandı bilgisi).
-        Assert.Contains(kayitlar, k => k.Action == AuditAction.Update && k.Yeni!.Contains("\"Iptal\": true"));
+        Assert.Contains(records, k => k.Action == AuditAction.Update && k.Yeni!.Contains("\"Iptal\": true"));
 
         // PDF baytı denetim izine ASLA girmez — SozlesmePdf bilinçli olarak IAuditable değil.
         Assert.Empty(await ctx.AuditLogs.AsNoTracking()
@@ -389,25 +389,25 @@ public sealed class SozlesmePaylasimTests(PostgresFixture fx)
         var tenantId = await TenantAsync();
         using var host = new TestHost(fx.AppConnectionString);
         string token;
-        byte[] beklenen;
+        byte[] expected;
         using (var scope = host.ScopeFor(tenantId))
         {
             var sp = scope.ServiceProvider;
-            var rental = await KiraAsync(sp, "34 PC 12");
+            var rental = await RentalAsync(sp, "34 PC 12");
 
             // Web ucundaki zincirin birebir aynısı: SozlesmeService → PdfExportService → PaylasAsync.
             var s = await sp.GetRequiredService<ContractService>().GetAsync(rental);
             Assert.NotNull(s);
-            beklenen = new PdfExportService().Contract(s!);
-            Assert.True(beklenen.Length > 1000);   // gerçek bir PDF üretildi
+            expected = new PdfExportService().Contract(s!);
+            Assert.True(expected.Length > 1000);   // gerçek bir PDF üretildi
 
             token = (await sp.GetRequiredService<ContractShareService>()
-                .ShareAsync(rental, s!.SozlesmeNo, beklenen)).Token;
+                .ShareAsync(rental, s!.SozlesmeNo, expected)).Token;
         }
 
-        var sonuc = await Anonim().GoruntuleAsync(token);
-        Assert.NotNull(sonuc);
-        Assert.Equal(beklenen, sonuc!.Pdf);        // müşteriye personelin bastığı NÜSHANIN AYNISI gider
-        Assert.StartsWith("Sozlesme-", sonuc.DosyaAdi);
+        var result = await Anonymous().ViewAsync(token);
+        Assert.NotNull(result);
+        Assert.Equal(expected, result!.Pdf);        // müşteriye personelin bastığı NÜSHANIN AYNISI gider
+        Assert.StartsWith("Sozlesme-", result.DosyaAdi);
     }
 }

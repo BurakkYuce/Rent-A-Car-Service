@@ -31,15 +31,15 @@ public static partial class SystemAdminApi
     {
         var g = v1.MapGroup("/ice-aktar").WithTags(SystemApiCommon.Tag).RequirePermission(Permission.ManageUsers);
         g.MapPost("/arac", async Task<Ok<ImportCountsDto>> (IFormFile? dosya, ImportService imp, CancellationToken ct)
-                => TypedResults.Ok(ImportSummary(await imp.ImportAraclarAsync(await ReadRowsAsync(dosya), ct))))
+                => TypedResults.Ok(ImportSummary(await imp.ImportVehiclesAsync(await ReadRowsAsync(dosya), ct))))
             .DisableAntiforgery() // CSRF: group header filter (X-XSRF-TOKEN)
             .WithMetadata(new RequestSizeLimitAttribute(ImportRequestLimit))
-            .AlanlariEsle(ImportRules);
+            .MapFields(ImportRules);
         g.MapPost("/cari", async Task<Ok<ImportCountsDto>> (IFormFile? dosya, ImportService imp, CancellationToken ct)
-                => TypedResults.Ok(ImportSummary(await imp.ImportCarilerAsync(await ReadRowsAsync(dosya), ct))))
+                => TypedResults.Ok(ImportSummary(await imp.ImportCustomersAsync(await ReadRowsAsync(dosya), ct))))
             .DisableAntiforgery() // CSRF: group header filter (X-XSRF-TOKEN)
             .WithMetadata(new RequestSizeLimitAttribute(ImportRequestLimit))
-            .AlanlariEsle(ImportRules);
+            .MapFields(ImportRules);
     }
 
     private static async Task<IReadOnlyList<Dictionary<string, string>>> ReadRowsAsync(IFormFile? file)

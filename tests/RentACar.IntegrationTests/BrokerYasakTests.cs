@@ -21,13 +21,13 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<BrokerBanService>();
 
-        var bas = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var start = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var bit = new DateTimeOffset(2026, 9, 30, 0, 0, 0, TimeSpan.Zero);
         var id = await svc.CreateAsync(new BrokerYasakInput
         {
             Kod = "brk-x-min3", Ad = "Broker X — min 3 gün", Aciklama = "Kısa kiralama yasak",
             Kaynak = "BrokerX", AracGrupKod = "eko", Bolge = "Antalya",
-            MinGun = 3, TumSatisKapali = false, GecerlilikBas = bas, GecerlilikBit = bit
+            MinGun = 3, TumSatisKapali = false, GecerlilikBas = start, GecerlilikBit = bit
         });
 
         var r = await svc.GetAsync(id);
@@ -38,7 +38,7 @@ public sealed class BrokerYasakTests(PostgresFixture fx)
         Assert.Equal("Antalya", r.Bolge);
         Assert.Equal(3, r.MinGun);
         Assert.False(r.TumSatisKapali);
-        Assert.Equal(bas, r.GecerlilikBas);
+        Assert.Equal(start, r.GecerlilikBas);
         Assert.True(r.Aktif);
     }
 

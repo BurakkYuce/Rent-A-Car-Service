@@ -14,10 +14,10 @@ public sealed record ServiceRecordRow(Guid Id, string No, Guid VehicleId, string
     /// <summary><c>kdvToplam</c>/<c>genelToplam</c>: kalemlerin SATIR BAZINDA yuvarlanmış KDV'si ve genel toplamı
     /// (detaydaki <c>kalemler</c> toplamıyla aynı kaynak — <see cref="ServiceLineDto.From"/>); bilgi amaçlı, deftere
     /// giden tek tutar <c>toplamIscilik</c> × kusur. <c>faturaNo</c>: FAZ-16 fatura bilgi bloğu (#301 parite).</summary>
-    public static ServiceRecordRow From(ServiceRecord s, string plaka)
+    public static ServiceRecordRow From(ServiceRecord s, string plate)
     {
         var lines = s.Lines.Select(ServiceLineDto.From).ToList();
-        return new(s.Id, s.No, s.VehicleId, plaka, s.Tip.ToString(),
+        return new(s.Id, s.No, s.VehicleId, plate, s.Tip.ToString(),
             s.Durum.ToString(), s.GirisTarihi, s.CikisTarihi, s.GirisKm, s.CikisKm, s.AtolyeAdi, s.HasarSorumlu.ToString(),
             s.KusurOrani, s.ToplamIscilik, s.Yansitildi, s.PlanBasTarihi, s.PlanBitTarihi,
             lines.Sum(l => l.KdvTutar), lines.Sum(l => l.GenelToplam), s.FaturaNo);

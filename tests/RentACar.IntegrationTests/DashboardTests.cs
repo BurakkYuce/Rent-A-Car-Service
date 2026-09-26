@@ -16,7 +16,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DashboardTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Gun = new(2026, 6, 10, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Day = new(2026, 6, 10, 9, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task Composes_metrics_from_reports()
@@ -28,11 +28,11 @@ public sealed class DashboardTests(PostgresFixture fx)
         var vId = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 DSH 01" });
         var cId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Panel Müşteri" });
         await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cId, VehicleId = vId, BasTar = Gun, BitTar = Gun.AddDays(4), GunlukUcret = 100m });
+        { MusteriId = cId, VehicleId = vId, BasTar = Day, BitTar = Day.AddDays(4), GunlukUcret = 100m });
         await sp.GetRequiredService<CashService>().CollectAsync(new CashInput
-        { CariId = cId, Tutar = 500m, Kur = 1m, Doviz = "TRY", Hesap = LedgerAccountType.Kasa, Tarih = Gun });
+        { CariId = cId, Tutar = 500m, Kur = 1m, Doviz = "TRY", Hesap = LedgerAccountType.Kasa, Tarih = Day });
 
-        var d = await sp.GetRequiredService<DashboardService>().GetAsync(Gun);
+        var d = await sp.GetRequiredService<DashboardService>().GetAsync(Day);
 
         Assert.Equal(1, d.ToplamArac);
         Assert.True(d.AktifKira >= 1);                 // oluşturulan kira aktif
@@ -48,7 +48,7 @@ public sealed class DashboardTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var d = await scope.ServiceProvider.GetRequiredService<DashboardService>().GetAsync(Gun);
+        var d = await scope.ServiceProvider.GetRequiredService<DashboardService>().GetAsync(Day);
 
         Assert.Equal(0, d.ToplamArac);
         Assert.Equal(0, d.AktifKira);

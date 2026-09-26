@@ -24,14 +24,14 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TarifeKmKademeTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 4, 6, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 4, 6, 10, 0, 0, TimeSpan.Zero);
 
     /// <summary>Araç grubu GLOBAL km değerleriyle (100 km/gün, 3 TL) — geriye uyum tabanı.</summary>
-    private static async Task SeedGrupAsync(IServiceProvider sp)
+    private static async Task SeedGroupAsync(IServiceProvider sp)
         => await sp.GetRequiredService<VehicleGroupService>().CreateAsync(new VehicleGroupInput
         { Kod = "EKO", Ad = "Ekonomik", GunlukKmLimiti = 100, AsimKmUcreti = 3.00m });
 
-    private static async Task<Guid> TarifeAsync(IServiceProvider sp, Action<RateMatrixInput> ayarla)
+    private static async Task<Guid> TariffAsync(IServiceProvider sp, Action<RateMatrixInput> configure)
     {
         var input = new RateMatrixInput
         {
@@ -40,15 +40,15 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
             Gun6 = 1000m, Gun7 = 1000m, GunHaftalik = 900m, GunAylik = 800m,
             OnayDurumu = TariffApprovalStatus.Onayli
         };
-        ayarla(input);
+        configure(input);
         return await sp.GetRequiredService<RateMatrixService>().CreateAsync(input);
     }
 
-    private static Task<QuoteResult> TeklifAsync(IServiceProvider sp, int gun, int tahminiKm)
+    private static Task<QuoteResult> QuoteAsync(IServiceProvider sp, int day, int estimatedKm)
         => sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
         {
             AracGrupKod = "EKO", Kanal = "WEB",
-            BasTar = Bas, BitTar = Bas.AddDays(gun), TahminiKm = tahminiKm
+            BasTar = Start, BitTar = Start.AddDays(day), TahminiKm = estimatedKm
         });
 
     [Fact]
@@ -57,21 +57,21 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedGrupAsync(sp);
+        await SeedGroupAsync(sp);
 
         // ELLE: 5. kademe km = 200/gün, aşım 5 TL.
-        await TarifeAsync(sp, i => { i.Km5 = 200; i.Km5Ucret = 5.00m; });
+        await TariffAsync(sp, i => { i.Km5 = 200; i.Km5Ucret = 5.00m; });
 
         // 5 gün × 200 = 1000 km dahil. 1000 km'de aşım YOK (kullanıcının tarifi birebir).
-        var tam = await TeklifAsync(sp, 5, 1000);
-        Assert.Equal(5, tam.Gun);
-        Assert.Equal(0m, tam.KmAsimTutar);
+        var full = await QuoteAsync(sp, 5, 1000);
+        Assert.Equal(5, full.Gun);
+        Assert.Equal(0m, full.KmAsimTutar);
 
         // 1 km fazlası → 1 × 5 = 5 TL (elle).
-        Assert.Equal(5.00m, (await TeklifAsync(sp, 5, 1001)).KmAsimTutar);
+        Assert.Equal(5.00m, (await QuoteAsync(sp, 5, 1001)).KmAsimTutar);
 
         // 1500 km → aşım 500 × 5 = 2500 TL (elle).
-        Assert.Equal(2500.00m, (await TeklifAsync(sp, 5, 1500)).KmAsimTutar);
+        Assert.Equal(2500.00m, (await QuoteAsync(sp, 5, 1500)).KmAsimTutar);
     }
 
     [Fact]
@@ -80,21 +80,21 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedGrupAsync(sp);
+        await SeedGroupAsync(sp);
 
         // ELLE: 2. kademe 300 km/gün & 2 TL; 5. kademe 150 km/gün & 8 TL.
-        await TarifeAsync(sp, i =>
+        await TariffAsync(sp, i =>
         {
             i.Km2 = 300; i.Km2Ucret = 2.00m;
             i.Km5 = 150; i.Km5Ucret = 8.00m;
         });
 
         // 2 gün, 1000 km → dahil 2×300 = 600; aşım 400 × 2 = 800 (elle).
-        Assert.Equal(800.00m, (await TeklifAsync(sp, 2, 1000)).KmAsimTutar);
+        Assert.Equal(800.00m, (await QuoteAsync(sp, 2, 1000)).KmAsimTutar);
 
         // 5 gün, 1000 km → dahil 5×150 = 750; aşım 250 × 8 = 2000 (elle).
         // AYNI km, FARKLI kademe → farklı sonuç: kademe gerçekten kendi değerini kullanıyor.
-        Assert.Equal(2000.00m, (await TeklifAsync(sp, 5, 1000)).KmAsimTutar);
+        Assert.Equal(2000.00m, (await QuoteAsync(sp, 5, 1000)).KmAsimTutar);
     }
 
     [Fact]
@@ -103,10 +103,10 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedGrupAsync(sp);
+        await SeedGroupAsync(sp);
 
         // ELLE: Km6 = 100/gün & 10 TL (kısa dönem), haftalık 400/gün & 1 TL, aylık 500/gün & 0,50 TL.
-        await TarifeAsync(sp, i =>
+        await TariffAsync(sp, i =>
         {
             i.Km6 = 100; i.Km6Ucret = 10.00m;
             i.KmHaftalik = 400; i.KmHaftalikUcret = 1.00m;
@@ -115,10 +115,10 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
 
         // 10 gün (haftalık kademe), 5000 km → dahil 10×400 = 4000; aşım 1000 × 1 = 1000 (elle).
         // Km6'ya düşseydi: dahil 10×100 = 1000, aşım 4000 × 10 = 40.000 olurdu — kararın önemi bu.
-        Assert.Equal(1000.00m, (await TeklifAsync(sp, 10, 5000)).KmAsimTutar);
+        Assert.Equal(1000.00m, (await QuoteAsync(sp, 10, 5000)).KmAsimTutar);
 
         // 30 gün (aylık kademe), 20000 km → dahil 30×500 = 15000; aşım 5000 × 0,50 = 2500 (elle).
-        Assert.Equal(2500.00m, (await TeklifAsync(sp, 30, 20000)).KmAsimTutar);
+        Assert.Equal(2500.00m, (await QuoteAsync(sp, 30, 20000)).KmAsimTutar);
     }
 
     [Fact]
@@ -127,17 +127,17 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedGrupAsync(sp);
+        await SeedGroupAsync(sp);
 
         // ELLE: aylık YOK, haftalık 400/gün & 1 TL, Km6 100/gün & 10 TL.
-        await TarifeAsync(sp, i =>
+        await TariffAsync(sp, i =>
         {
             i.Km6 = 100; i.Km6Ucret = 10.00m;
             i.KmHaftalik = 400; i.KmHaftalikUcret = 1.00m;
         });
 
         // 30 gün → aylık tanımsız → HAFTALIK: dahil 30×400 = 12000; aşım 3000 × 1 = 3000 (elle).
-        Assert.Equal(3000.00m, (await TeklifAsync(sp, 30, 15000)).KmAsimTutar);
+        Assert.Equal(3000.00m, (await QuoteAsync(sp, 30, 15000)).KmAsimTutar);
     }
 
     [Fact]
@@ -146,13 +146,13 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedGrupAsync(sp);
+        await SeedGroupAsync(sp);
 
         // Tarifede HİÇ km alanı yok → grubun global değeri (100 km/gün, 3 TL) geçerli.
-        await TarifeAsync(sp, _ => { });
+        await TariffAsync(sp, _ => { });
 
         // 4 gün, 1000 km → dahil 4×100 = 400; aşım 600 × 3 = 1800 (elle) — BUGÜNKÜ davranış.
-        Assert.Equal(1800.00m, (await TeklifAsync(sp, 4, 1000)).KmAsimTutar);
+        Assert.Equal(1800.00m, (await QuoteAsync(sp, 4, 1000)).KmAsimTutar);
     }
 
     [Fact]
@@ -161,15 +161,15 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedGrupAsync(sp);
+        await SeedGroupAsync(sp);
 
         // ELLE: yalnız 3. kademe dolu (250/gün & 4 TL). 1., 2., 4-6. kademeler boş.
-        await TarifeAsync(sp, i => { i.Km3 = 250; i.Km3Ucret = 4.00m; });
+        await TariffAsync(sp, i => { i.Km3 = 250; i.Km3Ucret = 4.00m; });
 
         // 1 gün → kendi kademesi boş → en yakın dolu (Kademe 3): dahil 1×250; aşım 50 × 4 = 200.
-        Assert.Equal(200.00m, (await TeklifAsync(sp, 1, 300)).KmAsimTutar);
+        Assert.Equal(200.00m, (await QuoteAsync(sp, 1, 300)).KmAsimTutar);
         // 6 gün → aşağı doğru en yakın dolu yine Kademe 3: dahil 6×250 = 1500; aşım 100 × 4 = 400.
-        Assert.Equal(400.00m, (await TeklifAsync(sp, 6, 1600)).KmAsimTutar);
+        Assert.Equal(400.00m, (await QuoteAsync(sp, 6, 1600)).KmAsimTutar);
     }
 
     [Fact]
@@ -180,9 +180,9 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         // 0 limit "her km aşım" demek olur ve sessizce devasa aşım üretirdi; sınırsız için BOŞ bırakılır.
-        await Assert.ThrowsAsync<ValidationException>(() => TarifeAsync(sp, i => i.Km1 = 0));
-        await Assert.ThrowsAsync<ValidationException>(() => TarifeAsync(sp, i => i.KmAylik = -5));
-        await Assert.ThrowsAsync<ValidationException>(() => TarifeAsync(sp, i => i.Km2Ucret = -1m));
+        await Assert.ThrowsAsync<ValidationException>(() => TariffAsync(sp, i => i.Km1 = 0));
+        await Assert.ThrowsAsync<ValidationException>(() => TariffAsync(sp, i => i.KmAylik = -5));
+        await Assert.ThrowsAsync<ValidationException>(() => TariffAsync(sp, i => i.Km2Ucret = -1m));
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<RateMatrixService>();
 
-        var id = await TarifeAsync(sp, i =>
+        var id = await TariffAsync(sp, i =>
         {
             i.Km1 = 111; i.Km6 = 166; i.Km1Ucret = 1.25m; i.Km6Ucret = 6.75m;
             i.KmHaftalik = 400; i.KmHaftalikUcret = 0.90m;
@@ -229,15 +229,15 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedGrupAsync(sp);
-        await TarifeAsync(sp, i => { i.Km3 = 250; i.Km3Ucret = 4.00m; });
+        await SeedGroupAsync(sp);
+        await TariffAsync(sp, i => { i.Km3 = 250; i.Km3Ucret = 4.00m; });
 
-        var arac = await sp.GetRequiredService<RentACar.Application.Vehicles.VehicleService>()
+        var vehicle = await sp.GetRequiredService<RentACar.Application.Vehicles.VehicleService>()
             .CreateAsync(new RentACar.Application.Vehicles.VehicleInput { Plaka = "34 KM 71", Grup = "EKO" });
 
         var input = new RentACar.Application.Bookings.BookingInput
         {
-            VehicleId = arac, BasTar = Bas, BitTar = Bas.AddDays(3),
+            VehicleId = vehicle, BasTar = Start, BitTar = Start.AddDays(3),
             Kaynak = "WEB", FiyatTuru = "Otomatik"
         };
         await sp.GetRequiredService<PricingService>().PriceAsync(input);
@@ -248,13 +248,13 @@ public sealed class TarifeKmKademeTests(PostgresFixture fx)
         Assert.Equal(0m, input.FazlaKmUcret);
 
         // Elle girilen değer de KORUNUR (motor üzerine yazmaz).
-        var elle = new RentACar.Application.Bookings.BookingInput
+        var manual = new RentACar.Application.Bookings.BookingInput
         {
-            VehicleId = arac, BasTar = Bas, BitTar = Bas.AddDays(3),
+            VehicleId = vehicle, BasTar = Start, BitTar = Start.AddDays(3),
             Kaynak = "WEB", FiyatTuru = "Otomatik", KmLimit = 777, FazlaKmUcret = 9.99m
         };
-        await sp.GetRequiredService<PricingService>().PriceAsync(elle);
-        Assert.Equal(777, elle.KmLimit);
-        Assert.Equal(9.99m, elle.FazlaKmUcret);
+        await sp.GetRequiredService<PricingService>().PriceAsync(manual);
+        Assert.Equal(777, manual.KmLimit);
+        Assert.Equal(9.99m, manual.FazlaKmUcret);
     }
 }

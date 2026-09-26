@@ -23,14 +23,14 @@ public sealed class YetkiKopyalaTests(PostgresFixture fx)
         await svc.SetAsync("rapor-x", [UserRole.Admin, UserRole.Yonetici]);
         await svc.SetAsync("admin-only", [UserRole.Admin]);
 
-        var guncellenen = await svc.CopyRoleAsync(UserRole.Yonetici, UserRole.Operator);
-        Assert.Equal(1, guncellenen); // yalnız rapor-x
+        var updated = await svc.CopyRoleAsync(UserRole.Yonetici, UserRole.Operator);
+        Assert.Equal(1, updated); // yalnız rapor-x
 
         var list = await svc.ListAsync();
-        var raporX = list.Single(s => s.EkranKodu == "rapor-x").AllowedRolesCsv;
-        Assert.Contains("Operator", raporX);
-        Assert.Contains("Yonetici", raporX);     // mevcut korundu
-        Assert.Contains("Admin", raporX);
+        var reportX = list.Single(s => s.EkranKodu == "rapor-x").AllowedRolesCsv;
+        Assert.Contains("Operator", reportX);
+        Assert.Contains("Yonetici", reportX);     // mevcut korundu
+        Assert.Contains("Admin", reportX);
         var adminOnly = list.Single(s => s.EkranKodu == "admin-only").AllowedRolesCsv;
         Assert.DoesNotContain("Operator", adminOnly); // Yonetici yoktu → dokunulmadı
 
@@ -63,8 +63,8 @@ public sealed class YetkiKopyalaTests(PostgresFixture fx)
             .CopyRoleAsync(UserRole.Yonetici, UserRole.Operator));
 
         using var s1b = host.ScopeFor(t1);
-        var raporX = (await s1b.ServiceProvider.GetRequiredService<ScreenPermissionService>().ListAsync())
+        var reportX = (await s1b.ServiceProvider.GetRequiredService<ScreenPermissionService>().ListAsync())
             .Single(s => s.EkranKodu == "rapor-x").AllowedRolesCsv;
-        Assert.DoesNotContain("Operator", raporX); // t2'nin kopyası t1'e sızmadı
+        Assert.DoesNotContain("Operator", reportX); // t2'nin kopyası t1'e sızmadı
     }
 }

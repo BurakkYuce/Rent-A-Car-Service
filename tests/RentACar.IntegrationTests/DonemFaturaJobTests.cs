@@ -24,17 +24,17 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DonemFaturaJobTests(PostgresFixture fx)
 {
-    private static async Task<(Guid kira, Guid cari)> JobluKiraAsync(IServiceProvider sp, string plaka, bool jobBayragi = true)
+    private static async Task<(Guid kira, Guid cari)> RentalWithJobAsync(IServiceProvider sp, string plate, bool jobFlag = true)
     {
         // -65 gün: iki ay-çıpalı dönemin (en kötü 31+31=62 gün) kesin geçmişte bitmesi için tampon.
-        var bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Job", Soyad = "M" });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90), GunlukUcret = 100m,
-            DonemselFaturalama = jobBayragi
+            MusteriId = m, VehicleId = v, BasTar = start, BitTar = start.AddDays(90), GunlukUcret = 100m,
+            DonemselFaturalama = jobFlag
         });
         return (id, m);
     }
@@ -54,24 +54,24 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<ITenantSettingsRepository>().UpsertAsync(s => s.DonemselFaturalamaJob = true);
-        var (kira, _) = await JobluKiraAsync(sp, "34 JB 01");
+        var (rental, _) = await RentalWithJobAsync(sp, "34 JB 01");
 
         // 60 gün geçmiş → D1 + D2 vadesi geçmiş (30'ar gün civarı), D3 gelecekte.
         var s1 = await KosAsync(sp, tenant);
         Assert.Equal(2, s1.Kesilen);
 
         // Tutarlar manuel yol matematiğiyle özdeş: Σ kesilen = ilk 2 dönem tahakkuku; Σ tüm plan = 9000.
-        var donemler = await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(kira);
-        Assert.Equal(InvoicePeriodStatus.Kesildi, donemler[0].Durum);
-        Assert.Equal(InvoicePeriodStatus.Kesildi, donemler[1].Durum);
-        Assert.Equal(InvoicePeriodStatus.Planlandi, donemler[2].Durum);
-        var (faturalanan, _) = await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(kira);
-        Assert.Equal(donemler[0].KesilenTutar + donemler[1].KesilenTutar, faturalanan);
+        var periods = await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(rental);
+        Assert.Equal(InvoicePeriodStatus.Kesildi, periods[0].Durum);
+        Assert.Equal(InvoicePeriodStatus.Kesildi, periods[1].Durum);
+        Assert.Equal(InvoicePeriodStatus.Planlandi, periods[2].Durum);
+        var (invoiced, _) = await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(rental);
+        Assert.Equal(periods[0].KesilenTutar + periods[1].KesilenTutar, invoiced);
 
         // Aynı gün ikinci koşu → no-op (idempotent).
         var s2 = await KosAsync(sp, tenant);
         Assert.Equal(0, s2.Kesilen);
-        Assert.Equal(faturalanan, (await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(kira)).FaturalananBrut);
+        Assert.Equal(invoiced, (await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(rental)).FaturalananBrut);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<ITenantSettingsRepository>().UpsertAsync(s => s.DonemselFaturalamaJob = true);
-        var (kira, _) = await JobluKiraAsync(sp, "34 JB 09");
+        var (rental, _) = await RentalWithJobAsync(sp, "34 JB 09");
         var invoices = sp.GetRequiredService<InvoiceService>();
 
         // Düzeltme öncesi: job'ın bayat change-tracker'ı KESİLMİŞ dönemi Atlandi'ye yazıyordu
@@ -90,21 +90,21 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         var t1 = Task.Run(() => KosAsync(sp, tenant));
         var t2 = Task.Run(() => KosAsync(sp, tenant));
         var t3 = Task.Run(async () =>
-        { try { await invoices.CreatePeriodInvoiceAsync(kira, 1); } catch (RentACar.Application.Common.ValidationException) { } });
+        { try { await invoices.CreatePeriodInvoiceAsync(rental, 1); } catch (RentACar.Application.Common.ValidationException) { } });
         await Task.WhenAll(t1, t2, t3);
 
-        var donemler = await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(kira);
+        var periods = await sp.GetRequiredService<IInvoicePeriodRepository>().ListForRentalAsync(rental);
         // İnvaryantlar: Kesildi satırın InvoiceId'si VAR; Atlandi/Planlandi satırın InvoiceId'si YOK;
         // vadesi geçmiş ilk 2 dönem KESİLDİ (sessiz atlama yok); faturalanan = Σ kesilen.
-        Assert.All(donemler, d =>
+        Assert.All(periods, d =>
         {
             if (d.Durum == InvoicePeriodStatus.Kesildi) Assert.NotNull(d.InvoiceId);
             else Assert.Null(d.InvoiceId);
         });
-        Assert.Equal(InvoicePeriodStatus.Kesildi, donemler[0].Durum);
-        Assert.Equal(InvoicePeriodStatus.Kesildi, donemler[1].Durum);
-        var (faturalanan, _) = await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(kira);
-        Assert.Equal(donemler.Where(d => d.Durum == InvoicePeriodStatus.Kesildi).Sum(d => d.KesilenTutar ?? 0m), faturalanan);
+        Assert.Equal(InvoicePeriodStatus.Kesildi, periods[0].Durum);
+        Assert.Equal(InvoicePeriodStatus.Kesildi, periods[1].Durum);
+        var (invoiced, _) = await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(rental);
+        Assert.Equal(periods.Where(d => d.Durum == InvoicePeriodStatus.Kesildi).Sum(d => d.KesilenTutar ?? 0m), invoiced);
     }
 
     [Fact]
@@ -116,14 +116,14 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         // Tenant ayarı KAPALI → job hiç kesmez (kira bayraklı olsa bile).
-        await JobluKiraAsync(sp, "34 JB 02");
+        await RentalWithJobAsync(sp, "34 JB 02");
         Assert.Equal(0, (await KosAsync(sp, tenant)).Kesilen);
 
         // Ayar açık ama kira bayrağı KAPALI → o kira atlanır.
         await sp.GetRequiredService<ITenantSettingsRepository>().UpsertAsync(s => s.DonemselFaturalamaJob = true);
-        await JobluKiraAsync(sp, "34 JB 03", jobBayragi: false);
-        var sonuc = await KosAsync(sp, tenant);
-        Assert.Equal(2, sonuc.Kesilen); // yalnız bayraklı (JB 02) kirasının 2 geçmiş dönemi
+        await RentalWithJobAsync(sp, "34 JB 03", jobFlag: false);
+        var result = await KosAsync(sp, tenant);
+        Assert.Equal(2, result.Kesilen); // yalnız bayraklı (JB 02) kirasının 2 geçmiş dönemi
     }
 
     [Fact]
@@ -135,28 +135,28 @@ public sealed class DonemFaturaJobTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<ITenantSettingsRepository>()
             .UpsertAsync(s => { s.DonemselFaturalamaJob = true; s.DonemselOtomatikTahsilat = true; });
-        var (kira, cari) = await JobluKiraAsync(sp, "34 JB 04");
+        var (rental, account) = await RentalWithJobAsync(sp, "34 JB 04");
 
         var s1 = await KosAsync(sp, tenant);
         Assert.Equal(2, s1.Kesilen);
         Assert.Equal(2, s1.Tahsilat);
 
         // Cari bakiye 0 (fatura borç == tahsilat alacak); kira Tahsilat alanı işledi.
-        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
-        var (faturalanan, _) = await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(kira);
-        Assert.Equal(faturalanan, (await sp.GetRequiredService<RentalService>().GetAsync(kira))!.Tahsilat);
+        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(account));
+        var (invoiced, _) = await sp.GetRequiredService<IInvoiceRepository>().GetDifferenceStateAsync(rental);
+        Assert.Equal(invoiced, (await sp.GetRequiredService<RentalService>().GetAsync(rental))!.Tahsilat);
 
         // İkinci koşu: kesim yok + tahsilat çift yazılmaz (deterministik anahtar).
         var s2 = await KosAsync(sp, tenant);
         Assert.Equal(0, s2.Kesilen);
-        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(account));
 
         // KİLİTLİ muhasebe dönemi: yeni tenant, kilit bugünü kapsar → tenant atlanır (log), kesim yok.
         var tenant2 = Guid.NewGuid();
         using var scope2 = host.ScopeFor(tenant2);
         var sp2 = scope2.ServiceProvider;
         await sp2.GetRequiredService<ITenantSettingsRepository>().UpsertAsync(s => s.DonemselFaturalamaJob = true);
-        await JobluKiraAsync(sp2, "34 JB 05");
+        await RentalWithJobAsync(sp2, "34 JB 05");
         await sp2.GetRequiredService<RentACar.Application.Periods.PeriodLockService>()
             .LockAsync(DateTimeOffset.UtcNow.AddDays(1));
         var s3 = await KosAsync(sp2, tenant2);

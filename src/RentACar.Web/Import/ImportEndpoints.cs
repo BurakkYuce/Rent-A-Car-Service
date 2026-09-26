@@ -36,51 +36,51 @@ public static class ImportEndpoints
         {
             if (dosya is null || dosya.Length == 0) return Results.Redirect("/ice-aktar?tur=arac&mesaj=Dosya%20se%C3%A7ilmedi");
             if (ParseFile(dosya, out var rows) is { } err) return Results.Redirect($"/ice-aktar?tur=arac&mesaj={Uri.EscapeDataString(err)}");
-            var r = await imp.ImportAraclarAsync(rows, ct);
-            return Sonuc.Tamam($"/ice-aktar?tur=arac&eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}", "Araçlar içe aktarıldı.");
+            var r = await imp.ImportVehiclesAsync(rows, ct);
+            return Result.Ok($"/ice-aktar?tur=arac&eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}", "Araçlar içe aktarıldı.");
         });
 
         grp.MapPost("/cari", async (IFormFile? dosya, ImportService imp, CancellationToken ct) =>
         {
             if (dosya is null || dosya.Length == 0) return Results.Redirect("/ice-aktar?tur=cari&mesaj=Dosya%20se%C3%A7ilmedi");
             if (ParseFile(dosya, out var rows) is { } err) return Results.Redirect($"/ice-aktar?tur=cari&mesaj={Uri.EscapeDataString(err)}");
-            var r = await imp.ImportCarilerAsync(rows, ct);
-            return Sonuc.Tamam($"/ice-aktar?tur=cari&eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}", "Cariler içe aktarıldı.");
+            var r = await imp.ImportCustomersAsync(rows, ct);
+            return Result.Ok($"/ice-aktar?tur=cari&eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}", "Cariler içe aktarıldı.");
         });
 
         // FAZ 6.1 — toplu tarife aktarımı (xml_fiyat_aktar karşılığı). Aynı gate (Admin/ManageUsers):
         // toplu fiyat yazımı yapılandırma-hassas; satırlar Beklemede girer (onay akışı ImportService'te çitli).
-        var tarife = app.MapGroup("/tarife-aktar").RequirePermission(Permission.ManageUsers).AntiforgeryByEnv();
+        var tariff = app.MapGroup("/tarife-aktar").RequirePermission(Permission.ManageUsers).AntiforgeryByEnv();
 
-        tarife.MapPost("/yukle", async (IFormFile? dosya, ImportService imp, CancellationToken ct) =>
+        tariff.MapPost("/yukle", async (IFormFile? dosya, ImportService imp, CancellationToken ct) =>
         {
             if (dosya is null || dosya.Length == 0) return Results.Redirect("/tarife-aktar?mesaj=Dosya%20se%C3%A7ilmedi");
             if (ParseFile(dosya, out var rows) is { } err) return Results.Redirect($"/tarife-aktar?mesaj={Uri.EscapeDataString(err)}");
-            var r = await imp.ImportTarifelerAsync(rows, ct);
-            var hatalar = r.Hatalar.Count == 0
+            var r = await imp.ImportTariffsAsync(rows, ct);
+            var errors = r.Hatalar.Count == 0
                 ? ""
                 : "&hatalar=" + Uri.EscapeDataString(string.Join("|", r.Hatalar.Take(5)));
-            return Sonuc.Tamam($"/tarife-aktar?eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}{hatalar}", "Dosya yüklendi.");
+            return Result.Ok($"/tarife-aktar?eklenen={r.Eklenen}&atlanan={r.Atlanan}&hatali={r.Hatali}{errors}", "Dosya yüklendi.");
         });
 
         // FAZ-31 — bir rezervasyon kaynağının BEKLEYEN tarife satırlarını toplu sil. Onaylı
         // tarifeler servis çitiyle korunuyor (fiyat motoru yalnız onaylıyı kullanır) — uç bu
         // kararı gevşetemesin diye durum parametresi DIŞARIDAN alınmaz, sabit gönderilir.
-        tarife.MapPost("/kanal-sil", async (RateMatrixService svc, HttpRequest req) =>
+        tariff.MapPost("/kanal-sil", async (RateMatrixService svc, HttpRequest req) =>
         {
             // Form olmayan bir POST'ta req.Form InvalidOperationException atar → 500 (adversarial L1).
             if (!req.HasFormContentType) return Results.BadRequest();
 
-            var kanal = FormParse.Str(req.Form, "kanal");
-            var geri = $"/tarife-aktar?kanal={Uri.EscapeDataString(kanal ?? "")}";
+            var channel = FormParse.Str(req.Form, "kanal");
+            var back = $"/tarife-aktar?kanal={Uri.EscapeDataString(channel ?? "")}";
             try
             {
-                var n = await svc.DeleteByChannelAsync(kanal, TariffApprovalStatus.Bekliyor);
-                return Results.Redirect($"{geri}&mesaj={Uri.EscapeDataString($"{n} bekleyen tarife satırı silindi.")}");
+                var n = await svc.DeleteByChannelAsync(channel, TariffApprovalStatus.Bekliyor);
+                return Results.Redirect($"{back}&mesaj={Uri.EscapeDataString($"{n} bekleyen tarife satırı silindi.")}");
             }
             catch (ValidationException ex)
             {
-                return Results.Redirect($"{geri}&mesaj={Uri.EscapeDataString(ex.Message)}");
+                return Results.Redirect($"{back}&mesaj={Uri.EscapeDataString(ex.Message)}");
             }
         });
 

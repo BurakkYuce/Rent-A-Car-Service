@@ -22,9 +22,9 @@ public sealed partial class PlatformUiApiTests
     [Fact]
     public async Task Wrong_password_is_a_form_error_and_sets_no_session()
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var r = await Send(c, await XsrfAsync(c), HttpMethod.Post, P + "/oturum/giris",
-            new { kullanici = fx.Platform.Kullanici, sifre = WebFixture.RastgeleParola() });
+            new { kullanici = fx.Platform.Kullanici, sifre = WebFixture.RandomPassword() });
         await ExpectProblem(r, HttpStatusCode.BadRequest, "dogrulama");
         Assert.Null(CookieValue(r, "racar.session"));
 
@@ -37,7 +37,7 @@ public sealed partial class PlatformUiApiTests
     [Fact]
     public async Task Unsafe_requests_need_the_xsrf_header_and_a_post_login_token()
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var before = await XsrfAsync(c);
         // Login itself needs the header.
         await ExpectProblem(await Send(c, null, HttpMethod.Post, P + "/oturum/giris",
@@ -46,7 +46,7 @@ public sealed partial class PlatformUiApiTests
         var ok = await Send(c, before, HttpMethod.Post, P + "/oturum/giris",
             new { kullanici = fx.Platform.Kullanici, sifre = fx.Platform.Sifre });
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
-        var id = fx.PilotFirmaId;
+        var id = fx.PilotCompanyId;
 
         await ExpectProblem(await Send(c, null, HttpMethod.Post, P + $"/kiracilar/{id}/yeni-arayuz-pilot", new { aktif = true }),
             HttpStatusCode.BadRequest, "xsrf_gecersiz");

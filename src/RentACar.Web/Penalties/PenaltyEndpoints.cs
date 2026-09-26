@@ -31,17 +31,17 @@ public static class PenaltyEndpoints
         {
             // Kalemler: 1. satır ana tutar/sebep, 2-5 ek kalemler (canlı Ceza_Tutari1-3 paritesi
             // ve fazlası). Boş tutarlı satır ATLANIR — kullanıcı 5 kutuyu doldurmak zorunda değil.
-            var satirlar = new List<PenaltySatirInput>();
-            void Ekle(string? t, string? s)
+            var rows = new List<PenaltySatirInput>();
+            void Add(string? t, string? s)
             {
                 var d = FormParse.Dec(t);
-                if (d is decimal v && v != 0m) satirlar.Add(new PenaltySatirInput { Tutar = v, Sebep = s });
+                if (d is decimal v && v != 0m) rows.Add(new PenaltySatirInput { Tutar = v, Sebep = s });
             }
-            Ekle(tutar, sebep);
-            Ekle(satirTutar2, satirSebep2);
-            Ekle(satirTutar3, satirSebep3);
-            Ekle(satirTutar4, satirSebep4);
-            Ekle(satirTutar5, satirSebep5);
+            Add(tutar, sebep);
+            Add(satirTutar2, satirSebep2);
+            Add(satirTutar3, satirSebep3);
+            Add(satirTutar4, satirSebep4);
+            Add(satirTutar5, satirSebep5);
 
             var input = new PenaltyInput
             {
@@ -52,14 +52,14 @@ public static class PenaltyEndpoints
                 CariId = FormParse.Id(cariId),
                 RentalId = FormParse.Id(rentalId),
                 Tutar = FormParse.Dec(tutar) ?? 0m,
-                Sebep = satirlar.Count > 1 ? null : sebep,   // çok kalemliyse başlık özeti servis üretir
-                Satirlar = satirlar,
+                Sebep = rows.Count > 1 ? null : sebep,   // çok kalemliyse başlık özeti servis üretir
+                Satirlar = rows,
                 Saat = saat, Yer = yer, CepTel = cepTel, MakbuzNo = makbuzNo, IslemSube = islemSube
             };
             try
             {
                 await svc.CreateAsync(input);
-                return Sonuc.Tamam("/cezalar", "Ceza kaydedildi.");
+                return Result.Ok("/cezalar", "Ceza kaydedildi.");
             }
             catch (ValidationException ex)
             {
@@ -72,7 +72,7 @@ public static class PenaltyEndpoints
         // Tamamını öde (eski davranış) — artık defter yazdığı için FinanceWrite.
         fin.MapPost("/ode", async (PenaltyService svc, [FromForm] Guid id, [FromForm] string? hesap,
             [FromForm] string? tarih, [FromForm] string? makbuzNo, [FromForm] string? islemYapan) =>
-            await Act(() => svc.PayAsync(id, HesapCoz(hesap), FormParse.Date(tarih), makbuzNo, islemYapan)));
+            await Act(() => svc.PayAsync(id, ResolveAccount(hesap), FormParse.Date(tarih), makbuzNo, islemYapan)));
 
         // FAZ-60 — KALEM bazlı kısmi ödeme.
         fin.MapPost("/kismi-ode", async (PenaltyService svc,
@@ -87,13 +87,13 @@ public static class PenaltyEndpoints
                 {
                     SatirId = satirId,
                     Tutar = FormParse.Dec(tutar),
-                    Hesap = HesapCoz(hesap),
+                    Hesap = ResolveAccount(hesap),
                     Tarih = FormParse.Date(tarih),
                     MakbuzNo = makbuzNo, IslemYapan = islemYapan,
                     KasaKodu = kasaKodu, HesapNo = hesapNo, Aciklama = aciklama,
                     IslemAnahtari = FormParse.Id(islemAnahtari)
                 });
-                return Sonuc.Tamam("/cezalar", "Ceza tahsilatı kaydedildi.");
+                return Result.Ok("/cezalar", "Ceza tahsilatı kaydedildi.");
             }
             catch (ValidationException ex)
             {
@@ -107,17 +107,17 @@ public static class PenaltyEndpoints
     }
 
     /// <summary>Yalnız Kasa/Banka; tanınmayan değer Kasa'ya düşmez, servis reddeder.</summary>
-    private static LedgerAccountType HesapCoz(string? s)
+    private static LedgerAccountType ResolveAccount(string? s)
         => string.Equals(s, "Banka", StringComparison.OrdinalIgnoreCase)
             ? LedgerAccountType.Banka
             : LedgerAccountType.Kasa;
 
-    private static async Task<IResult> Act(Func<Task<bool>> action, string mesaj = "İşlem tamamlandı.")
+    private static async Task<IResult> Act(Func<Task<bool>> action, string message = "İşlem tamamlandı.")
     {
         try
         {
             await action();
-            return Sonuc.Tamam("/cezalar", mesaj);
+            return Result.Ok("/cezalar", message);
         }
         catch (ValidationException ex)
         {

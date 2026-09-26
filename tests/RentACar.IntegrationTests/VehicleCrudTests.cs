@@ -67,16 +67,16 @@ public sealed class VehicleCrudTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
-        const string plaka = "34SHARED9";
+        const string plate = "34SHARED9";
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<VehicleService>()
-                .CreateAsync(new VehicleInput { Plaka = plaka });
+                .CreateAsync(new VehicleInput { Plaka = plate });
 
         using (var s2 = host.ScopeFor(t2))
         {
             var id = await s2.ServiceProvider.GetRequiredService<VehicleService>()
-                .CreateAsync(new VehicleInput { Plaka = plaka });
+                .CreateAsync(new VehicleInput { Plaka = plate });
             Assert.NotEqual(Guid.Empty, id);
         }
     }

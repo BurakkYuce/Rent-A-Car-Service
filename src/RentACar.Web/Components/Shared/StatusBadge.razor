@@ -2,7 +2,7 @@
 
 @* Araç durumu rozeti — TEK merkezî durum→renk eşlemesi (her ekranda aynı). Radzen'den arındırıldı:
    saf CSS .status-pill (renkli nokta + METİN → a11y: yalnız renge dayanmaz). Statik SSR uyumlu. *@
-<span class="status-pill @Cls(Durum)">@Metin(Durum)</span>
+<span class="status-pill @Cls(Durum)">@Text(Durum)</span>
 
 @code {
     [Parameter, EditorRequired] public VehicleStatus Durum { get; set; }
@@ -17,5 +17,5 @@
         _ => "sp-muted"                          // pasif vd.
     };
 
-    private static string Metin(VehicleStatus s) => s.ToString();
+    private static string Text(VehicleStatus s) => s.ToString();
 }

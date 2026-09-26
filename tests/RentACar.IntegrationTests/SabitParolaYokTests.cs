@@ -25,10 +25,10 @@ namespace RentACar.IntegrationTests;
 public sealed class SabitParolaYokTests
 {
     private const string Tuz = "racar/sabit-parola-citi/v1";
-    private const int Tur = 100_000;
+    private const int Kind = 100_000;
 
     /// <summary>(aday biçimi, PBKDF2 özeti): eski seed parolası ve eski platform dev parolası.</summary>
-    private static readonly (Regex Aday, string Ozet)[] Yasaklar =
+    private static readonly (Regex Aday, string Ozet)[] Bans =
     [
         (new Regex("(?=([a-z]{4}[0-9]{4}))", RegexOptions.CultureInvariant),
             "b61e09888938f460dbc6afff9b5ad860ca71a8d4f945649d1f306fd70f83ed74"),
@@ -36,7 +36,7 @@ public sealed class SabitParolaYokTests
             "345593b398d60171a3484d43026549b1325b6081a1d32a13a1392c3099ca1c42"),
     ];
 
-    private static readonly HashSet<string> IkiliUzantilar = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".pdf", ".woff", ".woff2", ".ttf", ".otf",
         ".eot", ".zip", ".gz", ".tgz", ".xlsx", ".xls", ".docx", ".dll", ".exe", ".pdb", ".bundle", ".mp4",
@@ -46,15 +46,15 @@ public sealed class SabitParolaYokTests
     [Fact]
     public void Repoda_eski_sabit_seed_ve_platform_parolalari_yok()
     {
-        var kok = RepoKok();
-        var dosyalar = RepoDosyalari(kok).ToList();
-        Assert.True(dosyalar.Count > 500, $"tarama kapsamı şüpheli dar: {dosyalar.Count} dosya");
+        var root = RepoRoot();
+        var files = RepoFiles(root).ToList();
+        Assert.True(files.Count > 500, $"tarama kapsamı şüpheli dar: {files.Count} dosya");
 
-        var bulgular = Tara(dosyalar.Select(d => (Path.GetRelativePath(kok, d), (Func<string>)(() => File.ReadAllText(d)))), Yasaklar);
+        var findings = Scan(files.Select(d => (Path.GetRelativePath(root, d), (Func<string>)(() => File.ReadAllText(d)))), Bans);
 
-        Assert.True(bulgular.Count == 0,
+        Assert.True(findings.Count == 0,
             "Eski sabit parola repoya geri girmiş — yapılandırmadan (Seed:Parola / Platform:AdminPasswordHash) "
-            + "ya da ortam değişkeninden okuyun:\n" + string.Join("\n", bulgular));
+            + "ya da ortam değişkeninden okuyun:\n" + string.Join("\n", findings));
     }
 
     /// <summary>Çitin kendisi çalışıyor mu: sentetik bir yasakla (gerçek parolayı yazmadan) mekanizmayı dener —
@@ -62,66 +62,66 @@ public sealed class SabitParolaYokTests
     [Fact]
     public void Cit_ozeti_tutan_diziyi_buyuk_kucuk_harf_ve_sozcuk_icinde_de_yakalar()
     {
-        (Regex, string)[] sentetik = [(new Regex("(?=([a-z]{4}[0-9]{4}))"), Ozet("qxzw9071"))];
+        (Regex, string)[] synthetic = [(new Regex("(?=([a-z]{4}[0-9]{4}))"), Summary("qxzw9071"))];
 
-        var bulgular = Tara(
+        var findings = Scan(
         [
             ("temiz.md", () => "qxzw907 qxz9071 qxzw 9071 wxzq9071"),
             ("gomulu.cs", () => "var s = \"abcQXZW90712\";"),
             ("yalin.sh", () => "sifre=qxzw9071"),
-        ], sentetik);
+        ], synthetic);
 
-        Assert.Equal(new[] { "gomulu.cs", "yalin.sh" }, bulgular.Select(b => b.Split(':')[0]).Order().ToList());
+        Assert.Equal(new[] { "gomulu.cs", "yalin.sh" }, findings.Select(b => b.Split(':')[0]).Order().ToList());
     }
 
-    private static List<string> Tara(IEnumerable<(string Ad, Func<string> Oku)> dosyalar, (Regex Aday, string Ozet)[] yasaklar)
+    private static List<string> Scan(IEnumerable<(string Ad, Func<string> Oku)> files, (Regex Aday, string Ozet)[] bans)
     {
         // aday dizgi → geçtiği dosyalar (yasak başına). Özet pahalı → her farklı aday bir kez özetlenir.
-        var adaylar = yasaklar.Select(_ => new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)).ToArray();
-        foreach (var (ad, oku) in dosyalar)
+        var candidates = bans.Select(_ => new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)).ToArray();
+        foreach (var (name, read) in files)
         {
-            var metin = oku().ToLowerInvariant();
-            for (var i = 0; i < yasaklar.Length; i++)
-                foreach (Match m in yasaklar[i].Aday.Matches(metin))
+            var text = read().ToLowerInvariant();
+            for (var i = 0; i < bans.Length; i++)
+                foreach (Match m in bans[i].Aday.Matches(text))
                 {
-                    var aday = m.Groups[1].Value;
-                    if (!adaylar[i].TryGetValue(aday, out var yerler)) adaylar[i][aday] = yerler = [];
-                    yerler.Add(ad);
+                    var candidate = m.Groups[1].Value;
+                    if (!candidates[i].TryGetValue(candidate, out var places)) candidates[i][candidate] = places = [];
+                    places.Add(name);
                 }
         }
 
-        return adaylar
+        return candidates
             .SelectMany((d, i) => d.Select(kv => (i, kv.Key, kv.Value)))
             .AsParallel()
             .Where(x => CryptographicOperations.FixedTimeEquals(
-                Convert.FromHexString(Ozet(x.Key)), Convert.FromHexString(yasaklar[x.i].Ozet)))
-            .SelectMany(x => x.Value.Select(dosya => $"{dosya}: yasaklı parola #{x.i + 1}"))
+                Convert.FromHexString(Summary(x.Key)), Convert.FromHexString(bans[x.i].Ozet)))
+            .SelectMany(x => x.Value.Select(file => $"{file}: yasaklı parola #{x.i + 1}"))
             .Order(StringComparer.Ordinal)
             .ToList();
     }
 
-    private static string Ozet(string aday) => Convert.ToHexStringLower(Rfc2898DeriveBytes.Pbkdf2(
-        Encoding.UTF8.GetBytes(aday), Encoding.UTF8.GetBytes(Tuz), Tur, HashAlgorithmName.SHA256, 32));
+    private static string Summary(string candidate) => Convert.ToHexStringLower(Rfc2898DeriveBytes.Pbkdf2(
+        Encoding.UTF8.GetBytes(candidate), Encoding.UTF8.GetBytes(Tuz), Kind, HashAlgorithmName.SHA256, 32));
 
-    private static IEnumerable<string> RepoDosyalari(string kok)
+    private static IEnumerable<string> RepoFiles(string root)
     {
         var psi = new ProcessStartInfo("git", "ls-files -z --cached --others --exclude-standard")
         {
-            WorkingDirectory = kok, RedirectStandardOutput = true, UseShellExecute = false,
+            WorkingDirectory = root, RedirectStandardOutput = true, UseShellExecute = false,
         };
         using var p = Process.Start(psi)!;
-        var cikti = p.StandardOutput.ReadToEnd();
+        var output = p.StandardOutput.ReadToEnd();
         p.WaitForExit();
         Assert.True(p.ExitCode == 0, $"git ls-files başarısız (çıkış {p.ExitCode})");
 
-        return cikti.Split('\0', StringSplitOptions.RemoveEmptyEntries)
-            .Select(r => Path.Combine(kok, r))
-            .Where(d => !IkiliUzantilar.Contains(Path.GetExtension(d)))
+        return output.Split('\0', StringSplitOptions.RemoveEmptyEntries)
+            .Select(r => Path.Combine(root, r))
+            .Where(d => !BinaryExtensions.Contains(Path.GetExtension(d)))
             .Where(File.Exists) // index'te olup diskte silinmiş dosya
             .ToList();
     }
 
-    private static string RepoKok()
+    private static string RepoRoot()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;

@@ -28,25 +28,25 @@ namespace RentACar.IntegrationTests;
 public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
 {
     // Belge tarihi: CI-vs-lokal tick farkı yüzünden tam SANİYEYE hizalı ve geçmişte.
-    private static DateTimeOffset Gun()
+    private static DateTimeOffset Day()
     {
         var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(-30), DateTimeKind.Utc), TimeSpan.Zero);
         return t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
     }
 
-    private static GelenEFaturaInput Fatura(string ettn, decimal net, decimal kdv, string doviz = "TRY") => new()
+    private static GelenEFaturaInput MakeInvoice(string ettn, decimal net, decimal vat, string currency = "TRY") => new()
     {
         Ettn = ettn,
         GonderenVkn = "1234567890",
         GonderenUnvan = "Tedarikçi A.Ş.",
-        Tarih = Gun(),
+        Tarih = Day(),
         NetTutar = net,
-        KdvTutar = kdv,
-        GenelToplam = net + kdv,
-        Currency = doviz
+        KdvTutar = vat,
+        GenelToplam = net + vat,
+        Currency = currency
     };
 
-    private static async Task<List<AccountLedgerEntry>> Defter(IServiceScope scope)
+    private static async Task<List<AccountLedgerEntry>> Ledger(IServiceScope scope)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -63,7 +63,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         // Senaryo (elle): %20 matrah 1000 → KDV 200. Belge: net 1000, KDV 200, genel 1200.
-        var id = await svc.CreateManualAsync(Fatura("KIR-1", 1000m, 200m));
+        var id = await svc.CreateManualAsync(MakeInvoice("KIR-1", 1000m, 200m));
         Assert.True(await svc.LinkAsync(new GelenEFaturaBaglamaInput
         {
             Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m
@@ -83,7 +83,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         // Belge net 1000 ama kırılımda yalnız 500 matrah girilmiş → Σ matrah ≠ NetTutar.
-        var id = await svc.CreateManualAsync(Fatura("KIR-2", 1000m, 200m));
+        var id = await svc.CreateManualAsync(MakeInvoice("KIR-2", 1000m, 200m));
         await Assert.ThrowsAsync<ValidationException>(() => svc.LinkAsync(new GelenEFaturaBaglamaInput
         {
             Id = id, Kdv20Matrah = 500m, Kdv20 = 100m
@@ -103,7 +103,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         // Belge net 1000 / KDV 199: matrah toplamı tutuyor ama %20 için KDV 200 olmalıydı → red.
-        var id = await svc.CreateManualAsync(Fatura("KIR-3", 1000m, 199m));
+        var id = await svc.CreateManualAsync(MakeInvoice("KIR-3", 1000m, 199m));
         await Assert.ThrowsAsync<ValidationException>(() => svc.LinkAsync(new GelenEFaturaBaglamaInput
         {
             Id = id, Kdv20Matrah = 1000m, Kdv20 = 199m
@@ -137,7 +137,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var tedarikci = Guid.NewGuid();
+        var supplier = Guid.NewGuid();
 
         // ELLE KURULAN SENARYO (oracle):
         //   %20 → matrah 1000,00, KDV  200,00
@@ -145,7 +145,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         //   %1  → matrah  300,00, KDV    3,00
         //   %0  → matrah  200,00, KDV    0,00
         //   Σ net = 2000,00 · Σ KDV = 253,00 · genel = 2253,00
-        var id = await svc.CreateManualAsync(Fatura("COK-1", 2000m, 253m));
+        var id = await svc.CreateManualAsync(MakeInvoice("COK-1", 2000m, 253m));
         await svc.LinkAsync(new GelenEFaturaBaglamaInput
         {
             Id = id,
@@ -153,43 +153,43 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
             Kdv10Matrah = 500m, Kdv10 = 50m,
             Kdv1Matrah = 300m, Kdv1 = 3m,
             Kdv0Matrah = 200m,
-            CariId = tedarikci
+            CariId = supplier
         });
         Assert.True(await svc.ApproveAsync(id));
 
-        var satirSayisi = await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput
+        var rowCount = await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput
         {
-            Id = id, OdemeYontemi = PaymentMethod.AcikHesap, CariId = tedarikci
+            Id = id, OdemeYontemi = PaymentMethod.AcikHesap, CariId = supplier
         });
-        Assert.Equal(4, satirSayisi); // 4 oran kademesi = 4 gider satırı
+        Assert.Equal(4, rowCount); // 4 oran kademesi = 4 gider satırı
 
-        var giderler = await expenses.ListAsync();
-        Assert.Equal(4, giderler.Count);
-        Assert.Equal(2000m, giderler.Sum(g => g.NetTutar));      // Σ matrah == belge neti
-        Assert.Equal(253m, giderler.Sum(g => g.KdvTutar));       // Σ KDV == belge KDV'si
-        Assert.Equal(2253m, giderler.Sum(g => g.GenelToplam));   // Σ brüt == belge genel toplamı
+        var expenseList = await expenses.ListAsync();
+        Assert.Equal(4, expenseList.Count);
+        Assert.Equal(2000m, expenseList.Sum(g => g.NetTutar));      // Σ matrah == belge neti
+        Assert.Equal(253m, expenseList.Sum(g => g.KdvTutar));       // Σ KDV == belge KDV'si
+        Assert.Equal(2253m, expenseList.Sum(g => g.GenelToplam));   // Σ brüt == belge genel toplamı
 
         // Defter: her satır için Borç Gider + Borç KDV (KDV>0 ise) + Alacak Cari.
-        var defter = await Defter(scope);
-        var borc = defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
-        var alacak = defter.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
-        Assert.Equal(2253m, borc);
-        Assert.Equal(2253m, alacak);
-        Assert.Equal(borc, alacak); // DENGELİ
+        var ledger = await Ledger(scope);
+        var debit = ledger.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var credit = ledger.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        Assert.Equal(2253m, debit);
+        Assert.Equal(2253m, credit);
+        Assert.Equal(debit, credit); // DENGELİ
 
         // İNDİRİLECEK KDV = BORÇ tarafında ve 253,00 (yön hatası çiti).
-        var kdvBorc = defter.Where(e => e.AccountType == LedgerAccountType.Kdv && e.Direction == LedgerDirection.Debit)
+        var vatDebit = ledger.Where(e => e.AccountType == LedgerAccountType.Kdv && e.Direction == LedgerDirection.Debit)
             .Sum(e => e.Amount.AmountInBase);
-        var kdvAlacak = defter.Where(e => e.AccountType == LedgerAccountType.Kdv && e.Direction == LedgerDirection.Credit)
+        var vatCredit = ledger.Where(e => e.AccountType == LedgerAccountType.Kdv && e.Direction == LedgerDirection.Credit)
             .Sum(e => e.Amount.AmountInBase);
-        Assert.Equal(253m, kdvBorc);
-        Assert.Equal(0m, kdvAlacak);
-        Assert.Equal(3, defter.Count(e => e.AccountType == LedgerAccountType.Kdv)); // %0 satırı KDV yazmaz
+        Assert.Equal(253m, vatDebit);
+        Assert.Equal(0m, vatCredit);
+        Assert.Equal(3, ledger.Count(e => e.AccountType == LedgerAccountType.Kdv)); // %0 satırı KDV yazmaz
 
         // Gider hesabı 2000 borçlanır; tedarikçiye 2253 borçlanılır (bakiye negatif).
-        Assert.Equal(2000m, defter.Where(e => e.AccountType == LedgerAccountType.Gider
+        Assert.Equal(2000m, ledger.Where(e => e.AccountType == LedgerAccountType.Gider
             && e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
-        Assert.Equal(-2253m, await cash.GetAccountBalanceAsync(tedarikci));
+        Assert.Equal(-2253m, await cash.GetAccountBalanceAsync(supplier));
 
         // Belge damgalandı.
         var r = await svc.GetAsync(id);
@@ -207,7 +207,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
         // net 500 / KDV 50 → tek oran %10 (elle: 500 × 0,10 = 50).
-        var id = await svc.CreateManualAsync(Fatura("TEK-1", 500m, 50m));
+        var id = await svc.CreateManualAsync(MakeInvoice("TEK-1", 500m, 50m));
         await svc.ApproveAsync(id);
         Assert.Equal(1, await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit }));
 
@@ -226,7 +226,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
         // net 1000 / KDV 123 hiçbir standart orana (20/10/1/0) uymuyor → TAHMİN ETME, reddet.
-        var id = await svc.CreateManualAsync(Fatura("COZ-1", 1000m, 123m));
+        var id = await svc.CreateManualAsync(MakeInvoice("COZ-1", 1000m, 123m));
         await svc.ApproveAsync(id);
         await Assert.ThrowsAsync<ValidationException>(() =>
             svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit }));
@@ -243,7 +243,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
-        var id = await svc.CreateManualAsync(Fatura("IDEM-1", 1000m, 200m));
+        var id = await svc.CreateManualAsync(MakeInvoice("IDEM-1", 1000m, 200m));
         await svc.ApproveAsync(id);
         await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit });
 
@@ -252,8 +252,8 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
             svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit }));
 
         Assert.Single(await expenses.ListAsync());
-        var defter = await Defter(scope);
-        Assert.Equal(1200m, defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
+        var ledger = await Ledger(scope);
+        Assert.Equal(1200m, ledger.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
     }
 
     [Fact]
@@ -268,7 +268,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
-        var id = await svc.CreateManualAsync(Fatura("IDEM-2", 1000m, 200m));
+        var id = await svc.CreateManualAsync(MakeInvoice("IDEM-2", 1000m, 200m));
         await svc.ApproveAsync(id);
         await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit });
 
@@ -286,8 +286,8 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
             svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit }));
 
         Assert.Single(await expenses.ListAsync()); // hâlâ TEK gider
-        var defter = await Defter(scope);
-        Assert.Equal(1200m, defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
+        var ledger = await Ledger(scope);
+        Assert.Equal(1200m, ledger.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
     }
 
     [Fact]
@@ -301,21 +301,21 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
-        var id = await svc.CreateManualAsync(Fatura("TOCTOU-1", 1000m, 200m));
+        var id = await svc.CreateManualAsync(MakeInvoice("TOCTOU-1", 1000m, 200m));
         await svc.ApproveAsync(id);
 
         var t1 = svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit });
         var t2 = svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit });
-        var sonuclar = await Task.WhenAll(
-            Sonuc(t1), Sonuc(t2));
-        Assert.Equal(1, sonuclar.Count(s => s)); // tam olarak biri başarılı
+        var results = await Task.WhenAll(
+            Result(t1), Result(t2));
+        Assert.Equal(1, results.Count(s => s)); // tam olarak biri başarılı
 
         Assert.Single(await expenses.ListAsync());
-        var defter = await Defter(scope);
-        Assert.Equal(1200m, defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
-        Assert.Equal(1200m, defter.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase));
+        var ledger = await Ledger(scope);
+        Assert.Equal(1200m, ledger.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase));
+        Assert.Equal(1200m, ledger.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase));
 
-        static async Task<bool> Sonuc(Task<int> t)
+        static async Task<bool> Result(Task<int> t)
         {
             try { await t; return true; }
             catch (ValidationException) { return false; }
@@ -340,12 +340,12 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         Assert.Equal(0m, once.KdvIndirilecek);
 
         // UÇUK tutarlı bir gelen fatura: giderleştirilmediği sürece raporlar DEĞİŞMEMELİ.
-        await svc.CreateManualAsync(Fatura("SIZ-1", 999_999m, 199_999.80m));
+        await svc.CreateManualAsync(MakeInvoice("SIZ-1", 999_999m, 199_999.80m));
 
-        var sonra = await reports.GetRevenueExpenseAsync();
-        Assert.Equal(0m, sonra.GiderToplam);
-        Assert.Equal(0m, sonra.KdvIndirilecek);
-        Assert.Equal(once.NetKar, sonra.NetKar);
+        var after = await reports.GetRevenueExpenseAsync();
+        Assert.Equal(0m, after.GiderToplam);
+        Assert.Equal(0m, after.KdvIndirilecek);
+        Assert.Equal(once.NetKar, after.NetKar);
     }
 
     [Fact]
@@ -359,7 +359,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         // ELLE: %20 → 1000/200, %10 → 500/50. Σ net 1500, Σ KDV 250, genel 1750.
-        var id = await svc.CreateManualAsync(Fatura("SIZ-2", 1500m, 250m));
+        var id = await svc.CreateManualAsync(MakeInvoice("SIZ-2", 1500m, 250m));
         await svc.LinkAsync(new GelenEFaturaBaglamaInput
         {
             Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m, Kdv10Matrah = 500m, Kdv10 = 50m
@@ -396,23 +396,23 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
             seed.KurKayitlari.Add(new KurKaydi
             {
                 Kod = "EUR", Ad = "EUR", Birim = 1,
-                Tarih = Gun().AddDays(-1),
+                Tarih = Day().AddDays(-1),
                 ForexSatis = 40m, ForexAlis = 40m, EfektifSatis = 40m, EfektifAlis = 40m
             });
             await seed.SaveChangesAsync();
         }
 
-        var id = await svc.CreateManualAsync(Fatura("DVZ-1", 100m, 20m, "EUR"));
+        var id = await svc.CreateManualAsync(MakeInvoice("DVZ-1", 100m, 20m, "EUR"));
         await svc.ApproveAsync(id);
         await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit });
 
-        var defter = await Defter(scope);
-        Assert.All(defter, e => Assert.Equal("EUR", e.Amount.Currency));
-        Assert.All(defter, e => Assert.Equal(40m, e.Amount.Rate));
-        var borc = defter.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
-        var alacak = defter.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
-        Assert.Equal(4800m, borc);   // 120 EUR × 40 (elle: 100×40 gider + 20×40 KDV)
-        Assert.Equal(4800m, alacak); // 120 EUR × 40 kasa
+        var ledger = await Ledger(scope);
+        Assert.All(ledger, e => Assert.Equal("EUR", e.Amount.Currency));
+        Assert.All(ledger, e => Assert.Equal(40m, e.Amount.Rate));
+        var debit = ledger.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var credit = ledger.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        Assert.Equal(4800m, debit);   // 120 EUR × 40 (elle: 100×40 gider + 20×40 KDV)
+        Assert.Equal(4800m, credit); // 120 EUR × 40 kasa
     }
 
     // ---------------------------------------------------------------- kapılar, kilit, yetki, izolasyon
@@ -425,21 +425,21 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
-        var beklemede = await svc.CreateManualAsync(Fatura("KAPI-1", 100m, 20m));
+        var pending = await svc.CreateManualAsync(MakeInvoice("KAPI-1", 100m, 20m));
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = beklemede, OdemeYontemi = PaymentMethod.Nakit }));
+            svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = pending, OdemeYontemi = PaymentMethod.Nakit }));
 
-        var reddedilen = await svc.CreateManualAsync(Fatura("KAPI-2", 100m, 20m));
-        await svc.RejectAsync(reddedilen, "mükerrer");
+        var rejected = await svc.CreateManualAsync(MakeInvoice("KAPI-2", 100m, 20m));
+        await svc.RejectAsync(rejected, "mükerrer");
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = reddedilen, OdemeYontemi = PaymentMethod.Nakit }));
+            svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = rejected, OdemeYontemi = PaymentMethod.Nakit }));
 
         // "Defter dışı işle" ile İşlendi'ye alınmış fatura da giderleştirilemez (çift kayıt çiti).
-        var elle = await svc.CreateManualAsync(Fatura("KAPI-3", 100m, 20m));
-        await svc.ApproveAsync(elle);
-        await svc.IsleAsync(elle);
+        var manual = await svc.CreateManualAsync(MakeInvoice("KAPI-3", 100m, 20m));
+        await svc.ApproveAsync(manual);
+        await svc.IsleAsync(manual);
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = elle, OdemeYontemi = PaymentMethod.Nakit }));
+            svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = manual, OdemeYontemi = PaymentMethod.Nakit }));
 
         Assert.Empty(await expenses.ListAsync());
     }
@@ -451,7 +451,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
-        var id = await svc.CreateManualAsync(Fatura("KILIT-1", 1000m, 200m));
+        var id = await svc.CreateManualAsync(MakeInvoice("KILIT-1", 1000m, 200m));
         await svc.LinkAsync(new GelenEFaturaBaglamaInput { Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m });
         await svc.ApproveAsync(id);
         await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit });
@@ -473,7 +473,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
-        var id = await svc.CreateManualAsync(Fatura("CARI-1", 100m, 20m));
+        var id = await svc.CreateManualAsync(MakeInvoice("CARI-1", 100m, 20m));
         await svc.ApproveAsync(id);
         await Assert.ThrowsAsync<ValidationException>(() =>
             svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.AcikHesap }));
@@ -486,20 +486,20 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
-        var arac = Guid.NewGuid();
+        var vehicle = Guid.NewGuid();
 
-        var id = await svc.CreateManualAsync(Fatura("ARAC-1", 1000m, 200m));
-        await svc.LinkAsync(new GelenEFaturaBaglamaInput { Id = id, VehicleId = arac });
+        var id = await svc.CreateManualAsync(MakeInvoice("ARAC-1", 1000m, 200m));
+        await svc.LinkAsync(new GelenEFaturaBaglamaInput { Id = id, VehicleId = vehicle });
         await svc.ApproveAsync(id);
         await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit });
 
         var g = Assert.Single(await expenses.ListAsync());
         Assert.Equal(ExpenseType.Arac, g.Tip);   // araç bağlıysa tür otomatik Araç
-        Assert.Equal(arac, g.VehicleId);
+        Assert.Equal(vehicle, g.VehicleId);
 
         // Karne/karlılık atfı: Gider defter satırının AccountRef'i araçtır.
-        var defter = await Defter(scope);
-        Assert.Equal(arac, defter.Single(e => e.AccountType == LedgerAccountType.Gider).AccountRef);
+        var ledger = await Ledger(scope);
+        Assert.Equal(vehicle, ledger.Single(e => e.AccountType == LedgerAccountType.Gider).AccountRef);
     }
 
     [Fact]
@@ -511,7 +511,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(tenant))
         {
             var s = admin.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
-            id = await s.CreateManualAsync(Fatura("YETKI-1", 100m, 20m));
+            id = await s.CreateManualAsync(MakeInvoice("YETKI-1", 100m, 20m));
             await s.ApproveAsync(id);
         }
 
@@ -533,7 +533,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var s = s1.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
-            id = await s.CreateManualAsync(Fatura("IZO-1", 1000m, 200m));
+            id = await s.CreateManualAsync(MakeInvoice("IZO-1", 1000m, 200m));
             await s.ApproveAsync(id);
         }
 
@@ -558,10 +558,10 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            svc.CreateManualAsync(Fatura("KRS-1", 1000.0050m, 200.0010m)));
+            svc.CreateManualAsync(MakeInvoice("KRS-1", 1000.0050m, 200.0010m)));
 
         // Kırılım kolonlarında da aynı çit geçerli.
-        var id = await svc.CreateManualAsync(Fatura("KRS-2", 1000m, 200m));
+        var id = await svc.CreateManualAsync(MakeInvoice("KRS-2", 1000m, 200m));
         await Assert.ThrowsAsync<ValidationException>(() => svc.LinkAsync(new GelenEFaturaBaglamaInput
         {
             Id = id, Kdv20Matrah = 999.9950m, Kdv20 = 200m, Kdv0Matrah = 0.0050m
@@ -577,7 +577,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
 
-        var id = await svc.CreateManualAsync(Fatura("MTR-1", 1000m, 200m));
+        var id = await svc.CreateManualAsync(MakeInvoice("MTR-1", 1000m, 200m));
         await Assert.ThrowsAsync<ValidationException>(() => svc.LinkAsync(new GelenEFaturaBaglamaInput
         {
             Id = id, Kdv20Matrah = 1000m, Kdv20 = 200m, Kdv10 = 500m // matrahsız 500 KDV
@@ -593,7 +593,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
-        var id = await svc.CreateManualAsync(Fatura("KLT-1", 1000m, 200m));
+        var id = await svc.CreateManualAsync(MakeInvoice("KLT-1", 1000m, 200m));
         await svc.ApproveAsync(id);
         await scope.ServiceProvider.GetRequiredService<RentACar.Application.Periods.PeriodLockService>()
             .LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
@@ -602,7 +602,7 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
             svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit }));
 
         Assert.Empty(await expenses.ListAsync());
-        Assert.Empty(await Defter(scope));
+        Assert.Empty(await Ledger(scope));
         // Belge damgalanmamış olmalı → kilit açılınca tekrar denenebilir.
         Assert.Null((await svc.GetAsync(id))!.GiderlestirilmeUtc);
     }
@@ -616,12 +616,12 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<IncomingEInvoiceService>();
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
-        var id = await svc.CreateManualAsync(Fatura("DVZ-2", 100m, 20m, "XAU"));
+        var id = await svc.CreateManualAsync(MakeInvoice("DVZ-2", 100m, 20m, "XAU"));
         await svc.ApproveAsync(id);
         await Assert.ThrowsAsync<ValidationException>(() =>
             svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = id, OdemeYontemi = PaymentMethod.Nakit }));
         Assert.Empty(await expenses.ListAsync());
-        Assert.Empty(await Defter(scope));
+        Assert.Empty(await Ledger(scope));
     }
 
     // ---------------------------------------------------------------- filtreler
@@ -636,20 +636,20 @@ public sealed class GelenEFaturaKdvKirilimTests(PostgresFixture fx)
         await svc.CreateManualAsync(new GelenEFaturaInput
         {
             Ettn = "FLT-100", GonderenVkn = "1111111111", GonderenUnvan = "Alfa Lojistik",
-            Tarih = Gun(), NetTutar = 100m, KdvTutar = 20m, GenelToplam = 120m
+            Tarih = Day(), NetTutar = 100m, KdvTutar = 20m, GenelToplam = 120m
         });
         await svc.CreateManualAsync(new GelenEFaturaInput
         {
             Ettn = "FLT-200", GonderenVkn = "2222222222", GonderenUnvan = "Beta Servis",
-            Tarih = Gun(), NetTutar = 200m, KdvTutar = 40m, GenelToplam = 240m
+            Tarih = Day(), NetTutar = 200m, KdvTutar = 40m, GenelToplam = 240m
         });
-        var ucuncu = await svc.CreateManualAsync(new GelenEFaturaInput
+        var third = await svc.CreateManualAsync(new GelenEFaturaInput
         {
             Ettn = "FLT-300", GonderenVkn = "3333333333", GonderenUnvan = "Gama Petrol",
-            Tarih = Gun(), NetTutar = 300m, KdvTutar = 60m, GenelToplam = 360m
+            Tarih = Day(), NetTutar = 300m, KdvTutar = 60m, GenelToplam = 360m
         });
-        await svc.ApproveAsync(ucuncu);
-        await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = ucuncu, OdemeYontemi = PaymentMethod.Nakit });
+        await svc.ApproveAsync(third);
+        await svc.ConvertToExpenseAsync(new GelenEFaturaGiderInput { Id = third, OdemeYontemi = PaymentMethod.Nakit });
 
         Assert.Single(await svc.ListAsync(new GelenEFaturaFilter { Firma = "beta" }));         // ünvan (ILike)
         Assert.Single(await svc.ListAsync(new GelenEFaturaFilter { Firma = "3333333333" }));   // VKN

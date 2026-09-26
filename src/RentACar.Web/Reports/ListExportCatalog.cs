@@ -15,7 +15,7 @@ namespace RentACar.Web.Reports;
 /// </summary>
 public static class ListExportCatalog
 {
-    public static ExportTable Araclar(IReadOnlyList<Vehicle> v) => new(
+    public static ExportTable Vehicles(IReadOnlyList<Vehicle> v) => new(
         "Araclar",
         // İlk 15 kolon geriye-uyum için SABİT sırada; kalanlar (parite derinliği) sona eklendi.
         ["Plaka", "Marka", "Tip", "Detay Tipi", "Grup", "Şube", "Model Yılı", "Renk", "Yakıt", "Vites", "SIPP", "KM", "Durum", "Özel Kod", "Kasa Tipi",
@@ -35,7 +35,7 @@ public static class ListExportCatalog
             E(x.WebRezKapat), E(x.OfisRezKapat), E(x.ZIzni), E(x.Utts), E(x.KarLastigi), E(x.YedekAnahtar), E(x.Temizlik), E(x.Rehin)
         }).ToList());
 
-    public static ExportTable Cariler(IReadOnlyList<Customer> c) => new(
+    public static ExportTable Customers(IReadOnlyList<Customer> c) => new(
         "Cariler",
         // KVKK: TC Kimlik BİLİNÇLİ olarak yok (bkz. sınıf özeti). Kurumsal Vergi No dahil.
         ["Ünvan/Ad", "Tip", "Vergi No", "Telefon", "E-posta", "İl", "İlçe", "Kaynak", "Vade Gün",
@@ -46,41 +46,41 @@ public static class ListExportCatalog
             x.VergiDairesi, x.Gsm2, x.Adres, x.Sinif, x.MusteriTemsilcisi, E(x.IysIzinli), x.FaturaDonemi, x.RiskLimiti, x.HgsYansitmaTuru, x.OzelCariTip
         }).ToList());
 
-    public static ExportTable Faturalar(IReadOnlyList<Invoice> f, Func<Guid, string?> cariAd) => new(
+    public static ExportTable Invoices(IReadOnlyList<Invoice> f, Func<Guid, string?> customerName) => new(
         "Faturalar",
         // İlk 6 kolon geriye-uyum için SABİT; kalanlar (parite derinliği) sona eklendi.
         ["No", "Tarih", "Net", "KDV", "Toplam", "Durum",
          "Cari", "Vade", "Para", "Kur", "Tür", "Damga Vergisi", "e-Fatura"],
         f.Select(x => new object?[]
         {
-            x.No, ExportTarih.Gun(x.Tarih), x.NetTutar, x.KdvTutar, x.GenelToplam, x.Durum.ToString(),
-            cariAd(x.CariId), D(x.VadeTarihi), x.Currency, x.Kur, FaturaTuru(x), x.DamgaVergisi,
+            x.No, ExportDate.Day(x.Tarih), x.NetTutar, x.KdvTutar, x.GenelToplam, x.Durum.ToString(),
+            customerName(x.CariId), D(x.VadeTarihi), x.Currency, x.Kur, InvoiceType(x), x.DamgaVergisi,
             x.EFaturaGonderildi ? (x.EFaturaEttn ?? "Gönderildi") : ""
         }).ToList());
 
     /// <summary>Fatura türü etiketi (iade/manuel/kira/fark/serbest).</summary>
-    private static string FaturaTuru(Invoice x) =>
+    private static string InvoiceType(Invoice x) =>
         x.IadeMi ? "İade" : x.ManuelMi ? "Manuel"
         : x.KaynakKiraId != null ? "Kira Fark" : x.RentalId != null ? "Kira" : "Serbest";
 
     /// <summary>Cari ekstre (hesap ekstresi) — bir carinin defter satırları + yürüyen bakiye (base para).
     /// Cari bakiye = Σ (Borç +, Alacak −); pozitif = müşteri borçlu.
     ///
-    /// <para>FAZ-65: <paramref name="devir"/> filtrenin kapsam dışında bıraktığı ÖNCEKİ hareketlerin
+    /// <para>FAZ-65: <paramref name="carryForward"/> filtrenin kapsam dışında bıraktığı ÖNCEKİ hareketlerin
     /// net toplamıdır. Sıfırdan farklıysa ilk satır olarak yazılır ve yürüyen bakiye ondan başlar —
     /// aksi hâlde tarih-filtreli bir export'ta bakiye kolonu yanlış olurdu.</para></summary>
-    public static ExportTable CariEkstre(IReadOnlyList<AccountLedgerEntry> lines, decimal devir = 0m)
+    public static ExportTable AccountStatement(IReadOnlyList<AccountLedgerEntry> lines, decimal carryForward = 0m)
     {
         var rows = new List<object?[]>();
-        decimal bakiye = devir;
-        if (devir != 0m)
-            rows.Add(new object?[] { "", "Devir", "Önceki dönemden devir", devir > 0 ? devir : 0m, devir < 0 ? -devir : 0m, devir });
+        decimal balance = carryForward;
+        if (carryForward != 0m)
+            rows.Add(new object?[] { "", "Devir", "Önceki dönemden devir", carryForward > 0 ? carryForward : 0m, carryForward < 0 ? -carryForward : 0m, carryForward });
         foreach (var e in lines.OrderBy(x => x.EntryDateUtc).ThenBy(x => x.SourceType))
         {
-            var borc = e.Direction == LedgerDirection.Debit ? e.Amount.AmountInBase : 0m;
-            var alacak = e.Direction == LedgerDirection.Credit ? e.Amount.AmountInBase : 0m;
-            bakiye += borc - alacak;
-            rows.Add(new object?[] { ExportTarih.Gun(e.EntryDateUtc), e.SourceType, e.Description, borc, alacak, bakiye });
+            var debit = e.Direction == LedgerDirection.Debit ? e.Amount.AmountInBase : 0m;
+            var credit = e.Direction == LedgerDirection.Credit ? e.Amount.AmountInBase : 0m;
+            balance += debit - credit;
+            rows.Add(new object?[] { ExportDate.Day(e.EntryDateUtc), e.SourceType, e.Description, debit, credit, balance });
         }
         return new ExportTable("Cari Ekstre", ["Tarih", "Kaynak", "Açıklama", "Borç", "Alacak", "Bakiye"], rows);
     }
@@ -88,21 +88,21 @@ public static class ListExportCatalog
     /// <summary>FAZ-52 — fatura DETAY (satır) listesi. Tutarlar faturanın kesildiği andaki
     /// değerlerdir; burada yeniden hesaplanmaz. İptal satırları da yazılır (Durum kolonuyla ayrışır)
     /// — ekranda görünen ile indirilen aynı küme olmalı.</summary>
-    public static ExportTable FaturaDetaylari(IReadOnlyList<RentACar.Application.Finance.FaturaSatirDto> rows) => new(
+    public static ExportTable InvoiceDetails(IReadOnlyList<RentACar.Application.Finance.FaturaSatirDto> rows) => new(
         "Fatura Detay",
         ["Fatura No", "Tarih", "Vade", "Durum", "Cari", "Şehir", "Mail", "Vergi No",
          "Açıklama", "Miktar", "Birim Net", "KDV Oranı", "Satır Net", "Satır KDV", "Satır Toplam",
          "Döviz", "Kur", "Plaka", "Sözleşme No", "Çıkış Ofisi", "Rez. Kaynağı"],
         rows.Select(r => new object?[]
         {
-            r.FaturaNo, ExportTarih.Gun(r.Tarih), ExportTarih.Gun(r.VadeTarihi),
+            r.FaturaNo, ExportDate.Day(r.Tarih), ExportDate.Day(r.VadeTarihi),
             r.Iptal ? "İptal" : r.IadeMi ? "İade" : "Geçerli",
             r.CariAd, r.CariSehir, r.CariEmail, r.CariVergiNo,
             r.Aciklama, r.Miktar, r.BirimNetFiyat, r.KdvOrani, r.SatirNet, r.SatirKdv, r.SatirToplam,
             r.Doviz, r.Kur, r.Plaka, r.SozlesmeNo, r.CikisOfisi, r.RezervasyonKaynagi
         }).ToList());
 
-    public static ExportTable Cezalar(IReadOnlyList<Penalty> c) => new(
+    public static ExportTable Penalties(IReadOnlyList<Penalty> c) => new(
         "Cezalar",
         // FAZ-60: kısmi ödeme + bilgi alanları eklendi (mevcut 7 kolonun SIRASI korundu).
         ["No", "Ceza Türü", "Tebliğ Tarihi", "Vade", "Tutar", "Durum", "Sebep",
@@ -110,20 +110,20 @@ public static class ListExportCatalog
         c.Select(x => new object?[]
         {
             // Tarihler YEREL GÜN (ham UTC değil) — kullanıcı ekranda gördüğü günü indirsin.
-            x.No, x.CezaTuru, ExportTarih.Gun(x.TebligTarihi),
-            ExportTarih.Gun(x.VadeTarihi),
+            x.No, x.CezaTuru, ExportDate.Day(x.TebligTarihi),
+            ExportDate.Day(x.VadeTarihi),
             x.Tutar, x.Durum.ToString(), x.Sebep,
             x.MakbuzNo, x.OdenenTutar, x.Kalan,
-            ExportTarih.Gun(x.OdenmeTarihi),
+            ExportDate.Day(x.OdenmeTarihi),
             x.Saat, x.Yer, x.IslemSube
         }).ToList());
 
-    public static ExportTable Giderler(IReadOnlyList<Expense> g) => new(
+    public static ExportTable Expenses(IReadOnlyList<Expense> g) => new(
         "Giderler",
         ["No", "Tip", "Tarih", "Şube", "Evrak No", "Net", "KDV Oranı", "KDV", "Genel Toplam", "Döviz", "Ödeme", "Hesap", "Açıklama"],
         g.Select(x => new object?[]
         {
-            x.No, x.Tip.ToString(), ExportTarih.Gun(x.Tarih), x.Sube, x.EvrakNo, x.NetTutar, x.KdvOrani,
+            x.No, x.Tip.ToString(), ExportDate.Day(x.Tarih), x.Sube, x.EvrakNo, x.NetTutar, x.KdvOrani,
             x.KdvTutar, x.GenelToplam, x.Currency, x.OdemeYontemi.ToString(), x.KasaBankaHesap.ToString(), x.Aciklama
         }).ToList());
 
@@ -132,23 +132,23 @@ public static class ListExportCatalog
     /// Tarih YEREL GÜN olarak yazılır: ham UTC yazmak, ekranda 01.03 görünen kaydı export'ta
     /// 28.02 yapıyordu (repoda bilinen bir-gün-geri tuzağı).
     /// </summary>
-    public static ExportTable NakitIslemler(IReadOnlyList<NakitIslemSatirDto> n) => new(
+    public static ExportTable CashTransactions(IReadOnlyList<NakitIslemSatirDto> n) => new(
         "Nakit İşlemler",
         ["No", "Tip", "Tarih", "Cari", "Cari Kod", "Kanal", "Tutar", "Döviz", "Karşı Hesap", "Ters mi", "Açıklama"],
         n.Select(r => new object?[]
         {
-            r.Islem.No, r.Islem.Tip.ToString(), ExportTarih.Gun(r.Islem.Tarih),
+            r.Islem.No, r.Islem.Tip.ToString(), ExportDate.Day(r.Islem.Tarih),
             r.CariAd, r.CariKod, r.Islem.Kanal,
             r.Islem.Amount.Amount, r.Islem.Amount.Currency,
             r.Islem.KarsiHesap.ToString(), r.Islem.TersKayitMi ? "Evet" : "Hayır", r.Islem.Aciklama
         }).ToList());
 
-    public static ExportTable AracSatislari(IReadOnlyList<VehicleSale> s) => new(
+    public static ExportTable VehicleSales(IReadOnlyList<VehicleSale> s) => new(
         "Araç Satışları",
         ["No", "Tarih", "Noter No", "Net", "KDV Oranı", "KDV", "Genel Toplam", "Döviz", "Durum", "Açıklama"],
         s.Select(x => new object?[]
         {
-            x.No, ExportTarih.Gun(x.Tarih), x.NoterNo, x.SatisNet, x.KdvOrani, x.KdvTutar,
+            x.No, ExportDate.Day(x.Tarih), x.NoterNo, x.SatisNet, x.KdvOrani, x.KdvTutar,
             x.GenelToplam, x.Currency, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
@@ -159,8 +159,8 @@ public static class ListExportCatalog
     /// <para>Kolon başlıkları katmanların BİLGİ olduğunu söyler: resmi tutar "Birim Fiyat"tır,
     /// Piyasa/Ops/Filo hiçbir toplama girmez.</para>
     /// </summary>
-    public static ExportTable AracSiparisleri(IReadOnlyList<AracSiparis> s,
-        Func<Guid, string?>? cari = null, Func<Guid, string?>? kredi = null) => new(
+    public static ExportTable VehicleOrders(IReadOnlyList<AracSiparis> s,
+        Func<Guid, string?>? account = null, Func<Guid, string?>? loan = null) => new(
         "Araç Siparişleri",
         ["No", "Dosya No", "Tedarikçi", "Cari", "Sipariş Tarihi", "İmza Tarihi", "Beklenen Teslim",
          "Satış Temsilcisi", "Özel Temsilci", "Marka", "Tip", "Grup", "Versiyon", "Opsiyon",
@@ -170,47 +170,47 @@ public static class ListExportCatalog
         s.Select(x => new object?[]
         {
             x.No, x.DosyaNo, x.Tedarikci,
-            x.TedarikciCariId is Guid c ? cari?.Invoke(c) : null,
-            ExportTarih.Gun(x.SiparisTarihi), ExportTarih.Gun(x.ImzaTarih),
-            ExportTarih.Gun(x.BeklenenTeslim),
+            x.TedarikciCariId is Guid c ? account?.Invoke(c) : null,
+            ExportDate.Day(x.SiparisTarihi), ExportDate.Day(x.ImzaTarih),
+            ExportDate.Day(x.BeklenenTeslim),
             x.SatisTemsilci, x.OzelTemsilci,
             x.Marka, x.Tip, x.Grup, x.Versiyon, x.Opsiyon, x.Renk, x.IcRenk, x.KaynakTip, x.SatisTipi,
             x.Adet, x.BirimFiyat, x.PiyasaFiyat, x.OpsFiyat, x.FiloFiyat, x.Currency,
             x.TsbKayitNo,
-            x.KrediId is Guid k ? kredi?.Invoke(k) : null,
+            x.KrediId is Guid k ? loan?.Invoke(k) : null,
             x.Durum.ToString(), x.Aciklama
         }).ToList());
 
     /// <summary>FAZ-13: Dosya No / Cari / Araç kolonları eklendi — ekrandaki tabloyla aynı bilgi
     /// dışarı çıksın (cari ve plaka Id olarak tutulur, export'a ADLARI yazılır).</summary>
-    public static ExportTable AracKredileri(IReadOnlyList<AracKredi> k,
-        Func<Guid, string?>? cari = null, Func<Guid, string?>? plaka = null) => new(
+    public static ExportTable VehicleLoans(IReadOnlyList<AracKredi> k,
+        Func<Guid, string?>? account = null, Func<Guid, string?>? plate = null) => new(
         "Araç Kredileri",
         ["No", "Dosya No", "Banka", "Cari", "Araç", "Kredi Tutarı", "Faiz %", "Taksit", "Ödenen Taksit", "Başlangıç", "Döviz", "Durum", "Açıklama"],
         k.Select(x => new object?[]
         {
             x.No, x.DosyaNo, x.BankaAdi,
-            x.CariId is Guid c ? cari?.Invoke(c) : null,
-            x.VehicleId is Guid v ? plaka?.Invoke(v) : null,
+            x.CariId is Guid c ? account?.Invoke(c) : null,
+            x.VehicleId is Guid v ? plate?.Invoke(v) : null,
             x.KrediTutari, x.FaizOran, x.TaksitSayisi, x.OdenenTaksit,
-            ExportTarih.Gun(x.BaslangicTarihi), x.Currency, x.Durum.ToString(), x.Aciklama
+            ExportDate.Day(x.BaslangicTarihi), x.Currency, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
-    public static ExportTable Baflar(IReadOnlyList<Baf> b) => new(
+    public static ExportTable Bafs(IReadOnlyList<Baf> b) => new(
         "BAF (Personel Araç Tahsis)",
         ["No", "Çıkış Tarihi", "Çıkış KM", "Çıkış Yakıt", "Dönüş Tarihi", "Dönüş KM", "Dönüş Yakıt", "Şube", "Durum", "Açıklama"],
         b.Select(x => new object?[]
         {
-            x.No, ExportTarih.Gun(x.CikisTarihi), x.CikisKm, x.CikisYakit, ExportTarih.Gun(x.DonusTarihi),
+            x.No, ExportDate.Day(x.CikisTarihi), x.CikisKm, x.CikisYakit, ExportDate.Day(x.DonusTarihi),
             x.DonusKm, x.DonusYakit, x.Sube, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
-    public static ExportTable Kiralar(IReadOnlyList<RentalRow> r) => new(
+    public static ExportTable Rentals(IReadOnlyList<RentalRow> r) => new(
         "Kiralar",
         ["Sözleşme No", "Müşteri", "Plaka", "Başlangıç", "Bitiş", "Gün", "Tutar", "Bakiye", "Durum", "Faturalı"],
         r.Select(x => new object?[]
         {
-            x.SozlesmeNo, x.MusteriAd, x.Plaka, ExportTarih.Gun(x.BasTar), ExportTarih.Gun(x.BitTar),
+            x.SozlesmeNo, x.MusteriAd, x.Plaka, ExportDate.Day(x.BasTar), ExportDate.Day(x.BitTar),
             x.Gun, x.Tutar, x.Bakiye, x.Durum.ToString(), x.Faturali ? "Evet" : "Hayır"
         }).ToList());
 
@@ -219,20 +219,20 @@ public static class ListExportCatalog
     /// tabloyla aynı bilgi). TARİHLER YEREL GÜN — ham UTC basmak, gece yarısına yakın kayıtlarda
     /// listede görünen günün BİR GÜN GERİSİNİ yazıyordu (repoda bilinen tuzak; yenisi üretilmez).
     /// </summary>
-    public static ExportTable Rezervasyonlar(IReadOnlyList<ReservationRow> r) => new(
+    public static ExportTable Reservations(IReadOnlyList<ReservationRow> r) => new(
         "Rezervasyonlar",
         ["Rez No", "Durum", "Müşteri", "Cep Tel", "Plaka", "Başlangıç", "Bitiş", "Çıkış Ofisi", "Dönüş Ofisi",
          "Kaynak", "Talep Türü", "Geldiği Birim", "Proje Adı", "Onay Kodu", "Gün", "Günlük Ücret", "Tutar"],
         r.Select(x => new object?[]
         {
             x.Rez.ReservationNo, x.Rez.Durum.ToString(), x.MusteriAd, x.CepTel, x.Plaka,
-            ExportTarih.Gun(x.Rez.BasTar), ExportTarih.Gun(x.Rez.BitTar),
+            ExportDate.Day(x.Rez.BasTar), ExportDate.Day(x.Rez.BitTar),
             x.Rez.CikisOfisi, x.Rez.DonusOfisi, x.Rez.Kaynak,
             x.Rez.TalepTuru, x.Rez.GeldigiBirim, x.Rez.ProjeAdi, x.Rez.OnayKodu,
             x.Rez.Gun, x.Rez.GunlukUcret, x.Rez.Tutar
         }).ToList());
 
-    public static ExportTable Lokasyonlar(IReadOnlyList<Location> l) => new(
+    public static ExportTable Locations(IReadOnlyList<Location> l) => new(
         "Lokasyonlar",
         ["Kod", "Ad", "Adres", "Telefon", "E-posta", "Çalışma Saatleri", "Teslim Ücreti", "Şube", "Aktif"],
         l.Select(x => new object?[]
@@ -242,7 +242,7 @@ public static class ListExportCatalog
 
     /// <summary>Drop matrisi. Başlıklar FAZ-22 anlam netleştirmesine göre: "Lokasyon" DÖNÜŞ ofisi,
     /// "Şube" ÇIKIŞ şubesidir. Drop 2 / Karşılama Süresi bilgi alanıdır (hesaba girmez).</summary>
-    public static ExportTable DropTanimlari(IReadOnlyList<DropTanim> d) => new(
+    public static ExportTable DropDefinitions(IReadOnlyList<DropTanim> d) => new(
         "Drop Tanımları",
         ["Dönüş Lokasyonu", "Çıkış Şubesi", "Çıkış Lokasyonu", "Asgari Gün", "Karşılama Şekli",
          "Çalışma Şekli", "Özel İletişim", "Drop Ücreti (net)", "Drop 2 (bilgi)", "Karşılama Süresi (dk)", "Aktif"],
@@ -254,33 +254,33 @@ public static class ListExportCatalog
 
     /// <summary>Personel — HASSAS PII (TC + maaş). <paramref name="decrypt"/> cipher'ları çözer (ISecretProtector);
     /// katalog saf kalır (test'te sahte decrypt). Uç ManageUsers (Admin) gate'li + KVKK notu (docs/ops/kvkk-export-notu.md).</summary>
-    public static ExportTable Personel(IReadOnlyList<Personel> p, Func<string?, string?> decrypt) => new(
+    public static ExportTable Personnel(IReadOnlyList<Personel> p, Func<string?, string?> decrypt) => new(
         "Personel",
         ["Kod", "Ad", "Soyad", "TC Kimlik", "İşe Giriş", "İşe Çıkış", "Sürücü Belge No", "Maaş", "Şube", "Durum"],
         p.Select(x => new object?[]
         {
-            x.Kod, x.Ad, x.Soyad, decrypt(x.TcKimlikEnc), ExportTarih.Gun(x.IseGiris), ExportTarih.Gun(x.IseCikis),
+            x.Kod, x.Ad, x.Soyad, decrypt(x.TcKimlikEnc), ExportDate.Day(x.IseGiris), ExportDate.Day(x.IseCikis),
             x.SurucuBelgeNo, decrypt(x.MaasEnc), x.Sube, x.Aktif ? "Aktif" : "Pasif"
         }).ToList());
 
     /// <summary>Uzun-dönem (filo) kiralama sözleşmeleri. Plaka/müşteri FK'leri endpoint'te dict ile çözülür
-    /// (<paramref name="plaka"/>/<paramref name="musteri"/> resolver; katalog saf kalır, test'te sahte resolver).</summary>
-    public static ExportTable FiloKiralamalar(IReadOnlyList<FiloKiralama> f, Func<Guid, string?> plaka, Func<Guid, string?> musteri) => new(
+    /// (<paramref name="plate"/>/<paramref name="customer"/> resolver; katalog saf kalır, test'te sahte resolver).</summary>
+    public static ExportTable FleetRentals(IReadOnlyList<FiloKiralama> f, Func<Guid, string?> plate, Func<Guid, string?> customer) => new(
         "Filo Kiralama",
         ["No", "Müşteri", "Plaka", "Başlangıç", "Süre (Ay)", "Aylık Ücret", "KDV Oranı", "Döviz", "Kur", "Toplam KM Limiti", "Damga Vergisi", "Durum", "Açıklama"],
         f.Select(x => new object?[]
         {
-            x.No, musteri(x.MusteriId), plaka(x.VehicleId), D(x.BasTar), x.SureAy, x.AylikUcret, x.KdvOrani,
+            x.No, customer(x.MusteriId), plate(x.VehicleId), D(x.BasTar), x.SureAy, x.AylikUcret, x.KdvOrani,
             x.Currency, x.Kur, x.ToplamKmLimiti, x.DamgaVergisi, x.Durum.ToString(), x.Aciklama
         }).ToList());
 
     /// <summary>Birleşik vade panosu (sigorta/MTV/muayene bitişleri) — en yakına sıralı. Plaka endpoint'te çözülür.</summary>
-    public static ExportTable Vadeler(IReadOnlyList<VadeItem> v, Func<Guid, string?> plaka) => new(
+    public static ExportTable Dues(IReadOnlyList<VadeItem> v, Func<Guid, string?> plate) => new(
         "Vade (Sigorta-MTV-Muayene)",
         ["Plaka", "Tür", "Bitiş", "Kalan Gün", "Durum"],
         v.Select(x => new object?[]
         {
-            plaka(x.VehicleId), x.Tur, D(x.Bitis), x.KalanGun, x.Bucket.ToString()
+            plate(x.VehicleId), x.Tur, D(x.Bitis), x.KalanGun, x.Bucket.ToString()
         }).ToList());
 
     /// <summary>
@@ -291,7 +291,7 @@ public static class ListExportCatalog
     /// mali rapora karışmaz (bkz. HukukDosya.Tahsilat). Kalan entity'nin tek formülünden okunur,
     /// burada yeniden hesaplanmaz.</para>
     /// </summary>
-    public static ExportTable HukukDosyalari(IReadOnlyList<HukukDosyaSatirDto> h) => new(
+    public static ExportTable LegalCases(IReadOnlyList<HukukDosyaSatirDto> h) => new(
         "Hukuk Dosyalari",
         ["Dosya No", "Müşteri", "Müşteri Tel", "Fatura No", "Tür", "Avukat", "Avukat Tel", "Avukat E-posta",
          "2. Avukat", "2. Avukat Tel", "2. Avukat E-posta",
@@ -309,8 +309,8 @@ public static class ListExportCatalog
     private static string E(bool b) => b ? "Evet" : "Hayır";
 
     /// <summary>
-    /// Tarih hücresi — kural (yerel takvim günü) ve gerekçesi <see cref="ExportTarih"/> içinde.
+    /// Tarih hücresi — kural (yerel takvim günü) ve gerekçesi <see cref="ExportDate"/> içinde.
     /// Burada yalnız kısa ad olarak durur; yeni bir "ham UTC" yolu AÇMAYIN.
     /// </summary>
-    private static string? D(DateTimeOffset? d) => ExportTarih.Gun(d);
+    private static string? D(DateTimeOffset? d) => ExportDate.Day(d);
 }

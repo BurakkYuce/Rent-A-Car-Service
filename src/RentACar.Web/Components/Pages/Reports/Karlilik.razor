@@ -98,17 +98,17 @@
                     <th colspan="4" class="ref-baslik ref-bas">Referans — P&amp;L toplamına katılmaz</th>
                 </tr>
                 <tr>
-                    <th>@_ozet.BoyutAdi</th><th class="num">Araç</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
+                    <th>@_summary.BoyutAdi</th><th class="num">Araç</th><th class="num">Gelir</th><th class="num">Gider</th><th class="num">Net Kâr</th>
                     <th class="num ref-baslik ref-bas">Araç Başı Gelir</th><th class="num ref-baslik">Doluluk %</th>
                     <th class="num ref-baslik">Potansiyel Gelir</th><th class="num ref-baslik">Toplam Maliyet (ref.)</th>
                 </tr>
             </thead>
             <tbody>
-                @if (_ozet.Satirlar.Count == 0)
+                @if (_summary.Satirlar.Count == 0)
                 {
                     <tr><td colspan="9" class="muted">Kayıt yok.</td></tr>
                 }
-                @foreach (var r in _ozet.Satirlar)
+                @foreach (var r in _summary.Satirlar)
                 {
                     <tr>
                         <td>@r.Boyut</td>
@@ -125,9 +125,9 @@
             </tbody>
             <tfoot>
                 <tr><th>TOPLAM</th><th class="num"></th>
-                    <th class="num">@_ozet.ToplamGelir.ToString("N2")</th>
-                    <th class="num">@_ozet.ToplamGider.ToString("N2")</th>
-                    <th class="num">@_ozet.ToplamNetKar.ToString("N2")</th>
+                    <th class="num">@_summary.ToplamGelir.ToString("N2")</th>
+                    <th class="num">@_summary.ToplamGider.ToString("N2")</th>
+                    <th class="num">@_summary.ToplamNetKar.ToString("N2")</th>
                     <th class="num ref-col ref-bas" colspan="4"></th></tr>
             </tfoot>
         </table>
@@ -228,7 +228,7 @@ else
     [SupplyParameterFromQuery(Name = "kdv")] public string? Kdv { get; set; }
 
     private KarlilikDto _d = new([], 0m, 0m, 0m);
-    private KarlilikOzetDto _ozet = new("", [], 0m, 0m, 0m);
+    private KarlilikOzetDto _summary = new("", [], 0m, 0m, 0m);
     private bool IsOzet => Boyut is "grup" or "sube" or "segment" or "otopark" or "sipp";
     private bool KdvDahilMi => string.Equals(Kdv, "dahil", StringComparison.OrdinalIgnoreCase);
     private bool _filtreVar => !string.IsNullOrWhiteSpace(Sube) || !string.IsNullOrWhiteSpace(Grup)
@@ -238,7 +238,7 @@ else
     private static MarkupString Plain(string s) => new(s);
     /// <summary>Null referans değeri "—" (ya da özel metin) gösterilir; 0 YAZILMAZ — "hesaplanmadı" ile
     /// "sıfır" farklı şeylerdir.</summary>
-    private static string N(decimal? v, string bos = "—") => v is { } d ? d.ToString("N2") : bos;
+    private static string N(decimal? v, string empty = "—") => v is { } d ? d.ToString("N2") : empty;
 
     /// <summary>Ekrandaki filtre export'a AYNEN taşınır (gördüğün = indirdiğin).</summary>
     private string ExportUrl(string format)
@@ -250,7 +250,7 @@ else
         DateTimeOffset? f = DateTimeOffset.TryParse(From, out var x) ? x : null;
         DateTimeOffset? t = DateTimeOffset.TryParse(To, out var y) ? y : null;
         if (IsOzet)
-            _ozet = await Reports.GetProfitabilitySummaryAsync(Boyut!, f, t);
+            _summary = await Reports.GetProfitabilitySummaryAsync(Boyut!, f, t);
         else
             _d = await Reports.GetProfitabilityAsync(f, t, Sube, Grup, Plaka, Kaynak, Sipp,
                 KdvDahilMi ? VatStatus.KdvDahil : VatStatus.Kdvsiz);

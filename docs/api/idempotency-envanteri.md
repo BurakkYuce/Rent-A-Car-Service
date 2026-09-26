@@ -8,11 +8,11 @@ Tabloyu değiştiren PR testi de değiştirmek zorunda.
 
 | Mekanizma | Anlamı |
 |---|---|
-| **IslemAnahtari** | İsteğe bağlı çağıran anahtarı (`Guid?`). Blazor formu render başına `Guid.NewGuid()` basar. `/api/ui` uçları bunu `IdempotencyBasligi.Anahtar(ctx, deterministik)` ile doldurur (aşağıya bakın). Anahtar yoksa her çağrı bağımsız işlemdir. |
-| **Deterministik** | Sunucunun ürettiği anahtar: `TahsilatAnahtar` (kira + bakiye + işlem sayısı), `CashService.RowKey(parti, i)`, HGS `(cari, plaka, dönem)` MD5'i, gelen e-fatura `RowKey(faturaId, i)`, ceza/gider ödeme `…:odeme:{sıra}`. **Başlıktan önceliklidir.** |
+| **IslemAnahtari** | İsteğe bağlı çağıran anahtarı (`Guid?`). Blazor formu render başına `Guid.NewGuid()` basar. `/api/ui` uçları bunu `IdempotencyHeader.Anahtar(ctx, deterministik)` ile doldurur (aşağıya bakın). Anahtar yoksa her çağrı bağımsız işlemdir. |
+| **Deterministik** | Sunucunun ürettiği anahtar: `CollectionKey` (kira + bakiye + işlem sayısı), `CashService.RowKey(parti, i)`, HGS `(cari, plaka, dönem)` MD5'i, gelen e-fatura `RowKey(faturaId, i)`, ceza/gider ödeme `…:odeme:{sıra}`. **Başlıktan önceliklidir.** |
 | **Yapısal** | Varlığın kendi durumu ya da doğal anahtarı: kira başına tek fatura, fatura başına tek iade, `TersAlinanId`, `Odendi` bayrağı, `Durum` geçişi. Anahtar gerektirmez. |
 
-| Sonuç | HTTP (`/api/ui`, F1.1 `UiHata`) | Harici `RentACar.Api` |
+| Sonuç | HTTP (`/api/ui`, F1.1 `UiError`) | Harici `RentACar.Api` |
 |---|---|---|
 | **409 mükerrer** (`DuplicateOperationException`) | 409 `mukerrer` → SPA kaydı yeniden yükler | 409 `duplicate_submission` |
 | **400 doğrulama** (`ValidationException`) | 400 `dogrulama` | 400 `validation` |
@@ -49,7 +49,7 @@ Kural yarış yolunda da geçerli:
 
 | # | Servis metodu | Mekanizma | İkinci gönderim (sıralı = eşzamanlı) | Kilit | Durum |
 |---|---|---|---|---|---|
-| E01 | `CashService.CollectAsync` `Application/Finance/CashService.cs:83` | IslemAnahtari → `IX_CashTransactions_TenantId_IslemAnahtari` (repo `CashRepository.cs:143`) · kira panelinde **deterministik** `TahsilatAnahtar` (`Web/Finance/TahsilatAnahtar.cs:19`) | **409** "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer)." · anahtarsız → iki ayrı tahsilat | kısıt | doğrulandı (test, eşzamanlı dahil) |
+| E01 | `CashService.CollectAsync` `Application/Finance/CashService.cs:83` | IslemAnahtari → `IX_CashTransactions_TenantId_IslemAnahtari` (repo `CashRepository.cs:143`) · kira panelinde **deterministik** `CollectionKey` (`Web/Finance/CollectionKey.cs:19`) | **409** "Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer)." · anahtarsız → iki ayrı tahsilat | kısıt | doğrulandı (test, eşzamanlı dahil) |
 | E02 | `CashService.PayAsync` `CashService.cs:87` | IslemAnahtari (E01 ile aynı index) | **409** | kısıt | doğrulandı (test) |
 | E03 | `CashService.BatchCollectAsync` `CashService.cs:129` | Deterministik `RowKey(parti, i)` (aynı index) | **409** "Bu toplu işlem zaten kaydedilmiş.", hiçbir satır yazılmaz | kısıt | doğrulandı (test) |
 | E04 | `CashService.BatchPayAsync` `CashService.cs:134` | Deterministik `RowKey(parti, i)` | **409** | kısıt | doğrulandı (test) |
@@ -102,7 +102,7 @@ input.IslemAnahtari = IdempotencyBasligi.Anahtar(ctx);
 
 `ZorunluAnahtar` kullanılmalı: anahtarsız çağrı her seferinde yeni işlemdir (E01, E21). Başlıksız bir SPA isteği çift yazıma açık kalır.
 
-- `Web/Common/IdempotencyBasligi.cs`: `Idempotency-Key` başlığını okur, kiracı ve kullanıcıyı **oturum claim'lerinden** alır.
+- `Web/Common/IdempotencyHeader.cs`: `Idempotency-Key` başlığını okur, kiracı ve kullanıcıyı **oturum claim'lerinden** alır.
 - `Application/Common/OperationKeyDeriver.cs`: `UUIDv5(2adf1c10-4f5c-4c27-bad3-3294d841ee0c, "{tenantId}|{userId}|{başlık}")`. Ad alanı sabittir, asla değişmez.
 - Öncelik (`Sec`): deterministik anahtar ▸ başlıktan türetilen ▸ `null`. Başlık deterministik anahtarı ezemez.
 - Başlık 16–128 karakter, yalnız görünür ASCII. Biçimsiz ya da çok değerli başlık 400 (`errors["Idempotency-Key"]`), deterministik anahtar olsa bile.
@@ -113,7 +113,7 @@ input.IslemAnahtari = IdempotencyBasligi.Anahtar(ctx);
 
 ### `/api/ui/v1/finans/*` uç eşlemesi (F4.4 — sabit panel; F8 yeniden kullanır)
 
-Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs` + `UiFinansAdversarialTests.cs`. Uç kodu: `Web/Api/Finans/FinansApi.cs`.
+Kilit: `tests/RentACar.IntegrationTests/UiFinansApiTests.cs` + `UiFinansAdversarialTests.cs`. Uç kodu: `Web/Api/Finans/FinanceOpsApi.cs`.
 
 | Uç | Satır | Anahtar | İkinci gönderim |
 |---|---|---|---|
@@ -134,7 +134,7 @@ alıyor, SPA yeni anahtarla İKİNCİ tahsilatı yazdırıyordu. Başka kiranın
 (aşağıdaki "ait değil" 409'u). Sonuç kodu değişmedi (409 — F1.4 sözleşmesi); ayrım mesaj + uzantıdadır.
 
 **`tahsilatAnahtar` doğrulaması (F4.4a adversarial MEDIUM-3):** uç, DTO'dan gelen değeri okunan kira + güncel
-bakiye + güncel işlem sayısıyla `TahsilatAnahtar.Uret` üzerinden YENİDEN hesaplar (bakiye DB ölçeğiyle "300.0000"
+bakiye + güncel işlem sayısıyla `CollectionKey.Uret` üzerinden YENİDEN hesaplar (bakiye DB ölçeğiyle "300.0000"
 ya da sade "300" kabul). Eşit değilse 409 `mukerrer`: ya ekran açıldıktan sonra kirada işlem oldu (bayat; SPA kaydı
 yeniden yükler ve yeni anahtarı alır) ya da anahtar bu kiraya ait değil (başka kiranın ya da başka bir işlemin
 tahmin edilebilir anahtarı — ör. dönem tahsilatının `RowKey`'i). Ham değer anahtar olarak korunur: Blazor pano/kira

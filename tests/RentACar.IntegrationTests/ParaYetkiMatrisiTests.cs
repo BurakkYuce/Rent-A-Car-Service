@@ -27,11 +27,11 @@ namespace RentACar.IntegrationTests;
 public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
 {
     /// <summary>Operator scope'unda işlemi çağırır; ValidationException + guard mesajı bekler.</summary>
-    private async Task OperatorReddiAsync(Func<IServiceScope, Task> islem)
+    private async Task OperatorRejectionAsync(Func<IServiceScope, Task> operation)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
-        var ex = await Assert.ThrowsAsync<NoPermissionException>(() => islem(scope));
+        var ex = await Assert.ThrowsAsync<NoPermissionException>(() => operation(scope));
         // Mesaj kanıtı: red YETKİDEN geliyor (PermissionGuard), girdi/veri hatasından değil.
         Assert.Contains("yetkiniz yok", ex.Message);
     }
@@ -42,102 +42,102 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
     // ---- Fatura (InvoiceService) ----
     [Fact]
     public Task Operator_kiradan_fatura_kesemez()
-        => OperatorReddiAsync(s => Svc<InvoiceService>(s).CreateFromRentalAsync(Guid.NewGuid()));
+        => OperatorRejectionAsync(s => Svc<InvoiceService>(s).CreateFromRentalAsync(Guid.NewGuid()));
 
     [Fact]
     public Task Operator_manuel_fatura_kesemez()
-        => OperatorReddiAsync(s => Svc<InvoiceService>(s).CreateManualAsync(
+        => OperatorRejectionAsync(s => Svc<InvoiceService>(s).CreateManualAsync(
             new ManualInvoiceInput { CariId = Guid.NewGuid(), NetTutar = 100m }));
 
     [Fact]
     public Task Operator_iade_faturasi_kesemez()
-        => OperatorReddiAsync(s => Svc<InvoiceService>(s).CreateRefundAsync(Guid.NewGuid()));
+        => OperatorRejectionAsync(s => Svc<InvoiceService>(s).CreateRefundAsync(Guid.NewGuid()));
 
     // ---- Gider (ExpenseService) ----
     [Fact]
     public Task Operator_gider_giremez()
-        => OperatorReddiAsync(s => Svc<ExpenseService>(s).CreateAsync(new ExpenseInput { NetTutar = 100m }));
+        => OperatorRejectionAsync(s => Svc<ExpenseService>(s).CreateAsync(new ExpenseInput { NetTutar = 100m }));
 
     [Fact]
     public Task Operator_toplu_gider_giremez()
-        => OperatorReddiAsync(s => Svc<ExpenseService>(s).BatchCreateAsync([new ExpenseInput { NetTutar = 100m }]));
+        => OperatorRejectionAsync(s => Svc<ExpenseService>(s).BatchCreateAsync([new ExpenseInput { NetTutar = 100m }]));
 
     // ---- Depozito (DepozitoService: Al / İade / Mahsup) ----
     [Fact]
     public Task Operator_depozito_alamaz()
-        => OperatorReddiAsync(s => Svc<DepositService>(s).GetAsync(Guid.NewGuid(), 100m, LedgerAccountType.Kasa));
+        => OperatorRejectionAsync(s => Svc<DepositService>(s).GetAsync(Guid.NewGuid(), 100m, LedgerAccountType.Kasa));
 
     [Fact]
     public Task Operator_depozito_iade_edemez()
-        => OperatorReddiAsync(s => Svc<DepositService>(s).RefundAsync(Guid.NewGuid(), 100m, LedgerAccountType.Kasa));
+        => OperatorRejectionAsync(s => Svc<DepositService>(s).RefundAsync(Guid.NewGuid(), 100m, LedgerAccountType.Kasa));
 
     [Fact]
     public Task Operator_depozito_mahsup_edemez()
-        => OperatorReddiAsync(s => Svc<DepositService>(s).OffsetAsync(Guid.NewGuid(), 100m));
+        => OperatorRejectionAsync(s => Svc<DepositService>(s).OffsetAsync(Guid.NewGuid(), 100m));
 
     // ---- Ceza yansıtma (PenaltyService.YansitAsync) ----
     [Fact]
     public Task Operator_ceza_yansitamaz()
-        => OperatorReddiAsync(s => Svc<PenaltyService>(s).ReflectAsync(Guid.NewGuid()));
+        => OperatorRejectionAsync(s => Svc<PenaltyService>(s).ReflectAsync(Guid.NewGuid()));
 
     // ---- Araç satışı (VehicleSaleService.CreateAsync) ----
     [Fact]
     public Task Operator_arac_satamaz()
-        => OperatorReddiAsync(s => Svc<VehicleSaleService>(s).CreateAsync(
+        => OperatorRejectionAsync(s => Svc<VehicleSaleService>(s).CreateAsync(
             new VehicleSaleInput { VehicleId = Guid.NewGuid(), AliciCariId = Guid.NewGuid(), SatisNet = 100m }));
 
     // ---- Regülasyon ÖDEMELERİ (RegulationService: MTV / muayene / sigorta → defter yazar) ----
     [Fact]
     public Task Operator_mtv_odeyemez()
-        => OperatorReddiAsync(s => Svc<RegulationService>(s).PayMtvAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
+        => OperatorRejectionAsync(s => Svc<RegulationService>(s).PayMtvAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
 
     [Fact]
     public Task Operator_muayene_odeyemez()
-        => OperatorReddiAsync(s => Svc<RegulationService>(s).PayInspectionAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
+        => OperatorRejectionAsync(s => Svc<RegulationService>(s).PayInspectionAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
 
     [Fact]
     public Task Operator_sigorta_odeyemez()
-        => OperatorReddiAsync(s => Svc<RegulationService>(s).PayInsuranceAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
+        => OperatorRejectionAsync(s => Svc<RegulationService>(s).PayInsuranceAsync(Guid.NewGuid(), LedgerAccountType.Kasa));
 
     // ---- Servis rücu yansıtma (ServiceRecordService.YansitAsync) ----
     [Fact]
     public Task Operator_servis_maliyeti_yansitamaz()
-        => OperatorReddiAsync(s => Svc<ServiceRecordService>(s).ReflectAsync(Guid.NewGuid(), Guid.NewGuid()));
+        => OperatorRejectionAsync(s => Svc<ServiceRecordService>(s).ReflectAsync(Guid.NewGuid(), Guid.NewGuid()));
 
     // ---- Dönem kilidi (DonemKilidiService: Lock / Unlock) ----
     [Fact]
     public Task Operator_donem_kilitleyemez()
-        => OperatorReddiAsync(s => Svc<PeriodLockService>(s).LockAsync(
+        => OperatorRejectionAsync(s => Svc<PeriodLockService>(s).LockAsync(
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
 
     [Fact]
     public Task Operator_donem_kilidini_acamaz()
-        => OperatorReddiAsync(s => Svc<PeriodLockService>(s).UnlockAsync());
+        => OperatorRejectionAsync(s => Svc<PeriodLockService>(s).UnlockAsync());
 
     // ---- Kasa/Banka (CashService: tahsilat / ödeme / virman / cari-virman / ters) ----
     [Fact]
     public Task Operator_tahsilat_yapamaz()
-        => OperatorReddiAsync(s => Svc<CashService>(s).CollectAsync(
+        => OperatorRejectionAsync(s => Svc<CashService>(s).CollectAsync(
             new CashInput { CariId = Guid.NewGuid(), Tutar = 100m }));
 
     [Fact]
     public Task Operator_odeme_yapamaz()
-        => OperatorReddiAsync(s => Svc<CashService>(s).PayAsync(
+        => OperatorRejectionAsync(s => Svc<CashService>(s).PayAsync(
             new CashInput { CariId = Guid.NewGuid(), Tutar = 100m }));
 
     [Fact]
     public Task Operator_virman_yapamaz()
-        => OperatorReddiAsync(s => Svc<CashService>(s).TransferAsync(
+        => OperatorRejectionAsync(s => Svc<CashService>(s).TransferAsync(
             LedgerAccountType.Kasa, LedgerAccountType.Banka, 100m));
 
     [Fact]
     public Task Operator_cari_virman_yapamaz()
-        => OperatorReddiAsync(s => Svc<CashService>(s).TransferBetweenAccountsAsync(
+        => OperatorRejectionAsync(s => Svc<CashService>(s).TransferBetweenAccountsAsync(
             Guid.NewGuid(), Guid.NewGuid(), 100m));
 
     [Fact]
     public Task Operator_ters_kayit_atamaz()
-        => OperatorReddiAsync(s => Svc<CashService>(s).ReverseAsync(Guid.NewGuid()));
+        => OperatorRejectionAsync(s => Svc<CashService>(s).ReverseAsync(Guid.NewGuid()));
 
     // ---- Regülasyon KAYITLARI operasyoneldir (tasarım sözleşmesi) ----
     // Sigorta/MTV/muayene KAYDI defter YAZMAZ (para ödemede yazılır) ve web ucu OperationsWrite
@@ -150,12 +150,12 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid(), Guid.NewGuid(), "op", UserRole.Operator);
         var reg = Svc<RegulationService>(scope);
-        var arac = Guid.NewGuid();
+        var vehicle = Guid.NewGuid();
         var t0 = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
 
-        var pol = await reg.AddInsuranceAsync(arac, InsuranceType.Kasko, t0, t0.AddYears(1), 12000m, "P-1", "Firma", null);
-        var mtv = await reg.AddMtvAsync(arac, "2026/1", 3000m, t0.AddMonths(1));
-        var mua = await reg.AddInspectionAsync(arac, t0, t0.AddYears(2), 1500m);
+        var pol = await reg.AddInsuranceAsync(vehicle, InsuranceType.Kasko, t0, t0.AddYears(1), 12000m, "P-1", "Firma", null);
+        var mtv = await reg.AddMtvAsync(vehicle, "2026/1", 3000m, t0.AddMonths(1));
+        var mua = await reg.AddInspectionAsync(vehicle, t0, t0.AddYears(2), 1500m);
         Assert.NotEqual(Guid.Empty, pol);
         Assert.NotEqual(Guid.Empty, mtv);
         Assert.NotEqual(Guid.Empty, mua);
@@ -178,23 +178,23 @@ public sealed class ParaYetkiMatrisiTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var t = new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero);
         var hgs = new HgsReflectionService(
-            new SabitHgs([new TollCrossing(t, "Köprü", 100m)]),
+            new FixedHgs([new TollCrossing(t, "Köprü", 100m)]),
             sp.GetRequiredService<ILedgerPoster>(),
             sp.GetRequiredService<IPeriodLockGuard>(),
             sp.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
-        var cari = Guid.NewGuid();
+        var account = Guid.NewGuid();
 
         var ex = await Assert.ThrowsAsync<NoPermissionException>(
-            () => hgs.ReflectAsync(cari, "34 OP 01", t, t.AddDays(1)));
+            () => hgs.ReflectAsync(account, "34 OP 01", t, t.AddDays(1)));
         Assert.Contains("yetkiniz yok", ex.Message);
-        Assert.Equal(0m, await Svc<CashService>(scope).GetAccountBalanceAsync(cari)); // defter BOŞ kaldı
+        Assert.Equal(0m, await Svc<CashService>(scope).GetAccountBalanceAsync(account)); // defter BOŞ kaldı
     }
 
     /// <summary>Sabit geçiş listesi döndüren HGS test double'ı.</summary>
-    private sealed class SabitHgs(IReadOnlyList<TollCrossing> crossings) : IHgsService
+    private sealed class FixedHgs(IReadOnlyList<TollCrossing> crossings) : IHgsService
     {
         public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(
-            string plaka, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+            string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
             => Task.FromResult(crossings);
     }
 }

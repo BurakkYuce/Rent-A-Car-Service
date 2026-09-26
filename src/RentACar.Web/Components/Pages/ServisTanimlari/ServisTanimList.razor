@@ -74,11 +74,11 @@
        içinde; başlık sağa yaslanınca alanla hizası kopuyordu (adversarial bulgu). *@
     <thead><tr><th>Kombinasyon</th><th class="num">Araç</th><th>Kod</th><th>Bakım KM</th><th></th></tr></thead>
     <tbody>
-        @if (_oneri.Count == 0)
+        @if (_suggestion.Count == 0)
         {
             <tr><td colspan="5" class="muted">Filodaki tüm kombinasyonların tanımı var.</td></tr>
         }
-        @foreach (var o in _oneri)
+        @foreach (var o in _suggestion)
         {
             <tr>
                 <td>@o.Kombinasyon.Etiket</td>
@@ -104,11 +104,11 @@
 @code {
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     private IReadOnlyList<ServisTanim> _list = [];
-    private IReadOnlyList<ServisTanimOneri> _oneri = [];
+    private IReadOnlyList<ServisTanimOneri> _suggestion = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Tanimlar.ListAsync();
-        _oneri = await Tanimlar.SuggestionAsync();
+        _suggestion = await Tanimlar.SuggestionAsync();
     }
 }

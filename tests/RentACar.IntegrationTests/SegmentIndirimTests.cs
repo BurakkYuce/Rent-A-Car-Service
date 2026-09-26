@@ -23,9 +23,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SegmentIndirimTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
 
-    private static async Task SeedAsync(IServiceProvider sp, params (string? Segment, decimal Iskonto)[] kurallar)
+    private static async Task SeedAsync(IServiceProvider sp, params (string? Segment, decimal Iskonto)[] rules)
     {
         await sp.GetRequiredService<VehicleGroupService>().CreateAsync(new VehicleGroupInput
         { Kod = "EKO", Ad = "Ekonomik", GunlukKmLimiti = 300, AsimKmUcreti = 5.00m });
@@ -36,14 +36,14 @@ public sealed class SegmentIndirimTests(PostgresFixture fx)
         });
         var rr = sp.GetRequiredService<RentalRuleService>();
         var i = 0;
-        foreach (var (segment, iskonto) in kurallar)
+        foreach (var (segment, discount) in rules)
             await rr.CreateAsync(new RentalRuleInput
-            { Kod = $"R{++i}", Ad = $"Kural {i}", MusteriSegment = segment, Iskonto = iskonto });
+            { Kod = $"R{++i}", Ad = $"Kural {i}", MusteriSegment = segment, Iskonto = discount });
     }
 
-    private static Task<QuoteResult> TeklifAsync(IServiceProvider sp, string? segment) =>
+    private static Task<QuoteResult> QuoteAsync(IServiceProvider sp, string? segment) =>
         sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(3), MusteriSegment = segment });
+        { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(3), MusteriSegment = segment });
 
     [Fact]
     public async Task Vip_ozel_kural_genel_kurali_ezer_sinifsiz_genel_alir()
@@ -53,10 +53,10 @@ public sealed class SegmentIndirimTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         await SeedAsync(sp, ("VIP", 15m), (null, 10m));
 
-        Assert.Equal(2550.00m, (await TeklifAsync(sp, "VIP")).GenelToplam);   // 3000 × 0.85 (elle)
-        Assert.Equal(2700.00m, (await TeklifAsync(sp, null)).GenelToplam);    // 3000 × 0.90 (genel)
+        Assert.Equal(2550.00m, (await QuoteAsync(sp, "VIP")).GenelToplam);   // 3000 × 0.85 (elle)
+        Assert.Equal(2700.00m, (await QuoteAsync(sp, null)).GenelToplam);    // 3000 × 0.90 (genel)
         // Kapsamı tutmayan segment: VIP kuralı elenmeli, genel uygulanmalı.
-        Assert.Equal(2700.00m, (await TeklifAsync(sp, "Orta")).GenelToplam);
+        Assert.Equal(2700.00m, (await QuoteAsync(sp, "Orta")).GenelToplam);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class SegmentIndirimTests(PostgresFixture fx)
         await SeedAsync(sp, ("Problemli", 0m), (null, 10m));
 
         // Segment-birebir eşleşme fayda kıyasından ÖNCE: %0'lık Problemli kuralı %10 geneli yener.
-        var q = await TeklifAsync(sp, "Problemli");
+        var q = await QuoteAsync(sp, "Problemli");
         Assert.Equal(0m, q.IskontoOran);
         Assert.Equal(3000.00m, q.GenelToplam);
     }
@@ -87,7 +87,7 @@ public sealed class SegmentIndirimTests(PostgresFixture fx)
         { Tip = CustomerType.Bireysel, Ad = "Seg", Soyad = "M", Sinif = " vip " });
 
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), FiyatTuru = "Otomatik" });
+        { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), FiyatTuru = "Otomatik" });
         Assert.Equal(2550.00m, (await sp.GetRequiredService<RentalService>().GetAsync(id))!.Tutar);
     }
 
@@ -100,20 +100,20 @@ public sealed class SegmentIndirimTests(PostgresFixture fx)
         await SeedAsync(sp, ("VIP", 15m), (null, 10m));
         var v = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 SG 02", Grup = "EKO" });
-        var musteriler = sp.GetRequiredService<CustomerService>();
-        var m = await musteriler.CreateAsync(new CustomerInput
+        var customers = sp.GetRequiredService<CustomerService>();
+        var m = await customers.CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Seg", Soyad = "R", Sinif = "VIP" });
 
-        BookingInput Girdi() => new()
-        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), FiyatTuru = "Otomatik" };
-        var rez = sp.GetRequiredService<ReservationService>();
-        var id = await rez.CreateAsync(Girdi());
-        Assert.Equal(2550.00m, (await rez.GetAsync(id))!.Tutar);              // VIP fiyatı
+        BookingInput Input() => new()
+        { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), FiyatTuru = "Otomatik" };
+        var res = sp.GetRequiredService<ReservationService>();
+        var id = await res.CreateAsync(Input());
+        Assert.Equal(2550.00m, (await res.GetAsync(id))!.Tutar);              // VIP fiyatı
 
         // Cari sınıfı düşürülür → rezervasyon güncellemesi GÜNCEL sınıfla yeniden fiyatlar.
-        await musteriler.UpdateAsync(m, new CustomerInput
+        await customers.UpdateAsync(m, new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Seg", Soyad = "R", Sinif = null });
-        await rez.UpdateAsync(id, Girdi());
-        Assert.Equal(2700.00m, (await rez.GetAsync(id))!.Tutar);              // genel fiyat
+        await res.UpdateAsync(id, Input());
+        Assert.Equal(2700.00m, (await res.GetAsync(id))!.Tutar);              // genel fiyat
     }
 }

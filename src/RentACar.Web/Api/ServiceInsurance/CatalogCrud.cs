@@ -64,9 +64,9 @@ internal static class CatalogCrud
             CancellationToken ct) =>
         {
             var rows = (await s.List(svc, ct)).Select(e => s.ToDto(e, null));
-            if (F5Ortak.Nz(q) is { } text) rows = rows.Where(d => s.Matches(d, text));
-            return TypedResults.Ok(F5Ortak.Sayfala(rows.ToList(), s.Sort, sayfa, boyut, sirala));
-        }).AlanlariEsle(F5Ortak.SiralamaKurallari), s);
+            if (F5Shared.Nz(q) is { } text) rows = rows.Where(d => s.Matches(d, text));
+            return TypedResults.Ok(F5Shared.Paginate(rows.ToList(), s.Sort, sayfa, boyut, sirala));
+        }).MapFields(F5Shared.SortRules), s);
 
         Read(g.MapGet("/{id:guid}", async Task<Results<Ok<TDto>, ProblemHttpResult>> (Guid id, TService svc, CancellationToken ct)
             => await DetailAsync(s, svc, id, ct) is { } d ? TypedResults.Ok(d) : ServiceInsuranceShared.NotFound(s.NotFoundText)), s);
@@ -79,17 +79,17 @@ internal static class CatalogCrud
             return await DetailAsync(s, svc, id, ct) is { } d
                 ? TypedResults.Created($"{UiApiExtensions.V1}{s.Path}/{id}", d)
                 : ServiceInsuranceShared.NotFound(s.NotFoundText);
-        }).AlanlariEsle(s.FieldRules).RequirePermission(s.WritePermission);
+        }).MapFields(s.FieldRules).RequirePermission(s.WritePermission);
 
         g.MapPut("/{id:guid}", async Task<Results<Ok<TDto>, ProblemHttpResult>> (Guid id, TRequest body, TService svc,
             HttpContext http, CancellationToken ct) =>
         {
             if (await s.Get(svc, id, ct) is not { } existing) return ServiceInsuranceShared.NotFound(s.NotFoundText);
-            var version = AracFinans.AracFinansOrtak.Surum(body.Surum);
+            var version = AracFinans.VehicleFinanceShared.Version(body.Surum);
             s.Validate(body, existing);
             if (!await s.Update(svc, id, body, existing, version, http, ct)) return ServiceInsuranceShared.NotFound(s.NotFoundText);
             return await DetailAsync(s, svc, id, ct) is { } d ? TypedResults.Ok(d) : ServiceInsuranceShared.NotFound(s.NotFoundText);
-        }).AlanlariEsle(s.FieldRules).RequirePermission(s.WritePermission);
+        }).MapFields(s.FieldRules).RequirePermission(s.WritePermission);
 
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, TService svc, CancellationToken ct)
             => await s.Delete(svc, id, ct) ? TypedResults.NoContent() : ServiceInsuranceShared.NotFound(s.NotFoundText))

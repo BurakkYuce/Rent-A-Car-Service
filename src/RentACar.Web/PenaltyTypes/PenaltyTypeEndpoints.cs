@@ -32,9 +32,9 @@ public static class PenaltyTypeEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/ceza-turleri", mesaj); }
+        try { await action(); return Result.Ok("/ceza-turleri", message); }
         catch (ValidationException ex) { return Results.Redirect($"/ceza-turleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

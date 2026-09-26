@@ -40,7 +40,7 @@
     <label>İşlem Şube
         <select name="ofis">
             <option value="">— tümü —</option>
-            @foreach (var o in _ofisler) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+            @foreach (var o in _offices) { <option value="@o" selected="@(o == Ofis)">@o</option> }
         </select>
     </label>
     <label>Başlangıç ≥<input name="bas" type="date" value="@Bas" /></label>
@@ -58,7 +58,7 @@
     <thead>
         <tr>
             <th>@KirilimBaslik</th>
-            @foreach (var ay in _d.AyAnahtarlari) { <th class="num">@AyEtiket(ay)</th> }
+            @foreach (var month in _d.AyAnahtarlari) { <th class="num">@MonthLabel(month)</th> }
             <th class="num">Toplam</th>
         </tr>
     </thead>
@@ -67,25 +67,25 @@
         {
             <tr><td colspan="@(_d.AyAnahtarlari.Count + 2)" class="muted">Seçilen aralıkta kayıt yok.</td></tr>
         }
-        @foreach (var sat in _d.Satirlar)
+        @foreach (var sell in _d.Satirlar)
         {
             <tr>
-                <td>@sat.Kirilim</td>
-                @foreach (var ay in _d.AyAnahtarlari)
+                <td>@sell.Kirilim</td>
+                @foreach (var month in _d.AyAnahtarlari)
                 {
-                    var v = sat.Month(ay);
+                    var v = sell.Month(month);
                     <td class="num">@(v == 0m ? "" : v.ToString("N0"))</td>
                 }
-                <td class="num"><strong>@sat.Toplam.ToString("N0")</strong></td>
+                <td class="num"><strong>@sell.Toplam.ToString("N0")</strong></td>
             </tr>
         }
         @if (_d.Satirlar.Count > 0)
         {
             <tr>
                 <td><strong>Toplam</strong></td>
-                @foreach (var ay in _d.AyAnahtarlari)
+                @foreach (var month in _d.AyAnahtarlari)
                 {
-                    <td class="num"><strong>@_d.MonthTotal(ay).ToString("N0")</strong></td>
+                    <td class="num"><strong>@_d.MonthTotal(month).ToString("N0")</strong></td>
                 }
                 <td class="num"><strong>@_d.GenelToplam.ToString("N0")</strong></td>
             </tr>
@@ -103,7 +103,7 @@
     [SupplyParameterFromQuery(Name = "bit")] public string? Bit { get; set; }
 
     private KarsilastirmaliAnalizDto _d = new([], [], "Kira", "Adet", "AracGrubu");
-    private string[] _ofisler = [];
+    private string[] _offices = [];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Tablo) || !string.IsNullOrWhiteSpace(Veri)
         || !string.IsNullOrWhiteSpace(Kirilim) || !string.IsNullOrWhiteSpace(Ofis)
@@ -118,36 +118,36 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _ofisler = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
+        _offices = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
         _d = await Reports.GetComparativeAnalysisAsync(new KarsilastirmaliAnalizFilter
         {
             Tablo = Tablo ?? "Kira",
             VeriTuru = Veri ?? "Adet",
             Kirilim = Kirilim ?? "AracGrubu",
             Ofis = Ofis,
-            Bas = Tarih(Bas),
+            Bas = Date(Bas),
             // Üst sınır GÜN SONUNA genişletilir (tarih girişi 00:00'a düşer).
-            Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1)
+            Bit = Date(Bit)?.AddDays(1).AddTicks(-1)
         });
     }
 
-    private static DateTimeOffset? Tarih(string? s)
+    private static DateTimeOffset? Date(string? s)
         => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
 
     /// <summary>"2026-08" → "08.2026" (grid başlığında kısa ve sıralanabilir kalsın).</summary>
-    private static string AyEtiket(string anahtar)
-        => anahtar.Length == 7 ? anahtar[5..] + "." + anahtar[..4] : anahtar;
+    private static string MonthLabel(string key)
+        => key.Length == 7 ? key[5..] + "." + key[..4] : key;
 
     private string Qs(string format)
     {
         var p = new List<string> { "format=" + format };
-        void Ekle(string ad, string? deger)
+        void Add(string name, string? value)
         {
-            if (!string.IsNullOrWhiteSpace(deger)) p.Add($"{ad}={Uri.EscapeDataString(deger)}");
+            if (!string.IsNullOrWhiteSpace(value)) p.Add($"{name}={Uri.EscapeDataString(value)}");
         }
-        Ekle("tablo", Tablo); Ekle("veri", Veri); Ekle("kirilim", Kirilim);
-        Ekle("ofis", Ofis); Ekle("bas", Bas); Ekle("bit", Bit);
+        Add("tablo", Tablo); Add("veri", Veri); Add("kirilim", Kirilim);
+        Add("ofis", Ofis); Add("bas", Bas); Add("bit", Bit);
         return string.Join("&", p);
     }
 }

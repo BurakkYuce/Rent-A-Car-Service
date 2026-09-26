@@ -8,26 +8,26 @@
 @* PR-16 — sık sorulan sorular. Açılır-kapanır liste `<details>`/`<summary>` ile: JS GEREKMEZ
    (statik SSR + `script-src 'self'`), klavye ve ekran okuyucu desteği tarayıcıdan gelir. *@
 
-<PageTitle>Sık Sorulan Sorular — @(_marka ?? "RentPro")</PageTitle>
+<PageTitle>Sık Sorulan Sorular — @(_brand ?? "RentPro")</PageTitle>
 
 @* FAQPage yapısal verisi: ana sayfada zaten basılıyordu ama ASIL SSS SAYFASINDA yoktu —
    arama motorunun "zengin sonuç" (açılır soru-cevap) çıkarabileceği tek sayfa burasıyken.
    Mevcut YapisalVeri bileşeni yeniden kullanılıyor (ikinci bir JSON-LD üreticisi yazılmadı). *@
-<YapisalVeri Marka="_branding" Sorular="_sorular" KanonikUrl="@_kanonik" />
-<SayfaMeta Baslik="@($"Sık Sorulan Sorular — {_marka ?? "RentPro"}")"
-           Aciklama="@SssAciklama" Yol="/sss" Marka="_branding" KanonikKok="@_kanonikKok" />
+<YapisalVeri Marka="_branding" Sorular="_questions" KanonikUrl="@_canonical" />
+<SayfaMeta Baslik="@($"Sık Sorulan Sorular — {_brand ?? "RentPro"}")"
+           Aciklama="@SssAciklama" Yol="/sss" Marka="_branding" KanonikKok="@_canonicalRoot" />
 
 <div class="container">
     <header class="site-header"><h1>Sık Sorulan Sorular</h1></header>
 
-    @if (_sorular.Count == 0)
+    @if (_questions.Count == 0)
     {
         <p class="empty-state">Henüz soru eklenmedi.</p>
     }
     else
     {
         <div class="sss-liste">
-            @foreach (var k in _sorular)
+            @foreach (var k in _questions)
             {
                 <details class="sss">
                     <summary>@k.Soru</summary>
@@ -44,33 +44,33 @@
 @code {
     [CascadingParameter] public HttpContext? Http { get; set; }
 
-    private IReadOnlyList<SssSatiri> _sorular = [];
-    private string? _marka;
+    private IReadOnlyList<SssSatiri> _questions = [];
+    private string? _brand;
     private FleetBranding? _branding;
-    private string? _kanonik;
-    private string? _kanonikKok;
+    private string? _canonical;
+    private string? _canonicalRoot;
 
     /// <summary>Açıklama İLK SORUDAN kurulur — sabit cümle yerine sayfanın gerçek içeriğini
     /// yansıtır ve her tenant'ta farklı çıkar.</summary>
-    private string SssAciklama => _sorular.Count > 0
-        ? $"{_marka ?? "Firmamız"} araç kiralama hakkında sık sorulan sorular: "
-          + string.Join(" ", _sorular.Take(3).Select(x => x.Soru))
-        : $"{_marka ?? "Firmamız"} araç kiralama hakkında sık sorulan sorular ve cevapları.";
+    private string SssAciklama => _questions.Count > 0
+        ? $"{_brand ?? "Firmamız"} araç kiralama hakkında sık sorulan sorular: "
+          + string.Join(" ", _questions.Take(3).Select(x => x.Soru))
+        : $"{_brand ?? "Firmamız"} araç kiralama hakkında sık sorulan sorular ve cevapları.";
 
     protected override async Task OnInitializedAsync()
     {
-        _sorular = await Icerik.PublishedFaqAsync();
+        _questions = await Icerik.PublishedFaqAsync();
         try
         {
             _branding = await Showcase.GetBrandingAsync();
-            _marka = _branding.Marka;
+            _brand = _branding.Marka;
         }
         catch { /* marka çözülemezse sayfa yine basılır */ }
 
         if (Http is not null)
         {
-            _kanonikKok = $"https://{Http.Request.Host.Value}";
-            _kanonik = _kanonikKok + "/sss";
+            _canonicalRoot = $"https://{Http.Request.Host.Value}";
+            _canonical = _canonicalRoot + "/sss";
         }
     }
 }

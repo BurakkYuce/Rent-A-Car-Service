@@ -18,22 +18,22 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DonusAracKmTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-10).AddHours(9);
 
-    private static async Task<(Guid veh, Guid rental)> KiraAsync(
-        IServiceProvider sp, string plaka, int aracKm = 0, string? tip = null)
+    private static async Task<(Guid veh, Guid rental)> RentalAsync(
+        IServiceProvider sp, string plate, int vehicleKm = 0, string? tip = null)
     {
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Km", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka, Km = aracKm, Tip = tip });
+            .CreateAsync(new VehicleInput { Plaka = plate, Km = vehicleKm, Tip = tip });
         var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m });
+        { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m });
         return (veh, rental);
     }
 
-    private static Task<RentACar.Domain.Entities.Vehicle?> AracAsync(IServiceProvider sp, Guid id)
+    private static Task<RentACar.Domain.Entities.Vehicle?> VehicleAsync(IServiceProvider sp, Guid id)
         => sp.GetRequiredService<VehicleService>().GetAsync(id);
 
     // ---------- Odometre güncelleme ----------
@@ -44,13 +44,13 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
-        var (veh, rental) = await KiraAsync(sp, "34 KM 10", aracKm: 42000);
+        var (veh, rental) = await RentalAsync(sp, "34 KM 10", vehicleKm: 42000);
 
         await rentals.DeliverAsync(rental, pickupKm: 45000, pickupFuel: 8);
-        Assert.Equal(45000, (await AracAsync(sp, veh))!.Km); // çıkışta da güncellenir
+        Assert.Equal(45000, (await VehicleAsync(sp, veh))!.Km); // çıkışta da güncellenir
 
-        await rentals.ReturnAsync(rental, returnKm: 50000, returnFuel: 8, Bas.AddDays(3));
-        Assert.Equal(50000, (await AracAsync(sp, veh))!.Km); // dönüşte odometre = dönüş km
+        await rentals.ReturnAsync(rental, returnKm: 50000, returnFuel: 8, Start.AddDays(3));
+        Assert.Equal(50000, (await VehicleAsync(sp, veh))!.Km); // dönüşte odometre = dönüş km
     }
 
     [Fact]
@@ -62,15 +62,15 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
         // Araç kartında 60.000 yazıyor; kira çıkış/dönüş km'si daha küçük girildi (eski veri) →
         // KİRA kaydolur ama araç odometresi GERİ SARILMAZ (monoton).
-        var (veh, rental) = await KiraAsync(sp, "34 KM 11", aracKm: 60000);
+        var (veh, rental) = await RentalAsync(sp, "34 KM 11", vehicleKm: 60000);
         await rentals.DeliverAsync(rental, pickupKm: 45000, pickupFuel: 8);
-        await rentals.ReturnAsync(rental, returnKm: 50000, returnFuel: 8, Bas.AddDays(3));
+        await rentals.ReturnAsync(rental, returnKm: 50000, returnFuel: 8, Start.AddDays(3));
 
-        var arac = await AracAsync(sp, veh);
-        Assert.Equal(60000, arac!.Km); // değişmedi
-        var kira = await rentals.GetAsync(rental);
-        Assert.Equal(50000, kira!.DonusKm); // kira kaydı yine tam
-        Assert.Equal(RentalStatus.Tamamlandi, kira.Durum);
+        var vehicle = await VehicleAsync(sp, veh);
+        Assert.Equal(60000, vehicle!.Km); // değişmedi
+        var rentalItem = await rentals.GetAsync(rental);
+        Assert.Equal(50000, rentalItem!.DonusKm); // kira kaydı yine tam
+        Assert.Equal(RentalStatus.Tamamlandi, rentalItem.Durum);
     }
 
     [Fact]
@@ -80,11 +80,11 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
-        var (_, rental) = await KiraAsync(sp, "34 KM 12");
+        var (_, rental) = await RentalAsync(sp, "34 KM 12");
         await rentals.DeliverAsync(rental, pickupKm: 10000, pickupFuel: 8);
         // Parmak hatası: 10.000 → 500.000 (fark 490.000 > 100.000) — dönüş geri alınamaz, erken red.
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => rentals.ReturnAsync(rental, returnKm: 500000, returnFuel: 8, Bas.AddDays(3)));
+            () => rentals.ReturnAsync(rental, returnKm: 500000, returnFuel: 8, Start.AddDays(3)));
         Assert.Contains("gerçekçi değil", ex.Message);
     }
 
@@ -119,11 +119,11 @@ public sealed class DonusAracKmTests(PostgresFixture fx)
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
         { Plaka = "34 BK 02", Tip = "SUV", Km = 50000, SonBakimKm = 45000, Durum = VehicleStatus.Musait });
         // Servis kaydı kaynağı: elle hedef 52.000 (otomatik 45.000+20.000=65.000'den DAHA ERKEN).
-        var servis = sp.GetRequiredService<RentACar.Application.ServiceRecords.ServiceRecordService>();
-        var sId = await servis.CreateAsync(new RentACar.Application.ServiceRecords.ServiceRecordInput
+        var service = sp.GetRequiredService<RentACar.Application.ServiceRecords.ServiceRecordService>();
+        var sId = await service.CreateAsync(new RentACar.Application.ServiceRecords.ServiceRecordInput
         { VehicleId = veh, GirisKm = 50000, Aciklama = "periyodik" });
-        await servis.StartAsync(sId); // Açık → Serviste (durum akışı)
-        await servis.CompleteAsync(sId, pickupKm: 50000, nextMaintenanceKm: 52000);
+        await service.StartAsync(sId); // Açık → Serviste (durum akışı)
+        await service.CompleteAsync(sId, pickupKm: 50000, nextMaintenanceKm: 52000);
 
         var rows = await sp.GetRequiredService<ReportService>().GetPeriodicServiceAsync();
         var r = Assert.Single(rows, x => x.Plaka == "34BK02"); // TEK satır (dedup)

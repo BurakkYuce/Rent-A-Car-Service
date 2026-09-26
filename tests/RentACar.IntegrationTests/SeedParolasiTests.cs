@@ -23,7 +23,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SeedParolasiTests
 {
-    private const string SeedSatiri = "Seed kullanıcı parolası: ";
+    private const string SeedLine = "Seed kullanıcı parolası: ";
 
     // ---- saf karar ----
 
@@ -31,23 +31,23 @@ public sealed class SeedParolasiTests
     public void Yapilandirilmis_parola_her_ortamda_kazanir_ve_uretilmis_sayilmaz()
     {
         Assert.Equal(new DbInitializer.SeedParolaKarari("verilen-parola", false),
-            DbInitializer.SeedParolasiCoz("verilen-parola", gelistirme: true));
+            DbInitializer.ResolveSeedPassword("verilen-parola", development: true));
         Assert.Equal(new DbInitializer.SeedParolaKarari("verilen-parola", false),
-            DbInitializer.SeedParolasiCoz("verilen-parola", gelistirme: false));
+            DbInitializer.ResolveSeedPassword("verilen-parola", development: false));
     }
 
     [Fact]
     public void Development_disinda_yapilandirma_yoksa_seed_parolasi_yok()
     {
-        Assert.Null(DbInitializer.SeedParolasiCoz(null, gelistirme: false).Parola);
-        Assert.Null(DbInitializer.SeedParolasiCoz("   ", gelistirme: false).Parola);
+        Assert.Null(DbInitializer.ResolveSeedPassword(null, development: false).Parola);
+        Assert.Null(DbInitializer.ResolveSeedPassword("   ", development: false).Parola);
     }
 
     [Fact]
     public void Development_ta_yapilandirma_yoksa_her_seferinde_farkli_guclu_parola_uretilir()
     {
-        var a = DbInitializer.SeedParolasiCoz(null, gelistirme: true);
-        var b = DbInitializer.SeedParolasiCoz("", gelistirme: true);
+        var a = DbInitializer.ResolveSeedPassword(null, development: true);
+        var b = DbInitializer.ResolveSeedPassword("", development: true);
         Assert.True(a.Uretildi);
         Assert.True(b.Uretildi);
         Assert.True(a.Parola!.Length >= 20);
@@ -63,30 +63,30 @@ public sealed class SeedParolasiTests
         await pg.InitializeAsync();
         try
         {
-            var log1 = new LogYakalayici();
-            await SeedAsync(pg, "Development", seedParola: null, log1);
+            var log1 = new LogCollector();
+            await SeedAsync(pg, "Development", seedPassword: null, log1);
 
-            var satir = Assert.Single(log1.Kayitlar, k => k.Mesaj.StartsWith(SeedSatiri, StringComparison.Ordinal));
-            Assert.Equal(LogLevel.Warning, satir.Seviye);
-            var parola = satir.Mesaj[SeedSatiri.Length..].Split(' ')[0];
-            Assert.True(parola.Length >= 20, $"üretilen parola beklenenden kısa: {parola.Length}");
+            var row = Assert.Single(log1.Records, k => k.Mesaj.StartsWith(SeedLine, StringComparison.Ordinal));
+            Assert.Equal(LogLevel.Warning, row.Seviye);
+            var password = row.Mesaj[SeedLine.Length..].Split(' ')[0];
+            Assert.True(password.Length >= 20, $"üretilen parola beklenenden kısa: {password.Length}");
 
-            var once = await KullanicilarAsync(pg);
+            var once = await UsersAsync(pg);
             Assert.Equal(3, once.Count);
-            foreach (var (firma, kullanici) in SeedKimlikleri)
-                Assert.True(await GirisAsync(pg, firma, kullanici, parola), $"{firma}/{kullanici}: loglanan parola girişi açmıyor");
+            foreach (var (company, user) in SeedIdentities)
+                Assert.True(await LoginAsync(pg, company, user, password), $"{company}/{user}: loglanan parola girişi açmıyor");
 
             // İkinci açılış — bu kez parola YAPILANDIRILMIŞ olsa bile mevcut kullanıcılara dokunulmaz,
             // yeni parola da üretilip basılmaz.
-            var log2 = new LogYakalayici();
-            await SeedAsync(pg, "Development", seedParola: "baska-bir-parola-123", log2);
+            var log2 = new LogCollector();
+            await SeedAsync(pg, "Development", seedPassword: "baska-bir-parola-123", log2);
 
-            var sonra = await KullanicilarAsync(pg);
+            var after = await UsersAsync(pg);
             Assert.Equal(once.Select(u => (u.Id, u.PasswordHash)).OrderBy(x => x.Id),
-                         sonra.Select(u => (u.Id, u.PasswordHash)).OrderBy(x => x.Id));
-            Assert.DoesNotContain(log2.Kayitlar, k => k.Mesaj.Contains(SeedSatiri, StringComparison.Ordinal));
-            Assert.False(await GirisAsync(pg, "yucerent", "umit", "baska-bir-parola-123"));
-            Assert.True(await GirisAsync(pg, "yucerent", "umit", parola));
+                         after.Select(u => (u.Id, u.PasswordHash)).OrderBy(x => x.Id));
+            Assert.DoesNotContain(log2.Records, k => k.Mesaj.Contains(SeedLine, StringComparison.Ordinal));
+            Assert.False(await LoginAsync(pg, "yucerent", "umit", "baska-bir-parola-123"));
+            Assert.True(await LoginAsync(pg, "yucerent", "umit", password));
         }
         finally { await pg.DisposeAsync(); }
     }
@@ -98,59 +98,59 @@ public sealed class SeedParolasiTests
         await pg.InitializeAsync();
         try
         {
-            var log1 = new LogYakalayici();
-            await SeedAsync(pg, "Production", seedParola: null, log1);
+            var log1 = new LogCollector();
+            await SeedAsync(pg, "Production", seedPassword: null, log1);
 
-            Assert.Empty(await KullanicilarAsync(pg));
+            Assert.Empty(await UsersAsync(pg));
             await using (var db = OwnerDb(pg))
                 Assert.False(await db.Tenants.AnyAsync(t => t.Code == "yucerent" || t.Code == "demo"));
-            Assert.Contains(log1.Kayitlar, k => k.Seviye == LogLevel.Warning && k.Mesaj.StartsWith("Seed atlandı", StringComparison.Ordinal));
-            Assert.DoesNotContain(log1.Kayitlar, k => k.Mesaj.Contains(SeedSatiri, StringComparison.Ordinal));
+            Assert.Contains(log1.Records, k => k.Seviye == LogLevel.Warning && k.Mesaj.StartsWith("Seed atlandı", StringComparison.Ordinal));
+            Assert.DoesNotContain(log1.Records, k => k.Mesaj.Contains(SeedLine, StringComparison.Ordinal));
 
             // Operatör parolayı açıkça verdi → seed o parolayla koşar; parola hiçbir log satırına girmez.
-            const string verilen = "UretimdeVerilen-Parola-7Q";
-            var log2 = new LogYakalayici();
-            await SeedAsync(pg, "Production", verilen, log2);
+            const string given = "UretimdeVerilen-Parola-7Q";
+            var log2 = new LogCollector();
+            await SeedAsync(pg, "Production", given, log2);
 
-            Assert.Equal(3, (await KullanicilarAsync(pg)).Count);
-            foreach (var (firma, kullanici) in SeedKimlikleri)
-                Assert.True(await GirisAsync(pg, firma, kullanici, verilen), $"{firma}/{kullanici}: verilen parola girişi açmıyor");
-            Assert.DoesNotContain(log2.Kayitlar, k => k.Mesaj.Contains(verilen, StringComparison.Ordinal));
+            Assert.Equal(3, (await UsersAsync(pg)).Count);
+            foreach (var (company, user) in SeedIdentities)
+                Assert.True(await LoginAsync(pg, company, user, given), $"{company}/{user}: verilen parola girişi açmıyor");
+            Assert.DoesNotContain(log2.Records, k => k.Mesaj.Contains(given, StringComparison.Ordinal));
         }
         finally { await pg.DisposeAsync(); }
     }
 
-    private static async Task SeedAsync(PostgresFixture pg, string ortam, string? seedParola, LogYakalayici log)
+    private static async Task SeedAsync(PostgresFixture pg, string environment, string? seedPassword, LogCollector log)
     {
-        var ayar = new Dictionary<string, string?>();
-        if (seedParola is not null) ayar[DbInitializer.SeedParolaAnahtari] = seedParola;
+        var setting = new Dictionary<string, string?>();
+        if (seedPassword is not null) setting[DbInitializer.SeedPasswordKey] = seedPassword;
 
         using var host = new TestHost(pg.AppConnectionString, s =>
         {
-            s.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(ayar).Build());
-            s.AddSingleton<IHostEnvironment>(new SahteOrtam(ortam));
+            s.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(setting).Build());
+            s.AddSingleton<IHostEnvironment>(new SahteOrtam(environment));
             s.AddSingleton<ILoggerProvider>(log);
         });
         using var scope = host.ScopeFor(null);
         await DbInitializer.MigrateAndSeedAsync(scope.ServiceProvider, pg.OwnerConnectionString);
     }
 
-    private static readonly (string Firma, string Kullanici)[] SeedKimlikleri =
+    private static readonly (string Firma, string Kullanici)[] SeedIdentities =
         [("yucerent", "umit"), ("yucerent", "operator"), ("demo", "umit")];
 
     /// <summary>Gerçek giriş doğrulaması (Web + API'nin ortak <see cref="LoginService"/>'i, racar_app bağlantısı).</summary>
-    private static async Task<bool> GirisAsync(PostgresFixture pg, string firma, string kullanici, string parola)
+    private static async Task<bool> LoginAsync(PostgresFixture pg, string company, string user, string password)
     {
         using var host = new TestHost(pg.AppConnectionString);
         using var scope = host.ScopeFor(null);
-        return await scope.ServiceProvider.GetRequiredService<LoginService>().ValidateAsync(firma, kullanici, parola) is not null;
+        return await scope.ServiceProvider.GetRequiredService<LoginService>().ValidateAsync(company, user, password) is not null;
     }
 
-    private static async Task<List<User>> KullanicilarAsync(PostgresFixture pg)
+    private static async Task<List<User>> UsersAsync(PostgresFixture pg)
     {
         await using var db = OwnerDb(pg);
-        var seedFirmalari = await db.Tenants.Where(t => t.Code == "yucerent" || t.Code == "demo").Select(t => t.Id).ToListAsync();
-        return await db.Users.AsNoTracking().Where(u => seedFirmalari.Contains(u.TenantId)).ToListAsync();
+        var seedCompanies = await db.Tenants.Where(t => t.Code == "yucerent" || t.Code == "demo").Select(t => t.Id).ToListAsync();
+        return await db.Users.AsNoTracking().Where(u => seedCompanies.Contains(u.TenantId)).ToListAsync();
     }
 
     private static AppDbContext OwnerDb(PostgresFixture pg)
@@ -167,19 +167,19 @@ public sealed class SeedParolasiTests
 
     private sealed record LogKaydi(LogLevel Seviye, string Mesaj);
 
-    private sealed class LogYakalayici : ILoggerProvider
+    private sealed class LogCollector : ILoggerProvider
     {
-        public ConcurrentQueue<LogKaydi> Kayitlar { get; } = new();
-        public ILogger CreateLogger(string categoryName) => new Kaydedici(Kayitlar);
+        public ConcurrentQueue<LogKaydi> Records { get; } = new();
+        public ILogger CreateLogger(string categoryName) => new Recorder(Records);
         public void Dispose() { }
 
-        private sealed class Kaydedici(ConcurrentQueue<LogKaydi> hedef) : ILogger
+        private sealed class Recorder(ConcurrentQueue<LogKaydi> target) : ILogger
         {
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
             public bool IsEnabled(LogLevel logLevel) => true;
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
                 Func<TState, Exception?, string> formatter)
-                => hedef.Enqueue(new LogKaydi(logLevel, formatter(state, exception)));
+                => target.Enqueue(new LogKaydi(logLevel, formatter(state, exception)));
         }
     }
 }

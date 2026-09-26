@@ -17,7 +17,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
 {
-    private static async Task<(Guid rentalId, Guid gpsId, Guid koltukId)> SeedAsync(IServiceScope scope, decimal tutar = 400m)
+    private static async Task<(Guid rentalId, Guid gpsId, Guid koltukId)> SeedAsync(IServiceScope scope, decimal amount = 400m)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -28,21 +28,21 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         db.Customers.Add(c);
 
         var gps = new EkHizmetTanim { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 100m, KdvOrani = 0.20m };
-        var koltuk = new EkHizmetTanim { Kod = "KOLTUK", Ad = "Bebek Koltuğu", BirimUcret = 50m, KdvOrani = 0.10m };
+        var seat = new EkHizmetTanim { Kod = "KOLTUK", Ad = "Bebek Koltuğu", BirimUcret = 50m, KdvOrani = 0.10m };
         db.EkHizmetTanimlari.Add(gps);
-        db.EkHizmetTanimlari.Add(koltuk);
+        db.EkHizmetTanimlari.Add(seat);
 
         var rental = new RentalContract
         {
             SozlesmeNo = "KS-ADV-" + Guid.NewGuid().ToString("N")[..6], VehicleId = v.Id, MusteriId = c.Id,
             Durum = RentalStatus.Kirada,
             BasTar = DateTimeOffset.UtcNow.AddDays(-2), BitTar = DateTimeOffset.UtcNow.AddDays(2),
-            Gun = 4, GunlukUcret = 100m, Tutar = tutar, GenelToplam = tutar, Bakiye = tutar,
+            Gun = 4, GunlukUcret = 100m, Tutar = amount, GenelToplam = amount, Bakiye = amount,
             CikisKm = 1000, CikisYakit = 8, KmLimit = 0
         };
         db.Rentals.Add(rental);
         await db.SaveChangesAsync();
-        return (rental.Id, gps.Id, koltuk.Id);
+        return (rental.Id, gps.Id, seat.Id);
     }
 
     private static async Task<RentalContract> GetRentalAsync(IServiceScope scope, Guid id)
@@ -69,12 +69,12 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         var invoiceCount = await db.Invoices.CountAsync(i => i.RentalId == rentalId);
-        var cariDebit = (await db.AccountLedgerEntries
+        var accountDebit = (await db.AccountLedgerEntries
             .Where(e => e.AccountType == LedgerAccountType.Cari && e.SourceType == "Fatura")
             .ToListAsync()).Sum(e => e.SignedBase);
 
         Assert.Equal(1, invoiceCount);     // tek fatura
-        Assert.Equal(400m, cariDebit);     // tek borç
+        Assert.Equal(400m, accountDebit);     // tek borç
     }
 
     // ---- VECTOR 4: dönüşten SONRA ek hizmet eklenince double-count / base doğru mu ----
@@ -111,25 +111,25 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
 
         // Tanım: birim 0.33 net %20, miktar 3 (net round(0.99)=0.99); ve 10.005 gibi.
-        var (rentalId, _, _) = await SeedAsync(scope, tutar: 333.33m);
+        var (rentalId, _, _) = await SeedAsync(scope, amount: 333.33m);
         var addSvc = scope.ServiceProvider.GetRequiredService<RentalAddOnService>();
         var invSvc = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
-        Guid oddTanim, oddTanim2;
+        Guid oddDefinition, oddDefinition2;
         await using (var db = await factory.CreateDbContextAsync())
         {
             var t1 = new EkHizmetTanim { Kod = "ODD1", Ad = "Odd1", BirimUcret = 0.33m, KdvOrani = 0.20m };
             var t2 = new EkHizmetTanim { Kod = "ODD2", Ad = "Odd2", BirimUcret = 3.337m, KdvOrani = 0.10m };
             db.EkHizmetTanimlari.Add(t1); db.EkHizmetTanimlari.Add(t2);
             await db.SaveChangesAsync();
-            oddTanim = t1.Id; oddTanim2 = t2.Id;
+            oddDefinition = t1.Id; oddDefinition2 = t2.Id;
         }
 
         // 7 adet odd kalem ekle (yuvarlama birikimi tetikle).
         for (int i = 0; i < 7; i++)
         {
-            await addSvc.AddAsync(rentalId, oddTanim, quantity: 1m);
-            await addSvc.AddAsync(rentalId, oddTanim2, quantity: 1.5m);
+            await addSvc.AddAsync(rentalId, oddDefinition, quantity: 1m);
+            await addSvc.AddAsync(rentalId, oddDefinition2, quantity: 1.5m);
         }
 
         var invId = await invSvc.CreateFromRentalAsync(rentalId);
@@ -143,10 +143,10 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         await using var db2 = await factory.CreateDbContextAsync();
         var entries = await db2.AccountLedgerEntries.AsNoTracking()
             .Where(e => e.SourceType == "Fatura" && e.SourceId == invId).ToListAsync();
-        var borc = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
-        var alacak = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
-        Assert.Equal(borc, alacak); // DENGE
-        Assert.Equal(inv.GenelToplam, borc);
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.AmountInBase);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.AmountInBase);
+        Assert.Equal(debit, credit); // DENGE
+        Assert.Equal(inv.GenelToplam, debit);
 
         // Satır toplamları = fatura toplamı (kalem-bazlı sızıntı yok).
         Assert.Equal(inv.NetTutar, inv.Lines.Sum(l => l.SatirNet));
@@ -263,10 +263,10 @@ public sealed class EkHizmetAdversarialTests(PostgresFixture fx)
         var invId = await invSvc.CreateFromRentalAsync(rentalId);
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var cariSigned = (await db.AccountLedgerEntries
+        var accountSigned = (await db.AccountLedgerEntries
             .Where(e => e.AccountType == LedgerAccountType.Cari && e.SourceId == invId)
             .ToListAsync()).Sum(e => e.SignedBase);
-        Assert.True(cariSigned > 0, "müşteri borçlu (pozitif) olmalı");
-        Assert.Equal(520m, cariSigned); // 400 + 120
+        Assert.True(accountSigned > 0, "müşteri borçlu (pozitif) olmalı");
+        Assert.Equal(520m, accountSigned); // 400 + 120
     }
 }

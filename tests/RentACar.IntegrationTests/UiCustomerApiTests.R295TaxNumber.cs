@@ -47,17 +47,17 @@ public sealed partial class UiCustomerApiTests
     {
         var e = await SetupAsync();
         var opA = await LoginAsync(e, Who.OperatorA);
-        var tc = RandomTc();
-        var legacy = new Customer { Tip = CustomerType.Bireysel, Ad = "Eski", VergiNo = tc };
-        var corporate = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Eski Kurum " + Marker(), VergiNo = RandomTc() };
+        var nationalId = RandomNationalId();
+        var legacy = new Customer { Tip = CustomerType.Bireysel, Ad = "Eski", VergiNo = nationalId };
+        var corporate = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Eski Kurum " + Marker(), VergiNo = RandomNationalId() };
         await WriteAsync(e.TenantId, db => db.Customers.AddRange(legacy, corporate));
 
         var (card, raw0) = await Json(await Send(opA, HttpMethod.Get, $"{Customers}/{legacy.Id}"));
-        Assert.DoesNotContain(tc, raw0);
+        Assert.DoesNotContain(nationalId, raw0);
         var raw = await Problem(await Send(opA, HttpMethod.Put, $"{Customers}/{legacy.Id}", new Dictionary<string, object?>
         { ["tip"] = "Kurumsal", ["unvan"] = "Eski Ltd", ["surum"] = card.GetProperty("surum").GetString() }),
             HttpStatusCode.BadRequest, "dogrulama", "vergiNo");
-        Assert.DoesNotContain(tc, raw);
+        Assert.DoesNotContain(nationalId, raw);
 
         // Kurumsal kayıtta 11 haneli rakam vergi no: kart maskeli, liste null, kısmi arama eşleşmez.
         var corpTax = corporate.VergiNo!;
@@ -83,31 +83,31 @@ public sealed partial class UiCustomerApiTests
         var e = await SetupAsync();
         var admin = await LoginAsync(e, Who.Admin);
         var opA = await LoginAsync(e, Who.OperatorA);
-        var cari = await CreateViaApiAsync(admin, new() { ["tip"] = "Bireysel", ["ad"] = "Bakiyeli" });
-        var rB = await RentalAsync(e, cari, "SubeB");
+        var account = await CreateViaApiAsync(admin, new() { ["tip"] = "Bireysel", ["ad"] = "Bakiyeli" });
+        var rB = await RentalAsync(e, account, "SubeB");
         var marker = "SUBEB-" + rB.ContractNo;
         await WriteAsync(e.TenantId, db =>
         {
             var src = Guid.NewGuid();
-            db.AccountLedgerEntries.Add(new AccountLedgerEntry { AccountType = LedgerAccountType.Cari, AccountRef = cari,
+            db.AccountLedgerEntries.Add(new AccountLedgerEntry { AccountType = LedgerAccountType.Cari, AccountRef = account,
                 Direction = LedgerDirection.Debit, Amount = new Money(750m, "TRY", 1m), Description = marker, SourceType = "Fatura", SourceId = src });
             db.AccountLedgerEntries.Add(new AccountLedgerEntry { AccountType = LedgerAccountType.Gelir,
                 Direction = LedgerDirection.Credit, Amount = new Money(750m, "TRY", 1m), Description = marker, SourceType = "Fatura", SourceId = src });
         });
 
-        var (detail, rawDetail) = await Json(await Send(opA, HttpMethod.Get, $"{Customers}/{cari}/detay"));
+        var (detail, rawDetail) = await Json(await Send(opA, HttpMethod.Get, $"{Customers}/{account}/detay"));
         Assert.Equal(JsonValueKind.Null, detail.GetProperty("bakiye").ValueKind);
         Assert.Equal(JsonValueKind.Null, detail.GetProperty("hareketler").ValueKind);
         Assert.Empty(detail.GetProperty("kiralar").EnumerateArray());
         Assert.DoesNotContain(marker, rawDetail);
 
         // Admin (finans görür) aynı detayda 750 borçlu bakiyeyi ve SubeB kirasını görür.
-        var (full, _) = await Json(await Send(admin, HttpMethod.Get, $"{Customers}/{cari}/detay"));
+        var (full, _) = await Json(await Send(admin, HttpMethod.Get, $"{Customers}/{account}/detay"));
         Assert.Equal(750m, full.GetProperty("bakiye").GetDecimal());
         Assert.Single(full.GetProperty("kiralar").EnumerateArray());
 
         // Karar (5), 2026-09-25: ekstre ucu da FinanceWrite ∨ ViewReports ister — operatör 403 alır, bakiye sızmaz.
-        var statement = await Send(opA, HttpMethod.Get, $"{V1}/finans/cariler/{cari}/ekstre");
+        var statement = await Send(opA, HttpMethod.Get, $"{V1}/finans/cariler/{account}/ekstre");
         Assert.Equal(HttpStatusCode.Forbidden, statement.StatusCode);
         Assert.DoesNotContain(marker, await statement.Content.ReadAsStringAsync());
     }

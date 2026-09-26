@@ -23,11 +23,11 @@ namespace RentACar.IntegrationTests;
 public sealed class RezSartTests(PostgresFixture fx)
 {
     /// <summary>Tam saniyeye hizalı "şimdi" — PG µs/Linux 100ns tuzağı (bkz. <see cref="TestZaman"/>).</summary>
-    private static DateTimeOffset Simdi() => TestZaman.Simdi();
+    private static DateTimeOffset Now() => TestZaman.Now();
 
-    private static async Task<Guid> MusteriAsync(IServiceProvider sp, string ad = "Talep", string soyad = "Sahibi")
+    private static async Task<Guid> CustomerAsync(IServiceProvider sp, string name = "Talep", string soyad = "Sahibi")
         => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CustomerType.Bireysel, Ad = ad, Soyad = soyad });
+        { Tip = CustomerType.Bireysel, Ad = name, Soyad = soyad });
 
     [Fact]
     public async Task Create_roundtrips_ve_bekleyen_olarak_baslar()
@@ -35,14 +35,14 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var m = await MusteriAsync(sp);
+        var m = await CustomerAsync(sp);
         var svc = sp.GetRequiredService<ReservationTermService>();
 
-        var bas = DateTimeOffset.UtcNow.Date.AddDays(3);
+        var start = DateTimeOffset.UtcNow.Date.AddDays(3);
         var id = await svc.CreateAsync(new RezSartInput
         {
             MusteriId = m, Sart = "  Bebek koltuğu istiyor  ", Grup = " Ekipman ",
-            BasTar = new DateTimeOffset(bas, TimeSpan.Zero), BitTar = new DateTimeOffset(bas.AddDays(4), TimeSpan.Zero),
+            BasTar = new DateTimeOffset(start, TimeSpan.Zero), BitTar = new DateTimeOffset(start.AddDays(4), TimeSpan.Zero),
             TeslimEden = " Ahmet "
         });
 
@@ -62,7 +62,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var m = await MusteriAsync(sp);
+        var m = await CustomerAsync(sp);
         var svc = sp.GetRequiredService<ReservationTermService>();
 
         await Assert.ThrowsAsync<ValidationException>(
@@ -82,7 +82,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var m = await MusteriAsync(sp);
+        var m = await CustomerAsync(sp);
         var svc = sp.GetRequiredService<ReservationTermService>();
 
         var g = DateTimeOffset.UtcNow;
@@ -100,7 +100,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var m = await MusteriAsync(sp);
+        var m = await CustomerAsync(sp);
         var svc = sp.GetRequiredService<ReservationTermService>();
 
         // Senaryo elle: 3 talep, 2'si karşılandı, 1'i bekliyor.
@@ -112,9 +112,9 @@ public sealed class RezSartTests(PostgresFixture fx)
 
         Assert.Equal(3, (await svc.ListAsync()).Count);
         Assert.Equal(2, (await svc.ListAsync(new RezSartFilter { Karsilandi = true })).Count);
-        var bekleyen = await svc.ListAsync(new RezSartFilter { Karsilandi = false });
-        Assert.Single(bekleyen);
-        Assert.Equal("C", bekleyen[0].Sart);
+        var pending = await svc.ListAsync(new RezSartFilter { Karsilandi = false });
+        Assert.Single(pending);
+        Assert.Equal("C", pending[0].Sart);
 
         // Teslim eden yalnız verildiğinde yazılır; verilmeyende null kalır.
         Assert.Equal("Ayşe", (await svc.GetAsync(a))!.TeslimEden);
@@ -127,12 +127,12 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var m1 = await MusteriAsync(sp, "Bir", "Musteri");
-        var m2 = await MusteriAsync(sp, "Iki", "Musteri");
+        var m1 = await CustomerAsync(sp, "Bir", "Musteri");
+        var m2 = await CustomerAsync(sp, "Iki", "Musteri");
         var svc = sp.GetRequiredService<ReservationTermService>();
 
-        var dun = Simdi().AddDays(-1);
-        var geven = Simdi().AddDays(-10);
+        var dun = Now().AddDays(-1);
+        var geven = Now().AddDays(-10);
         await svc.CreateAsync(new RezSartInput { MusteriId = m1, Sart = "Dünkü", TalepTarihi = dun });
         await svc.CreateAsync(new RezSartInput { MusteriId = m1, Sart = "Eski", TalepTarihi = geven });
         await svc.CreateAsync(new RezSartInput { MusteriId = m2, Sart = "Diğer müşteri" });
@@ -141,9 +141,9 @@ public sealed class RezSartTests(PostgresFixture fx)
         Assert.Single(await svc.ListAsync(new RezSartFilter { MusteriId = m2 }));
 
         // Son 3 gün: yalnız "Dünkü" ve m2'nin bugünkü kaydı → 2.
-        var son3 = await svc.ListAsync(new RezSartFilter { TarihBas = DateTimeOffset.UtcNow.AddDays(-3) });
-        Assert.Equal(2, son3.Count);
-        Assert.DoesNotContain(son3, r => r.Sart == "Eski");
+        var last3 = await svc.ListAsync(new RezSartFilter { TarihBas = DateTimeOffset.UtcNow.AddDays(-3) });
+        Assert.Equal(2, last3.Count);
+        Assert.DoesNotContain(last3, r => r.Sart == "Eski");
     }
 
     [Fact]
@@ -152,17 +152,17 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var m = await MusteriAsync(sp);
+        var m = await CustomerAsync(sp);
         var svc = sp.GetRequiredService<ReservationTermService>();
 
         var id = await svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "Tek sefer" });
         await svc.MarkFulfilledAsync(id);
-        var ilk = (await svc.GetAsync(id))!.KarsilamaTarihi;
-        Assert.NotNull(ilk);
+        var first = (await svc.GetAsync(id))!.KarsilamaTarihi;
+        Assert.NotNull(first);
 
         await Task.Delay(30);
         await svc.MarkFulfilledAsync(id);
-        Assert.Equal(ilk, (await svc.GetAsync(id))!.KarsilamaTarihi);   // idempotent
+        Assert.Equal(first, (await svc.GetAsync(id))!.KarsilamaTarihi);   // idempotent
 
         await svc.UndoFulfillmentAsync(id);
         Assert.Null((await svc.GetAsync(id))!.KarsilamaTarihi);
@@ -174,16 +174,16 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var m = await MusteriAsync(sp);
+        var m = await CustomerAsync(sp);
         var svc = sp.GetRequiredService<ReservationTermService>();
 
-        var eski = Simdi().AddDays(-20);
-        var id = await svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "Eski talep", TalepTarihi = eski });
+        var old = Now().AddDays(-20);
+        var id = await svc.CreateAsync(new RezSartInput { MusteriId = m, Sart = "Eski talep", TalepTarihi = old });
         await svc.UpdateAsync(id, new RezSartInput { MusteriId = m, Sart = "Düzeltildi" });   // TalepTarihi YOK
 
         var r = await svc.GetAsync(id);
         Assert.Equal("Düzeltildi", r!.Sart);
-        Assert.Equal(eski, r.TalepTarihi);   // geçmiş sessizce "şimdi"ye kaymadı
+        Assert.Equal(old, r.TalepTarihi);   // geçmiş sessizce "şimdi"ye kaymadı
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         Guid m;
-        using (var admin = host.ScopeFor(tenant)) m = await MusteriAsync(admin.ServiceProvider);
+        using (var admin = host.ScopeFor(tenant)) m = await CustomerAsync(admin.ServiceProvider);
 
         // Muhasebe: FinanceWrite var, OperationsWrite YOK.
         using var s = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
@@ -210,7 +210,7 @@ public sealed class RezSartTests(PostgresFixture fx)
 
         using (var s1 = host.ScopeFor(t1))
         {
-            var m = await MusteriAsync(s1.ServiceProvider);
+            var m = await CustomerAsync(s1.ServiceProvider);
             await s1.ServiceProvider.GetRequiredService<ReservationTermService>()
                 .CreateAsync(new RezSartInput { MusteriId = m, Sart = "T1 gizli talep" });
         }
@@ -219,7 +219,7 @@ public sealed class RezSartTests(PostgresFixture fx)
         var svc2 = s2.ServiceProvider.GetRequiredService<ReservationTermService>();
         Assert.Empty(await svc2.ListAsync());
 
-        var m2 = await MusteriAsync(s2.ServiceProvider);
+        var m2 = await CustomerAsync(s2.ServiceProvider);
         await svc2.CreateAsync(new RezSartInput { MusteriId = m2, Sart = "T2 talebi" });
         Assert.Single(await svc2.ListAsync());
     }
@@ -231,13 +231,13 @@ public sealed class RezSartTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
 
-        Guid yabanciMusteri;
-        using (var s1 = host.ScopeFor(t1)) yabanciMusteri = await MusteriAsync(s1.ServiceProvider);
+        Guid foreignCustomer;
+        using (var s1 = host.ScopeFor(t1)) foreignCustomer = await CustomerAsync(s1.ServiceProvider);
 
         using var s2 = host.ScopeFor(t2);
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
             s2.ServiceProvider.GetRequiredService<ReservationTermService>()
-                .CreateAsync(new RezSartInput { MusteriId = yabanciMusteri, Sart = "Sızıntı denemesi" }));
+                .CreateAsync(new RezSartInput { MusteriId = foreignCustomer, Sart = "Sızıntı denemesi" }));
         Assert.Contains("müşteri bulunamadı", ex.Message);
     }
 }

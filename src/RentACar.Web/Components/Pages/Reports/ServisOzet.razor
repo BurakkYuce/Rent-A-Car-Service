@@ -21,11 +21,11 @@
 
 <div class="cards">
     <div class="card">
-        <div class="card-num neg">@_toplam.ToString("N2")</div>
+        <div class="card-num neg">@_total.ToString("N2")</div>
         <div class="card-label">Toplam İşçilik ₺</div>
     </div>
     <div class="card">
-        <div class="card-num">@_adet</div>
+        <div class="card-num">@_count</div>
         <div class="card-label">Tamamlanan Servis</div>
     </div>
 </div>
@@ -56,16 +56,16 @@
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
 
     private IReadOnlyList<ServiceCostSummaryDto> _rows = [];
-    private decimal _toplam;
-    private int _adet;
+    private decimal _total;
+    private int _count;
 
     protected override async Task OnInitializedAsync()
     {
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1);
         _rows = await Reports.GetServiceCostSummaryAsync(from, to);
-        _toplam = _rows.Sum(r => r.Toplam);
-        _adet = _rows.Sum(r => r.Adet);
+        _total = _rows.Sum(r => r.Toplam);
+        _count = _rows.Sum(r => r.Adet);
     }
 
     private static DateTimeOffset? ParseDate(string? s)

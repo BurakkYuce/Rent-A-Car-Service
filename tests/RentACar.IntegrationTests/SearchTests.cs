@@ -19,7 +19,7 @@ public sealed class SearchTests(PostgresFixture fx)
     // `Bas.AddDays(30)` geçmişe düştü → `TarihPolitikasi.RezervasyonBaslangic` testi patlattı.
     // Kod değişmeden, yalnız gün dönerek kırmızıya düşen bir zaman bombasıydı.
     // Whole-second UTC hizası: PG timestamptz µs/100ns farkı (bkz. diğer test dosyaları).
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5).AddHours(9);
 
     [Fact]
@@ -34,18 +34,18 @@ public sealed class SearchTests(PostgresFixture fx)
         var cId = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "AraCariX" });
         var rId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cId, VehicleId = vId, BasTar = Bas, BitTar = Bas.AddDays(4), GunlukUcret = 100m });
-        var rezId = await sp.GetRequiredService<ReservationService>().CreateAsync(new BookingInput
-        { MusteriId = cId, VehicleId = vId, BasTar = Bas.AddDays(30), BitTar = Bas.AddDays(33), GunlukUcret = 100m });
+        { MusteriId = cId, VehicleId = vId, BasTar = Start, BitTar = Start.AddDays(4), GunlukUcret = 100m });
+        var resId = await sp.GetRequiredService<ReservationService>().CreateAsync(new BookingInput
+        { MusteriId = cId, VehicleId = vId, BasTar = Start.AddDays(30), BitTar = Start.AddDays(33), GunlukUcret = 100m });
 
         var rentalNo = (await sp.GetRequiredService<IBookingRepository>().FindRentalAsync(rId))!.SozlesmeNo;
-        var rezNo = (await sp.GetRequiredService<ReservationService>().GetAsync(rezId))!.ReservationNo;
+        var resNo = (await sp.GetRequiredService<ReservationService>().GetAsync(resId))!.ReservationNo;
 
         var search = sp.GetRequiredService<SearchService>();
         Assert.Contains(await search.SearchAsync("AraMarkaX"), h => h.Tur == "Araç");
         Assert.Contains(await search.SearchAsync("AraCariX"), h => h.Tur == "Cari");
         Assert.Contains(await search.SearchAsync(rentalNo), h => h.Tur == "Kira" && h.Baslik == rentalNo);
-        Assert.Contains(await search.SearchAsync(rezNo), h => h.Tur == "Rezervasyon" && h.Baslik == rezNo);
+        Assert.Contains(await search.SearchAsync(resNo), h => h.Tur == "Rezervasyon" && h.Baslik == resNo);
     }
 
     [Fact]

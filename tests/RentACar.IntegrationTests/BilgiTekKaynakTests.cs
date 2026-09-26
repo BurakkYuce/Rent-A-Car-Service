@@ -17,7 +17,7 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class BilgiTekKaynakTests
 {
-    private static string RepoKok()
+    private static string RepoRoot()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
@@ -28,19 +28,19 @@ public sealed class BilgiTekKaynakTests
     [Fact]
     public void Hicbir_sayfa_bilgi_query_sini_KENDI_basmaz()
     {
-        var kok = RepoKok();
-        var sayfalar = Path.Combine(kok, "src/RentACar.Web/Components/Pages");
+        var root = RepoRoot();
+        var pages = Path.Combine(root, "src/RentACar.Web/Components/Pages");
 
-        var bulunan = Directory
-            .EnumerateFiles(sayfalar, "*.razor", SearchOption.AllDirectories)
+        var found = Directory
+            .EnumerateFiles(pages, "*.razor", SearchOption.AllDirectories)
             .Where(f => Regex.IsMatch(File.ReadAllText(f), @"SupplyParameterFromQuery\(Name\s*=\s*""bilgi""\)"))
-            .Select(f => Path.GetRelativePath(kok, f))
+            .Select(f => Path.GetRelativePath(root, f))
             .ToList();
 
-        Assert.True(bulunan.Count == 0,
+        Assert.True(found.Count == 0,
             "`?bilgi=` mesajını MainLayout global şerit olarak basıyor. Sayfa da basarsa kullanıcı " +
             "mesajı İKİ KEZ görür. Sayfaya özel bir mesaj gerekiyorsa farklı bir anahtar kullanın.\n  "
-            + string.Join("\n  ", bulunan));
+            + string.Join("\n  ", found));
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class BilgiTekKaynakTests
     {
         // Ters yön: şerit kaldırılırsa yukarıdaki test sessizce yeşil kalır ve `?bilgi=` döndüren
         // ~70 uç hiçbir yerde GÖRÜNMEZ olurdu.
-        var layout = File.ReadAllText(Path.Combine(RepoKok(),
+        var layout = File.ReadAllText(Path.Combine(RepoRoot(),
             "src/RentACar.Web/Components/Layout/MainLayout.razor"));
         Assert.Contains("\"bilgi\"", layout, StringComparison.Ordinal);
         Assert.Contains("data-rc-bildirim", layout, StringComparison.Ordinal);

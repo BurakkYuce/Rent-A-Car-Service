@@ -49,7 +49,7 @@ public sealed class PdfExportTests
     [Fact]
     public void Ornek_sozlesme_pdf_rentpro_ve_gecerli()
     {
-        var v = OrnekSozlesme.Ornek();
+        var v = SampleContract.Sample();
         Assert.Equal("RentPro", v.FirmaMarka);                 // RentPro markası
         Assert.False(string.IsNullOrWhiteSpace(v.SozlesmeNo)); // örnek sözleşme no dolu
         Assert.Null(v.IkinciSurucuAd);                          // örnek: tek sürücü
@@ -78,23 +78,23 @@ public sealed class PdfExportTests
     [Fact]
     public void Sozlesme_pdf_boyutu_ve_gorsel_kodlamasi_KILITLI()
     {
-        var pdf = new PdfExportService().Contract(OrnekSozlesme.Ornek());
-        var metin = System.Text.Encoding.Latin1.GetString(pdf);
+        var pdf = new PdfExportService().Contract(SampleContract.Sample());
+        var text = System.Text.Encoding.Latin1.GetString(pdf);
 
         // Bağımsız oracle: eşik koddan değil ölçümden geliyor (öncesi 1.054.980 bayt, sonrası ~101 KB).
         Assert.True(pdf.Length < 150_000,
             $"Sözleşme PDF'i {pdf.Length} bayt — 150 KB eşiğini aştı. Ekspertiz şeması büyütülmüş " +
             "ya da görsel yeniden kodlaması geri açılmış olabilir (bkz. scripts/optimize-ekspertiz-sema.py).");
 
-        Assert.DoesNotContain("/DCTDecode", metin);   // JPEG'e yeniden kodlanmıyor (metin net kalıyor)
+        Assert.DoesNotContain("/DCTDecode", text);   // JPEG'e yeniden kodlanmıyor (metin net kalıyor)
 
         // Gömülü şema: gri tonlama, tek görsel (örnek sözleşmede tenant logosu YOK).
-        Assert.Contains("/DeviceGray", metin);
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(metin, @"/Subtype\s*/Image"));
+        Assert.Contains("/DeviceGray", text);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(text, @"/Subtype\s*/Image"));
 
         // Düzen kaymadı.
-        var sayfa = System.Text.RegularExpressions.Regex.Matches(metin, @"/Type\s*/Page[^s]").Count;
-        Assert.Equal(1, sayfa);
+        var page = System.Text.RegularExpressions.Regex.Matches(text, @"/Type\s*/Page[^s]").Count;
+        Assert.Equal(1, page);
     }
 
     /// <summary>Generic tablo PDF'i (tüm liste/rapor ?format=pdf çıktısı) — geçerli PDF + tip-duyarlı hücreler.</summary>
@@ -124,8 +124,8 @@ public sealed class PdfExportTests
         inv.Lines.Add(new InvoiceLine { Aciklama = "Araç kirası", Miktar = 1m, KdvOrani = 0.20m, SatirToplam = 400m });
 
         // PR-C: markalı fatura (logo + firma) + cari adı.
-        var marka = new PdfMarka(TinyPng, "Test Rent A Ş.", "TEST RENT", "Antalya", "0242 000", "Kurumlar", "1234567890");
-        var pdf = new PdfExportService().Invoice(inv, marka, "Deneme Müşteri");
+        var brand = new PdfMarka(TinyPng, "Test Rent A Ş.", "TEST RENT", "Antalya", "0242 000", "Kurumlar", "1234567890");
+        var pdf = new PdfExportService().Invoice(inv, brand, "Deneme Müşteri");
         Assert.True(pdf.Length > 500);
         Assert.True(IsPdf(pdf));
     }
@@ -140,8 +140,8 @@ public sealed class PdfExportTests
             Amount = new RentACar.Domain.Common.Money(1500m, "TRY", 1m),
             KarsiHesap = RentACar.Domain.Enums.LedgerAccountType.Kasa, Aciklama = "Kira tahsilatı"
         };
-        var marka = new PdfMarka(null, "Test Rent A Ş.", "TEST RENT", "Antalya", "0242 000", "Kurumlar", "1234567890");
-        var pdf = new PdfExportService().TahsilatMakbuzu(tx, marka, "Deneme Müşteri");
+        var brand = new PdfMarka(null, "Test Rent A Ş.", "TEST RENT", "Antalya", "0242 000", "Kurumlar", "1234567890");
+        var pdf = new PdfExportService().CollectionReceipt(tx, brand, "Deneme Müşteri");
         Assert.True(pdf.Length > 500);
         Assert.True(IsPdf(pdf));
     }
@@ -162,26 +162,26 @@ public sealed class PdfExportTests
     {
         var svc = new PdfExportService();
 
-        var acik = svc.Contract(Sozlesme(imza: true));
-        var kapali = svc.Contract(Sozlesme(imza: false));
-        var varsayilan = svc.Contract(OrnekSozlesme.Ornek());   // parametre verilmez → true
+        var open = svc.Contract(Contract(signature: true));
+        var closed = svc.Contract(Contract(signature: false));
+        var defaultValue = svc.Contract(SampleContract.Sample());   // parametre verilmez → true
 
-        Assert.True(IsPdf(acik));
-        Assert.True(IsPdf(kapali));
-        Assert.True(kapali.Length < acik.Length,
-            $"İmza bloğu kapalıyken PDF küçülmeliydi: açık={acik.Length}, kapalı={kapali.Length}");
+        Assert.True(IsPdf(open));
+        Assert.True(IsPdf(closed));
+        Assert.True(closed.Length < open.Length,
+            $"İmza bloğu kapalıyken PDF küçülmeliydi: açık={open.Length}, kapalı={closed.Length}");
 
         // Varsayılan (şablonsuz) yol AÇIK hâlle aynı içeriği üretmeli — regresyon çiti.
-        var varsayilanAcik = svc.Contract(OrnekSozlesme.Ornek() with { SablonImzaAlaniGoster = true });
-        Assert.Equal(varsayilanAcik.Length, varsayilan.Length);
+        var defaultOpen = svc.Contract(SampleContract.Sample() with { SablonImzaAlaniGoster = true });
+        Assert.Equal(defaultOpen.Length, defaultValue.Length);
         // …ve kapatıldığında o da küçülmeli (örnek sözleşme yolu da anahtarı gerçekten okuyor).
-        Assert.True(svc.Contract(OrnekSozlesme.Ornek() with { SablonImzaAlaniGoster = false }).Length
-                    < varsayilan.Length);
+        Assert.True(svc.Contract(SampleContract.Sample() with { SablonImzaAlaniGoster = false }).Length
+                    < defaultValue.Length);
     }
 
     /// <summary>İmza anahtarı dışında HER ŞEYİ aynı olan iki sözleşme görünümü (tek değişken).</summary>
-    private static RentACar.Application.Bookings.SozlesmeView Sozlesme(bool imza)
-        => OrnekSozlesme.Ornek() with { SablonImzaAlaniGoster = imza };
+    private static RentACar.Application.Bookings.SozlesmeView Contract(bool signature)
+        => SampleContract.Sample() with { SablonImzaAlaniGoster = signature };
 
     private static readonly byte[] TinyPng = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");

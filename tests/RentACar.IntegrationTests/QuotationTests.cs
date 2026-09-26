@@ -19,8 +19,8 @@ public sealed class QuotationTests(PostgresFixture fx)
     // now-göreli gelecek: teklif oluşturma rez tarih politikasını uygular (geçmiş red — TarihPolitikasi).
     // whole-second hizalı: PG timestamptz round-trip'i kayıpsız (Assert.Equal(Bas, res.BasTar) tüm platformlarda
     // geçer; UtcNow'un 100ns tick'i Linux'ta µs'e kırpılıp eşitliği bozuyordu — Mac µs-hizalı olduğundan gizliydi).
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(3).AddHours(9);
-    private static readonly DateTimeOffset Bit = Bas.AddDays(3);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(3).AddHours(9);
+    private static readonly DateTimeOffset Bit = Start.AddDays(3);
 
     private static async Task<(Guid musteri, Guid arac)> SeedAsync(IServiceScope scope)
     {
@@ -31,9 +31,9 @@ public sealed class QuotationTests(PostgresFixture fx)
         return (m, v);
     }
 
-    private static QuotationInput Input(Guid m, Guid v, decimal gunluk = 100m) => new()
+    private static QuotationInput Input(Guid m, Guid v, decimal daily = 100m) => new()
     {
-        MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bit, GunlukUcret = gunluk, CikisOfisi = "MERKEZ"
+        MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Bit, GunlukUcret = daily, CikisOfisi = "MERKEZ"
     };
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class QuotationTests(PostgresFixture fx)
         Assert.NotNull(q);
         Assert.Equal(3, q!.Gun);            // 72h / 24 = 3
         Assert.Equal(300m, q.Tutar);        // 3 × 100 (oracle, elle)
-        BelgeNoOracle.BeklenenlerdenBiri(3, 1, q.No);
+        DocumentNoOracle.OneOfExpected(3, 1, q.No);
         Assert.Equal(QuotationStatus.Taslak, q.Durum);
         Assert.Null(q.ReservationId);
     }
@@ -91,12 +91,12 @@ public sealed class QuotationTests(PostgresFixture fx)
         var res = await reservations.GetAsync(resId);
         Assert.NotNull(res);
         Assert.Equal(ReservationStatus.Rezerv, res!.Durum);
-        BelgeNoOracle.BeklenenlerdenBiri(2, 1, res.ReservationNo);
+        DocumentNoOracle.OneOfExpected(2, 1, res.ReservationNo);
         Assert.Equal(m, res.MusteriId);
         Assert.Equal(v, res.VehicleId);
         Assert.Equal(3, res.Gun);
         Assert.Equal(450m, res.Tutar);
-        Assert.Equal(Bas, res.BasTar);
+        Assert.Equal(Start, res.BasTar);
         Assert.Equal(Bit, res.BitTar);
     }
 
@@ -137,7 +137,7 @@ public sealed class QuotationTests(PostgresFixture fx)
         var (m, v) = await SeedAsync(scope);
 
         var input = Input(m, v);
-        input.GecerlilikTarihi = Bas.AddDays(-1);
+        input.GecerlilikTarihi = Start.AddDays(-1);
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(input));
     }
 

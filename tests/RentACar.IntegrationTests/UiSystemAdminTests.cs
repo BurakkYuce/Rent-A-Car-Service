@@ -22,14 +22,14 @@ public sealed partial class UiSystemAdminTests(WebFixture fx)
 
     private static string Secret() => "S" + Guid.NewGuid().ToString("N");
 
-    private static object SettingsBody(string? surum, string? smtpSifre = null, string? smsApiKey = null,
-        string? eFaturaSifre = null, string? posApiKey = null, string? faturaSeriKodu = "RNT", string? logoUrl = null,
-        Guid? grupId = null, string firmaUnvan = "Deneme A.Ş.")
+    private static object SettingsBody(string? version, string? smtpPassword = null, string? smsApiKey = null,
+        string? eInvoicePassword = null, string? posApiKey = null, string? invoiceSeriesCode = "RNT", string? logoUrl = null,
+        Guid? groupId = null, string companyTitle = "Deneme A.Ş.")
         => new
         {
-            firmaUnvan, firmaEmail = "info@deneme.test", smtpHost = "smtp.deneme.test", smtpPort = 587, smtpKullanici = "mailer",
-            smtpSifre, smsApiKey, eFaturaSifre, posApiKey, smsBaslik = "DENEME", faturaSeriKodu, logoUrl,
-            varsayilanKdvOrani = 0.20m, varsayilanGrupId = grupId, surum,
+            firmaUnvan = companyTitle, firmaEmail = "info@deneme.test", smtpHost = "smtp.deneme.test", smtpPort = 587, smtpKullanici = "mailer",
+            smtpSifre = smtpPassword, smsApiKey, eFaturaSifre = eInvoicePassword, posApiKey, smsBaslik = "DENEME", faturaSeriKodu = invoiceSeriesCode, logoUrl,
+            varsayilanKdvOrani = 0.20m, varsayilanGrupId = groupId, surum = version,
         };
 
     [Fact]
@@ -38,14 +38,14 @@ public sealed partial class UiSystemAdminTests(WebFixture fx)
         var e = await _kit.SetupAsync();
         var admin = await _kit.LoginAsync(e, Who.Admin);
         var first = await Json(await admin.C.GetAsync(Settings));
-        var surum = first.GetProperty("surum").GetString();
+        var version = first.GetProperty("surum").GetString();
         Assert.False(first.GetProperty("smtpSifreTanimli").GetBoolean());
 
-        var (smtp, sms, efatura, pos) = (Secret(), Secret(), Secret(), Secret());
-        var r = await Send(admin, HttpMethod.Put, Settings, SettingsBody(surum, smtp, sms, efatura, pos));
+        var (smtp, sms, eInvoice, pos) = (Secret(), Secret(), Secret(), Secret());
+        var r = await Send(admin, HttpMethod.Put, Settings, SettingsBody(version, smtp, sms, eInvoice, pos));
         var text = await r.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, r.StatusCode);
-        foreach (var s in new[] { smtp, sms, efatura, pos }) Assert.DoesNotContain(s, text, StringComparison.Ordinal);
+        foreach (var s in new[] { smtp, sms, eInvoice, pos }) Assert.DoesNotContain(s, text, StringComparison.Ordinal);
         var saved = JsonDocument.Parse(text).RootElement;
         Assert.True(saved.GetProperty("smtpSifreTanimli").GetBoolean());
         Assert.True(saved.GetProperty("smsApiKeyTanimli").GetBoolean());
@@ -59,7 +59,7 @@ public sealed partial class UiSystemAdminTests(WebFixture fx)
         Assert.NotEqual(smtp, cipher);
 
         // Boş sır → mevcut cipher korunur; diğer alan güncellenir.
-        r = await Send(admin, HttpMethod.Put, Settings, SettingsBody(saved.GetProperty("surum").GetString(), firmaUnvan: "Yeni Ünvan"));
+        r = await Send(admin, HttpMethod.Put, Settings, SettingsBody(saved.GetProperty("surum").GetString(), companyTitle: "Yeni Ünvan"));
         var again = await Json(r);
         Assert.True(again.GetProperty("smtpSifreTanimli").GetBoolean());
         Assert.Equal("Yeni Ünvan", again.GetProperty("firmaUnvan").GetString());
@@ -70,7 +70,7 @@ public sealed partial class UiSystemAdminTests(WebFixture fx)
                                     V1 + "/mesaj-sablonlari", V1 + "/yetki/ekranlar", V1 + "/bildirimler" })
         {
             var body = await (await admin.C.GetAsync(url)).Content.ReadAsStringAsync();
-            foreach (var s in new[] { smtp, sms, efatura, pos, cipher! })
+            foreach (var s in new[] { smtp, sms, eInvoice, pos, cipher! })
                 Assert.False(body.Contains(s, StringComparison.Ordinal), $"{url} sır sızdırıyor");
         }
         var audit = await Json(await admin.C.GetAsync(V1 + "/denetim?tablo=Ayarlar&boyut=200"));
@@ -83,13 +83,13 @@ public sealed partial class UiSystemAdminTests(WebFixture fx)
     {
         var e = await _kit.SetupAsync();
         var admin = await _kit.LoginAsync(e, Who.Admin);
-        var surum = (await Json(await admin.C.GetAsync(Settings))).GetProperty("surum").GetString();
-        Assert.NotNull(surum);
+        var version = (await Json(await admin.C.GetAsync(Settings))).GetProperty("surum").GetString();
+        Assert.NotNull(version);
 
         await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(null)), HttpStatusCode.BadRequest, "dogrulama", "surum");
-        await Json(await Send(admin, HttpMethod.Put, Settings, SettingsBody(surum)));
+        await Json(await Send(admin, HttpMethod.Put, Settings, SettingsBody(version)));
         // Aynı (artık bayat) sürümle ikinci yazım: 409, hiçbir şey yazılmaz.
-        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(surum, firmaUnvan: "Ezilmemeli")), HttpStatusCode.Conflict, "cakisma");
+        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(version, companyTitle: "Ezilmemeli")), HttpStatusCode.Conflict, "cakisma");
         Assert.Equal("Deneme A.Ş.", await _kit.ReadAsync(e.TenantId, db => db.TenantSettings.AsNoTracking().Select(x => x.FirmaUnvan).FirstAsync()));
     }
 
@@ -98,11 +98,11 @@ public sealed partial class UiSystemAdminTests(WebFixture fx)
     {
         var e = await _kit.SetupAsync();
         var admin = await _kit.LoginAsync(e, Who.Admin);
-        var surum = (await Json(await admin.C.GetAsync(Settings))).GetProperty("surum").GetString();
-        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(surum, faturaSeriKodu: "AB")), HttpStatusCode.BadRequest, "dogrulama", "faturaSeriKodu");
-        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(surum, logoUrl: "javascript:alert(1)")), HttpStatusCode.BadRequest, "dogrulama", "logoUrl");
-        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(surum, grupId: Guid.NewGuid())), HttpStatusCode.BadRequest, "dogrulama", "varsayilanGrupId");
-        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(surum, smtpSifre: new string('x', 300))), HttpStatusCode.BadRequest, "dogrulama", "smtpSifre");
+        var version = (await Json(await admin.C.GetAsync(Settings))).GetProperty("surum").GetString();
+        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(version, invoiceSeriesCode: "AB")), HttpStatusCode.BadRequest, "dogrulama", "faturaSeriKodu");
+        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(version, logoUrl: "javascript:alert(1)")), HttpStatusCode.BadRequest, "dogrulama", "logoUrl");
+        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(version, groupId: Guid.NewGuid())), HttpStatusCode.BadRequest, "dogrulama", "varsayilanGrupId");
+        await Problem(await Send(admin, HttpMethod.Put, Settings, SettingsBody(version, smtpPassword: new string('x', 300))), HttpStatusCode.BadRequest, "dogrulama", "smtpSifre");
     }
 
     [Theory]

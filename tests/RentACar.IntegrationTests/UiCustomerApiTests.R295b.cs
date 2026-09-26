@@ -44,12 +44,12 @@ public sealed partial class UiCustomerApiTests
     {
         var e = await SetupAsync();
         var opA = await LoginAsync(e, Who.OperatorA);
-        var tc = RandomTc();
+        var nationalId = RandomNationalId();
         var stored = variant switch
         {
-            "SPACE" => $"{tc[..3]} {tc[3..6]} {tc[6..9]} {tc[9..]}",
-            "DASH" => $"{tc[..3]}-{tc[3..]}",
-            _ => tc + " ",
+            "SPACE" => $"{nationalId[..3]} {nationalId[3..6]} {nationalId[6..9]} {nationalId[9..]}",
+            "DASH" => $"{nationalId[..3]}-{nationalId[3..]}",
+            _ => nationalId + " ",
         };
         var legacy = new Customer { Tip = CustomerType.Kurumsal, Unvan = "Eski " + Marker(), VergiNo = stored };
         await WriteAsync(e.TenantId, db => db.Customers.Add(legacy));
@@ -70,12 +70,12 @@ public sealed partial class UiCustomerApiTests
     {
         var e = await SetupAsync();
         var admin = await LoginAsync(e, Who.Admin);
-        var tc = RandomTc();
-        var id = await CreateViaApiAsync(admin, new() { ["tip"] = "Bireysel", ["ad"] = "Aranan", ["tcKimlik"] = tc });
-        var spaced = $"{tc[..3]} {tc[3..6]} {tc[6..9]} {tc[9..]}";
+        var nationalId = RandomNationalId();
+        var id = await CreateViaApiAsync(admin, new() { ["tip"] = "Bireysel", ["ad"] = "Aranan", ["tcKimlik"] = nationalId });
+        var spaced = $"{nationalId[..3]} {nationalId[3..6]} {nationalId[6..9]} {nationalId[9..]}";
         var (r, raw) = await Json(await Send(admin, HttpMethod.Get, $"{Customers}?q={Uri.EscapeDataString(spaced)}"));
         Assert.Contains(Records(r), x => x.GetProperty("id").GetGuid() == id); // blind-index tam eşleşme, rakamlarla
-        Assert.DoesNotContain(tc, raw);
+        Assert.DoesNotContain(nationalId, raw);
         var (partial, _) = await Json(await Send(admin, HttpMethod.Get, $"{Customers}?q={Uri.EscapeDataString(spaced[..7])}"));
         Assert.DoesNotContain(Records(partial), x => x.GetProperty("id").GetGuid() == id); // kısmi TC araması yok
     }

@@ -55,7 +55,7 @@ public sealed partial class UiServiceInsuranceTests
             HttpStatusCode.Created);
 
         // ORACLE: 3 days × 100 = 300; product 3 × 50 = 150; total 450 (no rules/VAT in this tenant).
-        var start = TestZaman.GunSonra(10);
+        var start = TestZaman.DaysLater(10);
         var q = await Json(await Send(s, HttpMethod.Post, V1 + "/fiyat-hesapla",
             new { aracGrupKod = "Q9", basTar = start, bitTar = start.AddDays(3), sigortaUrunKodlari = new[] { "SCDW9" } }));
         Assert.Equal(3, q.GetProperty("gun").GetInt32());

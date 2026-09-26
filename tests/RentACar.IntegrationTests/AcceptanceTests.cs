@@ -25,29 +25,29 @@ public sealed class AcceptanceTests(PostgresFixture fx)
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var invoices = scope.ServiceProvider.GetRequiredService<InvoiceService>();
 
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
-        var vehicle = await TestArac.YeniAsync(scope.ServiceProvider);
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
+        var vehicle = await TestVehicle.NewAsync(scope.ServiceProvider);
         // Göreli: rezervasyon geçmişe kapalı (TarihPolitikasi); sabit 2026-11-01 Kasım'da kırmızıya dönecekti.
-        var bas = TestZaman.GunSonra(40);
-        var bit = bas.AddDays(4); // 4 gün
+        var start = TestZaman.DaysLater(40);
+        var bit = start.AddDays(4); // 4 gün
 
         BookingInput Input() => new()
         {
-            MusteriId = cari, VehicleId = vehicle, BasTar = bas, BitTar = bit,
+            MusteriId = account, VehicleId = vehicle, BasTar = start, BitTar = bit,
             GunlukUcret = 100m, KmLimit = 400, FazlaKmUcret = 2m
         };
 
         // 1) Rezervasyon (RZ-000001, Rezerv)
         var resId = await reservations.CreateAsync(Input());
         var res = await reservations.GetAsync(resId);
-        BelgeNoOracle.BeklenenlerdenBiri(2, 1, res!.ReservationNo);
+        DocumentNoOracle.OneOfExpected(2, 1, res!.ReservationNo);
         Assert.Equal(ReservationStatus.Rezerv, res.Durum);
 
         // 2) Tasfiye: kiraya çevir (KS-000001, Kirada; rezervasyon KirayaCevrildi)
         var rentalId = await reservations.ConvertToRentalAsync(resId);
         Assert.Equal(ReservationStatus.KirayaCevrildi, (await reservations.GetAsync(resId))!.Durum);
         var rental = await rentals.GetAsync(rentalId);
-        BelgeNoOracle.BeklenenlerdenBiri(1, 1, rental!.SozlesmeNo);
+        DocumentNoOracle.OneOfExpected(1, 1, rental!.SozlesmeNo);
         Assert.Equal(RentalStatus.Kirada, rental.Durum);
         Assert.Equal(400m, rental.Tutar);
 
@@ -68,20 +68,20 @@ public sealed class AcceptanceTests(PostgresFixture fx)
 
         // 6) Fatura kes (GenelToplam 700 KDV-dahil → Borç Cari 700) → cari bakiye +700
         await invoices.CreateFromRentalAsync(rentalId);
-        Assert.Equal(700m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(700m, await cash.GetAccountBalanceAsync(account));
 
         // 7) Nakit tahsilat 700 (kiraya bağlı) → Alacak Cari 700
-        await cash.CollectAsync(new CashInput { CariId = cari, RentalId = rentalId, Tutar = 700m });
+        await cash.CollectAsync(new CashInput { CariId = account, RentalId = rentalId, Tutar = 700m });
 
         // 8) Mahsuplaşma: sözleşme tahsil edildi VE cari defter SIFIR (fatura↔tahsilat)
         rental = await rentals.GetAsync(rentalId);
         Assert.Equal(700m, rental!.Tahsilat);
         Assert.Equal(0m, rental.Bakiye);
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account));
 
         // 9) Dönüş sonrası araç tekrar müsait → yeniden kiralanabilir
         var rentalId2 = await rentals.CreateDirectAsync(Input());
         Assert.NotEqual(Guid.Empty, rentalId2);
-        BelgeNoOracle.BeklenenlerdenBiri(1, 2, (await rentals.GetAsync(rentalId2))!.SozlesmeNo);   // boşluksuz no devam
+        DocumentNoOracle.OneOfExpected(1, 2, (await rentals.GetAsync(rentalId2))!.SozlesmeNo);   // boşluksuz no devam
     }
 }

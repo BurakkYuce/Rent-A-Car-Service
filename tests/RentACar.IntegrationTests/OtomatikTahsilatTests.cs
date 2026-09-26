@@ -31,23 +31,23 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class OtomatikTahsilatTests(PostgresFixture fx)
 {
-    private static async Task<(Guid Kira, Guid Cari)> DonemliKiraAsync(
-        IServiceProvider sp, string plaka, string? sube = null)
+    private static async Task<(Guid Kira, Guid Cari)> PeriodicRentalAsync(
+        IServiceProvider sp, string plate, string? branch = null)
     {
         // -65 gün: iki ay-çıpalı dönemin kesin geçmişte bitmesi için tampon (job testiyle aynı çıpa).
-        var bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Tetik", Soyad = "Musteri" });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90),
-            GunlukUcret = 100m, DonemselFaturalama = true, CikisOfisi = sube
+            MusteriId = m, VehicleId = v, BasTar = start, BitTar = start.AddDays(90),
+            GunlukUcret = 100m, DonemselFaturalama = true, CikisOfisi = branch
         });
         return (id, m);
     }
 
-    private static async Task<(decimal Borc, decimal Alacak)> DefterAsync(IServiceProvider sp)
+    private static async Task<(decimal Borc, decimal Alacak)> LedgerAsync(IServiceProvider sp)
     {
         var f = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
@@ -66,22 +66,22 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
 
         // Ayarlar'a HİÇ DOKUNULMUYOR → DonemselFaturalamaJob ve DonemselOtomatikTahsilat KAPALI
         // (varsayılan). Job bu tenant'ta hiçbir şey kesmez; elle tetik yine de çalışmalı.
-        await DonemliKiraAsync(sp, "34 OT 01");
+        await PeriodicRentalAsync(sp, "34 OT 01");
 
-        var adaylar = await svc.CandidatesAsync();
+        var candidates = await svc.CandidatesAsync();
         // ELLE: 65 gün geçmiş → ilk iki ay-çıpalı dönem vadesi gelmiş.
-        Assert.Equal(2, adaylar.Count);
-        Assert.All(adaylar, a => Assert.True(a.DonemBit <= DateTimeOffset.UtcNow));
+        Assert.Equal(2, candidates.Count);
+        Assert.All(candidates, a => Assert.True(a.DonemBit <= DateTimeOffset.UtcNow));
 
-        var sonuc = await svc.RunAsync(
-            [.. adaylar.Select(a => (a.RentalId, a.DonemSira))], doCollection: true, LedgerAccountType.Kasa);
+        var result = await svc.RunAsync(
+            [.. candidates.Select(a => (a.RentalId, a.DonemSira))], doCollection: true, LedgerAccountType.Kasa);
 
-        Assert.Equal(2, sonuc.Kesilen);
-        Assert.Equal(2, sonuc.Tahsilat);
-        Assert.Empty(sonuc.Atlananlar);
+        Assert.Equal(2, result.Kesilen);
+        Assert.Equal(2, result.Tahsilat);
+        Assert.Empty(result.Atlananlar);
 
-        var (borc, alacak) = await DefterAsync(sp);
-        Assert.Equal(borc, alacak);                 // DENGE
+        var (debit, credit) = await LedgerAsync(sp);
+        Assert.Equal(debit, credit);                 // DENGE
 
         // Aynı dönemler artık aday DEĞİL (Kesildi).
         Assert.Empty(await svc.CandidatesAsync());
@@ -94,22 +94,22 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<AutoCollectionService>();
-        await DonemliKiraAsync(sp, "34 OT 02");
+        await PeriodicRentalAsync(sp, "34 OT 02");
 
-        var adaylar = await svc.CandidatesAsync();
-        var secim = adaylar.Select(a => (a.RentalId, a.DonemSira)).ToList();
-        Assert.Equal(2, (await svc.RunAsync(secim, true, LedgerAccountType.Kasa)).Kesilen);
+        var candidates = await svc.CandidatesAsync();
+        var selection = candidates.Select(a => (a.RentalId, a.DonemSira)).ToList();
+        Assert.Equal(2, (await svc.RunAsync(selection, true, LedgerAccountType.Kasa)).Kesilen);
 
-        var (borc1, _) = await DefterAsync(sp);
+        var (debit1, _) = await LedgerAsync(sp);
 
         // AYNI seçim tekrar: dönemler artık aday değil → hepsi ATLANIR, defter DEĞİŞMEZ.
-        var ikinci = await svc.RunAsync(secim, true, LedgerAccountType.Kasa);
-        Assert.Equal(0, ikinci.Kesilen);
-        Assert.Equal(2, ikinci.Atlananlar.Count);
+        var second = await svc.RunAsync(selection, true, LedgerAccountType.Kasa);
+        Assert.Equal(0, second.Kesilen);
+        Assert.Equal(2, second.Atlananlar.Count);
 
-        var (borc2, alacak2) = await DefterAsync(sp);
-        Assert.Equal(borc1, borc2);                 // çift fatura/tahsilat YOK
-        Assert.Equal(borc2, alacak2);
+        var (debit2, credit2) = await LedgerAsync(sp);
+        Assert.Equal(debit1, debit2);                 // çift fatura/tahsilat YOK
+        Assert.Equal(debit2, credit2);
     }
 
     [Fact]
@@ -119,20 +119,20 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<AutoCollectionService>();
-        var (kira, cari) = await DonemliKiraAsync(sp, "34 OT 03");
+        var (rental, account) = await PeriodicRentalAsync(sp, "34 OT 03");
 
-        var adaylar = await svc.CandidatesAsync();
-        var sonuc = await svc.RunAsync(
-            [.. adaylar.Select(a => (a.RentalId, a.DonemSira))], doCollection: false, LedgerAccountType.Kasa);
+        var candidates = await svc.CandidatesAsync();
+        var result = await svc.RunAsync(
+            [.. candidates.Select(a => (a.RentalId, a.DonemSira))], doCollection: false, LedgerAccountType.Kasa);
 
-        Assert.Equal(2, sonuc.Kesilen);
-        Assert.Equal(0, sonuc.Tahsilat);
+        Assert.Equal(2, result.Kesilen);
+        Assert.Equal(0, result.Tahsilat);
 
         // Fatura kesildi → cari BORÇLANDI; tahsilat yazılmadığı için bakiye borçlu kalmalı.
-        Assert.True(await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari) > 0m);
+        Assert.True(await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(account) > 0m);
 
-        var (borc, alacak) = await DefterAsync(sp);
-        Assert.Equal(borc, alacak);
+        var (debit, credit) = await LedgerAsync(sp);
+        Assert.Equal(debit, credit);
     }
 
     [Fact]
@@ -142,19 +142,19 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<AutoCollectionService>();
-        await DonemliKiraAsync(sp, "34 OT 04");
+        await PeriodicRentalAsync(sp, "34 OT 04");
 
-        var (borcOnce, _) = await DefterAsync(sp);
+        var (debtBefore, _) = await LedgerAsync(sp);
 
         // UYDURMA seçim: var olmayan kira / var olmayan dönem sırası.
-        var sonuc = await svc.RunAsync(
+        var result = await svc.RunAsync(
             [(Guid.NewGuid(), 1), (Guid.NewGuid(), 99)], doCollection: true, LedgerAccountType.Kasa);
-        Assert.Equal(0, sonuc.Kesilen);
-        Assert.Equal(2, sonuc.Atlananlar.Count);    // sessizce yutulmadı
+        Assert.Equal(0, result.Kesilen);
+        Assert.Equal(2, result.Atlananlar.Count);    // sessizce yutulmadı
 
-        var (borcSonra, alacakSonra) = await DefterAsync(sp);
-        Assert.Equal(borcOnce, borcSonra);
-        Assert.Equal(borcSonra, alacakSonra);
+        var (debtAfter, creditAfter) = await LedgerAsync(sp);
+        Assert.Equal(debtBefore, debtAfter);
+        Assert.Equal(debtAfter, creditAfter);
     }
 
     [Fact]
@@ -165,14 +165,14 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<AutoCollectionService>();
 
-        var (k1, _) = await DonemliKiraAsync(sp, "34 OT 05");
-        await DonemliKiraAsync(sp, "34 OT 06");
+        var (k1, _) = await PeriodicRentalAsync(sp, "34 OT 05");
+        await PeriodicRentalAsync(sp, "34 OT 06");
 
-        var hepsi = await svc.CandidatesAsync();
-        Assert.Equal(4, hepsi.Count);               // ELLE: 2 kira × 2 vadesi geçmiş dönem
+        var all = await svc.CandidatesAsync();
+        Assert.Equal(4, all.Count);               // ELLE: 2 kira × 2 vadesi geçmiş dönem
 
         // Sözleşme no filtresi: yalnız o kiranın dönemleri.
-        var no = hepsi.First(a => a.RentalId == k1).SozlesmeNo;
+        var no = all.First(a => a.RentalId == k1).SozlesmeNo;
         var tek = await svc.CandidatesAsync(new OtomatikTahsilatFiltre { SozlesmeNo = no });
         Assert.Equal(2, tek.Count);
         Assert.All(tek, a => Assert.Equal(k1, a.RentalId));
@@ -190,7 +190,7 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        using (var admin = host.ScopeFor(tenant)) await DonemliKiraAsync(admin.ServiceProvider, "34 OT 07");
+        using (var admin = host.ScopeFor(tenant)) await PeriodicRentalAsync(admin.ServiceProvider, "34 OT 07");
 
         // Operatör FinanceWrite taşımaz → ne listeyi görebilir ne çalıştırabilir.
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
@@ -232,30 +232,30 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
 
         // ELLE: iki uzun kira — biri opt-in AÇIK, biri KAPALI. İkisinin de dönem planı var
         // (plan uzunluk kuralıyla kurulur, bayrakla değil).
-        var (acik, _) = await DonemliKiraAsync(sp, "34 OT 09");
-        var bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
+        var (open, _) = await PeriodicRentalAsync(sp, "34 OT 09");
+        var start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-65);
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 OT 10" });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "OptIn", Soyad = "Kapali" });
-        var kapali = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        var closed = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = bas, BitTar = bas.AddDays(90),
+            MusteriId = m, VehicleId = v, BasTar = start, BitTar = start.AddDays(90),
             GunlukUcret = 100m, DonemselFaturalama = false
         });
 
-        var adaylar = await svc.CandidatesAsync();
-        Assert.All(adaylar, a => Assert.Equal(acik, a.RentalId));   // KAPALI kira listede YOK
-        Assert.Equal(2, adaylar.Count);
+        var candidates = await svc.CandidatesAsync();
+        Assert.All(candidates, a => Assert.Equal(open, a.RentalId));   // KAPALI kira listede YOK
+        Assert.Equal(2, candidates.Count);
 
         // Uydurma POST ile kapalı kirayı zorlamak da işe yaramaz: aday çiti reddeder.
-        var (borcOnce, _) = await DefterAsync(sp);
-        var sonuc = await svc.RunAsync([(kapali, 1)], doCollection: true, LedgerAccountType.Kasa);
-        Assert.Equal(0, sonuc.Kesilen);
-        Assert.Single(sonuc.Atlananlar);
+        var (debtBefore, _) = await LedgerAsync(sp);
+        var result = await svc.RunAsync([(closed, 1)], doCollection: true, LedgerAccountType.Kasa);
+        Assert.Equal(0, result.Kesilen);
+        Assert.Single(result.Atlananlar);
 
-        var (borcSonra, alacakSonra) = await DefterAsync(sp);
-        Assert.Equal(borcOnce, borcSonra);              // kesilmemesi gereken sözleşmede kesim YOK
-        Assert.Equal(borcSonra, alacakSonra);
+        var (debtAfter, creditAfter) = await LedgerAsync(sp);
+        Assert.Equal(debtBefore, debtAfter);              // kesilmemesi gereken sözleşmede kesim YOK
+        Assert.Equal(debtAfter, creditAfter);
     }
 
     /// <summary>ADVERSARIAL M1 — sayaç GERÇEĞİ söyler: idempotent yutulan tahsilat "yazıldı"
@@ -267,22 +267,22 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<AutoCollectionService>();
-        var (kira, _) = await DonemliKiraAsync(sp, "34 OT 11");
+        var (rental, _) = await PeriodicRentalAsync(sp, "34 OT 11");
 
-        var ilk = (await svc.CandidatesAsync()).First();
+        var first = (await svc.CandidatesAsync()).First();
 
         // Aynı dönemin tahsilatını ÖNCE manuel yoldan al (deterministik anahtar tüketilir).
         await sp.GetRequiredService<PeriodCollectionService>()
-            .IssueAndCollectAsync(ilk.RentalId, ilk.DonemSira, true, LedgerAccountType.Kasa);
+            .IssueAndCollectAsync(first.RentalId, first.DonemSira, true, LedgerAccountType.Kasa);
 
-        var kasaOnce = (await sp.GetRequiredService<CashService>().ListAsync()).Count;
+        var cashBefore = (await sp.GetRequiredService<CashService>().ListAsync()).Count;
 
         // Şimdi elle tetik AYNI dönemi çalıştırsın: fatura zaten kesildiği için aday da değil.
-        var sonuc = await svc.RunAsync([(ilk.RentalId, ilk.DonemSira)], true, LedgerAccountType.Kasa);
-        var kasaSonra = (await sp.GetRequiredService<CashService>().ListAsync()).Count;
+        var result = await svc.RunAsync([(first.RentalId, first.DonemSira)], true, LedgerAccountType.Kasa);
+        var cashAfter = (await sp.GetRequiredService<CashService>().ListAsync()).Count;
 
-        Assert.Equal(kasaOnce, kasaSonra);              // yeni tahsilat YAZILMADI
-        Assert.Equal(0, sonuc.Tahsilat);                // sayaç bunu "yazıldı" saymıyor
+        Assert.Equal(cashBefore, cashAfter);              // yeni tahsilat YAZILMADI
+        Assert.Equal(0, result.Tahsilat);                // sayaç bunu "yazıldı" saymıyor
     }
 
     /// <summary>ADVERSARIAL M2 — atlanan mesajları SÖZLEŞME NO taşır; iki farklı kiranın mesajı
@@ -294,29 +294,29 @@ public sealed class OtomatikTahsilatTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var svc = sp.GetRequiredService<AutoCollectionService>();
-        await DonemliKiraAsync(sp, "34 OT 12");
-        await DonemliKiraAsync(sp, "34 OT 13");
+        await PeriodicRentalAsync(sp, "34 OT 12");
+        await PeriodicRentalAsync(sp, "34 OT 13");
 
-        var adaylar = await svc.CandidatesAsync();
+        var candidates = await svc.CandidatesAsync();
         // Her kiranın YALNIZ 2. dönemini seç → sıralı kesim kuralı ikisini de reddeder.
-        var ikinciler = adaylar.Where(a => a.DonemSira == 2).ToList();
-        Assert.Equal(2, ikinciler.Count);
+        var seconds = candidates.Where(a => a.DonemSira == 2).ToList();
+        Assert.Equal(2, seconds.Count);
 
-        var sonuc = await svc.RunAsync(
-            [.. ikinciler.Select(a => (a.RentalId, a.DonemSira))], true, LedgerAccountType.Kasa);
+        var result = await svc.RunAsync(
+            [.. seconds.Select(a => (a.RentalId, a.DonemSira))], true, LedgerAccountType.Kasa);
 
-        Assert.Equal(0, sonuc.Kesilen);
-        Assert.Equal(2, sonuc.Atlananlar.Count);
+        Assert.Equal(0, result.Kesilen);
+        Assert.Equal(2, result.Atlananlar.Count);
         // İki mesaj BİRBİRİNDEN FARKLI olmalı (sözleşme no ile ayrışıyor).
-        Assert.Equal(2, sonuc.Atlananlar.Distinct().Count());
-        Assert.All(ikinciler, a => Assert.Contains(sonuc.Atlananlar, m => m.Contains(a.SozlesmeNo)));
+        Assert.Equal(2, result.Atlananlar.Distinct().Count());
+        Assert.All(seconds, a => Assert.Contains(result.Atlananlar, m => m.Contains(a.SozlesmeNo)));
     }
 
     [Fact]
     public async Task Tenant_izolasyonu()
     {
         using var host = new TestHost(fx.AppConnectionString);
-        using (var a = host.ScopeFor(Guid.NewGuid())) await DonemliKiraAsync(a.ServiceProvider, "34 OT 08");
+        using (var a = host.ScopeFor(Guid.NewGuid())) await PeriodicRentalAsync(a.ServiceProvider, "34 OT 08");
 
         using var b = host.ScopeFor(Guid.NewGuid());
         Assert.Empty(await b.ServiceProvider.GetRequiredService<AutoCollectionService>().CandidatesAsync());

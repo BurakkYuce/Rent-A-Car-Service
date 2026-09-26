@@ -19,13 +19,13 @@ public static partial class WebsiteApi
     private static void MapContent(RouteGroupBuilder v1)
     {
         var g = v1.MapGroup("/site-icerik").WithTags(SystemApiCommon.WebsiteTag)
-            .RequirePermission(Permission.OperationsWrite).RequireWebSitesiModulu();
+            .RequirePermission(Permission.OperationsWrite).RequireWebsiteModule();
 
         // ---- sayfalar
         g.MapGet("/sayfalar", async (int? sayfa, int? boyut, string? sirala, SiteContentService s, CancellationToken ct) =>
-            TypedResults.Ok(F5Ortak.Sayfala((await s.ListAsync(ct))
+            TypedResults.Ok(F5Shared.Paginate((await s.ListAsync(ct))
                 .Select(p => new PageRowDto(p.Id, p.Slug, p.Baslik, p.Sira, p.Yayinda)).ToList(), PageSort, sayfa, boyut, sirala)))
-            .AlanlariEsle(F5Ortak.SiralamaKurallari);
+            .MapFields(F5Shared.SortRules);
 
         g.MapGet("/sayfalar/{id:guid}", async Task<Results<Ok<PageDetailDto>, ProblemHttpResult>> (
             Guid id, SiteContentService s, CancellationToken ct)
@@ -38,7 +38,7 @@ public static partial class WebsiteApi
             var id = await s.SaveAsync(ToInput(null, i), ct);
             return await PageAsync(id, s, ct) is { } d
                 ? TypedResults.Created($"{ContentRoot}/sayfalar/{id}", d) : SystemApiCommon.NotFound("Sayfa bulunamadı.");
-        }).AlanlariEsle(PageRules);
+        }).MapFields(PageRules);
 
         g.MapPut("/sayfalar/{id:guid}", async Task<Results<Ok<PageDetailDto>, ProblemHttpResult>> (
             Guid id, PageRequest i, SiteContentService s, CancellationToken ct) =>
@@ -48,7 +48,7 @@ public static partial class WebsiteApi
             PageLimits(i);
             await s.SaveAsync(ToInput(id, i), i.Surum, ct);
             return await PageAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Sayfa bulunamadı.");
-        }).AlanlariEsle(PageRules);
+        }).MapFields(PageRules);
 
         g.MapPost("/sayfalar/{id:guid}/durum", async Task<Results<Ok<PageDetailDto>, ProblemHttpResult>> (
             Guid id, PublishRequest i, SiteContentService s, CancellationToken ct) =>
@@ -81,7 +81,7 @@ public static partial class WebsiteApi
             var id = await s.SaveFaqAsync(new SssInput(null, i.Soru ?? "", i.Cevap ?? "", i.Sira, i.Yayinda), ct);
             return await FaqAsync(id, s, ct) is { } d
                 ? TypedResults.Created($"{ContentRoot}/sss/{id}", d) : SystemApiCommon.NotFound("Soru bulunamadı.");
-        }).AlanlariEsle(FaqRules);
+        }).MapFields(FaqRules);
 
         g.MapPut("/sss/{id:guid}", async Task<Results<Ok<FaqDto>, ProblemHttpResult>> (
             Guid id, FaqRequest i, SiteContentService s, CancellationToken ct) =>
@@ -90,7 +90,7 @@ public static partial class WebsiteApi
             SystemApiCommon.RequireVersion(i.Surum);
             await s.SaveFaqAsync(new SssInput(id, i.Soru ?? "", i.Cevap ?? "", i.Sira, i.Yayinda), i.Surum, ct);
             return await FaqAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Soru bulunamadı.");
-        }).AlanlariEsle(FaqRules);
+        }).MapFields(FaqRules);
 
         g.MapDelete("/sss/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
             Guid id, SiteContentService s, CancellationToken ct) =>
@@ -105,7 +105,7 @@ public static partial class WebsiteApi
         => new(id, i.Baslik ?? "", i.Govde ?? "", i.Slug, i.MetaAciklama, i.Sira, i.Yayinda);
 
     /// <summary>Slug kolonu 200; diğer uzunluklar serviste (başlık 200, gövde 20.000, özet 300).</summary>
-    private static void PageLimits(PageRequest i) => Sinirlar.Metin(i.Slug, 200, "slug", "Adres");
+    private static void PageLimits(PageRequest i) => RentalLimits.Text(i.Slug, 200, "slug", "Adres");
 
     private static readonly (string, string)[] PageRules =
     [

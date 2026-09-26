@@ -7,13 +7,13 @@ namespace RentACar.IntegrationTests;
 
 public sealed partial class UiWebsiteApiTests
 {
-    private async Task<Guid> RequestAsync(Env e, string name, string? sube = "SubeA",
+    private async Task<Guid> RequestAsync(Env e, string name, string? branch = "SubeA",
         PublicBookingRequestDurum status = PublicBookingRequestDurum.Yeni)
     {
         var t = new PublicBookingRequest
         {
             AdSoyad = name, Telefon = "0532" + System.Random.Shared.Next(1_000_000, 9_999_999), Email = "lead@example.com",
-            BasTar = TestZaman.GunSonra(10), BitTar = TestZaman.GunSonra(13), Sube = sube, Not = "Bebek koltuğu",
+            BasTar = TestZaman.DaysLater(10), BitTar = TestZaman.DaysLater(13), Sube = branch, Not = "Bebek koltuğu",
             GosterilenGunlukUcretKdvDahil = 1200m, GosterilenKdvDahil = true, Durum = status,
         };
         await _kit.WriteAsync(e.TenantId, db => db.SiteTalepleri.Add(t));
@@ -80,9 +80,9 @@ public sealed partial class UiWebsiteApiTests
     public async Task Booking_request_conversion_checks_vehicle_scope_at_entry()
     {
         var e = await SetupAsync(module: false);
-        var id = await RequestAsync(e, "Mehmet Demir", sube: null);
-        var vehicleA = await VehicleAsync(e, sube: "SubeA");
-        var vehicleB = await VehicleAsync(e, sube: "SubeB");
+        var id = await RequestAsync(e, "Mehmet Demir", branch: null);
+        var vehicleA = await VehicleAsync(e, branch: "SubeA");
+        var vehicleB = await VehicleAsync(e, branch: "SubeB");
 
         // operatör (SubeA) aday listesinde yalnız kendi şubesinin aracını görür
         var op = await _kit.LoginAsync(e, Who.OperatorA);

@@ -22,17 +22,17 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class AssistansTalepTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset T0 = TestZaman.Simdi().AddDays(-3);
+    private static readonly DateTimeOffset T0 = TestZaman.Now().AddDays(-3);
 
-    private static async Task<(Guid kira, Guid arac, Guid cari)> KiraAsync(
-        IServiceProvider sp, string plaka, string ad, string? tel)
+    private static async Task<(Guid kira, Guid arac, Guid cari)> RentalAsync(
+        IServiceProvider sp, string plate, string name, string? tel)
     {
-        var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CustomerType.Kurumsal, Unvan = ad, CepTel = tel });
-        var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
-        var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = arac, BasTar = T0, BitTar = T0.AddDays(5), GunlukUcret = 1000m });
-        return (kira, arac, cari);
+        var account = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        { Tip = CustomerType.Kurumsal, Unvan = name, CepTel = tel });
+        var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
+        var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        { MusteriId = account, VehicleId = vehicle, BasTar = T0, BitTar = T0.AddDays(5), GunlukUcret = 1000m });
+        return (kira: rental, arac: vehicle, cari: account);
     }
 
     [Fact]
@@ -41,12 +41,12 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (kira, arac, _) = await KiraAsync(sp, "34 AS 01", "Alfa A.Ş.", "05551112233");
+        var (rental, vehicle, _) = await RentalAsync(sp, "34 AS 01", "Alfa A.Ş.", "05551112233");
         var svc = sp.GetRequiredService<AssistanceRequestService>();
 
         var id = await svc.CreateAsync(new AssistansInput
         {
-            RentalId = kira, Mesaj = "  Lastik patladı, yolda kaldık  ",
+            RentalId = rental, Mesaj = "  Lastik patladı, yolda kaldık  ",
             Sebep = " Lastik ", YedekLastikMi = true, AracHareketMi = false, Zaman = T0.AddDays(1)
         });
 
@@ -62,7 +62,7 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
 
         // OLAY TUTANAĞI: aracın plakası sonradan değişse bile kayıt DEĞİŞMEZ (şikayetin tersi).
         Assert.True(await sp.GetRequiredService<VehicleService>()
-            .UpdateAsync(arac, new VehicleInput { Plaka = "06 YN 99" }));
+            .UpdateAsync(vehicle, new VehicleInput { Plaka = "06 YN 99" }));
         Assert.Equal("34AS01", (await svc.GetAsync(id))!.Plaka);
     }
 
@@ -72,12 +72,12 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (kira, _, _) = await KiraAsync(sp, "34 AS 02", "Beta A.Ş.", "05551112233");
+        var (rental, _, _) = await RentalAsync(sp, "34 AS 02", "Beta A.Ş.", "05551112233");
         var svc = sp.GetRequiredService<AssistanceRequestService>();
 
         // Çağrıyı ikinci sürücü yapıyor: telefon FARKLI, ad farklı. Otomatik doldurma bunu ezmemeli.
         var id = await svc.CreateAsync(new AssistansInput
-        { RentalId = kira, Mesaj = "Akü bitti", AdSoyad = "İkinci Sürücü", CepTel = "05559998877" });
+        { RentalId = rental, Mesaj = "Akü bitti", AdSoyad = "İkinci Sürücü", CepTel = "05559998877" });
 
         var t = await svc.GetAsync(id);
         Assert.Equal("İkinci Sürücü", t!.AdSoyad);
@@ -158,8 +158,8 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         Assert.Single(await svc.SearchAsync(new AssistansFilter { Ara = "0555123" }));
 
         // Liste en yeniden eskiye.
-        var hepsi = await svc.SearchAsync();
-        Assert.Equal("Anahtar içeride kaldı", hepsi[0].Mesaj);
+        var all = await svc.SearchAsync();
+        Assert.Equal("Anahtar içeride kaldı", all[0].Mesaj);
     }
 
     [Fact]
@@ -202,9 +202,9 @@ public sealed class AssistansTalepTests(PostgresFixture fx)
         }
 
         // Muhasebe rolünde OperationsWrite yok → yazma kapalı.
-        using var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
+        using var acct = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         await Assert.ThrowsAsync<NoPermissionException>(() =>
-            muh.ServiceProvider.GetRequiredService<AssistanceRequestService>()
+            acct.ServiceProvider.GetRequiredService<AssistanceRequestService>()
                 .CreateAsync(new AssistansInput { Mesaj = "Yetkisiz" }));
 
         // Kaynak tenant'ta kayıt duruyor.

@@ -19,7 +19,7 @@ public static partial class SystemDefinitionsApi
     public static void MapSystemDefinitionsApi(this RouteGroupBuilder v1)
     {
         MapInsuranceCompanies(v1);
-        MapKdvRates(v1);
+        MapVatRates(v1);
         MapPenaltyTypes(v1);
         MapLocations(v1);
         MapPersonnel(v1);
@@ -42,14 +42,14 @@ public static partial class SystemDefinitionsApi
         return q.ToList();
     }
 
-    private static void Text(string? value, int max, string field, string label) => Kira.Sinirlar.Metin(value, max, field, label);
+    private static void Text(string? value, int max, string field, string label) => Kira.RentalLimits.Text(value, max, field, label);
 
-    private static void Amount(decimal? value, string field, string label) => Kira.Sinirlar.Tutar(value, field, label);
+    private static void Amount(decimal? value, string field, string label) => Kira.RentalLimits.Amount(value, field, label);
 
     /// <summary>DB'ye giden an UTC (Npgsql timestamptz yalnız offset 0).</summary>
-    private static DateTimeOffset? Utc(DateTimeOffset? value) => F5Ortak.Utc(value);
+    private static DateTimeOffset? Utc(DateTimeOffset? value) => F5Shared.Utc(value);
 
-    private static T? EnumName<T>(string? value, string field) where T : struct, Enum => F5Ortak.EnumAdi<T>(value, field);
+    private static T? EnumName<T>(string? value, string field) where T : struct, Enum => F5Shared.EnumAdi<T>(value, field);
 
     private static void NotNegative(int? value, string field, string label)
     {

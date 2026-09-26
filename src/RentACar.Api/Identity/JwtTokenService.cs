@@ -33,8 +33,8 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options)
         };
 
         // Kullanıcı-bazlı istisnalar — cookie ile AYNI claim adları (izin adı başına bir claim).
-        claims.AddRange(login.EkIzinler.Select(i => new Claim(ApiClaims.IzinEk, i)));
-        claims.AddRange(login.YasakIzinler.Select(i => new Claim(ApiClaims.IzinYasak, i)));
+        claims.AddRange(login.EkIzinler.Select(i => new Claim(ApiClaims.PermissionExtra, i)));
+        claims.AddRange(login.YasakIzinler.Select(i => new Claim(ApiClaims.PermissionDenied, i)));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_o.Key));
         var descriptor = new SecurityTokenDescriptor

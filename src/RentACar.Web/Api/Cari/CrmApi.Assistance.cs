@@ -26,14 +26,14 @@ public static partial class CrmApi
     private static void MapAssistance(RouteGroupBuilder g)
     {
         var s = g.MapGroup("/assistans-talepleri").WithTags("CRM");
-        s.MapGet("", ListAssistance).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        s.MapGet("", ListAssistance).MapFields(F5Shared.SortRules);
         s.MapGet("/{id:guid}", GetAssistance);
-        s.MapPost("", CreateAssistance).AlanlariEsle(AssistanceFieldRules);
-        s.MapPut("/{id:guid}", UpdateAssistance).AlanlariEsle(AssistanceFieldRules);
+        s.MapPost("", CreateAssistance).MapFields(AssistanceFieldRules);
+        s.MapPut("/{id:guid}", UpdateAssistance).MapFields(AssistanceFieldRules);
         s.MapDelete("/{id:guid}", DeleteAssistance);
     }
 
-    private static ProblemHttpResult AssistanceNotFound() => F5Ortak.Bulunamadi("Assistans talebi bulunamadı.");
+    private static ProblemHttpResult AssistanceNotFound() => F5Shared.NotFound("Assistans talebi bulunamadı.");
 
     private static readonly SortFieldMap<AssistanceRow> AssistanceSort = SortFieldMap<AssistanceRow>
         .Create(r => r.Id)
@@ -58,17 +58,17 @@ public static partial class CrmApi
         IDbContextFactory<AppDbContext> dbf, ILocationRepository locations, int? sayfa, int? boyut, string? sirala,
         CancellationToken ct)
     {
-        Sinirlar.Metin(f.Ara, 100, "ara", "Arama metni");
-        Sinirlar.Metin(f.Plaka, 32, "plaka", "Plaka");
-        var (min, max) = F5Ortak.GunAraligi(f.TarihBas, f.TarihBit);
+        RentalLimits.Text(f.Ara, 100, "ara", "Arama metni");
+        RentalLimits.Text(f.Plaka, 32, "plaka", "Plaka");
+        var (min, max) = F5Shared.DayRange(f.TarihBas, f.TarihBit);
         var items = await requests.SearchAsync(new AssistansFilter
         {
-            Plaka = F5Ortak.Nz(f.Plaka), TarihMin = min, TarihMax = max, Ara = F5Ortak.Nz(f.Ara), Kapandi = f.Kapandi,
+            Plaka = F5Shared.Nz(f.Plaka), TarihMin = min, TarihMax = max, Ara = F5Shared.Nz(f.Ara), Kapandi = f.Kapandi,
             YedekLastikMi = f.YedekLastik, HareketEdemiyor = f.HareketEdemiyor,
         }, ct);
         var inScope = await CrmScope.BuildAsync(user, dbf, locations, items.Select(a => (a.RentalId, (string?)null)), ct);
         var rows = await AssistanceRowsAsync(dbf, items.Where(a => inScope(a.RentalId, null)).ToList(), ct);
-        return TypedResults.Ok(F5Ortak.Sayfala(rows, AssistanceSort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(rows, AssistanceSort, sayfa, boyut, sirala));
     }
 
     private static async Task<List<AssistanceRow>> AssistanceRowsAsync(
@@ -114,19 +114,19 @@ public static partial class CrmApi
     private static async Task<AssistansInput> AssistanceInputAsync(
         AssistanceRequest r, ICurrentUser user, RentalService rentals, ILocationRepository locations, CancellationToken ct)
     {
-        Sinirlar.Metin(r.Plaka, 32, "plaka", "Plaka");
-        Sinirlar.Metin(r.AdSoyad, 256, "adSoyad", "Ad soyad");
-        Sinirlar.Metin(r.CepTel, 32, "cepTel", "Cep telefonu");
-        Sinirlar.Metin(r.Mesaj, 2048, "mesaj", "Mesaj");
-        Sinirlar.Metin(r.Sebep, 512, "sebep", "Sebep");
-        Sinirlar.Metin(r.Cozum, 1024, "cozum", "Çözüm");
+        RentalLimits.Text(r.Plaka, 32, "plaka", "Plaka");
+        RentalLimits.Text(r.AdSoyad, 256, "adSoyad", "Ad soyad");
+        RentalLimits.Text(r.CepTel, 32, "cepTel", "Cep telefonu");
+        RentalLimits.Text(r.Mesaj, 2048, "mesaj", "Mesaj");
+        RentalLimits.Text(r.Sebep, 512, "sebep", "Sebep");
+        RentalLimits.Text(r.Cozum, 1024, "cozum", "Çözüm");
         if (r.Plaka is { } p && AssistanceRequestService.NormalizePlate(p).Length > 16)
             throw new ValidationException("Plaka en fazla 16 karakter olabilir.", "plaka");
         var rentalId = r.RentalId == Guid.Empty ? null : r.RentalId;
         // Hedef kapsamı (kira var mı, kapsamda mı, şubesiz oluşturma) servis katmanında: CrmScopeGuard (r317 M1).
         return new AssistansInput
         {
-            RentalId = rentalId, Plaka = r.Plaka, AdSoyad = r.AdSoyad, CepTel = r.CepTel, Zaman = F5Ortak.Utc(r.Zaman),
+            RentalId = rentalId, Plaka = r.Plaka, AdSoyad = r.AdSoyad, CepTel = r.CepTel, Zaman = F5Shared.Utc(r.Zaman),
             Mesaj = r.Mesaj, Sebep = r.Sebep, YedekLastikMi = r.YedekLastikMi, AracHareketMi = r.AracHareketMi,
             Kapandi = r.Kapandi, Cozum = r.Cozum,
             // #295 L1: null = dokunma (boşsa sözleşmeden doldurulur), "" = temizle (yeniden doldurulmaz).

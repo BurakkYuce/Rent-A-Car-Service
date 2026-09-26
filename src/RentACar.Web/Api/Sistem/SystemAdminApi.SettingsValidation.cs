@@ -28,30 +28,30 @@ public static partial class SystemAdminApi
     /// </summary>
     private static void ValidateSettings(SettingsRequest i)
     {
-        Sinirlar.Metin(i.FirmaUnvan, 256, "firmaUnvan", "Firma ünvanı");
-        Sinirlar.Metin(i.FirmaVergiDairesi, 128, "firmaVergiDairesi", "Vergi dairesi");
-        Sinirlar.Metin(i.FirmaVergiNo, 32, "firmaVergiNo", "Vergi no");
-        Sinirlar.Metin(i.FirmaAdres, 512, "firmaAdres", "Adres");
-        Sinirlar.Metin(i.FirmaTel, 64, "firmaTel", "Telefon");
-        Sinirlar.Metin(i.FirmaEmail, 128, "firmaEmail", "E-posta");
-        Sinirlar.Metin(i.FirmaMobilTel, 64, "firmaMobilTel", "Mobil telefon");
-        Sinirlar.Metin(i.FirmaMarka, 128, "firmaMarka", "Marka");
-        Sinirlar.Metin(i.EFaturaKullanici, 128, "eFaturaKullanici", "e-Fatura kullanıcısı");
-        Sinirlar.Metin(i.EFaturaSifre, SecretMaxLength, "eFaturaSifre", "e-Fatura şifresi");
-        Sinirlar.Metin(i.SmsBaslik, 64, "smsBaslik", "SMS başlığı");
-        Sinirlar.Metin(i.SmsApiKey, SecretMaxLength, "smsApiKey", "SMS API anahtarı");
-        Sinirlar.Metin(i.PosMerchantId, 128, "posMerchantId", "POS üye işyeri no");
-        Sinirlar.Metin(i.PosApiKey, SecretMaxLength, "posApiKey", "POS API anahtarı");
-        Sinirlar.Metin(i.LogoUrl, 512, "logoUrl", "Logo URL");
-        Sinirlar.Metin(i.VarsayilanDoviz, 3, "varsayilanDoviz", "Varsayılan döviz");
-        Sinirlar.Metin(i.VarsayilanFiyatTuru, 32, "varsayilanFiyatTuru", "Varsayılan fiyat türü");
-        Sinirlar.Metin(i.SmtpHost, 256, "smtpHost", "SMTP sunucusu");
-        Sinirlar.Metin(i.SmtpKullanici, 256, "smtpKullanici", "SMTP kullanıcısı");
-        Sinirlar.Metin(i.SmtpSifre, SecretMaxLength, "smtpSifre", "SMTP şifresi");
-        Sinirlar.Metin(i.SmtpGonderenAdres, 256, "smtpGonderenAdres", "Gönderen adresi");
-        Sinirlar.Metin(i.SmtpGonderenAd, 128, "smtpGonderenAd", "Gönderen adı");
-        Sinirlar.Metin(i.FaturaSeriKodu, 3, "faturaSeriKodu", "Fatura seri kodu");
-        Sinirlar.Metin(i.WhatsAppNumarasi, 32, "whatsAppNumarasi", "WhatsApp numarası");
+        RentalLimits.Text(i.FirmaUnvan, 256, "firmaUnvan", "Firma ünvanı");
+        RentalLimits.Text(i.FirmaVergiDairesi, 128, "firmaVergiDairesi", "Vergi dairesi");
+        RentalLimits.Text(i.FirmaVergiNo, 32, "firmaVergiNo", "Vergi no");
+        RentalLimits.Text(i.FirmaAdres, 512, "firmaAdres", "Adres");
+        RentalLimits.Text(i.FirmaTel, 64, "firmaTel", "Telefon");
+        RentalLimits.Text(i.FirmaEmail, 128, "firmaEmail", "E-posta");
+        RentalLimits.Text(i.FirmaMobilTel, 64, "firmaMobilTel", "Mobil telefon");
+        RentalLimits.Text(i.FirmaMarka, 128, "firmaMarka", "Marka");
+        RentalLimits.Text(i.EFaturaKullanici, 128, "eFaturaKullanici", "e-Fatura kullanıcısı");
+        RentalLimits.Text(i.EFaturaSifre, SecretMaxLength, "eFaturaSifre", "e-Fatura şifresi");
+        RentalLimits.Text(i.SmsBaslik, 64, "smsBaslik", "SMS başlığı");
+        RentalLimits.Text(i.SmsApiKey, SecretMaxLength, "smsApiKey", "SMS API anahtarı");
+        RentalLimits.Text(i.PosMerchantId, 128, "posMerchantId", "POS üye işyeri no");
+        RentalLimits.Text(i.PosApiKey, SecretMaxLength, "posApiKey", "POS API anahtarı");
+        RentalLimits.Text(i.LogoUrl, 512, "logoUrl", "Logo URL");
+        RentalLimits.Text(i.VarsayilanDoviz, 3, "varsayilanDoviz", "Varsayılan döviz");
+        RentalLimits.Text(i.VarsayilanFiyatTuru, 32, "varsayilanFiyatTuru", "Varsayılan fiyat türü");
+        RentalLimits.Text(i.SmtpHost, 256, "smtpHost", "SMTP sunucusu");
+        RentalLimits.Text(i.SmtpKullanici, 256, "smtpKullanici", "SMTP kullanıcısı");
+        RentalLimits.Text(i.SmtpSifre, SecretMaxLength, "smtpSifre", "SMTP şifresi");
+        RentalLimits.Text(i.SmtpGonderenAdres, 256, "smtpGonderenAdres", "Gönderen adresi");
+        RentalLimits.Text(i.SmtpGonderenAd, 128, "smtpGonderenAd", "Gönderen adı");
+        RentalLimits.Text(i.FaturaSeriKodu, 3, "faturaSeriKodu", "Fatura seri kodu");
+        RentalLimits.Text(i.WhatsAppNumarasi, 32, "whatsAppNumarasi", "WhatsApp numarası");
         foreach (var (value, field) in new[]
                  {
                      (i.RenkGecikenler, "renkGecikenler"), (i.RenkBugunDonecekler, "renkBugunDonecekler"),
@@ -59,7 +59,7 @@ public static partial class SystemAdminApi
                      (i.RenkLimitBakiye, "renkLimitBakiye"), (i.RenkAlacakli, "renkAlacakli"),
                      (i.RenkRezAtananPlaka, "renkRezAtananPlaka"), (i.RenkKiralanmayan, "renkKiralanmayan"),
                  })
-            Sinirlar.Metin(value, 7, field, "Renk kodu");
+            RentalLimits.Text(value, 7, field, "Renk kodu");
 
         // F11.1b güvenlik M4: yalnız SMTP portları (gönderici de aynı listeyi uygular).
         if (i.SmtpPort is { } port && !Infrastructure.Integrations.SmtpEndpointGuard.AllowedPorts.Contains(port))

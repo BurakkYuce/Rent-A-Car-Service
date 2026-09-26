@@ -20,9 +20,9 @@ namespace RentACar.IntegrationTests;
 public sealed class BildirimTests(PostgresFixture fx)
 {
     private static readonly DateTimeOffset Now = new(2026, 6, 15, 0, 0, 0, TimeSpan.Zero);
-    private static DateTimeOffset D(int gun) => Now.AddDays(gun);
+    private static DateTimeOffset D(int day) => Now.AddDays(day);
 
-    private static async Task<Guid> SeedVadelerAsync(IServiceProvider sp)
+    private static async Task<Guid> SeedDuesAsync(IServiceProvider sp)
     {
         var v = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 BD 01", Durum = VehicleStatus.Musait });
@@ -34,7 +34,7 @@ public sealed class BildirimTests(PostgresFixture fx)
         return v;
     }
 
-    private static async Task<int> UretAsync(IServiceProvider sp, Guid tenant)
+    private static async Task<int> GenerateAsync(IServiceProvider sp, Guid tenant)
     {
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         return await DueNotificationGenerator.RunAsync(db, tenant, Now);
@@ -47,18 +47,18 @@ public sealed class BildirimTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        await SeedVadelerAsync(sp);
+        await SeedDuesAsync(sp);
 
-        Assert.Equal(3, await UretAsync(sp, tenant)); // Kasko + MTV + Muayene (Trafik İLERİ değil)
+        Assert.Equal(3, await GenerateAsync(sp, tenant)); // Kasko + MTV + Muayene (Trafik İLERİ değil)
 
         var svc = sp.GetRequiredService<InAppNotificationService>();
-        var bildirimler = await svc.ListPersistedAsync();
-        Assert.Equal(3, bildirimler.Count);
-        Assert.Contains(bildirimler, b => b.Tur == "Kasko");
-        Assert.Contains(bildirimler, b => b.Tur == "MTV");
-        Assert.Contains(bildirimler, b => b.Tur == "Muayene");
-        Assert.DoesNotContain(bildirimler, b => b.Tur == "Trafik"); // İLERİ vade bildirim üretmez
-        Assert.All(bildirimler, b => Assert.False(b.Okundu));
+        var notifications = await svc.ListPersistedAsync();
+        Assert.Equal(3, notifications.Count);
+        Assert.Contains(notifications, b => b.Tur == "Kasko");
+        Assert.Contains(notifications, b => b.Tur == "MTV");
+        Assert.Contains(notifications, b => b.Tur == "Muayene");
+        Assert.DoesNotContain(notifications, b => b.Tur == "Trafik"); // İLERİ vade bildirim üretmez
+        Assert.All(notifications, b => Assert.False(b.Okundu));
         Assert.Equal(3, await svc.UnreadCountAsync());
     }
 
@@ -69,10 +69,10 @@ public sealed class BildirimTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        await SeedVadelerAsync(sp);
+        await SeedDuesAsync(sp);
 
-        Assert.Equal(3, await UretAsync(sp, tenant)); // ilk tarama
-        Assert.Equal(0, await UretAsync(sp, tenant)); // ikinci tarama: çift-yazma YOK
+        Assert.Equal(3, await GenerateAsync(sp, tenant)); // ilk tarama
+        Assert.Equal(0, await GenerateAsync(sp, tenant)); // ikinci tarama: çift-yazma YOK
         Assert.Equal(3, (await sp.GetRequiredService<InAppNotificationService>().ListPersistedAsync()).Count);
     }
 
@@ -83,12 +83,12 @@ public sealed class BildirimTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        await SeedVadelerAsync(sp);
-        await UretAsync(sp, tenant);
+        await SeedDuesAsync(sp);
+        await GenerateAsync(sp, tenant);
         var svc = sp.GetRequiredService<InAppNotificationService>();
 
-        var ilk = (await svc.ListPersistedAsync()).First();
-        Assert.True(await svc.MarkReadAsync(ilk.Id));
+        var first = (await svc.ListPersistedAsync()).First();
+        Assert.True(await svc.MarkReadAsync(first.Id));
         Assert.Equal(2, await svc.UnreadCountAsync());
         Assert.Equal(2, await svc.MarkAllReadAsync()); // kalan 2
         Assert.Equal(0, await svc.UnreadCountAsync());
@@ -100,8 +100,8 @@ public sealed class BildirimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tA = Guid.NewGuid();
         using var sA = host.ScopeFor(tA);
-        await SeedVadelerAsync(sA.ServiceProvider);
-        await UretAsync(sA.ServiceProvider, tA);
+        await SeedDuesAsync(sA.ServiceProvider);
+        await GenerateAsync(sA.ServiceProvider, tA);
 
         using var sB = host.ScopeFor(Guid.NewGuid()); // farklı tenant → A'nınkiler sızmaz
         Assert.Equal(0, await sB.ServiceProvider.GetRequiredService<InAppNotificationService>().UnreadCountAsync());
@@ -116,7 +116,7 @@ public sealed class BildirimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
-        await SeedVadelerAsync(scope.ServiceProvider);
+        await SeedDuesAsync(scope.ServiceProvider);
 
         var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.AppConnectionString).Options;
         var sys = new SystemTenantContext { TenantId = tenant };
@@ -137,19 +137,19 @@ public sealed class BildirimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var sikayet = sp.GetRequiredService<ComplaintService>();
+        var complaint = sp.GetRequiredService<ComplaintService>();
 
-        await sikayet.CreateAsync(new SikayetInput { Konu = "Araç kirli", Durum = ComplaintStatus.Acik });
-        await sikayet.CreateAsync(new SikayetInput { Konu = "Çözüldü", Durum = ComplaintStatus.Kapali });
-        var kapanis = new DateTimeOffset(2026, 3, 31, 0, 0, 0, TimeSpan.Zero);
-        await sp.GetRequiredService<PeriodLockService>().LockAsync(kapanis);
+        await complaint.CreateAsync(new SikayetInput { Konu = "Araç kirli", Durum = ComplaintStatus.Acik });
+        await complaint.CreateAsync(new SikayetInput { Konu = "Çözüldü", Durum = ComplaintStatus.Kapali });
+        var closing = new DateTimeOffset(2026, 3, 31, 0, 0, 0, TimeSpan.Zero);
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(closing);
 
         var d = await sp.GetRequiredService<InAppNotificationService>().GetAsync();
 
         Assert.Equal(1, d.AcikSikayet);              // yalnız açık (elle oracle)
         Assert.Single(d.Sikayetler);
         Assert.Equal("Araç kirli", d.Sikayetler[0].Konu);
-        Assert.Equal(kapanis.Date, d.DonemKapanis!.Value.Date);
+        Assert.Equal(closing.Date, d.DonemKapanis!.Value.Date);
         Assert.Equal(0, d.VadeGecmis);               // vade kurulmadı
         Assert.Equal(0, d.VadeYakin);
     }

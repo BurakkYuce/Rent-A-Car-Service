@@ -43,7 +43,7 @@
     <table class="grid tr-grid">
         <thead><tr><th>Cari</th><th>Id</th></tr></thead>
         <tbody>
-            @foreach (var c in _cariler)
+            @foreach (var c in _accounts)
             {
                 <tr><td>@c.DisplayName</td><td class="mono">@c.Id</td></tr>
             }
@@ -56,9 +56,9 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
 
-    private IReadOnlyList<Customer> _cariler = [];
+    private IReadOnlyList<Customer> _accounts = [];
     private readonly Guid _token = Guid.NewGuid();
 
     protected override async Task OnInitializedAsync()
-        => _cariler = await Cariler.ListAsync();
+        => _accounts = await Cariler.ListAsync();
 }

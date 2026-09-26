@@ -36,7 +36,7 @@
    DIŞINDA tanımlı, kontrolleri panellerde form= attribute'üyle bağlı (iç içe form YOK). Canlı hesap
    SUNUCU motorundan (create: /kiralar/hesapla; dönüş: /kiralar/donus-hesapla). *@
 
-@if (_bulunamadi)
+@if (_notFound)
 {
     <p class="error">Kira sözleşmesi bulunamadı.</p>
     <a href="/kiralar">← Listeye dön</a>
@@ -73,14 +73,14 @@ else
     @* Paylaşım barı: numara/e-posta DÜZENLENEBİLİR (kayıtlı değer prefill; farklı numaraya/adrese de
        gönderilebilir). WhatsApp → wa.me, E-posta → GMAIL compose yönlendirmesi (mailto değil). Hazır
        özet metin data-attr'da; PDF eki elle (medya/ek göndermek Twilio/SMTP kimliği ister — stub). *@
-    <div class="card kf-paylas" data-paylas data-mesaj="@_paylasMesaj" data-konu="@_paylasKonu">
+    <div class="card kf-paylas" data-paylas data-mesaj="@_shareMessage" data-konu="@_shareSubject">
         <strong>Paylaş</strong>
         <label>Numara (GSM)
-            <input data-paylas-tel value="@_musteriTel" placeholder="05xx xxx xx xx" style="min-width:11rem;" />
+            <input data-paylas-tel value="@_customerPhone" placeholder="05xx xxx xx xx" style="min-width:11rem;" />
         </label>
         <button type="button" class="kf-btn-ghost" data-paylas-wa title="Girilen numaraya hazır özet mesajla WhatsApp açar; PDF'i konuşmada eklersiniz">WhatsApp'ta Aç</button>
         <label>E-posta
-            <input data-paylas-mail type="email" value="@_musteriEmail" placeholder="ornek@mail.com" style="min-width:13rem;" />
+            <input data-paylas-mail type="email" value="@_customerEmail" placeholder="ornek@mail.com" style="min-width:13rem;" />
         </label>
         <button type="button" class="kf-btn-ghost" data-paylas-gmail title="Gmail taslağını hazır konu/metinle açar; PDF'i taslağa eklersiniz">Gmail'de Aç</button>
         <span data-paylas-hata class="small" style="align-self:center;"></span>
@@ -96,7 +96,7 @@ else
         {
             <span class="muted small">Link oluşturmak için operasyon yetkisi gerekir.</span>
         }
-        else if (_paylasimDurum is null)
+        else if (_shareStatus is null)
         {
             <span class="muted small">Müşteriye dosya göndermek yerine, sözleşmeyi tarayıcıda açan
                 bir adres üretin. Adres tahmin edilemez ve dilediğiniz an iptal edilebilir.</span>
@@ -106,17 +106,17 @@ else
         }
         else
         {
-            <input readonly value="@_paylasimUrl" data-paylas-link
+            <input readonly value="@_shareUrl" data-paylas-link
                    style="min-width:22rem;font-family:var(--mono,monospace);" aria-label="Sözleşme paylaşım adresi" />
             <button type="button" class="kf-btn-ghost" data-paylas-kopyala>Kopyala</button>
-            <a class="link" href="@_paylasimUrl" target="_blank" rel="noopener">Aç</a>
+            <a class="link" href="@_shareUrl" target="_blank" rel="noopener">Aç</a>
             <span class="small" style="align-self:center;">
-                @(_paylasimDurum.ErisimSayisi == 0
+                @(_shareStatus.ErisimSayisi == 0
                     ? "Henüz açılmadı"
-                    : $"{_paylasimDurum.ErisimSayisi} kez açıldı")@(_paylasimDurum.SonErisimUtc is DateTimeOffset se
+                    : $"{_shareStatus.ErisimSayisi} kez açıldı")@(_shareStatus.SonErisimUtc is DateTimeOffset se
                     ? $" · son {se.ToLocalTime():dd.MM HH:mm}" : "")
             </span>
-            @if (_paylasimDurum.Bayat)
+            @if (_shareStatus.Bayat)
             {
                 @* Sözleşme, anlık görüntü alındıktan sonra değişti. Otomatik yenilemek yanlış olurdu:
                    müşterinin elindeki belge sessizce değişmemeli — kararı personel verir. *@
@@ -202,13 +202,13 @@ else
 <datalist id="dl-kf-musteri">
     @foreach (var c in _vm.Customers)
     {
-        <option value="@KiraFormVm.MusteriGoruntu(c)" data-id="@c.Id"></option>
+        <option value="@RentalFormVm.CustomerDisplay(c)" data-id="@c.Id"></option>
     }
 </datalist>
 <datalist id="dl-kf-arac">
     @foreach (var v in _vm.Vehicles)
     {
-        <option value="@KiraFormVm.AracGoruntu(v)" data-id="@v.Id"
+        <option value="@RentalFormVm.VehicleDisplay(v)" data-id="@v.Id"
                 data-marka="@v.Marka" data-tip="@v.Tip" data-yil="@(v.ModelYili?.ToString() ?? "")"
                 data-vites="@(v.Vites?.ToString() ?? "")" data-yakit="@v.Yakit" data-grup="@v.Grup"
                 data-segment="@v.Segment" data-km="@v.Km" data-sube="@v.Sube" data-konum="@v.Konum"></option>
@@ -222,7 +222,7 @@ else
 </datalist>
 @* FAZ-47 — Ödeme Şekli önerileri (seç-veya-yaz; serbest metin de kabul edilir) *@
 <datalist id="dl-kf-odemesekli">
-    @foreach (var o in KiraFormVm.OdemeSekilleri) { <option value="@o"></option> }
+    @foreach (var o in RentalFormVm.PaymentMethods) { <option value="@o"></option> }
 </datalist>
 }
 
@@ -238,16 +238,16 @@ else
     [SupplyParameterFromQuery(Name = "musteriId")] public string? MusteriIdQ { get; set; }
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
-    private readonly KiraFormVm _vm = new();
-    private bool _bulunamadi;
+    private readonly RentalFormVm _vm = new();
+    private bool _notFound;
     // Paylaşım barı prefill'leri (kutular düzenlenebilir — kayıtlı değer yalnız başlangıç değeri)
-    private string _musteriTel = "";
-    private string _musteriEmail = "";
-    private string _paylasMesaj = "";
-    private string _paylasKonu = "";
+    private string _customerPhone = "";
+    private string _customerEmail = "";
+    private string _shareMessage = "";
+    private string _shareSubject = "";
     // PR-C: aktif paylaşım linki (yoksa null). URL sunucuda kurulur — JS'e yalnız hazır adres gider.
-    private RentACar.Application.Bookings.PaylasimDurum? _paylasimDurum;
-    private string _paylasimUrl = "";
+    private RentACar.Application.Bookings.PaylasimDurum? _shareStatus;
+    private string _shareUrl = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -255,7 +255,7 @@ else
         if (Id is Guid rid)
         {
             _vm.Rental = await Rentals.GetAsync(rid);
-            if (_vm.Rental is null) { _bulunamadi = true; return; }
+            if (_vm.Rental is null) { _notFound = true; return; }
         }
 
         // Rol yetkileri: butonlar 403 sürprizi yerine disabled + not (sunucu guard'ları asıl savunma).
@@ -290,21 +290,21 @@ else
         // + kira dönemi HGS geçişleri (stub boş döner; entegrasyon gelince dolar).
         if (_vm.Edit && _vm.FinansYetkisi)
         {
-            var karne = await Raporlar.GetVehicleScorecardAsync(_vm.Rental!.VehicleId);
-            _vm.AracDolulukYuzde = karne?.Kpi.DolulukYuzde;
+            var scorecard = await Raporlar.GetVehicleScorecardAsync(_vm.Rental!.VehicleId);
+            _vm.AracDolulukYuzde = scorecard?.Kpi.DolulukYuzde;
         }
         // FAZ 4.5: kaynak rezervasyon (OTA kutuları) — manuel kirada null → "—".
-        if (_vm.Edit && _vm.Rental!.ReservationId is Guid rezId)
-            _vm.KaynakRezervasyon = await Rezervasyonlar.GetAsync(rezId);
+        if (_vm.Edit && _vm.Rental!.ReservationId is Guid resId)
+            _vm.KaynakRezervasyon = await Rezervasyonlar.GetAsync(resId);
         if (_vm.Edit)
         {
-            var plaka = (await Vehicles.ListAsync()).FirstOrDefault(v => v.Id == _vm.Rental!.VehicleId)?.Plaka;
-            if (!string.IsNullOrWhiteSpace(plaka))
+            var plate = (await Vehicles.ListAsync()).FirstOrDefault(v => v.Id == _vm.Rental!.VehicleId)?.Plaka;
+            if (!string.IsNullOrWhiteSpace(plate))
                 _vm.HgsGecisleri = await Hgs.GetCrossingsAsync(
-                    plaka!, _vm.Rental!.BasTar, _vm.Rental!.GercekDonusTar ?? _vm.Rental!.BitTar);
+                    plate!, _vm.Rental!.BasTar, _vm.Rental!.GercekDonusTar ?? _vm.Rental!.BitTar);
         }
         _vm.Vfrom = Vfrom; _vm.Vto = Vto; _vm.Vgrup = Vgrup;
-        _vm.Varac = Guid.TryParse(Varac, out var varacId) ? varacId : null;
+        _vm.Varac = Guid.TryParse(Varac, out var existingVehicleId) ? existingVehicleId : null;
         _vm.QMusteriId = Guid.TryParse(MusteriIdQ, out var qm) ? qm : null; // müsaitlik yenilemesinde seçim korunur
 
         if (_vm.Edit)
@@ -322,31 +322,31 @@ else
                 _vm.TeslimAlanAd = _vm.Personeller.FirstOrDefault(p => p.Id == tp) is { } ps ? $"{ps.Ad} {ps.Soyad}" : null;
 
             // Paylaşım barı: kayıtlı GSM/e-posta prefill (kutular düzenlenebilir) + hazır özet metin.
-            var musteri = _vm.Customers.FirstOrDefault(x => x.Id == c.MusteriId);
-            _musteriTel = musteri?.CepTel ?? "";
-            _musteriEmail = musteri?.Email ?? "";
+            var customer = _vm.Customers.FirstOrDefault(x => x.Id == c.MusteriId);
+            _customerPhone = customer?.CepTel ?? "";
+            _customerEmail = customer?.Email ?? "";
             // PR-C: aktif link (varsa) — mesaj metnine de eklenecek. Yetkisiz rolde guard atar,
             // ekran patlamasın: link bloğu zaten OperasyonYetkisi ile gizli.
             if (_vm.OperasyonYetkisi)
             {
-                try { _paylasimDurum = await Paylasim.StatusAsync(c.Id); }
-                catch (RentACar.Application.Common.ValidationException) { _paylasimDurum = null; }
+                try { _shareStatus = await Paylasim.StatusAsync(c.Id); }
+                catch (RentACar.Application.Common.ValidationException) { _shareStatus = null; }
             }
-            if (_paylasimDurum is not null)
-                _paylasimUrl = Nav.BaseUri.TrimEnd('/') + "/sozlesme/" + _paylasimDurum.Token;
+            if (_shareStatus is not null)
+                _shareUrl = Nav.BaseUri.TrimEnd('/') + "/sozlesme/" + _shareStatus.Token;
 
-            _paylasKonu = $"Kira Sözleşmesi {c.SozlesmeNo}";
-            _paylasMesaj = $"Sayın {musteri?.DisplayName}, {c.SozlesmeNo} nolu kira sözleşmeniz: " +
+            _shareSubject = $"Kira Sözleşmesi {c.SozlesmeNo}";
+            _shareMessage = $"Sayın {customer?.DisplayName}, {c.SozlesmeNo} nolu kira sözleşmeniz: " +
                            $"{c.BasTar.LocalDateTime:dd.MM.yyyy} - {c.BitTar.LocalDateTime:dd.MM.yyyy}, " +
                            $"genel toplam {c.GenelToplam:N2} {c.Doviz ?? "TL"}." +
-                           (_paylasimUrl.Length > 0 ? $" Sözleşmeniz: {_paylasimUrl}" : "");
+                           (_shareUrl.Length > 0 ? $" Sözleşmeniz: {_shareUrl}" : "");
 
             // Döviz kira → güncel kurla TL karşılığı (bilgi; fatura kuru kesim anında sabitlenir).
-            var doviz = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(c.Doviz);
-            if (doviz != "TRY")
+            var currency = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(c.Doviz);
+            if (currency != "TRY")
             {
-                try { _vm.DovizNot = $"{doviz} · güncel ≈ {(c.GenelToplam * await Kurlar.GetRateAsync(doviz)).ToString("N2")} TL"; }
-                catch { _vm.DovizNot = $"{doviz} · güncel kur yok"; }
+                try { _vm.DovizNot = $"{currency} · güncel ≈ {(c.GenelToplam * await Kurlar.GetRateAsync(currency)).ToString("N2")} TL"; }
+                catch { _vm.DovizNot = $"{currency} · güncel kur yok"; }
             }
 
 
@@ -354,8 +354,8 @@ else
 
             // FAZ-47: İşlem Şube kutusu — TÜRETİLMİŞ CikisSubeId'nin adı. Eşleşmezse null bırakılır
             // (ekran "ofis şubeye eşlenmemiş" der; salt-metin davranış korunur).
-            if (c.CikisSubeId is Guid subeId)
-                _vm.IslemSubeAdi = (await Subeler.ListAsync()).FirstOrDefault(b => b.Id == subeId)?.Ad;
+            if (c.CikisSubeId is Guid branchId)
+                _vm.IslemSubeAdi = (await Subeler.ListAsync()).FirstOrDefault(b => b.Id == branchId)?.Ad;
             return;
         }
 

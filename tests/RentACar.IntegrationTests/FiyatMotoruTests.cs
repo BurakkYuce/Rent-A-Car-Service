@@ -18,9 +18,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiyatMotoruTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 3, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 3, 1, 10, 0, 0, TimeSpan.Zero);
 
-    private static async Task SeedAsync(IServiceProvider sp, bool tarifeOnayli = true)
+    private static async Task SeedAsync(IServiceProvider sp, bool isTariffApproved = true)
     {
         var vg = sp.GetRequiredService<VehicleGroupService>();
         await vg.CreateAsync(new VehicleGroupInput
@@ -34,7 +34,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         {
             Kod = "EKO-WEB", Ad = "Eko Web", Kanal = "WEB", AracGrupKod = "EKO",
             Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, Gun4 = 875m, Gun5 = 850m, Gun6 = 825m, Gun7 = 800m,
-            OnayDurumu = tarifeOnayli ? TariffApprovalStatus.Onayli : TariffApprovalStatus.Bekliyor
+            OnayDurumu = isTariffApproved ? TariffApprovalStatus.Onayli : TariffApprovalStatus.Bekliyor
         });
 
         var rr = sp.GetRequiredService<RentalRuleService>();
@@ -62,7 +62,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         // 5 gün (5×24h = 120h → ceil 5), genç sürücü (22<25), 2000 km, SCDW+IMM.
         var q = await engine.QuoteAsync(new QuoteRequest
         {
-            AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(5),
+            AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(5),
             SurucuYas = 22, TahminiKm = 2000, SigortaUrunKodlari = ["SCDW", "IMM"]
         });
 
@@ -97,7 +97,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         // 10 gün → kademe clamp 7 → Gün7 = 800 günlük. Baz = 800×10 = 8000. (KM/sigorta yok)
         // gün 10 ≥ MinGun(3) → iskonto %10 uygulanır: 8000×10% = 800 → Genel = 7200.
         var q = await engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(10) });
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(10) });
 
         Assert.Equal(10, q.Gun);
         Assert.Equal(800.00m, q.GunlukUcret);
@@ -116,7 +116,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
 
         // 2 gün < MinGun(3) → iskonto kuralı UYGULANMAZ. Gün2 = 950 → Baz = 1900, iskonto 0.
         var q = await engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(2) });
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(2) });
 
         Assert.Equal(2, q.Gun);
         Assert.Equal(950.00m, q.GunlukUcret);
@@ -131,11 +131,11 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedAsync(scope.ServiceProvider, tarifeOnayli: false); // Bekliyor
+        await SeedAsync(scope.ServiceProvider, isTariffApproved: false); // Bekliyor
         var engine = scope.ServiceProvider.GetRequiredService<RentalQuoteEngine>();
 
         var q = await engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(5) });
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(5) });
 
         Assert.Equal(0m, q.GunlukUcret);  // onaysız tarife kullanılmaz
         Assert.Equal(0m, q.BazTutar);
@@ -156,7 +156,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         using var s2 = host.ScopeFor(t2);
         var engine = s2.ServiceProvider.GetRequiredService<RentalQuoteEngine>();
         var q = await engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(5) });
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(5) });
 
         Assert.Equal(0m, q.GunlukUcret);
         Assert.Equal(0m, q.GenelToplam);
@@ -177,7 +177,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
 
         // TRY tarife + EUR teminat tek teklifte → körlemesine toplama yerine reddedilmeli.
         await Assert.ThrowsAsync<ValidationException>(() => engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(2), SigortaUrunKodlari = ["EURCOV"] }));
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(2), SigortaUrunKodlari = ["EURCOV"] }));
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
 
         // 3 gün → kademe 3 boş; aşağı yok → YUKARI en yakın dolu = Gün7 = 800. Baz = 800×3 = 2400 (sıfır DEĞİL).
         var q = await engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(3) });
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(3) });
         Assert.Equal(800.00m, q.GunlukUcret);
         Assert.Equal(2400.00m, q.BazTutar);
     }
@@ -212,7 +212,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
 
         // MaxGun=0 → bedava DEĞİL; tam gün faturalanır. 4 gün × 100 = 400.
         var q = await engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(4), SigortaUrunKodlari = ["ZEROCAP"] });
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(4), SigortaUrunKodlari = ["ZEROCAP"] });
         Assert.Equal(400.00m, q.SigortaToplam);
         Assert.Equal(4, q.SigortaKalemleri[0].Gun);
     }
@@ -239,7 +239,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         // 5 gün, 1000/gün. FREE3 faydası = 3×1000 = 3000; DISC5 = 5×1000×5% = 250 → FREE3 kazanır.
         // Faturalanan = 5−3 = 2; Baz = 2000; iskonto 0 → Genel = 2000.
         var q = await engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(5) });
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(5) });
         Assert.Equal(3, q.HediyeGun);
         Assert.Equal(2000.00m, q.BazTutar);
         Assert.Equal(0m, q.IskontoTutar);
@@ -273,7 +273,7 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         //  ISK10: hediye 0, baz 500, ara = 500+10000 = 10500, iskonto 1050 → Genel 9450.
         //  (Eski hatalı seçimde HED1 seçilip Genel 10400 olurdu — ~950 fazla.)
         var q = await engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Bas, BitTar = Bas.AddDays(5), SigortaUrunKodlari = ["BIGCOV"] });
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = Start, BitTar = Start.AddDays(5), SigortaUrunKodlari = ["BIGCOV"] });
 
         Assert.Equal(0, q.HediyeGun);
         Assert.Equal(500.00m, q.BazTutar);
@@ -291,8 +291,8 @@ public sealed class FiyatMotoruTests(PostgresFixture fx)
         var engine = scope.ServiceProvider.GetRequiredService<RentalQuoteEngine>();
 
         await Assert.ThrowsAsync<ValidationException>(() => engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "", BasTar = Bas, BitTar = Bas.AddDays(1) }));
+        { AracGrupKod = "", BasTar = Start, BitTar = Start.AddDays(1) }));
         await Assert.ThrowsAsync<ValidationException>(() => engine.QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas })); // bitiş <= başlangıç
+        { AracGrupKod = "EKO", BasTar = Start, BitTar = Start })); // bitiş <= başlangıç
     }
 }

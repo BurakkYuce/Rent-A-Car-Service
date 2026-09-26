@@ -21,14 +21,14 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
     // UTC offset ŞART: `DateTimeOffset.UtcNow.Date` bir DateTime (Kind=Unspecified) döndürür ve implicit
     // dönüşümde YEREL offset (+03:00) alır → Npgsql `timestamptz`'e yazamaz. Tarihler now-göreli (ileri)
     // çünkü TarihPolitikasi rezervasyon başlangıcını geçmişe KAPALI tutuyor.
-    private static readonly DateTimeOffset Bas = new(DateTime.UtcNow.Date.AddDays(10), TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(DateTime.UtcNow.Date.AddDays(10), TimeSpan.Zero);
     private static readonly DateTimeOffset Bit = new(DateTime.UtcNow.Date.AddDays(13), TimeSpan.Zero);
 
-    private static PublicBookingRequestInput Input(string ad = "Ayşe Yılmaz", string tel = "0555 111 22 33") => new()
+    private static PublicBookingRequestInput Input(string name = "Ayşe Yılmaz", string tel = "0555 111 22 33") => new()
     {
-        AdSoyad = ad, Telefon = tel, Email = "a@ornek.com",
+        AdSoyad = name, Telefon = tel, Email = "a@ornek.com",
         // PR-14: ilan/fiyat artık SUNUCUDAN çözülüyor (form değerine güvenilmez) → girdide yok.
-        BasTar = Bas, BitTar = Bit, Not = "Bebek koltuğu olsun",
+        BasTar = Start, BitTar = Bit, Not = "Bebek koltuğu olsun",
     };
 
     private static async Task<Guid> SeedVehicleAsync(TestHost host, Guid tenantId)
@@ -41,7 +41,7 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         });
     }
 
-    private static async Task<PublicBookingRequest> TekTalepAsync(TestHost host, Guid tenantId)
+    private static async Task<PublicBookingRequest> SingleRequestAsync(TestHost host, Guid tenantId)
     {
         using var scope = host.ScopeFor(tenantId);
         var list = await scope.ServiceProvider.GetRequiredService<PublicBookingRequestService>().ListAsync();
@@ -57,13 +57,13 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         using (var pub = host.ScopeFor(tenantId, role: null)) // PublicTenantContext'in gerçek şekli
             await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(Input());
 
-        var talep = await TekTalepAsync(host, tenantId);
-        Assert.Equal("Ayşe Yılmaz", talep.AdSoyad);
-        Assert.Equal(PublicBookingRequestDurum.Yeni, talep.Durum);
+        var request = await SingleRequestAsync(host, tenantId);
+        Assert.Equal("Ayşe Yılmaz", request.AdSoyad);
+        Assert.Equal(PublicBookingRequestDurum.Yeni, request.Durum);
         // PR-14: ilan bağlanmadan gelen talepte fiyat snapshot'ı YOKTUR (ilan bazlı akış
         // VitrinIlanTests'te test edilir) — doğrudan forma gelen talep hâlâ desteklenir.
-        Assert.Null(talep.GosterilenGunlukUcretKdvDahil);
-        Assert.Null(talep.DonusenReservationId);
+        Assert.Null(request.GosterilenGunlukUcretKdvDahil);
+        Assert.Null(request.DonusenReservationId);
     }
 
     [Fact]
@@ -90,15 +90,15 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         using var pub = host.ScopeFor(Guid.NewGuid(), role: null);
         var svc = pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
 
-        var adsiz = Input(ad: "  ");
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(adsiz));
+        var unnamed = Input(name: "  ");
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(unnamed));
 
-        var telsiz = Input(tel: " ");
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(telsiz));
+        var wireless = Input(tel: " ");
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(wireless));
 
-        var tersTarih = Input();
-        (tersTarih.BasTar, tersTarih.BitTar) = (Bit, Bas);
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(tersTarih));
+        var reverseDate = Input();
+        (reverseDate.BasTar, reverseDate.BitTar) = (Bit, Start);
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(reverseDate));
     }
 
     [Fact]
@@ -109,27 +109,27 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var vehicleId = await SeedVehicleAsync(host, tenantId);
         using (var pub = host.ScopeFor(tenantId, role: null))
             await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(Input());
-        var talep = await TekTalepAsync(host, tenantId);
+        var request = await SingleRequestAsync(host, tenantId);
 
         Guid reservationId;
         using (var staff = host.ScopeFor(tenantId))
             reservationId = await staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>()
-                .ConvertAsync(talep.Id, vehicleId);
+                .ConvertAsync(request.Id, vehicleId);
 
         using var verify = host.ScopeFor(tenantId);
-        var sonra = Assert.Single(await verify.ServiceProvider.GetRequiredService<PublicBookingRequestService>().ListAsync());
-        Assert.Equal(PublicBookingRequestDurum.Donustu, sonra.Durum);
-        Assert.Equal(reservationId, sonra.DonusenReservationId);
+        var after = Assert.Single(await verify.ServiceProvider.GetRequiredService<PublicBookingRequestService>().ListAsync());
+        Assert.Equal(PublicBookingRequestDurum.Donustu, after.Durum);
+        Assert.Equal(reservationId, after.DonusenReservationId);
 
         var factory = verify.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var rez = await db.Reservations.AsNoTracking().SingleAsync(r => r.Id == reservationId);
-        Assert.Equal("Web", rez.Kaynak); // MasterDataSeeder'daki mevcut kaynak — atıf doğru
-        Assert.Equal(vehicleId, rez.VehicleId);
+        var res = await db.Reservations.AsNoTracking().SingleAsync(r => r.Id == reservationId);
+        Assert.Equal("Web", res.Kaynak); // MasterDataSeeder'daki mevcut kaynak — atıf doğru
+        Assert.Equal(vehicleId, res.VehicleId);
 
-        var cari = await db.Customers.AsNoTracking().SingleAsync(c => c.Id == rez.MusteriId);
-        Assert.Equal("Ayşe Yılmaz", cari.Ad);
-        Assert.Equal("0555 111 22 33", cari.CepTel);
+        var account = await db.Customers.AsNoTracking().SingleAsync(c => c.Id == res.MusteriId);
+        Assert.Equal("Ayşe Yılmaz", account.Ad);
+        Assert.Equal("0555 111 22 33", account.CepTel);
     }
 
     [Fact]
@@ -140,26 +140,26 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var vehicleId = await SeedVehicleAsync(host, tenantId);
 
         // Mevcut cari — telefon FARKLI FORMATTA yazılı (normalize eşleşme sınanır).
-        Guid mevcutCariId;
+        Guid existingCustomerId;
         using (var staff = host.ScopeFor(tenantId))
-            mevcutCariId = await staff.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(
+            existingCustomerId = await staff.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(
                 new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Eski Müşteri", CepTel = "05551112233" });
 
         using (var pub = host.ScopeFor(tenantId, role: null))
             await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(Input(tel: "0555 111 22 33"));
-        var talep = await TekTalepAsync(host, tenantId);
+        var request = await SingleRequestAsync(host, tenantId);
 
         Guid reservationId;
         using (var staff = host.ScopeFor(tenantId))
             reservationId = await staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>()
-                .ConvertAsync(talep.Id, vehicleId);
+                .ConvertAsync(request.Id, vehicleId);
 
         using var verify = host.ScopeFor(tenantId);
         var factory = verify.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var rez = await db.Reservations.AsNoTracking().SingleAsync(r => r.Id == reservationId);
+        var res = await db.Reservations.AsNoTracking().SingleAsync(r => r.Id == reservationId);
 
-        Assert.Equal(mevcutCariId, rez.MusteriId);                 // MEVCUT cari kullanıldı
+        Assert.Equal(existingCustomerId, res.MusteriId);                 // MEVCUT cari kullanıldı
         Assert.Equal(1, await db.Customers.AsNoTracking().CountAsync()); // mükerrer cari YOK
     }
 
@@ -171,7 +171,7 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var vehicleId = await SeedVehicleAsync(host, tenantId);
         using (var pub = host.ScopeFor(tenantId, role: null))
             await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(Input());
-        var talep = await TekTalepAsync(host, tenantId);
+        var request = await SingleRequestAsync(host, tenantId);
 
         // İki personel AYNI ANDA "Dönüştür"e basıyor — ayrı scope'lar (ayrı DbContext'ler).
         using var s1 = host.ScopeFor(tenantId);
@@ -179,12 +179,12 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var svc1 = s1.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
         var svc2 = s2.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
 
-        var sonuclar = await Task.WhenAll(
-            Dene(() => svc1.ConvertAsync(talep.Id, vehicleId)),
-            Dene(() => svc2.ConvertAsync(talep.Id, vehicleId)));
+        var results = await Task.WhenAll(
+            Try(() => svc1.ConvertAsync(request.Id, vehicleId)),
+            Try(() => svc2.ConvertAsync(request.Id, vehicleId)));
 
-        Assert.Single(sonuclar, r => r.Basarili);  // YALNIZ BİRİ geçer (atomik claim)
-        Assert.Single(sonuclar, r => !r.Basarili);
+        Assert.Single(results, r => r.Basarili);  // YALNIZ BİRİ geçer (atomik claim)
+        Assert.Single(results, r => !r.Basarili);
 
         using var verify = host.ScopeFor(tenantId);
         var factory = verify.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -193,7 +193,7 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         Assert.Equal(1, await db.Customers.AsNoTracking().CountAsync());    // TEK cari
     }
 
-    private static async Task<(bool Basarili, Exception? Hata)> Dene(Func<Task<Guid>> f)
+    private static async Task<(bool Basarili, Exception? Hata)> Try(Func<Task<Guid>> f)
     {
         try { await f(); return (true, null); }
         catch (Exception ex) { return (false, ex); }
@@ -211,21 +211,21 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         // dönüştürme `TarihPolitikasi.RezervasyonBaslangic` ile REDDEDİLİR → claim GERİ ALINMALI.
         using (var pub = host.ScopeFor(tenantId, role: null))
         {
-            var gecmis = Input();
-            gecmis.BasTar = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-30), TimeSpan.Zero);
-            gecmis.BitTar = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-27), TimeSpan.Zero);
-            await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(gecmis);
+            var history = Input();
+            history.BasTar = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-30), TimeSpan.Zero);
+            history.BitTar = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-27), TimeSpan.Zero);
+            await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(history);
         }
-        var talep = await TekTalepAsync(host, tenantId);
+        var request = await SingleRequestAsync(host, tenantId);
 
         using (var staff = host.ScopeFor(tenantId))
             await Assert.ThrowsAnyAsync<ValidationException>(
                 () => staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>()
-                    .ConvertAsync(talep.Id, vehicleId));
+                    .ConvertAsync(request.Id, vehicleId));
 
-        var sonra = await TekTalepAsync(host, tenantId);
-        Assert.Equal(PublicBookingRequestDurum.Yeni, sonra.Durum); // YARIM kalmadı — tekrar denenebilir
-        Assert.Null(sonra.DonusenReservationId);
+        var after = await SingleRequestAsync(host, tenantId);
+        Assert.Equal(PublicBookingRequestDurum.Yeni, after.Durum); // YARIM kalmadı — tekrar denenebilir
+        Assert.Null(after.DonusenReservationId);
 
         // Yan etki bırakmamalı: ne cari ne rezervasyon oluşmuş olmalı.
         using var verify = host.ScopeFor(tenantId);
@@ -241,17 +241,17 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var tenantId = Guid.NewGuid();
         using (var pub = host.ScopeFor(tenantId, role: null))
             await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(Input());
-        var talep = await TekTalepAsync(host, tenantId);
+        var request = await SingleRequestAsync(host, tenantId);
 
         using var staff = host.ScopeFor(tenantId);
         var svc = staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
-        await svc.RejectAsync(talep.Id);
+        await svc.RejectAsync(request.Id);
 
-        var sonra = Assert.Single(await svc.ListAsync());
-        Assert.Equal(PublicBookingRequestDurum.Reddedildi, sonra.Durum);
-        Assert.Null(sonra.DonusenReservationId);
+        var after = Assert.Single(await svc.ListAsync());
+        Assert.Equal(PublicBookingRequestDurum.Reddedildi, after.Durum);
+        Assert.Null(after.DonusenReservationId);
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.RejectAsync(talep.Id)); // zaten işlenmiş
+        await Assert.ThrowsAsync<ValidationException>(() => svc.RejectAsync(request.Id)); // zaten işlenmiş
     }
 
     [Fact]
@@ -262,13 +262,13 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var vehicleId = await SeedVehicleAsync(host, tenantId);
         using (var pub = host.ScopeFor(tenantId, role: null))
             await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(Input());
-        var talep = await TekTalepAsync(host, tenantId);
+        var request = await SingleRequestAsync(host, tenantId);
 
         using var staff = host.ScopeFor(tenantId);
         var svc = staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
-        await svc.RejectAsync(talep.Id);
+        await svc.RejectAsync(request.Id);
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.ConvertAsync(talep.Id, vehicleId));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ConvertAsync(request.Id, vehicleId));
     }
 
     [Fact]
@@ -278,14 +278,14 @@ public sealed class PublicBookingRequestTests(PostgresFixture fx)
         var tenantId = Guid.NewGuid();
         using (var pub = host.ScopeFor(tenantId, role: null))
             await pub.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(Input());
-        var talep = await TekTalepAsync(host, tenantId);
+        var request = await SingleRequestAsync(host, tenantId);
 
-        using var muhasebe = host.ScopeFor(tenantId, role: UserRole.Muhasebe); // OperationsWrite YOK
-        var svc = muhasebe.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
+        using var accounting = host.ScopeFor(tenantId, role: UserRole.Muhasebe); // OperationsWrite YOK
+        var svc = accounting.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
 
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.ListAsync());
-        await Assert.ThrowsAsync<NoPermissionException>(() => svc.RejectAsync(talep.Id));
-        await Assert.ThrowsAsync<NoPermissionException>(() => svc.ConvertAsync(talep.Id, Guid.NewGuid()));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.RejectAsync(request.Id));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.ConvertAsync(request.Id, Guid.NewGuid()));
     }
 
     [Fact]

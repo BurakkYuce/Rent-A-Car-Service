@@ -67,7 +67,7 @@
                     <span class="status-pill @(t.Kapandi ? "sp-success" : "sp-warn")">@(t.Kapandi ? "Kapalı" : "Açık")</span>
                 </td>
                 <td>@(t.Cozum ?? "—")</td>
-                <td><a href="@Geri(t.Id)" class="link">Düzenle</a></td>
+                <td><a href="@Back(t.Id)" class="link">Düzenle</a></td>
             </tr>
         }
     </tbody>
@@ -82,7 +82,7 @@
     <label>Sözleşme (ops.)
         <select name="rentalId">
             <option value="">— sözleşmesiz çağrı —</option>
-            @foreach (var k in _kiralar)
+            @foreach (var k in _rentals)
             {
                 <option value="@k.Id" selected="@(k.Id == _edit?.RentalId)">@k.SozlesmeNo — @k.Plaka — @k.MusteriAd</option>
             }
@@ -100,7 +100,7 @@
     <label class="u-col-full">Mesaj<input name="mesaj" value="@_edit?.Mesaj" maxlength="2048" required /></label>
     <label class="u-col-full">Çözüm<input name="cozum" value="@_edit?.Cozum" maxlength="1024" /></label>
     <button type="submit">@(_edit is null ? "Ekle" : "Kaydet")</button>
-    @if (_edit is not null) { <a href="@Geri()" class="btn-secondary">İptal</a> }
+    @if (_edit is not null) { <a href="@Back()" class="btn-secondary">İptal</a> }
 </form>
 
 @if (_edit is not null)
@@ -121,7 +121,7 @@
     [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
 
     private IReadOnlyList<AssistansTalep> _list = [];
-    private IReadOnlyList<RentalRow> _kiralar = [];
+    private IReadOnlyList<RentalRow> _rentals = [];
     private AssistansTalep? _edit;
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(PlakaF) || !string.IsNullOrWhiteSpace(Min)
@@ -135,12 +135,12 @@
         <input type="hidden" name="durum" value="@Durum" />
     </text>;
 
-    private string Geri(Guid? duzenle = null)
+    private string Back(Guid? edit = null)
     {
         var q = new List<string>();
-        void Ekle(string ad, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{ad}={Uri.EscapeDataString(v)}"); }
-        Ekle("plakaF", PlakaF); Ekle("min", Min); Ekle("max", Max); Ekle("ara", Ara); Ekle("durum", Durum);
-        if (duzenle is Guid id) q.Add($"duzenle={id}");
+        void Add(string name, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{name}={Uri.EscapeDataString(v)}"); }
+        Add("plakaF", PlakaF); Add("min", Min); Add("max", Max); Add("ara", Ara); Add("durum", Durum);
+        if (edit is Guid id) q.Add($"duzenle={id}");
         return "/assistans" + (q.Count > 0 ? "?" + string.Join("&", q) : "");
     }
 
@@ -158,7 +158,7 @@
             YedekLastikMi = Durum == "lastik" ? true : null
         };
         _list = await Talepler.SearchAsync(f);
-        _kiralar = await Kiralar.SearchAsync(new RentalFilter());
+        _rentals = await Kiralar.SearchAsync(new RentalFilter());
         if (Duzenle is { } id) _edit = await Talepler.GetAsync(id);
     }
 }

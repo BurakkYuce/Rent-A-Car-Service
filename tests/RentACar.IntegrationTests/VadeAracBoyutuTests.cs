@@ -34,26 +34,26 @@ public sealed class VadeAracBoyutuTests(PostgresFixture fx)
         await reg.AddMtvAsync(v1, "2026-1", 50m, now.AddDays(-3));           // GEÇMİŞ (ödenmemiş)
         await reg.AddInspectionAsync(v2, now.AddDays(-165), now.AddDays(200), 20m); // İleri
 
-        var vade = sp.GetRequiredService<DueService>();
+        var due = sp.GetRequiredService<DueService>();
 
         // Araç filtresi: V1'in 2 kalemi (kasko + MTV), V2'nin 1 kalemi (muayene).
-        var v1Kalemler = await vade.GetForVehicleAsync(v1);
-        Assert.Equal(2, v1Kalemler.Count);
-        Assert.Contains(v1Kalemler, i => i.Tur == "Kasko" && i.Bucket == DueBucket.YediGun);
-        Assert.Contains(v1Kalemler, i => i.Tur == "MTV" && i.Bucket == DueBucket.Gecmis);
-        var v2Kalemler = await vade.GetForVehicleAsync(v2);
-        var muayene = Assert.Single(v2Kalemler);
-        Assert.Equal(DueBucket.Ileri, muayene.Bucket);
+        var v1Items = await due.GetForVehicleAsync(v1);
+        Assert.Equal(2, v1Items.Count);
+        Assert.Contains(v1Items, i => i.Tur == "Kasko" && i.Bucket == DueBucket.YediGun);
+        Assert.Contains(v1Items, i => i.Tur == "MTV" && i.Bucket == DueBucket.Gecmis);
+        var v2Items = await due.GetForVehicleAsync(v2);
+        var inspection = Assert.Single(v2Items);
+        Assert.Equal(DueBucket.Ileri, inspection.Bucket);
 
         // Uyarı sayıları (geçmiş + ≤30): V1=2; V2 sözlükte YOK (uyarısı olmayan araç 0 sayılır).
-        var sayilar = await vade.GetWarningCountsByVehicleAsync();
-        Assert.Equal(2, sayilar[v1]);
-        Assert.False(sayilar.ContainsKey(v2));
+        var numbers = await due.GetWarningCountsByVehicleAsync();
+        Assert.Equal(2, numbers[v1]);
+        Assert.False(numbers.ContainsKey(v2));
 
         // Ödenen MTV vade panosundan düşer → V1 uyarısı 1'e iner (mevcut union davranışı korunuyor).
         var mtvId = (await reg.ListMtvAsync()).Single(m => m.VehicleId == v1).Id;
         await reg.PayMtvAsync(mtvId, LedgerAccountType.Kasa);
-        var sonra = await vade.GetWarningCountsByVehicleAsync();
-        Assert.Equal(1, sonra[v1]);
+        var after = await due.GetWarningCountsByVehicleAsync();
+        Assert.Equal(1, after[v1]);
     }
 }

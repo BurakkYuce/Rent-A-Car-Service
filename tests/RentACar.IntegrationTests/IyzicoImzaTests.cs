@@ -15,8 +15,8 @@ public sealed class IyzicoImzaTests
 {
     // Bileşenler sentetiktir; gerçek bir anahtar biçiminde DEĞİL (gizli-tarayıcılar API anahtarı
     // biçimli sabitleri sır sanıyor). Doğrulanan şey anahtarın içeriği değil BİÇİMİN kendisidir.
-    private const string OrnekApiKey = "demo-api-key";
-    private const string OrnekRandomKey = "1722246017090123456789";
+    private const string SampleApiKey = "demo-api-key";
+    private const string SampleRandomKey = "1722246017090123456789";
 
     [Fact]
     public void Authorization_basligi_beklenen_bicimde_kurulur()
@@ -28,14 +28,14 @@ public sealed class IyzicoImzaTests
         const string uri = "/payment/bin/check";
         const string body = """{"binNumber":"589004"}""";
 
-        var (auth, _) = IyzicoSignature.Generate(OrnekApiKey, secret, uri, body, OrnekRandomKey);
+        var (auth, _) = IyzicoSignature.Generate(SampleApiKey, secret, uri, body, SampleRandomKey);
 
         Assert.StartsWith("IYZWSv2 ", auth);
         Assert.Equal(1, auth.Count(c => c == ' ')); // base64 boşluk içermez → tam olarak TEK boşluk
 
-        var cozulen = Encoding.UTF8.GetString(Convert.FromBase64String(auth["IYZWSv2 ".Length..]));
-        var imza = IyzicoSignature.Sign(secret, OrnekRandomKey + uri + body);
-        Assert.Equal($"apiKey:{OrnekApiKey}&randomKey:{OrnekRandomKey}&signature:{imza}", cozulen);
+        var resolved = Encoding.UTF8.GetString(Convert.FromBase64String(auth["IYZWSv2 ".Length..]));
+        var signature = IyzicoSignature.Sign(secret, SampleRandomKey + uri + body);
+        Assert.Equal($"apiKey:{SampleApiKey}&randomKey:{SampleRandomKey}&signature:{signature}", resolved);
     }
 
     [Fact]
@@ -47,13 +47,13 @@ public sealed class IyzicoImzaTests
         const string uri = "/payment/bin/check";
         const string body = """{"binNumber":"589004"}""";
 
-        var (auth, rnd) = IyzicoSignature.Generate(OrnekApiKey, secret, uri, body, OrnekRandomKey);
-        Assert.Equal(OrnekRandomKey, rnd);
+        var (auth, rnd) = IyzicoSignature.Generate(SampleApiKey, secret, uri, body, SampleRandomKey);
+        Assert.Equal(SampleRandomKey, rnd);
 
-        var imza = IyzicoSignature.Sign(secret, OrnekRandomKey + uri + body);
-        var beklenen = "IYZWSv2 " + Convert.ToBase64String(
-            Encoding.UTF8.GetBytes($"apiKey:{OrnekApiKey}&randomKey:{OrnekRandomKey}&signature:{imza}"));
-        Assert.Equal(beklenen, auth);
+        var signature = IyzicoSignature.Sign(secret, SampleRandomKey + uri + body);
+        var expected = "IYZWSv2 " + Convert.ToBase64String(
+            Encoding.UTF8.GetBytes($"apiKey:{SampleApiKey}&randomKey:{SampleRandomKey}&signature:{signature}"));
+        Assert.Equal(expected, auth);
     }
 
     [Fact]
@@ -62,17 +62,17 @@ public sealed class IyzicoImzaTests
         // Sıra karışırsa iyzico'nun tek söylediği "Geçersiz imza" olur. Sıranın önemi burada kilitli:
         // aynı parçaların farklı sırası FARKLI imza üretmeli.
         const string secret = "s";
-        var dogru = IyzicoSignature.Sign(secret, "RND" + "/yol" + "{\"a\":1}");
-        var yanlis = IyzicoSignature.Sign(secret, "/yol" + "RND" + "{\"a\":1}");
-        Assert.NotEqual(dogru, yanlis);
+        var correct = IyzicoSignature.Sign(secret, "RND" + "/yol" + "{\"a\":1}");
+        var wrong = IyzicoSignature.Sign(secret, "/yol" + "RND" + "{\"a\":1}");
+        Assert.NotEqual(correct, wrong);
     }
 
     [Fact]
     public void Imza_hex_ve_kucuk_harf()
     {
-        var imza = IyzicoSignature.Sign("anahtar", "yük");
-        Assert.Equal(64, imza.Length);                       // SHA-256 → 32 bayt → 64 hex
-        Assert.Matches("^[0-9a-f]+$", imza);                 // base64 DEĞİL, küçük harf hex
+        var signature = IyzicoSignature.Sign("anahtar", "yük");
+        Assert.Equal(64, signature.Length);                       // SHA-256 → 32 bayt → 64 hex
+        Assert.Matches("^[0-9a-f]+$", signature);                 // base64 DEĞİL, küçük harf hex
     }
 
     [Fact]
@@ -86,9 +86,9 @@ public sealed class IyzicoImzaTests
     public void Rastgele_anahtar_ayni_milisaniyede_bile_cakismaz()
     {
         // Yalnız zaman damgası kullanılsaydı paralel çağrılar aynı anahtarı üretirdi.
-        var anahtarlar = Enumerable.Range(0, 200).Select(_ => IyzicoSignature.RandomKey()).ToList();
-        Assert.Equal(anahtarlar.Count, anahtarlar.Distinct().Count());
-        Assert.All(anahtarlar, a => Assert.Matches("^[0-9]{22,}$", a));
+        var keys = Enumerable.Range(0, 200).Select(_ => IyzicoSignature.RandomKey()).ToList();
+        Assert.Equal(keys.Count, keys.Distinct().Count());
+        Assert.All(keys, a => Assert.Matches("^[0-9]{22,}$", a));
     }
 
     [Theory]

@@ -35,20 +35,20 @@ internal static partial class ServiceRecordApi
         var g = v1.MapGroup("/servisler").WithTags("Servis");
         g.MapGet("/secenekler", () => TypedResults.Ok(new ServiceOptions(Enum.GetNames<ServiceType>(), Enum.GetNames<ServiceStatus>(),
             Enum.GetNames<DamageResponsible>(), Enum.GetNames<PaymentMethod>()))).RequireAnyPermission(ReadAny);
-        g.MapGet("", List).AlanlariEsle(F5Ortak.SiralamaKurallari).RequireAnyPermission(ReadAny);
+        g.MapGet("", List).MapFields(F5Shared.SortRules).RequireAnyPermission(ReadAny);
         g.MapGet("/sayaclar", Counts).RequireAnyPermission(ReadAny);
         g.MapGet("/{id:guid}", Detail).RequireAnyPermission(ReadAny);
-        g.MapPost("", Create).AlanlariEsle(Rules).RequirePermission(Permission.OperationsWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
-        g.MapPut("/{id:guid}/bilgi", UpdateInfo).AlanlariEsle(Rules).RequirePermission(Permission.OperationsWrite);
-        g.MapPost("/{id:guid}/servise-al", Intake).AlanlariEsle(Rules).RequirePermission(Permission.OperationsWrite);
+        g.MapPost("", Create).MapFields(Rules).RequirePermission(Permission.OperationsWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPut("/{id:guid}/bilgi", UpdateInfo).MapFields(Rules).RequirePermission(Permission.OperationsWrite);
+        g.MapPost("/{id:guid}/servise-al", Intake).MapFields(Rules).RequirePermission(Permission.OperationsWrite);
         g.MapPost("/{id:guid}/baslat", Start).RequirePermission(Permission.OperationsWrite);
-        g.MapPost("/{id:guid}/tamamla", Complete).AlanlariEsle(Rules).RequirePermission(Permission.OperationsWrite);
+        g.MapPost("/{id:guid}/tamamla", Complete).MapFields(Rules).RequirePermission(Permission.OperationsWrite);
         g.MapPost("/{id:guid}/iptal", Cancel).RequirePermission(Permission.OperationsDelete);
-        g.MapPost("/{id:guid}/kalemler", AddLine).AlanlariEsle(Rules).RequirePermission(Permission.OperationsWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
-        g.MapPost("/{id:guid}/yansit", Reflect).AlanlariEsle(Rules).RequirePermission(Permission.FinanceWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPost("/{id:guid}/kalemler", AddLine).MapFields(Rules).RequirePermission(Permission.OperationsWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPost("/{id:guid}/yansit", Reflect).MapFields(Rules).RequirePermission(Permission.FinanceWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
     }
 
     private static readonly (string, string)[] Rules =
@@ -70,10 +70,10 @@ internal static partial class ServiceRecordApi
         string? durum, string? tip, string? plaka, DateOnly? bas, DateOnly? bit, int? sayfa, int? boyut, string? sirala,
         ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var d = F5Ortak.EnumAdi<ServiceStatus>(durum, "durum");
+        var d = F5Shared.EnumAdi<ServiceStatus>(durum, "durum");
         var list = (await RowsAsync(tip, plaka, bas, bit, svc, dbf, user, ct))
             .Where(r => d is null || r.Durum == d.Value.ToString()).ToList();
-        return TypedResults.Ok(F5Ortak.Sayfala(list, Sort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(list, Sort, sayfa, boyut, sirala));
     }
 
     /// <summary>
@@ -90,18 +90,18 @@ internal static partial class ServiceRecordApi
     }
 
     private static async Task<List<ServiceRecordRow>> RowsAsync(
-        string? tip, string? plaka, DateOnly? bas, DateOnly? bit,
+        string? tip, string? plate, DateOnly? start, DateOnly? bit,
         ServiceRecordService svc, IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var t = F5Ortak.EnumAdi<ServiceType>(tip, "tip");
-        S.Text(plaka, 32, "plaka"); // SPA süzgeci en çok 32
-        var (min, max) = F5Ortak.GunAraligi(bas, bit);
+        var t = F5Shared.EnumAdi<ServiceType>(tip, "tip");
+        S.Text(plate, 32, "plaka"); // SPA süzgeci en çok 32
+        var (min, max) = F5Shared.DayRange(start, bit);
         var rows = (await svc.ListAsync(ct)).Where(s => (t is null || s.Tip == t)
             && (min is null || s.GirisTarihi >= min) && (max is null || s.GirisTarihi <= max));
         var visible = await S.VisibleAsync(dbf, user, rows, s => s.VehicleId, ct);
         var plates = await S.PlatesAsync(dbf, visible.Select(s => s.VehicleId), ct);
-        return visible.Select(s => ServiceRecordRow.From(s, F5Ortak.Plaka(plates, s.VehicleId)))
-            .Where(r => F5Ortak.Nz(plaka) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        return visible.Select(s => ServiceRecordRow.From(s, F5Shared.Plate(plates, s.VehicleId)))
+            .Where(r => F5Shared.Nz(plate) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     /// <summary>Record (with lines) through the vehicle-branch gate — 403 BEFORE any state check; null = 404.</summary>

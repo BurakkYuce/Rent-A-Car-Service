@@ -24,24 +24,24 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3).AddHours(9);
 
     private sealed class FakeHgs(IReadOnlyList<TollCrossing> crossings) : IHgsService
     {
         public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(
-            string plaka, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+            string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
             => Task.FromResult(crossings);
     }
 
-    private static async Task<(Guid rental, Guid vehicle, Guid cari)> KiraKurAsync(IServiceProvider sp, string plaka)
+    private static async Task<(Guid rental, Guid vehicle, Guid cari)> RentalExchangeRateAsync(IServiceProvider sp, string plate)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Probe", Soyad = "Musteri" });
         var r = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3),
+            MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3),
             GunlukUcret = 100m, KmLimit = 300, FazlaKmUcret = 2m
         });
         return (r, v, m);
@@ -61,19 +61,19 @@ public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         // --- V1: base + fark + fark iadesi ---
-        var (rental, v1, cari) = await KiraKurAsync(sp, "34 PR 01");
+        var (rental, v1, account) = await RentalExchangeRateAsync(sp, "34 PR 01");
         var invoices = sp.GetRequiredService<InvoiceService>();
         var rentals = sp.GetRequiredService<RentalService>();
         await invoices.CreateFromRentalAsync(rental);                                     // 300 brüt → net 250
         await rentals.DeliverAsync(rental, pickupKm: 1000, pickupFuel: 8);
-        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Bas.AddDays(3));  // +600 aşım
-        var farkId = await invoices.CreateFromRentalAsync(rental);                        // fark 600 brüt → net 500
-        await invoices.CreateRefundAsync(farkId);                                           // −500 (iki-hop)
+        await rentals.ReturnAsync(rental, returnKm: 1600, returnFuel: 8, Start.AddDays(3));  // +600 aşım
+        var differenceId = await invoices.CreateFromRentalAsync(rental);                        // fark 600 brüt → net 500
+        await invoices.CreateRefundAsync(differenceId);                                           // −500 (iki-hop)
 
         // --- V1: ceza kira-fallback (100) ---
         var pen = sp.GetRequiredService<PenaltyService>();
         var p1 = await pen.CreateAsync(new PenaltyInput
-        { CezaTuru = "Hız", RentalId = rental, CariId = cari, Tutar = 100m });
+        { CezaTuru = "Hız", RentalId = rental, CariId = account, Tutar = 100m });
         await pen.ReflectAsync(p1);
 
         // --- V1: servis rücu 1000 × 0.5 = 500 ---
@@ -86,32 +86,32 @@ public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
         });
         await svc.StartAsync(svcId);
         await svc.CompleteAsync(svcId, pickupKm: 100);
-        await svc.ReflectAsync(svcId, cari);
+        await svc.ReflectAsync(svcId, account);
 
         // --- V2: araç satışı net 10000 ---
         var v2 = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 PR 02" });
         await sp.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput
-        { VehicleId = v2, AliciCariId = cari, SatisNet = 10000m, KdvOrani = 0.20m, Kur = 1m });
+        { VehicleId = v2, AliciCariId = account, SatisNet = 10000m, KdvOrani = 0.20m, Kur = 1m });
 
         // --- Atanmamış: HGS 100 × 1.03 = 103 ---
         var hgs = new HgsReflectionService(
-            new FakeHgs([new TollCrossing(Bas.AddDays(1), "Köprü", 100m)]),
+            new FakeHgs([new TollCrossing(Start.AddDays(1), "Köprü", 100m)]),
             sp.GetRequiredService<ILedgerPoster>(),
             sp.GetRequiredService<IPeriodLockGuard>(),
             sp.GetRequiredService<ICurrentUser>());
-        await hgs.ReflectAsync(cari, "34 PR 01", Bas, Bas.AddDays(3));
+        await hgs.ReflectAsync(account, "34 PR 01", Start, Start.AddDays(3));
 
         // --- Atanmamış: manuel fatura 200 + iadesi (−200) ---
-        var manId = await invoices.CreateManualAsync(new ManualInvoiceInput { CariId = cari, NetTutar = 200m });
+        var manId = await invoices.CreateManualAsync(new ManualInvoiceInput { CariId = account, NetTutar = 200m });
         await invoices.CreateRefundAsync(manId);
 
         // --- Atanmamış: serbest ceza 80 (araçsız+kirasız) ---
-        var p2 = await pen.CreateAsync(new PenaltyInput { CezaTuru = "Park", CariId = cari, Tutar = 80m });
+        var p2 = await pen.CreateAsync(new PenaltyInput { CezaTuru = "Park", CariId = account, Tutar = 80m });
         await pen.ReflectAsync(p2);
 
         // --- Atanmamış: SARKIK RentalId'li ceza 50 (var olmayan kira — exception atmamalı) ---
         var p3 = await pen.CreateAsync(new PenaltyInput
-        { CezaTuru = "Şerit", RentalId = Guid.NewGuid(), CariId = cari, Tutar = 50m });
+        { CezaTuru = "Şerit", RentalId = Guid.NewGuid(), CariId = account, Tutar = 50m });
         await pen.ReflectAsync(p3);
 
         var rs = sp.GetRequiredService<ReportService>();
@@ -138,12 +138,12 @@ public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
 
-        var (rental, vB, cari) = await KiraKurAsync(sp, "34 PR 11");     // kira aracı = vB
+        var (rental, vB, account) = await RentalExchangeRateAsync(sp, "34 PR 11");     // kira aracı = vB
         var vA = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 PR 12" });
 
         var pen = sp.GetRequiredService<PenaltyService>();
         var pid = await pen.CreateAsync(new PenaltyInput
-        { CezaTuru = "Hız", VehicleId = vA, RentalId = rental, CariId = cari, Tutar = 100m });
+        { CezaTuru = "Hız", VehicleId = vA, RentalId = rental, CariId = account, Tutar = 100m });
         await pen.ReflectAsync(pid);
 
         var k = await sp.GetRequiredService<ReportService>().GetProfitabilityAsync();
@@ -161,12 +161,12 @@ public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
 
-        var (rental, _, _) = await KiraKurAsync(sp, "34 PR 21");
+        var (rental, _, _) = await RentalExchangeRateAsync(sp, "34 PR 21");
         var invoices = sp.GetRequiredService<InvoiceService>();
         var baseId = await invoices.CreateFromRentalAsync(rental);
-        var iadeId = await invoices.CreateRefundAsync(baseId);
+        var refundId = await invoices.CreateRefundAsync(baseId);
 
-        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateRefundAsync(iadeId));
+        await Assert.ThrowsAsync<ValidationException>(() => invoices.CreateRefundAsync(refundId));
     }
 
     /// <summary>FX servis rücu: 1000×0.5=500 EUR, kur 40 → 20.000 TL baz. A×R her yerde.</summary>
@@ -178,7 +178,7 @@ public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
 
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 PR 31" });
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Fx", Soyad = "Cari" });
 
         var svc = sp.GetRequiredService<ServiceRecordService>();
@@ -190,7 +190,7 @@ public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
         });
         await svc.StartAsync(svcId);
         await svc.CompleteAsync(svcId, pickupKm: 10);
-        await svc.ReflectAsync(svcId, cari, currency: "EUR", exchangeRate: 40m);
+        await svc.ReflectAsync(svcId, account, currency: "EUR", exchangeRate: 40m);
 
         var rs = sp.GetRequiredService<ReportService>();
         var k = await rs.GetProfitabilityAsync();
@@ -208,7 +208,7 @@ public sealed class KarlilikAtifProbeTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
 
-        var (rental, v, _) = await KiraKurAsync(sp, "34 PR 41");
+        var (rental, v, _) = await RentalExchangeRateAsync(sp, "34 PR 41");
         var invoices = sp.GetRequiredService<InvoiceService>();
         var baseId = await invoices.CreateFromRentalAsync(rental);   // +250
         await invoices.CreateRefundAsync(baseId);                      // −250

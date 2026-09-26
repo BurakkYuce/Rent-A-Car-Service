@@ -16,10 +16,10 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class PersonelTests(PostgresFixture fx)
 {
-    private const string Tc = "12345678901";
-    private static PersonelInput Input(string kod) => new()
+    private const string NationalId = "12345678901";
+    private static PersonelInput Input(string code) => new()
     {
-        Kod = kod, Ad = "Ali", Soyad = "Veli", TcKimlik = Tc, Maas = 25000m, Sube = "Merkez",
+        Kod = code, Ad = "Ali", Soyad = "Veli", TcKimlik = NationalId, Maas = 25000m, Sube = "Merkez",
         IseGiris = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero)
     };
 
@@ -36,17 +36,17 @@ public sealed class PersonelTests(PostgresFixture fx)
         var d = await svc.GetDetailAsync(id);
         Assert.NotNull(d);
         Assert.Equal("Ali", d!.Ad);
-        Assert.Equal(Tc, d.TcKimlik);   // çözüldü
+        Assert.Equal(NationalId, d.TcKimlik);   // çözüldü
         Assert.Equal(25000m, d.Maas);
 
         // Ham kolonlar ŞİFRELİ: düz metin değil, içinde geçmiyor; protector ile çözülür.
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         var raw = await db.Personeller.AsNoTracking().FirstAsync();
         Assert.NotNull(raw.TcKimlikEnc);
-        Assert.NotEqual(Tc, raw.TcKimlikEnc);
-        Assert.DoesNotContain(Tc, raw.TcKimlikEnc!);
+        Assert.NotEqual(NationalId, raw.TcKimlikEnc);
+        Assert.DoesNotContain(NationalId, raw.TcKimlikEnc!);
         Assert.NotEqual("25000", raw.MaasEnc);
-        Assert.Equal(Tc, sp.GetRequiredService<ISecretProtector>().Unprotect(raw.TcKimlikEnc));
+        Assert.Equal(NationalId, sp.GetRequiredService<ISecretProtector>().Unprotect(raw.TcKimlikEnc));
 
         Assert.Single(await svc.ListAsync());
     }
@@ -74,7 +74,7 @@ public sealed class PersonelTests(PostgresFixture fx)
 
         var d = await svc.GetDetailAsync(id);
         Assert.Equal("Yılmaz", d!.Soyad);  // güncellendi
-        Assert.Equal(Tc, d.TcKimlik);      // PII korundu
+        Assert.Equal(NationalId, d.TcKimlik);      // PII korundu
         Assert.Equal(25000m, d.Maas);
     }
 

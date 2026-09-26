@@ -11,15 +11,15 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DeliveryReturnTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Bit = new(2026, 9, 5, 9, 0, 0, TimeSpan.Zero);
 
     private static async Task<BookingInput> InputAsync(IServiceScope scope)
-        => Input(await TestArac.YeniAsync(scope.ServiceProvider), await TestCari.YeniAsync(scope.ServiceProvider));
+        => Input(await TestVehicle.NewAsync(scope.ServiceProvider), await TestCustomer.NewAsync(scope.ServiceProvider));
 
-    private static BookingInput Input(Guid vehicle, Guid cari) => new()
+    private static BookingInput Input(Guid vehicle, Guid account) => new()
     {
-        MusteriId = cari, VehicleId = vehicle, BasTar = Bas, BitTar = Bit,
+        MusteriId = account, VehicleId = vehicle, BasTar = Start, BitTar = Bit,
         GunlukUcret = 100m, KmLimit = 400, FazlaKmUcret = 2m, YakitBirimUcret = 50m
     };
 
@@ -79,19 +79,19 @@ public sealed class DeliveryReturnTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
-        var vehicle = await TestArac.YeniAsync(scope.ServiceProvider);
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var vehicle = await TestVehicle.NewAsync(scope.ServiceProvider);
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
 
-        var id1 = await svc.CreateDirectAsync(Input(vehicle, cari));
+        var id1 = await svc.CreateDirectAsync(Input(vehicle, account));
         // Aynı araç/aralık ikinci kira → çakışma
-        await Assert.ThrowsAsync<AvailabilityConflictException>(() => svc.CreateDirectAsync(Input(vehicle, cari)));
+        await Assert.ThrowsAsync<AvailabilityConflictException>(() => svc.CreateDirectAsync(Input(vehicle, account)));
 
         // İlkini teslim + dönüş (Tamamlandı → exclusion WHERE Durum=0 kapsamı dışına çıkar)
         await svc.DeliverAsync(id1, 1000, 8);
         await svc.ReturnAsync(id1, 1200, 8, Bit);
 
         // Artık aynı araç/aralık tekrar kiralanabilir
-        var id2 = await svc.CreateDirectAsync(Input(vehicle, cari));
+        var id2 = await svc.CreateDirectAsync(Input(vehicle, account));
         Assert.NotEqual(Guid.Empty, id2);
     }
 

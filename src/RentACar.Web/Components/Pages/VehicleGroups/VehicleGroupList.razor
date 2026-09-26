@@ -78,7 +78,7 @@
         <label>Muafiyet Tutarı<input name="muafiyetTutari" type="number" step="0.01" min="0" /></label>
         <label>Günlük KM Limiti<input name="gunlukKmLimiti" type="number" min="0" /></label>
         <label>Aşım KM Ücreti<input name="asimKmUcreti" type="number" step="0.01" min="0" /></label>
-        <ComboBox Name="marka" Label="Marka" Options="_markaOpts" />
+        <ComboBox Name="marka" Label="Marka" Options="_brandOpts" />
         <label>Tip<input name="tipi" /></label>
         <label>Küçük Bagaj<input name="kucukBagaj" type="number" min="0" /></label>
         <label>Büyük Bagaj<input name="buyukBagaj" type="number" min="0" /></label>
@@ -130,7 +130,7 @@
                 <td>@g.Segment</td>
                 @* Araç sayısı: grup ADI eşlemesiyle (Vehicle.Grup metin alanı, FK değil) —
                    "eşleşmeyen değerler" paneliyle AYNI Türkçe-duyarlı kural. *@
-                <td class="num">@_aracSayisi.GetValueOrDefault(g.Id)</td>
+                <td class="num">@_vehicleCount.GetValueOrDefault(g.Id)</td>
                 <td class="num">@(g.GunlukKmLimiti?.ToString() ?? "—")</td>
                 <td class="num">@(g.Provizyon?.ToString("N2") ?? "—")@(string.IsNullOrWhiteSpace(g.ProvizyonDoviz) ? "" : " " + g.ProvizyonDoviz)</td>
                 <td>@(g.WebId ?? "—")</td>
@@ -161,7 +161,7 @@
                             <label>Muafiyet Tutarı<input name="muafiyetTutari" type="number" step="0.01" min="0" value="@g.MuafiyetTutari" /></label>
                             <label>Günlük KM Limiti<input name="gunlukKmLimiti" type="number" min="0" value="@g.GunlukKmLimiti" /></label>
                             <label>Aşım KM Ücreti<input name="asimKmUcreti" type="number" step="0.01" min="0" value="@g.AsimKmUcreti" /></label>
-                            <ComboBox Name="marka" Label="Marka" Value="@g.Marka" Options="_markaOpts" ListId="dl-marka-edit" />
+                            <ComboBox Name="marka" Label="Marka" Value="@g.Marka" Options="_brandOpts" ListId="dl-marka-edit" />
                             <label>Tip<input name="tipi" value="@g.Tipi" /></label>
                             <label>Küçük Bagaj<input name="kucukBagaj" type="number" min="0" value="@g.KucukBagaj" /></label>
                             <label>Büyük Bagaj<input name="buyukBagaj" type="number" min="0" value="@g.BuyukBagaj" /></label>
@@ -219,9 +219,9 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<VehicleGroup> _list = [];
-    private List<string> _markaOpts = [], _segmentOpts = [];
+    private List<string> _brandOpts = [], _segmentOpts = [];
     private IReadOnlyList<UnmatchedGrupValue> _unmatched = [];
-    private IReadOnlyDictionary<Guid, int> _aracSayisi = new Dictionary<Guid, int>();
+    private IReadOnlyDictionary<Guid, int> _vehicleCount = new Dictionary<Guid, int>();
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i.
     private static List<string> Opts(params IEnumerable<string?>[] sources) =>
@@ -231,10 +231,10 @@
     protected override async Task OnInitializedAsync()
     {
         _list = await AracGruplari.ListAsync();
-        var markalar = await Markalar.ListActiveAsync();
-        _markaOpts = Opts(markalar.Select(m => m.Ad), _list.Select(g => g.Marka));
+        var brands = await Markalar.ListActiveAsync();
+        _brandOpts = Opts(brands.Select(m => m.Ad), _list.Select(g => g.Marka));
         _segmentOpts = Opts(_list.Select(g => g.Segment));
         _unmatched = await AracGruplari.ListUnmatchedGroupValuesAsync();
-        _aracSayisi = await AracGruplari.VehicleCountsAsync();
+        _vehicleCount = await AracGruplari.VehicleCountsAsync();
     }
 }

@@ -60,11 +60,11 @@ public sealed class ApiCustomersTests(PostgresFixture fx)
         using var api = new ApiFactory(fx.AppConnectionString);
         var c = await api.LoginClientAsync(code, "umit", "p");
 
-        var tc = "10000000146"; // geçerli checksum'lı TC
-        var first = await c.PostAsJsonAsync("/api/v1/customers", new { tip = "Bireysel", ad = "A", tcKimlik = tc });
+        var nationalId = "10000000146"; // geçerli checksum'lı TC
+        var first = await c.PostAsJsonAsync("/api/v1/customers", new { tip = "Bireysel", ad = "A", tcKimlik = nationalId });
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
-        var second = await c.PostAsJsonAsync("/api/v1/customers", new { tip = "Bireysel", ad = "B", tcKimlik = tc });
+        var second = await c.PostAsJsonAsync("/api/v1/customers", new { tip = "Bireysel", ad = "B", tcKimlik = nationalId });
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         var err = await second.Content.ReadFromJsonAsync<ErrBody>();
         Assert.Equal("duplicate", err!.error);

@@ -48,14 +48,14 @@
            render ediliyordu → 0.20 değeri value="0,2000" olarak basılıyor, tarayıcı type="number"
            alanını GEÇERSİZ sayıp BOŞ gösteriyor ve formun bir sonraki kaydı tenant'ın varsayılan KDV
            oranını sessizce NULL'lıyordu (kullanıcı o alana hiç dokunmasa bile). *@
-        <label>Varsayılan KDV Oranı<input name="varsayilanKdvOrani" type="number" step="0.0001" min="0" max="1" value="@Ondalik(_m.VarsayilanKdvOrani)" /></label>
+        <label>Varsayılan KDV Oranı<input name="varsayilanKdvOrani" type="number" step="0.0001" min="0" max="1" value="@FormatDecimal(_m.VarsayilanKdvOrani)" /></label>
         @* PR-10: grubu belirtilmeden açılan araçlar (REST API / Excel import) buraya düşer. Boş
            bırakılırsa "Ekonomi" adlı aktif grup aranır; o da yoksa araç grupsuz kalır — bilinçli
            olarak "ilk aktif grup"a düşürülmez (o grup "Lüks" olabilirdi). *@
         <label>Varsayılan Araç Grubu
             <select name="varsayilanGrupId">
                 <option value="">(Ekonomi'yi ara, yoksa grupsuz)</option>
-                @foreach (var g in _gruplar)
+                @foreach (var g in _groups)
                 {
                     <option value="@g.Id" selected="@(g.Id == _m.VarsayilanGrupId)">@g.Ad</option>
                 }
@@ -229,14 +229,14 @@
         <p class="muted small">Yapılandırmanın gerçekten çalışıp çalışmadığını aşağıdaki
             <strong>WhatsApp Testi</strong> bölümünden tek mesajla deneyebilirsiniz.</p>
 
-        @if (_gonderimler.Count > 0)
+        @if (_dispatches.Count > 0)
         {
             <p class="muted small">Son gönderimler:</p>
             <div class="table-scroll">
             <table class="grid tr-grid kart-mobil">
                 <thead><tr><th>Gün</th><th>Durum</th><th>Not</th></tr></thead>
                 <tbody>
-                    @foreach (var g in _gonderimler)
+                    @foreach (var g in _dispatches)
                     {
                         <tr>
                             <td class="kart-baslik">@g.Gun.ToString("dd.MM.yyyy")</td>
@@ -399,16 +399,16 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private TenantSettingsModel _m = new();
-    private IReadOnlyList<RentACar.Domain.Entities.VehicleGroup> _gruplar = []; // PR-10 varsayılan grup seçimi
+    private IReadOnlyList<RentACar.Domain.Entities.VehicleGroup> _groups = []; // PR-10 varsayılan grup seçimi
     private LogoDegerlendirme? _logo; // PR-A
-    private IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim> _gonderimler = [];
+    private IReadOnlyList<RentACar.Domain.Entities.WhatsAppGonderim> _dispatches = [];
 
     private static string Placeholder(string? secret) => string.IsNullOrEmpty(secret) ? "(boş)" : "•••••• (kayıtlı)";
 
     /// <summary>FAZ-82: type="number" prefill'i DAİMA InvariantCulture. Sayfa tr-TR kültüründe render
     /// ediliyor; "0,2000" tarayıcıda geçersiz sayı → alan boş görünür → dokunulmayan alan bir sonraki
     /// kayıtta NULL'lanır. Tek kaydın tüm tenant ayarını sıfırlayabildiği bu formda kritik.</summary>
-    private static string Ondalik(decimal? d)
+    private static string FormatDecimal(decimal? d)
         => d?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
 
     protected override async Task OnInitializedAsync()
@@ -416,7 +416,7 @@
         _m = await Settings.GetAsync();
         // PR-A: yüklü logonun baskıya uygunluğu (aynı kural platform panelinde de kullanılıyor).
         _logo = _m.LogoBytes is { Length: > 0 } b ? LogoValidationRules.Evaluate(b) : null;
-        _gruplar = await AracGruplari.ListActiveAsync();
-        _gonderimler = await Settings.ListWhatsAppDispatchesAsync();
+        _groups = await AracGruplari.ListActiveAsync();
+        _dispatches = await Settings.ListWhatsAppDispatchesAsync();
     }
 }

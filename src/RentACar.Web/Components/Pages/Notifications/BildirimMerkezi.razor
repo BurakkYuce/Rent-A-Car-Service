@@ -10,15 +10,15 @@
 <div class="page-head"><h1>Bildirim Merkezi</h1><div class="actions"></div></div>
 @if (Ok == "1") { <p class="ok">İşaretlendi.</p> }
 
-<h2>Bildirimler @if (_okunmamisSayi > 0) {<span class="badge-unread">@_okunmamisSayi</span>}</h2>
+<h2>Bildirimler @if (_unreadCount > 0) {<span class="badge-unread">@_unreadCount</span>}</h2>
 <p class="muted small">Yaklaşan/geçmiş vade uyarıları (scheduler otomatik üretir). Okundu işaretleyebilirsiniz.</p>
-@if (_bildirimler.Count == 0)
+@if (_notifications.Count == 0)
 {
     <p class="muted">Bildirim yok.</p>
 }
 else
 {
-    @if (_okunmamisSayi > 0)
+    @if (_unreadCount > 0)
     {
         <form method="post" action="/bildirim/hepsini-oku" style="margin-bottom:.5rem"><AntiforgeryToken />
             <button type="submit" class="btn-primary">Tümünü okundu işaretle</button>
@@ -28,7 +28,7 @@ else
     <table class="grid tr-grid">
         <thead><tr><th>Tür</th><th>Mesaj</th><th>Oluşturma</th><th>Durum</th><th></th></tr></thead>
         <tbody>
-            @foreach (var b in _bildirimler)
+            @foreach (var b in _notifications)
             {
                 <tr class="@(b.Okundu ? "" : "row-unread")">
                     <td>@b.Tur</td>
@@ -120,13 +120,13 @@ else
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
 
     private BildirimDto _d = new(0, 0, [], 0, [], null);
-    private IReadOnlyList<Bildirim> _bildirimler = [];
-    private int _okunmamisSayi;
+    private IReadOnlyList<Bildirim> _notifications = [];
+    private int _unreadCount;
 
     protected override async Task OnInitializedAsync()
     {
         _d = await Bildirimler.GetAsync();
-        _bildirimler = await Bildirimler.ListPersistedAsync();
-        _okunmamisSayi = _bildirimler.Count(b => !b.Okundu);
+        _notifications = await Bildirimler.ListPersistedAsync();
+        _unreadCount = _notifications.Count(b => !b.Okundu);
     }
 }

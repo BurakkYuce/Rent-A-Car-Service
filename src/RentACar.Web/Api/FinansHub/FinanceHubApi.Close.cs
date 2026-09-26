@@ -31,8 +31,8 @@ public static partial class FinanceHubApi
         Guid cariId, CloseItemsRequest req, HttpContext http, CashService cash, RentalService rentals,
         ICurrentUser user, IDbContextFactory<AppDbContext> f, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
-        var account = FinansApi.Hesap(req.Hesap, "hesap");
+        var key = IdempotencyHeader.RequiredKey(http);
+        var account = FinanceOpsApi.Account(req.Hesap, "hesap");
         var channel = CashKanal.TryNormalize(req.Kanal)
                       ?? throw new ValidationException($"Geçersiz kanal. İzin verilenler: {string.Join(", ", CashKanal.Hepsi)}.", "kanal");
         var note = Text(req.Aciklama, 512, "aciklama");
@@ -49,13 +49,13 @@ public static partial class FinanceHubApi
             if (s.Tutar is { } v)
             {
                 // Servis kalemi kuruşa (2 ondalık) yazar; fazla hane SESSİZCE kesilmesin diye 400.
-                FinansApi.Tutar(v, $"secim[{i}].tutar");
+                FinanceOpsApi.Amount(v, $"secim[{i}].tutar");
                 AmountScale(v, $"secim[{i}].tutar", maxDecimals: 2);
             }
         }
 
-        var names = await F5Ortak.CarilerAsync(f, [cariId], ct);
-        if (!names.ContainsKey(cariId)) return F5Ortak.Bulunamadi("Cari bulunamadı.");
+        var names = await F5Shared.CustomersAsync(f, [cariId], ct);
+        if (!names.ContainsKey(cariId)) return F5Shared.NotFound("Cari bulunamadı.");
         await SelectionRentalScopeAsync(map.Keys, user, rentals, f, ct);
 
         if (await cash.FindByOperationKeyAsync(key, ct) is { } prior)
@@ -74,7 +74,7 @@ public static partial class FinanceHubApi
                 && (requested is not { } v || decimal.Round(v, 2, MidpointRounding.ToZero) == a.KapatilanBaz));
             var same = sameItems && prior.KarsiHesap == account
                        && string.Equals(prior.Kanal ?? CashKanal.Masaustu, channel, StringComparison.Ordinal)
-                       && (note is null || string.Equals(FinansApi.AciklamaNorm(prior.Aciklama), note, StringComparison.Ordinal));
+                       && (note is null || string.Equals(FinanceOpsApi.NormalizeDescription(prior.Aciklama), note, StringComparison.Ordinal));
             var amount = prior.Amount.Amount.ToString("N2", Tr);
             throw new DuplicateOperationException(
                 string.Format(Tr, same ? CloseAlreadyRecordedMessage : CloseOtherRecordedMessage, prior.No, amount),
@@ -102,6 +102,6 @@ public static partial class FinanceHubApi
         if (invoiceIds.Count == 0) return;
         var rentalIds = await db.Invoices.AsNoTracking().Where(i => invoiceIds.Contains(i.Id))
             .Select(i => i.RentalId ?? i.KaynakKiraId).Where(r => r != null).Select(r => r!.Value).Distinct().ToListAsync(ct);
-        foreach (var rentalId in rentalIds) await FinansApi.KiraKapsamdaAsync(rentals, rentalId, ct);
+        foreach (var rentalId in rentalIds) await FinanceOpsApi.IsRentalInScopeAsync(rentals, rentalId, ct);
     }
 }

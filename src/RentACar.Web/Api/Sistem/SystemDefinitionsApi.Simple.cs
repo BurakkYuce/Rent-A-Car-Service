@@ -24,9 +24,9 @@ public static partial class SystemDefinitionsApi
     {
         var g = v1.MapGroup("/sigorta-sirketleri").WithTags(SystemApiCommon.DefinitionsTag).RequirePermission(Permission.OperationsWrite);
         g.MapGet("", async (int? sayfa, int? boyut, string? sirala, string? ara, bool? aktif, InsuranceCompanyService s, CancellationToken ct)
-            => TypedResults.Ok(F5Ortak.Sayfala(
+            => TypedResults.Ok(F5Shared.Paginate(
                 Filter((await s.ListAsync(ct)).Select(x => InsuranceCompanyDto.From(x, null)), ara, aktif, x => [x.Kod, x.Ad, x.Telefon], x => x.Aktif),
-                InsuranceSort, sayfa, boyut, sirala))).AlanlariEsle(F5Ortak.SiralamaKurallari);
+                InsuranceSort, sayfa, boyut, sirala))).MapFields(F5Shared.SortRules);
         g.MapGet("/{id:guid}", async Task<Results<Ok<InsuranceCompanyDto>, ProblemHttpResult>> (Guid id, InsuranceCompanyService s, CancellationToken ct)
             => await InsuranceAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
         g.MapPost("", async Task<Results<Created<InsuranceCompanyDto>, ProblemHttpResult>> (InsuranceCompanyRequest i, InsuranceCompanyService s, CancellationToken ct) =>
@@ -34,7 +34,7 @@ public static partial class SystemDefinitionsApi
             InsuranceLimits(i);
             var id = await s.CreateAsync(InsuranceInput(i), ct);
             return await InsuranceAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/sigorta-sirketleri/{id}", d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(InsuranceRules);
+        }).MapFields(InsuranceRules);
         g.MapPut("/{id:guid}", async Task<Results<Ok<InsuranceCompanyDto>, ProblemHttpResult>> (Guid id, InsuranceCompanyRequest i, InsuranceCompanyService s, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound();
@@ -42,7 +42,7 @@ public static partial class SystemDefinitionsApi
             InsuranceLimits(i);
             if (!await s.UpdateAsync(id, InsuranceInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
             return await InsuranceAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(InsuranceRules);
+        }).MapFields(InsuranceRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, InsuranceCompanyService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
     }
@@ -65,49 +65,49 @@ public static partial class SystemDefinitionsApi
 
     // ------------------------------------------------------------------ KDV oranları
 
-    private static readonly (string, string)[] KdvRules =
+    private static readonly (string, string)[] VatRules =
         [("KDV oranı kodu", "kod"), ("KDV oranı adı", "ad"), ("KDV oranı 0 ile 1", "oran"), ("'", "kod")];
 
-    private static readonly SortFieldMap<KdvRateDto> KdvSort = SortFieldMap<KdvRateDto>
+    private static readonly SortFieldMap<KdvRateDto> VatSort = SortFieldMap<KdvRateDto>
         .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("oran", x => x.Oran).Alan("aktif", x => x.Aktif);
 
-    private static void MapKdvRates(RouteGroupBuilder v1)
+    private static void MapVatRates(RouteGroupBuilder v1)
     {
         var g = v1.MapGroup("/kdv-oranlari").WithTags(SystemApiCommon.DefinitionsTag).RequirePermission(Permission.OperationsWrite);
         g.MapGet("", async (int? sayfa, int? boyut, string? sirala, string? ara, bool? aktif, VatRateService s, CancellationToken ct)
-            => TypedResults.Ok(F5Ortak.Sayfala(
+            => TypedResults.Ok(F5Shared.Paginate(
                 Filter((await s.ListAsync(ct)).Select(x => KdvRateDto.From(x, null)), ara, aktif, x => [x.Kod, x.Ad], x => x.Aktif),
-                KdvSort, sayfa, boyut, sirala))).AlanlariEsle(F5Ortak.SiralamaKurallari);
+                VatSort, sayfa, boyut, sirala))).MapFields(F5Shared.SortRules);
         g.MapGet("/{id:guid}", async Task<Results<Ok<KdvRateDto>, ProblemHttpResult>> (Guid id, VatRateService s, CancellationToken ct)
-            => await KdvAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
+            => await VatAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
         g.MapPost("", async Task<Results<Created<KdvRateDto>, ProblemHttpResult>> (KdvRateRequest i, VatRateService s, CancellationToken ct) =>
         {
-            KdvLimits(i);
-            var id = await s.CreateAsync(KdvInput(i), ct);
-            return await KdvAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/kdv-oranlari/{id}", d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(KdvRules);
+            VatLimits(i);
+            var id = await s.CreateAsync(VatInput(i), ct);
+            return await VatAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/kdv-oranlari/{id}", d) : SystemApiCommon.NotFound();
+        }).MapFields(VatRules);
         g.MapPut("/{id:guid}", async Task<Results<Ok<KdvRateDto>, ProblemHttpResult>> (Guid id, KdvRateRequest i, VatRateService s, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound();
             SystemApiCommon.RequireVersion(i.Surum);
-            KdvLimits(i);
-            if (!await s.UpdateAsync(id, KdvInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
-            return await KdvAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(KdvRules);
+            VatLimits(i);
+            if (!await s.UpdateAsync(id, VatInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
+            return await VatAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
+        }).MapFields(VatRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, VatRateService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
     }
 
-    private static void KdvLimits(KdvRateRequest i)
+    private static void VatLimits(KdvRateRequest i)
     {
         Text(i.Ad, 128, "ad", "Ad");
         if (i.Oran is null) throw new ValidationException("KDV oranı zorunludur (0.20 = %20).", "oran");
     }
 
-    private static KdvRateInput KdvInput(KdvRateRequest i)
+    private static KdvRateInput VatInput(KdvRateRequest i)
         => new() { Kod = i.Kod ?? "", Ad = i.Ad ?? "", Oran = i.Oran ?? 0m, Aktif = i.Aktif };
 
-    private static async Task<KdvRateDto?> KdvAsync(Guid id, VatRateService s, CancellationToken ct)
+    private static async Task<KdvRateDto?> VatAsync(Guid id, VatRateService s, CancellationToken ct)
     {
         var version = await s.RowVersionAsync(id, ct);
         return await s.GetAsync(id, ct) is { } x ? KdvRateDto.From(x, version) : null;
@@ -126,9 +126,9 @@ public static partial class SystemDefinitionsApi
     {
         var g = v1.MapGroup("/ceza-turleri").WithTags(SystemApiCommon.DefinitionsTag).RequirePermission(Permission.OperationsWrite);
         g.MapGet("", async (int? sayfa, int? boyut, string? sirala, string? ara, bool? aktif, PenaltyTypeService s, CancellationToken ct)
-            => TypedResults.Ok(F5Ortak.Sayfala(
+            => TypedResults.Ok(F5Shared.Paginate(
                 Filter((await s.ListAsync(ct)).Select(x => PenaltyTypeDto.From(x, null)), ara, aktif, x => [x.Kod, x.Ad], x => x.Aktif),
-                PenaltySort, sayfa, boyut, sirala))).AlanlariEsle(F5Ortak.SiralamaKurallari);
+                PenaltySort, sayfa, boyut, sirala))).MapFields(F5Shared.SortRules);
         g.MapGet("/{id:guid}", async Task<Results<Ok<PenaltyTypeDto>, ProblemHttpResult>> (Guid id, PenaltyTypeService s, CancellationToken ct)
             => await PenaltyAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
         g.MapPost("", async Task<Results<Created<PenaltyTypeDto>, ProblemHttpResult>> (PenaltyTypeRequest i, PenaltyTypeService s, CancellationToken ct) =>
@@ -136,7 +136,7 @@ public static partial class SystemDefinitionsApi
             PenaltyLimits(i);
             var id = await s.CreateAsync(PenaltyInput(i), ct);
             return await PenaltyAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/ceza-turleri/{id}", d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(PenaltyRules);
+        }).MapFields(PenaltyRules);
         g.MapPut("/{id:guid}", async Task<Results<Ok<PenaltyTypeDto>, ProblemHttpResult>> (Guid id, PenaltyTypeRequest i, PenaltyTypeService s, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound();
@@ -144,7 +144,7 @@ public static partial class SystemDefinitionsApi
             PenaltyLimits(i);
             if (!await s.UpdateAsync(id, PenaltyInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
             return await PenaltyAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(PenaltyRules);
+        }).MapFields(PenaltyRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, PenaltyTypeService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
     }

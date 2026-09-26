@@ -33,16 +33,16 @@ public sealed class ModelGuardTests(PostgresFixture fx)
     {
         using var db = CreateContext();
 
-        var eksikler = db.Model.GetEntityTypes()
+        var missingItems = db.Model.GetEntityTypes()
             .Where(et => et.BaseType is null
                          && typeof(ITenantOwned).IsAssignableFrom(et.ClrType)
                          && et.GetDeclaredQueryFilters().Count == 0)
             .Select(et => et.ClrType.Name)
             .ToList();
 
-        Assert.True(eksikler.Count == 0,
+        Assert.True(missingItems.Count == 0,
             "Tenant filter'ı OLMAYAN ITenantOwned entity'ler (çapraz-tenant sızıntı riski): "
-            + string.Join(", ", eksikler));
+            + string.Join(", ", missingItems));
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class ModelGuardTests(PostgresFixture fx)
         using var db = CreateContext();
 
         // Filter taşımayan entity'ler TAM OLARAK platform tabloları olmalı — ne eksik ne fazla.
-        var filtresizler = db.Model.GetEntityTypes()
+        var unfiltered = db.Model.GetEntityTypes()
             .Where(et => et.BaseType is null && et.GetDeclaredQueryFilters().Count == 0)
             .Select(et => et.ClrType)
             .OrderBy(t => t.Name)
@@ -66,16 +66,16 @@ public sealed class ModelGuardTests(PostgresFixture fx)
         // 2026-08-17: KullaniciIzinIstisna eklendi — istisnalar LOGIN sırasında (tenant GUC'u
         //       henüz yokken) okunup claim'e yazılır; merkezi filtre o okumayı boş döndürürdü.
         //       Users ile aynı komut-bazlı RLS deseni (SELECT GUC-boşken açık, yazma tenant-kilitli).
-        Type[] beklenenPlatform =
+        Type[] expectedPlatform =
         [
             typeof(KullaniciIzinIstisna), typeof(KurKaydi), typeof(PaylasimLink),
             typeof(PlatformBelge), typeof(PlatformBelgeHedef),
             typeof(Tenant), typeof(TenantDomain), typeof(User),
         ];
-        Assert.Equal(beklenenPlatform, filtresizler);
+        Assert.Equal(expectedPlatform, unfiltered);
 
         // Platform entity'leri ITenantOwned DEĞİL (merkezi döngü onlara dokunmaz).
-        Assert.All(filtresizler, t => Assert.False(typeof(ITenantOwned).IsAssignableFrom(t)));
+        Assert.All(unfiltered, t => Assert.False(typeof(ITenantOwned).IsAssignableFrom(t)));
     }
 
     [Fact]
@@ -85,11 +85,11 @@ public sealed class ModelGuardTests(PostgresFixture fx)
 
         var entityTypes = db.Model.GetEntityTypes().Where(et => et.BaseType is null).ToList();
         var tenantOwned = entityTypes.Count(et => typeof(ITenantOwned).IsAssignableFrom(et.ClrType));
-        var filtreli = entityTypes.Count(et => et.GetDeclaredQueryFilters().Count > 0);
+        var filtered = entityTypes.Count(et => et.GetDeclaredQueryFilters().Count > 0);
 
         // Bölme öncesi durum: 68 inline HasQueryFilter == 68 ITenantOwned entity (bağımsız sayım).
         // Merkezi döngü aynı kapsamı üretmeli; yeni entity eklendikçe iki sayı birlikte artar.
-        Assert.Equal(tenantOwned, filtreli);
+        Assert.Equal(tenantOwned, filtered);
         Assert.True(tenantOwned >= 68, $"ITenantOwned entity sayısı geriledi: {tenantOwned} < 68");
     }
 }

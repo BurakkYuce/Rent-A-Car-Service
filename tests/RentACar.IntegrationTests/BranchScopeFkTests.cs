@@ -70,8 +70,8 @@ public sealed class BranchScopeFkTests
         var admin = new Kimlik { Role = UserRole.Admin, AssignedBranch = "Merkez", AssignedBranchId = B1 };
         BranchScope.RequireInScope(admin, B2, "Ankara");                       // Admin → Unrestricted
 
-        var subesiz = new Kimlik { AssignedBranch = null, AssignedBranchId = null };
-        BranchScope.RequireInScope(subesiz, B2, "Ankara");                     // şubesiz operatör → serbest
+        var withoutBranch = new Kimlik { AssignedBranch = null, AssignedBranchId = null };
+        BranchScope.RequireInScope(withoutBranch, B2, "Ankara");                     // şubesiz operatör → serbest
     }
 
     [Fact]

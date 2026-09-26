@@ -25,7 +25,7 @@ public sealed class CalendarFeedTests(PostgresFixture fx)
         new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options,
         NullTenantContext.Instance, NullCurrentUser.Instance);
 
-    private async Task SeedAsync(string token, string plaka)
+    private async Task SeedAsync(string token, string plate)
     {
         await using var db = Owner();
         var t = new Tenant { Code = "cf" + Guid.NewGuid().ToString("N")[..10], Name = "CF" };
@@ -37,7 +37,7 @@ public sealed class CalendarFeedTests(PostgresFixture fx)
         // Tenant-owned (RLS) → GUC gerekir.
         await db.Database.OpenConnectionAsync();
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT set_config('app.tenant_id', {t.Id.ToString()}, false)");
-        var v = new Vehicle { TenantId = t.Id, Plaka = plaka };
+        var v = new Vehicle { TenantId = t.Id, Plaka = plate };
         db.Vehicles.Add(v);
         db.InsurancePolicies.Add(new InsurancePolicy
         {
@@ -52,8 +52,8 @@ public sealed class CalendarFeedTests(PostgresFixture fx)
     {
         var tokA = "tokA-" + Guid.NewGuid().ToString("N");
         var tokB = "tokB-" + Guid.NewGuid().ToString("N");
-        var plakaA = "34AA" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
-        await SeedAsync(tokA, plakaA);
+        var plateA = "34AA" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        await SeedAsync(tokA, plateA);
         await SeedAsync(tokB, "34BB" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant());
 
         var svc = new CalendarFeedService(Cfg());
@@ -61,11 +61,11 @@ public sealed class CalendarFeedTests(PostgresFixture fx)
         var icsA = await svc.BuildAsync(tokA);
         Assert.NotNull(icsA);
         Assert.Contains("BEGIN:VCALENDAR", icsA);
-        Assert.Contains(plakaA, icsA);              // kendi plakası feed'de
+        Assert.Contains(plateA, icsA);              // kendi plakası feed'de
 
         var icsB = await svc.BuildAsync(tokB);
         Assert.NotNull(icsB);
-        Assert.DoesNotContain(plakaA, icsB!);        // ÇAPRAZ TENANT SIZMASI YOK
+        Assert.DoesNotContain(plateA, icsB!);        // ÇAPRAZ TENANT SIZMASI YOK
     }
 
     [Fact]
@@ -80,8 +80,8 @@ public sealed class CalendarFeedTests(PostgresFixture fx)
     {
         var tokAdmin = "tokAd-" + Guid.NewGuid().ToString("N");
         var tokOp = "tokOp-" + Guid.NewGuid().ToString("N");
-        var plakaMerkez = "34MK" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
-        var plakaSube2 = "34SB" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        var plateHeadOffice = "34MK" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        var plateBranch2 = "34SB" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
         await using (var db = Owner())
         {
@@ -95,8 +95,8 @@ public sealed class CalendarFeedTests(PostgresFixture fx)
 
             await db.Database.OpenConnectionAsync();
             await db.Database.ExecuteSqlInterpolatedAsync($"SELECT set_config('app.tenant_id', {t.Id.ToString()}, false)");
-            var vM = new Vehicle { TenantId = t.Id, Plaka = plakaMerkez, Sube = "MERKEZ" };
-            var vS = new Vehicle { TenantId = t.Id, Plaka = plakaSube2, Sube = "SUBE2" };
+            var vM = new Vehicle { TenantId = t.Id, Plaka = plateHeadOffice, Sube = "MERKEZ" };
+            var vS = new Vehicle { TenantId = t.Id, Plaka = plateBranch2, Sube = "SUBE2" };
             db.Vehicles.AddRange(vM, vS);
             // Araç-bazlı vade: iki araca da sigorta.
             db.InsurancePolicies.Add(new InsurancePolicy { TenantId = t.Id, VehicleId = vM.Id, Tip = InsuranceType.Trafik,
@@ -114,13 +114,13 @@ public sealed class CalendarFeedTests(PostgresFixture fx)
 
         var icsOp = await svc.BuildAsync(tokOp);
         Assert.NotNull(icsOp);
-        Assert.Contains(plakaMerkez, icsOp);          // kendi şubesinin aracı
-        Assert.DoesNotContain(plakaSube2, icsOp!);     // BAŞKA ŞUBE SIZMAZ (yan kapı kapandı)
+        Assert.Contains(plateHeadOffice, icsOp);          // kendi şubesinin aracı
+        Assert.DoesNotContain(plateBranch2, icsOp!);     // BAŞKA ŞUBE SIZMAZ (yan kapı kapandı)
         Assert.DoesNotContain("Fatura", icsOp);        // finansal vade Operatöre yok
 
         var icsAdmin = await svc.BuildAsync(tokAdmin);
-        Assert.Contains(plakaMerkez, icsAdmin!);       // Admin tüm şubeler + fatura
-        Assert.Contains(plakaSube2, icsAdmin!);
+        Assert.Contains(plateHeadOffice, icsAdmin!);       // Admin tüm şubeler + fatura
+        Assert.Contains(plateBranch2, icsAdmin!);
         Assert.Contains("Fatura", icsAdmin!);
     }
 

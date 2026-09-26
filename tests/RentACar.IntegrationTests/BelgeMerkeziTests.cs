@@ -37,7 +37,7 @@ namespace RentACar.IntegrationTests;
 public sealed class BelgeMerkeziTests(PostgresFixture fx)
 {
     /// <summary>Geçerli PDF imzalı bayt (`%PDF-`). İçerik decode edilmiyor, yalnız saklanıp veriliyor.</summary>
-    private static byte[] Pdf(int dolgu = 100) => [0x25, 0x50, 0x44, 0x46, 0x2D, .. new byte[dolgu]];
+    private static byte[] Pdf(int padding = 100) => [0x25, 0x50, 0x44, 0x46, 0x2D, .. new byte[padding]];
 
     private PlatformAdminService Platform()
     {
@@ -50,17 +50,17 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
             NullLogger<PlatformAdminService>.Instance);
     }
 
-    private async Task<Guid> TenantAsync(string onEk = "bm")
+    private async Task<Guid> TenantAsync(string prefix = "bm")
     {
         var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options;
         await using var db = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance);
-        var t = new Tenant { Code = onEk + Guid.NewGuid().ToString("N")[..10], Name = "BM", IsActive = true };
+        var t = new Tenant { Code = prefix + Guid.NewGuid().ToString("N")[..10], Name = "BM", IsActive = true };
         db.Tenants.Add(t);
         await db.SaveChangesAsync();
         return t.Id;
     }
 
-    private static PlatformDocumentService Belgeler(TestHost host, Guid tenantId, out IServiceScope scope,
+    private static PlatformDocumentService Documents(TestHost host, Guid tenantId, out IServiceScope scope,
         UserRole role = UserRole.Admin)
     {
         scope = host.ScopeFor(tenantId, role: role);
@@ -74,15 +74,15 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
     {
         var platform = Platform();
         var tenantId = await TenantAsync();
-        await platform.BelgeYukleAsync("Kılavuz", null, "kilavuz.pdf", Pdf(), [], false, "op");
+        await platform.UploadDocumentAsync("Kılavuz", null, "kilavuz.pdf", Pdf(), [], false, "op");
 
         using var host = new TestHost(fx.AppConnectionString);
-        var belgeId2 = (await Platform().ListBelgelerAsync()).First(b => b.Baslik == "Kılavuz").Id;
-        var svc = Belgeler(host, tenantId, out var scope); using (scope)
+        var documentId2 = (await Platform().ListDocumentsAsync()).First(b => b.Baslik == "Kılavuz").Id;
+        var svc = Documents(host, tenantId, out var scope); using (scope)
         {
             // "Yükle → kontrol et → yayınla" akışı: yükleme anında canlıya ÇIKMAZ.
-            Assert.DoesNotContain(await svc.ListAsync(), x => x.Id == belgeId2);
-            Assert.Null(await svc.DownloadAsync(belgeId2));
+            Assert.DoesNotContain(await svc.ListAsync(), x => x.Id == documentId2);
+            Assert.Null(await svc.DownloadAsync(documentId2));
         }
     }
 
@@ -92,18 +92,18 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         var platform = Platform();
         var t1 = await TenantAsync();
         var t2 = await TenantAsync();
-        var belgeId = await platform.BelgeYukleAsync("KVKK Metni", "Aydınlatma", "kvkk.pdf", Pdf(), [], false, "op");
-        await platform.BelgeDurumAsync(belgeId, PlatformBelgeDurum.Yayinda, "op");
+        var documentId = await platform.UploadDocumentAsync("KVKK Metni", "Aydınlatma", "kvkk.pdf", Pdf(), [], false, "op");
+        await platform.DocumentStatusAsync(documentId, PlatformBelgeDurum.Yayinda, "op");
 
         using var host = new TestHost(fx.AppConnectionString);
         foreach (var t in new[] { t1, t2 })
         {
-            var svc = Belgeler(host, t, out var scope); using (scope)
+            var svc = Documents(host, t, out var scope); using (scope)
             {
-                var satir = Assert.Single(await svc.ListAsync(), x => x.Id == belgeId);
-                Assert.Equal("KVKK Metni", satir.Baslik);
-                Assert.True(satir.Yeni);                     // 14 gün içinde güncellendi
-                Assert.NotNull(await svc.DownloadAsync(belgeId));
+                var row = Assert.Single(await svc.ListAsync(), x => x.Id == documentId);
+                Assert.Equal("KVKK Metni", row.Baslik);
+                Assert.True(row.Yeni);                     // 14 gün içinde güncellendi
+                Assert.NotNull(await svc.DownloadAsync(documentId));
             }
         }
     }
@@ -113,18 +113,18 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
     {
         var platform = Platform();
         var tenantId = await TenantAsync();
-        var belgeId = await platform.BelgeYukleAsync("Eski Fiyat Listesi", null, "f.pdf", Pdf(), [], false, "op");
-        await platform.BelgeDurumAsync(belgeId, PlatformBelgeDurum.Yayinda, "op");
-        await platform.BelgeDurumAsync(belgeId, PlatformBelgeDurum.Arsiv, "op");
+        var documentId = await platform.UploadDocumentAsync("Eski Fiyat Listesi", null, "f.pdf", Pdf(), [], false, "op");
+        await platform.DocumentStatusAsync(documentId, PlatformBelgeDurum.Yayinda, "op");
+        await platform.DocumentStatusAsync(documentId, PlatformBelgeDurum.Arsiv, "op");
 
         using var host = new TestHost(fx.AppConnectionString);
-        var svc = Belgeler(host, tenantId, out var scope); using (scope)
+        var svc = Documents(host, tenantId, out var scope); using (scope)
         {
-            Assert.DoesNotContain(await svc.ListAsync(), x => x.Id == belgeId);
-            Assert.Null(await svc.DownloadAsync(belgeId));      // arşiv → indirilemez
+            Assert.DoesNotContain(await svc.ListAsync(), x => x.Id == documentId);
+            Assert.Null(await svc.DownloadAsync(documentId));      // arşiv → indirilemez
         }
         // …ama platform tarafında kayıt ve dosya duruyor ("hangi sürümü indirdiler" cevaplanabilir).
-        Assert.NotNull(await platform.BelgeIcerikAsync(belgeId));
+        Assert.NotNull(await platform.DocumentContentAsync(documentId));
     }
 
     // ---- İZOLASYON (bu PR'ın en kritik davranışı) ----
@@ -133,28 +133,28 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
     public async Task Hedefli_belge_hedef_olmayan_tenantta_ID_ile_de_INMEZ()
     {
         var platform = Platform();
-        var hedefTenant = await TenantAsync("hedef");
-        var yabanciTenant = await TenantAsync("yabanci");
+        var targetTenant = await TenantAsync("hedef");
+        var foreignTenant = await TenantAsync("yabanci");
 
-        var belgeId = await platform.BelgeYukleAsync("Özel Fiyat Anlaşması", null, "ozel.pdf", Pdf(),
-            [hedefTenant], false, "op");
-        await platform.BelgeDurumAsync(belgeId, PlatformBelgeDurum.Yayinda, "op");
+        var documentId = await platform.UploadDocumentAsync("Özel Fiyat Anlaşması", null, "ozel.pdf", Pdf(),
+            [targetTenant], false, "op");
+        await platform.DocumentStatusAsync(documentId, PlatformBelgeDurum.Yayinda, "op");
 
         using var host = new TestHost(fx.AppConnectionString);
 
         // Hedef tenant: görüyor VE indiriyor.
-        var hedefSvc = Belgeler(host, hedefTenant, out var s1); using (s1)
+        var targetSvc = Documents(host, targetTenant, out var s1); using (s1)
         {
-            Assert.Contains(await hedefSvc.ListAsync(), x => x.Id == belgeId);
-            Assert.NotNull(await hedefSvc.DownloadAsync(belgeId));
+            Assert.Contains(await targetSvc.ListAsync(), x => x.Id == documentId);
+            Assert.NotNull(await targetSvc.DownloadAsync(documentId));
         }
 
         // Yabancı tenant: listede YOK **ve** ID'yi bilse bile İNDİREMİYOR.
         // RLS burada korumuyor (platform tablosu) → tek savunma uygulama yüklemi.
-        var yabanciSvc = Belgeler(host, yabanciTenant, out var s2); using (s2)
+        var foreignSvc = Documents(host, foreignTenant, out var s2); using (s2)
         {
-            Assert.DoesNotContain(await yabanciSvc.ListAsync(), x => x.Id == belgeId);
-            Assert.Null(await yabanciSvc.DownloadAsync(belgeId));
+            Assert.DoesNotContain(await foreignSvc.ListAsync(), x => x.Id == documentId);
+            Assert.Null(await foreignSvc.DownloadAsync(documentId));
         }
     }
 
@@ -163,24 +163,24 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
     {
         var platform = Platform();
         var tenantId = await TenantAsync();
-        var belgeId = await platform.BelgeYukleAsync("Hassas Belge", null, "h.pdf", Pdf(),
-            [], yalnizYoneticiler: true, "op");
-        await platform.BelgeDurumAsync(belgeId, PlatformBelgeDurum.Yayinda, "op");
+        var documentId = await platform.UploadDocumentAsync("Hassas Belge", null, "h.pdf", Pdf(),
+            [], managersOnly: true, "op");
+        await platform.DocumentStatusAsync(documentId, PlatformBelgeDurum.Yayinda, "op");
 
         using var host = new TestHost(fx.AppConnectionString);
 
         // Operatör: görmüyor ve indiremiyor.
-        var opSvc = Belgeler(host, tenantId, out var s1, UserRole.Operator); using (s1)
+        var opSvc = Documents(host, tenantId, out var s1, UserRole.Operator); using (s1)
         {
-            Assert.DoesNotContain(await opSvc.ListAsync(), x => x.Id == belgeId);
-            Assert.Null(await opSvc.DownloadAsync(belgeId));
+            Assert.DoesNotContain(await opSvc.ListAsync(), x => x.Id == documentId);
+            Assert.Null(await opSvc.DownloadAsync(documentId));
         }
 
         // Yonetici (DİKKAT: ASCII, "Yönetici" DEĞİL — yanlış yazım kimseyi geçirmezdi): görüyor.
-        var yonSvc = Belgeler(host, tenantId, out var s2, UserRole.Yonetici); using (s2)
+        var yonSvc = Documents(host, tenantId, out var s2, UserRole.Yonetici); using (s2)
         {
-            Assert.Contains(await yonSvc.ListAsync(), x => x.Id == belgeId);
-            Assert.NotNull(await yonSvc.DownloadAsync(belgeId));
+            Assert.Contains(await yonSvc.ListAsync(), x => x.Id == documentId);
+            Assert.NotNull(await yonSvc.DownloadAsync(documentId));
         }
     }
 
@@ -189,13 +189,13 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
     {
         var platform = Platform();
         var tenantId = await TenantAsync();
-        var belgeId = await platform.BelgeYukleAsync("KVKK", null, "k.pdf", Pdf(), [], false, "op");
-        await platform.BelgeDurumAsync(belgeId, PlatformBelgeDurum.Yayinda, "op");
+        var documentId = await platform.UploadDocumentAsync("KVKK", null, "k.pdf", Pdf(), [], false, "op");
+        await platform.DocumentStatusAsync(documentId, PlatformBelgeDurum.Yayinda, "op");
 
         using var host = new TestHost(fx.AppConnectionString);
         // Yeni bir Permission değeri EKLENMEDİ; kapı "oturum açık" + belge bayrağı.
-        var svc = Belgeler(host, tenantId, out var scope, UserRole.Muhasebe); using (scope)
-            Assert.Contains(await svc.ListAsync(), x => x.Id == belgeId);
+        var svc = Documents(host, tenantId, out var scope, UserRole.Muhasebe); using (scope)
+            Assert.Contains(await svc.ListAsync(), x => x.Id == documentId);
     }
 
     // ---- Sürümleme ----
@@ -205,21 +205,21 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
     {
         var platform = Platform();
         var tenantId = await TenantAsync();
-        var belgeId = await platform.BelgeYukleAsync("Kılavuz", null, "v1.pdf", Pdf(100), [], false, "op");
-        await platform.BelgeDurumAsync(belgeId, PlatformBelgeDurum.Yayinda, "op");
-        await platform.BelgeSurumGuncelleAsync(belgeId, "v2.pdf", Pdf(500), "op");
+        var documentId = await platform.UploadDocumentAsync("Kılavuz", null, "v1.pdf", Pdf(100), [], false, "op");
+        await platform.DocumentStatusAsync(documentId, PlatformBelgeDurum.Yayinda, "op");
+        await platform.UpdateDocumentVersionAsync(documentId, "v2.pdf", Pdf(500), "op");
 
         using var host = new TestHost(fx.AppConnectionString);
-        var svc = Belgeler(host, tenantId, out var scope); using (scope)
+        var svc = Documents(host, tenantId, out var scope); using (scope)
         {
             // TEK kayıt — yeni satır açılmadı (aynı Id, sürüm artmış).
-            var satir = Assert.Single(await svc.ListAsync(), x => x.Id == belgeId);
-            Assert.Equal(2, satir.Surum);
-            Assert.Equal(505, satir.Boyut);                     // yeni dosyanın boyutu
+            var row = Assert.Single(await svc.ListAsync(), x => x.Id == documentId);
+            Assert.Equal(2, row.Surum);
+            Assert.Equal(505, row.Boyut);                     // yeni dosyanın boyutu
 
-            var icerik = await svc.DownloadAsync(belgeId);          // ESKİ link çalışmaya devam ediyor
-            Assert.NotNull(icerik);
-            Assert.Equal(2, icerik!.Surum);                      // ETag'in sürüm bileşeni
+            var content = await svc.DownloadAsync(documentId);          // ESKİ link çalışmaya devam ediyor
+            Assert.NotNull(content);
+            Assert.Equal(2, content!.Surum);                      // ETag'in sürüm bileşeni
         }
     }
 
@@ -230,9 +230,9 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
     {
         var platform = Platform();
         await Assert.ThrowsAsync<Application.Common.ValidationException>(
-            () => platform.BelgeYukleAsync("Kötü", null, "x.pdf", [0x4D, 0x5A, 0x90, 0x00], [], false, "op"));
+            () => platform.UploadDocumentAsync("Kötü", null, "x.pdf", [0x4D, 0x5A, 0x90, 0x00], [], false, "op"));
         await Assert.ThrowsAsync<Application.Common.ValidationException>(
-            () => platform.BelgeYukleAsync("  ", null, "x.pdf", Pdf(), [], false, "op"));
+            () => platform.UploadDocumentAsync("  ", null, "x.pdf", Pdf(), [], false, "op"));
     }
 
     [Fact]
@@ -241,15 +241,15 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         var platform = Platform();
         var tenantId = await TenantAsync();
         // Türkçe karakterli ad `Content-Disposition` başlığında bozulur → slug'lanır.
-        var belgeId = await platform.BelgeYukleAsync("Şöför Kılavuzu", null, "Şöför Kılavuzu.pdf", Pdf(), [], false, "op");
-        await platform.BelgeDurumAsync(belgeId, PlatformBelgeDurum.Yayinda, "op");
+        var documentId = await platform.UploadDocumentAsync("Şöför Kılavuzu", null, "Şöför Kılavuzu.pdf", Pdf(), [], false, "op");
+        await platform.DocumentStatusAsync(documentId, PlatformBelgeDurum.Yayinda, "op");
 
         using var host = new TestHost(fx.AppConnectionString);
-        var svc = Belgeler(host, tenantId, out var scope); using (scope)
+        var svc = Documents(host, tenantId, out var scope); using (scope)
         {
-            var ad = (await svc.DownloadAsync(belgeId))!.DosyaAdi;
-            Assert.Equal("sofor-kilavuzu.pdf", ad);
-            Assert.All(ad, c => Assert.True(char.IsAscii(c)));
+            var name = (await svc.DownloadAsync(documentId))!.DosyaAdi;
+            Assert.Equal("sofor-kilavuzu.pdf", name);
+            Assert.All(name, c => Assert.True(char.IsAscii(c)));
         }
     }
 
@@ -263,8 +263,8 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
     {
         var platform = Platform();
         var tenantId = await TenantAsync();
-        var belgeId = await platform.BelgeYukleAsync("Büyük Kılavuz", null, "b.pdf", Pdf(4000), [], false, "op");
-        await platform.BelgeDurumAsync(belgeId, PlatformBelgeDurum.Yayinda, "op");
+        var documentId = await platform.UploadDocumentAsync("Büyük Kılavuz", null, "b.pdf", Pdf(4000), [], false, "op");
+        await platform.DocumentStatusAsync(documentId, PlatformBelgeDurum.Yayinda, "op");
 
         var sql = new List<string>();
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -274,12 +274,12 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
         var identity = new SystemTenantContext { TenantId = tenantId };
         var repo = new PlatformDocumentRepository(new ScopedAppDbContextFactory(options, identity, identity));
 
-        var liste = await repo.ListAsync(tenantId, isManager: true);
-        Assert.Contains(liste, x => x.Id == belgeId);
+        var list = await repo.ListAsync(tenantId, isManager: true);
+        Assert.Contains(list, x => x.Id == documentId);
 
-        var gidenSql = string.Join("\n", sql);
-        Assert.DoesNotContain("\"Bytes\"", gidenSql);   // dosya içeriği ÇEKİLMİYOR
-        Assert.Contains("\"Boyut\"", gidenSql);         // …ama üstveri çekiliyor (sorgu gerçekten koştu)
+        var sentSql = string.Join("\n", sql);
+        Assert.DoesNotContain("\"Bytes\"", sentSql);   // dosya içeriği ÇEKİLMİYOR
+        Assert.Contains("\"Boyut\"", sentSql);         // …ama üstveri çekiliyor (sorgu gerçekten koştu)
     }
 
     [Fact]
@@ -287,12 +287,12 @@ public sealed class BelgeMerkeziTests(PostgresFixture fx)
     {
         var platform = Platform();
         var tenantId = await TenantAsync();
-        var belgeId = await platform.BelgeYukleAsync("Geçici", null, "g.pdf", Pdf(), [tenantId], false, "op");
+        var documentId = await platform.UploadDocumentAsync("Geçici", null, "g.pdf", Pdf(), [tenantId], false, "op");
 
-        await platform.BelgeSilAsync(belgeId, "op");
+        await platform.DeleteDocumentAsync(documentId, "op");
 
         var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options;
         await using var db = new AppDbContext(options, NullTenantContext.Instance, NullCurrentUser.Instance);
-        Assert.Empty(await db.PlatformBelgeHedefler.Where(h => h.BelgeId == belgeId).ToListAsync());
+        Assert.Empty(await db.PlatformBelgeHedefler.Where(h => h.BelgeId == documentId).ToListAsync());
     }
 }

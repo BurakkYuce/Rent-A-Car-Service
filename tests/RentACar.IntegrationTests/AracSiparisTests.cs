@@ -41,7 +41,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         { Tedarikci = "ABC Otomotiv", Marka = "Toyota", Adet = 2, BirimFiyat = 500_000m });
 
         var s = await svc.GetAsync(id);
-        BelgeNoOracle.BeklenenlerdenBiri(13, 1, s!.No);   // 13 = AracSiparis
+        DocumentNoOracle.OneOfExpected(13, 1, s!.No);   // 13 = AracSiparis
         Assert.Equal(OrderStatus.Bekliyor, s.Durum);
         Assert.Equal(2, s.Adet);
 
@@ -89,16 +89,16 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Yetkili Bayi A.Ş." });
-        var kredi = await sp.GetRequiredService<VehicleLoanService>()
+        var loan = await sp.GetRequiredService<VehicleLoanService>()
             .CreateAsync(new AracKrediInput { BankaAdi = "Ziraat", KrediTutari = 900_000m, TaksitSayisi = 24 });
         var svc = sp.GetRequiredService<VehicleOrderService>();
 
         var id = await svc.CreateAsync(new AracSiparisInput
         {
             Tedarikci = "Yetkili Bayi",
-            TedarikciCariId = cari,
+            TedarikciCariId = account,
             SiparisTarihi = D(2026, 3, 10),
             ImzaTarih = D(2026, 3, 12),
             BeklenenTeslim = D(2026, 6, 15),
@@ -111,7 +111,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
             Renk = "Beyaz", IcRenk = "Siyah",
             KaynakTip = "ÖzMal", SatisTipi = "Sıfır",
             TsbKayitNo = "TSB-4455",
-            KrediId = kredi,
+            KrediId = loan,
             Adet = 3, BirimFiyat = 750_000m,
             PiyasaFiyat = 810_000m, OpsFiyat = 790_000m, FiloFiyat = 735_000m,
             Doviz = "eur", Kur = 37.5m,
@@ -119,8 +119,8 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         });
 
         var s = (await svc.GetAsync(id))!;
-        Assert.Equal(cari, s.TedarikciCariId);
-        Assert.Equal(kredi, s.KrediId);
+        Assert.Equal(account, s.TedarikciCariId);
+        Assert.Equal(loan, s.KrediId);
         Assert.Equal("DS-2026-17", s.DosyaNo);
         Assert.Equal(D(2026, 3, 12), s.ImzaTarih);
         Assert.Equal("Ahmet Yılmaz", s.SatisTemsilci);
@@ -194,14 +194,14 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         });
         await svc.ApproveAsync(id);   // durum güncellemeden ETKİLENMEMELİ
 
-        var yeni = new AracSiparisInput
+        var newItem = new AracSiparisInput
         {
             Tedarikci = "İkinci Bayi", Adet = 4, BirimFiyat = 250_000m, Doviz = "EUR", Kur = 38.25m,
             SiparisTarihi = D(2026, 2, 3), ImzaTarih = D(2026, 2, 5), BeklenenTeslim = D(2026, 9, 1),
             DosyaNo = "DS-B", Renk = "Gri", IcRenk = "Bej", Versiyon = "Premium",
             PiyasaFiyat = 260_000m, OpsFiyat = 255_000m, FiloFiyat = 248_000m, TsbKayitNo = "TSB-1"
         };
-        Assert.True(await svc.UpdateAsync(id, yeni));
+        Assert.True(await svc.UpdateAsync(id, newItem));
 
         var s1 = (await svc.GetAsync(id))!;
         Assert.Equal("İkinci Bayi", s1.Tedarikci);
@@ -215,7 +215,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         Assert.Equal("DS-B", s1.DosyaNo);
 
         // İKİNCİ kez AYNI giriş: hiçbir alan kaymamalı (tarih ±1 gün, döviz TRY'ye düşme vb.).
-        Assert.True(await svc.UpdateAsync(id, yeni));
+        Assert.True(await svc.UpdateAsync(id, newItem));
         var s2 = (await svc.GetAsync(id))!;
         Assert.Equal(s1.SiparisTarihi, s2.SiparisTarihi);
         Assert.Equal(s1.ImzaTarih, s2.ImzaTarih);
@@ -299,17 +299,17 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kredi = await sp.GetRequiredService<VehicleLoanService>()
+        var loan = await sp.GetRequiredService<VehicleLoanService>()
             .CreateAsync(new AracKrediInput { BankaAdi = "Vakıf", KrediTutari = 500_000m, TaksitSayisi = 12 });
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Bayi A.Ş." });
         var svc = sp.GetRequiredService<VehicleOrderService>();
 
         var id = await svc.CreateAsync(new AracSiparisInput
-        { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 100m, KrediId = kredi, TedarikciCariId = cari });
+        { Tedarikci = "Bayi", Adet = 1, BirimFiyat = 100m, KrediId = loan, TedarikciCariId = account });
         var s = (await svc.GetAsync(id))!;
-        Assert.Equal(kredi, s.KrediId);
-        Assert.Equal(cari, s.TedarikciCariId);
+        Assert.Equal(loan, s.KrediId);
+        Assert.Equal(account, s.TedarikciCariId);
 
         // Olmayan kredi → FK ihlali ValidationException'a çevrilir.
         await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(new AracSiparisInput
@@ -333,17 +333,17 @@ public sealed class AracSiparisTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var a = Guid.NewGuid();
-        Guid krediA;
+        Guid loanA;
         using (var sa = host.ScopeFor(a))
         {
-            krediA = await sa.ServiceProvider.GetRequiredService<VehicleLoanService>()
+            loanA = await sa.ServiceProvider.GetRequiredService<VehicleLoanService>()
                 .CreateAsync(new AracKrediInput { BankaAdi = "A Bank", KrediTutari = 100_000m, TaksitSayisi = 6 });
         }
 
         using var sb = host.ScopeFor(Guid.NewGuid());
         await Assert.ThrowsAsync<ValidationException>(() =>
             sb.ServiceProvider.GetRequiredService<VehicleOrderService>().CreateAsync(new AracSiparisInput
-            { Tedarikci = "B Bayi", Adet = 1, BirimFiyat = 10m, KrediId = krediA }));
+            { Tedarikci = "B Bayi", Adet = 1, BirimFiyat = 10m, KrediId = loanA }));
     }
 
     // ------------------------------------------------------------------ liste süzgeci
@@ -361,13 +361,13 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariX = await sp.GetRequiredService<CustomerService>()
+        var accountX = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Zümrüt Filo A.Ş." });
         var svc = sp.GetRequiredService<VehicleOrderService>();
 
         await svc.CreateAsync(new AracSiparisInput
         {
-            Tedarikci = "Alfa Otomotiv", TedarikciCariId = cariX, SiparisTarihi = D(2026, 1, 10),
+            Tedarikci = "Alfa Otomotiv", TedarikciCariId = accountX, SiparisTarihi = D(2026, 1, 10),
             Adet = 1, BirimFiyat = 100m, TsbKayitNo = "34ABC01", Marka = "Fiat"
         });
         await svc.CreateAsync(new AracSiparisInput
@@ -382,7 +382,7 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         });
 
         Assert.Equal(3, (await svc.SearchAsync()).Count);                                        // süzgeçsiz
-        Assert.Single(await svc.SearchAsync(new AracSiparisFilter { CariId = cariX }));          // 1: cari X
+        Assert.Single(await svc.SearchAsync(new AracSiparisFilter { CariId = accountX }));          // 1: cari X
         Assert.Equal(2, (await svc.SearchAsync(new AracSiparisFilter { Ara = "alfa" })).Count);  // 1+3 (harf-duyarsız)
         // Cari ÜNVANINDAN arama: serbest metin tedarikçide "Zümrüt" geçmiyor, yalnız cari kartında.
         Assert.Single(await svc.SearchAsync(new AracSiparisFilter { Ara = "Zümrüt" }));
@@ -410,9 +410,9 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         }
 
         // Muhasebe'de OperationsWrite YOK → yazma reddedilir, okuma (ViewReports/FinanceWrite) serbest.
-        using (var muhasebe = host.ScopeFor(tenant, role: UserRole.Muhasebe))
+        using (var accounting = host.ScopeFor(tenant, role: UserRole.Muhasebe))
         {
-            var svc = muhasebe.ServiceProvider.GetRequiredService<VehicleOrderService>();
+            var svc = accounting.ServiceProvider.GetRequiredService<VehicleOrderService>();
             Assert.Single(await svc.SearchAsync());
             await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(
                 new AracSiparisInput { Tedarikci = "X", Adet = 1, BirimFiyat = 1m }));
@@ -442,45 +442,45 @@ public sealed class AracSiparisTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
 
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Sipariş Bayisi A.Ş." });
         // Cariye GERÇEK bir para hareketi: defterin "önce" fotoğrafı bu olur.
         await sp.GetRequiredService<CashService>().CollectAsync(new CashInput
-        { CariId = cari, Tutar = 700m, Hesap = LedgerAccountType.Kasa });
+        { CariId = account, Tutar = 700m, Hesap = LedgerAccountType.Kasa });
 
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        async Task<int> SatirSayisiAsync()
+        async Task<int> RowCountAsync()
         {
             await using var c = await factory.CreateDbContextAsync();
             return await c.AccountLedgerEntries.AsNoTracking().CountAsync();
         }
-        async Task<decimal> BakiyeAsync()
+        async Task<decimal> BalanceAsync()
             => (await sp.GetRequiredService<ReportService>().GetAccountBalancesAsync())
-                .Where(b => b.CariId == cari).Sum(b => b.Bakiye);
+                .Where(b => b.CariId == account).Sum(b => b.Bakiye);
 
-        var satirOnce = await SatirSayisiAsync();
-        var bakiyeOnce = await BakiyeAsync();
-        Assert.Equal(2, satirOnce);        // tahsilat = 1 borç + 1 alacak
-        Assert.Equal(-700m, bakiyeOnce);   // müşteri alacaklı (Credit → negatif)
+        var rowBefore = await RowCountAsync();
+        var balanceBefore = await BalanceAsync();
+        Assert.Equal(2, rowBefore);        // tahsilat = 1 borç + 1 alacak
+        Assert.Equal(-700m, balanceBefore);   // müşteri alacaklı (Credit → negatif)
 
-        var kredi = await sp.GetRequiredService<VehicleLoanService>()
+        var loan = await sp.GetRequiredService<VehicleLoanService>()
             .CreateAsync(new AracKrediInput { BankaAdi = "Halk", KrediTutari = 1_000_000m, TaksitSayisi = 24 });
         var svc = sp.GetRequiredService<VehicleOrderService>();
         var id = await svc.CreateAsync(new AracSiparisInput
         {
-            Tedarikci = "Sipariş Bayisi", TedarikciCariId = cari, KrediId = kredi,
+            Tedarikci = "Sipariş Bayisi", TedarikciCariId = account, KrediId = loan,
             Adet = 2, BirimFiyat = 400_000m,
             PiyasaFiyat = 987_654_321m, OpsFiyat = 123_456_789m, FiloFiyat = 555_555_555m
         });
         await svc.UpdateAsync(id, new AracSiparisInput
         {
-            Tedarikci = "Sipariş Bayisi", TedarikciCariId = cari, KrediId = kredi,
+            Tedarikci = "Sipariş Bayisi", TedarikciCariId = account, KrediId = loan,
             Adet = 2, BirimFiyat = 400_000m,
             PiyasaFiyat = 999_999_999m, OpsFiyat = 888_888_888m, FiloFiyat = 777_777_777m
         });
 
-        Assert.Equal(satirOnce, await SatirSayisiAsync());   // defter büyümedi
-        Assert.Equal(bakiyeOnce, await BakiyeAsync());       // cari bakiye kıpırdamadı
+        Assert.Equal(rowBefore, await RowCountAsync());   // defter büyümedi
+        Assert.Equal(balanceBefore, await BalanceAsync());       // cari bakiye kıpırdamadı
 
         var s = (await svc.GetAsync(id))!;
         Assert.Equal(800_000m, s.Adet * s.BirimFiyat);       // resmi toplam katmanlardan ETKİLENMEZ

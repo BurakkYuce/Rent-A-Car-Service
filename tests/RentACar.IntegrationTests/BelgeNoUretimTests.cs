@@ -34,17 +34,17 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         await using var db = await CtxAsync(fx, tenant);
 
-        var uretilen = new List<string>();
+        var generated = new List<string>();
         for (var i = 0; i < 5; i++)
         {
             await using var tx = await db.Database.BeginTransactionAsync();
-            uretilen.Add(await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default));
+            generated.Add(await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default));
             await tx.CommitAsync();
         }
 
         for (var i = 0; i < 5; i++)
-            BelgeNoOracle.BeklenenlerdenBiri(1, i + 1, uretilen[i]);
-        Assert.Equal(5, uretilen.Distinct().Count());
+            DocumentNoOracle.OneOfExpected(1, i + 1, generated[i]);
+        Assert.Equal(5, generated.Distinct().Count());
     }
 
     [Fact]
@@ -54,15 +54,15 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
         await using var db = await CtxAsync(fx, tenant);
 
         await using var tx = await db.Database.BeginTransactionAsync();
-        var kira = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default);
-        var rez = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Rezervasyon, default);
-        var tahsilat = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Tahsilat, default);
+        var rental = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default);
+        var res = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Rezervasyon, default);
+        var collection = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Tahsilat, default);
         await tx.CommitAsync();
 
         // Her tip KENDİ sayacına sahip → hepsi o günün 001'i olmalı.
-        BelgeNoOracle.BeklenenlerdenBiri(1, 1, kira);
-        BelgeNoOracle.BeklenenlerdenBiri(2, 1, rez);
-        BelgeNoOracle.BeklenenlerdenBiri(5, 1, tahsilat);
+        DocumentNoOracle.OneOfExpected(1, 1, rental);
+        DocumentNoOracle.OneOfExpected(2, 1, res);
+        DocumentNoOracle.OneOfExpected(5, 1, collection);
     }
 
     [Fact]
@@ -76,8 +76,8 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
         var td = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Tediye, default);
         await tx.CommitAsync();
 
-        BelgeNoOracle.BeklenenlerdenBiri(5, 1, th);
-        BelgeNoOracle.BeklenenlerdenBiri(6, 1, td);
+        DocumentNoOracle.OneOfExpected(5, 1, th);
+        DocumentNoOracle.OneOfExpected(6, 1, td);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
         await using (var tx = await db.Database.BeginTransactionAsync())
         {
             var no = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Gider, default);
-            BelgeNoOracle.BeklenenlerdenBiri(7, 1, no);
+            DocumentNoOracle.OneOfExpected(7, 1, no);
             await tx.CommitAsync();
         }
     }
@@ -108,7 +108,7 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         const int n = 8;
 
-        var gorevler = Enumerable.Range(0, n).Select(async _ =>
+        var tasks = Enumerable.Range(0, n).Select(async _ =>
         {
             await using var db = await CtxAsync(fx, tenant);
             await using var tx = await db.Database.BeginTransactionAsync();
@@ -117,10 +117,10 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
             return no;
         });
 
-        var numaralar = await Task.WhenAll(gorevler);
-        Assert.Equal(n, numaralar.Distinct().Count());          // çift numara YOK
-        var siralar = numaralar.Select(x => int.Parse(x[10..])).OrderBy(x => x).ToList();
-        Assert.Equal(Enumerable.Range(1, n), siralar);          // boşluk da YOK
+        var numbers = await Task.WhenAll(tasks);
+        Assert.Equal(n, numbers.Distinct().Count());          // çift numara YOK
+        var orders = numbers.Select(x => int.Parse(x[10..])).OrderBy(x => x).ToList();
+        Assert.Equal(Enumerable.Range(1, n), orders);          // boşluk da YOK
     }
 
     [Fact]
@@ -134,21 +134,21 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
         await using var dbA = await CtxAsync(fx, a);
         await using (var tx = await dbA.Database.BeginTransactionAsync())
         {
-            Assert.Equal(BelgeNoOracle.Bekle(1, 1),
-                await DocumentNoGenerator.GenerateAsync(dbA, a, DocumentNoType.KiraSozlesmesi, default, now: Sabit()));
+            Assert.Equal(DocumentNoOracle.Wait(1, 1),
+                await DocumentNoGenerator.GenerateAsync(dbA, a, DocumentNoType.KiraSozlesmesi, default, now: Fixed()));
             await tx.CommitAsync();
         }
 
         await using var dbB = await CtxAsync(fx, b);
         await using (var tx = await dbB.Database.BeginTransactionAsync())
         {
-            Assert.Equal(BelgeNoOracle.Bekle(1, 1),
-                await DocumentNoGenerator.GenerateAsync(dbB, b, DocumentNoType.KiraSozlesmesi, default, now: Sabit()));
+            Assert.Equal(DocumentNoOracle.Wait(1, 1),
+                await DocumentNoGenerator.GenerateAsync(dbB, b, DocumentNoType.KiraSozlesmesi, default, now: Fixed()));
             await tx.CommitAsync();
         }
 
         // Sabit "şimdi" ile çağırdık → gün dönümü yarışı yok, iki numara BİREBİR aynı.
-        static DateTimeOffset Sabit() => DateTimeOffset.UtcNow;
+        static DateTimeOffset Fixed() => DateTimeOffset.UtcNow;
     }
 
     [Fact]
@@ -157,19 +157,19 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         await using var db = await CtxAsync(fx, tenant);
 
-        var gun1 = new DateTimeOffset(2026, 3, 10, 9, 0, 0, TimeSpan.Zero);
-        var gun2 = gun1.AddDays(1);
+        var day1 = new DateTimeOffset(2026, 3, 10, 9, 0, 0, TimeSpan.Zero);
+        var day2 = day1.AddDays(1);
 
         await using (var tx = await db.Database.BeginTransactionAsync())
         {
-            Assert.Equal("2026100301001", await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default, now: gun1));
-            Assert.Equal("2026100301002", await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default, now: gun1));
+            Assert.Equal("2026100301001", await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default, now: day1));
+            Assert.Equal("2026100301002", await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default, now: day1));
             await tx.CommitAsync();
         }
         await using (var tx = await db.Database.BeginTransactionAsync())
         {
             // Ertesi gün 001'e döner — sıfırlama KODU yok, anahtardaki tarih bunu kendiliğinden yapar.
-            Assert.Equal("2026110301001", await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default, now: gun2));
+            Assert.Equal("2026110301001", await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.KiraSozlesmesi, default, now: day2));
             await tx.CommitAsync();
         }
     }
@@ -182,10 +182,10 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
         // 21:00 UTC = ertesi gün 00:00 İstanbul.
         var tenant = Guid.NewGuid();
         await using var db = await CtxAsync(fx, tenant);
-        var sinir = new DateTimeOffset(2026, 5, 20, 21, 0, 0, TimeSpan.Zero);   // İstanbul 21 Mayıs 00:00
+        var limit = new DateTimeOffset(2026, 5, 20, 21, 0, 0, TimeSpan.Zero);   // İstanbul 21 Mayıs 00:00
 
         await using var tx = await db.Database.BeginTransactionAsync();
-        var no = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Ceza, default, now: sinir);
+        var no = await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Ceza, default, now: limit);
         await tx.CommitAsync();
 
         // 21 Mayıs 2026, ceza (08), sıra 1 → 2026 21 05 08 001
@@ -193,7 +193,7 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
 
         // Aynı sınır anı için ikinci çağrı 002 vermeli (anahtar da metin de AYNI güne bakıyor).
         await using var tx2 = await db.Database.BeginTransactionAsync();
-        Assert.Equal("2026210508002", await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Ceza, default, now: sinir));
+        Assert.Equal("2026210508002", await DocumentNoGenerator.GenerateAsync(db, tenant, DocumentNoType.Ceza, default, now: limit));
         await tx2.CommitAsync();
     }
 
@@ -209,7 +209,7 @@ public sealed class BelgeNoUretimTests(PostgresFixture fx)
         await tx.CommitAsync();
 
         // Ayar satırı yok → varsayılan seri. Numara 16 hane, seri + yıl + 9 haneli sıra.
-        Assert.Equal(BelgeNoOracle.FaturaBekle(DocumentNo.DefaultSeries, 1), no);
+        Assert.Equal(DocumentNoOracle.ExpectInvoice(DocumentNo.DefaultSeries, 1), no);
         Assert.Equal(16, no.Length);
     }
 

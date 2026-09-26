@@ -24,62 +24,62 @@ namespace RentACar.IntegrationTests;
 public sealed class LowTemizligiBUiTests(WebFixture fx)
 {
     private const string V1 = "/api/ui/v1";
-    private const string Kira = V1 + "/kiralar";
+    private const string Rental = V1 + "/kiralar";
     private static readonly TimeSpan Ist = TimeSpan.FromHours(3);
 
     private sealed record Ortam(Guid TenantId, string Kod, string Kullanici, string Sifre, Guid MusteriId, Guid GpsId);
     private sealed record Oturum(HttpClient C, string Xsrf);
 
-    private static string Rastgele(string onek) => onek + Guid.NewGuid().ToString("N")[..10];
-    private static DateTimeOffset Simdi() => DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+    private static string RandomText(string prefix) => prefix + Guid.NewGuid().ToString("N")[..10];
+    private static DateTimeOffset Now() => DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
-    private async Task<Ortam> OrtamKurAsync()
+    private async Task<Ortam> SetUpEnvironmentAsync()
     {
         var tenant = Guid.NewGuid();
-        var kod = Rastgele("lowb");
-        var ad = Rastgele("u");
-        var sifre = WebFixture.RastgeleParola();
+        var code = RandomText("lowb");
+        var name = RandomText("u");
+        var password = WebFixture.RandomPassword();
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
         await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
         {
-            db.Tenants.Add(new Tenant { Id = tenant, Code = kod, Name = kod, IsActive = true });
-            var u = new User { TenantId = tenant, UserName = ad, DisplayName = ad, Rol = UserRole.Admin, IsActive = true };
-            u.PasswordHash = fx.Web.Services.GetRequiredService<IPasswordHasher<User>>().HashPassword(u, sifre);
+            db.Tenants.Add(new Tenant { Id = tenant, Code = code, Name = code, IsActive = true });
+            var u = new User { TenantId = tenant, UserName = name, DisplayName = name, Rol = UserRole.Admin, IsActive = true };
+            u.PasswordHash = fx.Web.Services.GetRequiredService<IPasswordHasher<User>>().HashPassword(u, password);
             db.Users.Add(u);
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(tenant, true);
-        var musteri = new Customer { Tip = CustomerType.Bireysel, Ad = "Ece", Soyad = "Kaya" };
+        await fx.MakePilotAsync(tenant, true);
+        var customer = new Customer { Tip = CustomerType.Bireysel, Ad = "Ece", Soyad = "Kaya" };
         var gps = new EkHizmetTanim { Kod = "GPS", Ad = "Navigasyon", BirimUcret = 50m, KdvOrani = 0.20m, Aktif = true };
-        await VeriYazAsync(tenant, db => { db.Customers.Add(musteri); db.EkHizmetTanimlari.Add(gps); });
-        return new Ortam(tenant, kod, ad, sifre, musteri.Id, gps.Id);
+        await WriteDataAsync(tenant, db => { db.Customers.Add(customer); db.EkHizmetTanimlari.Add(gps); });
+        return new Ortam(tenant, code, name, password, customer.Id, gps.Id);
     }
 
-    private async Task VeriYazAsync(Guid tenantId, Action<AppDbContext> yaz)
+    private async Task WriteDataAsync(Guid tenantId, Action<AppDbContext> write)
     {
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(tenantId);
         await using var db = await scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
-        yaz(db);
+        write(db);
         await db.SaveChangesAsync();
     }
 
-    private async Task<Guid> AracAsync(Ortam o)
+    private async Task<Guid> VehicleAsync(Ortam o)
     {
         var v = new Vehicle
         {
             Plaka = "34 LB " + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant(), Marka = "Fiat", Tip = "Egea",
             Grup = "C", Sube = "SubeA", Durum = VehicleStatus.Musait, Km = 1000
         };
-        await VeriYazAsync(o.TenantId, db => db.Vehicles.Add(v));
+        await WriteDataAsync(o.TenantId, db => db.Vehicles.Add(v));
         return v.Id;
     }
 
-    private async Task<Oturum> GirisAsync(Ortam o)
+    private async Task<Oturum> LoginAsync(Ortam o)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var x = await c.GetAsync(V1 + "/oturum/xsrf");
-        var once = CerezDegeri(x, "XSRF-TOKEN")!;
+        var once = CookieValue(x, "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         {
             Content = JsonContent.Create(new { firma = o.Kod, kullanici = o.Kullanici, sifre = o.Sifre }),
@@ -87,61 +87,61 @@ public sealed class LowTemizligiBUiTests(WebFixture fx)
         req.Headers.Add("X-XSRF-TOKEN", once);
         var r = await c.SendAsync(req);
         Assert.True(r.StatusCode == HttpStatusCode.OK, $"giriş başarısız: {await r.Content.ReadAsStringAsync()}");
-        return new Oturum(c, CerezDegeri(r, "XSRF-TOKEN")!);
+        return new Oturum(c, CookieValue(r, "XSRF-TOKEN")!);
     }
 
-    private static string? CerezDegeri(HttpResponseMessage r, string ad)
+    private static string? CookieValue(HttpResponseMessage r, string name)
     {
-        if (!r.Headers.TryGetValues("Set-Cookie", out var degerler)) return null;
-        foreach (var d in degerler)
-            if (d.StartsWith(ad + "=", StringComparison.Ordinal))
-                return Uri.UnescapeDataString(d[(ad.Length + 1)..].Split(';')[0]);
+        if (!r.Headers.TryGetValues("Set-Cookie", out var values)) return null;
+        foreach (var d in values)
+            if (d.StartsWith(name + "=", StringComparison.Ordinal))
+                return Uri.UnescapeDataString(d[(name.Length + 1)..].Split(';')[0]);
         return null;
     }
 
-    private static Task<HttpResponseMessage> Gonder(Oturum s, HttpMethod m, string url, object? govde = null, string? idem = null)
+    private static Task<HttpResponseMessage> Gonder(Oturum s, HttpMethod m, string url, object? body = null, string? idem = null)
     {
         var req = new HttpRequestMessage(m, url);
         req.Headers.Add("X-XSRF-TOKEN", s.Xsrf);
         if (idem is not null) req.Headers.Add("Idempotency-Key", idem);
-        if (govde is not null) req.Content = JsonContent.Create(govde);
+        if (body is not null) req.Content = JsonContent.Create(body);
         return s.C.SendAsync(req);
     }
 
-    private static async Task<JsonElement> Json(HttpResponseMessage r, HttpStatusCode beklenen = HttpStatusCode.OK)
+    private static async Task<JsonElement> Json(HttpResponseMessage r, HttpStatusCode expected = HttpStatusCode.OK)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(r.StatusCode == beklenen, $"Beklenen {(int)beklenen}, gelen {(int)r.StatusCode}: {metin}");
-        return JsonDocument.Parse(metin).RootElement.Clone();
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(r.StatusCode == expected, $"Beklenen {(int)expected}, gelen {(int)r.StatusCode}: {text}");
+        return JsonDocument.Parse(text).RootElement.Clone();
     }
 
-    private static async Task<JsonElement> ProblemBekle(HttpResponseMessage r, HttpStatusCode durum, string kod)
+    private static async Task<JsonElement> ExpectProblem(HttpResponseMessage r, HttpStatusCode status, string code)
     {
-        var kok = await Json(r, durum);
-        Assert.Equal(kod, kok.GetProperty("kod").GetString());
-        return kok;
+        var root = await Json(r, status);
+        Assert.Equal(code, root.GetProperty("kod").GetString());
+        return root;
     }
 
-    private static string YeniAnahtar() => "lowb-" + Guid.NewGuid().ToString("N");
+    private static string NewKey() => "lowb-" + Guid.NewGuid().ToString("N");
 
-    /// <summary>3 gün × 100 net "Günlük" kira; <paramref name="bas"/> ofsetiyle gönderilir.</summary>
-    private static async Task<Guid> KiraAcAsync(Oturum s, Ortam o, Guid arac, DateTimeOffset bas)
+    /// <summary>3 gün × 100 net "Günlük" kira; <paramref name="start"/> ofsetiyle gönderilir.</summary>
+    private static async Task<Guid> OpenRentalAsync(Oturum s, Ortam o, Guid vehicle, DateTimeOffset start)
     {
-        var j = await Json(await Gonder(s, HttpMethod.Post, Kira, new
+        var j = await Json(await Gonder(s, HttpMethod.Post, Rental, new
         {
-            musteriId = o.MusteriId, vehicleId = arac, basTar = bas, bitTar = bas.AddDays(3),
+            musteriId = o.MusteriId, vehicleId = vehicle, basTar = start, bitTar = start.AddDays(3),
             gunlukUcret = 100m, fiyatTuru = "Günlük", cikisOfisi = "SubeA", donusOfisi = "SubeA",
         }), HttpStatusCode.Created);
         return j.GetProperty("id").GetGuid();
     }
 
-    private static decimal Dec(JsonElement e, string ad) => e.GetProperty(ad).GetDecimal();
+    private static decimal Dec(JsonElement e, string name) => e.GetProperty(name).GetDecimal();
 
-    private static string EkUrl(Guid kira) => $"{Kira}/{kira}/ek-hizmetler";
+    private static string AppendUrl(Guid rental) => $"{Rental}/{rental}/ek-hizmetler";
 
-    private static async Task<(int Kalem, decimal Genel)> KiraDurumuAsync(Oturum s, Guid kira)
+    private static async Task<(int Kalem, decimal Genel)> RentalStatusAsync(Oturum s, Guid rental)
     {
-        var d = await Json(await s.C.GetAsync($"{Kira}/{kira}"));
+        var d = await Json(await s.C.GetAsync($"{Rental}/{rental}"));
         return (d.GetProperty("ekHizmetler").GetArrayLength(), Dec(d.GetProperty("kira"), "genelToplam"));
     }
 
@@ -150,60 +150,60 @@ public sealed class LowTemizligiBUiTests(WebFixture fx)
     [Fact]
     public async Task Ek_hizmet_basliksiz_400_ayni_anahtar_ikinci_kez_409_mevcut_ile_tek_kalem()
     {
-        var o = await OrtamKurAsync();
-        var s = await GirisAsync(o);
-        var kira = await KiraAcAsync(s, o, await AracAsync(o), Simdi().AddHours(8));
-        var govde = new { ekHizmetTanimId = o.GpsId, miktar = 2m };
+        var o = await SetUpEnvironmentAsync();
+        var s = await LoginAsync(o);
+        var rental = await OpenRentalAsync(s, o, await VehicleAsync(o), Now().AddHours(8));
+        var body = new { ekHizmetTanimId = o.GpsId, miktar = 2m };
 
         // Başlıksız: 400 errors[Idempotency-Key], hiçbir şey yazılmaz.
-        var p = await ProblemBekle(await Gonder(s, HttpMethod.Post, EkUrl(kira), govde), HttpStatusCode.BadRequest, UiHata.Dogrulama);
+        var p = await ExpectProblem(await Gonder(s, HttpMethod.Post, AppendUrl(rental), body), HttpStatusCode.BadRequest, UiError.Validation);
         Assert.True(p.GetProperty("errors").TryGetProperty("Idempotency-Key", out _), p.ToString());
-        Assert.Equal((0, 360m), await KiraDurumuAsync(s, kira));
+        Assert.Equal((0, 360m), await RentalStatusAsync(s, rental));
 
-        var anahtar = YeniAnahtar();
-        var ilk = await Json(await Gonder(s, HttpMethod.Post, EkUrl(kira), govde, anahtar));
-        Assert.Equal(480m, Dec(ilk.GetProperty("kira"), "genelToplam"));
-        var kalemId = ilk.GetProperty("kalemler")[0].GetProperty("id").GetGuid();
+        var key = NewKey();
+        var first = await Json(await Gonder(s, HttpMethod.Post, AppendUrl(rental), body, key));
+        Assert.Equal(480m, Dec(first.GetProperty("kira"), "genelToplam"));
+        var itemId = first.GetProperty("kalemler")[0].GetProperty("id").GetGuid();
 
         // Kaybolan yanıttan sonraki birebir tekrar: 409 mukerrer + mevcut{ayniIcerik=true}; ikinci kalem YOK.
-        var tekrar = await ProblemBekle(await Gonder(s, HttpMethod.Post, EkUrl(kira), govde, anahtar), HttpStatusCode.Conflict, UiHata.Mukerrer);
-        var mevcut = tekrar.GetProperty("mevcut");
-        Assert.Equal(kalemId, mevcut.GetProperty("id").GetGuid());
-        Assert.True(mevcut.GetProperty("ayniIcerik").GetBoolean());
-        Assert.Equal(120m, Dec(mevcut, "tutar"));
+        var repeat = await ExpectProblem(await Gonder(s, HttpMethod.Post, AppendUrl(rental), body, key), HttpStatusCode.Conflict, UiError.Duplicate);
+        var existing = repeat.GetProperty("mevcut");
+        Assert.Equal(itemId, existing.GetProperty("id").GetGuid());
+        Assert.True(existing.GetProperty("ayniIcerik").GetBoolean());
+        Assert.Equal(120m, Dec(existing, "tutar"));
 
         // Aynı anahtar, farklı miktar: 409 + ayniIcerik=false; gelen kalem YAZILMADI.
-        var farkli = await ProblemBekle(await Gonder(s, HttpMethod.Post, EkUrl(kira), new { ekHizmetTanimId = o.GpsId, miktar = 5m }, anahtar),
-            HttpStatusCode.Conflict, UiHata.Mukerrer);
-        Assert.False(farkli.GetProperty("mevcut").GetProperty("ayniIcerik").GetBoolean());
-        Assert.Equal((1, 480m), await KiraDurumuAsync(s, kira));
+        var different = await ExpectProblem(await Gonder(s, HttpMethod.Post, AppendUrl(rental), new { ekHizmetTanimId = o.GpsId, miktar = 5m }, key),
+            HttpStatusCode.Conflict, UiError.Duplicate);
+        Assert.False(different.GetProperty("mevcut").GetProperty("ayniIcerik").GetBoolean());
+        Assert.Equal((1, 480m), await RentalStatusAsync(s, rental));
 
         // Yeni anahtar = meşru ikinci kalem (1 × 60 brüt) → 540.
-        await Json(await Gonder(s, HttpMethod.Post, EkUrl(kira), new { ekHizmetTanimId = o.GpsId, miktar = 1m }, YeniAnahtar()));
-        Assert.Equal((2, 540m), await KiraDurumuAsync(s, kira));
+        await Json(await Gonder(s, HttpMethod.Post, AppendUrl(rental), new { ekHizmetTanimId = o.GpsId, miktar = 1m }, NewKey()));
+        Assert.Equal((2, 540m), await RentalStatusAsync(s, rental));
     }
 
     [Fact]
     public async Task Ek_hizmet_eszamanli_ayni_anahtar_tek_kalem_ve_baska_kira_mevcut_sizdirmaz()
     {
-        var o = await OrtamKurAsync();
-        var s = await GirisAsync(o);
-        var kira = await KiraAcAsync(s, o, await AracAsync(o), Simdi().AddHours(8));
-        var baska = await KiraAcAsync(s, o, await AracAsync(o), Simdi().AddHours(8));
-        var anahtar = YeniAnahtar();
+        var o = await SetUpEnvironmentAsync();
+        var s = await LoginAsync(o);
+        var rental = await OpenRentalAsync(s, o, await VehicleAsync(o), Now().AddHours(8));
+        var other = await OpenRentalAsync(s, o, await VehicleAsync(o), Now().AddHours(8));
+        var key = NewKey();
 
-        var yanitlar = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ =>
-            Gonder(s, HttpMethod.Post, EkUrl(kira), new { ekHizmetTanimId = o.GpsId, miktar = 1m }, anahtar)));
-        var kodlar = yanitlar.Select(r => r.StatusCode).ToList();
-        Assert.Equal(1, kodlar.Count(k => k == HttpStatusCode.OK));
-        Assert.All(kodlar.Where(k => k != HttpStatusCode.OK), k => Assert.Equal(HttpStatusCode.Conflict, k));
-        Assert.Equal((1, 420m), await KiraDurumuAsync(s, kira)); // 360 + 60
+        var responses = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ =>
+            Gonder(s, HttpMethod.Post, AppendUrl(rental), new { ekHizmetTanimId = o.GpsId, miktar = 1m }, key)));
+        var codes = responses.Select(r => r.StatusCode).ToList();
+        Assert.Equal(1, codes.Count(k => k == HttpStatusCode.OK));
+        Assert.All(codes.Where(k => k != HttpStatusCode.OK), k => Assert.Equal(HttpStatusCode.Conflict, k));
+        Assert.Equal((1, 420m), await RentalStatusAsync(s, rental)); // 360 + 60
 
         // Aynı anahtar BAŞKA kirada: 409, mevcut YOK (öbür kiranın kalemi sızmaz), başka kiraya yazılmaz.
-        var p = await ProblemBekle(await Gonder(s, HttpMethod.Post, EkUrl(baska), new { ekHizmetTanimId = o.GpsId, miktar = 1m }, anahtar),
-            HttpStatusCode.Conflict, UiHata.Mukerrer);
+        var p = await ExpectProblem(await Gonder(s, HttpMethod.Post, AppendUrl(other), new { ekHizmetTanimId = o.GpsId, miktar = 1m }, key),
+            HttpStatusCode.Conflict, UiError.Duplicate);
         Assert.False(p.TryGetProperty("mevcut", out var m) && m.ValueKind != JsonValueKind.Null, p.ToString());
-        Assert.Equal((0, 360m), await KiraDurumuAsync(s, baska));
+        Assert.Equal((0, 360m), await RentalStatusAsync(s, other));
     }
 
     // ------------------------------------------------------------ (5) +03:00 ofsetli tarih → 500 değil
@@ -211,39 +211,39 @@ public sealed class LowTemizligiBUiTests(WebFixture fx)
     [Fact]
     public async Task Ofsetli_tarih_nakit_tahsilat_ve_odeme_500_vermez_an_korunur()
     {
-        var o = await OrtamKurAsync();
-        var s = await GirisAsync(o);
-        var an = Simdi().AddHours(-2);
-        var yerel = an.ToOffset(Ist); // aynı an, "+03:00" ile
+        var o = await SetUpEnvironmentAsync();
+        var s = await LoginAsync(o);
+        var an = Now().AddHours(-2);
+        var local = an.ToOffset(Ist); // aynı an, "+03:00" ile
 
-        foreach (var uc in new[] { "/finans/tahsilat", "/finans/odeme" })
+        foreach (var endpoint in new[] { "/finans/tahsilat", "/finans/odeme" })
         {
-            var r = await Gonder(s, HttpMethod.Post, V1 + uc,
-                new { cariId = o.MusteriId, tutar = 10m, hesap = "Kasa", tarih = yerel }, YeniAnahtar());
+            var r = await Gonder(s, HttpMethod.Post, V1 + endpoint,
+                new { cariId = o.MusteriId, tutar = 10m, hesap = "Kasa", tarih = local }, NewKey());
             await Json(r);
         }
 
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(o.TenantId);
         await using var db = await scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
-        var tarihler = await db.CashTransactions.AsNoTracking().Where(t => t.CariId == o.MusteriId).Select(t => t.Tarih).ToListAsync();
-        Assert.Equal(2, tarihler.Count);
-        Assert.All(tarihler, t => Assert.Equal(an.UtcDateTime, t.UtcDateTime)); // an kaymadı (3 saat hatası yok)
+        var dates = await db.CashTransactions.AsNoTracking().Where(t => t.CariId == o.MusteriId).Select(t => t.Tarih).ToListAsync();
+        Assert.Equal(2, dates.Count);
+        Assert.All(dates, t => Assert.Equal(an.UtcDateTime, t.UtcDateTime)); // an kaymadı (3 saat hatası yok)
     }
 
     [Fact]
     public async Task Ofsetli_tarih_kira_olustur_teslim_uzat_donus_500_vermez()
     {
-        var o = await OrtamKurAsync();
-        var s = await GirisAsync(o);
-        var bas = Simdi().AddHours(-1);
-        var kira = await KiraAcAsync(s, o, await AracAsync(o), bas.ToOffset(Ist));
-        var d = await Json(await s.C.GetAsync($"{Kira}/{kira}"));
-        Assert.Equal(bas.UtcDateTime, d.GetProperty("kira").GetProperty("basTar").GetDateTimeOffset().UtcDateTime);
+        var o = await SetUpEnvironmentAsync();
+        var s = await LoginAsync(o);
+        var start = Now().AddHours(-1);
+        var rental = await OpenRentalAsync(s, o, await VehicleAsync(o), start.ToOffset(Ist));
+        var d = await Json(await s.C.GetAsync($"{Rental}/{rental}"));
+        Assert.Equal(start.UtcDateTime, d.GetProperty("kira").GetProperty("basTar").GetDateTimeOffset().UtcDateTime);
 
-        await Json(await Gonder(s, HttpMethod.Post, $"{Kira}/{kira}/teslim", new { cikisKm = 1000, cikisYakit = 8 }));
-        await Json(await Gonder(s, HttpMethod.Post, $"{Kira}/{kira}/uzat", new { yeniBitTar = bas.AddDays(4).ToOffset(Ist) }));
-        await Json(await Gonder(s, HttpMethod.Post, $"{Kira}/{kira}/donus",
-            new { donusKm = 1100, donusYakit = 8, gercekDonus = Simdi().ToOffset(Ist) }));
+        await Json(await Gonder(s, HttpMethod.Post, $"{Rental}/{rental}/teslim", new { cikisKm = 1000, cikisYakit = 8 }));
+        await Json(await Gonder(s, HttpMethod.Post, $"{Rental}/{rental}/uzat", new { yeniBitTar = start.AddDays(4).ToOffset(Ist) }));
+        await Json(await Gonder(s, HttpMethod.Post, $"{Rental}/{rental}/donus",
+            new { donusKm = 1100, donusYakit = 8, gercekDonus = Now().ToOffset(Ist) }));
     }
 }

@@ -18,7 +18,7 @@ public static class PdfEndpoints
     /// fallback'i devreye girer. Fatura/makbuz `PdfMarka`'yı BURADA kuruyor, `SozlesmeService`'ten
     /// ayrı — bu yüzden kapı iki yerde de açıkça uygulanmak zorunda (tek yerde sanılırsa fatura
     /// başlığı lekeyi basmaya devam ederdi).</summary>
-    private static async Task<PdfMarka> MarkaAsync(TenantSettingsService ts, CancellationToken ct)
+    private static async Task<PdfMarka> BrandAsync(TenantSettingsService ts, CancellationToken ct)
     {
         var s = await ts.GetAsync(ct);
         var logo = RentACar.Application.Common.LogoValidationRules.IsPrintable(s.LogoBytes) ? s.LogoBytes : null;
@@ -27,11 +27,11 @@ public static class PdfEndpoints
 
     public static IEndpointRouteBuilder MapPdfEndpoints(this IEndpointRouteBuilder app)
     {
-        var kiralar = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite);
+        var rentals = app.MapGroup("/kiralar").RequirePermission(Permission.OperationsWrite);
 
         // VARSAYILAN: tarayıcıda GÖRÜNTÜLE (inline — her tıklama indirme klasörünü doldurmasın; oradan
         // yazdırılabilir/kaydedilebilir). ?indir=1 → klasik dosya indirme (Content-Disposition: attachment).
-        kiralar.MapGet("/{id:guid}/pdf", async (Guid id, ContractService sozlesme, PdfExportService pdf, string? indir, CancellationToken ct) =>
+        rentals.MapGet("/{id:guid}/pdf", async (Guid id, ContractService sozlesme, PdfExportService pdf, string? indir, CancellationToken ct) =>
         {
             var s = await sozlesme.GetAsync(id, ct); // HTML-print ile AYNI view-model (içerik tek kaynak)
             if (s is null) return Results.NotFound();
@@ -43,19 +43,19 @@ public static class PdfEndpoints
 
         // Örnek (şablon) sözleşme PDF'i — gerçek kira gerekmez; RentPro markalı numune (OrnekSozlesme.Ornek()).
         // Gerçek sözleşmeyle AYNI renderer (PdfExportService.Contract) → çıktı formatı tek kaynak.
-        kiralar.MapGet("/ornek-sozlesme/pdf", (PdfExportService pdf, string? indir) =>
+        rentals.MapGet("/ornek-sozlesme/pdf", (PdfExportService pdf, string? indir) =>
             indir == "1"
-                ? Results.File(pdf.Contract(OrnekSozlesme.Ornek()), "application/pdf", "ornek-sozlesme.pdf")
-                : Results.File(pdf.Contract(OrnekSozlesme.Ornek()), "application/pdf"));
+                ? Results.File(pdf.Contract(SampleContract.Sample()), "application/pdf", "ornek-sozlesme.pdf")
+                : Results.File(pdf.Contract(SampleContract.Sample()), "application/pdf"));
 
-        var finans = app.MapGroup("/faturalar").RequirePermission(Permission.FinanceWrite);
-        finans.MapGet("/{id:guid}/pdf", async (Guid id, InvoiceService svc, CustomerService cs,
+        var finance = app.MapGroup("/faturalar").RequirePermission(Permission.FinanceWrite);
+        finance.MapGet("/{id:guid}/pdf", async (Guid id, InvoiceService svc, CustomerService cs,
             TenantSettingsService ts, DocumentTemplateResolver sablon, PdfExportService pdf, string? indir, CancellationToken ct) =>
         {
             var inv = await svc.GetAsync(id, ct);
             if (inv is null) return Results.NotFound();
-            var cari = await cs.GetAsync(inv.CariId, ct);
-            var bytes = pdf.Invoice(inv, await MarkaAsync(ts, ct), cari?.DisplayName,
+            var account = await cs.GetAsync(inv.CariId, ct);
+            var bytes = pdf.Invoice(inv, await BrandAsync(ts, ct), account?.DisplayName,
                 await sablon.DefaultAsync(BelgeTuru.Fatura, ct));
             return indir == "1"
                 ? Results.File(bytes, "application/pdf", $"{inv.No}.pdf")
@@ -69,8 +69,8 @@ public static class PdfEndpoints
             {
                 var tx = await cash.GetAsync(id, ct);
                 if (tx is null) return Results.NotFound();
-                var cari = await cs.GetAsync(tx.CariId, ct);
-                var bytes = pdf.TahsilatMakbuzu(tx, await MarkaAsync(ts, ct), cari?.DisplayName,
+                var account = await cs.GetAsync(tx.CariId, ct);
+                var bytes = pdf.CollectionReceipt(tx, await BrandAsync(ts, ct), account?.DisplayName,
                     await sablon.DefaultAsync(BelgeTuru.Makbuz, ct));
                 return indir == "1"
                     ? Results.File(bytes, "application/pdf", $"makbuz-{tx.No}.pdf")

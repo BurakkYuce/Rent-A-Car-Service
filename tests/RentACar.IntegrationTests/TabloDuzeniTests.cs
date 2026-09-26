@@ -21,7 +21,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TabloDuzeniTests(PostgresFixture fx)
 {
-    private static readonly TabloDuzeniVerisi Ornek = new(
+    private static readonly TabloDuzeniVerisi Sample = new(
         [new("plaka", true, 120), new("musteri", true, null), new("tutar", false, 96)],
         [new("tutar", true), new("plaka", false)]);
 
@@ -30,7 +30,7 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         NullTenantContext.Instance, NullCurrentUser.Instance);
 
     /// <summary>Users platform tablosu (owner yazar) — TabloDuzenleri.UserId FK'si gerçek satır ister.</summary>
-    private async Task<Guid> KullaniciAsync(Guid tenant)
+    private async Task<Guid> UserAsync(Guid tenant)
     {
         var u = new User
         {
@@ -43,13 +43,13 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         return u.Id;
     }
 
-    private static TableLayoutService Servis(IServiceScope s) => s.ServiceProvider.GetRequiredService<TableLayoutService>();
+    private static TableLayoutService Service(IServiceScope s) => s.ServiceProvider.GetRequiredService<TableLayoutService>();
 
-    private static void DuzenEsit(TabloDuzeniVerisi beklenen, TabloDuzeniVerisi? gelen)
+    private static void LayoutEquals(TabloDuzeniVerisi expected, TabloDuzeniVerisi? incoming)
     {
-        Assert.NotNull(gelen);
-        Assert.Equal(beklenen.Sutunlar, gelen!.Sutunlar);   // record eşitliği: kod, görünür, genişlik + SIRA
-        Assert.Equal(beklenen.Siralama, gelen.Siralama);
+        Assert.NotNull(incoming);
+        Assert.Equal(expected.Sutunlar, incoming!.Sutunlar);   // record eşitliği: kod, görünür, genişlik + SIRA
+        Assert.Equal(expected.Siralama, incoming.Siralama);
     }
 
     [Fact]
@@ -57,24 +57,24 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var u = await KullaniciAsync(t);
+        var u = await UserAsync(t);
         using var s = host.ScopeFor(t, u, role: UserRole.Operator);
 
-        var bos = await Servis(s).FetchAsync("kiralar.liste");
-        Assert.Equal("kiralar.liste", bos.TabloKodu);
-        Assert.Null(bos.Duzen);
-        Assert.Null(bos.GuncellemeUtc);
+        var empty = await Service(s).FetchAsync("kiralar.liste");
+        Assert.Equal("kiralar.liste", empty.TabloKodu);
+        Assert.Null(empty.Duzen);
+        Assert.Null(empty.GuncellemeUtc);
 
-        var kayit = await Servis(s).SaveAsync("kiralar.liste", Ornek);
-        DuzenEsit(Ornek, kayit.Duzen);
-        Assert.NotNull(kayit.GuncellemeUtc);
+        var record = await Service(s).SaveAsync("kiralar.liste", Sample);
+        LayoutEquals(Sample, record.Duzen);
+        Assert.NotNull(record.GuncellemeUtc);
 
-        var okunan = await Servis(s).FetchAsync("kiralar.liste");
-        DuzenEsit(Ornek, okunan.Duzen);
-        Assert.Equal(kayit.GuncellemeUtc, okunan.GuncellemeUtc); // µs'ye kırpıldı → DB'den aynı an döner
+        var readValue = await Service(s).FetchAsync("kiralar.liste");
+        LayoutEquals(Sample, readValue.Duzen);
+        Assert.Equal(record.GuncellemeUtc, readValue.GuncellemeUtc); // µs'ye kırpıldı → DB'den aynı an döner
 
         // Başka tablo kodu ayrı düzendir.
-        Assert.Null((await Servis(s).FetchAsync("kiralar.liste-2")).Duzen);
+        Assert.Null((await Service(s).FetchAsync("kiralar.liste-2")).Duzen);
     }
 
     [Fact]
@@ -82,14 +82,14 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var u = await KullaniciAsync(t);
+        var u = await UserAsync(t);
         using var s = host.ScopeFor(t, u, role: UserRole.Operator);
 
-        await Servis(s).SaveAsync("araclar", Ornek);
-        var yeni = new TabloDuzeniVerisi([new("musteri", true, 200), new("plaka", false, null)], []);
-        await Servis(s).SaveAsync("araclar", yeni);
+        await Service(s).SaveAsync("araclar", Sample);
+        var newItem = new TabloDuzeniVerisi([new("musteri", true, 200), new("plaka", false, null)], []);
+        await Service(s).SaveAsync("araclar", newItem);
 
-        DuzenEsit(yeni, (await Servis(s).FetchAsync("araclar")).Duzen);
+        LayoutEquals(newItem, (await Service(s).FetchAsync("araclar")).Duzen);
         await using var db = await s.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         Assert.Equal(1, await db.TabloDuzenleri.CountAsync(d => d.UserId == u && d.TabloKodu == "araclar"));
     }
@@ -99,26 +99,26 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var a = await KullaniciAsync(t);
-        var b = await KullaniciAsync(t);
+        var a = await UserAsync(t);
+        var b = await UserAsync(t);
 
         using (var sa = host.ScopeFor(t, a, "a", UserRole.Admin))
-            await Servis(sa).SaveAsync("cari.liste", Ornek);
+            await Service(sa).SaveAsync("cari.liste", Sample);
 
-        var bDuzeni = new TabloDuzeniVerisi([new("unvan", true, 300)], [new("unvan", false)]);
+        var bLayout = new TabloDuzeniVerisi([new("unvan", true, 300)], [new("unvan", false)]);
         using (var sb = host.ScopeFor(t, b, "b", UserRole.Operator))
         {
-            Assert.Null((await Servis(sb).FetchAsync("cari.liste")).Duzen); // Admin'in düzeni operatöre SIZMAZ
-            await Servis(sb).SaveAsync("cari.liste", bDuzeni);
-            await Servis(sb).ResetAsync("cari.liste");                    // B'nin sıfırlaması A'ya dokunmaz
-            Assert.Null((await Servis(sb).FetchAsync("cari.liste")).Duzen);
-            await Servis(sb).SaveAsync("cari.liste", bDuzeni);
+            Assert.Null((await Service(sb).FetchAsync("cari.liste")).Duzen); // Admin'in düzeni operatöre SIZMAZ
+            await Service(sb).SaveAsync("cari.liste", bLayout);
+            await Service(sb).ResetAsync("cari.liste");                    // B'nin sıfırlaması A'ya dokunmaz
+            Assert.Null((await Service(sb).FetchAsync("cari.liste")).Duzen);
+            await Service(sb).SaveAsync("cari.liste", bLayout);
         }
 
         using (var sa = host.ScopeFor(t, a, "a", UserRole.Admin))
-            DuzenEsit(Ornek, (await Servis(sa).FetchAsync("cari.liste")).Duzen);
+            LayoutEquals(Sample, (await Service(sa).FetchAsync("cari.liste")).Duzen);
         using (var sb = host.ScopeFor(t, b, "b", UserRole.Operator))
-            DuzenEsit(bDuzeni, (await Servis(sb).FetchAsync("cari.liste")).Duzen);
+            LayoutEquals(bLayout, (await Service(sb).FetchAsync("cari.liste")).Duzen);
     }
 
     [Fact]
@@ -127,15 +127,15 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
-        var u1 = await KullaniciAsync(t1);
-        var u2 = await KullaniciAsync(t2);
+        var u1 = await UserAsync(t1);
+        var u2 = await UserAsync(t2);
 
         using (var s1 = host.ScopeFor(t1, u1))
-            await Servis(s1).SaveAsync("rlstest", Ornek);
+            await Service(s1).SaveAsync("rlstest", Sample);
 
         using (var s2 = host.ScopeFor(t2, u2))
         {
-            Assert.Null((await Servis(s2).FetchAsync("rlstest")).Duzen);
+            Assert.Null((await Service(s2).FetchAsync("rlstest")).Duzen);
             var factory = s2.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             await using var db = await factory.CreateDbContextAsync();
             // EF filtresi atlansa da (ham SQL + IgnoreQueryFilters) RLS T1 satırını gizler.
@@ -167,14 +167,14 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
             set.Parameters.AddWithValue("t", t2.ToString());
             await set.ExecuteScalarAsync();
         }
-        await using (var sil = new NpgsqlCommand("delete from \"TabloDuzenleri\" where \"TenantId\" = @a", conn))
+        await using (var remove = new NpgsqlCommand("delete from \"TabloDuzenleri\" where \"TenantId\" = @a", conn))
         {
-            sil.Parameters.AddWithValue("a", t1);
-            Assert.Equal(0, await sil.ExecuteNonQueryAsync());
+            remove.Parameters.AddWithValue("a", t1);
+            Assert.Equal(0, await remove.ExecuteNonQueryAsync());
         }
 
         using (var s1 = host.ScopeFor(t1, u1))
-            DuzenEsit(Ornek, (await Servis(s1).FetchAsync("rlstest")).Duzen); // T1 düzeni sağlam
+            LayoutEquals(Sample, (await Service(s1).FetchAsync("rlstest")).Duzen); // T1 düzeni sağlam
     }
 
     [Fact]
@@ -182,15 +182,15 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var u = await KullaniciAsync(t);
+        var u = await UserAsync(t);
         using var s = host.ScopeFor(t, u);
 
-        await Servis(s).ResetAsync("hic-yok");       // kayıt yokken no-op
-        await Servis(s).SaveAsync("faturalar", Ornek);
-        await Servis(s).ResetAsync("faturalar");
-        var sonuc = await Servis(s).FetchAsync("faturalar");
-        Assert.Null(sonuc.Duzen);
-        Assert.Null(sonuc.GuncellemeUtc);
+        await Service(s).ResetAsync("hic-yok");       // kayıt yokken no-op
+        await Service(s).SaveAsync("faturalar", Sample);
+        await Service(s).ResetAsync("faturalar");
+        var result = await Service(s).FetchAsync("faturalar");
+        Assert.Null(result.Duzen);
+        Assert.Null(result.GuncellemeUtc);
     }
 
     [Fact]
@@ -198,24 +198,24 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var u = await KullaniciAsync(t);
+        var u = await UserAsync(t);
 
-        for (var tur = 0; tur < 5; tur++)
+        for (var type = 0; type < 5; type++)
         {
-            var kod = "yaris" + tur;
-            var gorevler = Enumerable.Range(0, 4).Select(async i =>
+            var code = "yaris" + type;
+            var tasks = Enumerable.Range(0, 4).Select(async i =>
             {
                 using var s = host.ScopeFor(t, u);
-                await Servis(s).SaveAsync(kod, new TabloDuzeniVerisi([new("k" + i, true, null)], []));
+                await Service(s).SaveAsync(code, new TabloDuzeniVerisi([new("k" + i, true, null)], []));
             });
-            await Task.WhenAll(gorevler); // UniqueViolation sızmaz: kaybeden güncellemeye döner
+            await Task.WhenAll(tasks); // UniqueViolation sızmaz: kaybeden güncellemeye döner
 
-            using var oku = host.ScopeFor(t, u);
-            var duzen = (await Servis(oku).FetchAsync(kod)).Duzen;
-            Assert.NotNull(duzen);
-            Assert.Single(duzen!.Sutunlar);
-            await using var db = await oku.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
-            Assert.Equal(1, await db.TabloDuzenleri.CountAsync(d => d.TabloKodu == kod));
+            using var read = host.ScopeFor(t, u);
+            var layout = (await Service(read).FetchAsync(code)).Duzen;
+            Assert.NotNull(layout);
+            Assert.Single(layout!.Sutunlar);
+            await using var db = await read.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
+            Assert.Equal(1, await db.TabloDuzenleri.CountAsync(d => d.TabloKodu == code));
         }
     }
 
@@ -225,17 +225,17 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using (var s = host.ScopeFor(Guid.NewGuid(), userId: null))
         {
-            await Assert.ThrowsAsync<NoPermissionException>(() => Servis(s).FetchAsync("kiralar"));
-            await Assert.ThrowsAsync<NoPermissionException>(() => Servis(s).SaveAsync("kiralar", Ornek));
-            await Assert.ThrowsAsync<NoPermissionException>(() => Servis(s).ResetAsync("kiralar"));
+            await Assert.ThrowsAsync<NoPermissionException>(() => Service(s).FetchAsync("kiralar"));
+            await Assert.ThrowsAsync<NoPermissionException>(() => Service(s).SaveAsync("kiralar", Sample));
+            await Assert.ThrowsAsync<NoPermissionException>(() => Service(s).ResetAsync("kiralar"));
         }
         using (var s = host.ScopeFor(tenantId: null, userId: Guid.NewGuid()))
-            await Assert.ThrowsAsync<NoPermissionException>(() => Servis(s).FetchAsync("kiralar"));
+            await Assert.ThrowsAsync<NoPermissionException>(() => Service(s).FetchAsync("kiralar"));
     }
 
-    public static TheoryData<string, TabloDuzeniVerisi?, string> GecersizGovdeler()
+    public static TheoryData<string, TabloDuzeniVerisi?, string> InvalidBodies()
     {
-        TabloSutunDuzeni S(string kod, int? g = null) => new(kod, true, g);
+        TabloSutunDuzeni S(string code, int? g = null) => new(code, true, g);
         var cok = Enumerable.Range(0, 201).Select(i => S("s" + i)).ToList();
         return new()
         {
@@ -260,18 +260,18 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
     }
 
     [Theory]
-    [MemberData(nameof(GecersizGovdeler))]
-    public async Task Gecersiz_govde_400_alanli_ve_yazilmaz(string ad, TabloDuzeniVerisi? govde, string alan)
+    [MemberData(nameof(InvalidBodies))]
+    public async Task Gecersiz_govde_400_alanli_ve_yazilmaz(string name, TabloDuzeniVerisi? body, string alan)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var u = await KullaniciAsync(t);
+        var u = await UserAsync(t);
         using var s = host.ScopeFor(t, u);
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => Servis(s).SaveAsync("dogrulama", govde));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => Service(s).SaveAsync("dogrulama", body));
         Assert.IsNotType<NoPermissionException>(ex);
-        Assert.True(alan == ex.Alan, $"{ad}: beklenen alan {alan}, gelen {ex.Alan}");
-        Assert.Null((await Servis(s).FetchAsync("dogrulama")).Duzen);
+        Assert.True(alan == ex.Alan, $"{name}: beklenen alan {alan}, gelen {ex.Alan}");
+        Assert.Null((await Service(s).FetchAsync("dogrulama")).Duzen);
     }
 
     [Theory]
@@ -283,16 +283,16 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
     [InlineData("kira..liste")]
     [InlineData("kiralar\n")]
     [InlineData("çıkış")]            // ASCII dışı
-    public async Task Gecersiz_tablo_kodu_400(string kod)
+    public async Task Gecersiz_tablo_kodu_400(string code)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var u = await KullaniciAsync(t);
+        var u = await UserAsync(t);
         using var s = host.ScopeFor(t, u);
 
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => Servis(s).FetchAsync(kod));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => Service(s).FetchAsync(code));
         Assert.Equal("tabloKodu", ex.Alan);
-        await Assert.ThrowsAsync<ValidationException>(() => Servis(s).SaveAsync(kod, Ornek));
+        await Assert.ThrowsAsync<ValidationException>(() => Service(s).SaveAsync(code, Sample));
     }
 
     [Fact]
@@ -300,16 +300,16 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var u = await KullaniciAsync(t);
+        var u = await UserAsync(t);
         using var s = host.ScopeFor(t, u);
 
-        var sutunlar = Enumerable.Range(0, 200).Select(i => new TabloSutunDuzeni("s" + i, i % 2 == 0, i == 0 ? 24 : i == 1 ? 2000 : null)).ToList();
-        var siralama = Enumerable.Range(0, 5).Select(i => new TabloSiralamaDuzeni("s" + i, i % 2 == 1)).ToList();
-        var kod = new string('a', 64);
-        var duzen = new TabloDuzeniVerisi(sutunlar, siralama);
+        var columns = Enumerable.Range(0, 200).Select(i => new TabloSutunDuzeni("s" + i, i % 2 == 0, i == 0 ? 24 : i == 1 ? 2000 : null)).ToList();
+        var sort = Enumerable.Range(0, 5).Select(i => new TabloSiralamaDuzeni("s" + i, i % 2 == 1)).ToList();
+        var code = new string('a', 64);
+        var layout = new TabloDuzeniVerisi(columns, sort);
 
-        await Servis(s).SaveAsync(kod, duzen);
-        DuzenEsit(duzen, (await Servis(s).FetchAsync(kod)).Duzen);
+        await Service(s).SaveAsync(code, layout);
+        LayoutEquals(layout, (await Service(s).FetchAsync(code)).Duzen);
     }
 }
 
@@ -321,51 +321,51 @@ public sealed class TabloDuzeniTests(PostgresFixture fx)
 [Collection("web")]
 public sealed class TabloDuzeniApiTests(WebFixture fx)
 {
-    private const string Kok = "/api/ui/v1/tablo-duzenleri/";
+    private const string Root = "/api/ui/v1/tablo-duzenleri/";
 
-    private static string Kod() => "w" + Guid.NewGuid().ToString("N")[..12];
+    private static string Code() => "w" + Guid.NewGuid().ToString("N")[..12];
 
-    private static string? CerezDegeri(HttpResponseMessage r, string ad)
+    private static string? CookieValue(HttpResponseMessage r, string name)
     {
-        if (!r.Headers.TryGetValues("Set-Cookie", out var degerler)) return null;
-        foreach (var d in degerler)
-            if (d.StartsWith(ad + "=", StringComparison.Ordinal))
-                return Uri.UnescapeDataString(d[(ad.Length + 1)..].Split(';')[0]);
+        if (!r.Headers.TryGetValues("Set-Cookie", out var values)) return null;
+        foreach (var d in values)
+            if (d.StartsWith(name + "=", StringComparison.Ordinal))
+                return Uri.UnescapeDataString(d[(name.Length + 1)..].Split(';')[0]);
         return null;
     }
 
-    private static HttpRequestMessage Istek(HttpMethod m, string url, string? xsrf, object? govde = null)
+    private static HttpRequestMessage Request(HttpMethod m, string url, string? xsrf, object? body = null)
     {
         var req = new HttpRequestMessage(m, url);
         if (xsrf is not null) req.Headers.Add("X-XSRF-TOKEN", xsrf);
-        if (govde is not null) req.Content = JsonContent.Create(govde);
+        if (body is not null) req.Content = JsonContent.Create(body);
         return req;
     }
 
     /// <summary>Giriş yapar; (istemci, girişten SONRAKİ XSRF belirteci) döner. Kimlik fixture'da çalışma anında üretilir.</summary>
-    private async Task<(HttpClient C, string Xsrf)> GirisYap(TestKimlik k)
+    private async Task<(HttpClient C, string Xsrf)> Login(TestKimlik k)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var r0 = await c.GetAsync("/api/ui/v1/oturum/xsrf");
-        var once = CerezDegeri(r0, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("XSRF-TOKEN yok");
-        var r = await c.SendAsync(Istek(HttpMethod.Post, "/api/ui/v1/oturum/giris", once,
+        var once = CookieValue(r0, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("XSRF-TOKEN yok");
+        var r = await c.SendAsync(Request(HttpMethod.Post, "/api/ui/v1/oturum/giris", once,
             new { firma = k.Firma, kullanici = k.Kullanici, sifre = k.Sifre }));
         Assert.True(r.StatusCode == HttpStatusCode.OK, await r.Content.ReadAsStringAsync());
-        return (c, CerezDegeri(r, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("girişte XSRF yenilenmedi"));
+        return (c, CookieValue(r, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("girişte XSRF yenilenmedi"));
     }
 
     private static async Task<JsonElement> Json(HttpResponseMessage r)
         => JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement.Clone();
 
-    private static async Task ProblemBekle(HttpResponseMessage r, HttpStatusCode durum, string kod)
+    private static async Task ExpectProblem(HttpResponseMessage r, HttpStatusCode status, string code)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(durum == r.StatusCode, $"Beklenen {(int)durum}, gelen {(int)r.StatusCode}: {metin}");
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(status == r.StatusCode, $"Beklenen {(int)status}, gelen {(int)r.StatusCode}: {text}");
         Assert.Equal("application/problem+json", r.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(kod, JsonDocument.Parse(metin).RootElement.GetProperty("kod").GetString());
+        Assert.Equal(code, JsonDocument.Parse(text).RootElement.GetProperty("kod").GetString());
     }
 
-    private static readonly object OrnekGovde = new
+    private static readonly object SampleBody = new
     {
         sutunlar = new object[]
         {
@@ -378,109 +378,109 @@ public sealed class TabloDuzeniApiTests(WebFixture fx)
     [Fact]
     public async Task Get_kayitsiz_null_put_sonra_get_ayni_duzen_ve_delete_204()
     {
-        var (c, xsrf) = await GirisYap(fx.PilotAdmin);
-        var kod = Kod();
+        var (c, xsrf) = await Login(fx.PilotAdmin);
+        var code = Code();
 
-        var bos = await c.GetAsync(Kok + kod);
-        Assert.Equal(HttpStatusCode.OK, bos.StatusCode);
-        Assert.True(bos.Headers.CacheControl?.NoStore == true);
-        var bj = await Json(bos);
-        Assert.Equal(kod, bj.GetProperty("tabloKodu").GetString());
+        var empty = await c.GetAsync(Root + code);
+        Assert.Equal(HttpStatusCode.OK, empty.StatusCode);
+        Assert.True(empty.Headers.CacheControl?.NoStore == true);
+        var bj = await Json(empty);
+        Assert.Equal(code, bj.GetProperty("tabloKodu").GetString());
         Assert.Equal(JsonValueKind.Null, bj.GetProperty("duzen").ValueKind);
         Assert.Equal(JsonValueKind.Null, bj.GetProperty("guncellemeUtc").ValueKind);
 
-        var put = await c.SendAsync(Istek(HttpMethod.Put, Kok + kod, xsrf, OrnekGovde));
+        var put = await c.SendAsync(Request(HttpMethod.Put, Root + code, xsrf, SampleBody));
         Assert.True(put.StatusCode == HttpStatusCode.OK, await put.Content.ReadAsStringAsync());
         var pj = await Json(put);
 
-        var get = await c.GetAsync(Kok + kod);
+        var get = await c.GetAsync(Root + code);
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
         var gj = await Json(get);
         Assert.Equal(pj.GetProperty("guncellemeUtc").GetDateTimeOffset(), gj.GetProperty("guncellemeUtc").GetDateTimeOffset());
 
-        var duzen = gj.GetProperty("duzen");
-        var sutunlar = duzen.GetProperty("sutunlar").EnumerateArray().ToList();
-        Assert.Equal(2, sutunlar.Count);
-        Assert.Equal("plaka", sutunlar[0].GetProperty("kod").GetString());
-        Assert.True(sutunlar[0].GetProperty("gorunur").GetBoolean());
-        Assert.Equal(120, sutunlar[0].GetProperty("genislik").GetInt32());
-        Assert.False(sutunlar[0].TryGetProperty("html", out _)); // temiz kopya saklanır
-        Assert.Equal("tutar", sutunlar[1].GetProperty("kod").GetString());
-        Assert.False(sutunlar[1].GetProperty("gorunur").GetBoolean());
-        Assert.Equal(JsonValueKind.Null, sutunlar[1].GetProperty("genislik").ValueKind);
-        var siralama = duzen.GetProperty("siralama").EnumerateArray().ToList();
-        Assert.Single(siralama);
-        Assert.Equal("tutar", siralama[0].GetProperty("kod").GetString());
-        Assert.True(siralama[0].GetProperty("azalan").GetBoolean());
+        var layout = gj.GetProperty("duzen");
+        var columns = layout.GetProperty("sutunlar").EnumerateArray().ToList();
+        Assert.Equal(2, columns.Count);
+        Assert.Equal("plaka", columns[0].GetProperty("kod").GetString());
+        Assert.True(columns[0].GetProperty("gorunur").GetBoolean());
+        Assert.Equal(120, columns[0].GetProperty("genislik").GetInt32());
+        Assert.False(columns[0].TryGetProperty("html", out _)); // temiz kopya saklanır
+        Assert.Equal("tutar", columns[1].GetProperty("kod").GetString());
+        Assert.False(columns[1].GetProperty("gorunur").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, columns[1].GetProperty("genislik").ValueKind);
+        var sort = layout.GetProperty("siralama").EnumerateArray().ToList();
+        Assert.Single(sort);
+        Assert.Equal("tutar", sort[0].GetProperty("kod").GetString());
+        Assert.True(sort[0].GetProperty("azalan").GetBoolean());
 
-        var sil = await c.SendAsync(Istek(HttpMethod.Delete, Kok + kod, xsrf));
-        Assert.Equal(HttpStatusCode.NoContent, sil.StatusCode);
-        Assert.Equal(JsonValueKind.Null, (await Json(await c.GetAsync(Kok + kod))).GetProperty("duzen").ValueKind);
+        var remove = await c.SendAsync(Request(HttpMethod.Delete, Root + code, xsrf));
+        Assert.Equal(HttpStatusCode.NoContent, remove.StatusCode);
+        Assert.Equal(JsonValueKind.Null, (await Json(await c.GetAsync(Root + code))).GetProperty("duzen").ValueKind);
         // Kayıt yokken DELETE de 204.
-        Assert.Equal(HttpStatusCode.NoContent, (await c.SendAsync(Istek(HttpMethod.Delete, Kok + kod, xsrf))).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await c.SendAsync(Request(HttpMethod.Delete, Root + code, xsrf))).StatusCode);
     }
 
     [Fact]
     public async Task Put_ve_delete_xsrf_basligi_ister()
     {
-        var (c, _) = await GirisYap(fx.PilotAdmin);
-        var kod = Kod();
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Put, Kok + kod, null, OrnekGovde)),
+        var (c, _) = await Login(fx.PilotAdmin);
+        var code = Code();
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Put, Root + code, null, SampleBody)),
             HttpStatusCode.BadRequest, "xsrf_gecersiz");
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Delete, Kok + kod, null)),
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Delete, Root + code, null)),
             HttpStatusCode.BadRequest, "xsrf_gecersiz");
-        Assert.Equal(JsonValueKind.Null, (await Json(await c.GetAsync(Kok + kod))).GetProperty("duzen").ValueKind);
+        Assert.Equal(JsonValueKind.Null, (await Json(await c.GetAsync(Root + code))).GetProperty("duzen").ValueKind);
     }
 
     [Fact]
     public async Task Gecersiz_govde_ve_kod_400_dogrulama()
     {
-        var (c, xsrf) = await GirisYap(fx.PilotAdmin);
-        var kod = Kod();
+        var (c, xsrf) = await Login(fx.PilotAdmin);
+        var code = Code();
 
-        var tekrar = new { sutunlar = new[] { new { kod = "a", gorunur = true }, new { kod = "a", gorunur = true } }, siralama = Array.Empty<object>() };
-        var r = await c.SendAsync(Istek(HttpMethod.Put, Kok + kod, xsrf, tekrar));
-        await ProblemBekle(r, HttpStatusCode.BadRequest, "dogrulama");
+        var repeat = new { sutunlar = new[] { new { kod = "a", gorunur = true }, new { kod = "a", gorunur = true } }, siralama = Array.Empty<object>() };
+        var r = await c.SendAsync(Request(HttpMethod.Put, Root + code, xsrf, repeat));
+        await ExpectProblem(r, HttpStatusCode.BadRequest, "dogrulama");
         Assert.True((await Json(r)).GetProperty("errors").TryGetProperty("sutunlar", out _));
 
-        var genis = new { sutunlar = new[] { new { kod = "a", gorunur = true, genislik = 5000 } }, siralama = Array.Empty<object>() };
-        await ProblemBekle(await c.SendAsync(Istek(HttpMethod.Put, Kok + kod, xsrf, genis)), HttpStatusCode.BadRequest, "dogrulama");
+        var wide = new { sutunlar = new[] { new { kod = "a", gorunur = true, genislik = 5000 } }, siralama = Array.Empty<object>() };
+        await ExpectProblem(await c.SendAsync(Request(HttpMethod.Put, Root + code, xsrf, wide)), HttpStatusCode.BadRequest, "dogrulama");
 
-        await ProblemBekle(await c.GetAsync(Kok + "Buyuk-Harf"), HttpStatusCode.BadRequest, "dogrulama");
-        Assert.Equal(JsonValueKind.Null, (await Json(await c.GetAsync(Kok + kod))).GetProperty("duzen").ValueKind);
+        await ExpectProblem(await c.GetAsync(Root + "Buyuk-Harf"), HttpStatusCode.BadRequest, "dogrulama");
+        Assert.Equal(JsonValueKind.Null, (await Json(await c.GetAsync(Root + code))).GetProperty("duzen").ValueKind);
     }
 
     [Fact]
     public async Task Ayni_firmada_baska_kullanici_ve_baska_firma_duzeni_gormez()
     {
-        var kod = Kod();
-        var (admin, ax) = await GirisYap(fx.PilotAdmin);
-        Assert.Equal(HttpStatusCode.OK, (await admin.SendAsync(Istek(HttpMethod.Put, Kok + kod, ax, OrnekGovde))).StatusCode);
+        var code = Code();
+        var (admin, ax) = await Login(fx.PilotAdmin);
+        Assert.Equal(HttpStatusCode.OK, (await admin.SendAsync(Request(HttpMethod.Put, Root + code, ax, SampleBody))).StatusCode);
 
         // Aynı firmada operatör: kendi düzeni yok → null; kendi PUT'u admin'inkini ezmez.
-        var (op, ox) = await GirisYap(fx.PilotOperator);
-        Assert.Equal(JsonValueKind.Null, (await Json(await op.GetAsync(Kok + kod))).GetProperty("duzen").ValueKind);
-        var opGovde = new { sutunlar = new[] { new { kod = "unvan", gorunur = true } }, siralama = Array.Empty<object>() };
-        Assert.Equal(HttpStatusCode.OK, (await op.SendAsync(Istek(HttpMethod.Put, Kok + kod, ox, opGovde))).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await op.SendAsync(Istek(HttpMethod.Delete, Kok + kod, ox))).StatusCode);
+        var (op, ox) = await Login(fx.PilotOperator);
+        Assert.Equal(JsonValueKind.Null, (await Json(await op.GetAsync(Root + code))).GetProperty("duzen").ValueKind);
+        var opBody = new { sutunlar = new[] { new { kod = "unvan", gorunur = true } }, siralama = Array.Empty<object>() };
+        Assert.Equal(HttpStatusCode.OK, (await op.SendAsync(Request(HttpMethod.Put, Root + code, ox, opBody))).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await op.SendAsync(Request(HttpMethod.Delete, Root + code, ox))).StatusCode);
 
-        var adminDuzeni = (await Json(await admin.GetAsync(Kok + kod))).GetProperty("duzen");
-        Assert.Equal("plaka", adminDuzeni.GetProperty("sutunlar")[0].GetProperty("kod").GetString());
+        var adminLayout = (await Json(await admin.GetAsync(Root + code))).GetProperty("duzen");
+        Assert.Equal("plaka", adminLayout.GetProperty("sutunlar")[0].GetProperty("kod").GetString());
 
         // Başka pilot firma: aynı tablo kodu, düzen yok.
-        var diger = await fx.FirmaVeKullaniciAsync("Tablo Diğer Pilot");
-        await fx.PilotYapAsync(await fx.TenantIdAsync(diger.Firma), true);
-        var (d, _) = await GirisYap(diger);
-        Assert.Equal(JsonValueKind.Null, (await Json(await d.GetAsync(Kok + kod))).GetProperty("duzen").ValueKind);
+        var other = await fx.CompanyAndUserAsync("Tablo Diğer Pilot");
+        await fx.MakePilotAsync(await fx.TenantIdAsync(other.Firma), true);
+        var (d, _) = await Login(other);
+        Assert.Equal(JsonValueKind.Null, (await Json(await d.GetAsync(Root + code))).GetProperty("duzen").ValueKind);
     }
 
     [Fact]
     public async Task Oturumsuz_401_pilot_olmayan_403()
     {
-        var anonim = await fx.Web.Istemci().GetAsync(Kok + "kiralar");
-        await ProblemBekle(anonim, HttpStatusCode.Unauthorized, "oturum_yok");
+        var anonymous = await fx.Web.Client().GetAsync(Root + "kiralar");
+        await ExpectProblem(anonymous, HttpStatusCode.Unauthorized, "oturum_yok");
 
-        var (c, _) = await GirisYap(fx.DigerAdmin);
-        await ProblemBekle(await c.GetAsync(Kok + "kiralar"), HttpStatusCode.Forbidden, "pilot_degil");
+        var (c, _) = await Login(fx.OtherAdmin);
+        await ExpectProblem(await c.GetAsync(Root + "kiralar"), HttpStatusCode.Forbidden, "pilot_degil");
     }
 }

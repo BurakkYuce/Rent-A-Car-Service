@@ -33,7 +33,7 @@ public static partial class SystemAdminApi
             return TypedResults.Ok(r.Ok
                 ? new SendTestResult(true, "gonderildi", "Test e-postası SMTP sunucusuna teslim edildi.")
                 : new SendTestResult(false, "basarisiz", r.Hata ?? "E-posta gönderilemedi."));
-        }).AlanlariEsle([("E-posta adresi", "alici")]).RequireRateLimiting(SendTestRatePolicy);
+        }).MapFields([("E-posta adresi", "alici")]).RequireRateLimiting(SendTestRatePolicy);
 
         g.MapPost("/test/sms", async Task<Ok<SendTestResult>> (PhoneTestRequest i, NotificationChannelService channel,
             ISmsService sms, IConfiguration cfg, CancellationToken ct) =>
@@ -51,9 +51,9 @@ public static partial class SystemAdminApi
                     "SMS gönderilemedi. Twilio yapılandırmasını, gönderen başlığını ve sunucu loglarını kontrol edin."));
             if (twilio is null || string.IsNullOrEmpty(messageSid))
                 return TypedResults.Ok(new SendTestResult(false, "belirsiz", "SMS iletildi, teslim durumu doğrulanamadı."));
-            return TypedResults.Ok(await PollAsync(c => twilio.SonDurumAsync(messageSid, c), ["delivered", "sent"],
-                TwilioSmsService.HataAciklama, "SMS", ct));
-        }).AlanlariEsle([("Telefon", "telefon")]).RequireRateLimiting(SendTestRatePolicy);
+            return TypedResults.Ok(await PollAsync(c => twilio.LastStatusAsync(messageSid, c), ["delivered", "sent"],
+                TwilioSmsService.ErrorDescription, "SMS", ct));
+        }).MapFields([("Telefon", "telefon")]).RequireRateLimiting(SendTestRatePolicy);
 
         g.MapPost("/test/whatsapp", async Task<Ok<SendTestResult>> (PhoneTestRequest i, IWhatsAppService wa, IConfiguration cfg, CancellationToken ct) =>
         {
@@ -72,9 +72,9 @@ public static partial class SystemAdminApi
                     "WhatsApp gönderilemedi. Twilio yapılandırmasını ve sunucu loglarını kontrol edin."));
             if (twilio is null || string.IsNullOrEmpty(messageSid))
                 return TypedResults.Ok(new SendTestResult(false, "belirsiz", "WhatsApp mesajı iletildi, teslim durumu doğrulanamadı."));
-            return TypedResults.Ok(await PollAsync(c => twilio.SonDurumAsync(messageSid, c), ["delivered", "read"],
-                TwilioWhatsAppService.HataAciklama, "Mesaj", ct));
-        }).AlanlariEsle([("Telefon", "telefon")]).RequireRateLimiting(SendTestRatePolicy);
+            return TypedResults.Ok(await PollAsync(c => twilio.LastStatusAsync(messageSid, c), ["delivered", "read"],
+                TwilioWhatsAppService.ErrorDescription, "Mesaj", ct));
+        }).MapFields([("Telefon", "telefon")]).RequireRateLimiting(SendTestRatePolicy);
     }
 
     /// <summary>

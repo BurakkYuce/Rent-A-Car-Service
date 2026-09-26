@@ -30,7 +30,7 @@ public static class PublicBookingRequestEndpoints
                 // çözer. Sebep: bu snapshot artık sözleşme fiyatına akıyor (DonusturAsync); formdan
                 // alınsaydı ziyaretçi `fiyat=1` ya da `kdvDahil=true` yazıp sözleşme bedelini
                 // düşürebilirdi. PR-8'de bu alanlar yalnız bilgi amaçlıydı, artık PARA.
-                IlanId = Guid.TryParse(f["ilanId"].ToString(), out var ilanId) ? ilanId : null,
+                IlanId = Guid.TryParse(f["ilanId"].ToString(), out var listingId) ? listingId : null,
                 Sube = f["sube"].ToString(),
                 Not = f["not"].ToString(),
                 Website = f["website"].ToString(), // HONEYPOT — gerçek kullanıcı boş bırakır

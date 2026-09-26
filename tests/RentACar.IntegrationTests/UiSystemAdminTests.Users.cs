@@ -29,7 +29,7 @@ public sealed partial class UiSystemAdminTests
         Assert.Equal(5, JsonDocument.Parse(text).RootElement.GetArrayLength());
 
         var name = Random("yeni");
-        var pw = WebFixture.RastgeleParola();
+        var pw = WebFixture.RandomPassword();
         await Problem(await Send(admin, HttpMethod.Post, Users, new { kullaniciAdi = name, rol = "Operator", sifre = pw, atanmisSube = "YokSube" }),
             HttpStatusCode.BadRequest, "dogrulama", "atanmisSube");
         await Problem(await Send(admin, HttpMethod.Post, Users, new { kullaniciAdi = name, rol = "Patron", sifre = pw }),
@@ -55,7 +55,7 @@ public sealed partial class UiSystemAdminTests
 
         await Problem(await admin.C.GetAsync($"{Users}/{foreign}"), HttpStatusCode.NotFound, null);
         await Problem(await Send(admin, HttpMethod.Post, $"{Users}/{foreign}/aktif", new { aktif = false }), HttpStatusCode.NotFound, null);
-        await Problem(await Send(admin, HttpMethod.Post, $"{Users}/{foreign}/sifre", new { sifre = WebFixture.RastgeleParola() }), HttpStatusCode.NotFound, null);
+        await Problem(await Send(admin, HttpMethod.Post, $"{Users}/{foreign}/sifre", new { sifre = WebFixture.RandomPassword() }), HttpStatusCode.NotFound, null);
         await Problem(await Send(admin, HttpMethod.Put, $"{Users}/{foreign}/istisnalar/ViewReports", new { ver = true }), HttpStatusCode.NotFound, null);
         var list = await Json(await admin.C.GetAsync(Users));
         Assert.DoesNotContain(list.EnumerateArray(), u => u.GetProperty("id").GetGuid() == foreign);
@@ -100,12 +100,12 @@ public sealed partial class UiSystemAdminTests
     {
         var e = await _kit.SetupAsync();
         var admin = await _kit.LoginAsync(e, Who.Admin);
-        var reset = WebFixture.RastgeleParola();
+        var reset = WebFixture.RandomPassword();
         Assert.Equal(HttpStatusCode.NoContent,
             (await Send(admin, HttpMethod.Post, $"{Users}/{e.UserIds[Who.OperatorA]}/sifre", new { sifre = reset })).StatusCode);
         var op = await _kit.LoginAsync(e, Who.OperatorA, reset);
 
-        var next = WebFixture.RastgeleParola();
+        var next = WebFixture.RandomPassword();
         await Problem(await Send(op, HttpMethod.Post, V1 + "/profil/sifre", new { eskiSifre = "yanlis-parola", yeniSifre = next }),
             HttpStatusCode.BadRequest, "dogrulama", "eskiSifre");
         await Problem(await Send(op, HttpMethod.Post, V1 + "/profil/sifre", new { eskiSifre = reset, yeniSifre = next, yeniSifreTekrar = next + "x" }),

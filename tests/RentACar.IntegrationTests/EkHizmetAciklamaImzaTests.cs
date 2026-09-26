@@ -126,11 +126,11 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
-        var coz = s.ServiceProvider.GetRequiredService<DocumentTemplateResolver>();
+        var resolve = s.ServiceProvider.GetRequiredService<DocumentTemplateResolver>();
 
         // Hiç şablon yok → SablonMetin.Bos → imza alanı AÇIK olmalı (regresyon çiti: şablon
         // tanımlamayan tenant'ların sözleşmesi imzasız basılmaya başlamamalı).
-        Assert.True((await coz.RentalAsync(null)).ImzaAlaniGoster);
+        Assert.True((await resolve.RentalAsync(null)).ImzaAlaniGoster);
 
         // Kapalı varsayılan şablon tanımlanırsa çözümleyici onu taşır.
         await s.ServiceProvider.GetRequiredService<DocumentTemplateService>().CreateAsync(new BelgeSablonInput
@@ -138,6 +138,6 @@ public sealed class EkHizmetAciklamaImzaTests(PostgresFixture fx)
             BelgeTuru = BelgeTuru.KiraSozlesmesi, Ad = "E-imza", VarsayilanMi = true,
             ImzaAlaniGoster = false
         });
-        Assert.False((await coz.RentalAsync(null)).ImzaAlaniGoster);
+        Assert.False((await resolve.RentalAsync(null)).ImzaAlaniGoster);
     }
 }

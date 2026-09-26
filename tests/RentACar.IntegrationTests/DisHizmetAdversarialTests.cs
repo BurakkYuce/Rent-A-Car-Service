@@ -24,24 +24,24 @@ namespace RentACar.IntegrationTests;
     // 4.3 adversarial probe'larından kalıcılaştırıldı: (C) GelirGider raporu iptal sonrası SIFIR —
     // Medium bulgunun düzeltme-sonrası kilidi (Gider artık iki yönlü netlenir; Karlilik/karne/GelirGider
     // mutabakatı); (F) yeni tablonun RLS/tenant izolasyonu (CLAUDE.md §5 adım 9).
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-3);
 
-    private static DisHizmetInput Girdi(Guid kira, Guid tedarikci, decimal bedel = 1000m, decimal oran = 10m) => new()
+    private static DisHizmetInput Input(Guid rental, Guid supplier, decimal charge = 1000m, decimal rate = 10m) => new()
     {
-        RentalId = kira, FaturaKesilecekCariId = tedarikci,
-        AlinanHizmet = "Probe hizmet", HizmetBedeli = bedel, TedarikciKomisyonOran = oran
+        RentalId = rental, FaturaKesilecekCariId = supplier,
+        AlinanHizmet = "Probe hizmet", HizmetBedeli = charge, TedarikciKomisyonOran = rate
     };
 
-    private static async Task<(Guid kira, Guid arac, Guid tedarikci)> KurAsync(IServiceProvider sp, string plaka)
+    private static async Task<(Guid kira, Guid arac, Guid tedarikci)> ExchangeRateAsync(IServiceProvider sp, string plate)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Musteri", Soyad = "P" });
         var t = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Kurumsal, Unvan = "Probe Tedarikçi AŞ" });
-        var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m });
-        return (kira, v, t);
+        var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m });
+        return (kira: rental, v, t);
     }
 
     [Fact]
@@ -50,11 +50,11 @@ namespace RentACar.IntegrationTests;
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (kira, arac, tedarikci) = await KurAsync(sp, "34 PR 03");
+        var (rental, vehicle, supplier) = await ExchangeRateAsync(sp, "34 PR 03");
         var svc = sp.GetRequiredService<OutsourcedServiceService>();
         var rs = sp.GetRequiredService<ReportService>();
 
-        var id = await svc.CreateAsync(Girdi(kira, tedarikci)); // 1000 + %10
+        var id = await svc.CreateAsync(Input(rental, supplier)); // 1000 + %10
         var gg1 = await rs.GetRevenueExpenseAsync();
         Assert.Equal(100m, gg1.GelirToplam);
         Assert.Equal(1000m, gg1.GiderToplam);
@@ -63,8 +63,8 @@ namespace RentACar.IntegrationTests;
         var gg2 = await rs.GetRevenueExpenseAsync();
         Assert.Equal(0m, gg2.GelirToplam);                 // gelir netleşiyor mu?
         Assert.Equal(0m, gg2.GiderToplam);                 // GİDER netleşiyor mu? (şüpheli: Debit-only)
-        var karlilik = await rs.GetProfitabilityAsync();
-        Assert.Equal(gg2.GiderToplam, karlilik.ToplamGider); // raporlar-arası mutabakat
+        var profitability = await rs.GetProfitabilityAsync();
+        Assert.Equal(gg2.GiderToplam, profitability.ToplamGider); // raporlar-arası mutabakat
     }
 
     [Fact]
@@ -72,25 +72,25 @@ namespace RentACar.IntegrationTests;
     {
         using var host = new TestHost(fx.AppConnectionString);
         var a = Guid.NewGuid(); var b = Guid.NewGuid();
-        Guid kiraA, tedarikciA, kayitA;
+        Guid rentalA, supplierA, recordA;
         using (var sa = host.ScopeFor(a))
         {
             var sp = sa.ServiceProvider;
-            (kiraA, _, tedarikciA) = await KurAsync(sp, "34 PR 07");
-            kayitA = await sp.GetRequiredService<OutsourcedServiceService>().CreateAsync(Girdi(kiraA, tedarikciA));
+            (rentalA, _, supplierA) = await ExchangeRateAsync(sp, "34 PR 07");
+            recordA = await sp.GetRequiredService<OutsourcedServiceService>().CreateAsync(Input(rentalA, supplierA));
         }
 
         using (var sb = host.ScopeFor(b))
         {
             var svcB = sb.ServiceProvider.GetRequiredService<OutsourcedServiceService>();
-            Assert.Empty(await svcB.ListForRentalAsync(kiraA));                       // görünmez
-            await Assert.ThrowsAsync<ValidationException>(() => svcB.CancelAsync(kayitA)); // iptal edemez
+            Assert.Empty(await svcB.ListForRentalAsync(rentalA));                       // görünmez
+            await Assert.ThrowsAsync<ValidationException>(() => svcB.CancelAsync(recordA)); // iptal edemez
             // B, A'nın kirasına kayıt açamaz (RLS/null)
             Guid tedB;
             var t = await sb.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(
                 new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "B Tedarikçi" });
             tedB = t;
-            await Assert.ThrowsAsync<ValidationException>(() => svcB.CreateAsync(Girdi(kiraA, tedB)));
+            await Assert.ThrowsAsync<ValidationException>(() => svcB.CreateAsync(Input(rentalA, tedB)));
         }
 
         // HAM RLS: racar_app + B GUC'u → A satırı yok; UPDATE 0 satır; A GUC'u → 1 satır; DELETE grant yok.

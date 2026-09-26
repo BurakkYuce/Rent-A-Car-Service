@@ -22,15 +22,15 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KanalBaglamaTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
 
     private static async Task<(Guid m, Guid v)> SeedAsync(
-        IServiceProvider sp, bool webMatrisi = true, bool kaynakAktif = true)
+        IServiceProvider sp, bool webMatrix = true, bool isSourceActive = true)
     {
         await sp.GetRequiredService<VehicleGroupService>().CreateAsync(new VehicleGroupInput
         { Kod = "EKO", Ad = "Ekonomik", GunlukKmLimiti = 300, AsimKmUcreti = 5.00m });
         var rm = sp.GetRequiredService<RateMatrixService>();
-        if (webMatrisi)
+        if (webMatrix)
         {
             await rm.CreateAsync(new RateMatrixInput
             {
@@ -52,7 +52,7 @@ public sealed class KanalBaglamaTests(PostgresFixture fx)
             });
         }
         await sp.GetRequiredService<ReservationSourceService>().CreateAsync(new ReservationSourceInput
-        { Kod = "WEB", Ad = "Web Sitesi", Aktif = kaynakAktif });
+        { Kod = "WEB", Ad = "Web Sitesi", Aktif = isSourceActive });
 
         var v = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 KB 01", Grup = "EKO" });
@@ -61,8 +61,8 @@ public sealed class KanalBaglamaTests(PostgresFixture fx)
         return (m, v);
     }
 
-    private static BookingInput Girdi(Guid m, Guid v, string? kaynak) => new()
-    { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), FiyatTuru = "Otomatik", Kaynak = kaynak };
+    private static BookingInput Input(Guid m, Guid v, string? source) => new()
+    { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), FiyatTuru = "Otomatik", Kaynak = source };
 
     [Fact]
     public async Task Gecerli_kaynak_kanal_matrisini_secer_gecersiz_base_kalir()
@@ -74,21 +74,21 @@ public sealed class KanalBaglamaTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
 
         // Kaynak=WEB (aktif tanım) → WEB matrisi: 3 × 900 = 2700 (elle).
-        var kirali = await rentals.CreateDirectAsync(Girdi(m, v, "WEB"));
-        Assert.Equal(2700.00m, (await rentals.GetAsync(kirali))!.Tutar);
+        var rented = await rentals.CreateDirectAsync(Input(m, v, "WEB"));
+        Assert.Equal(2700.00m, (await rentals.GetAsync(rented))!.Tutar);
 
         // Rezervasyonlar AYRI araçta (üstteki aktif kirayla tarih çakışmasın).
         var v2 = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 KB 99", Grup = "EKO" });
 
         // Kaynaksız → kanal-agnostik base tercih: 3 × 1000 = 3000 (mevcut davranış korunur).
-        var rez = sp.GetRequiredService<ReservationService>();
-        var r1 = await rez.CreateAsync(Girdi(m, v2, null));
-        Assert.Equal(3000.00m, (await rez.GetAsync(r1))!.Tutar);
+        var res = sp.GetRequiredService<ReservationService>();
+        var r1 = await res.CreateAsync(Input(m, v2, null));
+        Assert.Equal(3000.00m, (await res.GetAsync(r1))!.Tutar);
 
         // Yazım hatası "webb": tanımlı kaynak DEĞİL → çit → base 3000 (kanal-özel tarife seçtiremez).
-        var r2 = await rez.CreateAsync(Girdi(m, v2, "webb"));
-        Assert.Equal(3000.00m, (await rez.GetAsync(r2))!.Tutar);
+        var r2 = await res.CreateAsync(Input(m, v2, "webb"));
+        Assert.Equal(3000.00m, (await res.GetAsync(r2))!.Tutar);
     }
 
     [Fact]
@@ -97,10 +97,10 @@ public sealed class KanalBaglamaTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (m, v) = await SeedAsync(sp, kaynakAktif: false);
-        var rez = sp.GetRequiredService<ReservationService>();
-        var id = await rez.CreateAsync(Girdi(m, v, "WEB"));
-        Assert.Equal(3000.00m, (await rez.GetAsync(id))!.Tutar);   // pasif tanım → base
+        var (m, v) = await SeedAsync(sp, isSourceActive: false);
+        var res = sp.GetRequiredService<ReservationService>();
+        var id = await res.CreateAsync(Input(m, v, "WEB"));
+        Assert.Equal(3000.00m, (await res.GetAsync(id))!.Tutar);   // pasif tanım → base
     }
 
     [Fact]
@@ -109,13 +109,13 @@ public sealed class KanalBaglamaTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (m, v) = await SeedAsync(sp, webMatrisi: false);        // yalnız ACENTA matrisi
+        var (m, v) = await SeedAsync(sp, webMatrix: false);        // yalnız ACENTA matrisi
 
         // Kanal=WEB setliyken ACENTA matrisi ADAY DEĞİL → tarife çözülemez → Otomatik temiz red
         // (sessiz 0-TL sözleşme yok). DAVRANIŞ DEĞİŞİKLİĞİ: önceden kanal geçirilmediğinden ACENTA
         // matrisi "hepsini eşle" ile seçilirdi.
         await Assert.ThrowsAsync<ValidationException>(
-            () => sp.GetRequiredService<RentalService>().CreateDirectAsync(Girdi(m, v, "WEB")));
+            () => sp.GetRequiredService<RentalService>().CreateDirectAsync(Input(m, v, "WEB")));
     }
 
     [Fact]
@@ -125,11 +125,11 @@ public sealed class KanalBaglamaTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var (m, v) = await SeedAsync(sp);
-        var rez = sp.GetRequiredService<ReservationService>();
+        var res = sp.GetRequiredService<ReservationService>();
 
-        var id = await rez.CreateAsync(Girdi(m, v, null));          // kanalsız → 3000
-        Assert.Equal(3000.00m, (await rez.GetAsync(id))!.Tutar);
-        await rez.UpdateAsync(id, Girdi(m, v, "WEB"));              // ilk kez kanal → reprice
-        Assert.Equal(2700.00m, (await rez.GetAsync(id))!.Tutar);
+        var id = await res.CreateAsync(Input(m, v, null));          // kanalsız → 3000
+        Assert.Equal(3000.00m, (await res.GetAsync(id))!.Tutar);
+        await res.UpdateAsync(id, Input(m, v, "WEB"));              // ilk kez kanal → reprice
+        Assert.Equal(2700.00m, (await res.GetAsync(id))!.Tutar);
     }
 }

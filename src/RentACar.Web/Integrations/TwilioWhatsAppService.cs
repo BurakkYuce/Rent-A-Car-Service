@@ -49,8 +49,8 @@ public sealed class TwilioWhatsAppService(
         // metne düşmek, iş-başlatımlı mesajın 24 saatlik pencere dışında WhatsApp tarafından
         // reddedilmesi demektir — yani net bir config uyarısı yerine sessiz bir gönderim hatası.
         // Bayrak kapalıyken davranış ESKİSİYLE BİREBİR aynıdır (şablon yoksa uyar ve gönderme).
-        var freeformIzinli = config.GetValue("Twilio:AllowFreeform", false);
-        if (string.IsNullOrWhiteSpace(contentSid) && !freeformIzinli)
+        var freeformAllowed = config.GetValue("Twilio:AllowFreeform", false);
+        if (string.IsNullOrWhiteSpace(contentSid) && !freeformAllowed)
         {
             log.LogWarning("Twilio config eksik (template={T}) → WhatsApp gönderilmedi.", templateName);
             return (false, null);
@@ -68,7 +68,7 @@ public sealed class TwilioWhatsAppService(
         }
         else
         {
-            body["Body"] = Metin(parameters);
+            body["Body"] = Text(parameters);
             log.LogInformation("Twilio serbest metin yolu (template={T}) — şablon SID'i yok, AllowFreeform açık.", templateName);
         }
 
@@ -86,7 +86,7 @@ public sealed class TwilioWhatsAppService(
             var resp = await http.SendAsync(req, ct);
             if (resp.IsSuccessStatusCode)
             {
-                string? olusanSid = null;
+                string? createdSid = null;
                 // 201 Created = Twilio mesajı KABUL ETTİ, TESLİM ETTİ demek DEĞİL. Teslim hatası
                 // (sandbox'a katılmamış alıcı 63015, 24 saat penceresi 63016, engellenmiş numara
                 // 63021) saniyeler içinde mesajın DURUMUNA düşer, HTTP yanıtına değil.
@@ -98,23 +98,23 @@ public sealed class TwilioWhatsAppService(
                 try
                 {
                     using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
-                    var kok = doc.RootElement;
-                    var msid = kok.TryGetProperty("sid", out var s2) ? s2.GetString() : null;
-                    olusanSid = msid;
-                    var durum = kok.TryGetProperty("status", out var d2) ? d2.GetString() : null;
-                    var hata = kok.TryGetProperty("error_code", out var e2) && e2.ValueKind != JsonValueKind.Null
+                    var root = doc.RootElement;
+                    var msid = root.TryGetProperty("sid", out var s2) ? s2.GetString() : null;
+                    createdSid = msid;
+                    var status = root.TryGetProperty("status", out var d2) ? d2.GetString() : null;
+                    var error = root.TryGetProperty("error_code", out var e2) && e2.ValueKind != JsonValueKind.Null
                         ? e2.ToString() : null;
 
-                    if (durum is "failed" or "undelivered" || hata is not null)
+                    if (status is "failed" or "undelivered" || error is not null)
                     {
                         log.LogWarning("Twilio mesajı oluşturuldu ama BAŞARISIZ (sid={Sid} durum={Durum} hata={Hata}).",
-                            msid, durum, hata);
-                        return (false, olusanSid);
+                            msid, status, error);
+                        return (false, createdSid);
                     }
-                    log.LogInformation("Twilio mesajı kuyruğa alındı (sid={Sid} durum={Durum}).", msid, durum);
+                    log.LogInformation("Twilio mesajı kuyruğa alındı (sid={Sid} durum={Durum}).", msid, status);
                 }
                 catch (JsonException) { /* gövde okunamadı — kabul yanıtını geçerli say */ }
-                return (true, olusanSid);
+                return (true, createdSid);
             }
             var err = await resp.Content.ReadAsStringAsync(ct);
             log.LogWarning("Twilio WhatsApp başarısız {Status}: {Err}", (int)resp.StatusCode, err);
@@ -148,13 +148,13 @@ public sealed class TwilioWhatsAppService(
     /// atmak gereksiz yük olurdu, onlar için log yeterli).</para>
     /// </summary>
     /// <returns>(durum, hataKodu) — okunamazsa (null, null).</returns>
-    public async Task<(string? Durum, string? HataKodu)> SonDurumAsync(
-        string mesajSid, CancellationToken ct = default)
+    public async Task<(string? Durum, string? HataKodu)> LastStatusAsync(
+        string messageSid, CancellationToken ct = default)
     {
         var sid = config["Twilio:AccountSid"];
         var token = config["Twilio:AuthToken"];
         if (string.IsNullOrWhiteSpace(sid) || string.IsNullOrWhiteSpace(token)
-            || string.IsNullOrWhiteSpace(mesajSid)) return (null, null);
+            || string.IsNullOrWhiteSpace(messageSid)) return (null, null);
 
         try
         {
@@ -166,7 +166,7 @@ public sealed class TwilioWhatsAppService(
             // SID ile sorulunca ANINDA geliyor. Ayrıca liste yolu yarış da barındırıyordu:
             // "numaraya giden son mesaj" bizim az önce gönderdiğimiz olmayabilir.
             using var req = new HttpRequestMessage(HttpMethod.Get,
-                $"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages/{mesajSid}.json");
+                $"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages/{messageSid}.json");
             req.Headers.Authorization = new AuthenticationHeaderValue(
                 "Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($"{sid}:{token}")));
             var resp = await http.SendAsync(req, ct);
@@ -178,10 +178,10 @@ public sealed class TwilioWhatsAppService(
 
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
             var m = doc.RootElement;
-            var durum = m.TryGetProperty("status", out var d) ? d.GetString() : null;
-            var hata = m.TryGetProperty("error_code", out var e) && e.ValueKind != JsonValueKind.Null
+            var status = m.TryGetProperty("status", out var d) ? d.GetString() : null;
+            var error = m.TryGetProperty("error_code", out var e) && e.ValueKind != JsonValueKind.Null
                 ? e.ToString() : null;
-            return (durum, hata);
+            return (status, error);
         }
         catch (Exception ex)
         {
@@ -191,7 +191,7 @@ public sealed class TwilioWhatsAppService(
     }
 
     /// <summary>Twilio hata kodunu operatörün anlayacağı cümleye çevirir (teşhis).</summary>
-    public static string HataAciklama(string? kod) => kod switch
+    public static string ErrorDescription(string? code) => code switch
     {
         "63015" => "Alıcı numara WhatsApp sandbox'a katılmamış. Telefondan sandbox numarasına "
                  + "'join <kod>' mesajı gönderin (kod Twilio konsolunda yazıyor).",
@@ -201,12 +201,12 @@ public sealed class TwilioWhatsAppService(
         "21211" or "21212" => "Numara biçimi geçersiz (E.164 olmalı, ör. +905321112233).",
         "20003" => "Twilio kimliği geçersiz (Account SID / Auth Token).",
         null => "",
-        _ => $"Twilio hata kodu {kod}.",
+        _ => $"Twilio hata kodu {code}.",
     };
 
     /// <remarks>SAF ve <c>public</c>: doğrudan test edilebilsin diye (repoda <c>InternalsVisibleTo</c>
     /// deseni yok; <c>AracImza</c>/<c>GelenEFaturaKdvKirilim</c> gibi saf yardımcılar da public).</remarks>
-    public static string Metin(IReadOnlyDictionary<string, string> parameters)
+    public static string Text(IReadOnlyDictionary<string, string> parameters)
         => string.Join(' ', parameters
             .OrderBy(p => int.TryParse(p.Key, out var n) ? n : int.MaxValue)
             .ThenBy(p => p.Key, StringComparer.Ordinal)

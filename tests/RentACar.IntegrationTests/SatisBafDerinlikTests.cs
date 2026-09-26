@@ -30,15 +30,15 @@ namespace RentACar.IntegrationTests;
 public sealed class SatisBafDerinlikTests(PostgresFixture fx)
 {
     // CI-vs-lokal tick farkı: DateTimeOffset round-trip eşitliği için tarih tabanı TAM SANİYEYE hizalı.
-    private static DateTimeOffset Saniye(DateTimeOffset t)
+    private static DateTimeOffset Second(DateTimeOffset t)
         => t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
 
-    private static readonly DateTimeOffset Bugun =
-        Saniye(new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc), TimeSpan.Zero));
+    private static readonly DateTimeOffset Today =
+        Second(new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc), TimeSpan.Zero));
 
-    private static async Task<Guid> AracAsync(IServiceScope scope, string plaka, string? sube = null)
+    private static async Task<Guid> VehicleAsync(IServiceScope scope, string plate, string? branch = null)
         => await scope.ServiceProvider.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka, Sube = sube });
+            .CreateAsync(new VehicleInput { Plaka = plate, Sube = branch });
 
     // ---------------------------------------------------------------- Bölüm A: Araç Satış
 
@@ -48,17 +48,17 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sales = scope.ServiceProvider.GetRequiredService<VehicleSaleService>();
-        var arac = await AracAsync(scope, "34 RT 01");
-        var ihale = Saniye(Bugun.AddDays(-5));
-        var noter = Saniye(Bugun.AddDays(-2));
+        var vehicle = await VehicleAsync(scope, "34 RT 01");
+        var auction = Second(Today.AddDays(-5));
+        var noter = Second(Today.AddDays(-2));
 
         var id = await sales.CreateAsync(new VehicleSaleInput
         {
-            VehicleId = arac, AliciCariId = Guid.NewGuid(), SatisNet = 100_000m, KdvOrani = 0.20m,
-            Doviz = "TRY", Kur = 1m, Tarih = Bugun,
+            VehicleId = vehicle, AliciCariId = Guid.NewGuid(), SatisNet = 100_000m, KdvOrani = 0.20m,
+            Doviz = "TRY", Kur = 1m, Tarih = Today,
             KirayaVerme = true, IlanKm = 55_000, SatisKm = 57_500, ListeDoviz = "usd",
             SatisNoktasi = "Merkez Galeri", UygulananKampanya = "YAZ-2026",
-            IhaleFirmasi = " Alfa İhale ", IhaleTarihi = ihale, IhaleSayisi = "2026/144",
+            IhaleFirmasi = " Alfa İhale ", IhaleTarihi = auction, IhaleSayisi = "2026/144",
             NoterSatisTarihi = noter, SatisiVerildi = true, YevmiyeNumarasi = "YEV-9001",
             Aciklama2 = "ikinci açıklama"
         });
@@ -73,7 +73,7 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         Assert.Equal("Merkez Galeri", s.SatisNoktasi);
         Assert.Equal("YAZ-2026", s.UygulananKampanya);
         Assert.Equal("Alfa İhale", s.IhaleFirmasi); // trim
-        Assert.Equal(ihale, s.IhaleTarihi);
+        Assert.Equal(auction, s.IhaleTarihi);
         Assert.Equal("2026/144", s.IhaleSayisi);
         Assert.Equal(noter, s.NoterSatisTarihi);
         Assert.True(s.SatisiVerildi);
@@ -92,15 +92,15 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sales = scope.ServiceProvider.GetRequiredService<VehicleSaleService>();
-        var arac = await AracAsync(scope, "34 RT 02");
+        var vehicle = await VehicleAsync(scope, "34 RT 02");
 
-        VehicleSaleInput Girdi() => new()
-        { VehicleId = arac, AliciCariId = Guid.NewGuid(), SatisNet = 1000m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m };
+        VehicleSaleInput Input() => new()
+        { VehicleId = vehicle, AliciCariId = Guid.NewGuid(), SatisNet = 1000m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m };
 
-        var g1 = Girdi(); g1.IlanKm = -1;
+        var g1 = Input(); g1.IlanKm = -1;
         Assert.Contains("İlan KM", (await Assert.ThrowsAsync<ValidationException>(() => sales.CreateAsync(g1))).Message);
 
-        var g2 = Girdi(); g2.ListeDoviz = "DOLAR";   // 3 harften uzun → kolon sınırında 500 yerine temiz red
+        var g2 = Input(); g2.ListeDoviz = "DOLAR";   // 3 harften uzun → kolon sınırında 500 yerine temiz red
         Assert.Contains("3 harfli", (await Assert.ThrowsAsync<ValidationException>(() => sales.CreateAsync(g2))).Message);
     }
 
@@ -112,40 +112,40 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         var sales = scope.ServiceProvider.GetRequiredService<VehicleSaleService>();
 
         // 3 satış (elle): A=devir verildi + Merkez aracı + bugün; B=devir yok + Ankara; C=devir yok + şubesiz, 30 gün önce.
-        var aracA = await AracAsync(scope, "34 FL 01", sube: "Merkez");
-        var aracB = await AracAsync(scope, "34 FL 02", sube: "Ankara");
-        var aracC = await AracAsync(scope, "34 FL 03");
-        var cariA = Guid.NewGuid();
+        var vehicleA = await VehicleAsync(scope, "34 FL 01", branch: "Merkez");
+        var vehicleB = await VehicleAsync(scope, "34 FL 02", branch: "Ankara");
+        var vehicleC = await VehicleAsync(scope, "34 FL 03");
+        var accountA = Guid.NewGuid();
 
         await sales.CreateAsync(new VehicleSaleInput
-        { VehicleId = aracA, AliciCariId = cariA, SatisNet = 10m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, Tarih = Bugun, SatisiVerildi = true });
+        { VehicleId = vehicleA, AliciCariId = accountA, SatisNet = 10m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, Tarih = Today, SatisiVerildi = true });
         await sales.CreateAsync(new VehicleSaleInput
-        { VehicleId = aracB, AliciCariId = Guid.NewGuid(), SatisNet = 20m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, Tarih = Bugun });
+        { VehicleId = vehicleB, AliciCariId = Guid.NewGuid(), SatisNet = 20m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, Tarih = Today });
         await sales.CreateAsync(new VehicleSaleInput
-        { VehicleId = aracC, AliciCariId = Guid.NewGuid(), SatisNet = 30m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, Tarih = Bugun.AddDays(-30) });
+        { VehicleId = vehicleC, AliciCariId = Guid.NewGuid(), SatisNet = 30m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, Tarih = Today.AddDays(-30) });
 
         Assert.Equal(3, (await sales.SearchAsync()).Count);                                   // filtresiz: hepsi
 
-        var devir = await sales.SearchAsync(new VehicleSaleFilter { SatisiVerildi = true });
-        Assert.Single(devir);                                                                 // ORACLE: 3 satıştan 1'i
-        Assert.Equal(aracA, devir[0].VehicleId);
+        var carryForward = await sales.SearchAsync(new VehicleSaleFilter { SatisiVerildi = true });
+        Assert.Single(carryForward);                                                                 // ORACLE: 3 satıştan 1'i
+        Assert.Equal(vehicleA, carryForward[0].VehicleId);
 
         Assert.Equal(2, (await sales.SearchAsync(new VehicleSaleFilter { SatisiVerildi = false })).Count);
 
-        var ofis = await sales.SearchAsync(new VehicleSaleFilter { Ofis = "Merkez" });
-        Assert.Single(ofis);                                                                  // aracın şubesinden
-        Assert.Equal(aracA, ofis[0].VehicleId);
+        var office = await sales.SearchAsync(new VehicleSaleFilter { Ofis = "Merkez" });
+        Assert.Single(office);                                                                  // aracın şubesinden
+        Assert.Equal(vehicleA, office[0].VehicleId);
         Assert.Empty(await sales.SearchAsync(new VehicleSaleFilter { Ofis = "İzmir" }));
 
-        var plaka = await sales.SearchAsync(new VehicleSaleFilter { Plaka = "34 FL 02" });     // boşluklu yazım da bulmalı
-        Assert.Single(plaka);
-        Assert.Equal(aracB, plaka[0].VehicleId);
+        var plate = await sales.SearchAsync(new VehicleSaleFilter { Plaka = "34 FL 02" });     // boşluklu yazım da bulmalı
+        Assert.Single(plate);
+        Assert.Equal(vehicleB, plate[0].VehicleId);
 
-        Assert.Single(await sales.SearchAsync(new VehicleSaleFilter { AliciCariId = cariA }));
+        Assert.Single(await sales.SearchAsync(new VehicleSaleFilter { AliciCariId = accountA }));
 
-        var tarih = await sales.SearchAsync(new VehicleSaleFilter { Bas = Bugun.AddDays(-1) });
-        Assert.Equal(2, tarih.Count);                                                         // 30 gün öncesi düşer
-        Assert.Equal(3, (await sales.SearchAsync(new VehicleSaleFilter { Bit = Bugun })).Count);
+        var date = await sales.SearchAsync(new VehicleSaleFilter { Bas = Today.AddDays(-1) });
+        Assert.Equal(2, date.Count);                                                         // 30 gün öncesi düşer
+        Assert.Equal(3, (await sales.SearchAsync(new VehicleSaleFilter { Bit = Today })).Count);
 
         Assert.Equal(3, (await sales.SearchAsync(new VehicleSaleFilter { Durum = SaleStatus.Tamamlandi })).Count);
         Assert.Empty(await sales.SearchAsync(new VehicleSaleFilter { Durum = SaleStatus.Iptal }));
@@ -154,11 +154,11 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
     [Fact]
     public void Gecen_gun_hesabi_sabit_tarihten()
     {
-        var satis = new DateTimeOffset(2026, 1, 1, 8, 0, 0, TimeSpan.Zero);
-        var simdi = new DateTimeOffset(2026, 1, 11, 23, 30, 0, TimeSpan.Zero);
-        Assert.Equal(10, SaleCalculation.ElapsedDays(satis, simdi));       // ORACLE: 1 Ocak → 11 Ocak = 10 gün
-        Assert.Equal(0, SaleCalculation.ElapsedDays(simdi, simdi));
-        Assert.Equal(-2, SaleCalculation.ElapsedDays(simdi.AddDays(2), simdi)); // gelecek tarih gizlenmez
+        var sale = new DateTimeOffset(2026, 1, 1, 8, 0, 0, TimeSpan.Zero);
+        var now = new DateTimeOffset(2026, 1, 11, 23, 30, 0, TimeSpan.Zero);
+        Assert.Equal(10, SaleCalculation.ElapsedDays(sale, now));       // ORACLE: 1 Ocak → 11 Ocak = 10 gün
+        Assert.Equal(0, SaleCalculation.ElapsedDays(now, now));
+        Assert.Equal(-2, SaleCalculation.ElapsedDays(now.AddDays(2), now)); // gelecek tarih gizlenmez
     }
 
     /// <summary>
@@ -172,17 +172,17 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var filoGiris = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var satisTarih = new DateTimeOffset(2025, 3, 31, 12, 0, 0, TimeSpan.Zero);
+        var fleetEntry = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var saleDate = new DateTimeOffset(2025, 3, 31, 12, 0, 0, TimeSpan.Zero);
 
         // Alım 1000, tahmini kalıntı 800, TAM 800'e satıldı → gerçek ekonomi 800−1000 = −200 (elle).
-        var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
-        { Plaka = "34 SZ 01", AlimBedeli = 1000m, IkinciElDeger = 800m, FiloGirisTarih = filoGiris });
+        var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput
+        { Plaka = "34 SZ 01", AlimBedeli = 1000m, IkinciElDeger = 800m, FiloGirisTarih = fleetEntry });
 
         await sp.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput
         {
-            VehicleId = arac, AliciCariId = Guid.NewGuid(), SatisNet = 800m, KdvOrani = 0m,
-            Doviz = "TRY", Kur = 1m, Tarih = satisTarih,
+            VehicleId = vehicle, AliciCariId = Guid.NewGuid(), SatisNet = 800m, KdvOrani = 0m,
+            Doviz = "TRY", Kur = 1m, Tarih = saleDate,
             // UÇUK bilgi alanları — hiçbiri deftere/rapora girmemeli.
             HedefFiyat = 9_999_999m, IlanKm = 999_999, SatisKm = 999_999, KirayaVerme = true,
             ListeDoviz = "EUR", SatisNoktasi = "Uçuk Nokta", UygulananKampanya = "SIZINTI-TESTI",
@@ -203,7 +203,7 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         }
 
         // 2) Araç Karnesi — AracKarneKpiTests'teki senaryonun BİREBİR aynı sayıları.
-        var k = await sp.GetRequiredService<ReportService>().GetVehicleScorecardAsync(arac);
+        var k = await sp.GetRequiredService<ReportService>().GetVehicleScorecardAsync(vehicle);
         Assert.Equal(800m, k!.ToplamGelir);
         Assert.Equal(0m, k.ToplamGider);
         Assert.Equal(1000m, k.Kpi.GerceklesenAmortisman);
@@ -211,10 +211,10 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         Assert.Equal(-20.00m, k.Kpi.RoiYuzde);
 
         // 3) Karlılık raporu — aynı araç satırı; HedefFiyat 9.999.999 hiçbir toplama girmedi.
-        var karlilik = await sp.GetRequiredService<ReportService>().GetProfitabilityAsync();
-        Assert.Equal(800m, karlilik.ToplamGelir);
-        Assert.Equal(0m, karlilik.ToplamGider);
-        Assert.Equal(800m, karlilik.ToplamNetKar);
+        var profitability = await sp.GetRequiredService<ReportService>().GetProfitabilityAsync();
+        Assert.Equal(800m, profitability.ToplamGelir);
+        Assert.Equal(0m, profitability.ToplamGider);
+        Assert.Equal(800m, profitability.ToplamNetKar);
     }
 
     [Fact]
@@ -223,9 +223,9 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using (var a = host.ScopeFor(Guid.NewGuid()))
         {
-            var arac = await AracAsync(a, "34 TZ 01");
+            var vehicle = await VehicleAsync(a, "34 TZ 01");
             await a.ServiceProvider.GetRequiredService<VehicleSaleService>().CreateAsync(new VehicleSaleInput
-            { VehicleId = arac, AliciCariId = Guid.NewGuid(), SatisNet = 100m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, SatisiVerildi = true });
+            { VehicleId = vehicle, AliciCariId = Guid.NewGuid(), SatisNet = 100m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, SatisiVerildi = true });
         }
         using var b = host.ScopeFor(Guid.NewGuid());
         // racar_app ile bağlanan fixture: RLS + query filter → başka tenant'ın satışı GÖRÜNMEZ.
@@ -241,25 +241,25 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<BafService>();
-        var onaylayan = Guid.NewGuid();
-        var cikis = Saniye(Bugun.AddDays(-1));
-        var donus = Saniye(Bugun);
+        var approver = Guid.NewGuid();
+        var pickup = Second(Today.AddDays(-1));
+        var returnInfo = Second(Today);
 
         var id = await svc.CreateAsync(new BafInput
         {
             PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 10_000, Sube = "Merkez",
-            KullanimAmaci = BafUsagePurpose.Yikama, Onaylayan = onaylayan, KirayaVer = true,
-            CikisSaat = new TimeOnly(8, 30), CikisTarihi = cikis
+            KullanimAmaci = BafUsagePurpose.Yikama, Onaylayan = approver, KirayaVer = true,
+            CikisSaat = new TimeOnly(8, 30), CikisTarihi = pickup
         });
 
         var b = await svc.GetAsync(id);
         Assert.Equal(BafUsagePurpose.Yikama, b!.KullanimAmaci);
-        Assert.Equal(onaylayan, b.Onaylayan);
+        Assert.Equal(approver, b.Onaylayan);
         Assert.True(b.KirayaVer);
         Assert.Equal(new TimeOnly(8, 30), b.CikisSaat);
         Assert.Null(b.DonusSube);
 
-        Assert.True(await svc.ReceiveAsync(id, returnKm: 10_500, returnFuel: 7, returnDate: donus,
+        Assert.True(await svc.ReceiveAsync(id, returnKm: 10_500, returnFuel: 7, returnDate: returnInfo,
             returnBranch: " Ankara ", returnHour: new TimeOnly(17, 45)));
 
         var b2 = await svc.GetAsync(id);
@@ -280,13 +280,13 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<BafService>();
 
         // ORACLE (elle): 1) A→A aynı ofis; 2) A→B farklı ofis; 3) A→(boş) hiçbir kovada değil.
-        var ayni = await svc.CreateAsync(new BafInput
+        var same = await svc.CreateAsync(new BafInput
         { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 10, Sube = "A", KullanimAmaci = BafUsagePurpose.Yikama });
-        await svc.ReceiveAsync(ayni, 20, null, returnBranch: "A");
+        await svc.ReceiveAsync(same, 20, null, returnBranch: "A");
 
-        var farkli = await svc.CreateAsync(new BafInput
+        var different = await svc.CreateAsync(new BafInput
         { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 10, Sube = "A", KullanimAmaci = BafUsagePurpose.Muayene });
-        await svc.ReceiveAsync(farkli, 20, null, returnBranch: "B");
+        await svc.ReceiveAsync(different, 20, null, returnBranch: "B");
 
         await svc.CreateAsync(new BafInput
         { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 10, Sube = "A" });   // açık, dönüşsüz
@@ -295,11 +295,11 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
 
         var a = await svc.SearchAsync(new BafFilter { Lokasyon = BafLocation.AyniOfis });
         Assert.Single(a);
-        Assert.Equal(ayni, a[0].Id);
+        Assert.Equal(same, a[0].Id);
 
         var f = await svc.SearchAsync(new BafFilter { Lokasyon = BafLocation.FarkliOfis });
         Assert.Single(f);
-        Assert.Equal(farkli, f[0].Id);
+        Assert.Equal(different, f[0].Id);
 
         Assert.Single(await svc.SearchAsync(new BafFilter { KullanimAmaci = BafUsagePurpose.Muayene }));
         Assert.Empty(await svc.SearchAsync(new BafFilter { KullanimAmaci = BafUsagePurpose.YakitIkmali }));
@@ -315,17 +315,17 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<BafService>();
-        var arac1 = await AracAsync(scope, "06 BF 11");
-        var arac2 = await AracAsync(scope, "06 BF 22");
+        var vehicle1 = await VehicleAsync(scope, "06 BF 11");
+        var vehicle2 = await VehicleAsync(scope, "06 BF 22");
         var pers = Guid.NewGuid();
 
-        await svc.CreateAsync(new BafInput { PersonelId = pers, VehicleId = arac1, CikisKm = 1, CikisTarihi = Bugun });
-        await svc.CreateAsync(new BafInput { PersonelId = Guid.NewGuid(), VehicleId = arac2, CikisKm = 1, CikisTarihi = Bugun.AddDays(-30) });
+        await svc.CreateAsync(new BafInput { PersonelId = pers, VehicleId = vehicle1, CikisKm = 1, CikisTarihi = Today });
+        await svc.CreateAsync(new BafInput { PersonelId = Guid.NewGuid(), VehicleId = vehicle2, CikisKm = 1, CikisTarihi = Today.AddDays(-30) });
 
         Assert.Single(await svc.SearchAsync(new BafFilter { PersonelId = pers }));
         Assert.Single(await svc.SearchAsync(new BafFilter { Plaka = "06 BF 22" }));   // boşluklu yazım da bulmalı
-        Assert.Single(await svc.SearchAsync(new BafFilter { Bas = Bugun.AddDays(-1) }));
-        Assert.Equal(2, (await svc.SearchAsync(new BafFilter { Bit = Bugun })).Count);
+        Assert.Single(await svc.SearchAsync(new BafFilter { Bas = Today.AddDays(-1) }));
+        Assert.Equal(2, (await svc.SearchAsync(new BafFilter { Bit = Today })).Count);
     }
 
     [Fact]
@@ -356,10 +356,10 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        using var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "mh", UserRole.Muhasebe);
+        using var accounting = host.ScopeFor(tenant, Guid.NewGuid(), "mh", UserRole.Muhasebe);
         // Muhasebe rolünde OperationsWrite YOK → BAF araması reddedilir (ekran da bu role kapalı).
         await Assert.ThrowsAsync<NoPermissionException>(
-            () => muhasebe.ServiceProvider.GetRequiredService<BafService>().SearchAsync(new BafFilter()));
+            () => accounting.ServiceProvider.GetRequiredService<BafService>().SearchAsync(new BafFilter()));
     }
 
     [Fact]
@@ -430,19 +430,19 @@ public sealed class SatisBafDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var subeler = sp.GetRequiredService<RentACar.Application.Branches.BranchService>();
-        var eski = await subeler.CreateAsync(new RentACar.Application.Branches.BranchInput { Kod = "ESK", Ad = "Eski" });
-        var yeni = await subeler.CreateAsync(new RentACar.Application.Branches.BranchInput { Kod = "YNI", Ad = "Yeni" });
+        var branches = sp.GetRequiredService<RentACar.Application.Branches.BranchService>();
+        var old = await branches.CreateAsync(new RentACar.Application.Branches.BranchInput { Kod = "ESK", Ad = "Eski" });
+        var newItem = await branches.CreateAsync(new RentACar.Application.Branches.BranchInput { Kod = "YNI", Ad = "Yeni" });
 
         var baf = sp.GetRequiredService<BafService>();
         var id = await baf.CreateAsync(new BafInput
         { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 1, Sube = "Merkez" });
         await baf.ReceiveAsync(id, 2, null, returnBranch: "Eski");
 
-        var onizleme = await subeler.PreviewMergeAsync(eski, yeni);
-        Assert.Contains(onizleme!.Etkilenen, x => x.Tablo.Contains("dönüş", StringComparison.OrdinalIgnoreCase));
+        var preview = await branches.PreviewMergeAsync(old, newItem);
+        Assert.Contains(preview!.Etkilenen, x => x.Tablo.Contains("dönüş", StringComparison.OrdinalIgnoreCase));
 
-        await subeler.MergeAsync(eski, yeni);
+        await branches.MergeAsync(old, newItem);
         Assert.Equal("Yeni", (await baf.GetAsync(id))!.DonusSube);
         Assert.Equal("Merkez", (await baf.GetAsync(id))!.Sube);   // çıkış şubesi ilgisiz → değişmedi
     }

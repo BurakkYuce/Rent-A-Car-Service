@@ -125,14 +125,14 @@ public sealed class PgRetryTests(PostgresFixture fx)
         // İki iş de commit ettiyse HER araç HER iki işaretçiyi tam BİRER kez taşır
         // (kurbanın ilk denemesindeki append rollback ile silinmiş olmalı — çift "A"/"B" = sızıntı).
         await using var check = await factory.CreateDbContextAsync();
-        var izler = await check.Vehicles.Where(x => x.Id == v1 || x.Id == v2)
+        var traces = await check.Vehicles.Where(x => x.Id == v1 || x.Id == v2)
             .Select(x => x.LastikDurumu).ToListAsync();
-        Assert.Equal(2, izler.Count);
-        Assert.All(izler, iz =>
+        Assert.Equal(2, traces.Count);
+        Assert.All(traces, trace =>
         {
-            Assert.NotNull(iz);
-            Assert.Equal(1, iz!.Count(c => c == 'A'));
-            Assert.Equal(1, iz.Count(c => c == 'B'));
+            Assert.NotNull(trace);
+            Assert.Equal(1, trace!.Count(c => c == 'A'));
+            Assert.Equal(1, trace.Count(c => c == 'B'));
         });
     }
 

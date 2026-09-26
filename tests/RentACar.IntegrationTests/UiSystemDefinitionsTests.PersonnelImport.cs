@@ -19,24 +19,24 @@ public sealed partial class UiSystemDefinitionsTests
         var e = await _kit.SetupAsync();
         var admin = await _kit.LoginAsync(e, Who.Admin);
         const string path = V1 + "/personel";
-        const string tc = "10000000146";
+        const string nationalId = "10000000146";
 
         var created = await Json(await Send(admin, HttpMethod.Post, path,
-            new { kod = "T1", ad = "Ayşe", soyad = "Demir", tcKimlik = tc, maas = 30000m }), HttpStatusCode.Created);
+            new { kod = "T1", ad = "Ayşe", soyad = "Demir", tcKimlik = nationalId, maas = 30000m }), HttpStatusCode.Created);
         var id = created.GetProperty("id").GetGuid();
 
         // null TC + null maaş → ikisi de korunur.
         var kept = await Json(await Send(admin, HttpMethod.Put, $"{path}/{id}",
-            new { kod = "T1", ad = "Ayşe", soyad = "Demir", surum = Surum(created) }));
+            new { kod = "T1", ad = "Ayşe", soyad = "Demir", surum = VersionOf(created) }));
         Assert.True(kept.GetProperty("tcKimlikTanimli").GetBoolean());
         Assert.Equal(30000m, kept.GetProperty("maas").GetDecimal());
 
         // "" TC → silinir; maasTemizle → maaş silinir; yanıtta TC hiçbir biçimde yok.
         var clearResp = await Send(admin, HttpMethod.Put, $"{path}/{id}",
-            new { kod = "T1", ad = "Ayşe", soyad = "Demir", tcKimlik = "", maasTemizle = true, surum = Surum(kept) });
+            new { kod = "T1", ad = "Ayşe", soyad = "Demir", tcKimlik = "", maasTemizle = true, surum = VersionOf(kept) });
         var clearText = await clearResp.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, clearResp.StatusCode);
-        Assert.DoesNotContain(tc, clearText);
+        Assert.DoesNotContain(nationalId, clearText);
         var cleared = JsonDocument.Parse(clearText).RootElement;
         Assert.False(cleared.GetProperty("tcKimlikTanimli").GetBoolean());
         Assert.Equal(JsonValueKind.Null, cleared.GetProperty("maas").ValueKind);
@@ -47,7 +47,7 @@ public sealed partial class UiSystemDefinitionsTests
 
         // Dolu değer silme bayrağına üstün gelir (yazılan değer kaybolmaz).
         var again = await Json(await Send(admin, HttpMethod.Put, $"{path}/{id}",
-            new { kod = "T1", ad = "Ayşe", soyad = "Demir", tcKimlik = tc, maas = 32500.5m, maasTemizle = true, surum = Surum(cleared) }));
+            new { kod = "T1", ad = "Ayşe", soyad = "Demir", tcKimlik = nationalId, maas = 32500.5m, maasTemizle = true, surum = VersionOf(cleared) }));
         Assert.True(again.GetProperty("tcKimlikTanimli").GetBoolean());
         Assert.Equal(32500.5m, again.GetProperty("maas").GetDecimal());
     }
@@ -69,7 +69,7 @@ public sealed partial class UiSystemDefinitionsTests
         var id = created.GetProperty("id").GetGuid();
 
         await Problem(await Send(admin, HttpMethod.Put, $"{path}/{id}",
-            new { kod = "W1", ad = "Can", soyad = "Er", tcKimlik = value, surum = Surum(created) }),
+            new { kod = "W1", ad = "Can", soyad = "Er", tcKimlik = value, surum = VersionOf(created) }),
             HttpStatusCode.BadRequest, "dogrulama", "tcKimlik");
         await Problem(await Send(admin, HttpMethod.Post, path, new { kod = "W2", ad = "A", soyad = "B", tcKimlik = value }),
             HttpStatusCode.BadRequest, "dogrulama", "tcKimlik");
@@ -103,17 +103,17 @@ public sealed partial class UiSystemDefinitionsTests
         Assert.Equal(1, await _kit.ReadAsync(e.TenantId, db => db.Vehicles.CountAsync(v => v.Plaka == plate)));
 
         // Cari: 1 geçerli (TC şifreli girer), aynı TC tekrar → atlanan, 2 bozuk e-posta → özet (ad YOK).
-        const string tc = "10000000146";
+        const string nationalId = "10000000146";
         var csv = "Ad;Soyad;TC Kimlik;E-posta\n"
-                  + $"Deniz;Yıldız;{tc};deniz@ornek.test\n"
-                  + $"Deniz;Yıldız;{tc};deniz@ornek.test\n"
+                  + $"Deniz;Yıldız;{nationalId};deniz@ornek.test\n"
+                  + $"Deniz;Yıldız;{nationalId};deniz@ornek.test\n"
                   + "Gizlikisi;Birinci;;bozuk-eposta\n"
                   + "Gizlikisi;Ikinci;;bozuk-eposta\n";
         var resp = await Send(admin, HttpMethod.Post, V1 + "/ice-aktar/cari", CsvFile(csv));
         var text = await resp.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         Assert.DoesNotContain("Gizlikisi", text);
-        Assert.DoesNotContain(tc, text);
+        Assert.DoesNotContain(nationalId, text);
         var customers = JsonDocument.Parse(text).RootElement;
         Assert.Equal(1, customers.GetProperty("eklenen").GetInt32());
         Assert.Equal(1, customers.GetProperty("atlanan").GetInt32());
@@ -126,7 +126,7 @@ public sealed partial class UiSystemDefinitionsTests
         var only = Assert.Single(stored);
         Assert.Null(only.TcKimlik); // düz metin kolon yazılmaz
         Assert.NotNull(only.TcKimlikEnc);
-        Assert.DoesNotContain(tc, only.TcKimlikEnc!);
+        Assert.DoesNotContain(nationalId, only.TcKimlikEnc!);
 
         // Dosya denetimleri → 400 errors[dosya].
         await Problem(await Send(admin, HttpMethod.Post, V1 + "/ice-aktar/arac", CsvFile("")),

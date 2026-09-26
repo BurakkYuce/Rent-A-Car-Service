@@ -14,27 +14,27 @@ public sealed class SablonDoldurTests
     [Fact]
     public void Bilinen_yer_tutucular_dolar()
     {
-        var cikti = TemplateFiller.Fill(
+        var output = TemplateFiller.Fill(
             "Sayın {MusteriAd}, {Plaka} plakalı aracınız {CikisTarih} tarihinde hazır.",
             D(("MusteriAd", "Ahmet Yılmaz"), ("Plaka", "34ABC123"), ("CikisTarih", "18.08.2026 10:00")),
             htmlEscape: false);
 
-        Assert.Equal("Sayın Ahmet Yılmaz, 34ABC123 plakalı aracınız 18.08.2026 10:00 tarihinde hazır.", cikti);
+        Assert.Equal("Sayın Ahmet Yılmaz, 34ABC123 plakalı aracınız 18.08.2026 10:00 tarihinde hazır.", output);
     }
 
     [Fact]
     public void Bilinmeyen_yer_tutucu_oldugu_gibi_kalir()
     {
         // Sessizce boşa çevirmek "Sayın , aracınız hazır" üretirdi — yazım hatası görünmez olurdu.
-        var cikti = TemplateFiller.Fill("Sayın {Musteri_Ad}, hoş geldiniz.", D(("MusteriAd", "Ayşe")), htmlEscape: false);
-        Assert.Equal("Sayın {Musteri_Ad}, hoş geldiniz.", cikti);
+        var output = TemplateFiller.Fill("Sayın {Musteri_Ad}, hoş geldiniz.", D(("MusteriAd", "Ayşe")), htmlEscape: false);
+        Assert.Equal("Sayın {Musteri_Ad}, hoş geldiniz.", output);
     }
 
     [Fact]
     public void Bilinen_anahtarin_null_degeri_bos_stringe_cevrilir()
     {
-        var cikti = TemplateFiller.Fill("Plaka: {Plaka}.", D(("Plaka", null)), htmlEscape: false);
-        Assert.Equal("Plaka: .", cikti);
+        var output = TemplateFiller.Fill("Plaka: {Plaka}.", D(("Plaka", null)), htmlEscape: false);
+        Assert.Equal("Plaka: .", output);
     }
 
     [Fact]
@@ -42,23 +42,23 @@ public sealed class SablonDoldurTests
     {
         // Şablonun kendi <b> etiketi FİRMANIN yazdığıdır → korunur.
         // Müşteri adındaki <script> ise VERİDİR → kaçırılır, e-postada çalışmaz.
-        var cikti = TemplateFiller.Fill(
+        var output = TemplateFiller.Fill(
             "<p>Sayın <b>{MusteriAd}</b>,</p>",
             D(("MusteriAd", "<script>alert(1)</script>")),
             htmlEscape: true);
 
-        Assert.Contains("<p>", cikti);
-        Assert.Contains("<b>", cikti);
-        Assert.DoesNotContain("<script>", cikti);
-        Assert.Contains("&lt;script&gt;", cikti);
+        Assert.Contains("<p>", output);
+        Assert.Contains("<b>", output);
+        Assert.DoesNotContain("<script>", output);
+        Assert.Contains("&lt;script&gt;", output);
     }
 
     [Fact]
     public void Sms_govdesinde_kacis_uygulanmaz()
     {
         // Düz metinde kaçış "Yüce &amp; Ortakları" gibi bozuk çıktı üretirdi.
-        var cikti = TemplateFiller.Fill("Sayın {MusteriAd}", D(("MusteriAd", "Yüce & Ortakları")), htmlEscape: false);
-        Assert.Equal("Sayın Yüce & Ortakları", cikti);
+        var output = TemplateFiller.Fill("Sayın {MusteriAd}", D(("MusteriAd", "Yüce & Ortakları")), htmlEscape: false);
+        Assert.Equal("Sayın Yüce & Ortakları", output);
     }
 
     [Theory]
@@ -66,8 +66,8 @@ public sealed class SablonDoldurTests
     [InlineData("", "")]
     [InlineData("Kapanmamış {Plaka", "Kapanmamış {Plaka")]
     [InlineData("Süslü yok", "Süslü yok")]
-    public void Sinir_durumlari(string? sablon, string beklenen)
-        => Assert.Equal(beklenen, TemplateFiller.Fill(sablon, D(("Plaka", "34ABC")), htmlEscape: false));
+    public void Sinir_durumlari(string? template, string expected)
+        => Assert.Equal(expected, TemplateFiller.Fill(template, D(("Plaka", "34ABC")), htmlEscape: false));
 
     [Fact]
     public void Duz_metin_html_den_okunabilir_alternatif_uretir()

@@ -28,27 +28,27 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SigortaZeyilTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Bit = new(2027, 1, 1, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset ZTarih = new(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset ZTanzim = new(2026, 2, 25, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset ZDate = new(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset ZIssue = new(2026, 2, 25, 0, 0, 0, TimeSpan.Zero);
 
-    private static async Task<Guid> PoliceAsync(IServiceProvider sp, string plaka, decimal prim = 1200m,
-        string doviz = "TRY")
+    private static async Task<Guid> PoliceAsync(IServiceProvider sp, string plate, decimal premium = 1200m,
+        string currency = "TRY")
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
         return await sp.GetRequiredService<RegulationService>().AddInsuranceAsync(
-            v, InsuranceType.Kasko, Bas, Bit, prim, "POL-" + plaka, "AnadoluSigorta", null, doviz);
+            v, InsuranceType.Kasko, Start, Bit, premium, "POL-" + plate, "AnadoluSigorta", null, currency);
     }
 
-    private static ZeyilInput Girdi(Guid policyId, string no, decimal brut) => new()
+    private static ZeyilInput Input(Guid policyId, string no, decimal gross) => new()
     {
-        PolicyId = policyId, ZeyilNo = no, Tarih = ZTarih, Tanzim = ZTanzim,
-        Deger = 250_000m, Brut = brut, Net = 1000m, FonVergi = 200.50m,
+        PolicyId = policyId, ZeyilNo = no, Tarih = ZDate, Tanzim = ZIssue,
+        Deger = 250_000m, Brut = gross, Net = 1000m, FonVergi = 200.50m,
         Tipi = "Zam", Neden = "Teminat artışı"
     };
 
-    private static async Task<int> DefterSatirSayisiAsync(IServiceProvider sp)
+    private static async Task<int> LedgerLineCountAsync(IServiceProvider sp)
     {
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -66,17 +66,17 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
         var pol = await PoliceAsync(sp, "34 ZY 01");
 
-        await reg.AddEndorsementAsync(Girdi(pol, "Z-1", 500m));
-        var ikinci = await reg.AddEndorsementAsync(Girdi(pol, "Z-2", 1200.50m));
-        await reg.AddEndorsementAsync(Girdi(pol, "Z-3", -300m)); // tenzil (iade) zeyli — negatif brüt
+        await reg.AddEndorsementAsync(Input(pol, "Z-1", 500m));
+        var second = await reg.AddEndorsementAsync(Input(pol, "Z-2", 1200.50m));
+        await reg.AddEndorsementAsync(Input(pol, "Z-3", -300m)); // tenzil (iade) zeyli — negatif brüt
 
-        var liste = await reg.ListEndorsementsAsync(pol);
-        Assert.Equal(3, liste.Count);   // ELLE: 3 zeyil eklendi
+        var list = await reg.ListEndorsementsAsync(pol);
+        Assert.Equal(3, list.Count);   // ELLE: 3 zeyil eklendi
 
         // Alan turu (round-trip): girilen değer aynen okunur.
-        var z2 = liste.Single(z => z.ZeyilNo == "Z-2");
-        Assert.Equal(ZTarih, z2.Tarih);
-        Assert.Equal(ZTanzim, z2.Tanzim);
+        var z2 = list.Single(z => z.ZeyilNo == "Z-2");
+        Assert.Equal(ZDate, z2.Tarih);
+        Assert.Equal(ZIssue, z2.Tanzim);
         Assert.Equal(250_000m, z2.Deger);
         Assert.Equal(1200.50m, z2.Brut);
         Assert.Equal(1000m, z2.Net);
@@ -85,14 +85,14 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         Assert.Equal("Teminat artışı", z2.Neden);
         Assert.Equal(pol, z2.PolicyId);
 
-        await reg.DeleteEndorsementAsync(ikinci);
-        var kalanListe = await reg.ListEndorsementsAsync(pol);
-        Assert.Equal(2, kalanListe.Count);   // ELLE: 3 − 1 = 2
+        await reg.DeleteEndorsementAsync(second);
+        var remainingList = await reg.ListEndorsementsAsync(pol);
+        Assert.Equal(2, remainingList.Count);   // ELLE: 3 − 1 = 2
         Assert.Equal(new[] { "Z-1", "Z-3" },
-            kalanListe.Select(z => z.ZeyilNo).OrderBy(x => x, StringComparer.Ordinal).ToArray());
+            remainingList.Select(z => z.ZeyilNo).OrderBy(x => x, StringComparer.Ordinal).ToArray());
 
         // Olmayan kaydın silinmesi temiz red (500 değil).
-        await Assert.ThrowsAsync<ValidationException>(() => reg.DeleteEndorsementAsync(ikinci));
+        await Assert.ThrowsAsync<ValidationException>(() => reg.DeleteEndorsementAsync(second));
     }
 
     [Fact]
@@ -104,13 +104,13 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
         var pol = await PoliceAsync(sp, "34 ZY 02");
 
-        await reg.AddEndorsementAsync(Girdi(pol, "Z-1", 500m));
-        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(Girdi(pol, "Z-1", 700m)));
+        await reg.AddEndorsementAsync(Input(pol, "Z-1", 500m));
+        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(Input(pol, "Z-1", 700m)));
         Assert.Single(await reg.ListEndorsementsAsync(pol));   // ikinci giriş yazılmadı
 
         // Aynı zeyil no BAŞKA poliçede serbest (benzersizlik poliçe içindedir).
         var pol2 = await PoliceAsync(sp, "34 ZY 03");
-        await reg.AddEndorsementAsync(Girdi(pol2, "Z-1", 700m));
+        await reg.AddEndorsementAsync(Input(pol2, "Z-1", 700m));
         Assert.Single(await reg.ListEndorsementsAsync(pol2));
     }
 
@@ -123,35 +123,35 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
         var pol = await PoliceAsync(sp, "34 ZY 04");
 
-        var noYok = Girdi(pol, "Z-1", 100m); noYok.ZeyilNo = "   ";
-        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(noYok));
+        var missingNo = Input(pol, "Z-1", 100m); missingNo.ZeyilNo = "   ";
+        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(missingNo));
 
-        var tarihYok = Girdi(pol, "Z-1", 100m); tarihYok.Tarih = null;
-        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(tarihYok));
+        var noDate = Input(pol, "Z-1", 100m); noDate.Tarih = null;
+        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(noDate));
 
         // Değer TEMİNAT tabanı → negatif olamaz.
-        var negatifDeger = Girdi(pol, "Z-1", 100m); negatifDeger.Deger = -1m;
-        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(negatifDeger));
+        var negativeValue = Input(pol, "Z-1", 100m); negativeValue.Deger = -1m;
+        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(negativeValue));
 
         // Kolon sınırlarını aşan metin SUNUCUDA reddedilir (form maxlength'i atlayan POST → 500 değil).
-        var uzunNo = Girdi(pol, new string('N', 33), 100m);
-        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(uzunNo));
-        var uzunTipi = Girdi(pol, "Z-1", 100m); uzunTipi.Tipi = new string('T', 65);
-        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(uzunTipi));
-        var uzunNeden = Girdi(pol, "Z-1", 100m); uzunNeden.Neden = new string('S', 513);
-        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(uzunNeden));
+        var longNo = Input(pol, new string('N', 33), 100m);
+        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(longNo));
+        var longType = Input(pol, "Z-1", 100m); longType.Tipi = new string('T', 65);
+        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(longType));
+        var longReason = Input(pol, "Z-1", 100m); longReason.Neden = new string('S', 513);
+        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(longReason));
 
         // Brüt/Net/Fon-Vergi negatif OLABİLİR (tenzil/iade zeyli) — bilgi alanı, işaret serbest.
-        var tenzil = Girdi(pol, "TZ-1", -750m); tenzil.Net = -600m; tenzil.FonVergi = -150m;
-        await reg.AddEndorsementAsync(tenzil);
-        var kayit = (await reg.ListEndorsementsAsync(pol)).Single();
-        Assert.Equal(-750m, kayit.Brut);
-        Assert.Equal(-600m, kayit.Net);
-        Assert.Equal(-150m, kayit.FonVergi);
+        var deduction = Input(pol, "TZ-1", -750m); deduction.Net = -600m; deduction.FonVergi = -150m;
+        await reg.AddEndorsementAsync(deduction);
+        var record = (await reg.ListEndorsementsAsync(pol)).Single();
+        Assert.Equal(-750m, record.Brut);
+        Assert.Equal(-600m, record.Net);
+        Assert.Equal(-150m, record.FonVergi);
 
         Assert.Empty(await reg.ListEndorsementsAsync(Guid.NewGuid())); // olmayan poliçe → boş
-        var yokPolice = Girdi(Guid.NewGuid(), "Z-9", 100m);
-        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(yokPolice));
+        var noPolicy = Input(Guid.NewGuid(), "Z-9", 100m);
+        await Assert.ThrowsAsync<ValidationException>(() => reg.AddEndorsementAsync(noPolicy));
     }
 
     // ---- KİLİTLİ KARAR: deftere yazmaz ----
@@ -163,37 +163,37 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var reg = sp.GetRequiredService<RegulationService>();
-        var raporlar = sp.GetRequiredService<ReportService>();
+        var reports = sp.GetRequiredService<ReportService>();
 
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Zeyil", Soyad = "Tanik" });
-        await sp.GetRequiredService<CashService>().CollectAsync(new CashInput { CariId = cari, Tutar = 2000m });
+        await sp.GetRequiredService<CashService>().CollectAsync(new CashInput { CariId = account, Tutar = 2000m });
 
-        var pol = await PoliceAsync(sp, "34 ZY 10", prim: 1200m);
+        var pol = await PoliceAsync(sp, "34 ZY 10", premium: 1200m);
         await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa);
 
         // ELLE oracle: tahsilat 2 satır (Borç Kasa / Alacak Cari) + sigorta ödeme 2 satır = 4.
-        Assert.Equal(4, await DefterSatirSayisiAsync(sp));
-        var oncekiGg = await raporlar.GetRevenueExpenseAsync();
-        Assert.Equal(1200m, oncekiGg.GiderToplam);
-        Assert.Equal(0m, oncekiGg.GelirToplam);
-        Assert.Equal(-2000m, (await raporlar.GetAccountBalancesAsync()).Single(b => b.CariId == cari).Bakiye);
+        Assert.Equal(4, await LedgerLineCountAsync(sp));
+        var previousDay = await reports.GetRevenueExpenseAsync();
+        Assert.Equal(1200m, previousDay.GiderToplam);
+        Assert.Equal(0m, previousDay.GelirToplam);
+        Assert.Equal(-2000m, (await reports.GetAccountBalancesAsync()).Single(b => b.CariId == account).Bakiye);
 
         // UÇUK değerli 3 zeyil: deftere sızsaydı hiçbir toplam yerinde kalmazdı.
         for (var i = 1; i <= 3; i++)
         {
-            var g = Girdi(pol, $"ZZ-{i}", 999_999m);
+            var g = Input(pol, $"ZZ-{i}", 999_999m);
             g.Net = 888_888m; g.FonVergi = 111_111m; g.Deger = 5_000_000m;
             await reg.AddEndorsementAsync(g);
         }
         Assert.Equal(3, (await reg.ListEndorsementsAsync(pol)).Count);
 
         // Defter BİREBİR aynı: satır sayısı, gider/gelir toplamı, cari bakiye.
-        Assert.Equal(4, await DefterSatirSayisiAsync(sp));
-        var sonrakiGg = await raporlar.GetRevenueExpenseAsync();
-        Assert.Equal(1200m, sonrakiGg.GiderToplam);
-        Assert.Equal(0m, sonrakiGg.GelirToplam);
-        Assert.Equal(-2000m, (await raporlar.GetAccountBalancesAsync()).Single(b => b.CariId == cari).Bakiye);
+        Assert.Equal(4, await LedgerLineCountAsync(sp));
+        var nextDay = await reports.GetRevenueExpenseAsync();
+        Assert.Equal(1200m, nextDay.GiderToplam);
+        Assert.Equal(0m, nextDay.GelirToplam);
+        Assert.Equal(-2000m, (await reports.GetAccountBalancesAsync()).Single(b => b.CariId == account).Bakiye);
 
         // Ve hiçbir defter satırı zeyil kaynaklı değil.
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -202,8 +202,8 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
 
         // Zeyil SİLMEK de defteri değiştirmez (ters kayıt üretmez — mali belge değil).
         await reg.DeleteEndorsementAsync((await reg.ListEndorsementsAsync(pol)).First().Id);
-        Assert.Equal(4, await DefterSatirSayisiAsync(sp));
-        Assert.Equal(1200m, (await raporlar.GetRevenueExpenseAsync()).GiderToplam);
+        Assert.Equal(4, await LedgerLineCountAsync(sp));
+        Assert.Equal(1200m, (await reports.GetRevenueExpenseAsync()).GiderToplam);
     }
 
     [Fact]
@@ -213,20 +213,20 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var reg = sp.GetRequiredService<RegulationService>();
-        var pol = await PoliceAsync(sp, "34 ZY 11", prim: 1200m);
+        var pol = await PoliceAsync(sp, "34 ZY 11", premium: 1200m);
 
         Assert.Equal(1200m, (await reg.ListInsuranceAsync()).Single(p => p.Id == pol).Kalan); // açılışta = Prim
 
-        await reg.AddEndorsementAsync(Girdi(pol, "Z-1", 5000m));
-        var sonra = (await reg.ListInsuranceAsync()).Single(p => p.Id == pol);
-        Assert.Equal(1200m, sonra.Kalan);    // zeyil bakiyeyi BÜYÜTMEZ (defter dışı borç kaynağı açmaz)
-        Assert.Equal(0m, sonra.ZeyilPrim);   // ödeme alanına da dokunmaz
-        Assert.False(sonra.Odendi);
+        await reg.AddEndorsementAsync(Input(pol, "Z-1", 5000m));
+        var after = (await reg.ListInsuranceAsync()).Single(p => p.Id == pol);
+        Assert.Equal(1200m, after.Kalan);    // zeyil bakiyeyi BÜYÜTMEZ (defter dışı borç kaynağı açmaz)
+        Assert.Equal(0m, after.ZeyilPrim);   // ödeme alanına da dokunmaz
+        Assert.False(after.Odendi);
 
         await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa); // prim tamamı → Kalan 0
-        var odenmis = (await reg.ListInsuranceAsync()).Single(p => p.Id == pol);
-        Assert.Equal(0m, odenmis.Kalan);
-        Assert.True(odenmis.Odendi);
+        var paid = (await reg.ListInsuranceAsync()).Single(p => p.Id == pol);
+        Assert.Equal(0m, paid.Kalan);
+        Assert.True(paid.Odendi);
         Assert.Equal(1200m, (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GiderToplam);
     }
 
@@ -241,7 +241,7 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 ZY 20" });
 
-        var pol = await reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1200m, "P-20", "Sig", null, "TRY",
+        var pol = await reg.AddInsuranceAsync(v, InsuranceType.Kasko, Start, Bit, 1200m, "P-20", "Sig", null, "TRY",
             vehicleValue: 750_000m, immValue: 100_000m, accessoryValue: 25_000m);
 
         var rec = (await reg.ListInsuranceAsync()).Single(p => p.Id == pol);
@@ -250,17 +250,17 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         Assert.Equal(25_000m, rec.AksesuarDegeri);
 
         // Değer tabanı BİLGİdir: defterle bağı yok (poliçe henüz ödenmedi → hiç satır yok).
-        Assert.Equal(0, await DefterSatirSayisiAsync(sp));
+        Assert.Equal(0, await LedgerLineCountAsync(sp));
 
         await Assert.ThrowsAsync<ValidationException>(() => reg.AddInsuranceAsync(
-            v, InsuranceType.Trafik, Bas, Bit, 1m, "P-21", "Sig", null, "TRY", vehicleValue: -1m));
+            v, InsuranceType.Trafik, Start, Bit, 1m, "P-21", "Sig", null, "TRY", vehicleValue: -1m));
         await Assert.ThrowsAsync<ValidationException>(() => reg.AddInsuranceAsync(
-            v, InsuranceType.Trafik, Bas, Bit, 1m, "P-22", "Sig", null, "TRY", immValue: -1m));
+            v, InsuranceType.Trafik, Start, Bit, 1m, "P-22", "Sig", null, "TRY", immValue: -1m));
         await Assert.ThrowsAsync<ValidationException>(() => reg.AddInsuranceAsync(
-            v, InsuranceType.Trafik, Bas, Bit, 1m, "P-23", "Sig", null, "TRY", accessoryValue: -1m));
+            v, InsuranceType.Trafik, Start, Bit, 1m, "P-23", "Sig", null, "TRY", accessoryValue: -1m));
 
         // Alanlar OPSİYONEL: verilmezse null kalır (eski çağrılar daralmaz).
-        var sade = await reg.AddInsuranceAsync(v, InsuranceType.Trafik, Bas, Bit, 500m, "P-24", "Sig", null);
+        var sade = await reg.AddInsuranceAsync(v, InsuranceType.Trafik, Start, Bit, 500m, "P-24", "Sig", null);
         var sadeRec = (await reg.ListInsuranceAsync()).Single(p => p.Id == sade);
         Assert.Null(sadeRec.AracDegeri);
         Assert.Null(sadeRec.ImmDegeri);
@@ -281,12 +281,12 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var reg = sp.GetRequiredService<RegulationService>();
         // GBP: hiçbir testte kur seed'lenmez → çözülemez (OdemeKurOtomatikTests deseni).
-        var pol = await PoliceAsync(sp, "34 ZY 30", prim: 100m, doviz: "GBP");
+        var pol = await PoliceAsync(sp, "34 ZY 30", premium: 100m, currency: "GBP");
 
-        await reg.AddEndorsementAsync(Girdi(pol, "Z-1", 999m));   // zeyil kura DOKUNMAZ
+        await reg.AddEndorsementAsync(Input(pol, "Z-1", 999m));   // zeyil kura DOKUNMAZ
 
         await Assert.ThrowsAsync<ValidationException>(() => reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa));
-        Assert.Equal(0, await DefterSatirSayisiAsync(sp));  // sessiz kur=1 ile postlanmadı
+        Assert.Equal(0, await LedgerLineCountAsync(sp));  // sessiz kur=1 ile postlanmadı
         Assert.False((await reg.ListInsuranceAsync()).Single(p => p.Id == pol).Odendi);
     }
 
@@ -297,25 +297,25 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid pol, zeyil;
+        Guid pol, endorsement;
         using (var admin = host.ScopeFor(tenant))
         {
             var sp = admin.ServiceProvider;
             pol = await PoliceAsync(sp, "34 ZY 40");
-            zeyil = await sp.GetRequiredService<RegulationService>().AddEndorsementAsync(Girdi(pol, "Z-1", 100m));
+            endorsement = await sp.GetRequiredService<RegulationService>().AddEndorsementAsync(Input(pol, "Z-1", 100m));
         }
 
         // Muhasebe: FinanceWrite var, OperationsWrite YOK → zeyil yazamaz/silemez (okuma serbest).
-        using var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "muhasebeci", UserRole.Muhasebe);
-        var reg = muhasebe.ServiceProvider.GetRequiredService<RegulationService>();
-        await Assert.ThrowsAsync<NoPermissionException>(() => reg.AddEndorsementAsync(Girdi(pol, "Z-2", 100m)));
-        await Assert.ThrowsAsync<NoPermissionException>(() => reg.DeleteEndorsementAsync(zeyil));
+        using var accounting = host.ScopeFor(tenant, Guid.NewGuid(), "muhasebeci", UserRole.Muhasebe);
+        var reg = accounting.ServiceProvider.GetRequiredService<RegulationService>();
+        await Assert.ThrowsAsync<NoPermissionException>(() => reg.AddEndorsementAsync(Input(pol, "Z-2", 100m)));
+        await Assert.ThrowsAsync<NoPermissionException>(() => reg.DeleteEndorsementAsync(endorsement));
         Assert.Single(await reg.ListEndorsementsAsync(pol));
 
         // Operatör: OperationsWrite var → yazabilir.
         using var operatorScope = host.ScopeFor(tenant, Guid.NewGuid(), "operator", UserRole.Operator);
         await operatorScope.ServiceProvider.GetRequiredService<RegulationService>()
-            .AddEndorsementAsync(Girdi(pol, "Z-3", 100m));
+            .AddEndorsementAsync(Input(pol, "Z-3", 100m));
     }
 
     // ---- Tenant izolasyonu: servis + HAM RLS (racar_app) ----
@@ -327,12 +327,12 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
         var a = Guid.NewGuid();
         var b = Guid.NewGuid();
 
-        Guid polA, zeyilA;
+        Guid polA, endorsementA;
         using (var sa = host.ScopeFor(a))
         {
             polA = await PoliceAsync(sa.ServiceProvider, "34 ZY 50");
-            zeyilA = await sa.ServiceProvider.GetRequiredService<RegulationService>()
-                .AddEndorsementAsync(Girdi(polA, "Z-1", 500m));
+            endorsementA = await sa.ServiceProvider.GetRequiredService<RegulationService>()
+                .AddEndorsementAsync(Input(polA, "Z-1", 500m));
         }
 
         Guid polB;
@@ -341,9 +341,9 @@ public sealed class SigortaZeyilTests(PostgresFixture fx)
             var regB = sb.ServiceProvider.GetRequiredService<RegulationService>();
             Assert.Empty(await regB.ListAllEndorsementsAsync());        // B, A'nın zeylini görmez
             Assert.Empty(await regB.ListEndorsementsAsync(polA));
-            await Assert.ThrowsAsync<ValidationException>(() => regB.DeleteEndorsementAsync(zeyilA)); // silemez
+            await Assert.ThrowsAsync<ValidationException>(() => regB.DeleteEndorsementAsync(endorsementA)); // silemez
             // B, A'nın poliçesine zeyil AÇAMAZ (poliçe "bulunamadı" — FK de zaten tenant'lı).
-            await Assert.ThrowsAsync<ValidationException>(() => regB.AddEndorsementAsync(Girdi(polA, "Z-X", 1m)));
+            await Assert.ThrowsAsync<ValidationException>(() => regB.AddEndorsementAsync(Input(polA, "Z-X", 1m)));
             polB = await PoliceAsync(sb.ServiceProvider, "34 ZY 51"); // ham-RLS insert denemesi için geçerli FK
         }
 

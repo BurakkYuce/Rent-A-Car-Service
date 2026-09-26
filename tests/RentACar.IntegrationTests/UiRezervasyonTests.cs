@@ -21,7 +21,7 @@ namespace RentACar.IntegrationTests;
 public sealed partial class UiRezervasyonTests(WebFixture fx)
 {
     private const string V1 = "/api/ui/v1";
-    private const string Rez = V1 + "/rezervasyonlar";
+    private const string TestReservation = V1 + "/rezervasyonlar";
 
     private enum Kim { Admin, OperatorA, OperatorB, Muhasebe }
 
@@ -34,122 +34,122 @@ public sealed partial class UiRezervasyonTests(WebFixture fx)
         public Guid MusteriId { get; set; }
     }
 
-    private static string Rastgele(string onek) => onek + Guid.NewGuid().ToString("N")[..10];
+    private static string RandomText(string prefix) => prefix + Guid.NewGuid().ToString("N")[..10];
 
     /// <summary>Tam saniyeye hizalı gelecek an (Linux 100ns / Mac µs farkı DB eşitliğini bozmasın).</summary>
-    private static DateTimeOffset Yarin(int ekGun = 1)
-        => DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.AddDays(ekGun).ToUnixTimeSeconds());
+    private static DateTimeOffset Tomorrow(int extraDays = 1)
+        => DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.AddDays(extraDays).ToUnixTimeSeconds());
 
-    private async Task<Ortam> OrtamKurAsync()
+    private async Task<Ortam> SetUpEnvironmentAsync()
     {
         var o = new Ortam
         {
-            TenantId = Guid.NewGuid(), Kod = Rastgele("f51"), Sifre = WebFixture.RastgeleParola(),
-            Kullanicilar = Enum.GetValues<Kim>().ToDictionary(k => k, _ => Rastgele("u")),
+            TenantId = Guid.NewGuid(), Kod = RandomText("f51"), Sifre = WebFixture.RandomPassword(),
+            Kullanicilar = Enum.GetValues<Kim>().ToDictionary(k => k, _ => RandomText("u")),
         };
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
         await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
         {
             db.Tenants.Add(new Tenant { Id = o.TenantId, Code = o.Kod, Name = o.Kod, IsActive = true });
             var hasher = fx.Web.Services.GetRequiredService<IPasswordHasher<User>>();
-            foreach (var (kim, ad) in o.Kullanicilar)
+            foreach (var (kim, name) in o.Kullanicilar)
             {
-                var (rol, sube) = kim switch
+                var (rol, branch) = kim switch
                 {
                     Kim.Admin => (UserRole.Admin, (string?)null),
                     Kim.OperatorA => (UserRole.Operator, "SubeA"),
                     Kim.OperatorB => (UserRole.Operator, "SubeB"),
                     _ => (UserRole.Muhasebe, null),
                 };
-                var u = new User { TenantId = o.TenantId, UserName = ad, DisplayName = ad, Rol = rol, AtanmisSube = sube, IsActive = true };
+                var u = new User { TenantId = o.TenantId, UserName = name, DisplayName = name, Rol = rol, AtanmisSube = branch, IsActive = true };
                 u.PasswordHash = hasher.HashPassword(u, o.Sifre);
                 db.Users.Add(u);
             }
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(o.TenantId, true);
+        await fx.MakePilotAsync(o.TenantId, true);
         var m = new Customer { Tip = CustomerType.Bireysel, Ad = "Ece", Soyad = "Kaya", CepTel = "05321112233" };
-        await VeriYazAsync(o.TenantId, db => db.Customers.Add(m));
+        await WriteDataAsync(o.TenantId, db => db.Customers.Add(m));
         o.MusteriId = m.Id;
         return o;
     }
 
-    private async Task VeriYazAsync(Guid tenantId, Action<AppDbContext> yaz)
+    private async Task WriteDataAsync(Guid tenantId, Action<AppDbContext> write)
     {
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var scope = host.ScopeFor(tenantId);
         var f = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
-        yaz(db);
+        write(db);
         await db.SaveChangesAsync();
     }
 
-    private async Task<Guid> AracAsync(Ortam o, string sube = "SubeA", string grup = "C")
+    private async Task<Guid> VehicleAsync(Ortam o, string branch = "SubeA", string group = "C")
     {
-        var v = new Vehicle { Plaka = "34F51" + Guid.NewGuid().ToString("N")[..5].ToUpperInvariant(), Marka = "Fiat", Tip = "Egea", Grup = grup, Sube = sube, Durum = VehicleStatus.Musait, Km = 1000 };
-        await VeriYazAsync(o.TenantId, db => db.Vehicles.Add(v));
+        var v = new Vehicle { Plaka = "34F51" + Guid.NewGuid().ToString("N")[..5].ToUpperInvariant(), Marka = "Fiat", Tip = "Egea", Grup = group, Sube = branch, Durum = VehicleStatus.Musait, Km = 1000 };
+        await WriteDataAsync(o.TenantId, db => db.Vehicles.Add(v));
         return v.Id;
     }
 
     private sealed record Oturum(HttpClient C, string Xsrf);
 
-    private static string? CerezDegeri(HttpResponseMessage r, string ad)
+    private static string? CookieValue(HttpResponseMessage r, string name)
     {
-        if (!r.Headers.TryGetValues("Set-Cookie", out var degerler)) return null;
-        foreach (var d in degerler)
-            if (d.StartsWith(ad + "=", StringComparison.Ordinal))
-                return Uri.UnescapeDataString(d[(ad.Length + 1)..].Split(';')[0]);
+        if (!r.Headers.TryGetValues("Set-Cookie", out var values)) return null;
+        foreach (var d in values)
+            if (d.StartsWith(name + "=", StringComparison.Ordinal))
+                return Uri.UnescapeDataString(d[(name.Length + 1)..].Split(';')[0]);
         return null;
     }
 
-    private async Task<Oturum> GirisAsync(Ortam o, Kim kim)
+    private async Task<Oturum> LoginAsync(Ortam o, Kim kim)
     {
-        var c = fx.Web.Istemci();
-        var once = CerezDegeri(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
+        var c = fx.Web.Client();
+        var once = CookieValue(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         { Content = JsonContent.Create(new { firma = o.Kod, kullanici = o.Kullanicilar[kim], sifre = o.Sifre }) };
         req.Headers.Add("X-XSRF-TOKEN", once);
         var r = await c.SendAsync(req);
         Assert.True(r.StatusCode == HttpStatusCode.OK, $"giriş başarısız: {await r.Content.ReadAsStringAsync()}");
-        return new Oturum(c, CerezDegeri(r, "XSRF-TOKEN")!);
+        return new Oturum(c, CookieValue(r, "XSRF-TOKEN")!);
     }
 
-    private static Task<HttpResponseMessage> Gonder(Oturum s, HttpMethod m, string url, object? govde = null)
+    private static Task<HttpResponseMessage> Gonder(Oturum s, HttpMethod m, string url, object? body = null)
     {
         var req = new HttpRequestMessage(m, url);
         req.Headers.Add("X-XSRF-TOKEN", s.Xsrf);
-        if (govde is not null) req.Content = JsonContent.Create(govde);
+        if (body is not null) req.Content = JsonContent.Create(body);
         return s.C.SendAsync(req);
     }
 
-    private static async Task<JsonElement> Json(HttpResponseMessage r, HttpStatusCode beklenen = HttpStatusCode.OK)
+    private static async Task<JsonElement> Json(HttpResponseMessage r, HttpStatusCode expected = HttpStatusCode.OK)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(r.StatusCode == beklenen, $"Beklenen {(int)beklenen}, gelen {(int)r.StatusCode}: {metin}");
-        return JsonDocument.Parse(metin).RootElement.Clone();
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(r.StatusCode == expected, $"Beklenen {(int)expected}, gelen {(int)r.StatusCode}: {text}");
+        return JsonDocument.Parse(text).RootElement.Clone();
     }
 
-    private static async Task<JsonElement> ProblemBekle(HttpResponseMessage r, HttpStatusCode durum, string kod, string? alan = null)
+    private static async Task<JsonElement> ExpectProblem(HttpResponseMessage r, HttpStatusCode status, string code, string? alan = null)
     {
-        var metin = await r.Content.ReadAsStringAsync();
-        Assert.True(durum == r.StatusCode, $"Beklenen {(int)durum}, gelen {(int)r.StatusCode}: {metin}");
-        var kok = JsonDocument.Parse(metin).RootElement.Clone();
-        Assert.Equal(kod, kok.GetProperty("kod").GetString());
+        var text = await r.Content.ReadAsStringAsync();
+        Assert.True(status == r.StatusCode, $"Beklenen {(int)status}, gelen {(int)r.StatusCode}: {text}");
+        var root = JsonDocument.Parse(text).RootElement.Clone();
+        Assert.Equal(code, root.GetProperty("kod").GetString());
         if (alan is not null)
-            Assert.True(kok.GetProperty("errors").TryGetProperty(alan, out _), $"errors[{alan}] yok: {metin}");
-        return kok;
+            Assert.True(root.GetProperty("errors").TryGetProperty(alan, out _), $"errors[{alan}] yok: {text}");
+        return root;
     }
 
-    /// <summary>Rezervasyon gövdesi: "KDV Dahil Günlük" 100 × <paramref name="gun"/> gün (oracle: tutar = 100 × gün).</summary>
-    private static Dictionary<string, object?> RezGovde(Ortam o, Guid arac, DateTimeOffset bas, int gun = 3, string ofis = "SubeA")
+    /// <summary>Rezervasyon gövdesi: "KDV Dahil Günlük" 100 × <paramref name="day"/> gün (oracle: tutar = 100 × gün).</summary>
+    private static Dictionary<string, object?> ReservationBody(Ortam o, Guid vehicle, DateTimeOffset start, int day = 3, string office = "SubeA")
         => new()
         {
-            ["musteriId"] = o.MusteriId, ["vehicleId"] = arac, ["basTar"] = bas, ["bitTar"] = bas.AddDays(gun),
-            ["gunlukUcret"] = 100m, ["fiyatTuru"] = "KDV Dahil Günlük", ["cikisOfisi"] = ofis, ["donusOfisi"] = ofis,
+            ["musteriId"] = o.MusteriId, ["vehicleId"] = vehicle, ["basTar"] = start, ["bitTar"] = start.AddDays(day),
+            ["gunlukUcret"] = 100m, ["fiyatTuru"] = "KDV Dahil Günlük", ["cikisOfisi"] = office, ["donusOfisi"] = office,
             ["talepTuru"] = "Kurumsal", ["projeAdi"] = "Fuar",
         };
 
-    private async Task<Guid> RezAcAsync(Oturum s, Ortam o, Guid arac, DateTimeOffset bas, int gun = 3, string ofis = "SubeA")
-        => (await Json(await Gonder(s, HttpMethod.Post, Rez, RezGovde(o, arac, bas, gun, ofis)), HttpStatusCode.Created))
+    private async Task<Guid> OpenReservationAsync(Oturum s, Ortam o, Guid vehicle, DateTimeOffset start, int day = 3, string office = "SubeA")
+        => (await Json(await Gonder(s, HttpMethod.Post, TestReservation, ReservationBody(o, vehicle, start, day, office)), HttpStatusCode.Created))
             .GetProperty("id").GetGuid();
 }

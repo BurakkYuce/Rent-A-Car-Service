@@ -32,9 +32,9 @@ public static class VehicleTypeEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/arac-tipleri", mesaj); }
+        try { await action(); return Result.Ok("/arac-tipleri", message); }
         catch (ValidationException ex) { return Results.Redirect($"/arac-tipleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

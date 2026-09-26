@@ -34,7 +34,7 @@ public static partial class CrmApi
             .RequireAnyPermission(Permission.OperationsWrite, Permission.FinanceWrite);
 
         var reports = v1.MapGroup("/crm/analiz").WithTags("CRM").RequirePermission(Permission.ViewReports);
-        reports.MapGet("", Analysis).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        reports.MapGet("", Analysis).MapFields(F5Shared.SortRules);
         reports.MapGet("/secenekler", async (ReportService r, ICurrentUser user, CancellationToken ct) =>
         {
             RequireCompanyWide(user);
@@ -86,16 +86,16 @@ public static partial class CrmApi
     {
         RequireCompanyWide(user);
         if (f.MinKira is < 0 or > 100_000) throw new ValidationException("Kiralama adedi 0 ile 100.000 arasında olmalıdır.", "minKira");
-        var (min, max) = F5Ortak.GunAraligi(f.TarihBas, f.TarihBit);
+        var (min, max) = F5Shared.DayRange(f.TarihBas, f.TarihBit);
         var segment = await reports.GetCustomerSegmentAsync(new MusteriSegmentFilter
         {
-            Bas = min, Bit = max, MinKiraSayisi = f.MinKira, RezKaynak = F5Ortak.Nz(f.Kaynak), CikisOfis = F5Ortak.Nz(f.Ofis),
+            Bas = min, Bit = max, MinKiraSayisi = f.MinKira, RezKaynak = F5Shared.Nz(f.Kaynak), CikisOfis = F5Shared.Nz(f.Ofis),
         }, ct);
         var flags = await PrivacyFlagsAsync(dbf, segment.Select(s => s.CariId), ct);
         var rows = segment.Select(s =>
         {
             var p = flags.GetValueOrDefault(s.CariId);
-            return new CrmSegmentRow(s.CariId, p?.AnonimAd == true ? MusteriGorunumu.AnonimAdEtiketi : s.Ad,
+            return new CrmSegmentRow(s.CariId, p?.AnonimAd == true ? CustomerView.AnonymousNameLabel : s.Ad,
                 p?.AnonimMail == true ? null : s.Mail, p?.AnonimTelefon == true ? null : s.Tel, s.KiraSayisi, s.ToplamCiro,
                 s.OrtalamaKiraBedeli, s.OrtalamaKm, s.HizmetBedeli,
                 // #295 bilgi: doğum tarihi kimlik belgesi bilgisidir — AnonimBelge işaretli müşteride dönmez.
@@ -103,7 +103,7 @@ public static partial class CrmApi
         }).ToList();
         var staff = (await reports.GetPersonnelWorkAsync(ct)).Select(p => new CrmStaffRow(p.PersonelId, p.Ad, p.TahsisSayisi)).ToList();
         return TypedResults.Ok(new CrmAnalysisDto(rows.Count, rows.Sum(r => r.ToplamCiro), rows.Sum(r => r.HizmetBedeli),
-            F5Ortak.Sayfala(rows, SegmentSort, sayfa, boyut, sirala), staff));
+            F5Shared.Paginate(rows, SegmentSort, sayfa, boyut, sirala), staff));
     }
 
     private sealed record PrivacyFlags(bool AnonimAd, bool AnonimTelefon, bool AnonimMail, bool AnonimBelge);
@@ -129,7 +129,7 @@ public static partial class CrmApi
         string? q, int? limit, ICurrentUser user, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var n = Math.Clamp(limit ?? PickMax, 1, PickMax);
-        var term = F5Ortak.Nz(q);
+        var term = F5Shared.Nz(q);
         if (term is { Length: > 64 }) term = term[..64];
         var filter = BranchScope.EffectiveFilter(user);
         List<(RentalContract R, string? Plaka)> candidates;
@@ -149,8 +149,8 @@ public static partial class CrmApi
                 .Select(x => (x.r, (string?)x.Plaka)).ToList();
         }
         var visible = candidates.Where(x => BranchScope.InScope(filter, x.R.CikisSubeId, x.R.CikisOfisi)).Take(n).ToList();
-        var names = await F5Ortak.CarilerAsync(dbf, visible.Select(x => x.R.MusteriId), ct);
+        var names = await F5Shared.CustomersAsync(dbf, visible.Select(x => x.R.MusteriId), ct);
         return TypedResults.Ok<IReadOnlyList<RentalPickItem>>(visible.Select(x => new RentalPickItem(
-            x.R.Id, x.R.SozlesmeNo, x.Plaka, F5Ortak.CariAdi(names, x.R.MusteriId), x.R.MusteriId, x.R.CikisOfisi, x.R.BasTar)).ToList());
+            x.R.Id, x.R.SozlesmeNo, x.Plaka, F5Shared.CustomerName(names, x.R.MusteriId), x.R.MusteriId, x.R.CikisOfisi, x.R.BasTar)).ToList());
     }
 }

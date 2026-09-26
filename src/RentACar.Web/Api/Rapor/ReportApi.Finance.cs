@@ -39,12 +39,12 @@ public static partial class ReportApi
         var gg = await reports.GetRevenueExpenseAsync(p.FromUtc, p.ToUtc, ct);
         var aging = await reports.GetAgingAsync(p.Bit is { } b ? ReportPeriod.Anchor(b) : DateTimeOffset.UtcNow, ct);
         var tf = await reports.GetCollectionInvoiceAsync(p.FromUtc, p.ToUtc, ct);
-        var bugun = ReportPeriod.Anchor(ReportPeriod.Today);
-        var takip = await reports.GetVehicleStatusTrackingAsync(new AracDurumTakipFilter(), bugun.AddDays(-29), bugun, ct);
-        var kova = new ReportAgingBuckets(aging.Sum(a => a.B0_30), aging.Sum(a => a.B31_60), aging.Sum(a => a.B61_90),
+        var today = ReportPeriod.Anchor(ReportPeriod.Today);
+        var tracking = await reports.GetVehicleStatusTrackingAsync(new AracDurumTakipFilter(), today.AddDays(-29), today, ct);
+        var bucket = new ReportAgingBuckets(aging.Sum(a => a.B0_30), aging.Sum(a => a.B31_60), aging.Sum(a => a.B61_90),
             aging.Sum(a => a.B90Plus));
         return TypedResults.Ok(new ReportSummaryResult<FinanceDashboard>(p.ToDto(),
-            new FinanceDashboard(trend, gg.GelirKirilim, gg.GiderKirilim, kova, tf, takip), null));
+            new FinanceDashboard(trend, gg.GelirKirilim, gg.GiderKirilim, bucket, tf, tracking), null));
     }
 
     // ------------------------------------------------------------------ virman geçmişi
@@ -63,19 +63,19 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var satirlar = await cash.ListCashTransfersAsync(new KasaVirmanFilter
+        var rowList = await cash.ListCashTransfersAsync(new KasaVirmanFilter
         {
             Bas = p.FromUtc, Bit = p.ToUtc, HesapId = hesapId, Ara = F(ara),
         }, ct);
-        var adlar = (await accounts.ListAsync(ct)).ToDictionary(h => h.Id, h => h.Ad);
-        string? Ad(Guid? id) => id is { } i ? adlar.GetValueOrDefault(i, "(silinmiş hesap)") : null;
-        var rows = satirlar.Select(s => new ReportTransferRow(s.Id, s.Tarih, s.KaynakTur.ToString(), s.KaynakHesapId,
-            Ad(s.KaynakHesapId), s.HedefTur.ToString(), s.HedefHesapId, Ad(s.HedefHesapId), s.Tutar, s.Doviz, s.Kur,
+        var names = (await accounts.ListAsync(ct)).ToDictionary(h => h.Id, h => h.Ad);
+        string? Name(Guid? id) => id is { } i ? names.GetValueOrDefault(i, "(silinmiş hesap)") : null;
+        var rows = rowList.Select(s => new ReportTransferRow(s.Id, s.Tarih, s.KaynakTur.ToString(), s.KaynakHesapId,
+            Name(s.KaynakHesapId), s.HedefTur.ToString(), s.HedefHesapId, Name(s.HedefHesapId), s.Tutar, s.Doviz, s.Kur,
             s.TutarTl, s.MakbuzNo, s.Sube, s.IslemYapan, s.Aciklama, s.KunyeVar)).ToList();
-        var toplam = rows.GroupBy(r => r.Doviz).Select(g => new ReportCurrencyTotal(g.Key, g.Sum(x => x.Tutar)))
+        var total = rows.GroupBy(r => r.Doviz).Select(g => new ReportCurrencyTotal(g.Key, g.Sum(x => x.Tutar)))
             .OrderBy(x => x.Doviz, StringComparer.Ordinal).ToList();
         return TypedResults.Ok(new ReportResult<IReadOnlyList<ReportCurrencyTotal>, ReportTransferRow>(
-            p.ToDto(), toplam, page.Apply(rows, TransferMap), null));
+            p.ToDto(), total, page.Apply(rows, TransferMap), null));
     }
 
     private static readonly SortFieldMap<ReportTransferRow> TransferMap = SortFieldMap<ReportTransferRow>
@@ -110,9 +110,9 @@ public static partial class ReportApi
         var d = await reports.GetVatExtendedAsync(p.FromUtc, p.ToUtc, alis == true, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
         var rows = d.Satirlar.Select(r => r.AlisMi ? r : r with { Cari = mask.Name(r.Cari) }).ToList();
-        var ozet = new VatWideSummary(d.SatisNet, d.SatisKdv, d.AlisNet, d.AlisKdv, d.NetKdv,
+        var summary = new VatWideSummary(d.SatisNet, d.SatisKdv, d.AlisNet, d.AlisKdv, d.NetKdv,
             d.SatisBelgeAdet, d.AlisBelgeAdet, d.AtlananDovizliAlis);
-        return TypedResults.Ok(new ReportResult<VatWideSummary, KdvGenisSatirDto>(p.ToDto(), ozet,
+        return TypedResults.Ok(new ReportResult<VatWideSummary, KdvGenisSatirDto>(p.ToDto(), summary,
             page.Apply(rows, VatWideMap),
             ReportExport.Links(http, user, "kdv-genis", [.. ReportExport.Period(p), ("alis", alis == true ? "1" : null)])));
     }

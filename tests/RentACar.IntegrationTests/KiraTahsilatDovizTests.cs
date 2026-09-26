@@ -18,7 +18,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
 
     /// <summary>
     /// TEST İZOLASYONU: dövizli kira kurulurken <c>KurService</c> bir kur bulmak ZORUNDA. Kur
@@ -35,40 +35,40 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
     /// tahsilat kendi açık kuruyla (40) postlanır. Kur yalnız "var mı" kapısını açar.</para>
     /// </summary>
     private static async Task<(IServiceProvider sp, Guid rentalId, Guid cariId)> Seed(
-        IServiceScope scope, string plaka, string? doviz)
+        IServiceScope scope, string plate, string? currency)
     {
         var sp = scope.ServiceProvider;
         // Kod NormalizeKod ile ISO'ya indirgenir (EURO→EUR, DOLAR→USD, TL/boş→TRY) — hangi döviz
         // etiketiyle çağrılırsa çağrılsın doğru koda sabit kur yazılsın diye. TRY baz para, kur istemez.
-        var isoKod = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(doviz);
-        if (isoKod != "TRY" && isoKod.Length == 3)
+        var isoCode = RentACar.Application.Kur.ExchangeRateService.NormalizeCode(currency);
+        if (isoCode != "TRY" && isoCode.Length == 3)
             await sp.GetRequiredService<FixedExchangeRateService>()
-                .UpsertAsync(new SabitKurInput { Kod = isoKod, Kur = 40m });
-        var cari = await TestCari.YeniAsync(sp);
-        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
+                .UpsertAsync(new SabitKurInput { Kod = isoCode, Kur = 40m });
+        var account = await TestCustomer.NewAsync(sp);
+        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
         var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m, Doviz = doviz });
-        return (sp, id, cari);
+        { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m, Doviz = currency });
+        return (sp, id, account);
     }
 
-    private static CashInput Tahsilat(Guid cari, Guid rental, decimal tutar, string doviz, decimal kur) => new()
-    { CariId = cari, RentalId = rental, Tutar = tutar, Doviz = doviz, Kur = kur, Hesap = LedgerAccountType.Kasa };
+    private static CashInput Collection(Guid account, Guid rental, decimal amount, string currency, decimal exchangeRate) => new()
+    { CariId = account, RentalId = rental, Tutar = amount, Doviz = currency, Kur = exchangeRate, Hesap = LedgerAccountType.Kasa };
 
     [Fact]
     public async Task FX_kira_ayni_doviz_tahsilat_kira_dovizinde_birikir()
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 KD 01", "EURO"); // 300 EUR kira
+        var (sp, id, account) = await Seed(scope, "34 KD 01", "EURO"); // 300 EUR kira
         var cash = sp.GetRequiredService<CashService>();
 
-        await cash.CollectAsync(Tahsilat(cari, id, 300m, "EUR", 40m)); // 300 EUR @40
+        await cash.CollectAsync(Collection(account, id, 300m, "EUR", 40m)); // 300 EUR @40
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
 
         Assert.Equal(300m, c!.Tahsilat); // KİRA DÖVİZİNDE (eski bug: 12000 TL-baz birikirdi)
         Assert.Equal(0m, c.Bakiye);      // 300 − 300 (eski bug: −11700 "alacak")
         // Defter yine TL-baz doğru: cari bakiye 300×40 tahsilatla düşer (fatura yok → −12000).
-        Assert.Equal(-12000m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(-12000m, await cash.GetAccountBalanceAsync(account));
     }
 
     [Fact]
@@ -76,11 +76,11 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 KD 02", "EURO");
+        var (sp, id, account) = await Seed(scope, "34 KD 02", "EURO");
         var cash = sp.GetRequiredService<CashService>();
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => cash.CollectAsync(Tahsilat(cari, id, 5000m, "TRY", 1m))); // TL tahsilat FX kiraya bağlanamaz
+            () => cash.CollectAsync(Collection(account, id, 5000m, "TRY", 1m))); // TL tahsilat FX kiraya bağlanamaz
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
         Assert.Equal(0m, c!.Tahsilat); // hiçbir şey yazılmadı (tx bütünlüğü)
     }
@@ -90,10 +90,10 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 KD 03", "EURO");
+        var (sp, id, account) = await Seed(scope, "34 KD 03", "EURO");
         var cash = sp.GetRequiredService<CashService>();
 
-        var txId = await cash.CollectAsync(Tahsilat(cari, id, 100m, "EUR", 40m));
+        var txId = await cash.CollectAsync(Collection(account, id, 100m, "EUR", 40m));
         await cash.ReverseAsync(txId);
 
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
@@ -106,10 +106,10 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, id, cari) = await Seed(scope, "34 KD 04", "TL"); // 300 TL kira
+        var (sp, id, account) = await Seed(scope, "34 KD 04", "TL"); // 300 TL kira
         var cash = sp.GetRequiredService<CashService>();
 
-        await cash.CollectAsync(Tahsilat(cari, id, 5m, "EUR", 40m)); // 5 EUR @40 = 200 TL
+        await cash.CollectAsync(Collection(account, id, 5m, "EUR", 40m)); // 5 EUR @40 = 200 TL
         var c = await sp.GetRequiredService<RentalService>().GetAsync(id);
 
         Assert.Equal(200m, c!.Tahsilat); // TL-baz (mevcut davranış korunur)
@@ -121,15 +121,15 @@ public sealed class KiraTahsilatDovizTests(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        Guid id, cari;
+        Guid id, account;
         using (var s0 = host.ScopeFor(tenant))
-            (_, id, cari) = await Seed(s0, "34 KD 05", null); // 300 TL kira
+            (_, id, account) = await Seed(s0, "34 KD 05", null); // 300 TL kira
 
         using var s1 = host.ScopeFor(tenant);
         using var s2 = host.ScopeFor(tenant);
         await Task.WhenAll(
-            s1.ServiceProvider.GetRequiredService<CashService>().CollectAsync(Tahsilat(cari, id, 100m, "TRY", 1m)),
-            s2.ServiceProvider.GetRequiredService<CashService>().CollectAsync(Tahsilat(cari, id, 100m, "TRY", 1m)));
+            s1.ServiceProvider.GetRequiredService<CashService>().CollectAsync(Collection(account, id, 100m, "TRY", 1m)),
+            s2.ServiceProvider.GetRequiredService<CashService>().CollectAsync(Collection(account, id, 100m, "TRY", 1m)));
 
         using var s3 = host.ScopeFor(tenant);
         var c = await s3.ServiceProvider.GetRequiredService<RentalService>().GetAsync(id);

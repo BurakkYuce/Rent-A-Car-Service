@@ -24,23 +24,23 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class NakitIslemTests(PostgresFixture fx)
 {
-    private static DateTimeOffset Gun(int fark)
+    private static DateTimeOffset Day(int difference)
     {
-        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(fark), DateTimeKind.Utc), TimeSpan.Zero);
+        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(difference), DateTimeKind.Utc), TimeSpan.Zero);
         return t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
     }
 
-    private static Task<Guid> CariAsync(IServiceScope s, string ad, string? ozelKod = null)
+    private static Task<Guid> CustomerAsync(IServiceScope s, string name, string? customCode = null)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad, Soyad = "Test", OzelKod = ozelKod });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name, Soyad = "Test", OzelKod = customCode });
 
-    private static Task<Guid> HesapAsync(IServiceScope s, string kod, string ad, string tur)
+    private static Task<Guid> AccountAsync(IServiceScope s, string code, string name, string type)
         => s.ServiceProvider.GetRequiredService<FinancialAccountService>()
-            .CreateAsync(new FinancialAccountInput { Kod = kod, Ad = ad, Tur = tur });
+            .CreateAsync(new FinancialAccountInput { Kod = code, Ad = name, Tur = type });
 
     /// <summary>Bir tahsilatın ürettiği defter satırları (tür + yön + baz tutar), karşılaştırılabilir biçimde.</summary>
     private static async Task<List<(LedgerAccountType Tur, Guid? Ref, LedgerDirection Yon, decimal Baz)>>
-        DefterAsync(TestHost host, Guid tenant, Guid txId)
+        LedgerAsync(TestHost host, Guid tenant, Guid txId)
     {
         using var scope = host.ScopeFor(tenant);
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -62,32 +62,32 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await CariAsync(scope, "AyniMantik");
-        var kasa = await HesapAsync(scope, "MRK", "Merkez Kasa", "Kasa");
+        var account = await CustomerAsync(scope, "AyniMantik");
+        var cashAccount = await AccountAsync(scope, "MRK", "Merkez Kasa", "Kasa");
 
         // Her iki yüzey de AYNI servis çağrısına iner; testte bunu birebir aynı girdiyle iki kez
         // çağırarak kanıtlıyoruz (yüzeyler farklı, mantık tek).
-        var girdi = () => new CashInput
+        var input = () => new CashInput
         {
-            CariId = cari, Tutar = 250m, Hesap = LedgerAccountType.Kasa, HesapId = kasa,
+            CariId = account, Tutar = 250m, Hesap = LedgerAccountType.Kasa, HesapId = cashAccount,
             Doviz = "TRY", Aciklama = "Test"
         };
-        var ekstreden = await cash.CollectAsync(girdi());
-        var bagimsizdan = await cash.CollectAsync(girdi());
+        var fromStatement = await cash.CollectAsync(input());
+        var fromIndependent = await cash.CollectAsync(input());
 
-        var a = await DefterAsync(host, tenant, ekstreden);
-        var b = await DefterAsync(host, tenant, bagimsizdan);
+        var a = await LedgerAsync(host, tenant, fromStatement);
+        var b = await LedgerAsync(host, tenant, fromIndependent);
 
         // Satır sayısı, hesap türleri, referanslar, yönler ve tutarlar BİREBİR aynı.
         Assert.Equal(2, a.Count);
         Assert.Equal(a, b);
         // Elle: 250 Kasa Borç / 250 Cari Alacak.
         Assert.Contains(a, x => x.Tur == LedgerAccountType.Kasa && x.Yon == LedgerDirection.Debit
-                                && x.Baz == 250m && x.Ref == kasa);
+                                && x.Baz == 250m && x.Ref == cashAccount);
         Assert.Contains(a, x => x.Tur == LedgerAccountType.Cari && x.Yon == LedgerDirection.Credit
-                                && x.Baz == 250m && x.Ref == cari);
+                                && x.Baz == 250m && x.Ref == account);
         // Cari bakiye: 2 tahsilat × 250 → −500 (müşteri alacaklı).
-        Assert.Equal(-500m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(-500m, await cash.GetAccountBalanceAsync(account));
     }
 
     [Fact]
@@ -96,18 +96,18 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await CariAsync(scope, "Tarih");
-        var kasa = await HesapAsync(scope, "MRK", "Merkez Kasa", "Kasa");
+        var account = await CustomerAsync(scope, "Tarih");
+        var cashAccount = await AccountAsync(scope, "MRK", "Merkez Kasa", "Kasa");
 
         // Geçmiş tarih kabul (yeni ekranın "Tarih" alanı).
-        var gecmis = Gun(-3);
+        var history = Day(-3);
         var id = await cash.CollectAsync(new CashInput
-        { CariId = cari, Tutar = 100m, Tarih = gecmis, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
-        Assert.Equal(gecmis, (await cash.GetAsync(id))!.Tarih);
+        { CariId = account, Tutar = 100m, Tarih = history, Hesap = LedgerAccountType.Kasa, HesapId = cashAccount });
+        Assert.Equal(history, (await cash.GetAsync(id))!.Tarih);
 
         // Gelecek tarih REDDEDİLİR — TarihPolitikasi para yolunda geçerli, yeni yüzey onu delmiyor.
         await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(new CashInput
-        { CariId = cari, Tutar = 100m, Tarih = Gun(3), Hesap = LedgerAccountType.Kasa, HesapId = kasa }));
+        { CariId = account, Tutar = 100m, Tarih = Day(3), Hesap = LedgerAccountType.Kasa, HesapId = cashAccount }));
     }
 
     // ---------------------------------------------------------------- Süzgeçler
@@ -118,18 +118,18 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var ahmet = await CariAsync(scope, "Ahmet", "OZL-A");
-        var mehmet = await CariAsync(scope, "Mehmet", "OZL-M");
-        var kasa = await HesapAsync(scope, "MRK", "Merkez Kasa", "Kasa");
-        var banka = await HesapAsync(scope, "ZR", "Ziraat", "Banka");
+        var ahmet = await CustomerAsync(scope, "Ahmet", "OZL-A");
+        var mehmet = await CustomerAsync(scope, "Mehmet", "OZL-M");
+        var cashAccount = await AccountAsync(scope, "MRK", "Merkez Kasa", "Kasa");
+        var bank = await AccountAsync(scope, "ZR", "Ziraat", "Banka");
 
         // ELLE: Ahmet'e 2 (kasa tahsilat bugün + banka ödeme 10 gün önce), Mehmet'e 1 (kasa tahsilat).
         await cash.CollectAsync(new CashInput
-        { CariId = ahmet, Tutar = 300m, Hesap = LedgerAccountType.Kasa, HesapId = kasa, Kanal = "Mobil" });
+        { CariId = ahmet, Tutar = 300m, Hesap = LedgerAccountType.Kasa, HesapId = cashAccount, Kanal = "Mobil" });
         await cash.PayAsync(new CashInput
-        { CariId = ahmet, Tutar = 50m, Tarih = Gun(-10), Hesap = LedgerAccountType.Banka, HesapId = banka });
+        { CariId = ahmet, Tutar = 50m, Tarih = Day(-10), Hesap = LedgerAccountType.Banka, HesapId = bank });
         await cash.CollectAsync(new CashInput
-        { CariId = mehmet, Tutar = 120m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
+        { CariId = mehmet, Tutar = 120m, Hesap = LedgerAccountType.Kasa, HesapId = cashAccount });
 
         // Süzgeçsiz: 3.
         Assert.Equal(3, (await cash.SearchTransactionsAsync()).Count);
@@ -142,11 +142,11 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         // Hesap türü.
         Assert.Equal(2, (await cash.SearchTransactionsAsync(new CashFilter { Hesap = LedgerAccountType.Kasa })).Count);
         // Spesifik hesap.
-        Assert.Single(await cash.SearchTransactionsAsync(new CashFilter { HesapId = banka }));
+        Assert.Single(await cash.SearchTransactionsAsync(new CashFilter { HesapId = bank }));
         // Kanal.
         Assert.Single(await cash.SearchTransactionsAsync(new CashFilter { Kanal = "Mobil" }));
         // Tarih penceresi: son 7 gün → 10 gün önceki ödeme düşer.
-        Assert.Equal(2, (await cash.SearchTransactionsAsync(new CashFilter { Bas = Gun(-7) })).Count);
+        Assert.Equal(2, (await cash.SearchTransactionsAsync(new CashFilter { Bas = Day(-7) })).Count);
         // Boş süzgeç daraltmaz.
         Assert.Equal(3, (await cash.SearchTransactionsAsync(new CashFilter { Ara = "", Kanal = "" })).Count);
     }
@@ -157,15 +157,15 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await CariAsync(scope, "Zeynep", "OZL-Z");
-        var kasa = await HesapAsync(scope, "MRK", "Merkez Kasa", "Kasa");
+        var account = await CustomerAsync(scope, "Zeynep", "OZL-Z");
+        var cashAccount = await AccountAsync(scope, "MRK", "Merkez Kasa", "Kasa");
         await cash.CollectAsync(new CashInput
-        { CariId = cari, Tutar = 90m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
+        { CariId = account, Tutar = 90m, Hesap = LedgerAccountType.Kasa, HesapId = cashAccount });
 
-        var satir = Assert.Single(await cash.SearchTransactionsAsync());
-        Assert.Equal("Zeynep Test", satir.CariAd);
-        Assert.Equal("OZL-Z", satir.CariKod);
-        Assert.Equal(90m, satir.Islem.Amount.Amount);
+        var row = Assert.Single(await cash.SearchTransactionsAsync());
+        Assert.Equal("Zeynep Test", row.CariAd);
+        Assert.Equal("OZL-Z", row.CariKod);
+        Assert.Equal(90m, row.Islem.Amount.Amount);
     }
 
     [Fact]
@@ -176,13 +176,13 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
         var reports = scope.ServiceProvider.GetRequiredService<RentACar.Application.Reporting.ReportService>();
-        var cari = await CariAsync(scope, "Toplam");
-        var kasa = await HesapAsync(scope, "MRK", "Merkez Kasa", "Kasa");
+        var account = await CustomerAsync(scope, "Toplam");
+        var cashAccount = await AccountAsync(scope, "MRK", "Merkez Kasa", "Kasa");
 
         await cash.CollectAsync(new CashInput
-        { CariId = cari, Tutar = 400m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
+        { CariId = account, Tutar = 400m, Hesap = LedgerAccountType.Kasa, HesapId = cashAccount });
         await cash.PayAsync(new CashInput
-        { CariId = cari, Tutar = 150m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
+        { CariId = account, Tutar = 150m, Hesap = LedgerAccountType.Kasa, HesapId = cashAccount });
 
         // Elle: 400 − 150 = 250.
         Assert.Equal(250m, (await reports.GetCashBankSummaryAsync()).KasaBakiye);
@@ -202,10 +202,10 @@ public sealed class NakitIslemTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var cash = s1.ServiceProvider.GetRequiredService<CashService>();
-            var cari = await CariAsync(s1, "T1 Gizli", "OZL-T1");
-            var kasa = await HesapAsync(s1, "MRK", "Merkez Kasa", "Kasa");
+            var account = await CustomerAsync(s1, "T1 Gizli", "OZL-T1");
+            var cashAccount = await AccountAsync(s1, "MRK", "Merkez Kasa", "Kasa");
             await cash.CollectAsync(new CashInput
-            { CariId = cari, Tutar = 500m, Hesap = LedgerAccountType.Kasa, HesapId = kasa });
+            { CariId = account, Tutar = 500m, Hesap = LedgerAccountType.Kasa, HesapId = cashAccount });
         }
 
         // racar_app ile bağlanan T2 bağlamı T1'in işlemini ve cari adını GÖRMEZ.

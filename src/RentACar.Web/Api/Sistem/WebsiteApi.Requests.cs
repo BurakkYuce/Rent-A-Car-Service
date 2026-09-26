@@ -26,15 +26,15 @@ public static partial class WebsiteApi
 
         g.MapGet("", async (string? durum, string? ara, int? sayfa, int? boyut, PublicBookingRequestService s, CancellationToken ct) =>
         {
-            Sinirlar.Metin(ara, 100, "ara", "Arama");
-            var status = F5Ortak.EnumAdi<PublicBookingRequestDurum>(durum, "durum");
+            RentalLimits.Text(ara, 100, "ara", "Arama");
+            var status = F5Shared.EnumAdi<PublicBookingRequestDurum>(durum, "durum");
             var page = Math.Max(1, sayfa ?? 1);
             var size = Math.Clamp(boyut ?? 25, 1, 200);
             var (rows, total) = await s.ListRequestsAsync(new TalepFiltre(status, SystemApiCommon.Clean(ara), page, size), ct);
             var summary = await s.SummaryAsync(ct);
             return TypedResults.Ok(new BookingRequestPageDto(rows.Select(ToRequestRow).ToList(), total, page, size,
                 new BookingRequestSummaryDto(summary.Yeni, summary.EnEskiGun)));
-        }).AlanlariEsle([("Geçersiz durum", "durum")]);
+        }).MapFields([("Geçersiz durum", "durum")]);
 
         g.MapGet("/ozet", async (PublicBookingRequestService s, CancellationToken ct) =>
         {
@@ -56,11 +56,11 @@ public static partial class WebsiteApi
             Guid id, BookingRequestStatusRequest i, PublicBookingRequestService s, IPublicBookingRequestRepository r, CancellationToken ct) =>
         {
             if (await r.FindAsync(id, ct) is null) return RequestNotFound();
-            var status = F5Ortak.EnumAdi<PublicBookingRequestDurum>(i.Durum, "durum")
+            var status = F5Shared.EnumAdi<PublicBookingRequestDurum>(i.Durum, "durum")
                          ?? throw new ValidationException("Durum zorunludur.", "durum");
             await s.AssignStatusAsync(id, status, ct);
             return TypedResults.NoContent();
-        }).AlanlariEsle([("\"Dönüştü\"", "durum")]);
+        }).MapFields([("\"Dönüştü\"", "durum")]);
 
         g.MapPost("/{id:guid}/ustlen", async Task<Results<NoContent, ProblemHttpResult>> (
             Guid id, BookingRequestClaimRequest i, PublicBookingRequestService s, IPublicBookingRequestRepository r, CancellationToken ct) =>
@@ -78,7 +78,7 @@ public static partial class WebsiteApi
             return TypedResults.Created($"{UiApiExtensions.V1}/gelen-talepler/{id}/notlar",
                 (IReadOnlyList<BookingRequestNoteDto>)(await s.NotesAsync(id, ct))
                     .Select(n => new BookingRequestNoteDto(n.Id, n.Metin, n.Kullanici, n.ZamanUtc)).ToList());
-        }).AlanlariEsle([("Not ", "metin")]);
+        }).MapFields([("Not ", "metin")]);
 
         g.MapPost("/{id:guid}/reddet", async Task<Results<NoContent, ProblemHttpResult>> (
             Guid id, PublicBookingRequestService s, IPublicBookingRequestRepository r, CancellationToken ct) =>
@@ -119,7 +119,7 @@ public static partial class WebsiteApi
         var scope = BranchScope.EffectiveFilter(user);
         var available = (await availability.FindAvailableAsync(t.BasTar, t.BitTar, null, t.Sube, ct))
             .Where(v => scope.Unrestricted || BranchScope.InScope(scope, v.SubeId, v.Sube)).ToList();
-        var members = t.IlanId is { } ilanId && await listings.FindAsync(ilanId, ct) is { } d
+        var members = t.IlanId is { } listingId && await listings.FindAsync(listingId, ct) is { } d
             ? d.Araclar.Select(v => v.Id).ToHashSet()
             : [];
         return TypedResults.Ok<IReadOnlyList<CandidateVehicleDto>>(available

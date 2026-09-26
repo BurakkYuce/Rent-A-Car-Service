@@ -16,12 +16,12 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class OdemeDerinlikTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
+    private static readonly DateTimeOffset Start = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
 
-    private static BookingInput Booking(Guid vehicleId, Guid cari) => new()
+    private static BookingInput Booking(Guid vehicleId, Guid account) => new()
     {
-        MusteriId = cari, VehicleId = vehicleId,
-        BasTar = Bas, BitTar = Bas.AddDays(4), GunlukUcret = 100m, // 4 gün × 100 = 400 (manuel)
+        MusteriId = account, VehicleId = vehicleId,
+        BasTar = Start, BitTar = Start.AddDays(4), GunlukUcret = 100m, // 4 gün × 100 = 400 (manuel)
         Provizyon = 2000m, Depozito = 750m, KomisyonOran = 12.5m, KomisyonTutar = 200m,
         DropUcreti = 150m, SonraOdeOran = 40m
     };
@@ -35,7 +35,7 @@ public sealed class OdemeDerinlikTests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 OD 01" });
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var id = await rentals.CreateDirectAsync(Booking(vehicleId, await TestCari.YeniAsync(scope.ServiceProvider)));
+        var id = await rentals.CreateDirectAsync(Booking(vehicleId, await TestCustomer.NewAsync(scope.ServiceProvider)));
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
 
         Assert.NotNull(c);
@@ -61,7 +61,7 @@ public sealed class OdemeDerinlikTests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 OD 02" });
         var res = scope.ServiceProvider.GetRequiredService<ReservationService>();
 
-        var resId = await res.CreateAsync(Booking(vehicleId, await TestCari.YeniAsync(scope.ServiceProvider)));
+        var resId = await res.CreateAsync(Booking(vehicleId, await TestCustomer.NewAsync(scope.ServiceProvider)));
         var r = await res.GetAsync(resId);
         Assert.Equal(2000m, r!.Provizyon);
         Assert.Equal(40m, r.SonraOdeOran);
@@ -88,7 +88,7 @@ public sealed class OdemeDerinlikTests(PostgresFixture fx)
         var rentals = scope.ServiceProvider.GetRequiredService<RentalService>();
 
         var id = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = await TestCari.YeniAsync(scope.ServiceProvider), VehicleId = vehicleId, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
+        { MusteriId = await TestCustomer.NewAsync(scope.ServiceProvider), VehicleId = vehicleId, BasTar = Start, BitTar = Start.AddDays(2), GunlukUcret = 100m });
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);
         Assert.Null(c!.Provizyon);
         Assert.Null(c.Depozito);
@@ -109,7 +109,7 @@ public sealed class OdemeDerinlikTests(PostgresFixture fx)
 
         var id = await rentals.CreateDirectAsync(new BookingInput
         {
-            MusteriId = await TestCari.YeniAsync(scope.ServiceProvider), VehicleId = vehicleId, BasTar = Bas, BitTar = Bas.AddDays(4), GunlukUcret = 100m,
+            MusteriId = await TestCustomer.NewAsync(scope.ServiceProvider), VehicleId = vehicleId, BasTar = Start, BitTar = Start.AddDays(4), GunlukUcret = 100m,
             KiralamaTuru = "Uzun Kiralama", FaturalamaTipi = "Full Credit", FiyatTuru = "KDV Dahil Günlük", Doviz = "EURO",
         });
         var c = await scope.ServiceProvider.GetRequiredService<IBookingRepository>().FindRentalAsync(id);

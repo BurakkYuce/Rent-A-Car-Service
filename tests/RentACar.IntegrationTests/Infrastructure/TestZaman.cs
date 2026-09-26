@@ -15,14 +15,14 @@ namespace RentACar.IntegrationTests.Infrastructure;
 public static class TestZaman
 {
     /// <summary>Tam saniyeye hizalı UTC "şimdi" (PG round-trip'i kayıpsız).</summary>
-    public static DateTimeOffset Simdi()
+    public static DateTimeOffset Now()
     {
         var n = DateTimeOffset.UtcNow;
         return new DateTimeOffset(n.Year, n.Month, n.Day, n.Hour, n.Minute, n.Second, TimeSpan.Zero);
     }
 
     /// <summary>
-    /// Bugünden <paramref name="gun"/> gün sonra, UTC <paramref name="saat"/>:00 (tam saniye).
+    /// Bugünden <paramref name="day"/> gün sonra, UTC <paramref name="hour"/>:00 (tam saniye).
     ///
     /// <para><b>Rezervasyon ve teklif testleri SABİT TARİH KULLANAMAZ.</b> <c>TarihPolitikasi.RezervasyonBaslangic</c>
     /// başlangıcı "dünden eski" ve "1 yıldan ileri" ise reddeder; sabit bir tarih bu pencerenin içinden
@@ -30,10 +30,10 @@ public static class TestZaman
     /// alınamaz.") hiçbir kod değişmeden kırmızıya döndü; 2026-11-01'e sabitli kabul testi de Kasım'da
     /// dönecekti. <c>TestTarihBombasiTests</c> bu kuralı kaynak taramasıyla kilitler.</para>
     /// </summary>
-    public static DateTimeOffset GunSonra(int gun, int saat = 9)
-        => new(DateTime.UtcNow.Date.AddDays(gun).AddHours(saat), TimeSpan.Zero);
+    public static DateTimeOffset DaysLater(int day, int hour = 9)
+        => new(DateTime.UtcNow.Date.AddDays(day).AddHours(hour), TimeSpan.Zero);
 
     /// <summary>Verilen anı tam saniyeye kırpar.</summary>
-    public static DateTimeOffset SaniyeyeHizala(this DateTimeOffset d)
+    public static DateTimeOffset AlignToSecond(this DateTimeOffset d)
         => new(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, d.Offset);
 }

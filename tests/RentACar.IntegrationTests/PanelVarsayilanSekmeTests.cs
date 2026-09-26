@@ -11,12 +11,12 @@ namespace RentACar.IntegrationTests;
 /// sekmeye tıklamadıkça görünmüyordu.</para>
 ///
 /// <para>Bağımsız oracle: beklenen değerler aşağıda ELLE yazılmış doğruluk tablosudur
-/// ("gec"/"bugun"/"yarin" düz metin — <see cref="PanelSekme"/> sabitlerinden türetilmez; sabitin
+/// ("gec"/"bugun"/"yarin" düz metin — <see cref="PanelTab"/> sabitlerinden türetilmez; sabitin
 /// değeri değişirse URL sözleşmesi de değişmiş demektir ve bu test bunu yakalamalı).</para>
 /// </summary>
 public sealed class PanelVarsayilanSekmeTests
 {
-    private static string RepoKok()
+    private static string RepoRoot()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
@@ -47,8 +47,8 @@ public sealed class PanelVarsayilanSekmeTests
     // Büyük/küçük harf farkı seçimi düşürmez; kanonik küçük harfe iner.
     [InlineData("GEC", 0, "gec")]
     [InlineData("Yarin", 9, "yarin")]
-    public void Etkin_sekme_dogruluk_tablosu(string? ham, int gecikmis, string beklenen)
-        => Assert.Equal(beklenen, PanelSekme.Etkin(ham, gecikmis));
+    public void Etkin_sekme_dogruluk_tablosu(string? raw, int overdue, string expected)
+        => Assert.Equal(expected, PanelTab.Active(raw, overdue));
 
     // ── Seçilen: linklere yazılan normalize ham seçim ──────────────────────────────────────────
     [Theory]
@@ -60,8 +60,8 @@ public sealed class PanelVarsayilanSekmeTests
     [InlineData("bugun", "bugun")]
     [InlineData("yarin", "yarin")]
     [InlineData("BUGUN", "bugun")]
-    public void Secilen_yalniz_bilinen_uc_degeri_tanir(string? ham, string? beklenen)
-        => Assert.Equal(beklenen, PanelSekme.Secilen(ham));
+    public void Secilen_yalniz_bilinen_uc_degeri_tanir(string? raw, string? expected)
+        => Assert.Equal(expected, PanelTab.Selected(raw));
 
     // ── Çip sınıfı: (çip, etkin sekme, gecikmiş sayısı) → CSS sınıfı ───────────────────────────
     [Theory]
@@ -78,24 +78,24 @@ public sealed class PanelVarsayilanSekmeTests
     [InlineData("yarin", "yarin", 9, "on")]
     [InlineData("yarin", "gec", 9, "")]
     [InlineData("yarin", "bugun", 0, "")]
-    public void Cip_sinifi_dogruluk_tablosu(string cip, string etkin, int gecikmis, string beklenen)
-        => Assert.Equal(beklenen, PanelSekme.CipSinifi(cip, etkin, gecikmis));
+    public void Cip_sinifi_dogruluk_tablosu(string cip, string active, int overdue, string expected)
+        => Assert.Equal(expected, PanelTab.ChipClass(cip, active, overdue));
 
     [Fact]
     public void Canli_vaka_parametresiz_9_gecikmis_donus_Gecikmis_sekmesinde_acilir()
     {
         // Pano "/" ile açıldı (df yok), 9 gecikmiş dönüş, bugün 0.
-        var etkin = PanelSekme.Etkin(null, 9);
-        Assert.Equal("gec", etkin);
-        Assert.Equal("on acil", PanelSekme.CipSinifi("gec", etkin, 9));
-        Assert.Equal("", PanelSekme.CipSinifi("bugun", etkin, 9));
-        Assert.Equal("", PanelSekme.CipSinifi("yarin", etkin, 9));
+        var active = PanelTab.Active(null, 9);
+        Assert.Equal("gec", active);
+        Assert.Equal("on acil", PanelTab.ChipClass("gec", active, 9));
+        Assert.Equal("", PanelTab.ChipClass("bugun", active, 9));
+        Assert.Equal("", PanelTab.ChipClass("yarin", active, 9));
 
         // Kullanıcı bilerek "Bugün"e geçti → Bugün açılır ama Gecikmiş çipi kırmızı kalır.
-        var bugun = PanelSekme.Etkin("bugun", 9);
-        Assert.Equal("bugun", bugun);
-        Assert.Equal("acil", PanelSekme.CipSinifi("gec", bugun, 9));
-        Assert.Equal("on", PanelSekme.CipSinifi("bugun", bugun, 9));
+        var today = PanelTab.Active("bugun", 9);
+        Assert.Equal("bugun", today);
+        Assert.Equal("acil", PanelTab.ChipClass("gec", today, 9));
+        Assert.Equal("on", PanelTab.ChipClass("bugun", today, 9));
     }
 
     // ── Çıkışlar: varsayılan DAİMA Bugün (adversarial bulgu) ───────────────────────────────────
@@ -110,35 +110,35 @@ public sealed class PanelVarsayilanSekmeTests
     [InlineData("yarin", "yarin")]
     [InlineData("gec", "gec")]     // kullanıcı açıkça seçerse Gecikmiş açılır
     [InlineData("GEC", "gec")]
-    public void Cikislar_etkin_sekme_gecikmis_sayisina_bakmaz(string? ham, string beklenen)
-        => Assert.Equal(beklenen, PanelSekme.CikisEtkin(ham));
+    public void Cikislar_etkin_sekme_gecikmis_sayisina_bakmaz(string? raw, string expected)
+        => Assert.Equal(expected, PanelTab.IsPickupActive(raw));
 
     [Fact]
     public void Cikislarda_bayat_no_show_varken_Bugun_acilir_ama_Gecikmis_cipi_acil_kalir()
     {
         // Canlı-benzeri vaka: 1 bayat no-show (gecikmiş çıkış), bugün 3 çıkış, pano "/" ile açıldı.
-        var etkin = PanelSekme.CikisEtkin(null);
-        Assert.Equal("bugun", etkin);
-        Assert.Equal("on", PanelSekme.CipSinifi("bugun", etkin, 1));
-        Assert.Equal("acil", PanelSekme.CipSinifi("gec", etkin, 1));  // bekleyen iş görünür kalır
+        var active = PanelTab.IsPickupActive(null);
+        Assert.Equal("bugun", active);
+        Assert.Equal("on", PanelTab.ChipClass("bugun", active, 1));
+        Assert.Equal("acil", PanelTab.ChipClass("gec", active, 1));  // bekleyen iş görünür kalır
 
         // Aynı sayılarla Dönüşler kuralı Gecikmiş'i açardı — iki kartın farkı bilinçli.
-        Assert.Equal("gec", PanelSekme.Etkin(null, 1));
+        Assert.Equal("gec", PanelTab.Active(null, 1));
     }
 
     // ── Kaynak çitleri: kararın sayfada tekrar ham değerden verilmesini önler ──────────────────
     [Fact]
     public void Home_ham_df_cf_ile_karar_vermez()
     {
-        var home = File.ReadAllText(Path.Combine(RepoKok(), "src/RentACar.Web/Components/Pages/Home.razor"));
+        var home = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Components/Pages/Home.razor"));
 
         // Eski hata üç ayrı yerde ham null'ı yorumlamaktı: `Df == "gec"`, `Df is null or "bugun"`,
         // `Df switch {...}`. Herhangi biri geri gelirse vurgu/liste/dönüş adresi yeniden ayrışabilir.
-        var ham = Regex.Matches(home, @"\b(Df|Cf)\s*(==|!=|is\b|switch\b)")
+        var raw = Regex.Matches(home, @"\b(Df|Cf)\s*(==|!=|is\b|switch\b)")
             .Select(m => m.Value).ToList();
-        Assert.True(ham.Count == 0,
+        Assert.True(raw.Count == 0,
             "Home.razor sekme kararını ham df/cf'den veriyor; PanelSekme.Etkin kullanılmalı:\n  "
-            + string.Join("\n  ", ham));
+            + string.Join("\n  ", raw));
 
         // Tahsil Et dönüş adresi HAM (normalize) seçimi taşımalı, ETKİNİ DEĞİL (adversarial bulgu):
         // varsayılanla "gec"te açılmış pano "/?df=gec" açık seçimine dönerse gecikmişler kapandığında
@@ -148,11 +148,11 @@ public sealed class PanelVarsayilanSekmeTests
         Assert.DoesNotContain("value=\"/?df=@DfEtkin", home, StringComparison.Ordinal);
 
         // Çıkışlar kartı Dönüşler'in "gecikmiş varsa gec" kuralını KULLANMAZ (bayat no-show).
-        Assert.Contains("PanelSekme.CikisEtkin(Cf)", home, StringComparison.Ordinal);
-        Assert.DoesNotContain("PanelSekme.Etkin(Cf", home, StringComparison.Ordinal);
+        Assert.Contains("PanelTab.IsPickupActive(Cf)", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("PanelTab.Active(Cf", home, StringComparison.Ordinal);
 
         // 6 çipin (2 kart × 3 sekme) tümü sınıfını aynı fonksiyondan alır.
-        Assert.Equal(6, Regex.Matches(home, @"class=""@PanelSekme\.CipSinifi\(").Count);
+        Assert.Equal(6, Regex.Matches(home, @"class=""@PanelTab\.ChipClass\(").Count);
     }
 
     // ── Acil çipin metin rengi zeminden türetilir (adversarial bulgu) ──────────────────────────
@@ -167,8 +167,8 @@ public sealed class PanelVarsayilanSekmeTests
     [InlineData("#1e3a8a", "#ffffff")]   // koyu lacivert
     [InlineData("#000000", "#ffffff")]
     [InlineData("#DC2626", "#ffffff")]   // büyük harf hex
-    public void Acil_cip_metin_rengi_zeminden_turetilir(string zemin, string beklenen)
-        => Assert.Equal(beklenen, RentACar.Web.Components.Layout.RenkKontrast.UzerindekiMetin(zemin));
+    public void Acil_cip_metin_rengi_zeminden_turetilir(string background, string expected)
+        => Assert.Equal(expected, RentACar.Web.Components.Layout.ColorContrast.TextOn(background));
 
     [Theory]
     [InlineData(null)]
@@ -178,28 +178,28 @@ public sealed class PanelVarsayilanSekmeTests
     [InlineData("#gggggg")]
     [InlineData("# de047")]
     [InlineData("#-de047")]
-    public void Bicimsiz_renk_icin_metin_rengi_uretilmez(string? zemin)
-        => Assert.Null(RentACar.Web.Components.Layout.RenkKontrast.UzerindekiMetin(zemin));
+    public void Bicimsiz_renk_icin_metin_rengi_uretilmez(string? background)
+        => Assert.Null(RentACar.Web.Components.Layout.ColorContrast.TextOn(background));
 
     [Fact]
     public void Acil_cip_metin_rengini_sabit_beyazdan_degil_degiskenden_alir()
     {
-        var css = File.ReadAllText(Path.Combine(RepoKok(), "src/RentACar.Web/wwwroot/app.css"));
-        var kurallar = Regex.Matches(css, @"(?<s>[^{}]*\.dc-tabs a\.acil[^{}]*)\{(?<g>[^}]*)\}");
-        Assert.NotEmpty(kurallar);
-        foreach (Match k in kurallar)
+        var css = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/wwwroot/app.css"));
+        var rules = Regex.Matches(css, @"(?<s>[^{}]*\.dc-tabs a\.acil[^{}]*)\{(?<g>[^}]*)\}");
+        Assert.NotEmpty(rules);
+        foreach (Match k in rules)
             if (Regex.IsMatch(k.Groups["g"].Value, @"(^|;)\s*color\s*:"))
                 Assert.Contains("var(--tr-renk-gecikenler-on", k.Groups["g"].Value, StringComparison.Ordinal);
 
-        var layout = File.ReadAllText(Path.Combine(RepoKok(), "src/RentACar.Web/Components/Layout/MainLayout.razor"));
-        Assert.Contains("RenkKontrast.UzerindekiMetin(renk)", layout, StringComparison.Ordinal);
+        var layout = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Components/Layout/MainLayout.razor"));
+        Assert.Contains("ColorContrast.TextOn(renk)", layout, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Acil_cip_stili_app_css_te_tanimli()
     {
         // `acil` sınıfı stilsiz kalırsa Gecikmiş çipi yine gri görünür ve hata SESSİZCE geri gelir.
-        var css = File.ReadAllText(Path.Combine(RepoKok(), "src/RentACar.Web/wwwroot/app.css"));
+        var css = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/wwwroot/app.css"));
         Assert.Contains(".dc-tabs a.acil", css, StringComparison.Ordinal);
     }
 }

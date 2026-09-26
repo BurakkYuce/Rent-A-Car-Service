@@ -19,8 +19,8 @@ public static class ApiAuthExtensions
         var role = Enum.TryParse<UserRole>(user.FindFirst(ClaimTypes.Role)?.Value, out var r)
             ? r : (UserRole?)null;
         return EffectivePermission.Has(role, permission,
-            user.FindAll(ApiClaims.IzinEk).Select(c => c.Value).ToArray(),
-            user.FindAll(ApiClaims.IzinYasak).Select(c => c.Value).ToArray());
+            user.FindAll(ApiClaims.PermissionExtra).Select(c => c.Value).ToArray(),
+            user.FindAll(ApiClaims.PermissionDenied).Select(c => c.Value).ToArray());
     }
 
     public static RouteHandlerBuilder RequirePermission(this RouteHandlerBuilder builder, Permission permission)

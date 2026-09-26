@@ -93,8 +93,8 @@
 @* FAZ-12 Bölüm C (kullanıcı kararı "Seçenek B") — ad-bazlı özet ile araç-bazlı pivot AYNI ekranda,
    ikinci bir bakış açısı olarak. Karlılık / Filo Analiz / Ek Hizmet üçlüsü BİRLEŞTİRİLMEDİ. *@
 <p class="muted small"><strong>Alt görünüm:</strong>
-    <a href="@AltUrl(null)">@(PivotModu ? Plain("Satır detayı") : Bold("Satır detayı"))</a> ·
-    <a href="@AltUrl("arac")">@(PivotModu ? Bold("Araç bazlı pivot") : Plain("Araç bazlı pivot"))</a>
+    <a href="@SubUrl(null)">@(PivotModu ? Plain("Satır detayı") : Bold("Satır detayı"))</a> ·
+    <a href="@SubUrl("arac")">@(PivotModu ? Bold("Araç bazlı pivot") : Plain("Araç bazlı pivot"))</a>
 </p>
 
 @if (PivotModu)
@@ -165,7 +165,7 @@ else
     <label>Satan Personel
         <select name="personelId">
             <option value="">— tümü —</option>
-            @foreach (var p in _personeller)
+            @foreach (var p in _personnel)
             {
                 <option value="@p.Id" selected="@(p.Id.ToString() == PersonelId)">@p.Ad @p.Soyad</option>
             }
@@ -174,7 +174,7 @@ else
     <label>Çıkış Ofisi
         <select name="ofis">
             <option value="">— tümü —</option>
-            @foreach (var o in _ofisler) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+            @foreach (var o in _offices) { <option value="@o" selected="@(o == Ofis)">@o</option> }
         </select>
     </label>
     <label>Rez. Kaynağı<input name="kaynak" value="@Kaynak" /></label>
@@ -187,8 +187,8 @@ else
     <button type="submit">Filtrele</button>
 </form>
 
-<p class="muted small">@_detay.Count kalem · Net @_detay.Sum(x => x.Net).ToString("N2") ·
-    KDV @_detay.Sum(x => x.Kdv).ToString("N2") · Brüt @_detay.Sum(x => x.Brut).ToString("N2")</p>
+<p class="muted small">@_detail.Count kalem · Net @_detail.Sum(x => x.Net).ToString("N2") ·
+    KDV @_detail.Sum(x => x.Kdv).ToString("N2") · Brüt @_detail.Sum(x => x.Brut).ToString("N2")</p>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
@@ -199,11 +199,11 @@ else
             <th>Satan Personel</th><th class="num">Kira İlk Tahsilat</th></tr>
     </thead>
     <tbody>
-        @if (_detay.Count == 0)
+        @if (_detail.Count == 0)
         {
             <tr><td colspan="15" class="muted">Ek hizmet kalemi yok.</td></tr>
         }
-        @foreach (var x in _detay)
+        @foreach (var x in _detail)
         {
             <tr>
                 <td>@x.EklenmeTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
@@ -240,9 +240,9 @@ else
 
     private EkHizmetRaporDto _data = new([], 0, 0, 0, 0);
     private EkHizmetAracPivotDto _pivot = new([], [], [], 0m);
-    private IReadOnlyList<EkHizmetDetayRow> _detay = [];
-    private IReadOnlyList<PersonelSecim> _personeller = [];
-    private string[] _ofisler = [];
+    private IReadOnlyList<EkHizmetDetayRow> _detail = [];
+    private IReadOnlyList<PersonelSecim> _personnel = [];
+    private string[] _offices = [];
 
     private bool PivotModu => Pivot == "arac";
 
@@ -254,8 +254,8 @@ else
 
         // Personel listesi PII'sız uç (ListForSelectAsync) — ListAsync ManageUsers ister ve
         // Muhasebe rolünde patlar (kira mega-formunda öğrenilen ders).
-        _personeller = await Personeller.ListForSelectAsync();
-        _ofisler = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
+        _personnel = await Personeller.ListForSelectAsync();
+        _offices = (await Ofisler.ListActiveAsync()).Select(o => o.Ad).OrderBy(a => a).ToArray();
 
         // Pivot ve satır-detayı birbirinin alternatifi — ikisini birden çekmek gereksiz iş.
         if (PivotModu)
@@ -267,7 +267,7 @@ else
             return;
         }
 
-        _detay = await Reports.GetAddOnDetailAsync(new EkHizmetDetayFilter
+        _detail = await Reports.GetAddOnDetailAsync(new EkHizmetDetayFilter
         {
             Bas = from, Bit = to,
             Ara = Ara,
@@ -282,7 +282,7 @@ else
         => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
 
     /// <summary>Alt görünüm anahtarı — tarih penceresi KORUNUR (üstteki özet ikisinde de aynı).</summary>
-    private string AltUrl(string? pivot)
+    private string SubUrl(string? pivot)
     {
         var qs = new List<string>();
         if (!string.IsNullOrWhiteSpace(From)) qs.Add($"from={Uri.EscapeDataString(From)}");

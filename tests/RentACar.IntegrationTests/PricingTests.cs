@@ -16,25 +16,25 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class PricingTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
-    private static DateTimeOffset Bit(int gun) => Bas.AddDays(gun);
+    private static readonly DateTimeOffset Start = DateTimeOffset.UtcNow.AddDays(3); // now-göreli gelecek (rez geçmişe kapalı)
+    private static DateTimeOffset Bit(int day) => Start.AddDays(day);
 
     /// <summary>Araç (grup) + cari + iki kademe tarife (B: 1–3→100, 4+→80) tohumlar.</summary>
-    private static async Task<(Guid musteri, Guid arac)> SeedAsync(IServiceScope s, string grup = "B")
+    private static async Task<(Guid musteri, Guid arac)> SeedAsync(IServiceScope s, string group = "B")
     {
         var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
         var customers = s.ServiceProvider.GetRequiredService<CustomerService>();
         var rates = s.ServiceProvider.GetRequiredService<RateCardService>();
-        var arac = await vehicles.CreateAsync(new VehicleInput { Plaka = "34PRC01", Grup = grup });
-        var musteri = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Fiyat", Soyad = "Test" });
+        var vehicle = await vehicles.CreateAsync(new VehicleInput { Plaka = "34PRC01", Grup = group });
+        var customer = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Fiyat", Soyad = "Test" });
         await rates.CreateAsync(new RateCardInput { Kod = "B1", Ad = "B 1-3", Grup = "B", MinGun = 1, MaxGun = 3, GunlukUcret = 100m });
         await rates.CreateAsync(new RateCardInput { Kod = "B2", Ad = "B 4+", Grup = "B", MinGun = 4, MaxGun = 9999, GunlukUcret = 80m });
-        return (musteri, arac);
+        return (musteri: customer, arac: vehicle);
     }
 
-    private static BookingInput Booking(Guid m, Guid v, int gun, decimal gunluk = 0m) => new()
+    private static BookingInput Booking(Guid m, Guid v, int day, decimal daily = 0m) => new()
     {
-        MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bit(gun), GunlukUcret = gunluk
+        MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Bit(day), GunlukUcret = daily
     };
 
     [Fact]
@@ -42,12 +42,12 @@ public sealed class PricingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var rez = scope.ServiceProvider.GetRequiredService<ReservationService>();
+        var res = scope.ServiceProvider.GetRequiredService<ReservationService>();
         var (m, v) = await SeedAsync(scope);
 
         // 2 gün, ücret verilmedi → B 1-3 kademesi (100). 2×100=200.
-        var id = await rez.CreateAsync(Booking(m, v, 2));
-        var r = await rez.GetAsync(id);
+        var id = await res.CreateAsync(Booking(m, v, 2));
+        var r = await res.GetAsync(id);
         Assert.Equal(2, r!.Gun);
         Assert.Equal(100m, r.GunlukUcret);
         Assert.Equal(200m, r.Tutar);
@@ -58,12 +58,12 @@ public sealed class PricingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var rez = scope.ServiceProvider.GetRequiredService<ReservationService>();
+        var res = scope.ServiceProvider.GetRequiredService<ReservationService>();
         var (m, v) = await SeedAsync(scope);
 
         // 5 gün → B 4+ kademesi (80). 5×80=400.
-        var id = await rez.CreateAsync(Booking(m, v, 5));
-        var r = await rez.GetAsync(id);
+        var id = await res.CreateAsync(Booking(m, v, 5));
+        var r = await res.GetAsync(id);
         Assert.Equal(5, r!.Gun);
         Assert.Equal(80m, r.GunlukUcret);
         Assert.Equal(400m, r.Tutar);
@@ -74,12 +74,12 @@ public sealed class PricingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var rez = scope.ServiceProvider.GetRequiredService<ReservationService>();
+        var res = scope.ServiceProvider.GetRequiredService<ReservationService>();
         var (m, v) = await SeedAsync(scope);
 
         // Manuel 150 verildi → tarife (100) yok sayılır. 2×150=300.
-        var id = await rez.CreateAsync(Booking(m, v, 2, gunluk: 150m));
-        var r = await rez.GetAsync(id);
+        var id = await res.CreateAsync(Booking(m, v, 2, daily: 150m));
+        var r = await res.GetAsync(id);
         Assert.Equal(150m, r!.GunlukUcret);
         Assert.Equal(300m, r.Tutar);
     }
@@ -89,12 +89,12 @@ public sealed class PricingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var rez = scope.ServiceProvider.GetRequiredService<ReservationService>();
+        var res = scope.ServiceProvider.GetRequiredService<ReservationService>();
         // Grup "Z" → tarife yok.
-        var (m, v) = await SeedAsync(scope, grup: "Z");
+        var (m, v) = await SeedAsync(scope, group: "Z");
 
-        var id = await rez.CreateAsync(Booking(m, v, 2));
-        var r = await rez.GetAsync(id);
+        var id = await res.CreateAsync(Booking(m, v, 2));
+        var r = await res.GetAsync(id);
         Assert.Equal(0m, r!.GunlukUcret);
         Assert.Equal(0m, r.Tutar);
     }
@@ -104,12 +104,12 @@ public sealed class PricingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var teklif = scope.ServiceProvider.GetRequiredService<QuotationService>();
+        var quotation = scope.ServiceProvider.GetRequiredService<QuotationService>();
         var (m, v) = await SeedAsync(scope);
 
-        var input = new QuotationInput { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bit(2), GunlukUcret = 0m };
-        var id = await teklif.CreateAsync(input);
-        var q = await teklif.GetAsync(id);
+        var input = new QuotationInput { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Bit(2), GunlukUcret = 0m };
+        var id = await quotation.CreateAsync(input);
+        var q = await quotation.GetAsync(id);
         // Efektif ücret tekliften okunabilmeli (writeback doğru).
         Assert.Equal(100m, q!.GunlukUcret);
         Assert.Equal(200m, q.Tutar);
@@ -120,11 +120,11 @@ public sealed class PricingTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var kira = scope.ServiceProvider.GetRequiredService<RentalService>();
+        var rental = scope.ServiceProvider.GetRequiredService<RentalService>();
         var (m, v) = await SeedAsync(scope);
 
-        var id = await kira.CreateDirectAsync(Booking(m, v, 2));
-        var r = await kira.GetAsync(id);
+        var id = await rental.CreateDirectAsync(Booking(m, v, 2));
+        var r = await rental.GetAsync(id);
         Assert.Equal(100m, r!.GunlukUcret);
         Assert.Equal(200m, r.Tutar);
         Assert.Equal(200m, r.GenelToplam);
@@ -140,8 +140,8 @@ public sealed class PricingTests(PostgresFixture fx)
         var (_, v) = await SeedAsync(scope);
 
         // roadmap A1: imza (basTar,bitTar); motor matrisi yok → RateCard fallback aynı tier'i verir.
-        Assert.Equal(100m, await pricing.ResolveDailyRateAsync(v, Bas, Bas.AddDays(2)));   // B, 2 gün
-        Assert.Equal(80m, await pricing.ResolveDailyRateAsync(v, Bas, Bas.AddDays(7)));    // B, 7 gün → 4+ kademe
-        Assert.Equal(0m, await pricing.ResolveDailyRateAsync(Guid.NewGuid(), Bas, Bas.AddDays(2))); // araç yok → 0
+        Assert.Equal(100m, await pricing.ResolveDailyRateAsync(v, Start, Start.AddDays(2)));   // B, 2 gün
+        Assert.Equal(80m, await pricing.ResolveDailyRateAsync(v, Start, Start.AddDays(7)));    // B, 7 gün → 4+ kademe
+        Assert.Equal(0m, await pricing.ResolveDailyRateAsync(Guid.NewGuid(), Start, Start.AddDays(2))); // araç yok → 0
     }
 }

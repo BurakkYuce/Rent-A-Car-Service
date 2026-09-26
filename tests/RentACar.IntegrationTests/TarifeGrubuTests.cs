@@ -23,7 +23,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TarifeGrubuTests(PostgresFixture fx)
 {
-    private const string Sifre = "brokerSifre1";
+    private const string Password = "brokerSifre1";
 
     [Fact]
     public async Task CRUD_ve_kod_benzersizligi()
@@ -33,7 +33,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<TariffGroupService>();
 
         var id = await svc.CreateAsync(new TarifeGrubuInput
-        { Kod = "brk-x", Ad = " Broker X ", Oran = 0.15m, KullaniciAdi = " brokerx ", Sifre = Sifre });
+        { Kod = "brk-x", Ad = " Broker X ", Oran = 0.15m, KullaniciAdi = " brokerx ", Sifre = Password });
 
         var g = await svc.GetAsync(id);
         Assert.Equal("BRK-X", g!.Kod);          // kod büyük harfe normalize
@@ -63,7 +63,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<TariffGroupService>();
 
         var id = await svc.CreateAsync(new TarifeGrubuInput
-        { Kod = "BRK1", Ad = "Broker 1", KullaniciAdi = "u1", Sifre = Sifre });
+        { Kod = "BRK1", Ad = "Broker 1", KullaniciAdi = "u1", Sifre = Password });
 
         // DB'ye DOĞRUDAN bak: ham şifre hiçbir kolonda geçmemeli.
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -71,23 +71,23 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         {
             var row = await db.TarifeGruplari.AsNoTracking().SingleAsync(x => x.Id == id);
             Assert.False(string.IsNullOrWhiteSpace(row.SifreHash));
-            Assert.DoesNotContain(Sifre, row.SifreHash!, StringComparison.Ordinal);
-            Assert.NotEqual(Sifre, row.SifreHash);
+            Assert.DoesNotContain(Password, row.SifreHash!, StringComparison.Ordinal);
+            Assert.NotEqual(Password, row.SifreHash);
         }
 
-        var ilkHash = (await svc.GetAsync(id))!.SifreHash;
+        var firstHash = (await svc.GetAsync(id))!.SifreHash;
 
         // Şifre BOŞ bırakılarak güncelleme → mevcut özet korunmalı.
         await svc.UpdateAsync(id, new TarifeGrubuInput
         { Kod = "BRK1", Ad = "Broker 1 (yeni ad)", KullaniciAdi = "u1", Sifre = null });
-        var sonra = await svc.GetAsync(id);
-        Assert.Equal("Broker 1 (yeni ad)", sonra!.Ad);
-        Assert.Equal(ilkHash, sonra.SifreHash);          // kimlik kaybolmadı
+        var after = await svc.GetAsync(id);
+        Assert.Equal("Broker 1 (yeni ad)", after!.Ad);
+        Assert.Equal(firstHash, after.SifreHash);          // kimlik kaybolmadı
 
         // Yeni şifre verilince özet DEĞİŞMELİ.
         await svc.UpdateAsync(id, new TarifeGrubuInput
         { Kod = "BRK1", Ad = "Broker 1", Sifre = "baskaSifre2" });
-        Assert.NotEqual(ilkHash, (await svc.GetAsync(id))!.SifreHash);
+        Assert.NotEqual(firstHash, (await svc.GetAsync(id))!.SifreHash);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var grup = await sp.GetRequiredService<TariffGroupService>()
+        var group = await sp.GetRequiredService<TariffGroupService>()
             .CreateAsync(new TarifeGrubuInput { Kod = "BRK", Ad = "Broker" });
         var rates = sp.GetRequiredService<RateCardService>();
 
@@ -153,7 +153,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         {
             Kod = "T1", Ad = "Tarife 1", Grup = "EKO", MinGun = 1, MaxGun = 30, GunlukUcret = 1000m,
             ScdwDahil = true, MiniHasarDahil = true, HirsizlikDahil = false, ScdwZorunlu = true,
-            Gosterme = true, TarifeGrubuId = grup
+            Gosterme = true, TarifeGrubuId = group
         });
 
         var r = await rates.GetAsync(id);
@@ -162,7 +162,7 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         Assert.False(r.HirsizlikDahil);
         Assert.True(r.ScdwZorunlu);
         Assert.True(r.Gosterme);
-        Assert.Equal(grup, r.TarifeGrubuId);
+        Assert.Equal(group, r.TarifeGrubuId);
 
         // Bayraklar geri kapatılabilmeli (bool'un false'a dönüşü Normalize'da kaybolmamalı).
         await rates.UpdateAsync(id, new RateCardInput
@@ -190,15 +190,15 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
     public async Task Baska_tenantin_grubu_TARIFEYE_baglanamaz()
     {
         using var host = new TestHost(fx.AppConnectionString);
-        Guid yabanciGrup;
+        Guid foreignGroup;
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
-            yabanciGrup = await s1.ServiceProvider.GetRequiredService<TariffGroupService>()
+            foreignGroup = await s1.ServiceProvider.GetRequiredService<TariffGroupService>()
                 .CreateAsync(new TarifeGrubuInput { Kod = "Y", Ad = "Yabancı" });
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         await Assert.ThrowsAsync<ValidationException>(() =>
             s2.ServiceProvider.GetRequiredService<RateCardService>().CreateAsync(new RateCardInput
-            { Kod = "T1", Ad = "Sızıntı", Grup = "EKO", GunlukUcret = 100m, TarifeGrubuId = yabanciGrup }));
+            { Kod = "T1", Ad = "Sızıntı", Grup = "EKO", GunlukUcret = 100m, TarifeGrubuId = foreignGroup }));
     }
 
     [Fact]
@@ -207,16 +207,16 @@ public sealed class TarifeGrubuTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var gruplar = sp.GetRequiredService<TariffGroupService>();
+        var groups = sp.GetRequiredService<TariffGroupService>();
         var rates = sp.GetRequiredService<RateCardService>();
 
-        var grup = await gruplar.CreateAsync(new TarifeGrubuInput { Kod = "BRK", Ad = "Broker" });
-        var tarife = await rates.CreateAsync(new RateCardInput
-        { Kod = "T1", Ad = "Tarife", Grup = "EKO", GunlukUcret = 500m, TarifeGrubuId = grup });
+        var group = await groups.CreateAsync(new TarifeGrubuInput { Kod = "BRK", Ad = "Broker" });
+        var tariff = await rates.CreateAsync(new RateCardInput
+        { Kod = "T1", Ad = "Tarife", Grup = "EKO", GunlukUcret = 500m, TarifeGrubuId = group });
 
-        await gruplar.DeleteAsync(grup);
+        await groups.DeleteAsync(group);
 
-        var r = await rates.GetAsync(tarife);
+        var r = await rates.GetAsync(tariff);
         Assert.NotNull(r);                 // tarife satırı DURUYOR
         Assert.Equal(500m, r!.GunlukUcret);
         Assert.Null(r.TarifeGrubuId);      // yalnız bağ koptu

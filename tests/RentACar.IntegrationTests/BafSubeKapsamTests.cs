@@ -14,8 +14,8 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class BafSubeKapsamTests(PostgresFixture fx)
 {
-    private static BafInput Bir(string sube) => new()
-    { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 100, Sube = sube };
+    private static BafInput Bir(string branch) => new()
+    { PersonelId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), CikisKm = 100, Sube = branch };
 
     [Fact]
     public async Task Operator_yalniz_kendi_sube_tahsislerini_gorur()

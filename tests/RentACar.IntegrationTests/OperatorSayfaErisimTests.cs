@@ -44,15 +44,15 @@ public sealed class OperatorSayfaErisimTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
 
         // BafList.OnInitializedAsync'in yaptığı çağrıların AYNISI — biri bile atarsa sayfa 500 olur.
-        var kayitlar = await sp.GetRequiredService<BafService>().ListAsync();
-        var personel = await sp.GetRequiredService<PersonnelService>().ListForSelectAsync();
-        var araclar = await sp.GetRequiredService<VehicleService>().ListAsync();
-        var subeler = await sp.GetRequiredService<BranchService>().ListActiveAsync();
+        var records = await sp.GetRequiredService<BafService>().ListAsync();
+        var staff = await sp.GetRequiredService<PersonnelService>().ListForSelectAsync();
+        var vehicles = await sp.GetRequiredService<VehicleService>().ListAsync();
+        var branches = await sp.GetRequiredService<BranchService>().ListActiveAsync();
 
-        Assert.NotNull(kayitlar);
-        Assert.NotNull(subeler);
-        Assert.Single(personel);                                  // operatör personel ADINI görebilir
-        Assert.Contains(araclar, a => a.Plaka == "34OP01");
+        Assert.NotNull(records);
+        Assert.NotNull(branches);
+        Assert.Single(staff);                                  // operatör personel ADINI görebilir
+        Assert.Contains(vehicles, a => a.Plaka == "34OP01");
     }
 
     [Fact]

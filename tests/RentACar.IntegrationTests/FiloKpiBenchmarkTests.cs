@@ -24,7 +24,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
 {
-    private static Task GiderAsync(IServiceProvider sp, Guid veh, decimal net)
+    private static Task ExpenseAsync(IServiceProvider sp, Guid veh, decimal net)
         => sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Arac, VehicleId = veh, NetTutar = net, KdvOrani = 0m,
@@ -32,15 +32,15 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         });
 
     /// <summary>Kira + teslim + dönüş (km yazımı); faturala=true ise %0 KDV ile deftere gelir düşer.</summary>
-    private static async Task KiraAsync(IServiceProvider sp, Guid cari, Guid veh,
-        DateTimeOffset bas, DateTimeOffset bit, int donusKm, bool faturala)
+    private static async Task RentalAsync(IServiceProvider sp, Guid account, Guid veh,
+        DateTimeOffset start, DateTimeOffset bit, int returnKm, bool invoice)
     {
         var rentals = sp.GetRequiredService<RentalService>();
         var r = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = veh, BasTar = bas, BitTar = bit, GunlukUcret = 100m });
-        if (faturala) await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(r, vatRate: 0m);
+        { MusteriId = account, VehicleId = veh, BasTar = start, BitTar = bit, GunlukUcret = 100m });
+        if (invoice) await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(r, vatRate: 0m);
         await rentals.DeliverAsync(r, pickupKm: 0, pickupFuel: 8);
-        await rentals.ReturnAsync(r, returnKm: donusKm, returnFuel: 8, bit);
+        await rentals.ReturnAsync(r, returnKm: returnKm, returnFuel: 8, bit);
     }
 
     [Fact]
@@ -50,26 +50,26 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var veh = sp.GetRequiredService<VehicleService>();
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "KPI", Soyad = "C" });
-        var simdi = DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
 
         // İki EKO aracı, sahiplik penceresi 10'ar gün (bugün-9 → bugün, kapsayıcı takvim günü).
         var v1 = await veh.CreateAsync(new VehicleInput
-        { Plaka = "34 KP 01", Grup = "EKO", FiloGirisTarih = simdi.AddDays(-9) });
+        { Plaka = "34 KP 01", Grup = "EKO", FiloGirisTarih = now.AddDays(-9) });
         var v2 = await veh.CreateAsync(new VehicleInput
-        { Plaka = "34 KP 02", Grup = "EKO", FiloGirisTarih = simdi.AddDays(-9) });
+        { Plaka = "34 KP 02", Grup = "EKO", FiloGirisTarih = now.AddDays(-9) });
 
         // V1: 2 ücret-günü × 100 = 200 gelir (fatura %0 KDV), takvim-kiralanan 3 gün, km 100, gider 40.
-        await KiraAsync(sp, cari, v1, simdi.AddDays(-4), simdi.AddDays(-2), donusKm: 100, faturala: true);
-        await GiderAsync(sp, v1, 40m);
+        await RentalAsync(sp, account, v1, now.AddDays(-4), now.AddDays(-2), returnKm: 100, invoice: true);
+        await ExpenseAsync(sp, v1, 40m);
         // V2: aynı yapı — gelir 200, kiralanan 3 gün, km 100, gider 80.
-        await KiraAsync(sp, cari, v2, simdi.AddDays(-5), simdi.AddDays(-3), donusKm: 100, faturala: true);
-        await GiderAsync(sp, v2, 80m);
+        await RentalAsync(sp, account, v2, now.AddDays(-5), now.AddDays(-3), returnKm: 100, invoice: true);
+        await ExpenseAsync(sp, v2, 80m);
 
-        var filo = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
-        var r1 = filo.Satirlar.Single(x => x.VehicleId == v1);
-        var r2 = filo.Satirlar.Single(x => x.VehicleId == v2);
+        var fleet = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
+        var r1 = fleet.Satirlar.Single(x => x.VehicleId == v1);
+        var r2 = fleet.Satirlar.Single(x => x.VehicleId == v2);
 
         // Sınıf endeksi (elle): km-maliyetler 0.40/0.80, ort 0.60 → 0.67 ve 1.33.
         Assert.Equal(0.40m, r1.KmBasinaMaliyet);
@@ -78,7 +78,7 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         Assert.Equal(1.33m, r2.SinifEndeks);
 
         // Havuz KPI (elle): Σ havuzlardan — satır KPI'larının ortalaması değil.
-        var h = filo.HavuzKpi!;
+        var h = fleet.HavuzKpi!;
         Assert.Equal(20, h.SahiplikGun);
         Assert.Equal(6, h.KiralananGun);
         Assert.Equal(400m, h.OmurGelir);
@@ -99,9 +99,9 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         // Alım 3044, İkinciEl yok → residual %30: amortisman 3044×0.7=2130.80; sahiplik 0 → süre 1 ay,
         // gider 0 → aylık başabaş 2130.80 → GÜNLÜK 2130.80/30.44 = 70.00 (elle, tam bölünme).
         var vb = await veh.CreateAsync(new VehicleInput { Plaka = "34 KP 03", AlimBedeli = 3044m });
-        var karne = (await rs.GetVehicleScorecardAsync(vb))!;
-        Assert.Equal(70.00m, karne.BasaBasGunluk);
-        Assert.Null(karne.Kpi.Adr);            // hiç kiralanmamış → ADR yok (UI "—")
+        var scorecard = (await rs.GetVehicleScorecardAsync(vb))!;
+        Assert.Equal(70.00m, scorecard.BasaBasGunluk);
+        Assert.Null(scorecard.Kpi.Adr);            // hiç kiralanmamış → ADR yok (UI "—")
 
         // Alım bedelsiz araçta model yok → başabaş günlük null (uydurma değer basılmaz).
         var vc = await veh.CreateAsync(new VehicleInput { Plaka = "34 KP 04" });
@@ -116,23 +116,23 @@ public sealed class FiloKpiBenchmarkTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var veh = sp.GetRequiredService<VehicleService>();
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "KPI", Soyad = "K" });
-        var simdi = DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
 
         // SOLO grubunda km-maliyetli TEK araç: 50/100=0.50, ort=kendisi → endeks 1.00.
         // Aynı grupta km'siz ikinci araç: endeksi null VE ortalamayı bozmaz (değersiz üye sayılmaz).
         var v1 = await veh.CreateAsync(new VehicleInput { Plaka = "34 KP 05", Grup = "SOLO" });
-        await KiraAsync(sp, cari, v1, simdi.AddDays(-4), simdi.AddDays(-2), donusKm: 100, faturala: false);
-        await GiderAsync(sp, v1, 50m);
+        await RentalAsync(sp, account, v1, now.AddDays(-4), now.AddDays(-2), returnKm: 100, invoice: false);
+        await ExpenseAsync(sp, v1, 50m);
         var v2 = await veh.CreateAsync(new VehicleInput { Plaka = "34 KP 06", Grup = "SOLO" });
 
-        var filo = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
-        Assert.Equal(1.00m, filo.Satirlar.Single(x => x.VehicleId == v1).SinifEndeks);
-        Assert.Null(filo.Satirlar.Single(x => x.VehicleId == v2).SinifEndeks);
+        var fleet = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
+        Assert.Equal(1.00m, fleet.Satirlar.Single(x => x.VehicleId == v1).SinifEndeks);
+        Assert.Null(fleet.Satirlar.Single(x => x.VehicleId == v2).SinifEndeks);
 
         // Havuz: hiçbir araçta filo-giriş/alım tarihi yok → Σ sahiplik 0 → oranlar null (pozitif payda).
-        var h = filo.HavuzKpi!;
+        var h = fleet.HavuzKpi!;
         Assert.Equal(0, h.SahiplikGun);
         Assert.Null(h.DolulukYuzde);
         Assert.Null(h.RevPacd);

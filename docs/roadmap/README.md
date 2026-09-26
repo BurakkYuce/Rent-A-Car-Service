@@ -70,7 +70,7 @@ Bedeli: tek CI'da iki araç zinciri (.NET + Node) ve `src/RentACar.Frontend` iç
 | Yüzey | Korunacak sözleşme |
 |---|---|
 | Domain / Application / Infrastructure iş mantığı | Değişmez. Yalnız eklemeli: `NoPermissionException`, `DuplicateOperationException`, `ValidationException.Alan`, liste filtrelerine sayfa/sıralama, `TenantSettings.YeniArayuzPilot` (F1.2), `TabloDuzenleri` (F3.5, RLS'li). **Açık güvenlik istisnası:** `SearchService`'e `BranchScope` eklenir (F1.6). Bugün kapsam yok, Blazor `/ara` da düzelir |
-| Defter, RLS, tenant izolasyonu, para kuralları, `IslemAnahtari` (uuid) deseni | Dokunulmaz. Her uçta çift gönderim **bugünkü sonucu** verir (bazıları red, bazıları sessiz idempotent başarı; F1.4 envanteri). Sunucunun deterministik anahtarları (`TahsilatAnahtar`, `RowKey`) header'dan önceliklidir |
+| Defter, RLS, tenant izolasyonu, para kuralları, `IslemAnahtari` (uuid) deseni | Dokunulmaz. Her uçta çift gönderim **bugünkü sonucu** verir (bazıları red, bazıları sessiz idempotent başarı; F1.4 envanteri). Sunucunun deterministik anahtarları (`CollectionKey`, `RowKey`) header'dan önceliklidir |
 | `RentACar.Api` (harici JWT API) | Mevcut 409 eşlemeleri (`conflict`/`duplicate`) değişmez. Yalnız eklenir: `YetkiYok` → 403, `Mukerrer` → 409 |
 | `RentACar.PublicSite` | Blazor'da kalır |
 | Revlo reposu | Kodu değişmez. G0'da yalnız git dışı `graphify-out/`, yerel `.graphifyignore` ve graphify hook'ları eklendi (doğrulandı: `git status` aynı) |
@@ -95,7 +95,7 @@ Bedeli: tek CI'da iki araç zinciri (.NET + Node) ve `src/RentACar.Frontend` iç
 | Antiforgery yapılandırılmamış; Development'ta kapalı; JSON doğrulanmıyor; claim'lerde `sub` yok | ✔ `AuthExtensions.cs:70-71`, `AuthEndpoints.cs:27-36` | CSRF her ortamda; giriş/çıkıştan sonra token yenilenir |
 | `IslemAnahtari` **`Guid?` (uuid)**; manuel fatura bunu **birincil anahtar** yapıyor ve varsa mevcut id'yi dönüyor | ✔ `CashTransaction.cs:48`, `CashInput.cs:26`, `InvoiceService.cs:426-433` | Header sunucuda UUIDv5(tenant\|user\|header) olarak türetilir; istemci değeri asla doğrudan PK olmaz |
 | Çift gönderimde davranış tek tip değil. Red: `CashRepository.cs:159-166,273-278`. Sessiz başarı: depozito `CashRepository.cs:349-362`, `ExpenseRepository.cs:124-128` (null), `LedgerPoster.cs:46-51` (no-op), fatura (mevcut id). Karışık catch'ler: `CashRepository:159` (anahtar + ters kayıt), `RegulationRepository:97-103`, `InvoiceRepository:292-300` | ✔ (ilk dördü okundu) | F1.4 envanteri uç başına "200 mü 409 mu" der; sınıflandırma `PostgresException.ConstraintName` ile |
-| `TahsilatAnahtar` deterministik, ekran yüklenirken üretiliyor (kira + bakiye + işlem sayısı) | ✔ `TahsilatAnahtar.cs:19-24`, `Home.razor:116`, `RentalList.razor:138` | Panel/liste DTO'su anahtarı taşır, SPA geri gönderir; header bunu ezemez |
+| `CollectionKey` deterministik, ekran yüklenirken üretiliyor (kira + bakiye + işlem sayısı) | ✔ `CollectionKey.cs:19-24`, `Home.razor:116`, `RentalList.razor:138` | Panel/liste DTO'su anahtarı taşır, SPA geri gönderir; header bunu ezemez |
 | `RentACar.Api` çakışmaya zaten 409 dönüyor (`conflict`, `duplicate`) | ✔ `ExceptionHandlingMiddleware.cs:12,24-30` | `/api/ui`'da `kod: cakisma` (409, yenileme yok) ≠ `mukerrer` |
 | Yetki reddi düz `ValidationException` ile: `PermissionGuard.cs:17,29`, `BranchScope.cs:42`, `ScreenPermissionService.cs:141` | ✔ | Üçü de `NoPermissionException` |
 | `SearchService` "Yetki gerektirmez"; `SearchRepository` şube kapsamı yok. `ListSecimAsync` yetkisiz ve sınırsız, tüm müşteri adlarını dönüyor (KVKK: ad kişisel veridir) | ✔ `SearchService.cs:5`, `CustomerService.cs:37-38` | F1.6: arama → `BranchScope`; seçim uçları typeahead (`q`, `limit ≤ 20`) + `IzinMetadata` |
@@ -151,7 +151,7 @@ Rent-A-Car-Service/
   - `xsrf_gecersiz` (400; F1.2 eki — SPA token'ı yeniler ve isteği bir kez tekrarlar; `dogrulama`/`yetki_yok` ile karışmasın diye ayrı)
 - **`TypedResults` zorunlu.**
 - **Idempotency (öncelik sırasıyla):**
-  1. Sunucunun deterministik anahtarı varsa (`TahsilatAnahtar`: DTO'dan gelir, SPA geri gönderir; `RowKey`: sunucu hesaplar) o kullanılır.
+  1. Sunucunun deterministik anahtarı varsa (`CollectionKey`: DTO'dan gelir, SPA geri gönderir; `RowKey`: sunucu hesaplar) o kullanılır.
   2. Yoksa `Idempotency-Key` header'ı → `UUIDv5(tenantId | userId | header)` → `IslemAnahtari`.
   3. İstemci anahtarı her 2xx'ten sonra yenilenir; sabit panelde ikinci meşru tahsilat engellenmez.
   - Çift gönderim o uçta bugün ne yapıyorsa aynısı olur: `200` (sessiz idempotent) ya da `409 mukerrer`.
@@ -165,7 +165,7 @@ Rent-A-Car-Service/
 | Tuzak | Somut hata | Önlem |
 |---|---|---|
 | `IslemAnahtari` uuid ve fatura PK'sı | `{userId}:{key}` metni kolona sığmaz; istemci değeri PK olursa çakışma ya da tahmin edilebilir id çıkar | UUIDv5(tenant\|user\|header), yalnız sunucuda |
-| Rastgele istemci anahtarı | Deterministik `TahsilatAnahtar` ezilir; iki sekme ya da iki kullanıcı çift tahsilat yapar | Deterministik anahtar önceliği; DTO anahtarı taşır |
+| Rastgele istemci anahtarı | Deterministik `CollectionKey` ezilir; iki sekme ya da iki kullanıcı çift tahsilat yapar | Deterministik anahtar önceliği; DTO anahtarı taşır |
 | Form başına tek anahtar | Sabit panelde ikinci meşru tahsilat "mükerrer" sayılır | Anahtar her 2xx'ten sonra yenilenir |
 | Karışık catch blokları | "Dal dal" sınıflandırma iş benzersizliğini mükerrer sayar | `ConstraintName` ile sınıflandırma |
 | Her 409 = yenile | Müsaitlik çakışması kira formunu siler | `cakisma` ≠ `mukerrer` |

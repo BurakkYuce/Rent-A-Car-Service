@@ -24,11 +24,11 @@ public static partial class PlatformApi
     private static void MapTenants(RouteGroupBuilder g)
     {
         var t = g.MapGroup("/kiracilar");
-        t.MapGet("", ListTenants).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        t.MapGet("", ListTenants).MapFields(F5Shared.SortRules);
         t.MapGet("/secim", TenantOptions);
         t.MapGet("/{id:guid}", TenantDetail);
-        t.MapPost("", CreateTenant).AlanlariEsle(CreateRules);
-        t.MapPut("/{id:guid}", UpdateTenant).AlanlariEsle(UpdateRules);
+        t.MapPost("", CreateTenant).MapFields(CreateRules);
+        t.MapPut("/{id:guid}", UpdateTenant).MapFields(UpdateRules);
         t.MapPost("/{id:guid}/durum", ChangeStatus);
         t.MapPost("/{id:guid}/yeni-arayuz-pilot", SetPilot);
         t.MapPost("/{id:guid}/web-sitesi-modulu", SetWebSiteModule);
@@ -37,7 +37,7 @@ public static partial class PlatformApi
             .ProducesProblem(StatusCodes.Status404NotFound);
         t.MapPost("/{id:guid}/logo", UploadLogo).DisableAntiforgery() // CSRF: group header filter (X-XSRF-TOKEN)
             .WithMetadata(new RequestSizeLimitAttribute(LogoRequestLimit))
-            .AlanlariEsle(LogoRules);
+            .MapFields(LogoRules);
         t.MapDelete("/{id:guid}/logo", DeleteLogo);
     }
 
@@ -78,7 +78,7 @@ public static partial class PlatformApi
     {
         var status = ParseStatus(durum, "durum");
         var request = new ListeIstegi(Math.Min(sayfa ?? 1, 1_000_000), boyut ?? 50, sirala);
-        var query = F5Ortak.Nz(q);
+        var query = F5Shared.Nz(q);
         var rows = (await svc.ListTenantsAsync(ct))
             .Select(r => new ListRow(r, StatusOf(r.IsActive, r.KapanisTarihiUtc)))
             .Where(r => status is null || r.Status == status)

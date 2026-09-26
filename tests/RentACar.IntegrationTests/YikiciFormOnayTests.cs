@@ -41,9 +41,9 @@ public sealed class YikiciFormOnayTests
     /// ana test sessizce yeşil kalırdı — bu alt sınır onu yakalar. Form gerçekten kaldırıldığı
     /// için sayı düşerse sabiti ölçerek güncelleyin; ASLA tarayıcının kendi sayımından türetmeyin.
     /// </summary>
-    private const int EnAzYikiciHedef = 87;
+    private const int MinDestructiveTarget = 87;
 
-    private static string RepoKok()
+    private static string RepoRoot()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx")))
@@ -52,27 +52,27 @@ public sealed class YikiciFormOnayTests
         return d!.FullName;
     }
 
-    private static IEnumerable<(string Dosya, RazorFormTarayici.Hedef Hedef)> WebHedefleri(string kok)
+    private static IEnumerable<(string Dosya, RazorFormScanner.Hedef Hedef)> WebTargets(string root)
         => Directory
-            .EnumerateFiles(Path.Combine(kok, "src/RentACar.Web/Components"), "*.razor", SearchOption.AllDirectories)
+            .EnumerateFiles(Path.Combine(root, "src/RentACar.Web/Components"), "*.razor", SearchOption.AllDirectories)
             .OrderBy(f => f, StringComparer.Ordinal)
-            .SelectMany(f => RazorFormTarayici.Hedefler(File.ReadAllText(f))
-                .Select(h => (Path.GetRelativePath(kok, f), h)));
+            .SelectMany(f => RazorFormScanner.Targets(File.ReadAllText(f))
+                .Select(h => (Path.GetRelativePath(root, f), h)));
 
     [Fact]
     public void Yikici_post_formu_onay_ister()
     {
-        var kok = RepoKok();
-        var ihlaller = WebHedefleri(kok)
-            .Where(x => x.Hedef.Post && RazorFormTarayici.OnayGerekirMi(x.Hedef.Aksiyon) && !x.Hedef.Onayli)
+        var root = RepoRoot();
+        var violations = WebTargets(root)
+            .Where(x => x.Hedef.Post && RazorFormScanner.IsConfirmRequired(x.Hedef.Aksiyon) && !x.Hedef.Onayli)
             .Select(x => $"{x.Dosya}:{x.Hedef.Satir}  ({x.Hedef.Tur})  →  {x.Hedef.Aksiyon}")
             .ToList();
 
-        Assert.True(ihlaller.Count == 0,
+        Assert.True(violations.Count == 0,
             "Yıkıcı POST hedefi onay sormuyor. <form>'a (ya da gönderen butona) data-confirm ekleyin; " +
             "mesaj NESNEYİ ve GERÇEK sonucu söylesin (kalıcı silme mi, pasife alma mı, ters kayıt mı), " +
             "\"Emin misiniz?\" yetmez. Önce ucun ve çağırdığı servisin ne yaptığını okuyun.\n  " +
-            string.Join("\n  ", ihlaller));
+            string.Join("\n  ", violations));
     }
 
     [Fact]
@@ -80,12 +80,12 @@ public sealed class YikiciFormOnayTests
     {
         // Alt-sınır: ayrıştırıcı bozulup formları göremez hale gelirse (ör. etiket sonu yanlış
         // bulunur, fiil listesi boşalır) yukarıdaki test "0 ihlal" diye yeşil kalırdı.
-        var kok = RepoKok();
-        var yikici = WebHedefleri(kok)
-            .Count(x => x.Hedef.Post && RazorFormTarayici.YikiciMi(x.Hedef.Aksiyon));
+        var root = RepoRoot();
+        var destructive = WebTargets(root)
+            .Count(x => x.Hedef.Post && RazorFormScanner.IsDestructive(x.Hedef.Aksiyon));
 
-        Assert.True(yikici >= EnAzYikiciHedef,
-            $"Tarayıcı yalnız {yikici} yıkıcı POST hedefi buldu, ölçülen en az {EnAzYikiciHedef}. " +
+        Assert.True(destructive >= MinDestructiveTarget,
+            $"Tarayıcı yalnız {destructive} yıkıcı POST hedefi buldu, ölçülen en az {MinDestructiveTarget}. " +
             "Tarayıcı mı bozuldu, yoksa formlar gerçekten mi kaldırıldı? İkincisiyse sabiti ölçerek düşürün.");
     }
 
@@ -95,18 +95,18 @@ public sealed class YikiciFormOnayTests
         // Listeler ADIYLA çalışır: uç yeniden adlandırılır ya da form taşınırsa listedeki yol hiçbir
         // hedefe denk gelmez ve çit o işlem için SESSİZCE boşa çıkar (onay silinse de yeşil kalır).
         // Bu test o kaymayı yakalar: listedeki her yol bugün en az bir POST hedefiyle eşleşmeli.
-        var kok = RepoKok();
-        var bulunan = WebHedefleri(kok)
+        var root = RepoRoot();
+        var found = WebTargets(root)
             .Where(x => x.Hedef.Post)
-            .SelectMany(x => RazorFormTarayici.YolAdaylari(x.Hedef.Aksiyon).Select(RazorFormTarayici.NormalYol))
+            .SelectMany(x => RazorFormScanner.PathCandidates(x.Hedef.Aksiyon).Select(RazorFormScanner.NormalPath))
             .ToHashSet(StringComparer.Ordinal);
 
-        var eksik = RazorFormTarayici.AdiylaListelenenYollar.Where(y => !bulunan.Contains(y)).ToList();
+        var missing = RazorFormScanner.PathsListedByName.Where(y => !found.Contains(y)).ToList();
 
-        Assert.True(eksik.Count == 0,
+        Assert.True(missing.Count == 0,
             "Adıyla listelenen yol repoda hiçbir POST hedefiyle eşleşmiyor (uç yeniden adlandırıldı ya da " +
             "form kaldırıldı mı?). Listeyi yeni yola göre güncelleyin; silmeden önce işlemin gerçekten " +
-            "kalktığını doğrulayın.\n  " + string.Join("\n  ", eksik));
+            "kalktığını doğrulayın.\n  " + string.Join("\n  ", missing));
     }
 
     [Fact]
@@ -116,19 +116,19 @@ public sealed class YikiciFormOnayTests
         // tahsilat, gider ödemesi, ücretli WhatsApp/e-posta/SMS testleri) ve fatura iadesi gibi
         // FİİLSİZ yollar yalnız bu listeyle çitin içine girer. Liste boşalırsa ya da içinden biri
         // düşerse onları geri getiren hiçbir test kalmaz — elle yazılmış beklenen küme.
-        var beklenen = new[]
+        var expected = new[]
         {
             "/finans/fatura-iade", "/finans/fatura-toplu", "/finans/bakiye-duzeltme",
             "/finans/otomatik-tahsilat/calistir", "/giderler/odeme",
             "/ayarlar/whatsapp-test", "/ayarlar/smtp-test", "/ayarlar/sms-test",
             "/subeler/birlestir", "/takvim/yenile", "/kiralar/{}/paylas-yeni",
         };
-        foreach (var y in beklenen)
-            Assert.True(RazorFormTarayici.OnayGerekirMi(y.Replace("{}", "@Id", StringComparison.Ordinal)),
+        foreach (var y in expected)
+            Assert.True(RazorFormScanner.IsConfirmRequired(y.Replace("{}", "@Id", StringComparison.Ordinal)),
                 $"{y} onay zorunlu sayılmıyor — listeden düşmüş.");
 
         // "iade" FİİL DEĞİL: depozito iadesi olağan bir postlama, bilerek kapsam dışı.
-        Assert.False(RazorFormTarayici.OnayGerekirMi("/depozito/iade"));
+        Assert.False(RazorFormScanner.IsConfirmRequired("/depozito/iade"));
     }
 
     [Fact]
@@ -137,15 +137,15 @@ public sealed class YikiciFormOnayTests
         // Çitin kör noktası: `action="@Url"` gibi yalnız değişkenden gelen hedef, fiil taşısa bile
         // taranamaz ve yıkıcı form çitten sessizce kaçar. Bugün böyle bir form yok; gelirse burada
         // durur ve hedef ya literal yazılır ya da bu test bilinçli genişletilir.
-        var kok = RepoKok();
-        var okunamayan = WebHedefleri(kok)
-            .Where(x => x.Hedef.Post && !RazorFormTarayici.YolAdaylari(x.Hedef.Aksiyon).Any())
+        var root = RepoRoot();
+        var unreadable = WebTargets(root)
+            .Where(x => x.Hedef.Post && !RazorFormScanner.PathCandidates(x.Hedef.Aksiyon).Any())
             .Select(x => $"{x.Dosya}:{x.Hedef.Satir}  ({x.Hedef.Tur})  →  {x.Hedef.Aksiyon ?? "(action yok)"}")
             .ToList();
 
-        Assert.True(okunamayan.Count == 0,
+        Assert.True(unreadable.Count == 0,
             "POST hedefi kaynak koddan okunamıyor; yıkıcı-form çiti bu formu denetleyemez.\n  " +
-            string.Join("\n  ", okunamayan));
+            string.Join("\n  ", unreadable));
     }
 
     [Fact]
@@ -154,18 +154,18 @@ public sealed class YikiciFormOnayTests
         // "Emin misiniz?" NEYİN silindiğini ve NE olacağını söylemez (kalıcı silme mi, ters kayıt
         // mı, durum değişikliği mi); kullanıcı okumadan geçmeye alışır. Mesaj nesneyi ve sonucu
         // adlandırmalı.
-        var kok = RepoKok();
-        var bulunan = Directory
-            .EnumerateFiles(Path.Combine(kok, "src/RentACar.Web/Components"), "*.razor", SearchOption.AllDirectories)
+        var root = RepoRoot();
+        var found = Directory
+            .EnumerateFiles(Path.Combine(root, "src/RentACar.Web/Components"), "*.razor", SearchOption.AllDirectories)
             .OrderBy(f => f, StringComparer.Ordinal)
-            .SelectMany(f => RazorFormTarayici.OnayMesajlari(File.ReadAllText(f))
-                .Where(RazorFormTarayici.JenerikMi)
-                .Select(m => $"{Path.GetRelativePath(kok, f)}  →  \"{m}\""))
+            .SelectMany(f => RazorFormScanner.ConfirmMessages(File.ReadAllText(f))
+                .Where(RazorFormScanner.IsGeneric)
+                .Select(m => $"{Path.GetRelativePath(root, f)}  →  \"{m}\""))
             .ToList();
 
-        Assert.True(bulunan.Count == 0,
+        Assert.True(found.Count == 0,
             "Jenerik onay mesajı: nesneyi ve gerçek sonucu adlandırın (ör. \"X kalıcı olarak silinsin mi? " +
-            "Geri alınamaz.\").\n  " + string.Join("\n  ", bulunan));
+            "Geri alınamaz.\").\n  " + string.Join("\n  ", found));
     }
 
     // ---------------------------------------------------------------------------------------
@@ -175,22 +175,22 @@ public sealed class YikiciFormOnayTests
     [Fact]
     public void Jenerik_mesaj_tanimi_nesneli_mesaji_yakalamaz()
     {
-        Assert.True(RazorFormTarayici.JenerikMi("Emin misiniz?"));
-        Assert.True(RazorFormTarayici.JenerikMi("  emin misiniz  "));
-        Assert.True(RazorFormTarayici.JenerikMi("Onaylıyor musunuz?"));
+        Assert.True(RazorFormScanner.IsGeneric("Emin misiniz?"));
+        Assert.True(RazorFormScanner.IsGeneric("  emin misiniz  "));
+        Assert.True(RazorFormScanner.IsGeneric("Onaylıyor musunuz?"));
         // Tek fiilden ibaret mesaj da jeneriktir: NEYİN silindiğini/iptal edildiğini söylemez.
-        Assert.True(RazorFormTarayici.JenerikMi("Silinsin mi?"));
-        Assert.True(RazorFormTarayici.JenerikMi("İptal edilsin mi?"));
-        Assert.True(RazorFormTarayici.JenerikMi("Reddedilsin mi?"));
-        Assert.True(RazorFormTarayici.JenerikMi("Kaldırılsın mı?"));
-        Assert.True(RazorFormTarayici.JenerikMi("Devam?"));
-        Assert.False(RazorFormTarayici.JenerikMi("Marka silinsin mi?"));
-        Assert.False(RazorFormTarayici.JenerikMi("Kira iptal edilsin mi?"));
-        Assert.False(RazorFormTarayici.JenerikMi("Kayıt silinsin mi? Emin misiniz?"));
-        Assert.False(RazorFormTarayici.JenerikMi("@b.No numaralı araç tahsisi iptal edilsin mi?"));
+        Assert.True(RazorFormScanner.IsGeneric("Silinsin mi?"));
+        Assert.True(RazorFormScanner.IsGeneric("İptal edilsin mi?"));
+        Assert.True(RazorFormScanner.IsGeneric("Reddedilsin mi?"));
+        Assert.True(RazorFormScanner.IsGeneric("Kaldırılsın mı?"));
+        Assert.True(RazorFormScanner.IsGeneric("Devam?"));
+        Assert.False(RazorFormScanner.IsGeneric("Marka silinsin mi?"));
+        Assert.False(RazorFormScanner.IsGeneric("Kira iptal edilsin mi?"));
+        Assert.False(RazorFormScanner.IsGeneric("Kayıt silinsin mi? Emin misiniz?"));
+        Assert.False(RazorFormScanner.IsGeneric("@b.No numaralı araç tahsisi iptal edilsin mi?"));
         Assert.Equal(
             new[] { "Kalıcı silinsin mi?", "Ters kayıt alınsın mı?" },
-            RazorFormTarayici.OnayMesajlari(
+            RazorFormScanner.ConfirmMessages(
                 "<form method=\"post\" action=\"/a/sil\" data-confirm=\"Kalıcı silinsin mi?\"></form>" +
                 "<button formaction=\"/b/ters\" data-confirm=\"Ters kayıt alınsın mı?\">T</button>" +
                 "<div data-confirm=\"div sayılmaz\"></div>").ToArray());
@@ -204,7 +204,7 @@ public sealed class YikiciFormOnayTests
             "<form method=\"post\" action=\"/a/delete\" data-confirm=\"Tutar > 0 olan kayıt silinsin mi?\"><button>Sil</button></form>" +
             "<form method=\"post\" action=\"/b/iptal\"><button type=\"submit\">İptal</button></form>";
 
-        var h = RazorFormTarayici.Hedefler(razor).ToList();
+        var h = RazorFormScanner.Targets(razor).ToList();
 
         Assert.Equal(2, h.Count);
         Assert.Equal("/a/delete", h[0].Aksiyon);
@@ -224,14 +224,14 @@ public sealed class YikiciFormOnayTests
             "</form>\n" +
             "<form method=\"post\" action=\"/cezalar/@c.Id/iptal\"><button>İptal</button></form>";
 
-        var h = RazorFormTarayici.Hedefler(razor).ToList();
+        var h = RazorFormScanner.Targets(razor).ToList();
 
         Assert.Equal(2, h.Count);
         Assert.True(h[0].Onayli);
-        Assert.Equal(new[] { "/x/create", "/x/update" }, RazorFormTarayici.YolAdaylari(h[0].Aksiyon).ToArray());
-        Assert.False(RazorFormTarayici.YikiciMi(h[0].Aksiyon));
+        Assert.Equal(new[] { "/x/create", "/x/update" }, RazorFormScanner.PathCandidates(h[0].Aksiyon).ToArray());
+        Assert.False(RazorFormScanner.IsDestructive(h[0].Aksiyon));
         Assert.Equal(6, h[1].Satir);
-        Assert.True(RazorFormTarayici.YikiciMi(h[1].Aksiyon));
+        Assert.True(RazorFormScanner.IsDestructive(h[1].Aksiyon));
         Assert.False(h[1].Onayli);
     }
 
@@ -257,8 +257,8 @@ public sealed class YikiciFormOnayTests
             //    ÜRETİLMEZ (kendi hedefine hiç gitmez), butonlar tek tek denetlenir.
             "<form method=\"post\"><button formaction=\"/h/kaydet\">K</button><button formaction=\"/h/sil\" data-confirm=\"H silinsin mi?\">S</button></form>\n";
 
-        var h = RazorFormTarayici.Hedefler(razor).ToList();
-        var ozet = h.Select(x => (x.Tur, x.Aksiyon, x.Onayli)).ToArray();
+        var h = RazorFormScanner.Targets(razor).ToList();
+        var summary = h.Select(x => (x.Tur, x.Aksiyon, x.Onayli)).ToArray();
 
         Assert.Equal(
             new (string, string?, bool)[]
@@ -273,27 +273,27 @@ public sealed class YikiciFormOnayTests
                 ("buton", "/h/kaydet", false),
                 ("buton", "/h/sil", true),
             },
-            ozet);
+            summary);
     }
 
     [Fact]
     public void Yikici_fiil_yalniz_son_yol_parcasinda_aranir()
     {
         // Kaynak adı fiil İÇEREBİLİR ("iptal-sebepleri" ana verisi): fiil son parçada aranmalı.
-        Assert.False(RazorFormTarayici.YikiciMi("/iptal-sebepleri/create"));
-        Assert.False(RazorFormTarayici.YikiciMi("/iptal-sebepleri/update"));
-        Assert.True(RazorFormTarayici.YikiciMi("/iptal-sebepleri/delete"));
+        Assert.False(RazorFormScanner.IsDestructive("/iptal-sebepleri/create"));
+        Assert.False(RazorFormScanner.IsDestructive("/iptal-sebepleri/update"));
+        Assert.True(RazorFormScanner.IsDestructive("/iptal-sebepleri/delete"));
         // Tire ile birleşik son parça.
-        Assert.True(RazorFormTarayici.YikiciMi("/finans/dis-hizmet-iptal"));
-        Assert.True(RazorFormTarayici.YikiciMi("/blog-yonetim/@p.Id/kapak-sil"));
-        Assert.True(RazorFormTarayici.YikiciMi("/finans/tahsilat/ters"));
-        Assert.True(RazorFormTarayici.YikiciMi("/kiralar/cancel?x=1"));
+        Assert.True(RazorFormScanner.IsDestructive("/finans/dis-hizmet-iptal"));
+        Assert.True(RazorFormScanner.IsDestructive("/blog-yonetim/@p.Id/kapak-sil"));
+        Assert.True(RazorFormScanner.IsDestructive("/finans/tahsilat/ters"));
+        Assert.True(RazorFormScanner.IsDestructive("/kiralar/cancel?x=1"));
         // Fiilin parçası olan ama fiil olmayan sözcük ("silah", "tersane") yakalanmaz.
-        Assert.False(RazorFormTarayici.YikiciMi("/a/silah-kaydet"));
-        Assert.False(RazorFormTarayici.YikiciMi("/a/tersane"));
+        Assert.False(RazorFormScanner.IsDestructive("/a/silah-kaydet"));
+        Assert.False(RazorFormScanner.IsDestructive("/a/tersane"));
         // Adıyla listelenen geri alınamaz işlem.
-        Assert.True(RazorFormTarayici.YikiciMi("/donem-kapanis/kilitle"));
-        Assert.False(RazorFormTarayici.YikiciMi(null));
+        Assert.True(RazorFormScanner.IsDestructive("/donem-kapanis/kilitle"));
+        Assert.False(RazorFormScanner.IsDestructive(null));
     }
 
     [Fact]
@@ -301,14 +301,14 @@ public sealed class YikiciFormOnayTests
     {
         // Kör nokta (b): fiil yolun son parçasında değil, sorgu değerinde ya da ifadenin
         // birleştirdiği çıplak bir parça literalinde duruyorsa çitten kaçıyordu.
-        Assert.True(RazorFormTarayici.YikiciMi("/x/islem?tur=sil"));
-        Assert.True(RazorFormTarayici.YikiciMi("/x/islem?a=1&tur=kapak-sil"));
-        Assert.True(RazorFormTarayici.YikiciMi("@($\"/x/{(a ? \"sil\" : \"kaydet\")}\")"));
-        Assert.True(RazorFormTarayici.YikiciMi("@(\"/x/\" + (a ? \"iptal\" : \"onayla\"))"));
+        Assert.True(RazorFormScanner.IsDestructive("/x/islem?tur=sil"));
+        Assert.True(RazorFormScanner.IsDestructive("/x/islem?a=1&tur=kapak-sil"));
+        Assert.True(RazorFormScanner.IsDestructive("@($\"/x/{(a ? \"sil\" : \"kaydet\")}\")"));
+        Assert.True(RazorFormScanner.IsDestructive("@(\"/x/\" + (a ? \"iptal\" : \"onayla\"))"));
         // Sorgudaki dönüş ADRESİ fiil taşısa da işlem o değildir (kaynak adı "iptal-sebepleri").
-        Assert.False(RazorFormTarayici.YikiciMi("/x/kaydet?donus=/iptal-sebepleri"));
-        Assert.False(RazorFormTarayici.YikiciMi("/x/kaydet?id=@x.Id"));
-        Assert.False(RazorFormTarayici.YikiciMi("@(_duzenle is null ? \"/iptal-sebepleri/create\" : \"/iptal-sebepleri/update\")"));
+        Assert.False(RazorFormScanner.IsDestructive("/x/kaydet?donus=/iptal-sebepleri"));
+        Assert.False(RazorFormScanner.IsDestructive("/x/kaydet?id=@x.Id"));
+        Assert.False(RazorFormScanner.IsDestructive("@(_duzenle is null ? \"/iptal-sebepleri/create\" : \"/iptal-sebepleri/update\")"));
     }
 
     [Fact]
@@ -317,17 +317,17 @@ public sealed class YikiciFormOnayTests
         // Kör nokta (a): tarama DOSYA başınadır. Ebeveyn bileşenin POST formunun içine render edilen
         // alt bileşendeki <button formaction="/x/sil"> (formmethod'suz) eskiden Post=false sayılıp
         // HİÇ denetlenmiyordu. Formu görünmeyen gönderici için güvenli varsayım POST'tur.
-        var tek = RazorFormTarayici.Hedefler("<button formaction=\"/x/sil\">Sil</button>").ToList();
+        var tek = RazorFormScanner.Targets("<button formaction=\"/x/sil\">Sil</button>").ToList();
         Assert.Equal(("buton", "/x/sil", true, false), (tek[0].Tur, tek[0].Aksiyon, tek[0].Post, tek[0].Onayli));
         Assert.Single(tek);
 
         // form="…" başka dosyadaki forma bağlanıyorsa da aynı varsayım.
-        var dis = RazorFormTarayici.Hedefler("<button form=\"ana\" formaction=\"/x/iptal\">İptal</button>").Single();
-        Assert.True(dis.Post);
+        var outer = RazorFormScanner.Targets("<button form=\"ana\" formaction=\"/x/iptal\">İptal</button>").Single();
+        Assert.True(outer.Post);
 
         // Açık formmethod varsayımı ezer; aynı dosyadaki GET formunun içindeki buton GET kalır.
-        Assert.False(RazorFormTarayici.Hedefler("<button formaction=\"/x/sil\" formmethod=\"get\">S</button>").Single().Post);
-        Assert.False(RazorFormTarayici.Hedefler("<form action=\"/ara\"><button formaction=\"/x/sil\">S</button></form>")
+        Assert.False(RazorFormScanner.Targets("<button formaction=\"/x/sil\" formmethod=\"get\">S</button>").Single().Post);
+        Assert.False(RazorFormScanner.Targets("<form action=\"/ara\"><button formaction=\"/x/sil\">S</button></form>")
             .Single(h => h.Tur == "buton").Post);
     }
 
@@ -336,7 +336,7 @@ public sealed class YikiciFormOnayTests
     /// küçük ayrıştırıcı. Tam bir Razor ayrıştırıcısı değildir; yalnız bu çitin ihtiyacı olan
     /// üç etiketi (<c>form</c>, <c>button</c>, <c>input</c>) ve öznitelik değerlerini çıkarır.
     /// </summary>
-    public static class RazorFormTarayici
+    public static class RazorFormScanner
     {
         /// <summary>Taranan tek bir POST adayı.</summary>
         /// <param name="Tur">"form" (formun kendi action'ı) ya da "buton" (formaction'lı gönderen).</param>
@@ -348,14 +348,14 @@ public sealed class YikiciFormOnayTests
 
         private sealed record Etiket(string Ad, int Bas, int Son, Dictionary<string, string> Oz)
         {
-            public string? Deger(string ad) => Oz.TryGetValue(ad, out var v) ? v : null;
-            public bool Onay => !string.IsNullOrWhiteSpace(Deger("data-confirm"));
+            public string? Value(string name) => Oz.TryGetValue(name, out var v) ? v : null;
+            public bool Onay => !string.IsNullOrWhiteSpace(Value("data-confirm"));
 
             public bool GonderirMi => Ad switch
             {
                 // <button>'ın varsayılan tipi SUBMIT'tir; yalnız button/reset göndermez.
-                "button" => Deger("type")?.Trim().ToLowerInvariant() is not ("button" or "reset"),
-                "input" => Deger("type")?.Trim().ToLowerInvariant() is "submit" or "image",
+                "button" => Value("type")?.Trim().ToLowerInvariant() is not ("button" or "reset"),
+                "input" => Value("type")?.Trim().ToLowerInvariant() is "submit" or "image",
                 _ => false,
             };
         }
@@ -366,24 +366,24 @@ public sealed class YikiciFormOnayTests
         /// olarak aranır: "/iptal-sebepleri/create" (kaynak adı) yıkıcı değil,
         /// "/finans/dis-hizmet-iptal" yıkıcı.
         /// </summary>
-        public static bool YikiciMi(string? hamAksiyon)
+        public static bool IsDestructive(string? rawAction)
         {
-            foreach (var aday in YolAdaylari(hamAksiyon))
+            foreach (var candidate in PathCandidates(rawAction))
             {
-                var yol = NormalYol(aday);
-                if (GeriAlinamazYollar.Contains(yol)) return true;
-                if (FiilTasir(yol[(yol.LastIndexOf('/') + 1)..])) return true;
+                var path = NormalPath(candidate);
+                if (IrreversiblePaths.Contains(path)) return true;
+                if (CarriesVerb(path[(path.LastIndexOf('/') + 1)..])) return true;
                 // Sorgu DEĞERLERİ ("/x/islem?tur=sil"): işlemi seçen parametre fiil taşıyabilir. Değer
                 // yalnız tire/alt çizgiyle bölünür — "/" ile bölünseydi "?donus=/iptal-sebepleri" gibi
                 // bir DÖNÜŞ ADRESİ (işlem değil) yanlış alarm verirdi.
-                var soru = aday.IndexOf('?');
-                if (soru >= 0)
+                var question = candidate.IndexOf('?');
+                if (question >= 0)
                 {
-                    var sorgu = aday[(soru + 1)..].Split('#')[0];
-                    foreach (var parca in sorgu.Split('&'))
+                    var query = candidate[(question + 1)..].Split('#')[0];
+                    foreach (var part in query.Split('&'))
                     {
-                        var esit = parca.IndexOf('=');
-                        if (esit >= 0 && FiilTasir(parca[(esit + 1)..])) return true;
+                        var equal = part.IndexOf('=');
+                        if (equal >= 0 && CarriesVerb(part[(equal + 1)..])) return true;
                     }
                 }
             }
@@ -391,46 +391,46 @@ public sealed class YikiciFormOnayTests
             // eğik çizgisiz, boşluksuz bir literal yol PARÇASIDIR ve son parça olabilir. Bilinçli
             // temkinli: böyle bir literal fiil taşıyorsa hedef yıkıcı sayılır (yanlış alarmın bedeli
             // bir onay mesajı; kaçırmanın bedeli sorulmadan silinen kayıt).
-            return ParcaLiteralleri(hamAksiyon).Any(FiilTasir);
+            return PartLiterals(rawAction).Any(CarriesVerb);
         }
 
-        private static bool FiilTasir(string parca)
-            => parca.Split('-', '_').Any(s => YikiciFiiller.Contains(s.ToLowerInvariant()));
+        private static bool CarriesVerb(string part)
+            => part.Split('-', '_').Any(s => DestructiveVerbs.Contains(s.ToLowerInvariant()));
 
         /// <summary>Razor ifadesindeki eğik çizgisiz, boşluksuz string literalleri ("sil", "kapak-sil").</summary>
-        private static IEnumerable<string> ParcaLiteralleri(string? ham)
+        private static IEnumerable<string> PartLiterals(string? raw)
         {
-            if (string.IsNullOrWhiteSpace(ham) || !ham.TrimStart().StartsWith("@(", StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(raw) || !raw.TrimStart().StartsWith("@(", StringComparison.Ordinal))
                 return [];
-            return Regex.Matches(ham, "\"([A-Za-z0-9_-]+)\"").Select(m => m.Groups[1].Value).ToList();
+            return Regex.Matches(raw, "\"([A-Za-z0-9_-]+)\"").Select(m => m.Groups[1].Value).ToList();
         }
 
         /// <summary>
         /// Karşılaştırma için yol: sorgu/parça atılır, sondaki "/" kırpılır, Razor ifadesi taşıyan
         /// her parça ("@Id", "@k.Id") "{}" olur → "/kiralar/@Id/paylas-yeni" = "/kiralar/{}/paylas-yeni".
         /// </summary>
-        public static string NormalYol(string aday)
+        public static string NormalPath(string candidate)
         {
-            var yol = aday.Split('?', '#')[0].Trim().TrimEnd('/');
-            return string.Join('/', yol.Split('/').Select(p => p.Contains('@') ? "{}" : p));
+            var path = candidate.Split('?', '#')[0].Trim().TrimEnd('/');
+            return string.Join('/', path.Split('/').Select(p => p.Contains('@') ? "{}" : p));
         }
 
         /// <summary>Görev tanımındaki fiiller: silme, iptal, ters kayıt, kaldırma.</summary>
-        private static readonly HashSet<string> YikiciFiiller =
+        private static readonly HashSet<string> DestructiveVerbs =
             ["sil", "delete", "iptal", "cancel", "ters", "reverse", "kaldir", "remove"];
 
         /// <summary>Hedef onay İSTEMELİ mi: yıkıcı fiil / geri alınamaz işlem ya da adıyla onay zorunlu.</summary>
-        public static bool OnayGerekirMi(string? hamAksiyon)
-            => YikiciMi(hamAksiyon)
-               || YolAdaylari(hamAksiyon).Any(a => OnayZorunluYollar.Contains(NormalYol(a)));
+        public static bool IsConfirmRequired(string? rawAction)
+            => IsDestructive(rawAction)
+               || PathCandidates(rawAction).Any(a => ConfirmRequiredPaths.Contains(NormalPath(a)));
 
         /// <summary>İki listenin birleşimi — her biri repoda en az bir POST hedefiyle eşleşmeli.</summary>
-        public static IEnumerable<string> AdiylaListelenenYollar
-            => GeriAlinamazYollar.Concat(OnayZorunluYollar).OrderBy(y => y, StringComparer.Ordinal);
+        public static IEnumerable<string> PathsListedByName
+            => IrreversiblePaths.Concat(ConfirmRequiredPaths).OrderBy(y => y, StringComparer.Ordinal);
 
         /// <summary>
-        /// Yolunda fiil OLMAYAN ama onayı BİLİNÇLİ konmuş işlemler. <see cref="GeriAlinamazYollar"/>'dan
-        /// ayrı tutuldu: bunlar yıkıcı sayımına (<see cref="EnAzYikiciHedef"/>) girmez, ama onayları
+        /// Yolunda fiil OLMAYAN ama onayı BİLİNÇLİ konmuş işlemler. <see cref="IrreversiblePaths"/>'dan
+        /// ayrı tutuldu: bunlar yıkıcı sayımına (<see cref="MinDestructiveTarget"/>) girmez, ama onayları
         /// silinirse çit kırmızıya döner. Her biri ADIYLA ve gerekçesiyle.
         ///
         /// <para><b>Neden var (adversarial bulgu):</b> PR'ın gerekçesi, mesajı gönder butonuna koymuş
@@ -439,9 +439,9 @@ public sealed class YikiciFormOnayTests
         /// onayı silinse de hiçbir test kırılmıyordu; iade faturası (ters kayıt) da öyle.</para>
         ///
         /// <para>"iade" kelimesi fiil listesine BİLEREK eklenmedi: <c>/depozito/iade</c> olağan bir
-        /// postlama (bkz. <see cref="GeriAlinamazYollar"/>'ın "listede olmayanlar" notu).</para>
+        /// postlama (bkz. <see cref="IrreversiblePaths"/>'ın "listede olmayanlar" notu).</para>
         /// </summary>
-        private static readonly HashSet<string> OnayZorunluYollar = new(StringComparer.Ordinal)
+        private static readonly HashSet<string> ConfirmRequiredPaths = new(StringComparer.Ordinal)
         {
             // İade faturası: kaynak faturanın gelir/KDV/cari etkisini TERS kayıtla geri alır; iade
             // faturası da silinemez. Yolunda "ters" geçmediği için fiil kuralı yakalamıyor.
@@ -481,7 +481,7 @@ public sealed class YikiciFormOnayTests
         /// kapatma (<c>/platform/tenants/close</c>) zaten data-confirm'den SERT bir onayla korunur
         /// (firma kodu sunucuda eşleşmeli).</para>
         /// </summary>
-        private static readonly HashSet<string> GeriAlinamazYollar = new(StringComparer.Ordinal)
+        private static readonly HashSet<string> IrreversiblePaths = new(StringComparer.Ordinal)
         {
             // Dönem kapanışı: Gelir/Gider'i Dönem Sonucu'na taşıyan fiş değişmez deftere yazılır ve
             // tarih + öncesi postlamaya kilitlenir (DonemKapanisRepository.KapatAsync).
@@ -502,10 +502,10 @@ public sealed class YikiciFormOnayTests
         /// içindeki string literalleri; değilse değerin kendisi. Yalnız değişkenden gelen hedef
         /// (<c>@Url</c>) için BOŞ döner — bunu <see cref="Her_post_formunun_hedefi_statik_okunabilir"/> yakalar.
         /// </summary>
-        public static IReadOnlyList<string> YolAdaylari(string? ham)
+        public static IReadOnlyList<string> PathCandidates(string? raw)
         {
-            if (string.IsNullOrWhiteSpace(ham)) return [];
-            var h = ham.Trim();
+            if (string.IsNullOrWhiteSpace(raw)) return [];
+            var h = raw.Trim();
             if (h.StartsWith("@(", StringComparison.Ordinal))
                 return Regex.Matches(h, "\"((?:[^\"\\\\]|\\\\.)*)\"")
                     .Select(m => m.Groups[1].Value)
@@ -515,163 +515,163 @@ public sealed class YikiciFormOnayTests
         }
 
         /// <summary>Metindeki POST adayları: her form (kendi action'ıyla) + formaction'lı her gönderen buton.</summary>
-        public static IEnumerable<Hedef> Hedefler(string metin)
+        public static IEnumerable<Hedef> Targets(string text)
         {
-            var etiketler = Etiketler(metin);
-            var formlar = etiketler.Where(e => e.Ad == "form")
+            var labels = Tags(text);
+            var forms = labels.Where(e => e.Ad == "form")
                 .Select(f =>
                 {
-                    var kapanis = metin.IndexOf("</form", f.Son, StringComparison.OrdinalIgnoreCase);
-                    return (Form: f, GovdeSon: kapanis < 0 ? metin.Length : kapanis);
+                    var closing = text.IndexOf("</form", f.Son, StringComparison.OrdinalIgnoreCase);
+                    return (Form: f, GovdeSon: closing < 0 ? text.Length : closing);
                 })
                 .ToList();
 
             // Butonun formu: form="…" varsa o id'li form (dışarıdan bağlama), yoksa içinde durduğu form.
-            (Etiket Form, int GovdeSon)? FormuBul(Etiket b)
+            (Etiket Form, int GovdeSon)? FindForm(Etiket b)
             {
-                var id = b.Deger("form");
+                var id = b.Value("form");
                 if (!string.IsNullOrWhiteSpace(id))
                 {
-                    foreach (var x in formlar)
-                        if (string.Equals(x.Form.Deger("id"), id, StringComparison.Ordinal))
+                    foreach (var x in forms)
+                        if (string.Equals(x.Form.Value("id"), id, StringComparison.Ordinal))
                             return x;
                     return null;
                 }
-                foreach (var x in formlar)
+                foreach (var x in forms)
                     if (b.Bas >= x.Form.Son && b.Bas < x.GovdeSon)
                         return x;
                 return null;
             }
 
-            var gonderenler = etiketler.Where(e => e.GonderirMi)
-                .Select(b => (Buton: b, Form: FormuBul(b)))
+            var submitters = labels.Where(e => e.GonderirMi)
+                .Select(b => (Buton: b, Form: FindForm(b)))
                 .ToList();
 
-            var sonuc = new List<(int Bas, Hedef H)>();
-            foreach (var (form, _) in formlar)
+            var result = new List<(int Bas, Hedef H)>();
+            foreach (var (form, _) in forms)
             {
-                var post = YontemPostMu(form.Deger("method"));
+                var post = IsPostMethod(form.Value("method"));
                 // Formun KENDİ action'ına gönderenler: formaction'ı olmayan butonlar.
-                var hepsi = gonderenler
+                var all = submitters
                     .Where(g => g.Form is { } f && ReferenceEquals(f.Form, form))
                     .Select(g => g.Buton)
                     .ToList();
-                var kendi = hepsi.Where(b => b.Deger("formaction") is null).ToList();
+                var own = all.Where(b => b.Value("formaction") is null).ToList();
                 // action'sız ve TÜM göndericileri formaction'lı form (Depozito: Al/İade/Mahsup/İrat)
                 // kendi hedefine hiç gönderilmez; hedefler aşağıda buton buton denetlenir.
-                if (form.Deger("action") is null && hepsi.Count > 0 && kendi.Count == 0) continue;
-                var onayli = form.Onay || (kendi.Count > 0 && kendi.All(b => b.Onay));
-                sonuc.Add((form.Bas, new Hedef("form", Satir(metin, form.Bas), form.Deger("action"), post, onayli)));
+                if (form.Value("action") is null && all.Count > 0 && own.Count == 0) continue;
+                var approved = form.Onay || (own.Count > 0 && own.All(b => b.Onay));
+                result.Add((form.Bas, new Hedef("form", Row(text, form.Bas), form.Value("action"), post, approved)));
             }
 
-            foreach (var (buton, formu) in gonderenler)
+            foreach (var (button, formMatch) in submitters)
             {
-                var hedef = buton.Deger("formaction");
-                if (hedef is null) continue;
-                var formmethod = buton.Deger("formmethod");
+                var target = button.Value("formaction");
+                if (target is null) continue;
+                var formmethod = button.Value("formmethod");
                 // Formu bu dosyada bulunamayan gönderici (alt bileşen ebeveynin formunun İÇİNDE render
                 // edilir; mega-form paneller böyle) yöntemi bilinemez → POST varsayılır. Aksi halde
                 // Post=false sayılıp hiç denetlenmezdi (tarama dosya başına).
-                var post = formmethod is not null ? YontemPostMu(formmethod)
-                    : formu is null || YontemPostMu(formu.Value.Form.Deger("method"));
-                var onayli = buton.Onay || (formu?.Form.Onay ?? false);
-                sonuc.Add((buton.Bas, new Hedef("buton", Satir(metin, buton.Bas), hedef, post, onayli)));
+                var post = formmethod is not null ? IsPostMethod(formmethod)
+                    : formMatch is null || IsPostMethod(formMatch.Value.Form.Value("method"));
+                var approved = button.Onay || (formMatch?.Form.Onay ?? false);
+                result.Add((button.Bas, new Hedef("buton", Row(text, button.Bas), target, post, approved)));
             }
 
-            return sonuc.OrderBy(x => x.Bas).Select(x => x.H).ToList();
+            return result.OrderBy(x => x.Bas).Select(x => x.H).ToList();
         }
 
         /// <summary>form/button/input etiketlerindeki tüm data-confirm değerleri (ham, Razor ifadesi olduğu gibi).</summary>
-        public static IEnumerable<string> OnayMesajlari(string metin)
-            => Etiketler(metin).Select(e => e.Deger("data-confirm")).OfType<string>().ToList();
+        public static IEnumerable<string> ConfirmMessages(string text)
+            => Tags(text).Select(e => e.Value("data-confirm")).OfType<string>().ToList();
 
         /// <summary>Mesaj TAMAMEN jenerik bir kalıptan mı ibaret (nesne ve sonuç adlandırılmamış).</summary>
-        public static bool JenerikMi(string mesaj)
+        public static bool IsGeneric(string message)
             // 'İ' elle 'i'ye indirilir: değişmez kültürde küçültme ona birleşik nokta ekleyebilir
             // ("İptal" → "i̇ptal") ve kalıp eşleşmezdi.
-            => JenerikKaliplar.Contains(mesaj.Trim().TrimEnd('?', '!', '.', ' ').Replace('İ', 'i').ToLowerInvariant());
+            => GenericPatterns.Contains(message.Trim().TrimEnd('?', '!', '.', ' ').Replace('İ', 'i').ToLowerInvariant());
 
         // Tek fiilden ibaret mesajlar da jenerik: "Silinsin mi?" NEYİN silindiğini ve sonucun kalıcı
         // silme mi, pasife alma mı olduğunu söylemez.
-        private static readonly HashSet<string> JenerikKaliplar =
+        private static readonly HashSet<string> GenericPatterns =
             ["emin misiniz", "emin misin", "onaylıyor musunuz", "onaylıyor musun", "devam edilsin mi", "are you sure",
              "devam", "devam mı", "silinsin mi", "silinecek", "iptal edilsin mi", "reddedilsin mi",
              "kaldırılsın mı", "onaylansın mı"];
 
-        private static bool YontemPostMu(string? yontem)
-            => string.Equals(yontem?.Trim(), "post", StringComparison.OrdinalIgnoreCase);
+        private static bool IsPostMethod(string? method)
+            => string.Equals(method?.Trim(), "post", StringComparison.OrdinalIgnoreCase);
 
-        private static int Satir(string metin, int konum)
+        private static int Row(string text, int location)
         {
-            var satir = 1;
-            for (var i = 0; i < konum; i++)
-                if (metin[i] == '\n') satir++;
-            return satir;
+            var row = 1;
+            for (var i = 0; i < location; i++)
+                if (text[i] == '\n') row++;
+            return row;
         }
 
         // ---- ayrıştırıcı ------------------------------------------------------------------
 
-        private static readonly string[] IlgiliEtiketler = ["form", "button", "input"];
+        private static readonly string[] RelatedTags = ["form", "button", "input"];
 
-        private static List<Etiket> Etiketler(string t)
+        private static List<Etiket> Tags(string t)
         {
-            var sonuc = new List<Etiket>();
+            var result = new List<Etiket>();
             var i = 0;
             while (i < t.Length)
             {
-                if (Baslar(t, i, "@*")) { i = Atla(t, i + 2, "*@"); continue; }
-                if (Baslar(t, i, "<!--")) { i = Atla(t, i + 4, "-->"); continue; }
+                if (StartsWith(t, i, "@*")) { i = Skip(t, i + 2, "*@"); continue; }
+                if (StartsWith(t, i, "<!--")) { i = Skip(t, i + 4, "-->"); continue; }
                 if (t[i] == '<')
                 {
-                    var ad = IlgiliEtiketler.FirstOrDefault(a =>
+                    var name = RelatedTags.FirstOrDefault(a =>
                         string.Compare(t, i + 1, a, 0, a.Length, StringComparison.OrdinalIgnoreCase) == 0
                         && i + 1 + a.Length < t.Length
                         && (char.IsWhiteSpace(t[i + 1 + a.Length]) || t[i + 1 + a.Length] is '>' or '/'));
-                    if (ad is not null)
+                    if (name is not null)
                     {
-                        var (son, oz) = EtiketiOku(t, i + 1 + ad.Length);
-                        sonuc.Add(new Etiket(ad, i, son, oz));
-                        i = son; // etiketin İÇİNDEN yeniden aramaya başlanmaz (komşu yutma yok)
+                        var (last, oz) = ReadTag(t, i + 1 + name.Length);
+                        result.Add(new Etiket(name, i, last, oz));
+                        i = last; // etiketin İÇİNDEN yeniden aramaya başlanmaz (komşu yutma yok)
                         continue;
                     }
                 }
                 i++;
             }
-            return sonuc;
+            return result;
         }
 
-        private static (int Son, Dictionary<string, string> Oz) EtiketiOku(string t, int i)
+        private static (int Son, Dictionary<string, string> Oz) ReadTag(string t, int i)
         {
-            var bas = i;
+            var start = i;
             var oz = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             while (i < t.Length)
             {
                 var c = t[i];
                 if (char.IsWhiteSpace(c)) { i++; continue; }
                 if (c == '>') return (i + 1, oz);
-                if (c == '/' && Sonraki(t, i) == '>') return (i + 2, oz);
-                if (c == '@' && Sonraki(t, i) == '*') { i = Atla(t, i + 2, "*@"); continue; }
-                if (c == '@' && Sonraki(t, i) == '(') { i = IfadeSonu(t, i + 1); continue; }
+                if (c == '/' && Next(t, i) == '>') return (i + 2, oz);
+                if (c == '@' && Next(t, i) == '*') { i = Skip(t, i + 2, "*@"); continue; }
+                if (c == '@' && Next(t, i) == '(') { i = ExpressionEnd(t, i + 1); continue; }
 
-                var adBas = i;
+                var nameStart = i;
                 while (i < t.Length && !char.IsWhiteSpace(t[i]) && t[i] != '=' && t[i] != '>'
-                       && !(t[i] == '/' && Sonraki(t, i) == '>'))
+                       && !(t[i] == '/' && Next(t, i) == '>'))
                     i++;
-                var ad = t[adBas..i];
+                var name = t[nameStart..i];
 
-                var j = BoslukAtla(t, i);
-                var deger = "";
+                var j = SkipWhitespace(t, i);
+                var value = "";
                 if (j < t.Length && t[j] == '=')
-                    (deger, i) = DegerOku(t, BoslukAtla(t, j + 1));
-                else if (i == adBas)
+                    (value, i) = ReadValue(t, SkipWhitespace(t, j + 1));
+                else if (i == nameStart)
                     i++; // ilerleme garantisi (beklenmeyen tek karakter)
 
-                if (ad.Length > 0) oz.TryAdd(ad, deger);
+                if (name.Length > 0) oz.TryAdd(name, value);
             }
-            throw new InvalidOperationException($"Kapanmayan etiket (konum {bas}) — tarayıcı dosyanın sonuna taştı.");
+            throw new InvalidOperationException($"Kapanmayan etiket (konum {start}) — tarayıcı dosyanın sonuna taştı.");
         }
 
-        private static (string Deger, int Son) DegerOku(string t, int j)
+        private static (string Deger, int Son) ReadValue(string t, int j)
         {
             if (j >= t.Length) return ("", j);
             var q = t[j];
@@ -681,34 +681,34 @@ public sealed class YikiciFormOnayTests
                 while (k < t.Length)
                 {
                     if (t[k] == q) return (t[(j + 1)..k], k + 1);
-                    k = t[k] == '@' ? RazorSonu(t, k) : k + 1;
+                    k = t[k] == '@' ? RazorEnd(t, k) : k + 1;
                 }
                 throw new InvalidOperationException($"Kapanmayan öznitelik değeri (konum {j}).");
             }
             var m = j;
             while (m < t.Length && !char.IsWhiteSpace(t[m]) && t[m] != '>')
-                m = t[m] == '@' ? RazorSonu(t, m) : m + 1;
+                m = t[m] == '@' ? RazorEnd(t, m) : m + 1;
             return (t[j..m], m);
         }
 
         /// <summary>t[k]=='@' — Razor yapısının bittiği konum (ifade içindeki tırnak/parantez değeri bitirmez).</summary>
-        private static int RazorSonu(string t, int k)
+        private static int RazorEnd(string t, int k)
         {
-            var d = Sonraki(t, k);
+            var d = Next(t, k);
             if (d == '@') return k + 2;                                   // @@ kaçışı
-            if (d == '*') return Atla(t, k + 2, "*@");                    // @* yorum *@
-            if (d == '(') return IfadeSonu(t, k + 1);                     // @( açık ifade )
+            if (d == '*') return Skip(t, k + 2, "*@");                    // @* yorum *@
+            if (d == '(') return ExpressionEnd(t, k + 1);                     // @( açık ifade )
             if (k > 0 && char.IsLetterOrDigit(t[k - 1])) return k + 1;    // e-posta: a@b.com düz metin
             if (d is { } h && (char.IsLetter(h) || h == '_'))              // @x.Y(…)[…] örtük ifade
             {
-                var m = TanimlayiciSonu(t, k + 1);
+                var m = IdentifierEnd(t, k + 1);
                 while (m < t.Length)
                 {
-                    if (t[m] is '(' or '[') { m = IfadeSonu(t, m); continue; }
-                    if (t[m] == '.' && Sonraki(t, m) is { } n1 && (char.IsLetter(n1) || n1 == '_'))
-                    { m = TanimlayiciSonu(t, m + 1); continue; }
-                    if (t[m] == '?' && Sonraki(t, m) == '.' && m + 2 < t.Length && (char.IsLetter(t[m + 2]) || t[m + 2] == '_'))
-                    { m = TanimlayiciSonu(t, m + 2); continue; }
+                    if (t[m] is '(' or '[') { m = ExpressionEnd(t, m); continue; }
+                    if (t[m] == '.' && Next(t, m) is { } n1 && (char.IsLetter(n1) || n1 == '_'))
+                    { m = IdentifierEnd(t, m + 1); continue; }
+                    if (t[m] == '?' && Next(t, m) == '.' && m + 2 < t.Length && (char.IsLetter(t[m + 2]) || t[m + 2] == '_'))
+                    { m = IdentifierEnd(t, m + 2); continue; }
                     break;
                 }
                 return m;
@@ -717,67 +717,67 @@ public sealed class YikiciFormOnayTests
         }
 
         /// <summary>t[k] '(' '[' ya da '{' — eşleşen kapanıştan sonraki konum. C# dizeleri/karakterleri atlanır.</summary>
-        private static int IfadeSonu(string t, int k)
+        private static int ExpressionEnd(string t, int k)
         {
-            var bas = k;
-            var derinlik = 0;
+            var start = k;
+            var depth = 0;
             while (k < t.Length)
             {
                 var c = t[k];
                 switch (c)
                 {
                     case '(' or '[' or '{':
-                        derinlik++; k++; break;
+                        depth++; k++; break;
                     case ')' or ']' or '}':
-                        derinlik--; k++;
-                        if (derinlik == 0) return k;
+                        depth--; k++;
+                        if (depth == 0) return k;
                         break;
                     case '"':
-                        k = DizeSonu(t, k, tamHarfli: false, aradegerli: false); break;
+                        k = StringEnd(t, k, fullLetters: false, withIntermediateValue: false); break;
                     case '\'':
-                        k = KarakterSonu(t, k); break;
-                    case '$' when Baslar(t, k, "$@\""):
-                        k = DizeSonu(t, k + 2, tamHarfli: true, aradegerli: true); break;
-                    case '@' when Baslar(t, k, "@$\""):
-                        k = DizeSonu(t, k + 2, tamHarfli: true, aradegerli: true); break;
-                    case '$' when Sonraki(t, k) == '"':
-                        k = DizeSonu(t, k + 1, tamHarfli: false, aradegerli: true); break;
-                    case '@' when Sonraki(t, k) == '"':
-                        k = DizeSonu(t, k + 1, tamHarfli: true, aradegerli: false); break;
+                        k = CharacterEnd(t, k); break;
+                    case '$' when StartsWith(t, k, "$@\""):
+                        k = StringEnd(t, k + 2, fullLetters: true, withIntermediateValue: true); break;
+                    case '@' when StartsWith(t, k, "@$\""):
+                        k = StringEnd(t, k + 2, fullLetters: true, withIntermediateValue: true); break;
+                    case '$' when Next(t, k) == '"':
+                        k = StringEnd(t, k + 1, fullLetters: false, withIntermediateValue: true); break;
+                    case '@' when Next(t, k) == '"':
+                        k = StringEnd(t, k + 1, fullLetters: true, withIntermediateValue: false); break;
                     default:
                         k++; break;
                 }
             }
-            throw new InvalidOperationException($"Kapanmayan Razor/C# ifadesi (konum {bas}).");
+            throw new InvalidOperationException($"Kapanmayan Razor/C# ifadesi (konum {start}).");
         }
 
         /// <summary>t[k]=='"' — dize sonundan sonraki konum. Aradeğerli dizede {…} delikleri C# ifadesidir.</summary>
-        private static int DizeSonu(string t, int k, bool tamHarfli, bool aradegerli)
+        private static int StringEnd(string t, int k, bool fullLetters, bool withIntermediateValue)
         {
-            var bas = k;
+            var start = k;
             k++;
             while (k < t.Length)
             {
                 var c = t[k];
-                if (!tamHarfli && c == '\\') { k += 2; continue; }
+                if (!fullLetters && c == '\\') { k += 2; continue; }
                 if (c == '"')
                 {
-                    if (tamHarfli && Sonraki(t, k) == '"') { k += 2; continue; }
+                    if (fullLetters && Next(t, k) == '"') { k += 2; continue; }
                     return k + 1;
                 }
-                if (aradegerli && c == '{')
+                if (withIntermediateValue && c == '{')
                 {
-                    if (Sonraki(t, k) == '{') { k += 2; continue; }
-                    k = IfadeSonu(t, k);
+                    if (Next(t, k) == '{') { k += 2; continue; }
+                    k = ExpressionEnd(t, k);
                     continue;
                 }
-                if (aradegerli && c == '}' && Sonraki(t, k) == '}') { k += 2; continue; }
+                if (withIntermediateValue && c == '}' && Next(t, k) == '}') { k += 2; continue; }
                 k++;
             }
-            throw new InvalidOperationException($"Kapanmayan C# dizesi (konum {bas}).");
+            throw new InvalidOperationException($"Kapanmayan C# dizesi (konum {start}).");
         }
 
-        private static int KarakterSonu(string t, int k)
+        private static int CharacterEnd(string t, int k)
         {
             var m = k + 1;
             m += m < t.Length && t[m] == '\\' ? 2 : 1;
@@ -785,27 +785,27 @@ public sealed class YikiciFormOnayTests
             return m + 1;
         }
 
-        private static int TanimlayiciSonu(string t, int k)
+        private static int IdentifierEnd(string t, int k)
         {
             while (k < t.Length && (char.IsLetterOrDigit(t[k]) || t[k] == '_')) k++;
             return k;
         }
 
-        private static int Atla(string t, int k, string bitis)
+        private static int Skip(string t, int k, string end)
         {
-            var i = t.IndexOf(bitis, k, StringComparison.Ordinal);
-            return i < 0 ? t.Length : i + bitis.Length;
+            var i = t.IndexOf(end, k, StringComparison.Ordinal);
+            return i < 0 ? t.Length : i + end.Length;
         }
 
-        private static int BoslukAtla(string t, int k)
+        private static int SkipWhitespace(string t, int k)
         {
             while (k < t.Length && char.IsWhiteSpace(t[k])) k++;
             return k;
         }
 
-        private static bool Baslar(string t, int k, string s)
+        private static bool StartsWith(string t, int k, string s)
             => string.CompareOrdinal(t, k, s, 0, s.Length) == 0;
 
-        private static char? Sonraki(string t, int k) => k + 1 < t.Length ? t[k + 1] : null;
+        private static char? Next(string t, int k) => k + 1 < t.Length ? t[k + 1] : null;
     }
 }

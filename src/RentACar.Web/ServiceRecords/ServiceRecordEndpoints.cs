@@ -33,10 +33,10 @@ public static class ServiceRecordEndpoints
                 // Checkbox: işaretliyse "on"/"true" gelir, işaretsizse alan HİÇ gelmez.
                 Rezervasyon = FormParse.Str(f, "rezervasyon") is not null
             };
-            BilgiOku(input, f);
+            ReadInfo(input, f);
             // Tek kalem satırı (opsiyonel): açıklama doluysa eklenir.
             if (FormParse.Str(f, "kalemAciklama") is { } ka)
-                input.Lines.Add(KalemOku(f, ka));
+                input.Lines.Add(ReadItem(f, ka));
             return await Run(() => svc.CreateAsync(input), "Kayıt eklendi.");
         });
 
@@ -46,7 +46,7 @@ public static class ServiceRecordEndpoints
             var f = req.Form;
             var id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty;
             var input = new ServiceRecordBilgiInput();
-            BilgiOku(input, f);
+            ReadInfo(input, f);
             return await Run(() => svc.UpdateInfoAsync(id, input), "İşlem tamamlandı.");
         });
 
@@ -62,13 +62,13 @@ public static class ServiceRecordEndpoints
         {
             var f = req.Form;
             var id = FormParse.Id(FormParse.Str(f, "id")) ?? Guid.Empty;
-            var kalem = KalemOku(f, FormParse.Str(f, "aciklama") ?? string.Empty);
-            return await Run(() => svc.AddItemAsync(id, kalem), "İşlem tamamlandı.");
+            var item = ReadItem(f, FormParse.Str(f, "aciklama") ?? string.Empty);
+            return await Run(() => svc.AddItemAsync(id, item), "İşlem tamamlandı.");
         });
 
         // Servis maliyeti rücu/yansıtma→defter (roadmap J4): FinanceWrite (mali işlem).
-        var ode = app.MapGroup("/servis-yansitma").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
-        ode.MapPost("/yansit", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] Guid cariId)
+        var pay = app.MapGroup("/servis-yansitma").RequirePermission(Permission.FinanceWrite).AntiforgeryByEnv();
+        pay.MapPost("/yansit", (ServiceRecordService svc, [FromForm] Guid id, [FromForm] Guid cariId)
             => Run(() => svc.ReflectAsync(id, cariId), "Yansıtma yapıldı."));
 
         return app;
@@ -78,7 +78,7 @@ public static class ServiceRecordEndpoints
     /// FAZ-16 bilgi blokları form → input. Opsiyonel decimal/int/tarih alanları <c>string?</c>
     /// okunup FormParse ile çevrilir (boş string ile [FromForm] 400 verir).
     /// </summary>
-    private static void BilgiOku(ServiceRecordBilgiInput b, IFormCollection f)
+    private static void ReadInfo(ServiceRecordBilgiInput b, IFormCollection f)
     {
         b.AtolyeAdi = FormParse.Str(f, "atolyeAdi");
         b.Aciklama = FormParse.Str(f, "aciklama");
@@ -112,9 +112,9 @@ public static class ServiceRecordEndpoints
         b.PlanBitTarihi = FormParse.Date(FormParse.Str(f, "planBitTarihi"));
     }
 
-    private static ServiceLineInput KalemOku(IFormCollection f, string aciklama) => new()
+    private static ServiceLineInput ReadItem(IFormCollection f, string description) => new()
     {
-        Aciklama = aciklama,
+        Aciklama = description,
         // Tutar BOŞ bırakılabilir → birim fiyat × miktar − indirim'den türetilir (null ≠ 0).
         Tutar = FormParse.Dec(FormParse.Str(f, "tutar")),
         BirimFiyat = FormParse.Dec(FormParse.Str(f, "birimFiyat")),
@@ -123,12 +123,12 @@ public static class ServiceRecordEndpoints
         KdvOran = FormParse.Dec(FormParse.Str(f, "kdvOran"))
     };
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
         try
         {
             await action();
-            return Sonuc.Tamam("/servisler", mesaj);
+            return Result.Ok("/servisler", message);
         }
         catch (ValidationException ex)
         {

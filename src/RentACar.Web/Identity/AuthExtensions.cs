@@ -21,8 +21,8 @@ public static class AuthExtensions
         var role = Enum.TryParse<UserRole>(user.FindFirst(ClaimTypes.Role)?.Value, out var r)
             ? r : (UserRole?)null;
         return EffectivePermission.Has(role, permission,
-            user.FindAll(IdentityClaims.IzinEk).Select(c => c.Value).ToArray(),
-            user.FindAll(IdentityClaims.IzinYasak).Select(c => c.Value).ToArray());
+            user.FindAll(IdentityClaims.PermissionExtra).Select(c => c.Value).ToArray(),
+            user.FindAll(IdentityClaims.PermissionDenied).Select(c => c.Value).ToArray());
     }
 
     /// <summary>Sayfa policy adı — <c>[Authorize(Policy = ...)]</c> sabitleri buradan türetilir.</summary>
@@ -53,14 +53,14 @@ public static class AuthExtensions
     /// Kayıt: <see cref="IzinlerdenBiriMetadata"/> (yapısal test onu da izin kapısı sayar). Üstüne eklenen
     /// <see cref="RequirePermission(RouteHandlerBuilder, Permission)"/> VE ile birleşir (yazma uçları).
     /// </summary>
-    public static TBuilder RequireAnyPermission<TBuilder>(this TBuilder builder, params Permission[] izinler)
+    public static TBuilder RequireAnyPermission<TBuilder>(this TBuilder builder, params Permission[] permissions)
         where TBuilder : IEndpointConventionBuilder
     {
-        if (izinler.Length < 2)
-            throw new ArgumentException("RequireAnyPermission en az iki izin ister; tek izin için RequirePermission.", nameof(izinler));
-        var kopya = izinler.ToArray();
-        return builder.RequireAuthorization(p => p.RequireAssertion(ctx => kopya.Any(i => HasPermission(ctx.User, i))))
-                      .WithMetadata(new IzinlerdenBiriMetadata(kopya));
+        if (permissions.Length < 2)
+            throw new ArgumentException("RequireAnyPermission en az iki izin ister; tek izin için RequirePermission.", nameof(permissions));
+        var copy = permissions.ToArray();
+        return builder.RequireAuthorization(p => p.RequireAssertion(ctx => copy.Any(i => HasPermission(ctx.User, i))))
+                      .WithMetadata(new IzinlerdenBiriMetadata(copy));
     }
 
     /// <summary>
@@ -69,8 +69,8 @@ public static class AuthExtensions
     /// ilan yazabilir ve satın aldığı gün her şey ANİDEN yayına girerdi. CLAUDE.md §6: "guard GİRİŞ
     /// noktasında + doğrulama SUNUCUDA".
     /// </summary>
-    public static RouteGroupBuilder RequireWebSitesiModulu(this RouteGroupBuilder group)
-        => group.WithMetadata(new ModulMetadata(ModulMetadata.WebSitesi)).AddEndpointFilter(async (ctx, next) =>
+    public static RouteGroupBuilder RequireWebsiteModule(this RouteGroupBuilder group)
+        => group.WithMetadata(new ModulMetadata(ModulMetadata.Website)).AddEndpointFilter(async (ctx, next) =>
         {
             var tenant = ctx.HttpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId;
             if (tenant is not { } id) return Results.NotFound();
@@ -85,8 +85,8 @@ public static class AuthExtensions
     /// zorunda). Gerekçe metni zorunlu: yapısal test (<c>UiApiYapisalTests</c>) her <c>/api/ui</c> ucunda
     /// <see cref="IzinMetadata"/> ya da bu kaydı arar; "unutulmuş izin" ile "bilinçli muafiyet" ayrışır.
     /// </summary>
-    public static TBuilder IzinMuaf<TBuilder>(this TBuilder builder, string gerekce) where TBuilder : IEndpointConventionBuilder
-        => builder.WithMetadata(new IzinMuafMetadata(gerekce));
+    public static TBuilder PermissionExempt<TBuilder>(this TBuilder builder, string reason) where TBuilder : IEndpointConventionBuilder
+        => builder.WithMetadata(new IzinMuafMetadata(reason));
 
     /// <summary>
     /// Antiforgery'yi ORTAMA göre uygular (roadmap E2, review #7): PROD'da token ZORUNLU (CSRF koruması),
@@ -108,7 +108,7 @@ public static class AuthExtensions
 /// </summary>
 public sealed record IzinMetadata(Permission Izin);
 
-/// <summary>F1.2: ucun izin kapısı taşımadığı BİLİNÇLİ karar (bkz. <see cref="AuthExtensions.IzinMuaf{TBuilder}"/>).</summary>
+/// <summary>F1.2: ucun izin kapısı taşımadığı BİLİNÇLİ karar (bkz. <see cref="AuthExtensions.PermissionExempt{TBuilder}"/>).</summary>
 public sealed record IzinMuafMetadata(string Gerekce);
 
 /// <summary>F4.1: uç izinlerden HERHANGİ BİRİYLE açılır (bkz. <see cref="AuthExtensions.RequireAnyPermission{TBuilder}"/>).</summary>
@@ -116,12 +116,12 @@ public sealed record IzinlerdenBiriMetadata(IReadOnlyList<Permission> Izinler);
 
 /// <summary>
 /// F1.2: uç bir satın alınabilir MODÜLE ait (ör. Web Sitesi) ve modül filtresi takılı. Metadata filtreyi
-/// takan yöntemle AYNI çağrıda eklenir (<see cref="AuthExtensions.RequireWebSitesiModulu"/>) — varlığı
+/// takan yöntemle AYNI çağrıda eklenir (<see cref="AuthExtensions.RequireWebsiteModule"/>) — varlığı
 /// filtrenin varlığını kanıtlar; yapısal test modül yolundaki her <c>/api/ui</c> ucunda bunu arar.
 /// </summary>
 public sealed record ModulMetadata(string Modul)
 {
-    public const string WebSitesi = "WebSitesi";
+    public const string Website = "WebSitesi";
 }
 
 /// <summary>Antiforgery zorunluluğu anahtarı — Program startup'ta ortamdan (IsProduction) set edilir.</summary>

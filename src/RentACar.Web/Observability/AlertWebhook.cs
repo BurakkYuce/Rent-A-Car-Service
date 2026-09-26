@@ -47,8 +47,8 @@ public static class AlertWebhook
             {
                 var t = title.GetString() ?? "";
                 if (root.TryGetProperty("message", out var msg) && msg.ValueKind == JsonValueKind.String)
-                    return Kirp($"{t} — {msg.GetString()}");
-                return Kirp(t);
+                    return Clamp($"{t} — {msg.GetString()}");
+                return Clamp(t);
             }
             if (root.TryGetProperty("alerts", out var alerts) && alerts.ValueKind == JsonValueKind.Array && alerts.GetArrayLength() > 0)
             {
@@ -58,12 +58,12 @@ public static class AlertWebhook
                 var summary = first.TryGetProperty("annotations", out var ann) && ann.TryGetProperty("summary", out var sm)
                     ? sm.GetString() : "";
                 var status = first.TryGetProperty("status", out var st) ? st.GetString() : "";
-                return Kirp($"[{status}] {name}: {summary}");
+                return Clamp($"[{status}] {name}: {summary}");
             }
         }
         catch (JsonException) { /* ham'a düş */ }
-        return Kirp(json);
+        return Clamp(json);
     }
 
-    private static string Kirp(string s) => s.Length <= 400 ? s : s[..400] + "…";
+    private static string Clamp(string s) => s.Length <= 400 ? s : s[..400] + "…";
 }

@@ -49,7 +49,7 @@ public static class VehicleSaleUiApi
     {
         var g = v1.MapGroup("/satislar").WithTags("Araç Satış");
         g.MapGet("", List).RequireAnyPermission(Permission.FinanceWrite, Permission.ViewReports, Permission.OperationsWrite)
-            .AlanlariEsle(SortRules);
+            .MapFields(SortRules);
         g.MapPost("", Create).RequirePermission(Permission.FinanceWrite);
         return g;
     }
@@ -75,23 +75,23 @@ public static class VehicleSaleUiApi
         IDbContextFactory<AppDbContext> dbf, int? sayfa, int? boyut, string? sirala, CancellationToken ct)
     {
         Text(f.Plaka, 16, "plaka");
-        var (bas, bit) = F5Ortak.GunAraligi(f.Bas, f.Bit);
+        var (start, bit) = F5Shared.DayRange(f.Bas, f.Bit);
         var rows = await sales.SearchAsync(new VehicleSaleFilter
         {
-            Plaka = F5Ortak.Nz(f.Plaka), AliciCariId = f.AliciCariId, Durum = F5Ortak.EnumAdi<SaleStatus>(f.Durum, "durum"),
-            SatisiVerildi = f.SatisiVerildi, Ofis = F5Ortak.Nz(f.Ofis), Bas = bas, Bit = bit,
+            Plaka = F5Shared.Nz(f.Plaka), AliciCariId = f.AliciCariId, Durum = F5Shared.EnumAdi<SaleStatus>(f.Durum, "durum"),
+            SatisiVerildi = f.SatisiVerildi, Ofis = F5Shared.Nz(f.Ofis), Bas = start, Bit = bit,
         }, ct);
         await using var db = await dbf.CreateDbContextAsync(ct);
         var vehicles = await VehicleBranchesAsync(db, rows.Select(s => s.VehicleId), ct);
         var visible = rows.Where(s => InScope(user, vehicles.GetValueOrDefault(s.VehicleId))).ToList();
-        var plates = await F5Ortak.PlakalarAsync(dbf, visible.Select(s => s.VehicleId), ct);
-        var names = await F5Ortak.CarilerAsync(dbf, visible.Select(s => s.AliciCariId), ct);
+        var plates = await F5Shared.PlatesAsync(dbf, visible.Select(s => s.VehicleId), ct);
+        var names = await F5Shared.CustomersAsync(dbf, visible.Select(s => s.AliciCariId), ct);
         var list = visible.Select(s => new VehicleSaleRow(
-            s.Id, s.No, s.Tarih, s.VehicleId, F5Ortak.Plaka(plates, s.VehicleId), s.AliciCariId,
-            F5Ortak.CariAdi(names, s.AliciCariId), s.SatisNet, s.KdvOrani, s.KdvTutar, s.GenelToplam, s.Currency, s.Kur,
+            s.Id, s.No, s.Tarih, s.VehicleId, F5Shared.Plate(plates, s.VehicleId), s.AliciCariId,
+            F5Shared.CustomerName(names, s.AliciCariId), s.SatisNet, s.KdvOrani, s.KdvTutar, s.GenelToplam, s.Currency, s.Kur,
             s.Durum.ToString(), s.NoterNo, s.NoterSatisTarihi, s.IhaleTarihi, s.IhaleFirmasi, s.SatisKm, s.SatisKanali,
             s.SatisiVerildi, s.Aciklama)).ToList();
-        return TypedResults.Ok(F5Ortak.Sayfala(list, Sort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(list, Sort, sayfa, boyut, sirala));
     }
 
     private static async Task<Ok<DocumentResult>> Create(
@@ -129,11 +129,11 @@ public static class VehicleSaleUiApi
 
         var id = await sales.CreateAsync(new VehicleSaleInput
         {
-            VehicleId = req.AracId, AliciCariId = req.AliciCariId, Tarih = F5Ortak.Utc(req.Tarih),
+            VehicleId = req.AracId, AliciCariId = req.AliciCariId, Tarih = F5Shared.Utc(req.Tarih),
             NoterNo = Trimmed(req.NoterNo), SatisNet = req.SatisNet, KdvOrani = req.KdvOrani, Doviz = currency,
             Kur = req.Kur, Aciklama = Trimmed(req.Aciklama), HedefFiyat = req.HedefFiyat, SatisKm = req.SatisKm,
-            SatisKanali = Trimmed(req.SatisKanali), Devir = Trimmed(req.Devir), IhaleTarihi = F5Ortak.Utc(req.IhaleTarihi),
-            IhaleFirmasi = Trimmed(req.IhaleFirmasi), NoterSatisTarihi = F5Ortak.Utc(req.NoterSatisTarihi),
+            SatisKanali = Trimmed(req.SatisKanali), Devir = Trimmed(req.Devir), IhaleTarihi = F5Shared.Utc(req.IhaleTarihi),
+            IhaleFirmasi = Trimmed(req.IhaleFirmasi), NoterSatisTarihi = F5Shared.Utc(req.NoterSatisTarihi),
             KirayaVerme = req.KirayaVerme, IlanKm = req.IlanKm, ListeDoviz = listCurrency,
             SatisNoktasi = Trimmed(req.SatisNoktasi), UygulananKampanya = Trimmed(req.UygulananKampanya),
             IhaleSayisi = Trimmed(req.IhaleSayisi), SatisiVerildi = req.SatisiVerildi,

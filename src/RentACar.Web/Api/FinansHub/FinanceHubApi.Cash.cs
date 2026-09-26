@@ -45,18 +45,18 @@ public static partial class FinanceHubApi
         CancellationToken ct)
     {
         var (page, size) = Paging(sayfa, boyut);
-        var type = F5Ortak.EnumAdi<CashTransactionType>(tip, "tip");
-        LedgerAccountType? account = string.IsNullOrWhiteSpace(hesap) ? null : FinansApi.Hesap(hesap, "hesap");
+        var type = F5Shared.EnumAdi<CashTransactionType>(tip, "tip");
+        LedgerAccountType? account = string.IsNullOrWhiteSpace(hesap) ? null : FinanceOpsApi.Account(hesap, "hesap");
         string? channel = null;
         if (!string.IsNullOrWhiteSpace(kanal))
             channel = CashKanal.TryNormalize(kanal)
                       ?? throw new ValidationException($"Geçersiz kanal. İzin verilenler: {string.Join(", ", CashKanal.Hepsi)}.", "kanal");
-        FinansApi.Metin(q, 100, "q");
-        var (min, max) = F5Ortak.GunAraligi(bas, bit);
+        FinanceOpsApi.Text(q, 100, "q");
+        var (min, max) = F5Shared.DayRange(bas, bit);
 
         var rows = await cash.SearchTransactionsAsync(new CashFilter
         {
-            Ara = F5Ortak.Nz(q), Tip = type, Hesap = account, HesapId = hesapId, Bas = min, Bit = max,
+            Ara = F5Shared.Nz(q), Tip = type, Hesap = account, HesapId = hesapId, Bas = min, Bit = max,
             EnFazla = CashListCap,
         }, ct);
         var capped = rows.Count >= CashListCap;
@@ -64,15 +64,15 @@ public static partial class FinanceHubApi
         var filtered = channel is null ? rows : rows.Where(x => (x.Islem.Kanal ?? CashKanal.Masaustu) == channel).ToList();
         var pageRows = filtered.Skip((page - 1) * size).Take(size).ToList();
 
-        var names = await F5Ortak.CarilerAsync(f, pageRows.Select(r => r.Islem.CariId), ct);
+        var names = await F5Shared.CustomersAsync(f, pageRows.Select(r => r.Islem.CariId), ct);
         var accountNames = await AccountNamesAsync(accounts, ct);
         var items = pageRows.Select(r =>
         {
             var t = r.Islem;
             return new CashTransactionRow(
                 t.Id, t.No, t.Tarih, t.Tip.ToString(), t.TersKayitMi, t.TersAlinanId,
-                t.KarsiHesap.ToString(), t.HesapId, t.HesapId is { } h && accountNames.TryGetValue(h, out var ad) ? ad : null,
-                t.Kanal ?? CashKanal.Masaustu, t.CariId, F5Ortak.CariAdi(names, t.CariId), r.CariKod, t.RentalId,
+                t.KarsiHesap.ToString(), t.HesapId, t.HesapId is { } h && accountNames.TryGetValue(h, out var name) ? name : null,
+                t.Kanal ?? CashKanal.Masaustu, t.CariId, F5Shared.CustomerName(names, t.CariId), r.CariKod, t.RentalId,
                 t.Amount.Amount, t.Amount.Currency, t.Amount.Rate, t.Amount.AmountInBase, t.Aciklama);
         }).ToList();
         return TypedResults.Ok(new CashTransactionList(new Sayfa<CashTransactionRow>(items, filtered.Count, page, size), capped));
@@ -82,11 +82,11 @@ public static partial class FinanceHubApi
         DateOnly? bas, DateOnly? bit, Guid? hesapId, string? ara, int? limit,
         CashService cash, FinancialAccountService accounts, CancellationToken ct)
     {
-        FinansApi.Metin(ara, 100, "ara");
-        var (min, max) = F5Ortak.GunAraligi(bas, bit);
+        FinanceOpsApi.Text(ara, 100, "ara");
+        var (min, max) = F5Shared.DayRange(bas, bit);
         var rows = await cash.ListCashTransfersAsync(new KasaVirmanFilter
         {
-            Bas = min, Bit = max, HesapId = hesapId, Ara = F5Ortak.Nz(ara), EnFazla = Math.Clamp(limit ?? 50, 1, 500),
+            Bas = min, Bit = max, HesapId = hesapId, Ara = F5Shared.Nz(ara), EnFazla = Math.Clamp(limit ?? 50, 1, 500),
         }, ct);
         var accountNames = await AccountNamesAsync(accounts, ct);
         string? Name(Guid? id) => id is { } x && accountNames.TryGetValue(x, out var n) ? n : null;
@@ -101,9 +101,9 @@ public static partial class FinanceHubApi
         CashTransferRequest req, HttpContext http, CashService cash, RentACar.Application.Kur.ExchangeRateResolver rates,
         CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
-        var source = FinansApi.Hesap(req.Kaynak, "kaynak");
-        var target = FinansApi.Hesap(req.Hedef, "hedef");
+        var key = IdempotencyHeader.RequiredKey(http);
+        var source = FinanceOpsApi.Account(req.Kaynak, "kaynak");
+        var target = FinanceOpsApi.Account(req.Hedef, "hedef");
         var currency = MoneyInput(req.Tutar, req.Doviz, req.Kur);
         await ResolvedBaseLimitAsync(rates, req.Tutar, currency, req.Kur, null, ct); // servis bugünkü kuru çözer
         var receipt = Text(req.MakbuzNo, 32, "makbuzNo");
@@ -119,8 +119,8 @@ public static partial class FinanceHubApi
     private static async Task<Results<Ok<CashOperationResult>, ProblemHttpResult>> ReverseCashTransaction(
         Guid id, CashService cash, RentalService rentals, RentACar.Domain.Common.ICurrentUser user, CancellationToken ct)
     {
-        if (await cash.GetAsync(id, ct) is not { } tx) return F5Ortak.Bulunamadi("Kasa işlemi bulunamadı.");
-        if (tx.RentalId is { } rentalId) await FinansApi.KiraKapsamdaAsync(rentals, rentalId, ct);
+        if (await cash.GetAsync(id, ct) is not { } tx) return F5Shared.NotFound("Kasa işlemi bulunamadı.");
+        if (tx.RentalId is { } rentalId) await FinanceOpsApi.IsRentalInScopeAsync(rentals, rentalId, ct);
         // L4b: kirasız kasa işleminin şubesi yok (kasa/banka hesabı şubeye bağlı değil). Şubeye bağlı kullanıcı
         // yalnız kendi şubesinin kirasına bağlı işlemi ters alabilir; kiracı geneli kasa işlemi kapsam dışıdır.
         else if (!BranchScope.EffectiveFilter(user).Unrestricted)
@@ -128,11 +128,11 @@ public static partial class FinanceHubApi
         return TypedResults.Ok(new CashOperationResult(await cash.ReverseAsync(id, ct)));
     }
 
-    internal static (int Page, int Size) Paging(int? sayfa, int? boyut)
+    internal static (int Page, int Size) Paging(int? page, int? size)
     {
-        if (sayfa is < 1 or > 100_000) throw new ValidationException("Sayfa 1 ile 100000 arasında olmalıdır.", "sayfa");
-        if (boyut is < 1 or > 200) throw new ValidationException("Sayfa boyutu 1 ile 200 arasında olmalıdır.", "boyut");
-        return (sayfa ?? 1, boyut ?? 50);
+        if (page is < 1 or > 100_000) throw new ValidationException("Sayfa 1 ile 100000 arasında olmalıdır.", "sayfa");
+        if (size is < 1 or > 200) throw new ValidationException("Sayfa boyutu 1 ile 200 arasında olmalıdır.", "boyut");
+        return (page ?? 1, size ?? 50);
     }
 
     private static async Task<Dictionary<Guid, string>> AccountNamesAsync(FinancialAccountService accounts, CancellationToken ct)

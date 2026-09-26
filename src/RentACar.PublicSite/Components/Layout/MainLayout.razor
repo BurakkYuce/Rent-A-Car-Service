@@ -13,11 +13,11 @@
 <div class="page">
     <header class="site-bar">
         <div class="site-bar-ic">
-            <a class="site-marka" href="/">@Marka</a>
+            <a class="site-marka" href="/">@BrandName</a>
             <nav class="site-nav">
                 <a href="/">Filomuz</a>
                 <a href="/musaitlik">Müsaitlik ve Fiyat</a>
-                @if (_sssVar) { <a href="/sss">S.S.S.</a> }
+                @if (_hasFaq) { <a href="/sss">S.S.S.</a> }
                 @if (_blogVar) { <a href="/blog">Blog</a> }
                 <a href="/iletisim">İletişim</a>
             </nav>
@@ -36,7 +36,7 @@
     <footer class="site-footer">
         <div class="site-footer-ic">
             <div>
-                <h2>@Marka</h2>
+                <h2>@BrandName</h2>
                 @if (!string.IsNullOrWhiteSpace(_branding?.Adres)) { <p>@_branding!.Adres</p> }
             </div>
             <div>
@@ -54,13 +54,13 @@
                 <ul>
                     <li><a href="/">Filomuz</a></li>
                     <li><a href="/musaitlik">Müsaitlik ve fiyat sorgula</a></li>
-                    @if (_sssVar) { <li><a href="/sss">Sık sorulan sorular</a></li> }
+                    @if (_hasFaq) { <li><a href="/sss">Sık sorulan sorular</a></li> }
                     @if (_blogVar) { <li><a href="/blog">Blog</a></li> }
                     <li><a href="/iletisim">İletişim</a></li>
                     @* PR-16: firmanın kendi yazdığı sayfalar (sıra alanına göre).
                        Yasal metinler bu listeden ÇIKARILDI — kendi sütunlarında yaşıyorlar,
                        aksi halde alt bilgide iki kez görünürlerdi. *@
-                    @foreach (var sf in _digerSayfalar)
+                    @foreach (var sf in _otherPages)
                     {
                         <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li>
                     }
@@ -69,12 +69,12 @@
             @* Yasal sütunu YALNIZ yayında yasal sayfa varsa basılır: yayında olmayan bir slug'a
                link vermek 404 üretir (Sayfa.razor bilinçli olarak gerçek 404 döner). Sabit
                "/gizlilik" linki basmak, sayfa hiç yazılmamışken kırık bağlantı demekti. *@
-            @if (_yasalSayfalar.Count > 0)
+            @if (_legalPages.Count > 0)
             {
                 <div>
                     <h2>Yasal</h2>
                     <ul>
-                        @foreach (var sf in _yasalSayfalar)
+                        @foreach (var sf in _legalPages)
                         {
                             <li><a href="@($"/{sf.Slug}")">@sf.Baslik</a></li>
                         }
@@ -82,7 +82,7 @@
                 </div>
             }
         </div>
-        <div class="site-footer-alt">© @DateTime.Now.Year @Marka</div>
+        <div class="site-footer-alt">© @DateTime.Now.Year @BrandName</div>
     </footer>
 
     @* ---- Çerez bilgilendirme şeridi ----
@@ -113,9 +113,9 @@
                 karşı korumak için tarayıcınıza tek bir teknik çerez yazılır; üçüncü taraf hiçbir
                 betik yüklenmez. Zorunlu çerezler için izin alınmadığından burada reddedilecek bir
                 izleme yoktur.</span>
-            @if (_cerezPolitikasiSlug is not null)
+            @if (_cookiePolicySlug is not null)
             {
-                <a href="@($"/{_cerezPolitikasiSlug}")">Ayrıntılı bilgi</a>
+                <a href="@($"/{_cookiePolicySlug}")">Ayrıntılı bilgi</a>
             }
         </p>
         <button type="button" class="btn-cta" data-cerez-kapat>Tamam</button>
@@ -126,14 +126,14 @@
     private FleetBranding? _branding;
     private string? _telLink;
     private bool _blogVar;
-    private bool _sssVar;
+    private bool _hasFaq;
     // Yayındaki içerik sayfaları alt bilgide İKİYE ayrılır: yasal metinler kendi sütununda
     // (görünürlük + KVKK/çerez şeridinin hedefi), gerisi "Sayfalar" sütununda.
-    private IReadOnlyList<SayfaOzet> _digerSayfalar = [];
-    private IReadOnlyList<SayfaOzet> _yasalSayfalar = [];
-    private string? _cerezPolitikasiSlug;
+    private IReadOnlyList<SayfaOzet> _otherPages = [];
+    private IReadOnlyList<SayfaOzet> _legalPages = [];
+    private string? _cookiePolicySlug;
 
-    private string Marka => string.IsNullOrWhiteSpace(_branding?.Marka) ? "RentPro" : _branding!.Marka!;
+    private string BrandName => string.IsNullOrWhiteSpace(_branding?.Marka) ? "RentPro" : _branding!.Marka!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -144,11 +144,11 @@
             _branding = await Showcase.GetBrandingAsync();
             _telLink = PhoneLink.Tel(_branding.Tel);
             _blogVar = (await Blog.ListPublishedAsync()).Count > 0;
-            var sayfalar = await Icerik.PublishedPagesAsync();
-            _yasalSayfalar = sayfalar.Where(YasalSayfalar.Yasal).ToList();
-            _digerSayfalar = sayfalar.Where(s => !YasalSayfalar.Yasal(s)).ToList();
-            _cerezPolitikasiSlug = YasalSayfalar.CerezPolitikasiSlug(sayfalar);
-            _sssVar = (await Icerik.PublishedFaqAsync()).Count > 0;
+            var pages = await Icerik.PublishedPagesAsync();
+            _legalPages = pages.Where(LegalPages.Legal).ToList();
+            _otherPages = pages.Where(s => !LegalPages.Legal(s)).ToList();
+            _cookiePolicySlug = LegalPages.CookiePolicySlug(pages);
+            _hasFaq = (await Icerik.PublishedFaqAsync()).Count > 0;
         }
         catch
         {

@@ -21,11 +21,11 @@ public sealed class FinansTrendTests(PostgresFixture fx)
     private static IDbContextFactory<AppDbContext> Factory(IServiceScope scope)
         => scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
 
-    private static AccountLedgerEntry Satir(LedgerAccountType tip, LedgerDirection yon, decimal tutar,
-        DateTimeOffset tarih, string kaynak = "Fatura") => new()
+    private static AccountLedgerEntry Row(LedgerAccountType tip, LedgerDirection yon, decimal amount,
+        DateTimeOffset date, string source = "Fatura") => new()
     {
-        AccountType = tip, Direction = yon, Amount = new Money(tutar, "TRY", 1m),
-        EntryDateUtc = tarih, SourceType = kaynak, SourceId = Guid.NewGuid()
+        AccountType = tip, Direction = yon, Amount = new Money(amount, "TRY", 1m),
+        EntryDateUtc = date, SourceType = source, SourceId = Guid.NewGuid()
     };
 
     [Fact]
@@ -36,30 +36,30 @@ public sealed class FinansTrendTests(PostgresFixture fx)
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         // Sabit "şimdi": 2026-06-15 → pencereler Nis/May/Haz 2026 (3 ay isteyeceğiz).
-        var simdi = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        var now = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
         var nisan = new DateTimeOffset(2026, 4, 1, 0, 0, 0, TimeSpan.Zero);
-        var mayis = new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero);
-        var haziran = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var may = new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero);
+        var june = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
 
         await using (var db = await Factory(scope).CreateDbContextAsync())
         {
             // NİSAN: fatura geliri 1000.
-            db.AccountLedgerEntries.Add(Satir(LedgerAccountType.Gelir, LedgerDirection.Credit, 1000m, nisan.AddDays(9)));
+            db.AccountLedgerEntries.Add(Row(LedgerAccountType.Gelir, LedgerDirection.Credit, 1000m, nisan.AddDays(9)));
             // MAYIS ay-SINIRI kaydı: tam 1 Mayıs 00:00:00 UTC → YALNIZ Mayıs'a sayılmalı (Nisan üst ucu AddTicks(-1)).
-            db.AccountLedgerEntries.Add(Satir(LedgerAccountType.Gelir, LedgerDirection.Credit, 2000m, mayis));
+            db.AccountLedgerEntries.Add(Row(LedgerAccountType.Gelir, LedgerDirection.Credit, 2000m, may));
             // MAYIS: gider 400 + gelir İADESİ 100 (Debit → gelirden düşer).
-            db.AccountLedgerEntries.Add(Satir(LedgerAccountType.Gider, LedgerDirection.Debit, 400m, mayis.AddDays(4), "Gider"));
-            db.AccountLedgerEntries.Add(Satir(LedgerAccountType.Gelir, LedgerDirection.Debit, 100m, mayis.AddDays(7)));
+            db.AccountLedgerEntries.Add(Row(LedgerAccountType.Gider, LedgerDirection.Debit, 400m, may.AddDays(4), "Gider"));
+            db.AccountLedgerEntries.Add(Row(LedgerAccountType.Gelir, LedgerDirection.Debit, 100m, may.AddDays(7)));
             await db.SaveChangesAsync();
         }
 
-        var trend = await reports.GetMonthlyRevenueExpenseTrendAsync(3, simdi);
+        var trend = await reports.GetMonthlyRevenueExpenseTrendAsync(3, now);
 
         Assert.Equal(3, trend.Count);
         // Çıpalar: Nisan, Mayıs, Haziran 1'i (UTC) — sırayla.
         Assert.Equal(nisan, trend[0].AyBas);
-        Assert.Equal(mayis, trend[1].AyBas);
-        Assert.Equal(haziran, trend[2].AyBas);
+        Assert.Equal(may, trend[1].AyBas);
+        Assert.Equal(june, trend[2].AyBas);
 
         // NİSAN (elle): gelir 1000 (sınır kaydı DAHİL DEĞİL), gider 0, net 1000.
         Assert.Equal(1000m, trend[0].Gelir);
@@ -84,19 +84,19 @@ public sealed class FinansTrendTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
 
-        var simdi = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        var now = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
         await using (var db = await Factory(scope).CreateDbContextAsync())
         {
-            db.AccountLedgerEntries.Add(Satir(LedgerAccountType.Gelir, LedgerDirection.Credit, 750m,
+            db.AccountLedgerEntries.Add(Row(LedgerAccountType.Gelir, LedgerDirection.Credit, 750m,
                 new DateTimeOffset(2026, 5, 10, 0, 0, 0, TimeSpan.Zero)));
             await db.SaveChangesAsync();
         }
 
         // Delege doğrulaması: eski Home metodu = yeni metodun Gelir izdüşümü.
-        var eski = await reports.GetMonthlyRevenueTrendAsync(2, simdi);
-        var yeni = await reports.GetMonthlyRevenueExpenseTrendAsync(2, simdi);
-        Assert.Equal(yeni.Select(n => (n.AyBas, n.Gelir)), eski.Select(n => (n.AyBas, n.Gelir)));
-        Assert.Equal(750m, eski[0].Gelir); // Mayıs (elle)
-        Assert.Equal(0m, eski[1].Gelir);   // Haziran boş
+        var old = await reports.GetMonthlyRevenueTrendAsync(2, now);
+        var newItem = await reports.GetMonthlyRevenueExpenseTrendAsync(2, now);
+        Assert.Equal(newItem.Select(n => (n.AyBas, n.Gelir)), old.Select(n => (n.AyBas, n.Gelir)));
+        Assert.Equal(750m, old[0].Gelir); // Mayıs (elle)
+        Assert.Equal(0m, old[1].Gelir);   // Haziran boş
     }
 }

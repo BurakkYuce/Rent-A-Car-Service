@@ -74,9 +74,9 @@ public sealed class RentalListFilterTests(PostgresFixture fx)
         await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var kirada = await svc.SearchAsync(new RentalFilter { Durum = RentalStatus.Kirada });
-        Assert.Single(kirada);
-        Assert.Equal("KS-F01", kirada[0].SozlesmeNo);
+        var onRent = await svc.SearchAsync(new RentalFilter { Durum = RentalStatus.Kirada });
+        Assert.Single(onRent);
+        Assert.Equal("KS-F01", onRent[0].SozlesmeNo);
     }
 
     [Fact]
@@ -87,13 +87,13 @@ public sealed class RentalListFilterTests(PostgresFixture fx)
         await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var faturali = await svc.SearchAsync(new RentalFilter { Faturali = true });
-        Assert.Single(faturali);
-        Assert.Equal("KS-F02", faturali[0].SozlesmeNo);
+        var invoiced = await svc.SearchAsync(new RentalFilter { Faturali = true });
+        Assert.Single(invoiced);
+        Assert.Equal("KS-F02", invoiced[0].SozlesmeNo);
 
-        var faturasiz = await svc.SearchAsync(new RentalFilter { Faturali = false });
-        Assert.Equal(2, faturasiz.Count);
-        Assert.DoesNotContain(faturasiz, r => r.SozlesmeNo == "KS-F02");
+        var uninvoiced = await svc.SearchAsync(new RentalFilter { Faturali = false });
+        Assert.Equal(2, uninvoiced.Count);
+        Assert.DoesNotContain(uninvoiced, r => r.SozlesmeNo == "KS-F02");
     }
 
     [Fact]
@@ -104,14 +104,14 @@ public sealed class RentalListFilterTests(PostgresFixture fx)
         await SeedAsync(scope);
         var svc = scope.ServiceProvider.GetRequiredService<RentalService>();
 
-        var sube2 = await svc.SearchAsync(new RentalFilter { Ofis = "Sube2" });
-        Assert.Single(sube2);
-        Assert.Equal("KS-F02", sube2[0].SozlesmeNo);
+        var branch2 = await svc.SearchAsync(new RentalFilter { Ofis = "Sube2" });
+        Assert.Single(branch2);
+        Assert.Equal("KS-F02", branch2[0].SozlesmeNo);
 
         // Başlangıç ≥ 2026-06-05 → yalnız R2 (06-10); R1 (06-01) ve R3 (05-01) hariç.
-        var sonra = await svc.SearchAsync(new RentalFilter { BaslangicMin = D(2026, 6, 5) });
-        Assert.Single(sonra);
-        Assert.Equal("KS-F02", sonra[0].SozlesmeNo);
+        var after = await svc.SearchAsync(new RentalFilter { BaslangicMin = D(2026, 6, 5) });
+        Assert.Single(after);
+        Assert.Equal("KS-F02", after[0].SozlesmeNo);
     }
 
     [Fact]

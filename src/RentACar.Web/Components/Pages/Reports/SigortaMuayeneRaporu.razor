@@ -25,7 +25,7 @@
     <label>Araç Sahibi
         <select name="sahip">
             <option value="">— tümü —</option>
-            @foreach (var o in _sahipOpts) { <option value="@o" selected="@(o == Sahip)">@o</option> }
+            @foreach (var o in _ownerOpts) { <option value="@o" selected="@(o == Sahip)">@o</option> }
         </select>
     </label>
     <label>Plaka<input name="plaka" value="@Plaka" placeholder="34 AB (boşluk serbest)" /></label>
@@ -66,10 +66,10 @@
                 <td class="mono small">@(r.MotorNo ?? "—")</td>
                 <td>@(r.BelgeNo ?? "—")</td>
                 <td>@(r.Kimde ?? "—")</td>
-                <td class="@Sinif(r.TrafikBitis)">@Tarih(r.TrafikBitis)</td>
-                <td class="@Sinif(r.KaskoBitis)">@Tarih(r.KaskoBitis)</td>
-                <td class="@Sinif(r.MuayeneBitis)">@Tarih(r.MuayeneBitis)</td>
-                <td class="@Sinif(r.MtvVade)">@Tarih(r.MtvVade)</td>
+                <td class="@Class(r.TrafikBitis)">@Date(r.TrafikBitis)</td>
+                <td class="@Class(r.KaskoBitis)">@Date(r.KaskoBitis)</td>
+                <td class="@Class(r.MuayeneBitis)">@Date(r.MuayeneBitis)</td>
+                <td class="@Class(r.MtvVade)">@Date(r.MtvVade)</td>
                 <td>
                     @if (r.MtvVade is null) { <span class="muted">—</span> }
                     else
@@ -78,8 +78,8 @@
                     }
                 </td>
                 @* Z-izni: BAYRAK "var mı", TARİH "ne zamana kadar" — ikisi farklı soru, ikisi de gösteriliyor. *@
-                <td class="@Sinif(r.ZIzniBitis)">@(r.ZIzni ? "Var " : "")@Tarih(r.ZIzniBitis)</td>
-                <td class="@Sinif(r.SeyrusiferBitis)">@Tarih(r.SeyrusiferBitis)</td>
+                <td class="@Class(r.ZIzniBitis)">@(r.ZIzni ? "Var " : "")@Date(r.ZIzniBitis)</td>
+                <td class="@Class(r.SeyrusiferBitis)">@Date(r.SeyrusiferBitis)</td>
             </tr>
         }
     </tbody>
@@ -93,19 +93,19 @@
     [SupplyParameterFromQuery(Name = "plaka")] public string? Plaka { get; set; }
 
     private IReadOnlyList<SigortaMuayeneRow> _rows = [];
-    private string[] _sahipOpts = [];
+    private string[] _ownerOpts = [];
 
     private bool FiltreVar => (!string.IsNullOrWhiteSpace(Tur) && Tur != nameof(InsuranceInspectionType.Hepsi))
         || !string.IsNullOrWhiteSpace(EnGec) || !string.IsNullOrWhiteSpace(Sahip) || !string.IsNullOrWhiteSpace(Plaka);
 
-    private static string Tarih(DateTimeOffset? d) => d?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—";
+    private static string Date(DateTimeOffset? d) => d?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—";
 
     /// <summary>Geçmiş vade kırmızı, 30 günden yakın sarı. Boş belge nötr — "yok" bir vade değildir.</summary>
-    private static string? Sinif(DateTimeOffset? d)
+    private static string? Class(DateTimeOffset? d)
     {
         if (d is not { } t) return "muted";
-        var kalan = (t.UtcDateTime.Date - DateTimeOffset.UtcNow.UtcDateTime.Date).Days;
-        return kalan < 0 ? "neg" : kalan <= 30 ? "warn" : null;
+        var remaining = (t.UtcDateTime.Date - DateTimeOffset.UtcNow.UtcDateTime.Date).Days;
+        return remaining < 0 ? "neg" : remaining <= 30 ? "warn" : null;
     }
 
     protected override async Task OnInitializedAsync()
@@ -121,7 +121,7 @@
 
         // Sahip seçenekleri FİLTRESİZ listeden; filtrelenmişten türetilseydi bir seçim sonrası
         // diğer sahipler kaybolur ve filtre kendini kilitlerdi.
-        _sahipOpts = (await Reports.GetInsuranceInspectionAsync()).Select(r => r.AracSahibi)
+        _ownerOpts = (await Reports.GetInsuranceInspectionAsync()).Select(r => r.AracSahibi)
             .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
             .Distinct(StringComparer.CurrentCultureIgnoreCase)
             .OrderBy(x => x, StringComparer.CurrentCulture).ToArray();

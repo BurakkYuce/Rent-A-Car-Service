@@ -33,45 +33,45 @@
         <div class="kpi k-purple">
             <div class="k-top"><span class="k-label">Kiradaki Araçlar</span><span class="k-ic"></span></div>
             <div class="k-num">@_fleet.Kirada</div>
-            <div class="k-bar"><span style="width:@Yuzde(_fleet.Kirada)%"></span></div>
-            <div class="k-foot">Toplamdan %@Yuzde(_fleet.Kirada)</div>
+            <div class="k-bar"><span style="width:@Percent(_fleet.Kirada)%"></span></div>
+            <div class="k-foot">Toplamdan %@Percent(_fleet.Kirada)</div>
         </div>
-        <VadeTier Label="Trafik Sigortaları" Tier="_trafik" Href="/vade" />
+        <VadeTier Label="Trafik Sigortaları" Tier="_trafficInsurance" Href="/vade" />
     </div>
     <div class="kpi-cell">
         <div class="kpi k-green">
             <div class="k-top"><span class="k-label">Boştaki Araçlar</span><span class="k-ic"></span></div>
             <div class="k-num">@_fleet.Musait</div>
-            <div class="k-bar"><span style="width:@Yuzde(_fleet.Musait)%"></span></div>
-            <div class="k-foot">Toplamdan %@Yuzde(_fleet.Musait)</div>
+            <div class="k-bar"><span style="width:@Percent(_fleet.Musait)%"></span></div>
+            <div class="k-foot">Toplamdan %@Percent(_fleet.Musait)</div>
         </div>
-        <VadeTier Label="Kaskolar" Tier="_kasko" Href="/vade" />
+        <VadeTier Label="Kaskolar" Tier="_casco" Href="/vade" />
     </div>
     <div class="kpi-cell">
         <div class="kpi k-red">
             <div class="k-top"><span class="k-label">Servisteki Araçlar</span><span class="k-ic"></span></div>
             <div class="k-num">@_fleet.Serviste</div>
-            <div class="k-bar"><span style="width:@Yuzde(_fleet.Serviste)%"></span></div>
-            <div class="k-foot">Toplamdan %@Yuzde(_fleet.Serviste)</div>
+            <div class="k-bar"><span style="width:@Percent(_fleet.Serviste)%"></span></div>
+            <div class="k-foot">Toplamdan %@Percent(_fleet.Serviste)</div>
         </div>
-        <VadeTier Label="Muayeneler" Tier="_muayene" Href="/vade" />
+        <VadeTier Label="Muayeneler" Tier="_inspection" Href="/vade" />
     </div>
     <div class="kpi-cell">
         <div class="kpi k-orange">
             <div class="k-top"><span class="k-label">Açık Rezervasyonlar</span><span class="k-ic"></span></div>
-            <div class="k-num">@_acikRezSayi</div>
-            <div class="k-bar"><span style="width:@Yuzde(_acikRezSayi)%"></span></div>
+            <div class="k-num">@_openReservationCount</div>
+            <div class="k-bar"><span style="width:@Percent(_openReservationCount)%"></span></div>
             <div class="k-foot">Bekleyen rezervasyon</div>
         </div>
         <div class="vade-tier">
             <div class="vt-boxes">
-                <a class="vt-box @(_kmGecenBakim > 0 ? "danger" : "")" href="/raporlar/periyodik-servis">
-                    <span class="vt-n">@_kmGecenBakim</span>KM Geçen Bakım</a>
-                <a class="vt-box @(_gorulmeyenRez > 0 ? "warn" : "")" href="/rezervasyonlar">
-                    <span class="vt-n">@_gorulmeyenRez</span>Görülmeyen Rez.</a>
+                <a class="vt-box @(_kmOverdueMaintenance > 0 ? "danger" : "")" href="/raporlar/periyodik-servis">
+                    <span class="vt-n">@_kmOverdueMaintenance</span>KM Geçen Bakım</a>
+                <a class="vt-box @(_unseenReservations > 0 ? "warn" : "")" href="/rezervasyonlar">
+                    <span class="vt-n">@_unseenReservations</span>Görülmeyen Rez.</a>
                 @* PR-17: siteden gelen cevaplanmamış talep — en eskisinin bekleme süresi başlıkta.
                    Yalnız "Web Sitesi" modülü açıkken gösterilir (kapalıysa hep 0 olurdu). *@
-                @if (_siteTalep is { } st)
+                @if (_siteRequest is { } st)
                 {
                     <a class="vt-box @(st.Yeni > 0 ? (st.EnEskiGun >= 3 ? "danger" : "warn") : "")"
                        href="/gelen-talepler?durum=0"
@@ -97,14 +97,14 @@
                    (YALNIZ Dönüşler; Çıkışlar'ın varsayılanı daima Bugün — PanelSekme.CikisEtkin).
                    Linkler DİĞER kartın ham seçimini taşır (etkinini değil) — o kart seçimsizse seçimsiz
                    kalsın, varsayılan kural her yüklemede (120 sn tazeleme dahil) yeniden işlesin. *@
-                <a class="@PanelSekme.CipSinifi(PanelSekme.Gecikmis, DfEtkin, _donusGec.Count)" href="/?df=gec&cf=@CfSecilen">Gecikmiş <b>@_donusGec.Count</b></a>
-                <a class="@PanelSekme.CipSinifi(PanelSekme.Bugun, DfEtkin, _donusGec.Count)" href="/?df=bugun&cf=@CfSecilen">Bugün <b>@_donusBugun.Count</b></a>
-                <a class="@PanelSekme.CipSinifi(PanelSekme.Yarin, DfEtkin, _donusGec.Count)" href="/?df=yarin&cf=@CfSecilen">Yarın <b>@_donusYarin.Count</b></a>
+                <a class="@PanelTab.ChipClass(PanelTab.Overdue, DfEtkin, _returnOverdue.Count)" href="/?df=gec&cf=@CfSecilen">Gecikmiş <b>@_returnOverdue.Count</b></a>
+                <a class="@PanelTab.ChipClass(PanelTab.Today, DfEtkin, _returnOverdue.Count)" href="/?df=bugun&cf=@CfSecilen">Bugün <b>@_returnToday.Count</b></a>
+                <a class="@PanelTab.ChipClass(PanelTab.Tomorrow, DfEtkin, _returnOverdue.Count)" href="/?df=yarin&cf=@CfSecilen">Yarın <b>@_returnTomorrow.Count</b></a>
             </span>
         </div>
-        @if (_finansYetkili)
+        @if (_financeAuthorized)
         {
-            <DcTable Rows="DonusList" Empty="Kayıt yok." RowStyle="@DonusStil">
+            <DcTable Rows="DonusList" Empty="Kayıt yok." RowStyle="@ReturnStyle">
                 <Islem>
                     @if (context is { RentalId: not null, CariId: not null, Bakiye: > 0m })
                     {
@@ -117,7 +117,7 @@
                             <input type="hidden" name="cariId" value="@context.CariId" />
                             <input type="hidden" name="rentalId" value="@context.RentalId" />
                             <input type="hidden" name="doviz" value="@RentACar.Application.Kur.ExchangeRateService.NormalizeCode(context.Doviz)" />
-                            <input type="hidden" name="islemAnahtari" value="@RentACar.Web.Finance.TahsilatAnahtar.Uret(context.RentalId.Value, context.Bakiye, context.IslemSayisi)" />
+                            <input type="hidden" name="islemAnahtari" value="@RentACar.Web.Finance.CollectionKey.Generate(context.RentalId.Value, context.Bakiye, context.IslemSayisi)" />
                             @* HAM seçim (etkin değil): varsayılanla "gec"te açılmış pano seçimsiz kalır ve
                                aynı kuralla yine "gec"te açılır (tahsilat kira durumunu değiştirmez). Etkin
                                "gec" yazılsaydı açık seçime dönüşür, gecikmişler kapanınca 120 sn tazeleme
@@ -138,29 +138,29 @@
         }
         else
         {
-            <DcTable Rows="DonusList" Empty="Kayıt yok." RowStyle="@DonusStil" />
+            <DcTable Rows="DonusList" Empty="Kayıt yok." RowStyle="@ReturnStyle" />
         }
     </div>
     <div class="dc-panel">
         <div class="dc-head">
             <span class="dc-title">Çıkışlar</span>
             <span class="dc-tabs">
-                <a class="@PanelSekme.CipSinifi(PanelSekme.Gecikmis, CfEtkin, _cikisGec.Count)" href="/?cf=gec&df=@DfSecilen">Gecikmiş <b>@_cikisGec.Count</b></a>
-                <a class="@PanelSekme.CipSinifi(PanelSekme.Bugun, CfEtkin, _cikisGec.Count)" href="/?cf=bugun&df=@DfSecilen">Bugün <b>@_cikisBugun.Count</b></a>
-                <a class="@PanelSekme.CipSinifi(PanelSekme.Yarin, CfEtkin, _cikisGec.Count)" href="/?cf=yarin&df=@DfSecilen">Yarın <b>@_cikisYarin.Count</b></a>
+                <a class="@PanelTab.ChipClass(PanelTab.Overdue, CfEtkin, _pickupOverdue.Count)" href="/?cf=gec&df=@DfSecilen">Gecikmiş <b>@_pickupOverdue.Count</b></a>
+                <a class="@PanelTab.ChipClass(PanelTab.Today, CfEtkin, _pickupOverdue.Count)" href="/?cf=bugun&df=@DfSecilen">Bugün <b>@_pickupToday.Count</b></a>
+                <a class="@PanelTab.ChipClass(PanelTab.Tomorrow, CfEtkin, _pickupOverdue.Count)" href="/?cf=yarin&df=@DfSecilen">Yarın <b>@_pickupTomorrow.Count</b></a>
             </span>
         </div>
-        <DcTable Rows="CikisList" Empty="Kayıt yok." RowStyle="@CikisStil" />
+        <DcTable Rows="CikisList" Empty="Kayıt yok." RowStyle="@PickupStyle" />
     </div>
 </div>
 
-@if (_gecmis + _yakin > 0)
+@if (_history + _yakin > 0)
 {
     <div class="vade-alert">
         <strong>Vade uyarısı:</strong>
-        @if (_gecmis > 0) { <span class="badge danger">@_gecmis geçmiş</span> }
+        @if (_history > 0) { <span class="badge danger">@_history geçmiş</span> }
         @if (_yakin > 0) { <span class="badge warn">@_yakin yaklaşan (≤30 gün)</span> }
-        @if (_acikSikayet > 0) { <span class="badge warn">@_acikSikayet açık şikayet</span> }
+        @if (_openComplaints > 0) { <span class="badge warn">@_openComplaints açık şikayet</span> }
         <a href="/vade">Vade panosu →</a>
     </div>
 }
@@ -179,9 +179,9 @@
        ömür-boyu semantik) + son 6 ay gelir mini-trendi (ay-pencereli defter geliri, iade netli). *@
     <h2 class="dash-h2">Filo KPI (ömür-boyu) <a class="muted small" href="/raporlar/filo-analiz">filo analiz →</a></h2>
     <div class="stat-row">
-        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@(_havuz?.DolulukYuzde is { } d ? $"%{d:N1}" : "—")</div><div class="s-label">Filo Doluluk</div></div></div>
-        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@(_havuz?.RevPacd is { } rp ? rp.ToString("N0") : "—")</div><div class="s-label">RevPACD (gelir/sahiplik-gün)</div></div></div>
-        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@(_havuz?.Adr is { } adr ? adr.ToString("N0") : "—")</div><div class="s-label">ADR (gelir/kiralanan gün)</div></div></div>
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@(_pool?.DolulukYuzde is { } d ? $"%{d:N1}" : "—")</div><div class="s-label">Filo Doluluk</div></div></div>
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@(_pool?.RevPacd is { } rp ? rp.ToString("N0") : "—")</div><div class="s-label">RevPACD (gelir/sahiplik-gün)</div></div></div>
+        <div class="stat"><span class="s-ic"></span><div><div class="s-num">@(_pool?.Adr is { } adr ? adr.ToString("N0") : "—")</div><div class="s-label">ADR (gelir/kiralanan gün)</div></div></div>
     </div>
     @if (_trend.Count > 0)
     {
@@ -202,40 +202,40 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; } // hızlı tahsilat hata mesajı
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
-    private RentACar.Application.Reporting.FiloHavuzKpiDto? _havuz;
+    private RentACar.Application.Reporting.FiloHavuzKpiDto? _pool;
     private IReadOnlyList<RentACar.Application.Reporting.AylikGelirNokta> _trend = [];
 
     private RentACar.Application.Reporting.FleetUtilizationDto _fleet = new(0, 0, 0, 0, 0, 0, 0);
-    private (int Yedi, int Otuz, int Gec) _trafik, _kasko, _muayene;
-    private int _acikRezSayi, _kmGecenBakim, _gorulmeyenRez, _gecmis, _yakin, _acikSikayet;
+    private (int Yedi, int Otuz, int Gec) _trafficInsurance, _casco, _inspection;
+    private int _openReservationCount, _kmOverdueMaintenance, _unseenReservations, _history, _yakin, _openComplaints;
 
     // FAZ-81: renk MainLayout'un bastığı CSS değişkeninden gelir — burada AYRI bir ayar okuması
     // YAPILMAZ (iki okuma iki farklı değer riski taşırdı). Tenant renk seçmediyse değişken tanımsız
     // kalır ve fallback "transparent" olur → vurgu görünmez, eski görünüm korunur.
-    private const string DonusStil = "border-left:3px solid var(--tr-renk-bugun-donecekler, transparent)";
-    private const string CikisStil = "border-left:3px solid var(--tr-renk-bugun-cikacaklar, transparent)";
+    private const string ReturnStyle = "border-left:3px solid var(--tr-renk-bugun-donecekler, transparent)";
+    private const string PickupStyle = "border-left:3px solid var(--tr-renk-bugun-cikacaklar, transparent)";
     /// <summary>PR-17: siteden gelen cevaplanmamış talep özeti. Modül kapalıysa null → kutu basılmaz.</summary>
-    private RentACar.Application.PublicSite.TalepOzet? _siteTalep;
+    private RentACar.Application.PublicSite.TalepOzet? _siteRequest;
     private DashboardDto _dash = new(0, 0, 0, 0, 0, 0, 0, 0m, 0m, 0m, 0m);
 
-    private List<DcRow> _donusGec = [], _donusBugun = [], _donusYarin = [];
-    private List<DcRow> _cikisGec = [], _cikisBugun = [], _cikisYarin = [];
-    private bool _finansYetkili; // Dönüşler satırında hızlı-tahsilat formu görünürlüğü (FinanceWrite rolleri)
+    private List<DcRow> _returnOverdue = [], _returnToday = [], _returnTomorrow = [];
+    private List<DcRow> _pickupOverdue = [], _pickupToday = [], _pickupTomorrow = [];
+    private bool _financeAuthorized; // Dönüşler satırında hızlı-tahsilat formu görünürlüğü (FinanceWrite rolleri)
 
     // Ham df/cf DOĞRUDAN kullanılmaz: çip vurgusu, liste ve Tahsil Et dönüş adresi aynı ETKİN değeri
     // okur. Eskiden null üçünde ayrı yorumlanıyor ve 9 gecikmiş dönüş varken pano "Bugün 0 — Kayıt
     // yok." ile açılıyordu (canlı kanıt). Gecikmiş sayıları OnInitializedAsync'te dolar; bu özellikler
     // render sırasında okunduğu için daima dolu listeye göre karar verir.
-    private string DfEtkin => PanelSekme.Etkin(Df, _donusGec.Count);
+    private string DfEtkin => PanelTab.Active(Df, _returnOverdue.Count);
     // Çıkışlar varsayılanı gecikmişe BAKMAZ: gecikmiş çıkış = kapanmayan bayat no-show (bkz. CikisEtkin).
-    private string CfEtkin => PanelSekme.CikisEtkin(Cf);
-    private string? DfSecilen => PanelSekme.Secilen(Df);
-    private string? CfSecilen => PanelSekme.Secilen(Cf);
+    private string CfEtkin => PanelTab.IsPickupActive(Cf);
+    private string? DfSecilen => PanelTab.Selected(Df);
+    private string? CfSecilen => PanelTab.Selected(Cf);
 
-    private List<DcRow> DonusList => DfEtkin switch { PanelSekme.Gecikmis => _donusGec, PanelSekme.Yarin => _donusYarin, _ => _donusBugun };
-    private List<DcRow> CikisList => CfEtkin switch { PanelSekme.Gecikmis => _cikisGec, PanelSekme.Yarin => _cikisYarin, _ => _cikisBugun };
+    private List<DcRow> DonusList => DfEtkin switch { PanelTab.Overdue => _returnOverdue, PanelTab.Tomorrow => _returnTomorrow, _ => _returnToday };
+    private List<DcRow> CikisList => CfEtkin switch { PanelTab.Overdue => _pickupOverdue, PanelTab.Tomorrow => _pickupTomorrow, _ => _pickupToday };
 
-    private int Yuzde(int n) => _fleet.Toplam == 0 ? 0 : (int)Math.Round(100.0 * n / _fleet.Toplam);
+    private int Percent(int n) => _fleet.Toplam == 0 ? 0 : (int)Math.Round(100.0 * n / _fleet.Toplam);
 
     protected override async Task OnInitializedAsync()
     {
@@ -245,79 +245,79 @@
         var customers = await Customers.ListAsync();
         var vehicles = await Vehicles.ListAsync();
         var rentals = await Rentals.ListAsync();
-        var rezervler = await Reservations.ListAsync();
-        var ad = customers.ToDictionary(c => c.Id, c => c.DisplayName ?? "");
-        var plaka = vehicles.ToDictionary(v => v.Id, v => v.Plaka);
-        string Ad(Guid id) => ad.GetValueOrDefault(id, "—");
-        string Plaka(Guid id) => plaka.GetValueOrDefault(id, "—");
+        var reserved = await Reservations.ListAsync();
+        var name = customers.ToDictionary(c => c.Id, c => c.DisplayName ?? "");
+        var plate = vehicles.ToDictionary(v => v.Id, v => v.Plaka);
+        string Name(Guid id) => name.GetValueOrDefault(id, "—");
+        string Plate(Guid id) => plate.GetValueOrDefault(id, "—");
 
-        var bugun = DateTimeOffset.Now.Date;
+        var today = DateTimeOffset.Now.Date;
 
         // Dönüşler: aktif kiralar (dönmemiş), planlanan dönüş tarihine göre. Satırlar kira formuna
         // (#sekme=donus — rc-kira-tabs.js hash'ten açar) linklenir; finans-yetkili rollere hızlı
         // tahsilat formu için kimlik/bakiye/döviz + işlem SAYISI (deterministik anahtar bileşeni,
         // TahsilatAnahtar açıklaması) taşınır.
-        var acikKira = rentals.Where(r => r.Durum == RentalStatus.Kirada && r.GercekDonusTar is null).ToList();
-        var islemSayilari = await Cash.GetRentalTransactionCountsAsync(acikKira.Select(r => r.Id).ToList());
-        List<DcRow> DonusRows(Func<DateTime, bool> pred) => acikKira
+        var openRental = rentals.Where(r => r.Durum == RentalStatus.Kirada && r.GercekDonusTar is null).ToList();
+        var transactionCounts = await Cash.GetRentalTransactionCountsAsync(openRental.Select(r => r.Id).ToList());
+        List<DcRow> ReturnRows(Func<DateTime, bool> pred) => openRental
             .Where(r => pred(r.BitTar.LocalDateTime.Date))
             .OrderBy(r => r.BitTar)
-            .Select(r => new DcRow(r.BitTar, Ad(r.MusteriId), Plaka(r.VehicleId), r.DonusOfisi ?? "",
+            .Select(r => new DcRow(r.BitTar, Name(r.MusteriId), Plate(r.VehicleId), r.DonusOfisi ?? "",
                 Href: $"/kiralar/{r.Id}#sekme=donus", RentalId: r.Id, CariId: r.MusteriId,
                 Bakiye: r.Bakiye, Doviz: r.Doviz,
-                IslemSayisi: islemSayilari.TryGetValue(r.Id, out var s) ? s : 0)) // kayıtsız kira dict'te yok → 0
+                IslemSayisi: transactionCounts.TryGetValue(r.Id, out var s) ? s : 0)) // kayıtsız kira dict'te yok → 0
             .ToList();
-        _donusGec = DonusRows(d => d < bugun);
-        _donusBugun = DonusRows(d => d == bugun);
-        _donusYarin = DonusRows(d => d == bugun.AddDays(1));
+        _returnOverdue = ReturnRows(d => d < today);
+        _returnToday = ReturnRows(d => d == today);
+        _returnTomorrow = ReturnRows(d => d == today.AddDays(1));
 
         // Çıkışlar: açık rezervasyonlar (Rezerv/Onayli), planlanan başlangıç (çıkış) tarihine göre.
-        var acikRez = rezervler.Where(r => r.Durum is ReservationStatus.Rezerv or ReservationStatus.Onayli).ToList();
-        _acikRezSayi = acikRez.Count;
-        List<DcRow> CikisRows(Func<DateTime, bool> pred) => acikRez
+        var openReservation = reserved.Where(r => r.Durum is ReservationStatus.Rezerv or ReservationStatus.Onayli).ToList();
+        _openReservationCount = openReservation.Count;
+        List<DcRow> PickupRows(Func<DateTime, bool> pred) => openReservation
             .Where(r => pred(r.BasTar.LocalDateTime.Date))
             .OrderBy(r => r.BasTar)
-            .Select(r => new DcRow(r.BasTar, Ad(r.MusteriId), Plaka(r.VehicleId), r.CikisOfisi ?? ""))
+            .Select(r => new DcRow(r.BasTar, Name(r.MusteriId), Plate(r.VehicleId), r.CikisOfisi ?? ""))
             .ToList();
-        _cikisGec = CikisRows(d => d < bugun);
-        _cikisBugun = CikisRows(d => d == bugun);
-        _cikisYarin = CikisRows(d => d == bugun.AddDays(1));
-        _gorulmeyenRez = _cikisGec.Count; // çıkışı gecikmiş açık rezervasyon = görülmeyen
+        _pickupOverdue = PickupRows(d => d < today);
+        _pickupToday = PickupRows(d => d == today);
+        _pickupTomorrow = PickupRows(d => d == today.AddDays(1));
+        _unseenReservations = _pickupOverdue.Count; // çıkışı gecikmiş açık rezervasyon = görülmeyen
 
         // PR-17: site talebi kutusu — YALNIZ modül açıkken (kapalıysa sayı hep 0 olur, kutu gürültü).
         // Yetkisiz rol guard'a takılırsa pano DÜŞMEMELİ (menüdeki sayaçla aynı savunma).
         try
         {
             if (TenantCtx.TenantId is { } tid && await TenantDurum.WebsiteModuleAsync(tid))
-                _siteTalep = await SiteTalepleri.SummaryAsync();
+                _siteRequest = await SiteTalepleri.SummaryAsync();
         }
-        catch { _siteTalep = null; }
+        catch { _siteRequest = null; }
 
         // Vade kademeleri (tür × bucket).
-        var vade = await Vade.GetAllAsync();
-        (int, int, int) Tier(string tur) => (
-            vade.Count(v => v.Tur == tur && v.Bucket == DueBucket.YediGun),
-            vade.Count(v => v.Tur == tur && v.Bucket == DueBucket.OtuzGun),
-            vade.Count(v => v.Tur == tur && v.Bucket == DueBucket.Gecmis));
-        _trafik = Tier("Trafik");
-        _kasko = Tier("Kasko");
-        _muayene = Tier("Muayene");
+        var due = await Vade.GetAllAsync();
+        (int, int, int) Tier(string type) => (
+            due.Count(v => v.Tur == type && v.Bucket == DueBucket.YediGun),
+            due.Count(v => v.Tur == type && v.Bucket == DueBucket.OtuzGun),
+            due.Count(v => v.Tur == type && v.Bucket == DueBucket.Gecmis));
+        _trafficInsurance = Tier("Trafik");
+        _casco = Tier("Kasko");
+        _inspection = Tier("Muayene");
 
-        var servis = await Reports.GetPeriodicServiceAsync();
-        _kmGecenBakim = servis.Count(s => s.KalanKm < 0);
+        var service = await Reports.GetPeriodicServiceAsync();
+        _kmOverdueMaintenance = service.Count(s => s.KalanKm < 0);
 
         var warnings = await Vade.GetWarningsAsync();
-        _gecmis = warnings.Count(w => w.Bucket == DueBucket.Gecmis);
+        _history = warnings.Count(w => w.Bucket == DueBucket.Gecmis);
         _yakin = warnings.Count(w => w.Bucket != DueBucket.Gecmis);
-        _acikSikayet = (await Sikayet.ListAsync()).Count(s => s.Durum == RentACar.Domain.Enums.ComplaintStatus.Acik);
+        _openComplaints = (await Sikayet.ListAsync()).Count(s => s.Durum == RentACar.Domain.Enums.ComplaintStatus.Acik);
 
         // FAZ 6.2 — filo KPI + gelir trendi yalnız mali yetkili rollere YÜKLENİR (görünürlük zaten
         // AuthorizeView'da; operatörde ağır filo-analiz sorgusu hiç koşmasın).
         var user = AuthState is null ? null : (await AuthState).User;
-        _finansYetkili = user is not null && (user.IsInRole("Admin") || user.IsInRole("Yonetici") || user.IsInRole("Muhasebe"));
-        if (_finansYetkili)
+        _financeAuthorized = user is not null && (user.IsInRole("Admin") || user.IsInRole("Yonetici") || user.IsInRole("Muhasebe"));
+        if (_financeAuthorized)
         {
-            _havuz = (await Reports.GetFleetAnalysisAsync()).HavuzKpi;
+            _pool = (await Reports.GetFleetAnalysisAsync()).HavuzKpi;
             _trend = await Reports.GetMonthlyRevenueTrendAsync(6);
         }
     }

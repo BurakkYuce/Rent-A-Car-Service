@@ -28,37 +28,37 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAICAIAAABPmPnhAAAAFElEQVR4nGM8YWTEgBsw4ZEb0tIAKaUBPDvSacQAAAAASUVORK5CYII=");
 
     /// <summary>Yayına hazır bir ilan kurar: araç(lar) + foto + sihirbazın üç adımı.</summary>
-    private async Task<(Guid IlanId, string Slug, List<Guid> AracIdler)> IlanKurAsync(
-        TestHost host, Guid t, int aracSayisi = 1, decimal gunluk = 1500m,
-        decimal? haftalik = null, decimal? aylik = null, bool kdvDahil = true,
-        bool foto = true, string marka = "Fiat", string tip = "Egea")
+    private async Task<(Guid IlanId, string Slug, List<Guid> AracIdler)> SetupListingAsync(
+        TestHost host, Guid t, int vehicleCount = 1, decimal daily = 1500m,
+        decimal? weekly = null, decimal? monthly = null, bool vatIncluded = true,
+        bool photo = true, string brand = "Fiat", string tip = "Egea")
     {
         using var s = host.ScopeFor(t);
-        var araclar = s.ServiceProvider.GetRequiredService<VehicleService>();
-        var fotograflar = s.ServiceProvider.GetRequiredService<VehiclePhotoService>();
-        var ilanlar = s.ServiceProvider.GetRequiredService<WebListingService>();
+        var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
+        var photos = s.ServiceProvider.GetRequiredService<VehiclePhotoService>();
+        var listings = s.ServiceProvider.GetRequiredService<WebListingService>();
 
-        var aracIdler = new List<Guid>();
-        for (var i = 0; i < aracSayisi; i++)
+        var vehicleIds = new List<Guid>();
+        for (var i = 0; i < vehicleCount; i++)
         {
-            var id = await araclar.CreateAsync(new VehicleInput
+            var id = await vehicles.CreateAsync(new VehicleInput
             {
                 Plaka = "34VI" + Guid.NewGuid().ToString("N")[..4].ToUpperInvariant(),
-                Marka = marka, Tip = tip, Vites = Transmission.Manuel, Yakit = FuelType.Dizel,
+                Marka = brand, Tip = tip, Vites = Transmission.Manuel, Yakit = FuelType.Dizel,
                 ModelYili = 2023, Durum = VehicleStatus.Musait, GrupBilincliBos = true,
             });
-            aracIdler.Add(id);
-            if (foto && i == 0) await fotograflar.AddAsync(id, TinyPng); // FOTO YALNIZ İLKİNDE
+            vehicleIds.Add(id);
+            if (photo && i == 0) await photos.AddAsync(id, TinyPng); // FOTO YALNIZ İLKİNDE
         }
 
-        var imza = (await ilanlar.PoolAsync()).Single(k => k.Araclar.Count == aracSayisi).Imza;
-        var ilanId = await ilanlar.StepOneSignatureAsync([imza]);
-        await ilanlar.StepTwoAsync(ilanId, gunluk, haftalik, aylik, kdvDahil);
-        await ilanlar.StepThreeAsync(ilanId, [new OzellikSatiri("Marka", marka), new OzellikSatiri("Gizli", "x", Gorunur: false)]);
-        return (ilanId, (await ilanlar.GetAsync(ilanId))!.Ilan.Slug, aracIdler);
+        var signature = (await listings.PoolAsync()).Single(k => k.Araclar.Count == vehicleCount).Imza;
+        var listingId = await listings.StepOneSignatureAsync([signature]);
+        await listings.StepTwoAsync(listingId, daily, weekly, monthly, vatIncluded);
+        await listings.StepThreeAsync(listingId, [new OzellikSatiri("Marka", brand), new OzellikSatiri("Gizli", "x", Gorunur: false)]);
+        return (listingId, (await listings.GetAsync(listingId))!.Ilan.Slug, vehicleIds);
     }
 
-    private static FleetShowcaseService Vitrin(TestHost host, Guid t, out IServiceScope scope)
+    private static FleetShowcaseService Showcase(TestHost host, Guid t, out IServiceScope scope)
     {
         scope = host.ScopeFor(t, role: null);
         return scope.ServiceProvider.GetRequiredService<FleetShowcaseService>();
@@ -71,16 +71,16 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (_, slug, _) = await IlanKurAsync(host, t, aracSayisi: 3);
+        var (_, slug, _) = await SetupListingAsync(host, t, vehicleCount: 3);
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
         {
-            var kart = Assert.Single(await svc.ListShowcaseGroupsAsync());
-            Assert.Equal("Fiat Egea Manuel Dizel", kart.Baslik);
-            Assert.Equal(slug, kart.Slug);
-            Assert.Equal(3, kart.Adet);
-            Assert.Equal(1500m, kart.GunlukFiyat);
-            Assert.NotNull(kart.CoverPhotoId);
+            var card = Assert.Single(await svc.ListShowcaseGroupsAsync());
+            Assert.Equal("Fiat Egea Manuel Dizel", card.Baslik);
+            Assert.Equal(slug, card.Slug);
+            Assert.Equal(3, card.Adet);
+            Assert.Equal(1500m, card.GunlukFiyat);
+            Assert.NotNull(card.CoverPhotoId);
         }
     }
 
@@ -89,9 +89,9 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        await IlanKurAsync(host, t, foto: false);
+        await SetupListingAsync(host, t, photo: false);
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
             Assert.Empty(await svc.ListShowcaseGroupsAsync());
     }
 
@@ -102,16 +102,16 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         var t = Guid.NewGuid();
         using (var s = host.ScopeFor(t))
         {
-            var araclar = s.ServiceProvider.GetRequiredService<VehicleService>();
-            var id = await araclar.CreateAsync(new VehicleInput
+            var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
+            var id = await vehicles.CreateAsync(new VehicleInput
             { Plaka = "34TSL001", Marka = "Fiat", Tip = "Egea", Durum = VehicleStatus.Musait, GrupBilincliBos = true });
             await s.ServiceProvider.GetRequiredService<VehiclePhotoService>().AddAsync(id, TinyPng);
-            var ilanlar = s.ServiceProvider.GetRequiredService<WebListingService>();
-            var ilanId = await ilanlar.StepOneSignatureAsync([(await ilanlar.PoolAsync()).Single().Imza]);
-            await ilanlar.StepTwoAsync(ilanId, 1500m, null, null, true); // adım-3 YAPILMADI → Taslak
+            var listings = s.ServiceProvider.GetRequiredService<WebListingService>();
+            var listingId = await listings.StepOneSignatureAsync([(await listings.PoolAsync()).Single().Imza]);
+            await listings.StepTwoAsync(listingId, 1500m, null, null, true); // adım-3 YAPILMADI → Taslak
         }
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
             Assert.Empty(await svc.ListShowcaseGroupsAsync());
     }
 
@@ -120,12 +120,12 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (ilanId, _, aracIdler) = await IlanKurAsync(host, t);
+        var (listingId, _, vehicleIds) = await SetupListingAsync(host, t);
 
         using (var s = host.ScopeFor(t))
-            await s.ServiceProvider.GetRequiredService<WebListingService>().SetStatusAsync(ilanId, WebIlanDurum.Pasif);
+            await s.ServiceProvider.GetRequiredService<WebListingService>().SetStatusAsync(listingId, WebIlanDurum.Pasif);
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
             Assert.Empty(await svc.ListShowcaseGroupsAsync());
     }
 
@@ -134,22 +134,22 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (_, _, aracIdler) = await IlanKurAsync(host, t, aracSayisi: 2);
+        var (_, _, vehicleIds) = await SetupListingAsync(host, t, vehicleCount: 2);
 
         // FOTOSUZ olan ikinci aracı sat (kapak aracı ilkidir) — kart kalmalı ama adet 1'e düşmeli.
         using (var s = host.ScopeFor(t))
         {
-            var araclar = s.ServiceProvider.GetRequiredService<VehicleService>();
-            var satilan = (await araclar.GetAsync(aracIdler[1]))!;
-            await araclar.UpdateAsync(satilan.Id, new VehicleInput
+            var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
+            var sold = (await vehicles.GetAsync(vehicleIds[1]))!;
+            await vehicles.UpdateAsync(sold.Id, new VehicleInput
             {
-                Plaka = satilan.Plaka, Marka = satilan.Marka, Tip = satilan.Tip,
-                Vites = satilan.Vites, Yakit = satilan.Yakit,
+                Plaka = sold.Plaka, Marka = sold.Marka, Tip = sold.Tip,
+                Vites = sold.Vites, Yakit = sold.Yakit,
                 Durum = VehicleStatus.Satildi, GrupBilincliBos = true,
             });
         }
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
             Assert.Equal(1, Assert.Single(await svc.ListShowcaseGroupsAsync()).Adet);
     }
 
@@ -164,14 +164,14 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (_, slug, _) = await IlanKurAsync(host, t);
+        var (_, slug, _) = await SetupListingAsync(host, t);
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
         {
-            var detay = await svc.GetListingDetailAsync(slug);
-            Assert.NotNull(detay);
-            Assert.Contains(detay!.Ozellikler, o => o.Etiket == "Marka");
-            Assert.DoesNotContain(detay.Ozellikler, o => o.Etiket == "Gizli"); // personel kapatmıştı
+            var detail = await svc.GetListingDetailAsync(slug);
+            Assert.NotNull(detail);
+            Assert.Contains(detail!.Ozellikler, o => o.Etiket == "Marka");
+            Assert.DoesNotContain(detail.Ozellikler, o => o.Etiket == "Gizli"); // personel kapatmıştı
         }
     }
 
@@ -191,10 +191,10 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (ilanId, slug, _) = await IlanKurAsync(host, t);
+        var (listingId, slug, _) = await SetupListingAsync(host, t);
 
         using (var s = host.ScopeFor(t))
-            await s.ServiceProvider.GetRequiredService<WebListingService>().StepThreeAsync(ilanId,
+            await s.ServiceProvider.GetRequiredService<WebListingService>().StepThreeAsync(listingId,
             [
                 new OzellikSatiri("Marka", "Fiat"),      // başlıkta VAR  → çipe girmez
                 new OzellikSatiri("Yakıt", "Dizel"),     // başlıkta VAR  → çipe girmez
@@ -202,17 +202,17 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
                 new OzellikSatiri("Bagaj", "510 litre")  // başlıkta YOK  → çipte kalır
             ]);
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
         {
-            var kart = Assert.Single(await svc.ListShowcaseGroupsAsync());
-            Assert.Equal("Fiat Egea Manuel Dizel", kart.Baslik);
-            var cipler = kart.Ozellikler.Select(o => o.Deger).ToList();
-            Assert.Equal(["BEYAZ", "510 litre"], cipler);
+            var card = Assert.Single(await svc.ListShowcaseGroupsAsync());
+            Assert.Equal("Fiat Egea Manuel Dizel", card.Baslik);
+            var chips = card.Ozellikler.Select(o => o.Deger).ToList();
+            Assert.Equal(["BEYAZ", "510 litre"], chips);
 
             // Detay TAM listeyi gösterir — ayıklama yalnız karta özel.
-            var detay = await svc.GetListingDetailAsync(slug);
-            Assert.Equal(4, detay!.Ozellikler.Count);
-            Assert.Contains(detay.Ozellikler, o => o.Deger == "Fiat");
+            var detail = await svc.GetListingDetailAsync(slug);
+            Assert.Equal(4, detail!.Ozellikler.Count);
+            Assert.Contains(detail.Ozellikler, o => o.Deger == "Fiat");
         }
     }
 
@@ -225,20 +225,20 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (ilanId, _, _) = await IlanKurAsync(host, t);
+        var (listingId, _, _) = await SetupListingAsync(host, t);
 
         using (var s = host.ScopeFor(t))
-            await s.ServiceProvider.GetRequiredService<WebListingService>().StepThreeAsync(ilanId,
+            await s.ServiceProvider.GetRequiredService<WebListingService>().StepThreeAsync(listingId,
             [
                 new OzellikSatiri("Marka", "Fiat"),
                 new OzellikSatiri("Renk", "BEYAZ")
             ]);
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
         {
-            var bas = DateTimeOffset.UtcNow.AddDays(30);
-            var sonuc = Assert.Single(await svc.SearchAvailabilityAsync(bas, bas.AddDays(3), null));
-            Assert.Equal(["BEYAZ"], sonuc.Ozellikler.Select(o => o.Deger));
+            var start = DateTimeOffset.UtcNow.AddDays(30);
+            var result = Assert.Single(await svc.SearchAvailabilityAsync(start, start.AddDays(3), null));
+            Assert.Equal(["BEYAZ"], result.Ozellikler.Select(o => o.Deger));
         }
     }
 
@@ -249,22 +249,22 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (ilanId, slug, _) = await IlanKurAsync(host, t);
+        var (listingId, slug, _) = await SetupListingAsync(host, t);
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
         {
             Assert.NotNull(await svc.GetListingDetailAsync(slug));
-            Assert.Equal(slug, await svc.SlugByIdAsync(ilanId)); // eski GUID linki 301 için çözülür
+            Assert.Equal(slug, await svc.SlugByIdAsync(listingId)); // eski GUID linki 301 için çözülür
             Assert.Null(await svc.GetListingDetailAsync("olmayan-slug"));
         }
 
         using (var s = host.ScopeFor(t))
-            await s.ServiceProvider.GetRequiredService<WebListingService>().SetStatusAsync(ilanId, WebIlanDurum.Pasif);
+            await s.ServiceProvider.GetRequiredService<WebListingService>().SetStatusAsync(listingId, WebIlanDurum.Pasif);
 
-        var svc2 = Vitrin(host, t, out var scope2); using (scope2)
+        var svc2 = Showcase(host, t, out var scope2); using (scope2)
         {
             Assert.Null(await svc2.GetListingDetailAsync(slug));   // 404 → eski link içerik AÇMAZ
-            Assert.Null(await svc2.SlugByIdAsync(ilanId));     // yönlendirme de yapılmaz → vitrine düşer
+            Assert.Null(await svc2.SlugByIdAsync(listingId));     // yönlendirme de yapılmaz → vitrine düşer
         }
     }
 
@@ -274,27 +274,27 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
         using var s = host.ScopeFor(t);
-        var araclar = s.ServiceProvider.GetRequiredService<VehicleService>();
-        var ilanlar = s.ServiceProvider.GetRequiredService<WebListingService>();
+        var vehicles = s.ServiceProvider.GetRequiredService<VehicleService>();
+        var listings = s.ServiceProvider.GetRequiredService<WebListingService>();
 
-        var idler = new List<Guid>();
+        var ids = new List<Guid>();
         for (var i = 1; i <= 3; i++)
-            idler.Add(await araclar.CreateAsync(new VehicleInput
+            ids.Add(await vehicles.CreateAsync(new VehicleInput
             {
                 Plaka = $"34SLG{i:000}", Marka = "Fiat", Tip = "Egea", Vites = Transmission.Manuel,
                 Yakit = FuelType.Dizel, Durum = VehicleStatus.Musait, GrupBilincliBos = true,
             }));
 
-        await ilanlar.StepOneAsync(idler, together: false); // "ayrı" mod: 3 ilan, AYNI başlık
+        await listings.StepOneAsync(ids, together: false); // "ayrı" mod: 3 ilan, AYNI başlık
 
         // Blog'dan farklı: çakışma hata DEĞİL, otomatik son-ek. Aksi halde "ayrı" mod hiç çalışmazdı.
-        var sluglar = new List<string>();
-        foreach (var satir in await ilanlar.ListAsync())
-            sluglar.Add((await ilanlar.GetAsync(satir.Id))!.Ilan.Slug);
+        var slugs = new List<string>();
+        foreach (var row in await listings.ListAsync())
+            slugs.Add((await listings.GetAsync(row.Id))!.Ilan.Slug);
 
-        Assert.Equal(3, sluglar.Distinct().Count());
-        Assert.Contains("fiat-egea-manuel-dizel", sluglar);
-        Assert.Contains("fiat-egea-manuel-dizel-2", sluglar);
+        Assert.Equal(3, slugs.Distinct().Count());
+        Assert.Contains("fiat-egea-manuel-dizel", slugs);
+        Assert.Contains("fiat-egea-manuel-dizel-2", slugs);
     }
 
     // ---- Fiyat: gün kademeleri (TUZAK-2) ----
@@ -303,22 +303,22 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     [InlineData(3, 1500)]     // 1–7 gün → günlük fiyat
     [InlineData(10, 1285.71)] // 8–29 gün → haftalık TOPLAM / 7  = 9000/7
     [InlineData(35, 1066.67)] // 30+ gün → aylık TOPLAM / 30      = 32000/30
-    public async Task Gun_kademesi_TOPLAM_alanlarindan_gunluge_cevrilir(int gun, decimal beklenenGunluk)
+    public async Task Gun_kademesi_TOPLAM_alanlarindan_gunluge_cevrilir(int day, decimal expectedDaily)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        await IlanKurAsync(host, t, gunluk: 1500m, haftalik: 9000m, aylik: 32000m);
+        await SetupListingAsync(host, t, daily: 1500m, weekly: 9000m, monthly: 32000m);
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
         {
-            var bas = DateTimeOffset.UtcNow.AddDays(1);
-            var r = Assert.Single(await svc.SearchAvailabilityAsync(bas, bas.AddDays(gun), null));
+            var start = DateTimeOffset.UtcNow.AddDays(1);
+            var r = Assert.Single(await svc.SearchAvailabilityAsync(start, start.AddDays(day), null));
 
             // ELLE ORACLE: alanlar TOPLAM'dır (RateMatrix.GunHaftalik gibi GÜNLÜK ücret DEĞİL) —
             // karıştırılsaydı fiyat ~7 kat yanlış çıkardı.
-            Assert.Equal(gun, r.Gun);
-            Assert.Equal(beklenenGunluk, r.GunlukFiyat);
-            Assert.Equal(Math.Round(beklenenGunluk * gun, 2), r.Toplam);
+            Assert.Equal(day, r.Gun);
+            Assert.Equal(expectedDaily, r.GunlukFiyat);
+            Assert.Equal(Math.Round(expectedDaily * day, 2), r.Toplam);
         }
     }
 
@@ -327,12 +327,12 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        await IlanKurAsync(host, t, gunluk: 1500m, haftalik: 9000m, aylik: null); // aylık YOK
+        await SetupListingAsync(host, t, daily: 1500m, weekly: 9000m, monthly: null); // aylık YOK
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
         {
-            var bas = DateTimeOffset.UtcNow.AddDays(1);
-            var r = Assert.Single(await svc.SearchAvailabilityAsync(bas, bas.AddDays(35), null));
+            var start = DateTimeOffset.UtcNow.AddDays(1);
+            var r = Assert.Single(await svc.SearchAvailabilityAsync(start, start.AddDays(35), null));
             Assert.Equal(1285.71m, r.GunlukFiyat); // 35 gün ama aylık yok → haftalıktan (9000/7)
         }
     }
@@ -342,13 +342,13 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        await IlanKurAsync(host, t, gunluk: 1234m);
+        await SetupListingAsync(host, t, daily: 1234m);
 
         // Tenant'ta HİÇ tarife matrisi yok — eski modelde arama boş dönerdi ("Tarife yok").
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
         {
-            var bas = DateTimeOffset.UtcNow.AddDays(1);
-            var r = Assert.Single(await svc.SearchAvailabilityAsync(bas, bas.AddDays(3), null));
+            var start = DateTimeOffset.UtcNow.AddDays(1);
+            var r = Assert.Single(await svc.SearchAvailabilityAsync(start, start.AddDays(3), null));
             Assert.Equal(1234m, r.GunlukFiyat);
         }
     }
@@ -358,12 +358,12 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        await IlanKurAsync(host, t, aracSayisi: 3);
+        await SetupListingAsync(host, t, vehicleCount: 3);
 
-        var svc = Vitrin(host, t, out var scope); using (scope)
+        var svc = Showcase(host, t, out var scope); using (scope)
         {
-            var bas = DateTimeOffset.UtcNow.AddDays(1);
-            var r = Assert.Single(await svc.SearchAvailabilityAsync(bas, bas.AddDays(3), null));
+            var start = DateTimeOffset.UtcNow.AddDays(1);
+            var r = Assert.Single(await svc.SearchAvailabilityAsync(start, start.AddDays(3), null));
             Assert.Equal(3, r.Adet);
         }
     }
@@ -375,24 +375,24 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (ilanId, _, aracIdler) = await IlanKurAsync(host, t, gunluk: 1500m, kdvDahil: true);
+        var (listingId, _, vehicleIds) = await SetupListingAsync(host, t, daily: 1500m, vatIncluded: true);
 
         using var s = host.ScopeFor(t, role: null);
         await s.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(
             new PublicBookingRequestInput
             {
-                AdSoyad = "Ali Veli", Telefon = "0555 000 11 22", IlanId = ilanId,
+                AdSoyad = "Ali Veli", Telefon = "0555 000 11 22", IlanId = listingId,
                 BasTar = DateTimeOffset.UtcNow.AddDays(5), BitTar = DateTimeOffset.UtcNow.AddDays(8),
             });
 
         using var staff = host.ScopeFor(t);
-        var talep = Assert.Single(await staff.ServiceProvider
+        var request = Assert.Single(await staff.ServiceProvider
             .GetRequiredService<PublicBookingRequestService>().ListAsync());
 
         // Fiyat girdide HİÇ YOK — servis ilandan çözdü. Ziyaretçi "fiyat=1" gönderemez.
-        Assert.Equal(1500m, talep.GosterilenGunlukUcretKdvDahil);
-        Assert.True(talep.GosterilenKdvDahil);
-        Assert.Equal("Fiat Egea Manuel Dizel", talep.IlanBaslik);
+        Assert.Equal(1500m, request.GosterilenGunlukUcretKdvDahil);
+        Assert.True(request.GosterilenKdvDahil);
+        Assert.Equal("Fiat Egea Manuel Dizel", request.IlanBaslik);
     }
 
     [Fact]
@@ -400,30 +400,30 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (ilanId, _, aracIdler) = await IlanKurAsync(host, t, gunluk: 1500m, kdvDahil: false); // NET fiyat
+        var (listingId, _, vehicleIds) = await SetupListingAsync(host, t, daily: 1500m, vatIncluded: false); // NET fiyat
 
-        var aracId = aracIdler[0];
+        var vehicleId = vehicleIds[0];
 
         using (var s = host.ScopeFor(t, role: null))
             await s.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(
                 new PublicBookingRequestInput
                 {
-                    AdSoyad = "Ali Veli", Telefon = "0555 000 33 44", IlanId = ilanId,
+                    AdSoyad = "Ali Veli", Telefon = "0555 000 33 44", IlanId = listingId,
                     BasTar = DateTimeOffset.UtcNow.AddDays(5), BitTar = DateTimeOffset.UtcNow.AddDays(8),
                 });
 
         using var staff = host.ScopeFor(t);
         var svc = staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
-        var talepId = (await svc.ListAsync()).Single().Id;
-        var rezId = await svc.ConvertAsync(talepId, aracId);
+        var requestId = (await svc.ListAsync()).Single().Id;
+        var resId = await svc.ConvertAsync(requestId, vehicleId);
 
         // REGRESYON KİLİDİ (TUZAK-1): bu satır olmadan PricingService tarifeden çözmeye çalışır,
         // tenant'ta tarife olmadığı için 0 kalırdı → müşteri sitede 1.500 görür, sözleşmede 0 yazardı.
         // Ayrıca FiyatTuru "Otomatik" gönderilseydi manuel fiyat ZORLA sıfırlanırdı.
         // owner rolünde BYPASSRLS YOK → rezervasyon tenant kapsamlı servisten okunur.
-        var rez = await staff.ServiceProvider
-            .GetRequiredService<RentACar.Application.Bookings.ReservationService>().GetAsync(rezId);
-        Assert.Equal(1500m, rez!.GunlukUcret);
+        var res = await staff.ServiceProvider
+            .GetRequiredService<RentACar.Application.Bookings.ReservationService>().GetAsync(resId);
+        Assert.Equal(1500m, res!.GunlukUcret);
     }
 
     [Fact]
@@ -431,27 +431,27 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var (ilanId, _, aracIdler) = await IlanKurAsync(host, t, gunluk: 1200m, kdvDahil: true);
+        var (listingId, _, vehicleIds) = await SetupListingAsync(host, t, daily: 1200m, vatIncluded: true);
 
-        var aracId = aracIdler[0];
+        var vehicleId = vehicleIds[0];
 
         using (var s = host.ScopeFor(t, role: null))
             await s.ServiceProvider.GetRequiredService<PublicBookingRequestService>().CreateAsync(
                 new PublicBookingRequestInput
                 {
-                    AdSoyad = "Ali Veli", Telefon = "0555 000 55 66", IlanId = ilanId,
+                    AdSoyad = "Ali Veli", Telefon = "0555 000 55 66", IlanId = listingId,
                     BasTar = DateTimeOffset.UtcNow.AddDays(5), BitTar = DateTimeOffset.UtcNow.AddDays(8),
                 });
 
         using var staff = host.ScopeFor(t);
         var svc = staff.ServiceProvider.GetRequiredService<PublicBookingRequestService>();
-        var rezId = await svc.ConvertAsync((await svc.ListAsync()).Single().Id, aracId);
+        var resId = await svc.ConvertAsync((await svc.ListAsync()).Single().Id, vehicleId);
 
         // ELLE ORACLE: ERP zinciri NET çalışır. 1200 brüt / 1,20 = 1000 net. Brütü olduğu gibi
         // geçirmek sözleşmeyi KDV oranı kadar ŞİŞİRİRDİ.
-        var rez = await staff.ServiceProvider
-            .GetRequiredService<RentACar.Application.Bookings.ReservationService>().GetAsync(rezId);
-        Assert.Equal(1000m, rez!.GunlukUcret);
+        var res = await staff.ServiceProvider
+            .GetRequiredService<RentACar.Application.Bookings.ReservationService>().GetAsync(resId);
+        Assert.Equal(1000m, res!.GunlukUcret);
     }
 
     // ---- İzolasyon ----
@@ -462,9 +462,9 @@ public sealed class VitrinIlanTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
-        await IlanKurAsync(host, t1);
+        await SetupListingAsync(host, t1);
 
-        var svc = Vitrin(host, t2, out var scope); using (scope)
+        var svc = Showcase(host, t2, out var scope); using (scope)
             Assert.Empty(await svc.ListShowcaseGroupsAsync());
     }
 }

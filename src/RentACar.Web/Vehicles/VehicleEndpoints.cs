@@ -23,7 +23,7 @@ public static class VehicleEndpoints
 
         group.MapPost("/create", async (VehicleService svc, HttpRequest req) =>
         {
-            try { await svc.CreateAsync(Build(req.Form)); return Sonuc.Tamam("/vehicles", "Araç kaydedildi."); }
+            try { await svc.CreateAsync(Build(req.Form)); return Result.Ok("/vehicles", "Araç kaydedildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/vehicles?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
@@ -32,7 +32,7 @@ public static class VehicleEndpoints
             try
             {
                 var ok = await svc.UpdateAsync(id, Build(req.Form));
-                return ok ? Sonuc.Tamam("/vehicles", "Araç güncellendi.") : Results.NotFound();
+                return ok ? Result.Ok("/vehicles", "Araç güncellendi.") : Results.NotFound();
             }
             catch (ValidationException ex) { return Results.Redirect($"/vehicles/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
@@ -40,7 +40,7 @@ public static class VehicleEndpoints
         group.MapPost("/delete", async (VehicleService svc, [FromForm] Guid id) =>
         {
             await svc.DeleteAsync(id);
-            return Sonuc.Tamam("/vehicles", "Araç silindi.");
+            return Result.Ok("/vehicles", "Araç silindi.");
         }).RequirePermission(Permission.OperationsDelete);
 
         // FAZ 2.5: manuel odometre girişi — km log + Vehicle.Km aynı transaction (geriye gitme reddi).
@@ -50,7 +50,7 @@ public static class VehicleEndpoints
             {
                 await svc.EnterManualKmAsync(id,
                     FormParse.Int(km) ?? throw new ValidationException("KM zorunludur."));
-                return Sonuc.Tamam($"/araclar/{id}", "Kilometre kaydedildi.");
+                return Result.Ok($"/araclar/{id}", "Kilometre kaydedildi.");
             }
             catch (ValidationException ex)
             { return Results.Redirect($"/araclar/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }

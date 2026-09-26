@@ -19,13 +19,13 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class CrmCiroFxTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
 
-    private static async Task<Guid> KiraAsync(IServiceProvider sp, Guid cari, string plaka, string? doviz)
+    private static async Task<Guid> RentalAsync(IServiceProvider sp, Guid account, string plate, string? currency)
     {
-        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         return await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m, Doviz = doviz });
+        { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m, Doviz = currency });
     }
 
     [Fact]
@@ -36,20 +36,20 @@ public sealed class CrmCiroFxTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "EUR", Kur = 40m, Aktif = true });
 
-        var cariFx = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Euro", Soyad = "Musteri" });
-        var cariTl = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Lira", Soyad = "Musteri" });
-        await KiraAsync(sp, cariFx, "34 CX 01", "EURO"); // 300 EUR @40 → 12.000 TL
-        await KiraAsync(sp, cariTl, "34 CX 02", "TL");   // 300 TL (snapshot 1 — regresyon)
+        var accountFx = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Euro", Soyad = "Musteri" });
+        var accountTry = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Lira", Soyad = "Musteri" });
+        await RentalAsync(sp, accountFx, "34 CX 01", "EURO"); // 300 EUR @40 → 12.000 TL
+        await RentalAsync(sp, accountTry, "34 CX 02", "TL");   // 300 TL (snapshot 1 — regresyon)
 
         // CRM liste cirosu TL-baz.
         var rows = await sp.GetRequiredService<CustomerService>().SearchRowsAsync(new CustomerFilter());
-        Assert.Equal(12000m, rows.Items.Single(r => r.Id == cariFx).Ciro); // 300×40 (düz 300 DEĞİL)
-        Assert.Equal(300m, rows.Items.Single(r => r.Id == cariTl).Ciro);   // TRY snapshot=1 korunur
+        Assert.Equal(12000m, rows.Items.Single(r => r.Id == accountFx).Ciro); // 300×40 (düz 300 DEĞİL)
+        Assert.Equal(300m, rows.Items.Single(r => r.Id == accountTry).Ciro);   // TRY snapshot=1 korunur
 
         // Segment: 12.000 ≥ 10.000 → VIP; 300 TL → Standart (eski bug: EUR müşteri "Standart" kalırdı).
         var seg = await sp.GetRequiredService<ReportService>().GetCustomerSegmentAsync();
-        Assert.Equal("VIP", seg.Single(s => s.CariId == cariFx).Segment);
-        Assert.Equal("Standart", seg.Single(s => s.CariId == cariTl).Segment);
+        Assert.Equal("VIP", seg.Single(s => s.CariId == accountFx).Segment);
+        Assert.Equal("Standart", seg.Single(s => s.CariId == accountTry).Segment);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class CrmCiroFxTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         // GBP için ne sabit kur ne TCMB kaydı var → FX kira erken ve temiz reddedilir.
-        var cari = await TestCari.YeniAsync(sp); // gerçek cari: red kurdan gelmeli, varlık kontrolünden değil
-        await Assert.ThrowsAsync<ValidationException>(() => KiraAsync(sp, cari, "34 CX 03", "GBP"));
+        var account = await TestCustomer.NewAsync(sp); // gerçek cari: red kurdan gelmeli, varlık kontrolünden değil
+        await Assert.ThrowsAsync<ValidationException>(() => RentalAsync(sp, account, "34 CX 03", "GBP"));
     }
 }

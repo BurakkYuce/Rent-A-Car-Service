@@ -25,11 +25,11 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid subeId;
+        Guid branchId;
         using (var seed = host.ScopeFor(tenant))
         {
             var sp = seed.ServiceProvider;
-            subeId = await sp.GetRequiredService<BranchService>()
+            branchId = await sp.GetRequiredService<BranchService>()
                 .CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
             var veh = sp.GetRequiredService<VehicleService>();
             await veh.CreateAsync(new VehicleInput { Plaka = "34 CF 01", Sube = "Merkez" }); // interceptor→FK
@@ -37,24 +37,24 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
             await veh.CreateAsync(new VehicleInput { Plaka = "06 CF 03", Sube = "Ankara" }); // kapsam dışı
             // ŞUBE YENİDEN ADLANDIRILIR — operatörün claim metni ("Merkez") artık uyuşmaz.
             await sp.GetRequiredService<BranchService>()
-                .UpdateAsync(subeId, new BranchInput { Kod = "MRK", Ad = "Merkez Ofis" });
+                .UpdateAsync(branchId, new BranchInput { Kod = "MRK", Ad = "Merkez Ofis" });
         }
 
         // Operatör eski oturum metni + FK claim'iyle: metin-only 0 verirdi; FK dalı 2 aracı verir.
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator,
-            assignedBranch: "Merkez", assignedBranchId: subeId);
+            assignedBranch: "Merkez", assignedBranchId: branchId);
         var svc = op.ServiceProvider.GetRequiredService<VehicleService>();
 
-        var liste = await svc.ListAsync();
-        Assert.Equal(2, liste.Count);                             // FK kurtardı (önce 0 olurdu)
-        Assert.All(liste, v => Assert.Equal(subeId, v.SubeId));
+        var list = await svc.ListAsync();
+        Assert.Equal(2, list.Count);                             // FK kurtardı (önce 0 olurdu)
+        Assert.All(list, v => Assert.Equal(branchId, v.SubeId));
 
-        var arama = await svc.SearchAsync(new VehicleFilter());
-        Assert.Equal(2, arama.Items.Count);                       // SQL şablonu da aynı kural
+        var search = await svc.SearchAsync(new VehicleFilter());
+        Assert.Equal(2, search.Items.Count);                       // SQL şablonu da aynı kural
 
         // Tekil guard: kapsam-içi araç FK'yla açılır; çapraz-şube araç RED.
-        var merkezArac = liste[0].Id;
-        Assert.NotNull(await svc.GetAsync(merkezArac));
+        var headOfficeVehicle = list[0].Id;
+        Assert.NotNull(await svc.GetAsync(headOfficeVehicle));
         var ankara = (await host.ScopeFor(tenant).ServiceProvider
             .GetRequiredService<VehicleService>().ListAsync()).Single(v => v.Sube == "Ankara").Id;
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.GetAsync(ankara));
@@ -74,8 +74,8 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
 
         // Claim'siz-FK operatör (eski oturum): salt-metin yolu — kilitlenme yok.
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Depo");
-        var liste = await op.ServiceProvider.GetRequiredService<VehicleService>().ListAsync();
-        var tek = Assert.Single(liste);
+        var list = await op.ServiceProvider.GetRequiredService<VehicleService>().ListAsync();
+        var tek = Assert.Single(list);
         Assert.Equal("Depo", tek.Sube);
         Assert.Null(tek.SubeId);                                   // FK çözülmemiş — metin dalı taşıdı
     }
@@ -85,11 +85,11 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid subeId;
+        Guid branchId;
         using (var seed = host.ScopeFor(tenant))
         {
             var sp = seed.ServiceProvider;
-            subeId = await sp.GetRequiredService<BranchService>()
+            branchId = await sp.GetRequiredService<BranchService>()
                 .CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
             var exp = sp.GetRequiredService<ExpenseService>();
             await exp.CreateAsync(new ExpenseInput
@@ -98,19 +98,19 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
             { Tip = ExpenseType.Genel, NetTutar = 20m, KdvOrani = 0m, Sube = "Ankara", OdemeYontemi = PaymentMethod.Nakit });
             // Şube rename → gider FK'sı (varsa) kurtarır; Expense.SubeId interceptor'la doldu.
             await sp.GetRequiredService<BranchService>()
-                .UpdateAsync(subeId, new BranchInput { Kod = "MRK", Ad = "Merkez Ofis" });
+                .UpdateAsync(branchId, new BranchInput { Kod = "MRK", Ad = "Merkez Ofis" });
         }
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator,
-            assignedBranch: "Merkez", assignedBranchId: subeId);
-        var giderler = await op.ServiceProvider.GetRequiredService<ExpenseService>().ListAsync();
-        var g = Assert.Single(giderler);                           // rename'e rağmen FK dalı buldu
+            assignedBranch: "Merkez", assignedBranchId: branchId);
+        var expenses = await op.ServiceProvider.GetRequiredService<ExpenseService>().ListAsync();
+        var g = Assert.Single(expenses);                           // rename'e rağmen FK dalı buldu
         Assert.Equal(10m, g.NetTutar);
 
         // Baf FK'sız (SubeId kolonu yok) → metin dalı: rename SONRASI metin uyuşmaz → boş (bilinen sınır,
         // C3 kapsam notu — Baf FK'lanana dek rename Baf listesini etkiler; metin-claim güncellenince düzelir).
-        var baflar = await op.ServiceProvider.GetRequiredService<BafService>().ListAsync();
-        Assert.Empty(baflar);
+        var bafs = await op.ServiceProvider.GetRequiredService<BafService>().ListAsync();
+        Assert.Empty(bafs);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
         // doluyken FK TEK BAŞINA karar verir → sızıntı biter; FK'sız kayıtta metin yolu aynen kalır.
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid b1, sizanArac;
+        Guid b1, leakingVehicle;
         using (var seed = host.ScopeFor(tenant))
         {
             var sp = seed.ServiceProvider;
@@ -133,7 +133,7 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
             // Çakışma: B1 adını bırakır, B2 devralır; ardından o adla B2'ye kayıt doğar (FK=B2, metin "Merkez").
             await branches.UpdateAsync(b1, new BranchInput { Kod = "MRK", Ad = "Eski Merkez" });
             await branches.UpdateAsync(b2, new BranchInput { Kod = "ANK", Ad = "Merkez" });
-            sizanArac = await veh.CreateAsync(new VehicleInput { Plaka = "06 RC 02", Sube = "Merkez" });
+            leakingVehicle = await veh.CreateAsync(new VehicleInput { Plaka = "06 RC 02", Sube = "Merkez" });
         }
 
         // Eski oturumlu B1 operatörü (claim metni hâlâ "Merkez", FK=B1).
@@ -141,10 +141,10 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
             assignedBranch: "Merkez", assignedBranchId: b1);
         var svc = op.ServiceProvider.GetRequiredService<VehicleService>();
 
-        var liste = await svc.ListAsync();
-        var tek = Assert.Single(liste);                            // C5 öncesi 2 dönerdi (B2 aracı sızardı)
+        var list = await svc.ListAsync();
+        var tek = Assert.Single(list);                            // C5 öncesi 2 dönerdi (B2 aracı sızardı)
         Assert.Equal("34RC01", tek.Plaka);
-        await Assert.ThrowsAsync<NoPermissionException>(() => svc.GetAsync(sizanArac)); // tekil guard da RED
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.GetAsync(leakingVehicle)); // tekil guard da RED
     }
 
     [Fact]
@@ -152,11 +152,11 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid subeId;
+        Guid branchId;
         using (var seed = host.ScopeFor(tenant))
         {
             var sp = seed.ServiceProvider;
-            subeId = await sp.GetRequiredService<BranchService>()
+            branchId = await sp.GetRequiredService<BranchService>()
                 .CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
             var veh = sp.GetRequiredService<VehicleService>();
             await veh.CreateAsync(new VehicleInput { Plaka = "34 MS 01", Sube = "Merkez" });
@@ -166,17 +166,17 @@ public sealed class BranchScopeFkListTests(PostgresFixture fx)
 
         // Operatör: kapsam FK'lı → yalnız Merkez; UI sube parametresi verilmese bile.
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator,
-            assignedBranch: "Merkez", assignedBranchId: subeId);
-        var musait = await op.ServiceProvider.GetRequiredService<AvailabilityService>()
+            assignedBranch: "Merkez", assignedBranchId: branchId);
+        var available = await op.ServiceProvider.GetRequiredService<AvailabilityService>()
             .FindAvailableAsync(from, from.AddDays(2), group: null, branch: null);
-        Assert.Single(musait);
-        Assert.Equal("34MS01", musait[0].Plaka);
+        Assert.Single(available);
+        Assert.Equal("34MS01", available[0].Plaka);
 
         // Admin: kapsam yok; UI sube filtresi ek daraltma olarak çalışır.
         using var admin = host.ScopeFor(tenant);
-        var adminHepsi = await admin.ServiceProvider.GetRequiredService<AvailabilityService>()
+        var adminAll = await admin.ServiceProvider.GetRequiredService<AvailabilityService>()
             .FindAvailableAsync(from, from.AddDays(2), group: null, branch: null);
-        Assert.Equal(2, adminHepsi.Count);
+        Assert.Equal(2, adminAll.Count);
         var adminAnkara = await admin.ServiceProvider.GetRequiredService<AvailabilityService>()
             .FindAvailableAsync(from, from.AddDays(2), group: null, branch: "Ankara");
         Assert.Single(adminAnkara);

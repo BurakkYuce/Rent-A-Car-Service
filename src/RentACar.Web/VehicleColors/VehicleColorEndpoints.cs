@@ -27,9 +27,9 @@ public static class VehicleColorEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/renkler", mesaj); }
+        try { await action(); return Result.Ok("/renkler", message); }
         catch (ValidationException ex) { return Results.Redirect($"/renkler?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

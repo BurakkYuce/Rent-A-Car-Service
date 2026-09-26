@@ -49,7 +49,7 @@ public sealed partial class UiFinanceHubApiTests(WebFixture fx)
     {
         var tenantId = Guid.NewGuid();
         var code = RandomName("f81");
-        var password = WebFixture.RastgeleParola();
+        var password = WebFixture.RandomPassword();
         var users = Enum.GetValues<Who>().ToDictionary(k => k, _ => RandomName("u"));
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
         await using (var db = new AppDbContext(opts, NullTenantContext.Instance, NullCurrentUser.Instance))
@@ -77,7 +77,7 @@ public sealed partial class UiFinanceHubApiTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(tenantId, true);
+        await fx.MakePilotAsync(tenantId, true);
 
         using var host = new TestHost(fx.Pg.AppConnectionString);
         using var s = host.ScopeFor(tenantId, role: UserRole.Admin);
@@ -86,7 +86,7 @@ public sealed partial class UiFinanceHubApiTests(WebFixture fx)
         var a = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Hub", Soyad = "Alfa" });
         var b = await customers.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Hub", Soyad = "Beta" });
         var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 FH " + Random.Shared.Next(1000, 9999) });
-        var start = TestZaman.GunSonra(1);
+        var start = TestZaman.DaysLater(1);
         var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
             MusteriId = a, VehicleId = vehicle, BasTar = start, BitTar = start.AddDays(3), GunlukUcret = 100m, CikisOfisi = "SubeA",

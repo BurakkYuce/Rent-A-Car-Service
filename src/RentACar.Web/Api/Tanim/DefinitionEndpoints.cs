@@ -56,7 +56,7 @@ public sealed class DefinitionRoute<TEntity, TDto, TRequest>
 
     /// <summary>Column limits (varchar / numeric) checked at the edge → 400 <c>errors[alan]</c>, never a 500.</summary>
     public Action<TRequest>? ValidateLimits { get; init; }
-    /// <summary>Service message prefix → JSON field (<see cref="AlanEsleme"/>).</summary>
+    /// <summary>Service message prefix → JSON field (<see cref="FieldMapping"/>).</summary>
     public IReadOnlyList<(string Onek, string Alan)> FieldRules { get; init; } = [];
     /// <summary>
     /// Non-null message = the row is referenced and must not be deleted (400 <c>dogrulama</c>; the SPA shows the
@@ -94,12 +94,12 @@ public static class DefinitionEndpoints
 
         g.MapGet("", async Task<Ok<IReadOnlyList<TDto>>> (bool? aktif, string? q, string? sirala, HttpContext http, CancellationToken ct)
             => TypedResults.Ok(Sort(d, await RowsAsync(d, http.RequestServices, aktif, q, ct), sirala)))
-            .AlanlariEsle(F5Ortak.SiralamaKurallari);
+            .MapFields(F5Shared.SortRules);
 
         g.MapGet("/sayfa", async Task<Ok<Sayfa<TDto>>> (int? sayfa, int? boyut, bool? aktif, string? q, string? sirala,
                 HttpContext http, CancellationToken ct)
-            => TypedResults.Ok(F5Ortak.Sayfala(await RowsAsync(d, http.RequestServices, aktif, q, ct), d.Sort, sayfa, boyut, sirala)))
-            .AlanlariEsle(F5Ortak.SiralamaKurallari);
+            => TypedResults.Ok(F5Shared.Paginate(await RowsAsync(d, http.RequestServices, aktif, q, ct), d.Sort, sayfa, boyut, sirala)))
+            .MapFields(F5Shared.SortRules);
 
         g.MapGet("/{id:guid}", async Task<Results<Ok<TDto>, ProblemHttpResult>> (Guid id, HttpContext http, CancellationToken ct)
             => await OneAsync(d, http.RequestServices, id, ct) is { } dto ? TypedResults.Ok(dto) : NotFound(d));
@@ -112,7 +112,7 @@ public static class DefinitionEndpoints
             return await OneAsync(d, sp, id, ct) is { } dto
                 ? TypedResults.Created($"{UiApiExtensions.V1}{d.Path}/{id}", dto)
                 : NotFound(d);
-        }).AlanlariEsle(d.FieldRules);
+        }).MapFields(d.FieldRules);
 
         g.MapPut("/{id:guid}", async Task<Results<Ok<TDto>, ProblemHttpResult>> (Guid id, TRequest body, HttpContext http, CancellationToken ct) =>
         {
@@ -123,7 +123,7 @@ public static class DefinitionEndpoints
             d.ValidateLimits?.Invoke(body);
             if (!await d.Update(sp, id, body, body.Surum, ct)) return NotFound(d);
             return await OneAsync(d, sp, id, ct) is { } dto ? TypedResults.Ok(dto) : NotFound(d);
-        }).AlanlariEsle(d.FieldRules);
+        }).MapFields(d.FieldRules);
 
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, HttpContext http, CancellationToken ct) =>
         {
@@ -139,7 +139,7 @@ public static class DefinitionEndpoints
 
     private static ProblemHttpResult NotFound<TEntity, TDto, TRequest>(DefinitionRoute<TEntity, TDto, TRequest> d)
         where TEntity : class where TDto : IDefinitionRow where TRequest : IDefinitionRequest
-        => F5Ortak.Bulunamadi(d.NotFoundMessage);
+        => F5Shared.NotFound(d.NotFoundMessage);
 
     /// <summary>The version is read BEFORE the fields: a concurrent write then yields a stale version (409 later),
     /// never fresh-looking stale fields.</summary>
@@ -158,7 +158,7 @@ public static class DefinitionEndpoints
         var versions = await d.GetVersions(sp, ct);
         var rows = (await d.List(sp, ct)).Select(e => d.ToDto(e, versions.GetValueOrDefault(d.IdOf(e))));
         if (active is { } a) rows = rows.Where(r => r.Aktif == a);
-        if (F5Ortak.Nz(q) is { } text)
+        if (F5Shared.Nz(q) is { } text)
             rows = rows.Where(r => d.SearchText(r).Any(s => s is not null && Tr.IndexOf(s, text, CompareOptions.IgnoreCase) >= 0));
         return rows.ToList();
     }

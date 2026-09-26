@@ -29,12 +29,12 @@ public static class RentalsApi
         }).RequirePermission(Permission.OperationsWrite);
 
         grp.MapPost("/{id:guid}/deliver", async (Guid id, DeliverRequest req, RentalService svc, CancellationToken ct) =>
-            await svc.DeliverAsync(id, req.CikisKm, YuzdeYakit(req.CikisYakit, "cikisYakit"), ct)
+            await svc.DeliverAsync(id, req.CikisKm, PercentFuel(req.CikisYakit, "cikisYakit"), ct)
                 ? Results.Ok(RentalResponse.From((await svc.GetAsync(id, ct))!)) : NotFound())
             .RequirePermission(Permission.OperationsWrite);
 
         grp.MapPost("/{id:guid}/return", async (Guid id, ReturnRequest req, RentalService svc, CancellationToken ct) =>
-            await svc.ReturnAsync(id, req.DonusKm, YuzdeYakit(req.DonusYakit, "donusYakit"), req.GercekDonus, ct: ct)
+            await svc.ReturnAsync(id, req.DonusKm, PercentFuel(req.DonusYakit, "donusYakit"), req.GercekDonus, ct: ct)
                 ? Results.Ok(RentalResponse.From((await svc.GetAsync(id, ct))!)) : NotFound())
             .RequirePermission(Permission.OperationsWrite);
 
@@ -50,11 +50,11 @@ public static class RentalsApi
     /// Aralık dışı → 400 (sessiz kıstırma yok — 101 bir istemci hatasıdır, 100 sayılmaz); geçerli değer en
     /// yakın on ikide bire çevrilir (50 → 6, 80 → 10).
     /// </summary>
-    internal static int YuzdeYakit(int yuzde, string alan)
+    internal static int PercentFuel(int percent, string alan)
     {
-        if (yuzde is < 0 or > FuelScale.MaxPercent)
+        if (percent is < 0 or > FuelScale.MaxPercent)
             throw new ValidationException($"Yakıt yüzdesi 0-{FuelScale.MaxPercent} aralığında olmalıdır.", alan);
-        return FuelScale.PercentToTwelfths(yuzde);
+        return FuelScale.PercentToTwelfths(percent);
     }
 
     private static IResult NotFound()

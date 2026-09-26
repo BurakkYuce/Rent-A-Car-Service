@@ -45,10 +45,10 @@ public static partial class FinanceHubApi
     private static async Task<Ok<ConversionResult>> ConvertAmount(
         decimal tutar, string? kaynak, string? hedef, ExchangeRateService rates, CancellationToken ct)
     {
-        if (Math.Abs(tutar) >= FinansApi.TutarUstSiniri) throw new ValidationException("Tutar çok büyük.", "tutar");
-        var from = FinansApi.Doviz(kaynak);
+        if (Math.Abs(tutar) >= FinanceOpsApi.AmountUpperLimit) throw new ValidationException("Tutar çok büyük.", "tutar");
+        var from = FinanceOpsApi.NormalizeCurrency(kaynak);
         string to = "";
-        FinansApi.Alanli("hedef", () => to = ExchangeRateService.NormalizeCodeStrict(string.IsNullOrWhiteSpace(hedef) ? "TRY" : hedef));
+        FinanceOpsApi.WithFields("hedef", () => to = ExchangeRateService.NormalizeCodeStrict(string.IsNullOrWhiteSpace(hedef) ? "TRY" : hedef));
         decimal result = 0m;
         try { result = await rates.ConvertAsync(tutar, from, to, ct: ct); }
         catch (ValidationException ex) when (ex.Alan is null) { throw new ValidationException(ex.Message, "kaynak"); }
@@ -58,7 +58,7 @@ public static partial class FinanceHubApi
     }
 
     /// <summary>TCMB'den çek (paylaşımlı tablo; 30 dk içinde tekrar çekilmez → "guncel").</summary>
-    private static async Task<Ok<RatesRefreshResult>> RefreshRates(TcmbKurService tcmb, CancellationToken ct)
+    private static async Task<Ok<RatesRefreshResult>> RefreshRates(TcmbExchangeRateService tcmb, CancellationToken ct)
     {
         var n = await tcmb.RefreshAsync(ct: ct);
         return TypedResults.Ok(n switch
@@ -90,12 +90,12 @@ public static partial class FinanceHubApi
         {
             Kur = req.Kur, BasTar = Midnight(req.BasTar), BitTar = Midnight(req.BitTar), Aktif = req.Aktif,
         }, req.Surum, ct);
-        return ok ? TypedResults.NoContent() : F5Ortak.Bulunamadi("Sabit kur bulunamadı.");
+        return ok ? TypedResults.NoContent() : F5Shared.NotFound("Sabit kur bulunamadı.");
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteFixedRate(
         Guid id, FixedExchangeRateService fixedRates, CancellationToken ct)
-        => await fixedRates.DeleteAsync(id, ct) ? TypedResults.NoContent() : F5Ortak.Bulunamadi("Sabit kur bulunamadı.");
+        => await fixedRates.DeleteAsync(id, ct) ? TypedResults.NoContent() : F5Shared.NotFound("Sabit kur bulunamadı.");
 
     /// <summary>Sabit kur <c>numeric(19,6)</c>: pozitif, 6 ondalık, kolona sığan; pencere makul yıllarda.</summary>
     private static void FixedRateInput(decimal rate, DateOnly? start, DateOnly? end)

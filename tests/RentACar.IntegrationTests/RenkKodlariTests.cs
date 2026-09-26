@@ -23,7 +23,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class RenkKodlariTests(PostgresFixture fx)
 {
-    private static async Task<TenantSettingsModel> AyarAsync(IServiceProvider sp)
+    private static async Task<TenantSettingsModel> SettingAsync(IServiceProvider sp)
         => await sp.GetRequiredService<TenantSettingsService>().GetAsync();
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class RenkKodlariTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<TenantSettingsService>();
 
-        var m = await AyarAsync(sp);
+        var m = await SettingAsync(sp);
         m.RenkGecikenler = "#DC2626";           // büyük harf → küçüğe normalize
         m.RenkBugunDonecekler = "#0ea5e9";
         m.RenkBugunCikacaklar = "#16a34a";
@@ -45,7 +45,7 @@ public sealed class RenkKodlariTests(PostgresFixture fx)
         m.RenkKiralanmayan = "#64748b";
         await svc.SaveAsync(m);
 
-        var g = await AyarAsync(sp);
+        var g = await SettingAsync(sp);
         Assert.Equal("#dc2626", g.RenkGecikenler);
         Assert.Equal("#0ea5e9", g.RenkBugunDonecekler);
         Assert.Equal("#16a34a", g.RenkBugunCikacaklar);
@@ -63,7 +63,7 @@ public sealed class RenkKodlariTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
 
-        var g = await AyarAsync(sp);
+        var g = await SettingAsync(sp);
         Assert.Null(g.RenkGecikenler);
         Assert.Null(g.RenkBugunDonecekler);
         Assert.Null(g.RenkBugunCikacaklar);
@@ -75,15 +75,15 @@ public sealed class RenkKodlariTests(PostgresFixture fx)
 
         // Kaydedip geri temizlemek de mümkün olmalı ("varsayılana dön" ulaşılabilir kalsın).
         var svc = sp.GetRequiredService<TenantSettingsService>();
-        var m = await AyarAsync(sp);
+        var m = await SettingAsync(sp);
         m.RenkGecikenler = "#123456";
         await svc.SaveAsync(m);
-        Assert.Equal("#123456", (await AyarAsync(sp)).RenkGecikenler);
+        Assert.Equal("#123456", (await SettingAsync(sp)).RenkGecikenler);
 
-        m = await AyarAsync(sp);
+        m = await SettingAsync(sp);
         m.RenkGecikenler = null;
         await svc.SaveAsync(m);
-        Assert.Null((await AyarAsync(sp)).RenkGecikenler);
+        Assert.Null((await SettingAsync(sp)).RenkGecikenler);
     }
 
     [Fact]
@@ -94,17 +94,17 @@ public sealed class RenkKodlariTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<TenantSettingsService>();
 
-        foreach (var kotu in new[] { "kirmizi", "#12", "#12345", "#1234567", "dc2626", "#gggggg",
+        foreach (var bad in new[] { "kirmizi", "#12", "#12345", "#1234567", "dc2626", "#gggggg",
                                      "red; background:url(x)", "#dc2626;}" })
         {
-            var m = await AyarAsync(sp);
-            m.RenkGecikenler = kotu;
+            var m = await SettingAsync(sp);
+            m.RenkGecikenler = bad;
             var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.SaveAsync(m));
             Assert.Contains("renk kodu", ex.Message);
         }
 
         // Hiçbiri yazılmamış olmalı.
-        Assert.Null((await AyarAsync(sp)).RenkGecikenler);
+        Assert.Null((await SettingAsync(sp)).RenkGecikenler);
     }
 
     [Fact]
@@ -115,16 +115,16 @@ public sealed class RenkKodlariTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var svc = s1.ServiceProvider.GetRequiredService<TenantSettingsService>();
-            var m = await AyarAsync(s1.ServiceProvider);
+            var m = await SettingAsync(s1.ServiceProvider);
             m.RenkGecikenler = "#abcdef";
             await svc.SaveAsync(m);
         }
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
-        Assert.Null((await AyarAsync(s2.ServiceProvider)).RenkGecikenler);
+        Assert.Null((await SettingAsync(s2.ServiceProvider)).RenkGecikenler);
 
         using var s1b = host.ScopeFor(t1);
-        Assert.Equal("#abcdef", (await AyarAsync(s1b.ServiceProvider)).RenkGecikenler);
+        Assert.Equal("#abcdef", (await SettingAsync(s1b.ServiceProvider)).RenkGecikenler);
     }
 
     [Fact]

@@ -22,7 +22,7 @@
     <label>Müşteri
         <select name="cariF">
             <option value="">— tümü —</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.DisplayName</option> }
         </select>
     </label>
     <label>Anket Türü
@@ -42,7 +42,7 @@
     <label>Çıkış Ofisi
         <select name="ofis">
             <option value="">— tümü —</option>
-            @foreach (var o in _ofisOpts) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+            @foreach (var o in _officeOpts) { <option value="@o" selected="@(o == Ofis)">@o</option> }
         </select>
     </label>
     <button type="submit">Filtrele</button>
@@ -69,15 +69,15 @@
                 <td>
                     <span class="status-pill @(a.Durum == SurveyStatus.Yapildi ? "sp-success" : "sp-warn")">@a.Durum</span>
                 </td>
-                <td>@(_cariAd.GetValueOrDefault(a.CariId ?? Guid.Empty) ?? "—")</td>
+                <td>@(_customerName.GetValueOrDefault(a.CariId ?? Guid.Empty) ?? "—")</td>
                 <td class="mono">@(_sozNo.GetValueOrDefault(a.RentalId ?? Guid.Empty) ?? "—")</td>
                 <td>@(a.CikisOfisi ?? "—")</td>
                 <td class="num">@a.Puan</td>
-                <td class="num">@_cevapSayisi.GetValueOrDefault(a.Id)</td>
+                <td class="num">@_answerCount.GetValueOrDefault(a.Id)</td>
                 <td>@a.Yorum</td>
                 <td>@a.Kaynak</td>
                 <td>
-                    <a href="@Geri(a.Id)" class="link">Düzenle</a>
+                    <a href="@Back(a.Id)" class="link">Düzenle</a>
                     <form method="post" action="/anketler/delete" class="inline" data-confirm="Bu anket kaydı kalıcı olarak silinsin mi? Kayıt geri getirilemez."><AntiforgeryToken />
                         <input type="hidden" name="id" value="@a.Id" /><button type="submit" class="link danger">Sil</button>
                     </form>
@@ -95,13 +95,13 @@
     <label>Müşteri
         <select name="cariId">
             <option value="">—</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id == _edit?.Anket.CariId)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id == _edit?.Anket.CariId)">@c.DisplayName</option> }
         </select>
     </label>
     <label>Sözleşme (ops.)
         <select name="rentalId">
             <option value="">— sözleşmesiz genel anket —</option>
-            @foreach (var k in _kiralar) { <option value="@k.Id" selected="@(k.Id == _edit?.Anket.RentalId)">@k.SozlesmeNo — @k.Plaka</option> }
+            @foreach (var k in _rentals) { <option value="@k.Id" selected="@(k.Id == _edit?.Anket.RentalId)">@k.SozlesmeNo — @k.Plaka</option> }
         </select>
     </label>
     <label>Anket Türü
@@ -119,7 +119,7 @@
     <label>Çıkış Ofisi<input name="cikisOfisi" value="@_edit?.Anket.CikisOfisi" maxlength="128" placeholder="(sözleşmeden)" /></label>
     <label>Tarih<input name="tarih" type="date" value="@(_edit?.Anket.Tarih.UtcDateTime.ToString("yyyy-MM-dd"))" /></label>
     <label>Puan (0-10)<input name="puan" type="number" min="0" max="10" value="@(_edit?.Anket.Puan ?? 0)" required /></label>
-    <ComboBox Name="kaynak" Label="Kaynak" Value="@_edit?.Anket.Kaynak" Options="_kaynakOpts" Placeholder="Telefon/Web/..." />
+    <ComboBox Name="kaynak" Label="Kaynak" Value="@_edit?.Anket.Kaynak" Options="_sourceOpts" Placeholder="Telefon/Web/..." />
     <label class="u-col-full">Yorum<input name="yorum" value="@_edit?.Anket.Yorum" /></label>
 
     <div class="u-col-full">
@@ -131,12 +131,12 @@
                     @for (var i = 1; i <= SurveyService.DefaultQuestions.Length; i++)
                     {
                         var no = i;
-                        var mevcut = _edit?.Cevaplar.FirstOrDefault(c => c.SoruNo == no);
+                        var existing = _edit?.Cevaplar.FirstOrDefault(c => c.SoruNo == no);
                         <tr>
                             <td>@no</td>
-                            <td><input name="soru@(no)" value="@(mevcut?.Soru ?? SurveyService.DefaultQuestions[no - 1])" maxlength="512" /></td>
-                            <td><input name="cevap@(no)" value="@mevcut?.Cevap" maxlength="1024" /></td>
-                            <td><input name="aciklama@(no)" value="@mevcut?.Aciklama" maxlength="1024" /></td>
+                            <td><input name="soru@(no)" value="@(existing?.Soru ?? SurveyService.DefaultQuestions[no - 1])" maxlength="512" /></td>
+                            <td><input name="cevap@(no)" value="@existing?.Cevap" maxlength="1024" /></td>
+                            <td><input name="aciklama@(no)" value="@existing?.Aciklama" maxlength="1024" /></td>
                         </tr>
                     }
                 </tbody>
@@ -145,7 +145,7 @@
     </div>
 
     <button type="submit">@(_edit is null ? "Ekle" : "Kaydet")</button>
-    @if (_edit is not null) { <a href="@Geri()" class="btn-secondary">İptal</a> }
+    @if (_edit is not null) { <a href="@Back()" class="btn-secondary">İptal</a> }
 </form>
 
 @code {
@@ -160,25 +160,25 @@
 
     private IReadOnlyList<Anket> _list = [];
     private AnketDetay? _edit;
-    private List<string> _kaynakOpts = [];
-    private string[] _ofisOpts = [];
-    private IReadOnlyList<Customer> _cariler = [];
-    private IReadOnlyList<RentalRow> _kiralar = [];
-    private Dictionary<Guid, string> _cariAd = new();
+    private List<string> _sourceOpts = [];
+    private string[] _officeOpts = [];
+    private IReadOnlyList<Customer> _accounts = [];
+    private IReadOnlyList<RentalRow> _rentals = [];
+    private Dictionary<Guid, string> _customerName = new();
     private Dictionary<Guid, string> _sozNo = new();
-    private Dictionary<Guid, int> _cevapSayisi = new();
+    private Dictionary<Guid, int> _answerCount = new();
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(CariF) || !string.IsNullOrWhiteSpace(Tur)
         || !string.IsNullOrWhiteSpace(DurumF) || !string.IsNullOrWhiteSpace(Min)
         || !string.IsNullOrWhiteSpace(Max) || !string.IsNullOrWhiteSpace(Ofis);
 
-    private string Geri(Guid? duzenle = null)
+    private string Back(Guid? edit = null)
     {
         var q = new List<string>();
-        void Ekle(string ad, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{ad}={Uri.EscapeDataString(v)}"); }
-        Ekle("cariF", CariF); Ekle("tur", Tur); Ekle("durumF", DurumF);
-        Ekle("min", Min); Ekle("max", Max); Ekle("ofis", Ofis);
-        if (duzenle is Guid id) q.Add($"duzenle={id}");
+        void Add(string name, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{name}={Uri.EscapeDataString(v)}"); }
+        Add("cariF", CariF); Add("tur", Tur); Add("durumF", DurumF);
+        Add("min", Min); Add("max", Max); Add("ofis", Ofis);
+        if (edit is Guid id) q.Add($"duzenle={id}");
         return "/anketler" + (q.Count > 0 ? "?" + string.Join("&", q) : "");
     }
 
@@ -195,23 +195,23 @@
             CikisOfisi = Ofis
         });
 
-        _kaynakOpts = (await Kaynaklar.ListActiveAsync()).Select(k => k.Ad).ToList();
-        _cariler = await Cariler.ListAsync();
-        _kiralar = await Kiralar.SearchAsync(new RentalFilter());
-        _cariAd = _cariler.ToDictionary(c => c.Id, c => c.DisplayName);
-        _sozNo = _kiralar.ToDictionary(k => k.Id, k => k.SozlesmeNo);
+        _sourceOpts = (await Kaynaklar.ListActiveAsync()).Select(k => k.Ad).ToList();
+        _accounts = await Cariler.ListAsync();
+        _rentals = await Kiralar.SearchAsync(new RentalFilter());
+        _customerName = _accounts.ToDictionary(c => c.Id, c => c.DisplayName);
+        _sozNo = _rentals.ToDictionary(k => k.Id, k => k.SozlesmeNo);
 
         // Ofis seçenekleri FİLTRESİZ listeden; filtrelenmişten türetilseydi bir seçim sonrası
         // diğer ofisler kaybolur ve filtre kendini kilitlerdi.
-        _ofisOpts = (await Anketler.ListAsync()).Select(x => x.CikisOfisi)
+        _officeOpts = (await Anketler.ListAsync()).Select(x => x.CikisOfisi)
             .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
             .Distinct(StringComparer.CurrentCultureIgnoreCase)
             .OrderBy(x => x, StringComparer.CurrentCulture).ToArray();
 
         // Cevap sayıları: yalnız listelenen anketler için (tek tek sorgu N+1 olurdu ama liste
         // sayfalanmadığı ve anket sayısı düşük olduğu için kabul edilebilir; tavan filtreyle gelir).
-        foreach (var anket in _list)
-            _cevapSayisi[anket.Id] = (await Anketler.GetDetailAsync(anket.Id))?.Cevaplar.Count ?? 0;
+        foreach (var survey in _list)
+            _answerCount[survey.Id] = (await Anketler.GetDetailAsync(survey.Id))?.Cevaplar.Count ?? 0;
 
         if (Duzenle is { } id) _edit = await Anketler.GetDetailAsync(id);
     }

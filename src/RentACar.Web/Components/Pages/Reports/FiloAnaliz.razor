@@ -92,7 +92,7 @@
                     { <span class="error" title="Sınıf ortalamasından pahalı">@se.ToString("N2")</span> }
                     else { @(r.SinifEndeks?.ToString("N2") ?? "—") }</td>
                 <td class="num">@(r.YasAy?.ToString() ?? "—")</td>
-                <td class="num">@{ var vs = _vadeSayilari.GetValueOrDefault(r.VehicleId); }
+                <td class="num">@{ var vs = _dueCounts.GetValueOrDefault(r.VehicleId); }
                     @if (vs > 0) { <a class="badge" href="/vade?plaka=@r.Plaka" title="Geçmiş + ≤30 gün vade uyarısı">@vs</a> }
                     else { <span class="muted">0</span> }</td>
                 <td class="num">@if (r.TutSatSinyal > 0)
@@ -130,13 +130,13 @@
     [SupplyParameterFromQuery(Name = "siralama")] public string? Sira { get; set; }
 
     private FiloAnalizDto _d = new([], 0m, 0m, 0m, 0m, 0m, []);
-    private IReadOnlyDictionary<Guid, int> _vadeSayilari = new Dictionary<Guid, int>(); // FAZ 2.1
+    private IReadOnlyDictionary<Guid, int> _dueCounts = new Dictionary<Guid, int>(); // FAZ 2.1
 
     protected override async Task OnInitializedAsync()
     {
         DateTimeOffset? f = DateTimeOffset.TryParse(From, out var x) ? x : null;
         DateTimeOffset? t = DateTimeOffset.TryParse(To, out var y) ? y : null;
         _d = await Reports.GetFleetAnalysisAsync(f, t, Sira);
-        _vadeSayilari = await Vadeler.GetWarningCountsByVehicleAsync(); // FAZ 2.1
+        _dueCounts = await Vadeler.GetWarningCountsByVehicleAsync(); // FAZ 2.1
     }
 }

@@ -20,22 +20,22 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiloAnalizTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset FiloGiris = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset FiloCikis = new(2025, 1, 31, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset KiraBas = new(2025, 1, 10, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FleetEntry = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FleetExit = new(2025, 1, 31, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset RentalStart = new(2025, 1, 10, 9, 0, 0, TimeSpan.Zero);
 
-    private static async Task RucuAsync(IServiceProvider sp, Guid vehicle, Guid cari, decimal maliyet)
+    private static async Task RecourseAsync(IServiceProvider sp, Guid vehicle, Guid account, decimal cost)
     {
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
             VehicleId = vehicle, Tip = ServiceType.Ariza, GirisKm = 0,
             HasarSorumlu = DamageResponsible.Musteri, KusurOrani = 0.5m,
-            Lines = [new ServiceLineInput { Aciklama = "Onarım", Tutar = maliyet }]
+            Lines = [new ServiceLineInput { Aciklama = "Onarım", Tutar = cost }]
         });
         await svc.StartAsync(id);
         await svc.CompleteAsync(id, pickupKm: 10);
-        await svc.ReflectAsync(id, cari);
+        await svc.ReflectAsync(id, account);
     }
 
     [Fact]
@@ -45,32 +45,32 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var veh = sp.GetRequiredService<VehicleService>();
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Filo", Soyad = "Cari" });
-        var simdi = DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
 
         // V1: 1000 alım (6 ay önce → "0-1 yıl"), Oca-2025 penceresi (31 gün), 3 gün kira + 300 km, rücu 310.
         var v1 = await veh.CreateAsync(new VehicleInput
         {
-            Plaka = "34 FA 01", AlimBedeli = 1000m, AlimTarihi = simdi.AddMonths(-6),
-            FiloGirisTarih = FiloGiris, FiloCikisTarih = FiloCikis
+            Plaka = "34 FA 01", AlimBedeli = 1000m, AlimTarihi = now.AddMonths(-6),
+            FiloGirisTarih = FleetEntry, FiloCikisTarih = FleetExit
         });
         var rentals = sp.GetRequiredService<RentalService>();
         var r1 = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = v1, BasTar = KiraBas, BitTar = KiraBas.AddDays(2), GunlukUcret = 100m });
+        { MusteriId = account, VehicleId = v1, BasTar = RentalStart, BitTar = RentalStart.AddDays(2), GunlukUcret = 100m });
         await rentals.DeliverAsync(r1, pickupKm: 1000, pickupFuel: 8);
-        await rentals.ReturnAsync(r1, returnKm: 1300, returnFuel: 8, KiraBas.AddDays(2));
-        await RucuAsync(sp, v1, cari, 620m);   // 310 gelir
+        await rentals.ReturnAsync(r1, returnKm: 1300, returnFuel: 8, RentalStart.AddDays(2));
+        await RecourseAsync(sp, v1, account, 620m);   // 310 gelir
 
         // V2: alımsız; rücu 100 − gider 150 = NET −50 (en zararlı).
         var v2 = await veh.CreateAsync(new VehicleInput { Plaka = "34 FA 02" });
-        await RucuAsync(sp, v2, cari, 200m);   // 100 gelir
+        await RecourseAsync(sp, v2, account, 200m);   // 100 gelir
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         { Tip = ExpenseType.Arac, VehicleId = v2, NetTutar = 150m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
 
         // V3: alım tarihi 15 ay önce ("1-2 yıl"); rücu 500 (en kârlı).
-        var v3 = await veh.CreateAsync(new VehicleInput { Plaka = "34 FA 03", AlimTarihi = simdi.AddMonths(-15) });
-        await RucuAsync(sp, v3, cari, 1000m);  // 500 gelir
+        var v3 = await veh.CreateAsync(new VehicleInput { Plaka = "34 FA 03", AlimTarihi = now.AddMonths(-15) });
+        await RecourseAsync(sp, v3, account, 1000m);  // 500 gelir
 
         var rs = sp.GetRequiredService<ReportService>();
         var d = await rs.GetFleetAnalysisAsync();
@@ -112,8 +112,8 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
         Assert.Equal(9.68m, d.YasKohortu[0].OrtDoluluk);
 
         // "zarar" sıralaması: en zararlı önce.
-        var zarar = await rs.GetFleetAnalysisAsync(sort: "zarar");
-        Assert.Equal(v2, zarar.Satirlar[0].VehicleId);
+        var loss = await rs.GetFleetAnalysisAsync(sort: "zarar");
+        Assert.Equal(v2, loss.Satirlar[0].VehicleId);
     }
 
     [Fact]
@@ -129,8 +129,8 @@ public sealed class FiloAnalizTests(PostgresFixture fx)
         await exp.CreateAsync(new ExpenseInput { Tip = ExpenseType.Genel, NetTutar = 40m, KdvOrani = 0m, OdemeYontemi = PaymentMethod.Nakit });
 
         var d = await sp.GetRequiredService<ReportService>().GetFleetAnalysisAsync();
-        var satir = Assert.Single(d.Satirlar);
-        Assert.Equal(100m, satir.Gider);
+        var row = Assert.Single(d.Satirlar);
+        Assert.Equal(100m, row.Gider);
         Assert.Equal(40m, d.AtanmamisGider);
         Assert.Equal(140m, d.ToplamGider);   // satır + Atanmamış = defter
     }

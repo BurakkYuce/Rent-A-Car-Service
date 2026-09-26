@@ -71,38 +71,38 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var tur = string.IsNullOrWhiteSpace(f.Hesap) ? LedgerAccountType.Kasa
+        var type = string.IsNullOrWhiteSpace(f.Hesap) ? LedgerAccountType.Kasa
             : string.Equals(f.Hesap.Trim(), "Banka", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Banka
             : string.Equals(f.Hesap.Trim(), "Kasa", StringComparison.OrdinalIgnoreCase) ? LedgerAccountType.Kasa
             : throw new ValidationException("Geçersiz hesap değeri. İzin verilenler: Kasa, Banka.", "hesap");
 
-        var toplam = await reports.GetCashBankSummaryAsync(p.FromUtc, p.ToUtc, ct);
-        var hesapOzet = await reports.GetAccountBasedSummaryAsync(p.FromUtc, p.ToUtc, ct);
-        var satirlar = await reports.GetAccountLedgerAsync(tur, p.FromUtc, p.ToUtc, f.HesapId, ct,
+        var total = await reports.GetCashBankSummaryAsync(p.FromUtc, p.ToUtc, ct);
+        var accountSummary = await reports.GetAccountBasedSummaryAsync(p.FromUtc, p.ToUtc, ct);
+        var rows = await reports.GetAccountLedgerAsync(type, p.FromUtc, p.ToUtc, f.HesapId, ct,
             currency: F(f.Doviz), transactionType: F(f.Tur), branch: F(f.Sube), carryForward: f.Devir == true);
-        var tumu = await reports.GetAccountLedgerAsync(tur, p.FromUtc, p.ToUtc, ct: ct);
-        var adlar = (await accounts.ListAsync(ct)).ToDictionary(h => h.Id, h => h.Ad);
+        var all = await reports.GetAccountLedgerAsync(type, p.FromUtc, p.ToUtc, ct: ct);
+        var names = (await accounts.ListAsync(ct)).ToDictionary(h => h.Id, h => h.Ad);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
 
-        var gorunur = satirlar.Select(l => l with { CariAd = l.CariAd is null ? null : mask.Name(l.CariAd) }).ToList();
-        var secenek = new CashBankReportOptions(
-            Distinct(tumu.Select(x => x.Doviz), StringComparer.OrdinalIgnoreCase),
-            Distinct(tumu.Select(x => x.SourceType), StringComparer.Ordinal),
-            Distinct(tumu.Select(x => x.Sube?.Trim()), StringComparer.OrdinalIgnoreCase));
-        var ozet = new CashBankReportSummary(tur.ToString(), toplam,
-            hesapOzet.Select(h => new ReportAccountSummaryRow(h.Tur.ToString(), h.HesapId,
-                h.HesapId is { } id ? adlar.GetValueOrDefault(id, "(silinmiş hesap)") : null,
-                h.Giris, h.Cikis, h.Bakiye)).ToList(), secenek);
+        var visible = rows.Select(l => l with { CariAd = l.CariAd is null ? null : mask.Name(l.CariAd) }).ToList();
+        var option = new CashBankReportOptions(
+            Distinct(all.Select(x => x.Doviz), StringComparer.OrdinalIgnoreCase),
+            Distinct(all.Select(x => x.SourceType), StringComparer.Ordinal),
+            Distinct(all.Select(x => x.Sube?.Trim()), StringComparer.OrdinalIgnoreCase));
+        var summary = new CashBankReportSummary(type.ToString(), total,
+            accountSummary.Select(h => new ReportAccountSummaryRow(h.Tur.ToString(), h.HesapId,
+                h.HesapId is { } id ? names.GetValueOrDefault(id, "(silinmiş hesap)") : null,
+                h.Giris, h.Cikis, h.Bakiye)).ToList(), option);
 
-        var istek = new ListeIstegi(sayfa ?? 1, boyut ?? 50);
-        var kayitlar = istek.Atla >= gorunur.Count ? [] : gorunur.Skip((int)istek.Atla).Take(istek.Boyut).ToList();
+        var request = new ListeIstegi(sayfa ?? 1, boyut ?? 50);
+        var records = request.Atla >= visible.Count ? [] : visible.Skip((int)request.Atla).Take(request.Boyut).ToList();
         var export = ReportExport.Links(http, user, "kasa-banka",
         [
-            ("hesap", tur.ToString()), ("hesapId", f.HesapId?.ToString()), .. ReportExport.Period(p),
+            ("hesap", type.ToString()), ("hesapId", f.HesapId?.ToString()), .. ReportExport.Period(p),
             ("doviz", f.Doviz), ("tur", f.Tur), ("sube", f.Sube), ("devir", f.Devir == true ? "true" : null),
         ]);
-        return TypedResults.Ok(new ReportResult<CashBankReportSummary, LedgerLineDto>(p.ToDto(), ozet,
-            new Sayfa<LedgerLineDto>(kayitlar, gorunur.Count, istek.Sayfa, istek.Boyut), export));
+        return TypedResults.Ok(new ReportResult<CashBankReportSummary, LedgerLineDto>(p.ToDto(), summary,
+            new Sayfa<LedgerLineDto>(records, visible.Count, request.Sayfa, request.Boyut), export));
     }
 
     private static string? F(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

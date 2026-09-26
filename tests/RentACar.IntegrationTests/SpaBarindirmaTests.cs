@@ -21,8 +21,8 @@ public sealed class SpaBarindirmaKararTests
     [InlineData("/opt/racar/releases/r1/web", "../app/browser", "/opt/racar/releases/r1/app/browser")]
     [InlineData("/opt/racar/releases/r1/web", "spa", "/opt/racar/releases/r1/web/spa")]
     [InlineData("/opt/racar/releases/r1/web", "/srv/spa", "/srv/spa")]
-    public void Dizin_content_root_a_gore_cozulur(string contentRoot, string? ayar, string beklenen)
-        => Assert.Equal(beklenen, SpaBarindirma.KokDizin(contentRoot, ayar));
+    public void Dizin_content_root_a_gore_cozulur(string contentRoot, string? setting, string expected)
+        => Assert.Equal(expected, SpaHosting.RootDirectory(contentRoot, setting));
 
     [Theory]
     [InlineData("/kiralar/5", false)]
@@ -32,8 +32,8 @@ public sealed class SpaBarindirmaKararTests
     [InlineData("/main-abc.js", true)]
     [InlineData("/assets/logo.png", true)]
     [InlineData("/favicon.ico", true)]
-    public void Uzantili_istek_dosya_uzantisiz_istek_rotadir(string altYol, bool dosyaMi)
-        => Assert.Equal(dosyaMi, SpaBarindirma.DosyaIstegiMi(altYol));
+    public void Uzantili_istek_dosya_uzantisiz_istek_rotadir(string subPath, bool isFile)
+        => Assert.Equal(isFile, SpaHosting.IsFileRequest(subPath));
 
     [Theory]
     [InlineData("index.html", "no-cache")]
@@ -46,8 +46,8 @@ public sealed class SpaBarindirmaKararTests
     [InlineData("polyfills-FFHMD2TL.js", "public, max-age=31536000, immutable")]
     [InlineData("styles-5INURTSO.css", "public, max-age=31536000, immutable")]
     [InlineData("media/roboto-ABCD1234.woff2", "public, max-age=31536000, immutable")]
-    public void Onbellek_basligi_hashe_gore(string dosya, string beklenen)
-        => Assert.Equal(beklenen, SpaBarindirma.OnbellekBasligi(dosya));
+    public void Onbellek_basligi_hashe_gore(string file, string expected)
+        => Assert.Equal(expected, SpaHosting.CacheHeader(file));
 }
 
 /// <summary>
@@ -57,100 +57,100 @@ public sealed class SpaBarindirmaKararTests
 [Collection("spa-web")]
 public sealed class SpaBarindirmaHostTests(SpaWebFixture fx)
 {
-    private const string KabukIsareti = "SPA-KABUK-TEST-7F3A";
+    private const string ShellMarker = "SPA-KABUK-TEST-7F3A";
 
-    private static HttpClient Istemci(WebApplicationFactory<RentACar.Web.Common.DogrulamaHatasiMiddleware> f)
+    private static HttpClient Client(WebApplicationFactory<RentACar.Web.Common.ValidationErrorMiddleware> f)
         => f.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
     [Fact]
     public async Task Kabuk_anonim_200_html_ve_CSP_li()
     {
-        var yanit = await Istemci(fx.Kurulu).GetAsync("/app/");
+        var response = await Client(fx.Installed).GetAsync("/app/");
 
-        Assert.Equal(HttpStatusCode.OK, yanit.StatusCode);
-        Assert.Null(yanit.Headers.Location); // /login'e yönlendirme YOK
-        Assert.Equal("text/html", yanit.Content.Headers.ContentType?.MediaType);
-        Assert.Contains(KabukIsareti, await yanit.Content.ReadAsStringAsync());
-        var csp = Assert.Single(yanit.Headers.GetValues("Content-Security-Policy"));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(response.Headers.Location); // /login'e yönlendirme YOK
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains(ShellMarker, await response.Content.ReadAsStringAsync());
+        var csp = Assert.Single(response.Headers.GetValues("Content-Security-Policy"));
         Assert.Contains("script-src 'self';", csp);
         Assert.Contains("object-src 'none'", csp);
-        Assert.Equal("nosniff", Assert.Single(yanit.Headers.GetValues("X-Content-Type-Options")));
-        Assert.Equal("SAMEORIGIN", Assert.Single(yanit.Headers.GetValues("X-Frame-Options")));
-        Assert.Equal("no-cache", yanit.Headers.CacheControl?.ToString());
+        Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
+        Assert.Equal("SAMEORIGIN", Assert.Single(response.Headers.GetValues("X-Frame-Options")));
+        Assert.Equal("no-cache", response.Headers.CacheControl?.ToString());
     }
 
     [Fact]
     public async Task Egik_cizgisiz_app_app_slash_a_yonlenir()
     {
-        var yanit = await Istemci(fx.Kurulu).GetAsync("/app?x=1");
+        var response = await Client(fx.Installed).GetAsync("/app?x=1");
 
-        Assert.Equal(HttpStatusCode.MovedPermanently, yanit.StatusCode);
-        Assert.Equal("/app/?x=1", yanit.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
+        Assert.Equal("/app/?x=1", response.Headers.Location?.OriginalString);
     }
 
     [Theory]
     [InlineData("/app/kiralar/5")]
     [InlineData("/app/giris")]          // Exit: /app/giris → /login döngüsü YOK
     [InlineData("/app/kiralar/")]
-    public async Task Istemci_rotasi_index_html_e_duser(string yol)
+    public async Task Istemci_rotasi_index_html_e_duser(string path)
     {
-        var yanit = await Istemci(fx.Kurulu).GetAsync(yol);
+        var response = await Client(fx.Installed).GetAsync(path);
 
-        Assert.Equal(HttpStatusCode.OK, yanit.StatusCode);
-        Assert.Null(yanit.Headers.Location);
-        Assert.Equal("text/html", yanit.Content.Headers.ContentType?.MediaType);
-        Assert.Contains(KabukIsareti, await yanit.Content.ReadAsStringAsync());
-        Assert.Equal("no-cache", yanit.Headers.CacheControl?.ToString());
-        Assert.True(yanit.Headers.Contains("Content-Security-Policy"));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(response.Headers.Location);
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains(ShellMarker, await response.Content.ReadAsStringAsync());
+        Assert.Equal("no-cache", response.Headers.CacheControl?.ToString());
+        Assert.True(response.Headers.Contains("Content-Security-Policy"));
     }
 
     [Theory]
     [InlineData("/app/yok.js")]
     [InlineData("/app/main-ZZZZ9999.js")]
     [InlineData("/app/assets/yok.png")]
-    public async Task Olmayan_uzantili_dosya_404_index_degil(string yol)
+    public async Task Olmayan_uzantili_dosya_404_index_degil(string path)
     {
-        var yanit = await Istemci(fx.Kurulu).GetAsync(yol);
+        var response = await Client(fx.Installed).GetAsync(path);
 
-        Assert.Equal(HttpStatusCode.NotFound, yanit.StatusCode);
-        Assert.Null(yanit.Headers.Location);
-        Assert.DoesNotContain(KabukIsareti, await yanit.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(response.Headers.Location);
+        Assert.DoesNotContain(ShellMarker, await response.Content.ReadAsStringAsync());
     }
 
     [Fact]
     public async Task Hashli_dosya_kalici_onbellekli()
     {
-        var yanit = await Istemci(fx.Kurulu).GetAsync("/app/main-ABCD1234.js");
+        var response = await Client(fx.Installed).GetAsync("/app/main-ABCD1234.js");
 
-        Assert.Equal(HttpStatusCode.OK, yanit.StatusCode);
-        Assert.Equal("text/javascript", yanit.Content.Headers.ContentType?.MediaType);
-        Assert.Equal("console.log('spa');", await yanit.Content.ReadAsStringAsync());
-        Assert.Equal("public, max-age=31536000, immutable", yanit.Headers.CacheControl?.ToString());
-        Assert.True(yanit.Headers.Contains("Content-Security-Policy"));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/javascript", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("console.log('spa');", await response.Content.ReadAsStringAsync());
+        Assert.Equal("public, max-age=31536000, immutable", response.Headers.CacheControl?.ToString());
+        Assert.True(response.Headers.Contains("Content-Security-Policy"));
 
-        var parca = await Istemci(fx.Kurulu).GetAsync("/app/chunk-XYZ98765.js");
-        Assert.Equal(HttpStatusCode.OK, parca.StatusCode);
-        Assert.Equal("public, max-age=31536000, immutable", parca.Headers.CacheControl?.ToString());
+        var part = await Client(fx.Installed).GetAsync("/app/chunk-XYZ98765.js");
+        Assert.Equal(HttpStatusCode.OK, part.StatusCode);
+        Assert.Equal("public, max-age=31536000, immutable", part.Headers.CacheControl?.ToString());
     }
 
     [Fact]
     public async Task Hashsiz_dosya_yeniden_dogrulanir()
     {
-        var yanit = await Istemci(fx.Kurulu).GetAsync("/app/favicon.ico");
+        var response = await Client(fx.Installed).GetAsync("/app/favicon.ico");
 
-        Assert.Equal(HttpStatusCode.OK, yanit.StatusCode);
-        Assert.Equal("no-cache", yanit.Headers.CacheControl?.ToString());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-cache", response.Headers.CacheControl?.ToString());
     }
 
     [Fact]
     public async Task Kok_disi_dosya_sizmaz()
     {
-        var c = Istemci(fx.Kurulu);
-        foreach (var yol in new[] { "/app/%2E%2E/gizli.txt", "/app/..%2Fgizli.txt", "/app/%2e%2e%2fgizli.txt" })
+        var c = Client(fx.Installed);
+        foreach (var path in new[] { "/app/%2E%2E/gizli.txt", "/app/..%2Fgizli.txt", "/app/%2e%2e%2fgizli.txt" })
         {
-            var yanit = await c.GetAsync(yol);
-            Assert.NotEqual(HttpStatusCode.InternalServerError, yanit.StatusCode);
-            Assert.DoesNotContain("GIZLI-ICERIK", await yanit.Content.ReadAsStringAsync());
+            var response = await c.GetAsync(path);
+            Assert.NotEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+            Assert.DoesNotContain("GIZLI-ICERIK", await response.Content.ReadAsStringAsync());
         }
     }
 
@@ -158,32 +158,32 @@ public sealed class SpaBarindirmaHostTests(SpaWebFixture fx)
     [InlineData("/app/")]
     [InlineData("/app/kiralar/5")]
     [InlineData("/app/main-ABCD1234.js")]
-    public async Task SPA_kurulmamissa_404_500_degil(string yol)
+    public async Task SPA_kurulmamissa_404_500_degil(string path)
     {
-        var yanit = await Istemci(fx.Kurulmamis).GetAsync(yol);
+        var response = await Client(fx.NotInstalled).GetAsync(path);
 
-        Assert.Equal(HttpStatusCode.NotFound, yanit.StatusCode);
-        Assert.Null(yanit.Headers.Location);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(response.Headers.Location);
     }
 
     [Fact]
     public async Task Tek_giris_Blazor_login_SPA_girisine_yonlenir_ve_acilir()
     {
-        var c = Istemci(fx.Kurulu);
+        var c = Client(fx.Installed);
 
         // F4.6: GET /login artık form çizmez → /app/giris (anonim; SPA kurulu host'ta kabuk 200).
-        var giris = await c.GetAsync("/login");
-        Assert.Equal(HttpStatusCode.Redirect, giris.StatusCode);
-        Assert.Equal("/app/giris", giris.Headers.Location?.OriginalString);
-        var spaGiris = await c.GetAsync("/app/giris");
-        Assert.Equal(HttpStatusCode.OK, spaGiris.StatusCode);
-        Assert.Null(spaGiris.Headers.Location);
-        Assert.Contains(KabukIsareti, await spaGiris.Content.ReadAsStringAsync());
+        var entry = await c.GetAsync("/login");
+        Assert.Equal(HttpStatusCode.Redirect, entry.StatusCode);
+        Assert.Equal("/app/giris", entry.Headers.Location?.OriginalString);
+        var spaEntry = await c.GetAsync("/app/giris");
+        Assert.Equal(HttpStatusCode.OK, spaEntry.StatusCode);
+        Assert.Null(spaEntry.Headers.Location);
+        Assert.Contains(ShellMarker, await spaEntry.Content.ReadAsStringAsync());
 
         // Korumalı Blazor sayfası anonim istekte hâlâ /login'e gider (challenge yalnız /app'ten kalktı).
-        var ana = await c.GetAsync("/");
-        Assert.Equal(HttpStatusCode.Redirect, ana.StatusCode);
-        Assert.StartsWith("/login", ana.Headers.Location?.OriginalString);
+        var main = await c.GetAsync("/");
+        Assert.Equal(HttpStatusCode.Redirect, main.StatusCode);
+        Assert.StartsWith("/login", main.Headers.Location?.OriginalString);
     }
 }
 
@@ -196,16 +196,16 @@ public sealed class SpaBarindirmaHostTests(SpaWebFixture fx)
 public sealed class SpaWebFixture : IAsyncLifetime
 {
     private readonly PostgresFixture _pg = new();
-    private readonly string _gecici = Path.Combine(Path.GetTempPath(), "racar-spa-" + Guid.NewGuid().ToString("N"));
+    private readonly string _temporary = Path.Combine(Path.GetTempPath(), "racar-spa-" + Guid.NewGuid().ToString("N"));
 
-    public SpaWebFactory Kurulu { get; private set; } = default!;
-    public SpaWebFactory Kurulmamis { get; private set; } = default!;
+    public SpaWebFactory Installed { get; private set; } = default!;
+    public SpaWebFactory NotInstalled { get; private set; } = default!;
 
     public async Task InitializeAsync()
     {
         await _pg.InitializeAsync();
 
-        var spa = Path.Combine(_gecici, "browser");
+        var spa = Path.Combine(_temporary, "browser");
         Directory.CreateDirectory(spa);
         await File.WriteAllTextAsync(Path.Combine(spa, "index.html"),
             "<!doctype html><html><head><base href=\"/app/\"></head><body><app-root>SPA-KABUK-TEST-7F3A</app-root>" +
@@ -213,19 +213,19 @@ public sealed class SpaWebFixture : IAsyncLifetime
         await File.WriteAllTextAsync(Path.Combine(spa, "main-ABCD1234.js"), "console.log('spa');");
         await File.WriteAllTextAsync(Path.Combine(spa, "chunk-XYZ98765.js"), "export const a = 1;");
         await File.WriteAllBytesAsync(Path.Combine(spa, "favicon.ico"), [0, 0, 1, 0]);
-        await File.WriteAllTextAsync(Path.Combine(_gecici, "gizli.txt"), "GIZLI-ICERIK");
+        await File.WriteAllTextAsync(Path.Combine(_temporary, "gizli.txt"), "GIZLI-ICERIK");
 
-        Kurulu = new SpaWebFactory(_pg, spa, Path.Combine(_gecici, "log-kurulu-.log"));
-        Kurulmamis = new SpaWebFactory(_pg, Path.Combine(_gecici, "yok", "browser"),
-            Path.Combine(_gecici, "log-kurulmamis-.log"));
+        Installed = new SpaWebFactory(_pg, spa, Path.Combine(_temporary, "log-kurulu-.log"));
+        NotInstalled = new SpaWebFactory(_pg, Path.Combine(_temporary, "yok", "browser"),
+            Path.Combine(_temporary, "log-kurulmamis-.log"));
     }
 
     public async Task DisposeAsync()
     {
-        await Kurulu.DisposeAsync();
-        await Kurulmamis.DisposeAsync();
+        await Installed.DisposeAsync();
+        await NotInstalled.DisposeAsync();
         await _pg.DisposeAsync();
-        try { Directory.Delete(_gecici, recursive: true); } catch { /* best-effort */ }
+        try { Directory.Delete(_temporary, recursive: true); } catch { /* best-effort */ }
     }
 }
 
@@ -233,22 +233,22 @@ public sealed class SpaWebFixture : IAsyncLifetime
 public sealed class SpaWebCollection : ICollectionFixture<SpaWebFixture>;
 
 /// <summary>RentACar.Web'i bellek-içi host eder; arka plan işleri (TCMB çekimi vb.) kapatılır.</summary>
-public sealed class SpaWebFactory(PostgresFixture pg, string spaDizin, string logYolu)
-    : WebApplicationFactory<RentACar.Web.Common.DogrulamaHatasiMiddleware>
+public sealed class SpaWebFactory(PostgresFixture pg, string spaDirectory, string logPath)
+    : WebApplicationFactory<RentACar.Web.Common.ValidationErrorMiddleware>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("ConnectionStrings:Default", pg.AppConnectionString);
         builder.UseSetting("ConnectionStrings:Migrator", pg.OwnerConnectionString);
-        builder.UseSetting("Spa:Dizin", spaDizin);
-        builder.UseSetting("Logging:FilePath", logYolu);
+        builder.UseSetting("Spa:Dizin", spaDirectory);
+        builder.UseSetting("Logging:FilePath", logPath);
         builder.ConfigureTestServices(s =>
         {
-            var isler = s.Where(d => d.ServiceType == typeof(IHostedService)
+            var jobs = s.Where(d => d.ServiceType == typeof(IHostedService)
                                      && d.ImplementationType?.Namespace?.StartsWith("RentACar", StringComparison.Ordinal) == true)
                          .ToList();
-            foreach (var d in isler) s.Remove(d);
+            foreach (var d in jobs) s.Remove(d);
         });
     }
 }

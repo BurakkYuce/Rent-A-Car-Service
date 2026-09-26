@@ -31,15 +31,15 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var g = ReportPeriod.ValidateDay(gun, "gun") ?? ReportPeriod.Today;
-        var satirlar = await reports.GetVehicleDailyStatusAsync(ReportPeriod.Anchor(g), new AracGunlukDurumFilter
+        var rowList = await reports.GetVehicleDailyStatusAsync(ReportPeriod.Anchor(g), new AracGunlukDurumFilter
         {
             Ofis = F(ofis), Grup = F(grup), Sipp = F(sipp), AracSahibi = F(aracSahibi), Plaka = F(plaka),
         }, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
-        var rows = satirlar.Select(r => r with { Musteri = mask.Name(r.Musteri) }).ToList();
-        var ozet = new VehicleDailySummary(g, rows.Select(r => r.VehicleId).Distinct().Count(),
+        var rows = rowList.Select(r => r with { Musteri = mask.Name(r.Musteri) }).ToList();
+        var summary = new VehicleDailySummary(g, rows.Select(r => r.VehicleId).Distinct().Count(),
             rows.Sum(r => r.GunlukKira), rows.Sum(r => r.GunlukHizmet), rows.Sum(r => r.GunlukToplam));
-        return TypedResults.Ok(new ReportResult<VehicleDailySummary, AracGunlukDurumRow>(new ReportPeriodDto(g, g), ozet,
+        return TypedResults.Ok(new ReportResult<VehicleDailySummary, AracGunlukDurumRow>(new ReportPeriodDto(g, g), summary,
             page.Apply(rows, VehicleDailyMap),
             ReportExport.Links(http, user, "arac-gunluk-durum",
             [
@@ -111,12 +111,12 @@ public static partial class ReportApi
         var p = q.Validate();
         static JobRunRow Row(Domain.Entities.JobCalismaLog l)
             => new(l.Id, l.JobAdi, l.BaslangicUtc, l.BitisUtc, l.SureMs, l.Basarili, l.SonucSayisi, l.Detay);
-        var son = (await logs.LastRunsAsync(ct)).OrderBy(s => s.JobAdi, StringComparer.Ordinal).Select(Row).ToList();
+        var last = (await logs.LastRunsAsync(ct)).OrderBy(s => s.JobAdi, StringComparer.Ordinal).Select(Row).ToList();
         var rows = (await logs.ListAsync(new JobCalismaLogFilter
         {
             JobAdi = F(job), Bas = p.FromUtc, Bit = p.ToUtc, YalnizHatali = hatali == true ? true : null,
         }, ct)).Select(Row).ToList();
-        return TypedResults.Ok(new ReportResult<IReadOnlyList<JobRunRow>, JobRunRow>(p.ToDto(), son,
+        return TypedResults.Ok(new ReportResult<IReadOnlyList<JobRunRow>, JobRunRow>(p.ToDto(), last,
             page.Apply(rows, JobRunMap), null));
     }
 

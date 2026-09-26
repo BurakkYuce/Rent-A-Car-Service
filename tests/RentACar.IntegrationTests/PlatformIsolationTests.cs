@@ -12,7 +12,7 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class PlatformIsolationTests
 {
-    private static async Task<(int Status, string? Location, bool NextCalled)> CalistirAsync(
+    private static async Task<(int Status, string? Location, bool NextCalled)> RunAsync(
         string path, params Claim[] claims)
     {
         var ctx = new DefaultHttpContext();
@@ -36,7 +36,7 @@ public sealed class PlatformIsolationTests
     [InlineData("/app/platformx")]    // F12.2: /app/platform muafiyeti segment eşleşmesidir, önek değil
     public async Task Platform_admin_tenant_sayfasindan_konsola_yonlendirilir(string path)
     {
-        var (status, location, nextCalled) = await CalistirAsync(path, Platform);
+        var (status, location, nextCalled) = await RunAsync(path, Platform);
         Assert.Equal(StatusCodes.Status302Found, status);
         Assert.Equal("/platform/tenants", location);
         Assert.False(nextCalled); // istek tenant sayfasına ULAŞMAZ
@@ -55,7 +55,7 @@ public sealed class PlatformIsolationTests
     [InlineData("/app/Platform/kiracilar/abc")]   // ASP.NET yönlendirmesi gibi büyük/küçük harf duyarsız
     public async Task Platform_admin_altyapi_yollarina_erisebilir(string path)
     {
-        var (_, location, nextCalled) = await CalistirAsync(path, Platform);
+        var (_, location, nextCalled) = await RunAsync(path, Platform);
         Assert.True(nextCalled);   // geçer
         Assert.Null(location);     // yönlendirme yok
     }
@@ -65,7 +65,7 @@ public sealed class PlatformIsolationTests
     [InlineData("/vehicles")]
     public async Task Normal_tenant_kullanicisi_etkilenmez(string path)
     {
-        var (_, location, nextCalled) = await CalistirAsync(path, Tenant); // tenant_id var, platform_admin YOK
+        var (_, location, nextCalled) = await RunAsync(path, Tenant); // tenant_id var, platform_admin YOK
         Assert.True(nextCalled);
         Assert.Null(location);
     }
@@ -73,7 +73,7 @@ public sealed class PlatformIsolationTests
     [Fact]
     public async Task Anonim_istek_etkilenmez_auth_katmani_ele_alir()
     {
-        var (_, location, nextCalled) = await CalistirAsync("/vehicles"); // claim yok → authenticated değil
+        var (_, location, nextCalled) = await RunAsync("/vehicles"); // claim yok → authenticated değil
         Assert.True(nextCalled);
         Assert.Null(location);
     }

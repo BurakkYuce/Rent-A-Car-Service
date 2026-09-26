@@ -65,7 +65,7 @@ public sealed partial class UiFinanceDocumentTests
         var id = await IdOf(await PostAsync(s, "/gelen-efatura", new
         {
             ettn = Guid.NewGuid().ToString(), gonderenVkn = "1234567890", gonderenUnvan = "Tedarikçi A.Ş.",
-            netTutar = 1000m, kdvTutar = 200m, genelToplam = 1200m, tarih = TestZaman.GunSonra(-1),
+            netTutar = 1000m, kdvTutar = 200m, genelToplam = 1200m, tarih = TestZaman.DaysLater(-1),
         }));
         if (approve) await Ok(await PostAsync(s, $"/gelen-efatura/{id}/onayla", null));
         return id;
@@ -77,14 +77,14 @@ public sealed partial class UiFinanceDocumentTests
         var e = await SetupAsync();
         var s = await LoginAsync(e, Who.Accountant);
         var id = await IncomingAsync(e, s);
-        var surum = (await Ok(await GetAsync(s, $"/gelen-efatura/{id}"))).GetProperty("surum").GetString()!;
+        var version = (await Ok(await GetAsync(s, $"/gelen-efatura/{id}"))).GetProperty("surum").GetString()!;
         object Body(string? v) => new { surum = v, kdv20Matrah = 1000m, kdv20 = 200m, cariId = e.Supplier };
 
         await Problem(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", Body(null), null), HttpStatusCode.BadRequest, "dogrulama", "surum");
-        var next = (await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", Body(surum), null))).GetProperty("surum").GetString();
-        Assert.NotEqual(surum, next);
+        var next = (await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", Body(version), null))).GetProperty("surum").GetString();
+        Assert.NotEqual(version, next);
         // Bayat sekme (eski sürüm) başkasının kaydını ezmez.
-        await Problem(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum, kdv20Matrah = 0m, kdv20 = 0m }, null),
+        await Problem(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum = version, kdv20Matrah = 0m, kdv20 = 0m }, null),
             HttpStatusCode.Conflict, "cakisma");
         var row = await DbAsync(e, db => db.GelenEFaturalar.AsNoTracking().SingleAsync(x => x.Id == id));
         Assert.Equal(1000m, row.Kdv20Matrah);
@@ -97,8 +97,8 @@ public sealed partial class UiFinanceDocumentTests
         var e = await SetupAsync();
         var s = await LoginAsync(e, Who.Accountant);
         var id = await IncomingAsync(e, s);
-        var surum = (await Ok(await GetAsync(s, $"/gelen-efatura/{id}"))).GetProperty("surum").GetString();
-        await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum, kdv20Matrah = 1000m, kdv20 = 200m, cariId = e.Supplier }, null));
+        var version = (await Ok(await GetAsync(s, $"/gelen-efatura/{id}"))).GetProperty("surum").GetString();
+        await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum = version, kdv20Matrah = 1000m, kdv20 = 200m, cariId = e.Supplier }, null));
 
         // Giderleştirme önce kuyruğa girer (talep kilidi), "işle" ardından: işle 400, defter tek küme.
         var (expense, process) = await OrderedAsync(e, "GelenEFaturalar", id,
@@ -112,8 +112,8 @@ public sealed partial class UiFinanceDocumentTests
 
         // Ters sıra: işle önce → giderleştirme 400, hiç gider yazılmaz.
         var other = await IncomingAsync(e, s);
-        var surum2 = (await Ok(await GetAsync(s, $"/gelen-efatura/{other}"))).GetProperty("surum").GetString();
-        await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{other}/bag", new { surum = surum2, kdv20Matrah = 1000m, kdv20 = 200m, cariId = e.Supplier }, null));
+        var version2 = (await Ok(await GetAsync(s, $"/gelen-efatura/{other}"))).GetProperty("surum").GetString();
+        await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{other}/bag", new { surum = version2, kdv20Matrah = 1000m, kdv20 = 200m, cariId = e.Supplier }, null));
         var (process2, expense2) = await OrderedAsync(e, "GelenEFaturalar", other,
             () => PostAsync(s, $"/gelen-efatura/{other}/isle", null),
             () => PostAsync(s, $"/gelen-efatura/{other}/giderlestir", new { }));

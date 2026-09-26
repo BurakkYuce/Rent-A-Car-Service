@@ -51,7 +51,7 @@ public sealed partial class UiFinanceDocumentTests(WebFixture fx)
     {
         var tenantId = Guid.NewGuid();
         var code = Random10("f81b");
-        var password = WebFixture.RastgeleParola();
+        var password = WebFixture.RandomPassword();
         var users = Enum.GetValues<Who>().ToDictionary(k => k, _ => Random10("u"));
 
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.Pg.OwnerConnectionString).Options;
@@ -79,7 +79,7 @@ public sealed partial class UiFinanceDocumentTests(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        await fx.PilotYapAsync(tenantId, true);
+        await fx.MakePilotAsync(tenantId, true);
 
         return await ReadAsync(tenantId, async sp =>
         {
@@ -89,8 +89,8 @@ public sealed partial class UiFinanceDocumentTests(WebFixture fx)
             var vehicle = await VehicleAsync(sp, "SubeA");
             var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
             {
-                MusteriId = customer, VehicleId = vehicle, BasTar = TestZaman.GunSonra(10),
-                BitTar = TestZaman.GunSonra(13), GunlukUcret = 100m, CikisOfisi = "SubeA",
+                MusteriId = customer, VehicleId = vehicle, BasTar = TestZaman.DaysLater(10),
+                BitTar = TestZaman.DaysLater(13), GunlukUcret = 100m, CikisOfisi = "SubeA",
             });
             return new Env
             {
@@ -123,8 +123,8 @@ public sealed partial class UiFinanceDocumentTests(WebFixture fx)
     private Task<List<AccountLedgerEntry>> LedgerAsync(Env e, Guid sourceId)
         => DbAsync(e, db => db.AccountLedgerEntries.AsNoTracking().Where(x => x.SourceId == sourceId).ToListAsync());
 
-    private Task<decimal> CustomerBalanceAsync(Env e, Guid cari)
-        => ReadAsync(e.TenantId, sp => sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari));
+    private Task<decimal> CustomerBalanceAsync(Env e, Guid account)
+        => ReadAsync(e.TenantId, sp => sp.GetRequiredService<CashService>().GetAccountBalanceAsync(account));
 
     /// <summary>Kiracının TÜM defter kümeleri dengeli: her (SourceType, SourceId) için Σ borç(baz) == Σ alacak(baz).</summary>
     private async Task AllLedgerBalancedAsync(Env e)

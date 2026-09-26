@@ -11,15 +11,15 @@ internal static class SystemApiCommon
     public const string WebsiteTag = "Web Sitesi";
     public const string DefinitionsTag = "Tanımlar";
 
-    public static ProblemHttpResult NotFound(string detail = "Kayıt bulunamadı.") => F5Ortak.Bulunamadi(detail);
+    public static ProblemHttpResult NotFound(string detail = "Kayıt bulunamadı.") => F5Shared.NotFound(detail);
 
     /// <summary>Tam değiştirme PUT'unda <c>surum</c> zorunlu (DEVIR §5).</summary>
-    public static void RequireVersion(string? surum)
+    public static void RequireVersion(string? version)
     {
-        if (string.IsNullOrWhiteSpace(surum))
+        if (string.IsNullOrWhiteSpace(version))
             throw new ValidationException("Kayıt sürümü (surum) zorunludur; kaydı yeniden açın.", "surum");
     }
 
     /// <summary>Boş/boşluk → null, aksi Trim.</summary>
-    public static string? Clean(string? s) => F5Ortak.Nz(s);
+    public static string? Clean(string? s) => F5Shared.Nz(s);
 }

@@ -19,9 +19,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class LokasyonDerinlikTests(PostgresFixture fx)
 {
-    private static LocationInput Dolu(string kod, string ad) => new()
+    private static LocationInput Filled(string code, string name) => new()
     {
-        Kod = kod, Ad = ad,
+        Kod = code, Ad = name,
         Adres = "Yeşilköy Mah.", Telefon = "02121112233", Eposta = "ist@ornek.com",
         CalismaSaatleri = "07:00-23:00", TeslimUcreti = 250m, Sube = null,
         IngilizceAd = " Istanbul Airport ", BulusmaNoktasi = " Havalimanı Karşılama ",
@@ -45,7 +45,7 @@ public sealed class LokasyonDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<LocationService>();
 
-        var id = await svc.CreateAsync(Dolu("ist-hvl", "İstanbul Havalimanı"));
+        var id = await svc.CreateAsync(Filled("ist-hvl", "İstanbul Havalimanı"));
         var l = await svc.GetAsync(id);
 
         Assert.NotNull(l);
@@ -80,7 +80,7 @@ public sealed class LokasyonDerinlikTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<LocationService>();
 
         // ELLE: girdide yalnız 3 gün var (1, 6, 7).
-        var id = await svc.CreateAsync(Dolu("IST-2", "Ofis 2"));
+        var id = await svc.CreateAsync(Filled("IST-2", "Ofis 2"));
         var l = await svc.GetAsync(id);
 
         Assert.Equal(7, l!.HaftalikCalismaSaatleri.Count);
@@ -107,15 +107,15 @@ public sealed class LokasyonDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<LocationService>();
-        var id = await svc.CreateAsync(Dolu("IST-3", "Ofis 3"));
+        var id = await svc.CreateAsync(Filled("IST-3", "Ofis 3"));
 
-        var girdi = Dolu("IST-3", "Ofis 3");
-        girdi.HaftalikCalismaSaatleri =
+        var input = Filled("IST-3", "Ofis 3");
+        input.HaftalikCalismaSaatleri =
         [
             new GunSaat { Gun = 1, Acilis = "10:00", Kapanis = "18:00" },
             new GunSaat { Gun = 2, Acilis = "10:00", Kapanis = "18:00" }
         ];
-        Assert.True(await svc.UpdateAsync(id, girdi));
+        Assert.True(await svc.UpdateAsync(id, input));
 
         var l = await svc.GetAsync(id);
         Assert.Equal(7, l!.HaftalikCalismaSaatleri.Count);
@@ -171,7 +171,7 @@ public sealed class LokasyonDerinlikTests(PostgresFixture fx)
         Guid id;
         using (var s1 = host.ScopeFor(t1))
             id = await s1.ServiceProvider.GetRequiredService<LocationService>()
-                .CreateAsync(Dolu("GIZLI", "Gizli Ofis"));
+                .CreateAsync(Filled("GIZLI", "Gizli Ofis"));
 
         using (var s2 = host.ScopeFor(Guid.NewGuid()))
         {
@@ -179,11 +179,11 @@ public sealed class LokasyonDerinlikTests(PostgresFixture fx)
             Assert.Empty(await svc2.ListAsync());
             Assert.Null(await svc2.GetAsync(id));
             // Aynı kod başka tenant'ta serbest.
-            Assert.NotEqual(Guid.Empty, await svc2.CreateAsync(Dolu("GIZLI", "Başka")));
+            Assert.NotEqual(Guid.Empty, await svc2.CreateAsync(Filled("GIZLI", "Başka")));
         }
 
-        using var muh = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
+        using var acct = host.ScopeFor(t1, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         await Assert.ThrowsAsync<NoPermissionException>(() =>
-            muh.ServiceProvider.GetRequiredService<LocationService>().CreateAsync(Dolu("YENI", "Yetkisiz")));
+            acct.ServiceProvider.GetRequiredService<LocationService>().CreateAsync(Filled("YENI", "Yetkisiz")));
     }
 }

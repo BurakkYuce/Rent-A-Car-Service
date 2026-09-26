@@ -39,18 +39,18 @@ public sealed partial class UiSystemDefinitionsTests
         // şube kapsamı: SubeA operatörü kendi ofisini günceller; SubeB ofisine dokunamaz, ofisi SubeB'ye taşıyamaz
         var op = await _kit.LoginAsync(e, Who.OperatorA);
         Assert.Equal(2, (await Json(await op.C.GetAsync(path))).GetProperty("toplam").GetInt32()); // okuma tüm ofisler
-        var aSurum = Surum(await Json(await op.C.GetAsync($"{path}/{aId}")));
-        await Problem(await Send(op, HttpMethod.Put, $"{path}/{aId}", new { kod = "IST", ad = "Taşı", sube = "SubeB", surum = aSurum }), HttpStatusCode.Forbidden, "yetki_yok");
-        var bSurum = Surum(await Json(await op.C.GetAsync($"{path}/{bId}")));
-        await Problem(await Send(op, HttpMethod.Put, $"{path}/{bId}", new { kod = "ANK", ad = "Ele geçir", sube = "SubeA", surum = bSurum }), HttpStatusCode.Forbidden, "yetki_yok");
+        var aVersion = VersionOf(await Json(await op.C.GetAsync($"{path}/{aId}")));
+        await Problem(await Send(op, HttpMethod.Put, $"{path}/{aId}", new { kod = "IST", ad = "Taşı", sube = "SubeB", surum = aVersion }), HttpStatusCode.Forbidden, "yetki_yok");
+        var bVersion = VersionOf(await Json(await op.C.GetAsync($"{path}/{bId}")));
+        await Problem(await Send(op, HttpMethod.Put, $"{path}/{bId}", new { kod = "ANK", ad = "Ele geçir", sube = "SubeA", surum = bVersion }), HttpStatusCode.Forbidden, "yetki_yok");
         await Problem(await Send(op, HttpMethod.Delete, $"{path}/{bId}"), HttpStatusCode.Forbidden, "yetki_yok");
         await Problem(await Send(op, HttpMethod.Post, path, new { kod = "IZM", ad = "İzmir", sube = "SubeB" }), HttpStatusCode.Forbidden, "yetki_yok");
-        var ok = await Json(await Send(op, HttpMethod.Put, $"{path}/{aId}", new { kod = "IST", ad = "İstanbul", sube = "SubeA", surum = aSurum }));
+        var ok = await Json(await Send(op, HttpMethod.Put, $"{path}/{aId}", new { kod = "IST", ad = "İstanbul", sube = "SubeA", surum = aVersion }));
         Assert.Equal("İstanbul", ok.GetProperty("ad").GetString());
         Assert.Equal("Ankara", (await Json(await admin.C.GetAsync($"{path}/{bId}"))).GetProperty("ad").GetString());
 
         // bayat sürüm
-        await Problem(await Send(admin, HttpMethod.Put, $"{path}/{aId}", new { kod = "IST", ad = "Bayat", sube = "SubeA", surum = aSurum }), HttpStatusCode.Conflict, "cakisma");
+        await Problem(await Send(admin, HttpMethod.Put, $"{path}/{aId}", new { kod = "IST", ad = "Bayat", sube = "SubeA", surum = aVersion }), HttpStatusCode.Conflict, "cakisma");
 
         var other = await _kit.SetupAsync();
         var otherAdmin = await _kit.LoginAsync(other, Who.Admin);
@@ -64,16 +64,16 @@ public sealed partial class UiSystemDefinitionsTests
         var e = await _kit.SetupAsync();
         var admin = await _kit.LoginAsync(e, Who.Admin);
         const string path = V1 + "/personel";
-        const string tc = "10000000146";
+        const string nationalId = "10000000146";
 
         var createResp = await Send(admin, HttpMethod.Post, path, new
         {
-            kod = "p1", ad = "Ali", soyad = "Veli", tcKimlik = tc, maas = 45000.75m, sube = "SubeA", cepTel = "05320000000",
-            iseGiris = TestZaman.GunSonra(-100).ToOffset(TimeSpan.FromHours(3)),
+            kod = "p1", ad = "Ali", soyad = "Veli", tcKimlik = nationalId, maas = 45000.75m, sube = "SubeA", cepTel = "05320000000",
+            iseGiris = TestZaman.DaysLater(-100).ToOffset(TimeSpan.FromHours(3)),
         });
         var createText = await createResp.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
-        Assert.DoesNotContain(tc, createText);
+        Assert.DoesNotContain(nationalId, createText);
         var created = JsonDocument.Parse(createText).RootElement;
         var id = created.GetProperty("id").GetGuid();
         Assert.True(created.GetProperty("tcKimlikTanimli").GetBoolean());
@@ -83,19 +83,19 @@ public sealed partial class UiSystemDefinitionsTests
 
         // liste: TC da maaş da yok
         var listText = await (await admin.C.GetAsync(path)).Content.ReadAsStringAsync();
-        Assert.DoesNotContain(tc, listText);
+        Assert.DoesNotContain(nationalId, listText);
         Assert.DoesNotContain("maas", listText, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("45000", listText);
 
         // DB'de TC düz metin değil
         var enc = await _kit.ReadAsync(e.TenantId, db => db.Personeller.Where(p => p.Id == id).Select(p => p.TcKimlikEnc).SingleAsync());
         Assert.NotNull(enc);
-        Assert.DoesNotContain(tc, enc!);
+        Assert.DoesNotContain(nationalId, enc!);
 
         // güncelle: TC/maaş boş → korunur; detayda yine yok
-        var s1 = Surum(created);
+        var s1 = VersionOf(created);
         var updText = await (await Send(admin, HttpMethod.Put, $"{path}/{id}", new { kod = "P1", ad = "Ali", soyad = "Kaya", sube = "SubeA", surum = s1 })).Content.ReadAsStringAsync();
-        Assert.DoesNotContain(tc, updText);
+        Assert.DoesNotContain(nationalId, updText);
         var upd = JsonDocument.Parse(updText).RootElement;
         Assert.Equal("Kaya", upd.GetProperty("soyad").GetString());
         Assert.True(upd.GetProperty("tcKimlikTanimli").GetBoolean());

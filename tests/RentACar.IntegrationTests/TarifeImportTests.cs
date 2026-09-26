@@ -36,19 +36,19 @@ public sealed class TarifeImportTests(PostgresFixture fx)
                   "dlx;Deluxe Yaz;WEB;SUV;2026-06-01;31.08.2026;1.250,50;1100;950.25;800;try;Onaylı;hacker\n" +
                   "EKO-Y;Ekonomi Yaz;;EKO;;;700;600;;;;Onaylı;x\n" +
                   "STD-K;Standart Kış;ACENTA;;01.11.2026;28.02.2027;500;450;400;350;EUR;;";
-        var r = await Svc(sp).ImportTarifelerAsync(Rows(csv));
+        var r = await Svc(sp).ImportTariffsAsync(Rows(csv));
 
         Assert.Equal(3, r.Eklenen);
         Assert.Equal(0, r.Atlanan);
         Assert.Equal(0, r.Hatali);
 
-        var matrisler = sp.GetRequiredService<RateMatrixService>();
-        var liste = await matrisler.ListAsync();
-        Assert.Equal(3, liste.Count);
-        Assert.All(liste, m => Assert.Equal(TariffApprovalStatus.Bekliyor, m.OnayDurumu)); // enjeksiyon yok sayıldı
-        Assert.All(liste, m => Assert.Null(m.Onaylayan));
+        var matrices = sp.GetRequiredService<RateMatrixService>();
+        var list = await matrices.ListAsync();
+        Assert.Equal(3, list.Count);
+        Assert.All(list, m => Assert.Equal(TariffApprovalStatus.Bekliyor, m.OnayDurumu)); // enjeksiyon yok sayıldı
+        Assert.All(list, m => Assert.Null(m.Onaylayan));
 
-        var dlx = Assert.Single(liste, m => m.Kod == "DLX");                 // kod büyük harfe normalize
+        var dlx = Assert.Single(list, m => m.Kod == "DLX");                 // kod büyük harfe normalize
         Assert.Equal(1250.50m, dlx.Gun1);                                    // "1.250,50" (TR biçimi)
         Assert.Equal(1100m, dlx.Gun7);
         Assert.Equal(950.25m, dlx.GunHaftalik);                              // "950.25" (EN biçimi)
@@ -60,9 +60,9 @@ public sealed class TarifeImportTests(PostgresFixture fx)
         Assert.Equal(new DateTimeOffset(2026, 8, 31, 0, 0, 0, TimeSpan.Zero), dlx.BitTar);  // TR "gg.aa.yyyy"
 
         // ÇİT: çözümleyici (Onaylı+Aktif filtresi — motorla aynı kural) Beklemede'yi SEÇMEZ.
-        var sorgu = new RateMatrisSorgu(Kanal: "WEB", Sube: null, AracGrupKod: "SUV",
+        var query = new RateMatrisSorgu(Kanal: "WEB", Sube: null, AracGrupKod: "SUV",
             Tarih: new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), GunSayisi: 1);
-        Assert.Null(await matrisler.ResolveAsync(sorgu));
+        Assert.Null(await matrices.ResolveAsync(query));
     }
 
     [Fact]
@@ -71,10 +71,10 @@ public sealed class TarifeImportTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var matrisler = sp.GetRequiredService<RateMatrixService>();
+        var matrices = sp.GetRequiredService<RateMatrixService>();
 
         // Mevcut kayıt: STD (import öncesi elle açılmış).
-        await matrisler.CreateAsync(new RateMatrixInput { Kod = "STD", Ad = "Standart", Gun1 = 100m });
+        await matrices.CreateAsync(new RateMatrixInput { Kod = "STD", Ad = "Standart", Gun1 = 100m });
 
         // 5 satır: mevcut-tekrar + yeni + dosya-içi-tekrar + negatif fiyat + kodsuz.
         var csv = "Kod;Ad;Gün 1\n" +
@@ -83,7 +83,7 @@ public sealed class TarifeImportTests(PostgresFixture fx)
                   "dlx;Deluxe Kopya;300\n" +        // dosya-içi tekrar (normalize DLX) → atlanır
                   "NEG;Negatif;-50\n" +             // hata: negatif fiyat
                   ";Adsız;100";                     // hata: kod zorunlu
-        var r = await Svc(sp).ImportTarifelerAsync(Rows(csv));
+        var r = await Svc(sp).ImportTariffsAsync(Rows(csv));
 
         Assert.Equal(1, r.Eklenen);
         Assert.Equal(2, r.Atlanan);
@@ -91,9 +91,9 @@ public sealed class TarifeImportTests(PostgresFixture fx)
         Assert.Contains(r.Hatalar, h => h.StartsWith("NEG:"));
         Assert.Contains(r.Hatalar, h => h.Contains("kodu zorunlu"));
 
-        var liste = await matrisler.ListAsync();
-        Assert.Equal(2, liste.Count);                                        // STD (eski) + DLX
-        Assert.Equal(100m, Assert.Single(liste, m => m.Kod == "STD").Gun1);  // mevcut kayıt ezilmedi
-        Assert.Equal(200m, Assert.Single(liste, m => m.Kod == "DLX").Gun1);  // ilk satır kazandı
+        var list = await matrices.ListAsync();
+        Assert.Equal(2, list.Count);                                        // STD (eski) + DLX
+        Assert.Equal(100m, Assert.Single(list, m => m.Kod == "STD").Gun1);  // mevcut kayıt ezilmedi
+        Assert.Equal(200m, Assert.Single(list, m => m.Kod == "DLX").Gun1);  // ilk satır kazandı
     }
 }

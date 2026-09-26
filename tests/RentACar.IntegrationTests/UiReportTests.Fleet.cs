@@ -28,17 +28,17 @@ public sealed partial class UiReportTests
         var e = await SetupAsync();
         var s = await LoginAsync(e, Who.Admin);
 
-        var r = await GetJson(s, $"{Rapor}/arac-karne/{e.VehicleA}");
-        var karne = r.GetProperty("ozet");
-        Assert.Equal("Satildi", karne.GetProperty("baslik").GetProperty("durum").GetString());
-        Assert.Equal(5000m, Dec(karne, "toplamGelir"));   // A aracının satış geliri (net)
-        Assert.Equal(0m, Dec(karne, "toplamGider"));      // genel gider araca atfedilmez
+        var r = await GetJson(s, $"{Report}/arac-karne/{e.VehicleA}");
+        var scorecard = r.GetProperty("ozet");
+        Assert.Equal("Satildi", scorecard.GetProperty("baslik").GetProperty("durum").GetString());
+        Assert.Equal(5000m, Dec(scorecard, "toplamGelir"));   // A aracının satış geliri (net)
+        Assert.Equal(0m, Dec(scorecard, "toplamGider"));      // genel gider araca atfedilmez
         Assert.StartsWith($"/raporlar/export/arac-karne?format=excel&vehicleId={e.VehicleA}",
             r.GetProperty("export").GetProperty("excel").GetString());
 
         var other = await SetupAsync(ledger: false);
-        await ExpectProblem(s, $"{Rapor}/arac-karne/{other.VehicleA}", HttpStatusCode.NotFound, null);
-        await ExpectProblem(s, $"{Rapor}/arac-karne/{Guid.NewGuid()}", HttpStatusCode.NotFound, null);
+        await ExpectProblem(s, $"{Report}/arac-karne/{other.VehicleA}", HttpStatusCode.NotFound, null);
+        await ExpectProblem(s, $"{Report}/arac-karne/{Guid.NewGuid()}", HttpStatusCode.NotFound, null);
     }
 
     [Fact]
@@ -47,25 +47,25 @@ public sealed partial class UiReportTests
         var e = await SetupAsync();
         var s = await LoginAsync(e, Who.Accounting);
 
-        var fa = await GetJson(s, Rapor + "/filo-analiz?sirala=-gelir");
+        var fa = await GetJson(s, Report + "/filo-analiz?sirala=-gelir");
         var rows = fa.GetProperty("satirlar").GetProperty("kayitlar").EnumerateArray().ToList();
         Assert.Equal(2, rows.Count);
         Assert.Equal(e.VehicleA, rows[0].GetProperty("vehicleId").GetGuid()); // 5000 > 1000
         Assert.Equal(6000m, rows.Sum(x => Dec(x, "gelir")));
         Assert.Equal(1000m, Dec(fa.GetProperty("ozet"), "atanmamisGider"));   // genel gider araca atfedilmez
-        await ExpectProblem(s, Rapor + "/filo-analiz?siralama=renk", HttpStatusCode.BadRequest, null, "siralama");
+        await ExpectProblem(s, Report + "/filo-analiz?siralama=renk", HttpStatusCode.BadRequest, null, "siralama");
 
-        var filo = (await GetJson(s, Rapor + "/filo")).GetProperty("ozet").GetProperty("durum");
-        Assert.Equal(2, filo.GetProperty("toplam").GetInt32());
-        Assert.Equal(2, filo.GetProperty("satildi").GetInt32());
+        var fleet = (await GetJson(s, Report + "/filo")).GetProperty("ozet").GetProperty("durum");
+        Assert.Equal(2, fleet.GetProperty("toplam").GetInt32());
+        Assert.Equal(2, fleet.GetProperty("satildi").GetInt32());
 
-        var dol = await GetJson(s, $"{Rapor}/doluluk?bas={Today}&bit={Today}&boyut=Sube");
+        var dol = await GetJson(s, $"{Report}/doluluk?bas={Today}&bit={Today}&boyut=Sube");
         Assert.Equal(2, dol.GetProperty("ozet").GetProperty("ozet").GetProperty("aracSayisi").GetInt32());
         Assert.Equal(0, dol.GetProperty("ozet").GetProperty("ozet").GetProperty("kiraGun").GetInt32());
         Assert.Equal("Sube", dol.GetProperty("ozet").GetProperty("gunluk").GetProperty("boyut").GetString());
-        await ExpectProblem(s, Rapor + "/doluluk?boyut=Renk", HttpStatusCode.BadRequest, null, "boyut");
-        var cokUzun = DateOnly.Parse(Today).AddDays(-400).ToString("yyyy-MM-dd");
-        await ExpectProblem(s, $"{Rapor}/doluluk?bas={cokUzun}&bit={Today}", HttpStatusCode.BadRequest, null, "bit");
+        await ExpectProblem(s, Report + "/doluluk?boyut=Renk", HttpStatusCode.BadRequest, null, "boyut");
+        var tooLong = DateOnly.Parse(Today).AddDays(-400).ToString("yyyy-MM-dd");
+        await ExpectProblem(s, $"{Report}/doluluk?bas={tooLong}&bit={Today}", HttpStatusCode.BadRequest, null, "bit");
     }
 
     [Fact]
@@ -75,55 +75,55 @@ public sealed partial class UiReportTests
         var admin = await LoginAsync(e, Who.Admin);
         var opA = await LoginAsync(e, Who.OperatorA);
 
-        var hepsi = await GetJson(admin, Rapor + "/arac-durum-takip?gorunum=arac");
-        Assert.Equal(2, hepsi.GetProperty("satirlar").GetProperty("toplam").GetInt32());
-        var subeA = await GetJson(opA, Rapor + "/arac-durum-takip?gorunum=arac");
-        var tek = subeA.GetProperty("satirlar").GetProperty("kayitlar").EnumerateArray().Single();
+        var all = await GetJson(admin, Report + "/arac-durum-takip?gorunum=arac");
+        Assert.Equal(2, all.GetProperty("satirlar").GetProperty("toplam").GetInt32());
+        var branchA = await GetJson(opA, Report + "/arac-durum-takip?gorunum=arac");
+        var tek = branchA.GetProperty("satirlar").GetProperty("kayitlar").EnumerateArray().Single();
         Assert.Equal(e.VehicleA, tek.GetProperty("vehicleId").GetGuid());
-        Assert.Equal(JsonValueKind.Null, subeA.GetProperty("export").ValueKind); // export firma geneli → kapsamlıya yok
-        await ExpectProblem(opA, Rapor + "/arac-durum-takip?sube=SubeB", HttpStatusCode.Forbidden, "yetki_yok");
-        await ExpectProblem(opA, Rapor + "/periyodik-servis?sube=SubeB", HttpStatusCode.Forbidden, "yetki_yok");
+        Assert.Equal(JsonValueKind.Null, branchA.GetProperty("export").ValueKind); // export firma geneli → kapsamlıya yok
+        await ExpectProblem(opA, Report + "/arac-durum-takip?sube=SubeB", HttpStatusCode.Forbidden, "yetki_yok");
+        await ExpectProblem(opA, Report + "/periyodik-servis?sube=SubeB", HttpStatusCode.Forbidden, "yetki_yok");
 
-        var gun = await GetJson(opA, $"{Rapor}/arac-durum-takip?bas={Today}&bit={Today}");
-        var satir = gun.GetProperty("ozet").GetProperty("gunler").EnumerateArray().Single();
-        Assert.Equal(1, satir.GetProperty("toplamArac").GetInt32()); // yalnız SubeA aracı
+        var day = await GetJson(opA, $"{Report}/arac-durum-takip?bas={Today}&bit={Today}");
+        var row = day.GetProperty("ozet").GetProperty("gunler").EnumerateArray().Single();
+        Assert.Equal(1, row.GetProperty("toplamArac").GetInt32()); // yalnız SubeA aracı
 
-        var ps = await GetJson(opA, Rapor + "/periyodik-servis");
+        var ps = await GetJson(opA, Report + "/periyodik-servis");
         Assert.All(ps.GetProperty("satirlar").GetProperty("kayitlar").EnumerateArray(),
             x => Assert.Equal(e.VehicleA, x.GetProperty("vehicleId").GetGuid()));
-        var sm = await GetJson(opA, Rapor + "/sigorta-muayene");
+        var sm = await GetJson(opA, Report + "/sigorta-muayene");
         Assert.Equal(e.VehicleA, sm.GetProperty("satirlar").GetProperty("kayitlar").EnumerateArray().Single()
             .GetProperty("vehicleId").GetGuid());
-        Assert.Equal(2, (await GetJson(admin, Rapor + "/sigorta-muayene")).GetProperty("ozet").GetProperty("adet").GetInt32());
+        Assert.Equal(2, (await GetJson(admin, Report + "/sigorta-muayene")).GetProperty("ozet").GetProperty("adet").GetInt32());
 
         // Pivot firma geneli sayımdır → kapsamlı kullanıcıya 403.
-        await GetJson(admin, Rapor + "/karsilastirmali-analiz");
-        await ExpectProblem(opA, Rapor + "/karsilastirmali-analiz", HttpStatusCode.Forbidden, "yetki_yok");
+        await GetJson(admin, Report + "/karsilastirmali-analiz");
+        await ExpectProblem(opA, Report + "/karsilastirmali-analiz", HttpStatusCode.Forbidden, "yetki_yok");
 
-        var eskiGun = DateOnly.Parse(Today).AddDays(-400).ToString("yyyy-MM-dd");
-        await ExpectProblem(admin, $"{Rapor}/arac-durum-takip?bas={eskiGun}&bit={Today}", HttpStatusCode.BadRequest, null, "bit");
-        await ExpectProblem(admin, Rapor + "/arac-durum-takip?gorunum=hafta", HttpStatusCode.BadRequest, null, "gorunum");
-        await ExpectProblem(admin, Rapor + "/sigorta-muayene?tur=Yok", HttpStatusCode.BadRequest, null, "tur");
-        await ExpectProblem(admin, Rapor + "/periyodik-servis?esik=-1", HttpStatusCode.BadRequest, null, "esik");
+        var oldDay = DateOnly.Parse(Today).AddDays(-400).ToString("yyyy-MM-dd");
+        await ExpectProblem(admin, $"{Report}/arac-durum-takip?bas={oldDay}&bit={Today}", HttpStatusCode.BadRequest, null, "bit");
+        await ExpectProblem(admin, Report + "/arac-durum-takip?gorunum=hafta", HttpStatusCode.BadRequest, null, "gorunum");
+        await ExpectProblem(admin, Report + "/sigorta-muayene?tur=Yok", HttpStatusCode.BadRequest, null, "tur");
+        await ExpectProblem(admin, Report + "/periyodik-servis?esik=-1", HttpStatusCode.BadRequest, null, "esik");
     }
 
     [Fact]
     public async Task Fleet_permissions_follow_blazor_pages()
     {
         var e = await SetupAsync();
-        var muhasebe = await LoginAsync(e, Who.Accounting);
+        var accounting = await LoginAsync(e, Who.Accounting);
         var opB = await LoginAsync(e, Who.OperatorB);
         foreach (var ep in FleetViewEndpoints.Append($"/arac-karne/{e.VehicleA}"))
         {
-            await GetJson(muhasebe, Rapor + ep);
-            await ExpectProblem(opB, Rapor + ep, HttpStatusCode.Forbidden, "yetki_yok");
+            await GetJson(accounting, Report + ep);
+            await ExpectProblem(opB, Report + ep, HttpStatusCode.Forbidden, "yetki_yok");
         }
         foreach (var ep in OperationEndpoints)
         {
-            await GetJson(muhasebe, Rapor + ep);
-            await GetJson(opB, Rapor + ep);
+            await GetJson(accounting, Report + ep);
+            await GetJson(opB, Report + ep);
         }
-        var shifts = await GetJson(opB, Rapor + "/personel-calisma");
+        var shifts = await GetJson(opB, Report + "/personel-calisma");
         Assert.Equal(7, shifts.GetProperty("gunler").GetArrayLength()); // varsayılan pencere bir hafta
     }
 
@@ -141,22 +141,22 @@ public sealed partial class UiReportTests
         var svc = scope.ServiceProvider.GetRequiredService<ReportService>();
 
         var tf = await svc.GetCollectionInvoiceAsync();
-        var tfApi = (await GetJson(s, Rapor + "/tahsilat-fatura")).GetProperty("ozet");
+        var tfApi = (await GetJson(s, Report + "/tahsilat-fatura")).GetProperty("ozet");
         Assert.Equal(tf.TahsilatToplam, Dec(tfApi, "tahsilatToplam"));
         Assert.Equal(3000m, Dec(tfApi, "tahsilatToplam")); // elle: tek tahsilat 3000
         Assert.Equal(tf.FaturaToplam, Dec(tfApi, "faturaToplam"));
 
-        var kdv = await svc.GetVatListAsync();
-        Assert.Equal(kdv.ToplamKdv, Dec((await GetJson(s, Rapor + "/kdv-listesi")).GetProperty("ozet"), "toplamKdv"));
-        var ek = await svc.GetAddOnReportAsync();
-        Assert.Equal(ek.ToplamBrut, Dec((await GetJson(s, Rapor + "/ek-hizmet")).GetProperty("ozet"), "toplamBrut"));
+        var vat = await svc.GetVatListAsync();
+        Assert.Equal(vat.ToplamKdv, Dec((await GetJson(s, Report + "/kdv-listesi")).GetProperty("ozet"), "toplamKdv"));
+        var extra = await svc.GetAddOnReportAsync();
+        Assert.Equal(extra.ToplamBrut, Dec((await GetJson(s, Report + "/ek-hizmet")).GetProperty("ozet"), "toplamBrut"));
         var hs = await svc.GetCashBankSummaryAsync();
-        Assert.Equal(hs.KasaBakiye, Dec((await GetJson(s, Rapor + "/kasa-banka")).GetProperty("ozet").GetProperty("toplam"), "kasaBakiye"));
+        Assert.Equal(hs.KasaBakiye, Dec((await GetJson(s, Report + "/kasa-banka")).GetProperty("ozet").GetProperty("toplam"), "kasaBakiye"));
         var ka = await svc.GetComparativeAnalysisAsync();
-        Assert.Equal(ka.GenelToplam, Dec((await GetJson(s, Rapor + "/karsilastirmali-analiz")).GetProperty("ozet"), "genelToplam"));
+        Assert.Equal(ka.GenelToplam, Dec((await GetJson(s, Report + "/karsilastirmali-analiz")).GetProperty("ozet"), "genelToplam"));
         var fo = await svc.GetFleetUtilizationAsync();
-        Assert.Equal(fo.Satildi, (await GetJson(s, Rapor + "/filo")).GetProperty("ozet").GetProperty("durum").GetProperty("satildi").GetInt32());
+        Assert.Equal(fo.Satildi, (await GetJson(s, Report + "/filo")).GetProperty("ozet").GetProperty("durum").GetProperty("satildi").GetInt32());
         var ps = await svc.GetPeriodicServiceAsync();
-        Assert.Equal(ps.Count, (await GetJson(s, Rapor + "/periyodik-servis")).GetProperty("satirlar").GetProperty("toplam").GetInt32());
+        Assert.Equal(ps.Count, (await GetJson(s, Report + "/periyodik-servis")).GetProperty("satirlar").GetProperty("toplam").GetInt32());
     }
 }

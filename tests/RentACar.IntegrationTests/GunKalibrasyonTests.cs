@@ -10,7 +10,7 @@ namespace RentACar.IntegrationTests;
 public sealed class GunKalibrasyonTests
 {
     private static readonly DateTimeOffset T0 = new(2026, 8, 1, 10, 0, 0, TimeSpan.Zero);
-    private static int Gun(double saat) => BookingMath.ComputeDays(T0, T0.AddHours(saat));
+    private static int Day(double hour) => BookingMath.ComputeDays(T0, T0.AddHours(hour));
 
     [Theory]
     [InlineData(24, 1)]    // tam 1 gün
@@ -22,8 +22,8 @@ public sealed class GunKalibrasyonTests
     [InlineData(72, 3)]    // tam 3 gün
     [InlineData(1, 1)]     // < 1 gün → min 1
     [InlineData(3, 1)]     // 3sa → min 1 (tam gün 0, kısmi 3 > eşik ama Max(1,1)=1)
-    public void ComputeGun_kismi_esik_kurali(double saat, int beklenen)
-        => Assert.Equal(beklenen, Gun(saat));
+    public void ComputeGun_kismi_esik_kurali(double hour, int expected)
+        => Assert.Equal(expected, Day(hour));
 
     [Fact]
     public void Tam_gun_araliklari_ceil_ile_ayni_regresyon()

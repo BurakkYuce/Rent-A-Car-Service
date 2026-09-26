@@ -85,8 +85,8 @@ else
     <table class="grid tr-grid">
         <thead><tr><th>Tarih</th><th class="num">KM</th><th>Kaynak</th></tr></thead>
         <tbody>
-            @if (_kmLoglari.Count == 0) { <tr><td colspan="3" class="muted">Kayıt yok.</td></tr> }
-            @foreach (var k in _kmLoglari)
+            @if (_kmLogs.Count == 0) { <tr><td colspan="3" class="muted">Kayıt yok.</td></tr> }
+            @foreach (var k in _kmLogs)
             {
                 <tr><td>@k.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                     <td class="num">@k.Km.ToString("N0")</td>
@@ -118,11 +118,11 @@ else
     [Parameter] public Guid Id { get; set; }
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     private VehicleDetailDto? _d;
-    private IReadOnlyList<VehicleKmLog> _kmLoglari = [];
+    private IReadOnlyList<VehicleKmLog> _kmLogs = [];
 
     protected override async Task OnInitializedAsync()
     {
         _d = await Details.GetVehicleAsync(Id);
-        if (_d is not null) _kmLoglari = await Vehicles.KmLogsAsync(Id, 10);
+        if (_d is not null) _kmLogs = await Vehicles.KmLogsAsync(Id, 10);
     }
 }

@@ -22,7 +22,7 @@
     <form method="post" action="/belge-sablonlari/create" class="grid-form"><AntiforgeryToken />
         <label>Belge Türü
             <select name="belgeTuru">
-                @foreach (var t in Turler) { <option value="@t">@Ad(t)</option> }
+                @foreach (var t in Types) { <option value="@t">@Name(t)</option> }
             </select>
         </label>
         <label>Şablon Adı<input name="ad" maxlength="128" placeholder="ör. Kurumsal" required /></label>
@@ -60,18 +60,18 @@
         @foreach (var s in _list)
         {
             <tr>
-                <td>@Ad(s.BelgeTuru)</td>
+                <td>@Name(s.BelgeTuru)</td>
                 <td>@s.Ad</td>
                 <td>@(s.VarsayilanMi ? "Evet" : "—")</td>
                 <td>@(s.Aktif ? "Evet" : "Hayır")</td>
-                <td class="muted small">@Dolu(s)</td>
+                <td class="muted small">@Filled(s)</td>
                 <td>
                     <details><summary class="link">Düzenle</summary>
                         <form method="post" action="/belge-sablonlari/update" class="grid-form"><AntiforgeryToken />
                             <input type="hidden" name="id" value="@s.Id" />
                             <label>Belge Türü
                                 <select name="belgeTuru">
-                                    @foreach (var t in Turler) { <option value="@t" selected="@(t == s.BelgeTuru)">@Ad(t)</option> }
+                                    @foreach (var t in Types) { <option value="@t" selected="@(t == s.BelgeTuru)">@Name(t)</option> }
                                 </select>
                             </label>
                             <label>Şablon Adı<input name="ad" maxlength="128" value="@s.Ad" required /></label>
@@ -118,12 +118,12 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     private bool Ok => Ok_ == "1";
 
-    private static readonly BelgeTuru[] Turler = [BelgeTuru.KiraSozlesmesi, BelgeTuru.Fatura, BelgeTuru.Makbuz];
+    private static readonly BelgeTuru[] Types = [BelgeTuru.KiraSozlesmesi, BelgeTuru.Fatura, BelgeTuru.Makbuz];
     private IReadOnlyList<RentACar.Domain.Entities.BelgeSablon> _list = [];
 
     protected override async Task OnInitializedAsync() => _list = await Sablonlar.ListAsync();
 
-    private static string Ad(BelgeTuru t) => t switch
+    private static string Name(BelgeTuru t) => t switch
     {
         BelgeTuru.KiraSozlesmesi => "Kira Sözleşmesi",
         BelgeTuru.Fatura => "Fatura",
@@ -131,7 +131,7 @@
         _ => t.ToString()
     };
 
-    private static string Dolu(RentACar.Domain.Entities.BelgeSablon s)
+    private static string Filled(RentACar.Domain.Entities.BelgeSablon s)
     {
         var v = new List<string>();
         if (!string.IsNullOrWhiteSpace(s.BelgeBasligi)) v.Add("Başlık");

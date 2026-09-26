@@ -35,12 +35,12 @@
             </div></div>
         }
 
-        @if (_telLink is not null || _mobilLink is not null)
+        @if (_telLink is not null || _mobileLink is not null)
         {
             <div class="card"><div class="card-body">
                 <h3>Telefon</h3>
                 @if (_telLink is not null) { <p><a href="@_telLink">@_b!.Tel</a></p> }
-                @if (_mobilLink is not null) { <p><a href="@_mobilLink">@_b!.MobilTel</a> <span class="muted small">(mobil)</span></p> }
+                @if (_mobileLink is not null) { <p><a href="@_mobileLink">@_b!.MobilTel</a> <span class="muted small">(mobil)</span></p> }
             </div></div>
         }
 
@@ -62,7 +62,7 @@
         }
     </div>
 
-    @if (_telLink is null && _mobilLink is null && _waLink is null
+    @if (_telLink is null && _mobileLink is null && _waLink is null
          && string.IsNullOrWhiteSpace(_b?.Email) && string.IsNullOrWhiteSpace(_b?.Adres))
     {
         <p class="empty-state">İletişim bilgileri henüz girilmemiş.</p>
@@ -71,7 +71,7 @@
 
 @code {
     private FleetBranding? _b;
-    private string? _telLink, _mobilLink, _waLink;
+    private string? _telLink, _mobileLink, _waLink;
 
     protected override async Task OnInitializedAsync()
     {
@@ -79,7 +79,7 @@
         {
             _b = await Showcase.GetBrandingAsync();
             _telLink = PhoneLink.Tel(_b.Tel);
-            _mobilLink = PhoneLink.Tel(_b.MobilTel);
+            _mobileLink = PhoneLink.Tel(_b.MobilTel);
             // WhatsApp numarası yoksa MOBİL numaraya düş (firmaların çoğu aynı numarayı kullanıyor).
             _waLink = PhoneLink.Wa(
                 string.IsNullOrWhiteSpace(_b.WhatsApp) ? _b.MobilTel : _b.WhatsApp,

@@ -38,7 +38,7 @@
                 }
             </select>
         </label>
-        <label>Başlangıç<input name="basTar" type="datetime-local" value="@_defBas" min="@DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm")" max="@DateTimeOffset.Now.AddYears(1).ToString("yyyy-MM-ddTHH:mm")" required /></label>
+        <label>Başlangıç<input name="basTar" type="datetime-local" value="@_defaultStart" min="@DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm")" max="@DateTimeOffset.Now.AddYears(1).ToString("yyyy-MM-ddTHH:mm")" required /></label>
         <label>Bitiş<input name="bitTar" type="datetime-local" value="@_defBit" max="@DateTimeOffset.Now.AddYears(1).ToString("yyyy-MM-ddTHH:mm")" required /></label>
         <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" placeholder="Otomatik için boş bırakın" /></label>
         @* FAZ-82: tenant "Varsayılan Fiyat Türü" ayarı YALNIZ bu ön-seçimi belirler (ayar boşsa "—",
@@ -47,9 +47,9 @@
            kaydın kendi değeri seçilidir, ayarın onu değiştirmesi sessiz veri kaybı olurdu. *@
         <label>Fiyat Türü
             <select name="fiyatTuru">
-                <option value="" selected="@(_varsayilanFiyatTuru is null)">—</option>
+                <option value="" selected="@(_defaultPriceType is null)">—</option>
                 @foreach (var o in RentACar.Application.Pricing.PriceTypeOption.All)
-                { <option value="@o" selected="@(o == _varsayilanFiyatTuru)">@o</option> }
+                { <option value="@o" selected="@(o == _defaultPriceType)">@o</option> }
             </select>
         </label>
         <details>
@@ -78,7 +78,7 @@
         <label>Kaynak
             <select name="kaynak">
                 <option value="">—</option>
-                @foreach (var k in _kaynaklar) { <option>@k.Ad</option> }
+                @foreach (var k in _sources) { <option>@k.Ad</option> }
             </select>
         </label>
         <label>Kampanya Kodu<input name="kampanyaKodu" maxlength="64" autocomplete="off" placeholder="Yalnız Otomatik'te" /></label>
@@ -119,7 +119,7 @@
     <label>Kaynak
         <select name="kaynak">
             <option value="">— tümü —</option>
-            @foreach (var k in _kaynaklar)
+            @foreach (var k in _sources)
             {
                 <option value="@k.Ad" selected="@(string.Equals(k.Ad, Kaynak, StringComparison.OrdinalIgnoreCase))">@k.Ad</option>
             }
@@ -221,7 +221,7 @@
                                 <label>Kaynak
                                     <select name="kaynak">
                                         <option value="">—</option>
-                                        @foreach (var k in _kaynaklar) { <option selected="@(k.Ad == r.Kaynak)">@k.Ad</option> }
+                                        @foreach (var k in _sources) { <option selected="@(k.Ad == r.Kaynak)">@k.Ad</option> }
                                     </select>
                                 </label>
                                 <label>Kampanya Kodu<input name="kampanyaKodu" maxlength="64" autocomplete="off" value="@r.KampanyaKodu" /></label>
@@ -261,11 +261,11 @@
     private IReadOnlyList<CariSecim> _customers = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Location> _locations = [];
-    private IReadOnlyList<ReservationSource> _kaynaklar = [];
+    private IReadOnlyList<ReservationSource> _sources = [];
     // FAZ-85'in ad/plaka/telefon sözlükleri KALDIRILDI: FAZ-48 ile satırın kendisi bu alanları
     // taşıyor (SearchAsync projeksiyonu), sözlükler ölü koda dönüştü.
-    private string? _varsayilanFiyatTuru;                     // FAZ-82: yalnız YENİ rezervasyon formunun ön-seçimi
-    private readonly string _defBas = DateTime.Now.ToString("yyyy-MM-ddT09:00");
+    private string? _defaultPriceType;                     // FAZ-82: yalnız YENİ rezervasyon formunun ön-seçimi
+    private readonly string _defaultStart = DateTime.Now.ToString("yyyy-MM-ddT09:00");
     private readonly string _defBit = DateTime.Now.AddDays(3).ToString("yyyy-MM-ddT09:00");
 
     private bool SuzgecVar => !string.IsNullOrWhiteSpace(Kaynak) || !string.IsNullOrWhiteSpace(Ara)
@@ -274,17 +274,17 @@
     protected override async Task OnInitializedAsync()
     {
         // FAZ-48: süzme SUNUCUDA. Şube kapsamı SearchAsync içinde zorlanır (ekran genişletemez).
-        _rows = await Reservations.SearchAsync(Filtre());
+        _rows = await Reservations.SearchAsync(Filter());
         // Müşteri dropdown'ı PII'siz seçim listesinden (ListAsync PII çözer — liste ekranında gereksiz
         // şifre çözme + açılışta uyarı fırtınası üretir). Ad/telefon kolonları artık satırdan geliyor.
         _customers = await Customers.ListForSelectAsync();
         _vehicles = await Vehicles.ListAsync();
         _locations = await Locations.ListActiveAsync();
-        _kaynaklar = await Kaynaklar.ListActiveAsync();
-        _varsayilanFiyatTuru = await Varsayilanlar.PriceTypeAsync(); // FAZ-82 (ayar yoksa null = "—")
+        _sources = await Kaynaklar.ListActiveAsync();
+        _defaultPriceType = await Varsayilanlar.PriceTypeAsync(); // FAZ-82 (ayar yoksa null = "—")
     }
 
-    private ReservationFilter Filtre() => new()
+    private ReservationFilter Filter() => new()
     {
         Query = string.IsNullOrWhiteSpace(Ara) ? null : Ara,
         Durum = Enum.TryParse<ReservationStatus>(Durum, out var d) ? d : null,

@@ -39,8 +39,8 @@ else
         <label>GSM 2<input name="gsm2" value="@_c.Gsm2" /></label>
         <label>E-posta<input name="email" type="email" value="@_c.Email" /></label>
         <ComboBox Name="il" Label="İl" Options="_ilOpts" Value="@_c.Il" />
-        <ComboBox Name="ilce" Label="İlçe" Options="_ilceOpts" Value="@_c.Ilce" />
-        <ComboBox Name="kaynak" Label="Kaynak" Options="_kaynakOpts" Value="@_c.Kaynak" Placeholder="Web/Telefon/Bayi…" />
+        <ComboBox Name="ilce" Label="İlçe" Options="_districtOpts" Value="@_c.Ilce" />
+        <ComboBox Name="kaynak" Label="Kaynak" Options="_sourceOpts" Value="@_c.Kaynak" Placeholder="Web/Telefon/Bayi…" />
         <label>Müşteri Temsilcisi<input name="musteriTemsilcisi" value="@_c.MusteriTemsilcisi" /></label>
         <label>İYS İzinli
             <select name="iysIzinli">
@@ -147,8 +147,8 @@ else
         </label>
         <div class="full">
             <p class="muted small">Yetkili Kişiler (kurumsal) — değişken sayıda. Boş satırlar atlanır; daha fazlası için kaydedip tekrar düzenleyin.</p>
-            @{ var kisiSayisi = Math.Max(_c.Kisiler.Count + 3, 3); }
-            @for (var i = 0; i < kisiSayisi; i++)
+            @{ var personCount = Math.Max(_c.Kisiler.Count + 3, 3); }
+            @for (var i = 0; i < personCount; i++)
             {
                 var k = i < _c.Kisiler.Count ? _c.Kisiler[i] : null;
                 <div class="grid-form">
@@ -238,7 +238,7 @@ else
     public string? Hata { get; set; }
 
     private Customer? _c;
-    private List<string> _ilOpts = [], _ilceOpts = [], _kaynakOpts = [];
+    private List<string> _ilOpts = [], _districtOpts = [], _sourceOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -248,8 +248,8 @@ else
         var all = await Customers.ListAsync();
         _ilOpts = all.Select(c => c.Il).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
-        _ilceOpts = all.Select(c => c.Ilce).Where(x => !string.IsNullOrWhiteSpace(x))
+        _districtOpts = all.Select(c => c.Ilce).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
-        _kaynakOpts = (await Kaynaklar.ListActiveAsync()).Select(k => k.Ad).ToList();
+        _sourceOpts = (await Kaynaklar.ListActiveAsync()).Select(k => k.Ad).ToList();
     }
 }

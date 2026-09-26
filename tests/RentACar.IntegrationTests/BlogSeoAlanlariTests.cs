@@ -17,9 +17,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class BlogSeoAlanlariTests(PostgresFixture fx)
 {
-    private static BlogInput Girdi(string baslik = "Uzun dönem kiralama") => new()
+    private static BlogInput Input(string title = "Uzun dönem kiralama") => new()
     {
-        Baslik = baslik,
+        Baslik = title,
         Icerik = "Gövde metni.",
         Durum = BlogPostDurum.Yayinda,
     };
@@ -38,14 +38,14 @@ public sealed class BlogSeoAlanlariTests(PostgresFixture fx)
 
         var svc = Svc(host, t, out var s); using (s)
         {
-            var girdi = Girdi();
-            girdi.AltBaslik = "Aylık kiralamada dikkat edilmesi gerekenler";
-            girdi.SeoBaslik = "Uzun Dönem Araç Kiralama Rehberi | Antalya";
-            girdi.MetaAciklama = "Aylık araç kiralamada sözleşme, kilometre ve sigorta başlıklarını açıklıyoruz.";
-            girdi.AnahtarKelimeler = "uzun dönem, filo kiralama, antalya";
-            girdi.Yazar = "Ümit Yüce";
-            girdi.KapakAlt = "Beyaz Fiat Egea önden görünüm";
-            await svc.CreateAsync(girdi);
+            var input = Input();
+            input.AltBaslik = "Aylık kiralamada dikkat edilmesi gerekenler";
+            input.SeoBaslik = "Uzun Dönem Araç Kiralama Rehberi | Antalya";
+            input.MetaAciklama = "Aylık araç kiralamada sözleşme, kilometre ve sigorta başlıklarını açıklıyoruz.";
+            input.AnahtarKelimeler = "uzun dönem, filo kiralama, antalya";
+            input.Yazar = "Ümit Yüce";
+            input.KapakAlt = "Beyaz Fiat Egea önden görünüm";
+            await svc.CreateAsync(input);
 
             var d = await svc.GetPublishedBySlugAsync("uzun-donem-kiralama");
             Assert.NotNull(d);
@@ -70,7 +70,7 @@ public sealed class BlogSeoAlanlariTests(PostgresFixture fx)
 
         var svc = Svc(host, t, out var s); using (s)
         {
-            await svc.CreateAsync(Girdi("Kış lastiği zorunluluğu"));
+            await svc.CreateAsync(Input("Kış lastiği zorunluluğu"));
             var d = await svc.GetPublishedBySlugAsync("kis-lastigi-zorunlulugu");
             Assert.Null(d!.SeoBaslik);
             Assert.Equal("Kış lastiği zorunluluğu", d.AramaBasligi);
@@ -90,9 +90,9 @@ public sealed class BlogSeoAlanlariTests(PostgresFixture fx)
 
         var svc = Svc(host, t, out var s); using (s)
         {
-            var girdi = Girdi("Kelime testi");
-            girdi.AnahtarKelimeler = "  Antalya , antalya,  , filo kiralama ,ANTALYA";
-            await svc.CreateAsync(girdi);
+            var input = Input("Kelime testi");
+            input.AnahtarKelimeler = "  Antalya , antalya,  , filo kiralama ,ANTALYA";
+            await svc.CreateAsync(input);
 
             var d = await svc.GetPublishedBySlugAsync("kelime-testi");
             Assert.Equal(["Antalya", "filo kiralama"], d!.Kelimeler);
@@ -108,11 +108,11 @@ public sealed class BlogSeoAlanlariTests(PostgresFixture fx)
 
         var svc = Svc(host, t, out var s); using (s)
         {
-            var girdi = Girdi("Boş alan testi");
-            girdi.AltBaslik = "   ";
-            girdi.MetaAciklama = "";
-            girdi.Yazar = "  ";
-            await svc.CreateAsync(girdi);
+            var input = Input("Boş alan testi");
+            input.AltBaslik = "   ";
+            input.MetaAciklama = "";
+            input.Yazar = "  ";
+            await svc.CreateAsync(input);
 
             var d = await svc.GetPublishedBySlugAsync("bos-alan-testi");
             Assert.Null(d!.AltBaslik);
@@ -133,17 +133,17 @@ public sealed class BlogSeoAlanlariTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t = Guid.NewGuid();
-        var uzun = new string('a', 200);
+        var longText = new string('a', 200);
 
         var svc = Svc(host, t, out var s); using (s)
         {
-            var girdi = Girdi("Uzun açıklama");
-            girdi.MetaAciklama = uzun;
-            await svc.CreateAsync(girdi);
+            var input = Input("Uzun açıklama");
+            input.MetaAciklama = longText;
+            await svc.CreateAsync(input);
 
             var d = await svc.GetPublishedBySlugAsync("uzun-aciklama");
             Assert.Equal(200, d!.MetaAciklama!.Length);
-            Assert.True(uzun.Length > BlogService.MaxMetaDescription);   // sınır gerçekten aşıldı
+            Assert.True(longText.Length > BlogService.MaxMetaDescription);   // sınır gerçekten aşıldı
         }
     }
 
@@ -156,12 +156,12 @@ public sealed class BlogSeoAlanlariTests(PostgresFixture fx)
 
         var svc = Svc(host, t, out var s); using (s)
         {
-            var id = await svc.CreateAsync(Girdi("Güncelleme testi"));
+            var id = await svc.CreateAsync(Input("Güncelleme testi"));
 
-            var yeni = Girdi("Güncelleme testi");
-            yeni.SeoBaslik = "Sonradan Eklenen Arama Başlığı";
-            yeni.AramaDisi = true;
-            Assert.True(await svc.UpdateAsync(id, yeni));
+            var newItem = Input("Güncelleme testi");
+            newItem.SeoBaslik = "Sonradan Eklenen Arama Başlığı";
+            newItem.AramaDisi = true;
+            Assert.True(await svc.UpdateAsync(id, newItem));
 
             var d = await svc.GetPublishedBySlugAsync("guncelleme-testi");
             Assert.Equal("Sonradan Eklenen Arama Başlığı", d!.SeoBaslik);

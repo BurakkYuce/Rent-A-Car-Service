@@ -50,18 +50,18 @@ public static class BranchApi
         g.MapPost("/{id:guid}/hizmetler", async Task<Results<Created<BranchServiceDto>, ProblemHttpResult>> (Guid id, BranchServiceRequest b, BranchService s, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is null) return NotFound();
-            Sinirlar.Metin(b.HizmetAdi, 128, "hizmetAdi", "Hizmet adı");
-            Sinirlar.Metin(b.Aciklama, 512, "aciklama", "Açıklama");
+            RentalLimits.Text(b.HizmetAdi, 128, "hizmetAdi", "Hizmet adı");
+            RentalLimits.Text(b.Aciklama, 512, "aciklama", "Açıklama");
             var hid = await s.AddServiceAsync(new SubeUcretsizHizmetInput { SubeId = id, HizmetAdi = b.HizmetAdi ?? "", Aciklama = b.Aciklama }, ct);
             var row = (await s.ListServicesAsync(id, ct)).First(h => h.Id == hid);
             return TypedResults.Created($"{UiApiExtensions.V1}/subeler/{id}/hizmetler/{hid}", new BranchServiceDto(row.Id, row.HizmetAdi, row.Aciklama));
-        }).AlanlariEsle([("Hizmet adı", "hizmetAdi")]);
+        }).MapFields([("Hizmet adı", "hizmetAdi")]);
 
         // The service id alone identifies the row; it must belong to the branch in the path (no cross-branch delete).
         g.MapDelete("/{id:guid}/hizmetler/{hizmetId:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, Guid hizmetId, BranchService s, CancellationToken ct)
             => (await s.ListServicesAsync(id, ct)).Any(h => h.Id == hizmetId) && await s.RemoveServiceAsync(hizmetId, ct)
                 ? TypedResults.NoContent()
-                : F5Ortak.Bulunamadi("Hizmet bulunamadı."));
+                : F5Shared.NotFound("Hizmet bulunamadı."));
 
         g.MapGet("/birlestir/onizleme", async Task<Results<Ok<BranchMergePreviewDto>, ProblemHttpResult>> (Guid kaynakId, Guid hedefId, BranchService s, CancellationToken ct)
             => await s.PreviewMergeAsync(kaynakId, hedefId, ct) is { } p
@@ -73,13 +73,13 @@ public static class BranchApi
         {
             if (b.Onay is not true) throw new ValidationException("Birleştirme geri alınamaz; onaylayın.", "onay");
             return TypedResults.Ok(new BranchMergeResultDto(await s.MergeAsync(b.KaynakId ?? Guid.Empty, b.HedefId ?? Guid.Empty, ct)));
-        }).AlanlariEsle([("Kaynak ve hedef şube farklı", "hedefId"), ("Kaynak ve hedef şube seçilmelidir", "kaynakId"),
+        }).MapFields([("Kaynak ve hedef şube farklı", "hedefId"), ("Kaynak ve hedef şube seçilmelidir", "kaynakId"),
             ("Kaynak şube", "kaynakId"), ("Hedef şube", "hedefId")]);
     }
 
     private static BranchService Svc(IServiceProvider sp) => sp.GetRequiredService<BranchService>();
 
-    private static ProblemHttpResult NotFound() => F5Ortak.Bulunamadi("Şube bulunamadı.");
+    private static ProblemHttpResult NotFound() => F5Shared.NotFound("Şube bulunamadı.");
 
     /// <summary>Linked cash/bank accounts must exist in THIS tenant (RLS-scoped lookup) and be of the right kind.</summary>
     private static async Task<BranchInput> InputOfAsync(IServiceProvider sp, BranchRequest b, CancellationToken ct)
@@ -101,28 +101,28 @@ public static class BranchApi
 
     private static void Limits(BranchRequest r)
     {
-        Sinirlar.Metin(r.Kod, 32, "kod", "Kod");
-        Sinirlar.Metin(r.Ad, 128, "ad", "Ad");
-        Sinirlar.Metin(r.Adres, 512, "adres", "Adres");
-        Sinirlar.Metin(r.Telefon, 32, "telefon", "Telefon");
-        Sinirlar.Metin(r.Eposta, 128, "eposta", "E-posta");
-        Sinirlar.Metin(r.Il, 64, "il", "İl");
-        Sinirlar.Metin(r.Ilce, 64, "ilce", "İlçe");
-        Sinirlar.Metin(r.Yetkili, 128, "yetkili", "Yetkili");
-        Sinirlar.Metin(r.CalismaSaatleri, 64, "calismaSaatleri", "Çalışma saatleri");
-        Sinirlar.Metin(r.EvrakNoOnek, 16, "evrakNoOnek", "Evrak no öneki");
-        Sinirlar.Metin(r.WebIsim, 128, "webIsim", "Web ismi");
-        Sinirlar.Metin(r.FirmaUnvani, 256, "firmaUnvani", "Firma unvanı");
-        Sinirlar.Metin(r.RezervasyonRengi, 7, "rezervasyonRengi", "Rezervasyon rengi");
-        Sinirlar.Metin(r.WebOtoparkId, 64, "webOtoparkId", "Web otopark kimliği");
-        Sinirlar.Metin(r.BayiCariKod, 64, "bayiCariKod", "Bayi cari kodu");
-        Sinirlar.Metin(r.BayiOfisId, 64, "bayiOfisId", "Bayi ofis kimliği");
-        Sinirlar.Metin(r.KomisyonHesabi, 32, "komisyonHesabi", "Komisyon hesabı");
-        Sinirlar.Metin(r.OnlineRezId, 64, "onlineRezId", "Online rezervasyon kimliği");
-        Sinirlar.Metin(r.SozlesmeNoFormati, 64, "sozlesmeNoFormati", "Sözleşme no formatı");
-        Sinirlar.Metin(r.EntegrasyonKodu, 64, "entegrasyonKodu", "Entegrasyon kodu");
-        Sinirlar.Metin(r.ResimDosyasi, 512, "resimDosyasi", "Resim dosyası");
-        Sinirlar.Metin(r.HaftalikCalismaSaatleri, 1024, "haftalikCalismaSaatleri", "Haftalık çalışma saatleri");
+        RentalLimits.Text(r.Kod, 32, "kod", "Kod");
+        RentalLimits.Text(r.Ad, 128, "ad", "Ad");
+        RentalLimits.Text(r.Adres, 512, "adres", "Adres");
+        RentalLimits.Text(r.Telefon, 32, "telefon", "Telefon");
+        RentalLimits.Text(r.Eposta, 128, "eposta", "E-posta");
+        RentalLimits.Text(r.Il, 64, "il", "İl");
+        RentalLimits.Text(r.Ilce, 64, "ilce", "İlçe");
+        RentalLimits.Text(r.Yetkili, 128, "yetkili", "Yetkili");
+        RentalLimits.Text(r.CalismaSaatleri, 64, "calismaSaatleri", "Çalışma saatleri");
+        RentalLimits.Text(r.EvrakNoOnek, 16, "evrakNoOnek", "Evrak no öneki");
+        RentalLimits.Text(r.WebIsim, 128, "webIsim", "Web ismi");
+        RentalLimits.Text(r.FirmaUnvani, 256, "firmaUnvani", "Firma unvanı");
+        RentalLimits.Text(r.RezervasyonRengi, 7, "rezervasyonRengi", "Rezervasyon rengi");
+        RentalLimits.Text(r.WebOtoparkId, 64, "webOtoparkId", "Web otopark kimliği");
+        RentalLimits.Text(r.BayiCariKod, 64, "bayiCariKod", "Bayi cari kodu");
+        RentalLimits.Text(r.BayiOfisId, 64, "bayiOfisId", "Bayi ofis kimliği");
+        RentalLimits.Text(r.KomisyonHesabi, 32, "komisyonHesabi", "Komisyon hesabı");
+        RentalLimits.Text(r.OnlineRezId, 64, "onlineRezId", "Online rezervasyon kimliği");
+        RentalLimits.Text(r.SozlesmeNoFormati, 64, "sozlesmeNoFormati", "Sözleşme no formatı");
+        RentalLimits.Text(r.EntegrasyonKodu, 64, "entegrasyonKodu", "Entegrasyon kodu");
+        RentalLimits.Text(r.ResimDosyasi, 512, "resimDosyasi", "Resim dosyası");
+        RentalLimits.Text(r.HaftalikCalismaSaatleri, 1024, "haftalikCalismaSaatleri", "Haftalık çalışma saatleri");
         // Rates are FRACTIONS (0.10 = %10) like the Blazor form (min 0, max 1).
         if (r.KomisyonOran is < 0m or > 1m) throw new ValidationException("Komisyon oranı 0 ile 1 arasında olmalıdır.", "komisyonOran");
         if (r.HizmetKomisyonOran is < 0m or > 1m) throw new ValidationException("Hizmet komisyon oranı 0 ile 1 arasında olmalıdır.", "hizmetKomisyonOran");

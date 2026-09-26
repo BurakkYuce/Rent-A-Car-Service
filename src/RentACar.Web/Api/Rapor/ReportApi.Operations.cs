@@ -46,22 +46,22 @@ public static partial class ReportApi
             throw new ValidationException("Geçersiz gorunum. İzin verilenler: gun, arac.", "gorunum");
         if (p.Bas is null != (p.Bit is null))
             throw new ValidationException("Başlangıç ve bitiş birlikte verilmelidir.", p.Bas is null ? "bas" : "bit");
-        var filtre = new AracDurumTakipFilter
+        var filter = new AracDurumTakipFilter
         {
             Sube = await ReportScope.BranchFilterAsync(user, sube, dbf, ct),
             AracSahibi = F(aracSahibi), Grup = F(grup), Sipp = F(sipp), Plaka = F(plaka),
         };
         IReadOnlyList<AracDurumTakipRow> gunler = [];
-        IReadOnlyList<AracDurumTakipAracRow> araclar = [];
-        if (g == "arac") araclar = await reports.GetVehicleStatusTrackingByVehicleAsync(filtre, p.FromAnchor, p.Bas is null ? null : ReportPeriod.Anchor(p.Bit!.Value), ct);
-        else gunler = await reports.GetVehicleStatusTrackingAsync(filtre, p.FromAnchor, p.Bas is null ? null : ReportPeriod.Anchor(p.Bit!.Value), ct);
+        IReadOnlyList<AracDurumTakipAracRow> vehicles = [];
+        if (g == "arac") vehicles = await reports.GetVehicleStatusTrackingByVehicleAsync(filter, p.FromAnchor, p.Bas is null ? null : ReportPeriod.Anchor(p.Bit!.Value), ct);
+        else gunler = await reports.GetVehicleStatusTrackingAsync(filter, p.FromAnchor, p.Bas is null ? null : ReportPeriod.Anchor(p.Bit!.Value), ct);
         var export = ReportExport.Links(http, user, g == "arac" ? "arac-durum-takip-arac" : "arac-durum-takip",
         [
-            .. ReportExport.Period(p), ("sube", filtre.Sube), ("aracSahibi", aracSahibi), ("grup", grup), ("sipp", sipp),
+            .. ReportExport.Period(p), ("sube", filter.Sube), ("aracSahibi", aracSahibi), ("grup", grup), ("sipp", sipp),
             ("plaka", plaka),
         ]);
         return TypedResults.Ok(new ReportResult<VehicleTrackingReport, AracDurumTakipAracRow>(p.ToDto(),
-            new VehicleTrackingReport(g, gunler), page.Apply(araclar, TrackingMap), export));
+            new VehicleTrackingReport(g, gunler), page.Apply(vehicles, TrackingMap), export));
     }
 
     private static readonly SortFieldMap<AracDurumTakipAracRow> TrackingMap = SortFieldMap<AracDurumTakipAracRow>
@@ -78,9 +78,9 @@ public static partial class ReportApi
         ICurrentUser user, IDbContextFactory<AppDbContext> dbf, HttpContext http, CancellationToken ct)
     {
         var p = q.Validate();
-        var satirlar = await reports.GetKmDetailAsync(p.FromUtc, p.ToUtc, ct);
-        var kapsam = await ReportScope.RentalsInScopeAsync(user, satirlar.Select(r => r.RentalId), dbf, ct);
-        var rows = kapsam is null ? satirlar.ToList() : satirlar.Where(r => kapsam.Contains(r.RentalId)).ToList();
+        var rowList = await reports.GetKmDetailAsync(p.FromUtc, p.ToUtc, ct);
+        var scope = await ReportScope.RentalsInScopeAsync(user, rowList.Select(r => r.RentalId), dbf, ct);
+        var rows = scope is null ? rowList.ToList() : rowList.Where(r => scope.Contains(r.RentalId)).ToList();
         return TypedResults.Ok(new ReportResult<MileageSummary, KmDetayRow>(p.ToDto(),
             new MileageSummary(rows.Sum(r => r.KatedilenKm), rows.Sum(r => r.FazlaKm), rows.Sum(r => r.FazlaKmBedeli)),
             page.Apply(rows, MileageMap), ReportExport.Links(http, user, "km-detay", ReportExport.Period(p))));
@@ -99,10 +99,10 @@ public static partial class ReportApi
     {
         if (esik is < 0 or > 10_000_000)
             throw new ValidationException("Eşik 0 ile 10.000.000 km arasında olmalıdır.", "esik");
-        var etkinSube = await ReportScope.BranchFilterAsync(user, sube, dbf, ct);
+        var effectiveBranch = await ReportScope.BranchFilterAsync(user, sube, dbf, ct);
         var rows = await reports.GetPeriodicServiceAsync(new PeriyodikServisFilter
         {
-            Plaka = F(plaka), Sube = etkinSube, Aktif = aktif, UyariEsigi = esik,
+            Plaka = F(plaka), Sube = effectiveBranch, Aktif = aktif, UyariEsigi = esik,
         }, ct);
         return TypedResults.Ok(new ReportResult<ReportCount, PeriyodikServisRow>(new ReportPeriodDto(null, null),
             new ReportCount(rows.Count), page.Apply(rows, PeriodicMap),

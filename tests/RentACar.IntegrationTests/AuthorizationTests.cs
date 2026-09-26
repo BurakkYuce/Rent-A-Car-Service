@@ -82,11 +82,11 @@ public sealed class FinanceAuthorizationTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        var cari = await TestCari.YeniAsync(host, tenant); // Muhasebe cari açamaz (OperationsWrite yok)
+        var account = await TestCustomer.NewAsync(host, tenant); // Muhasebe cari açamaz (OperationsWrite yok)
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "muh", UserRole.Muhasebe);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var id = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 250m });
+        var id = await cash.CollectAsync(new CashInput { CariId = account, Tutar = 250m });
         Assert.NotEqual(Guid.Empty, id);
     }
 }

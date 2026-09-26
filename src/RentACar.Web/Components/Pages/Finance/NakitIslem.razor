@@ -26,17 +26,17 @@
     <table class="grid tr-grid">
         <thead><tr><th>Cari</th><th>Özel Kod</th><th class="num">Bakiye ₺</th><th>İşlem</th></tr></thead>
         <tbody>
-            @if (_bulunanlar.Count == 0)
+            @if (_found.Count == 0)
             {
                 <tr><td colspan="4" class="muted">Eşleşen cari yok.</td></tr>
             }
-            @foreach (var c in _bulunanlar)
+            @foreach (var c in _found)
             {
                 <tr>
                     <td><a href="/cariler/@c.Id/ekstre">@c.DisplayName</a></td>
                     <td>@(c.OzelKod ?? "—")</td>
-                    <td class="num @(_bakiyeler.GetValueOrDefault(c.Id) > 0 ? "neg" : null)">
-                        @_bakiyeler.GetValueOrDefault(c.Id).ToString("N2")</td>
+                    <td class="num @(_balances.GetValueOrDefault(c.Id) > 0 ? "neg" : null)">
+                        @_balances.GetValueOrDefault(c.Id).ToString("N2")</td>
                     <td>
                         <a class="link" href="/finans/nakit-islem?q=@Uri.EscapeDataString(Q!)&amp;cariId=@c.Id">Seç</a>
                     </td>
@@ -47,19 +47,19 @@
     </div>
 }
 
-@if (_secili is not null)
+@if (_selected is not null)
 {
-    <h2>@_secili.DisplayName</h2>
-    <p class="muted small">Güncel bakiye <strong>@_seciliBakiye.ToString("N2") ₺</strong>
-        @(_seciliBakiye > 0 ? "(müşteri borçlu)" : _seciliBakiye < 0 ? "(alacaklı)" : "")</p>
+    <h2>@_selected.DisplayName</h2>
+    <p class="muted small">Güncel bakiye <strong>@_selectedBalance.ToString("N2") ₺</strong>
+        @(_selectedBalance > 0 ? "(müşteri borçlu)" : _selectedBalance < 0 ? "(alacaklı)" : "")</p>
 
     <div class="pair-forms">
         <details class="new-vehicle" open>
             <summary>Tahsilat</summary>
             <form method="post" action="/finans/tahsilat" class="grid-form"><AntiforgeryToken />
-                <input type="hidden" name="cariId" value="@_secili.Id" />
+                <input type="hidden" name="cariId" value="@_selected.Id" />
                 <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
-                <input type="hidden" name="donus" value="/finans/nakit-islem?q=@Uri.EscapeDataString(Q ?? "")&amp;cariId=@_secili.Id" />
+                <input type="hidden" name="donus" value="/finans/nakit-islem?q=@Uri.EscapeDataString(Q ?? "")&amp;cariId=@_selected.Id" />
                 @* Önerilen tutar: borç varsa bakiye kadar (UI kolaylığı — kullanıcı değiştirebilir,
                    sunucu hiçbir şeyi bu değerden türetmez). *@
                 <label>Tutar<input name="tutar" type="number" step="0.01" min="0.01" required
@@ -84,9 +84,9 @@
         <details class="new-vehicle">
             <summary>Ödeme (tediye)</summary>
             <form method="post" action="/finans/odeme" class="grid-form"><AntiforgeryToken />
-                <input type="hidden" name="cariId" value="@_secili.Id" />
+                <input type="hidden" name="cariId" value="@_selected.Id" />
                 <input type="hidden" name="islemAnahtari" value="@Guid.NewGuid()" />
-                <input type="hidden" name="donus" value="/finans/nakit-islem?q=@Uri.EscapeDataString(Q ?? "")&amp;cariId=@_secili.Id" />
+                <input type="hidden" name="donus" value="/finans/nakit-islem?q=@Uri.EscapeDataString(Q ?? "")&amp;cariId=@_selected.Id" />
                 <label>Tutar<input name="tutar" type="number" step="0.01" min="0.01" required /></label>
                 <label>Tarih<input name="tarih" type="date" title="Boş = bugün" /></label>
                 <label>Hesap
@@ -112,30 +112,30 @@
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
     [SupplyParameterFromQuery(Name = "cariId")] public string? CariId { get; set; }
 
-    private IReadOnlyList<Customer> _bulunanlar = [];
-    private Dictionary<Guid, decimal> _bakiyeler = new();
-    private Customer? _secili;
-    private decimal _seciliBakiye;
+    private IReadOnlyList<Customer> _found = [];
+    private Dictionary<Guid, decimal> _balances = new();
+    private Customer? _selected;
+    private decimal _selectedBalance;
 
     /// <summary>Borç varsa önerilen tahsilat tutarı; alacaklıda öneri yok (boş bırakılır).</summary>
-    private string? Onerilen => _seciliBakiye > 0m
-        ? _seciliBakiye.ToString(System.Globalization.CultureInfo.InvariantCulture)
+    private string? Onerilen => _selectedBalance > 0m
+        ? _selectedBalance.ToString(System.Globalization.CultureInfo.InvariantCulture)
         : null;
 
     protected override async Task OnInitializedAsync()
     {
         if (!string.IsNullOrWhiteSpace(Q))
         {
-            var sonuc = await Customers.SearchAsync(new CustomerFilter { Query = Q, PageSize = 25 });
-            _bulunanlar = sonuc.Items;
-            foreach (var c in _bulunanlar)
-                _bakiyeler[c.Id] = await Cash.GetAccountBalanceAsync(c.Id);
+            var result = await Customers.SearchAsync(new CustomerFilter { Query = Q, PageSize = 25 });
+            _found = result.Items;
+            foreach (var c in _found)
+                _balances[c.Id] = await Cash.GetAccountBalanceAsync(c.Id);
         }
 
         if (Guid.TryParse(CariId, out var id))
         {
-            _secili = _bulunanlar.FirstOrDefault(c => c.Id == id) ?? await Customers.GetAsync(id);
-            if (_secili is not null) _seciliBakiye = await Cash.GetAccountBalanceAsync(_secili.Id);
+            _selected = _found.FirstOrDefault(c => c.Id == id) ?? await Customers.GetAsync(id);
+            if (_selected is not null) _selectedBalance = await Cash.GetAccountBalanceAsync(_selected.Id);
         }
     }
 }

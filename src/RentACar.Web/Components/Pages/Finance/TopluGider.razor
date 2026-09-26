@@ -38,14 +38,14 @@
     <label>Cari (tedarikçi)
         <select name="cariId">
             <option value="">— yok —</option>
-            @foreach (var c in _cariler) { <option value="@c.Id">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id">@c.DisplayName</option> }
         </select>
     </label>
     <label>Vade<input name="vade" type="date" title="Bilgi alanı — deftere girmez" /></label>
     <label>Hesap No
         <select name="finansalHesapId" title="FAZ-50: seçilen hesap defterin nakit bacağına da yazılır (Kasa/Banka türü ödeme yönteminden gelir)">
             <option value="">— seçilmedi —</option>
-            @foreach (var h in _hesaplar)
+            @foreach (var h in _accountList)
             {
                 <option value="@h.Id">@h.Ad @(string.IsNullOrWhiteSpace(h.Iban) ? "" : $"({h.Iban})")</option>
             }
@@ -60,11 +60,11 @@
 <p class="muted small"><strong>Vade</strong> ve <strong>Hesap No</strong> belge bilgisidir; defter
     kaydı bunlardan etkilenmez (karşı hesap ödeme yöntemine göre Kasa/Banka/Cari olarak yazılır).</p>
 
-@if (_plakalar.Count > 0)
+@if (_plates.Count > 0)
 {
     <details>
         <summary class="link">Plakalar (kopyala)</summary>
-        <p class="muted small mono">@string.Join(" · ", _plakalar)</p>
+        <p class="muted small mono">@string.Join(" · ", _plates)</p>
     </details>
 }
 
@@ -73,14 +73,14 @@
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
     private readonly Guid _token = Guid.NewGuid(); // çift-submit idempotency
 
-    private IReadOnlyList<Customer> _cariler = [];
-    private IReadOnlyList<FinancialAccount> _hesaplar = [];
-    private List<string> _plakalar = [];
+    private IReadOnlyList<Customer> _accounts = [];
+    private IReadOnlyList<FinancialAccount> _accountList = [];
+    private List<string> _plates = [];
 
     protected override async Task OnInitializedAsync()
     {
-        _cariler = await Cariler.ListAsync();
-        _hesaplar = await Hesaplar.ListActiveAsync();
-        _plakalar = (await Araclar.ListAsync()).Select(v => v.Plaka).OrderBy(x => x, StringComparer.Ordinal).ToList();
+        _accounts = await Cariler.ListAsync();
+        _accountList = await Hesaplar.ListActiveAsync();
+        _plates = (await Araclar.ListAsync()).Select(v => v.Plaka).OrderBy(x => x, StringComparer.Ordinal).ToList();
     }
 }

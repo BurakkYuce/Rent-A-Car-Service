@@ -40,10 +40,10 @@ public static partial class SystemAdminApi
         g.MapPost("", async Task<Results<Created<UserDto>, ProblemHttpResult>> (UserCreateRequest i, UserService users,
             UserPermissionService exceptions, BranchService branches, CancellationToken ct) =>
         {
-            Sinirlar.Metin(i.KullaniciAdi, 128, "kullaniciAdi", "Kullanıcı adı");
-            Sinirlar.Metin(i.GorunenAd, 256, "gorunenAd", "Görünen ad");
+            RentalLimits.Text(i.KullaniciAdi, 128, "kullaniciAdi", "Kullanıcı adı");
+            RentalLimits.Text(i.GorunenAd, 256, "gorunenAd", "Görünen ad");
             RequirePasswordBounds(i.Sifre, "sifre");
-            var role = F5Ortak.EnumAdi<UserRole>(i.Rol, "rol") ?? throw new ValidationException("Rol zorunludur.", "rol");
+            var role = F5Shared.EnumAdi<UserRole>(i.Rol, "rol") ?? throw new ValidationException("Rol zorunludur.", "rol");
             var branch = await ResolveBranchAsync(i.AtanmisSube, branches, ct);
             var id = await users.CreateAsync(new UserInput
             {
@@ -53,7 +53,7 @@ public static partial class SystemAdminApi
             return (await ListUsersAsync(users, exceptions, ct)).FirstOrDefault(u => u.Id == id) is { } d
                 ? TypedResults.Created($"{UiApiExtensions.V1}/kullanicilar/{id}", d)
                 : SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
-        }).AlanlariEsle(UserRules);
+        }).MapFields(UserRules);
 
         g.MapPost("/{id:guid}/aktif", async Task<Results<Ok<UserDto>, ProblemHttpResult>> (Guid id, UserActiveRequest i, UserService users,
             UserPermissionService exceptions, CancellationToken ct) =>
@@ -61,32 +61,32 @@ public static partial class SystemAdminApi
             if (!await users.SetActiveAsync(id, i.Aktif, ct)) return SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
             return (await ListUsersAsync(users, exceptions, ct)).FirstOrDefault(u => u.Id == id) is { } d
                 ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
-        }).AlanlariEsle([("Kendi hesabınızı", "aktif"), ("Son aktif Admin", "aktif")]);
+        }).MapFields([("Kendi hesabınızı", "aktif"), ("Son aktif Admin", "aktif")]);
 
         g.MapPost("/{id:guid}/sifre", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, PasswordResetRequest i, UserService users, CancellationToken ct) =>
         {
             RequirePasswordBounds(i.Sifre, "sifre");
             return await users.ResetPasswordAsync(id, i.Sifre ?? "", ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
-        }).AlanlariEsle([("Parola", "sifre")]);
+        }).MapFields([("Parola", "sifre")]);
 
         // ---- kullanıcı-bazlı izin istisnaları (etkinleşme: hedef kullanıcının bir sonraki girişi)
         g.MapPut("/{id:guid}/istisnalar/{izin}", async Task<Results<Ok<UserDto>, ProblemHttpResult>> (Guid id, string izin, PermissionExceptionRequest i,
             UserService users, UserPermissionService exceptions, CancellationToken ct) =>
         {
-            var p = F5Ortak.EnumAdi<Permission>(izin, "izin") ?? throw new ValidationException("İzin zorunludur.", "izin");
+            var p = F5Shared.EnumAdi<Permission>(izin, "izin") ?? throw new ValidationException("İzin zorunludur.", "izin");
             if ((await ListUsersAsync(users, exceptions, ct)).All(u => u.Id != id)) return SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
             await exceptions.SetAsync(id, p.ToString(), i.Ver, ct);
             return (await ListUsersAsync(users, exceptions, ct)).FirstOrDefault(u => u.Id == id) is { } d
                 ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
-        }).AlanlariEsle(ExceptionRules);
+        }).MapFields(ExceptionRules);
 
         g.MapDelete("/{id:guid}/istisnalar/{izin}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, string izin,
             UserService users, UserPermissionService exceptions, CancellationToken ct) =>
         {
-            var p = F5Ortak.EnumAdi<Permission>(izin, "izin") ?? throw new ValidationException("İzin zorunludur.", "izin");
+            var p = F5Shared.EnumAdi<Permission>(izin, "izin") ?? throw new ValidationException("İzin zorunludur.", "izin");
             if ((await ListUsersAsync(users, exceptions, ct)).All(u => u.Id != id)) return SystemApiCommon.NotFound("Kullanıcı bulunamadı.");
             return await exceptions.RemoveAsync(id, p.ToString(), ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("İstisna bulunamadı.");
-        }).AlanlariEsle(ExceptionRules);
+        }).MapFields(ExceptionRules);
 
         // ---- rol → izin matrisi (salt okunur; UI rozetleri için)
         v1.MapGet("/yetki/matris", () => TypedResults.Ok(PermissionMatrix()))
@@ -96,15 +96,15 @@ public static partial class SystemAdminApi
         v1.MapPost("/profil/sifre", async Task<NoContent> (OwnPasswordRequest i, UserService users, CancellationToken ct) =>
         {
             RequirePasswordBounds(i.YeniSifre, "yeniSifre");
-            Sinirlar.Metin(i.EskiSifre, PasswordMaxLength, "eskiSifre", "Mevcut parola");
+            RentalLimits.Text(i.EskiSifre, PasswordMaxLength, "eskiSifre", "Mevcut parola");
             if (i.YeniSifreTekrar is not null && !string.Equals(i.YeniSifre, i.YeniSifreTekrar, StringComparison.Ordinal))
                 throw new ValidationException("Yeni parolalar birbiriyle eşleşmiyor.", "yeniSifreTekrar");
             await users.ChangeOwnPasswordAsync(i.EskiSifre ?? "", i.YeniSifre ?? "", ct);
             return TypedResults.NoContent();
         }).WithTags(SystemApiCommon.Tag)
-          .IzinMuaf("Kendi parolası: her oturum açmış kullanıcı; kimlik ICurrentUser'dan, eski parola doğrulanır.")
+          .PermissionExempt("Kendi parolası: her oturum açmış kullanıcı; kimlik ICurrentUser'dan, eski parola doğrulanır.")
           .RequireRateLimiting("login")
-          .AlanlariEsle([("Mevcut parola", "eskiSifre"), ("Parola", "yeniSifre"), ("Oturum", "eskiSifre")]);
+          .MapFields([("Mevcut parola", "eskiSifre"), ("Parola", "yeniSifre"), ("Oturum", "eskiSifre")]);
     }
 
     private static readonly (string, string)[] UserRules =

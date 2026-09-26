@@ -31,7 +31,7 @@ public static class BlogEndpoints
         // Kapak yükle (multipart). PNG/JPEG/WebP + ≤2 MB serviste doğrulanır (paylaşılan ImageValidation).
         write.MapPost("/{id:guid}/kapak", async (Guid id, IFormFile? kapak, BlogService svc) =>
         {
-            if (kapak is null || kapak.Length == 0) return Sonuc.Hata("/blog-yonetim", "Kapak görseli seçilmedi.");
+            if (kapak is null || kapak.Length == 0) return Result.Error("/blog-yonetim", "Kapak görseli seçilmedi.");
             using var ms = new MemoryStream();
             await kapak.CopyToAsync(ms);
             return await Run(() => svc.SetCoverAsync(id, ms.ToArray()));

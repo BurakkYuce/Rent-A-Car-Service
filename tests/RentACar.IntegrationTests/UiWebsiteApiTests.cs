@@ -33,12 +33,12 @@ public sealed partial class UiWebsiteApiTests(WebFixture fx)
         return e;
     }
 
-    private async Task<Guid> VehicleAsync(Env e, string sube = "SubeA", string tip = "Egea")
+    private async Task<Guid> VehicleAsync(Env e, string branch = "SubeA", string tip = "Egea")
     {
         var v = new Vehicle
         {
             Plaka = "34W" + Guid.NewGuid().ToString("N")[..5].ToUpperInvariant(), Marka = "Fiat", Tip = tip, Grup = "C",
-            Sube = sube, Durum = VehicleStatus.Musait, Km = 1000,
+            Sube = branch, Durum = VehicleStatus.Musait, Km = 1000,
         };
         await _kit.WriteAsync(e.TenantId, db => db.Vehicles.Add(v));
         return v.Id;
@@ -191,8 +191,8 @@ public sealed partial class UiWebsiteApiTests(WebFixture fx)
         Assert.Equal(HttpStatusCode.NotFound, (await Send(nm, HttpMethod.Get, V1 + "/site-icerik/sayfalar")).StatusCode);
 
         // operatör yalnız kendi şubesindeki aracı havuzda görür
-        await VehicleAsync(e, sube: "SubeB", tip: "Clio");
-        await VehicleAsync(e, sube: "SubeA", tip: "Corolla");
+        await VehicleAsync(e, branch: "SubeB", tip: "Clio");
+        await VehicleAsync(e, branch: "SubeA", tip: "Corolla");
         var op = await _kit.LoginAsync(e, Who.OperatorA);
         var pool = await Json(await Send(op, HttpMethod.Get, V1 + "/web-sitesi/havuz"));
         var plates = pool.EnumerateArray().SelectMany(k => k.GetProperty("araclar").EnumerateArray())

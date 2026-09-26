@@ -9,7 +9,7 @@ using RentACar.Web.Common;
 namespace RentACar.Web.Api.FinansHub;
 
 /// <summary>Depozito ekranı (Blazor <c>/depozito</c>): tutulanlar listesi, iade (E10), mahsup (E11). Al (E09) ve irat
-/// (E12) F4.4 uçlarıdır (<c>POST finans/depozito/al|irat</c>, <see cref="FinansApi"/>).</summary>
+/// (E12) F4.4 uçlarıdır (<c>POST finans/depozito/al|irat</c>, <see cref="FinanceOpsApi"/>).</summary>
 public static partial class FinanceHubApi
 {
     private static void MapDeposit(RouteGroupBuilder write)
@@ -23,9 +23,9 @@ public static partial class FinanceHubApi
         DepositService deposits, IDbContextFactory<AppDbContext> f, CancellationToken ct)
     {
         var balances = await deposits.GetBalancesAsync(ct);
-        var names = await F5Ortak.CarilerAsync(f, balances.Keys, ct);
+        var names = await F5Shared.CustomersAsync(f, balances.Keys, ct);
         return TypedResults.Ok<IReadOnlyList<DepositBalanceRow>>(balances
-            .Select(b => new DepositBalanceRow(b.Key, F5Ortak.CariAdi(names, b.Key), b.Value))
+            .Select(b => new DepositBalanceRow(b.Key, F5Shared.CustomerName(names, b.Key), b.Value))
             .OrderBy(r => r.CariAd, StringComparer.Create(Tr, ignoreCase: true)).ToList());
     }
 
@@ -34,8 +34,8 @@ public static partial class FinanceHubApi
         DepositRefundRequest req, HttpContext http, DepositService deposits, IDbContextFactory<AppDbContext> f,
         RentACar.Application.Kur.ExchangeRateResolver rates, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
-        var account = FinansApi.Hesap(req.Hesap, "hesap");
+        var key = IdempotencyHeader.RequiredKey(http);
+        var account = FinanceOpsApi.Account(req.Hesap, "hesap");
         var currency = MoneyInput(req.Tutar, req.Doviz, req.Kur);
         await ResolvedBaseLimitAsync(rates, req.Tutar, currency, req.Kur, null, ct);
         await CustomerMustExistAsync(f, req.CariId, "cariId", ct);
@@ -49,7 +49,7 @@ public static partial class FinanceHubApi
         DepositOffsetRequest req, HttpContext http, DepositService deposits, IDbContextFactory<AppDbContext> f,
         RentACar.Application.Kur.ExchangeRateResolver rates, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
+        var key = IdempotencyHeader.RequiredKey(http);
         var currency = MoneyInput(req.Tutar, req.Doviz, req.Kur);
         await ResolvedBaseLimitAsync(rates, req.Tutar, currency, req.Kur, null, ct);
         await CustomerMustExistAsync(f, req.CariId, "cariId", ct);

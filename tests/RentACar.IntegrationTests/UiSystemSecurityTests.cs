@@ -60,8 +60,8 @@ public sealed partial class UiSystemSecurityTests(WebFixture fx)
         await Json(await Send(admin, HttpMethod.Post, V1 + "/lokasyonlar", new { kod = "ZZZ", ad = "Otogar B", sube = "SubeB", aktif = true }), HttpStatusCode.Created);
         var mine = await Json(await Send(admin, HttpMethod.Post, V1 + "/lokasyonlar", new { kod = "AAA", ad = "Merkez A", sube = "SubeA", aktif = true }), HttpStatusCode.Created);
         var id = mine.GetProperty("id").GetGuid();
-        var surum = (await Json(await admin.C.GetAsync($"{V1}/lokasyonlar/{id}"))).GetProperty("surum").GetString();
-        await Problem(await Send(admin, HttpMethod.Put, $"{V1}/lokasyonlar/{id}", new { kod = "AAA", ad = " OTOGAR B", sube = "SubeA", aktif = true, surum }),
+        var version = (await Json(await admin.C.GetAsync($"{V1}/lokasyonlar/{id}"))).GetProperty("surum").GetString();
+        await Problem(await Send(admin, HttpMethod.Put, $"{V1}/lokasyonlar/{id}", new { kod = "AAA", ad = " OTOGAR B", sube = "SubeA", aktif = true, surum = version }),
             HttpStatusCode.BadRequest, "dogrulama", "ad");
     }
 

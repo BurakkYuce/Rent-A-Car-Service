@@ -17,11 +17,11 @@ namespace RentACar.IntegrationTests;
 public sealed class MaliyetHesapKalemTests
 {
     /// <summary>Yalnız kalem alanlarını sınamak için taban: 1.000.000 alış, %30 kalıntı, finansmansız.</summary>
-    private static MaliyetHesapInput Taban(int sureAy = 36) => new()
+    private static MaliyetHesapInput Base(int durationMonths = 36) => new()
     {
         AlisBedeli = 1_000_000m,
         ResidualYuzde = 0.30m,
-        SureAy = sureAy,
+        SureAy = durationMonths,
         FaizOran = 0m,
         KkdfOran = 0m,
         BsmvOran = 0m,
@@ -33,7 +33,7 @@ public sealed class MaliyetHesapKalemTests
     [Fact]
     public void Kalemler_donem_toplamina_ELLE_hesaplanan_degerle_yayilir()
     {
-        var x = Taban(sureAy: 36);
+        var x = Base(durationMonths: 36);
         x.KaskoYillik = 12_000m;             // 12000/12 × 36 =  36.000
         x.TrafikSigortasiYillik = 6_000m;    //  6000/12 × 36 =  18.000
         x.MtvYillik = 3_600m;                //  3600/12 × 36 =  10.800
@@ -77,7 +77,7 @@ public sealed class MaliyetHesapKalemTests
         // ÜÇ ayrı kalem → 58,33 × 3 = 174,99.
         // Yanlış sıra (önce topla, sonra yuvarla) 300/12 × 7 = 175,00 verirdi — 1 kuruş fark
         // bu testin TAM ayırt ettiği şeydir.
-        var x = Taban(sureAy: 7);
+        var x = Base(durationMonths: 7);
         x.KaskoYillik = 100m;
         x.TrafikSigortasiYillik = 100m;
         x.MtvYillik = 100m;
@@ -94,18 +94,18 @@ public sealed class MaliyetHesapKalemTests
     {
         // ELLE: banka dosya masrafı 10.000 → 36 aylık dönemde de 10.000'dir.
         // (Aylığa bölüp süreyle çarpan bir model 36 kez dosya masrafı yazardı.)
-        var x = Taban(sureAy: 36);
+        var x = Base(durationMonths: 36);
         x.BankaDosyaDigerMasraf = 10_000m;
 
         var s = CostCalculationService.Calculate(x);
 
         Assert.Equal(10_000m, s.ToplamGider);
-        var kalem = Assert.Single(s.Kalemler);
-        Assert.Equal(CostItemPeriod.TekSeferlik, kalem.Periyot);
-        Assert.Equal(10_000m, kalem.DonemTutar);
+        var item = Assert.Single(s.Kalemler);
+        Assert.Equal(CostItemPeriod.TekSeferlik, item.Periyot);
+        Assert.Equal(10_000m, item.DonemTutar);
 
         // Aynı tutar AYLIK kalem olarak girilseydi 36 katı olurdu — iki periyodun farkı ampirik.
-        var y = Taban(sureAy: 36);
+        var y = Base(durationMonths: 36);
         y.YonetimGideriAylik = 10_000m;
         Assert.Equal(360_000m, CostCalculationService.Calculate(y).ToplamGider);
     }
@@ -120,7 +120,7 @@ public sealed class MaliyetHesapKalemTests
         // Eskalasyon KAPALI iken faktör tam olarak ay sayısıdır (eski formül korunur).
         Assert.Equal(36m, CostCalculationService.MonthFactor(0m, 36));
 
-        var x = Taban(sureAy: 24);
+        var x = Base(durationMonths: 24);
         x.EnflasyonOran = 0.20m;
         x.KaskoYillik = 12_000m;          // 12000/12 × 26,4 = 1000 × 26,4 = 26.400
         x.YonetimGideriAylik = 500m;      //   500 × 26,4                  = 13.200
@@ -176,15 +176,15 @@ public sealed class MaliyetHesapKalemTests
         Assert.Equal(3_307_680m, s.TeklifKdvli);
 
         // AylikGider artık "Diğer (aylık)" KALEMİDİR — silinmedi, dökümde görünür.
-        var kalem = Assert.Single(s.Kalemler);
-        Assert.Equal("Diğer (aylık)", kalem.Ad);
-        Assert.Equal(CostItemPeriod.Aylik, kalem.Periyot);
+        var item = Assert.Single(s.Kalemler);
+        Assert.Equal("Diğer (aylık)", item.Ad);
+        Assert.Equal(CostItemPeriod.Aylik, item.Periyot);
     }
 
     [Fact]
     public void ROTATIF_guvenli_red_sessiz_yanlis_hesap_YOK()
     {
-        var x = Taban();
+        var x = Base();
         x.FaizOran = 0.40m;
         x.KrediHesaplamaSekli = LoanCalculationMethod.Rotatif;
 
@@ -201,15 +201,15 @@ public sealed class MaliyetHesapKalemTests
 
         // Rotatif reddi, DİĞER doğrulamalardan ÖNCE gelir: alış bedeli geçersiz olsa bile
         // kullanıcı "rotatif yok" cevabını alır (giriş noktası guard'ı).
-        var bozuk = new MaliyetHesapInput { AlisBedeli = 0m, KrediHesaplamaSekli = LoanCalculationMethod.Rotatif };
+        var corrupt = new MaliyetHesapInput { AlisBedeli = 0m, KrediHesaplamaSekli = LoanCalculationMethod.Rotatif };
         Assert.Equal(CostCalculationService.RevolvingRejectMessage,
-            Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(bozuk)).Message);
+            Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(corrupt)).Message);
     }
 
     [Fact]
     public void Arac_sayisi_filo_toplamlarini_TAM_KAT_uretir()
     {
-        var x = Taban(sureAy: 36);
+        var x = Base(durationMonths: 36);
         x.KaskoYillik = 12_000m;    // 36.000 → toplam maliyet 700.000 + 36.000 = 736.000
         x.AracSayisi = 10;
 
@@ -231,42 +231,42 @@ public sealed class MaliyetHesapKalemTests
     public void Sinir_ve_isaret_dogrulamalari()
     {
         // Negatif kalem HANGİ kalem olduğu söylenerek reddedilir (toplu mesaj yol göstermezdi).
-        var neg = Taban();
+        var neg = Base();
         neg.KaskoYillik = -1m;
         Assert.Contains("Kasko", Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(neg)).Message);
 
-        var neg2 = Taban();
+        var neg2 = Base();
         neg2.BankaDosyaDigerMasraf = -0.01m;
         Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(neg2));
 
         // Enflasyon: negatif ve %300 üstü reddedilir (üst sınır 120 ayda taşmayı engeller).
-        var e1 = Taban(); e1.EnflasyonOran = -0.01m;
+        var e1 = Base(); e1.EnflasyonOran = -0.01m;
         Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(e1));
-        var e2 = Taban(); e2.EnflasyonOran = 3.01m;
+        var e2 = Base(); e2.EnflasyonOran = 3.01m;
         Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(e2));
-        var e3 = Taban(); e3.EnflasyonOran = 3m;
+        var e3 = Base(); e3.EnflasyonOran = 3m;
         CostCalculationService.Calculate(e3);   // tam sınır GEÇERLİ
 
         // Kalem üst sınırı: sınırsız girdi 120 ay × %300 enflasyonla decimal TAŞMASI üretirdi
         // (yakalanmamış OverflowException → 500). Temiz red gelir.
-        var buyuk = Taban();
-        buyuk.KaskoYillik = CostCalculationService.MaxItemAmount + 1m;
-        Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(buyuk));
-        var sinir = Taban(sureAy: 1);
-        sinir.KaskoYillik = CostCalculationService.MaxItemAmount;
-        CostCalculationService.Calculate(sinir);   // tam sınır GEÇERLİ
+        var large = Base();
+        large.KaskoYillik = CostCalculationService.MaxItemAmount + 1m;
+        Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(large));
+        var limit = Base(durationMonths: 1);
+        limit.KaskoYillik = CostCalculationService.MaxItemAmount;
+        CostCalculationService.Calculate(limit);   // tam sınır GEÇERLİ
 
         // Araç sayısı 1..1000
-        var a0 = Taban(); a0.AracSayisi = 0;
+        var a0 = Base(); a0.AracSayisi = 0;
         Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(a0));
-        var a1 = Taban(); a1.AracSayisi = CostCalculationService.MaxVehicleCount + 1;
+        var a1 = Base(); a1.AracSayisi = CostCalculationService.MaxVehicleCount + 1;
         Assert.Throws<ValidationException>(() => CostCalculationService.Calculate(a1));
 
         // Sıfır tutarlı kalem dökümde YER ALMAZ (döküm okunur kalsın; toplama katkısı zaten 0).
-        var sifir = Taban();
-        sifir.KaskoYillik = 0m;
-        Assert.Empty(CostCalculationService.Calculate(sifir).Kalemler);
-        Assert.Equal(0m, CostCalculationService.Calculate(sifir).ToplamGider);
+        var zero = Base();
+        zero.KaskoYillik = 0m;
+        Assert.Empty(CostCalculationService.Calculate(zero).Kalemler);
+        Assert.Equal(0m, CostCalculationService.Calculate(zero).ToplamGider);
     }
 
     [Fact]
@@ -277,7 +277,7 @@ public sealed class MaliyetHesapKalemTests
         // = 12 × 1.048.575/3 = 12 × 349.525 = 4.194.300
         Assert.Equal(4_194_300m, CostCalculationService.MonthFactor(3m, 120));
 
-        var x = Taban(sureAy: 120);
+        var x = Base(durationMonths: 120);
         x.EnflasyonOran = 3m;
         x.YonetimGideriAylik = 1m;    // 1 × 4.194.300 = 4.194.300
         var s = CostCalculationService.Calculate(x);

@@ -13,7 +13,7 @@
 <div class="page-head">
     <h1>Gelen Talepler</h1>
     <div class="actions">
-        @if (_ozet is { Yeni: > 0 } o)
+        @if (_summary is { Yeni: > 0 } o)
         {
             <span class="badge warn">@o.Yeni yeni@(o.EnEskiGun is { } g and > 0 ? $" · en eskisi {g} gündür bekliyor" : "")</span>
         }
@@ -57,11 +57,11 @@
         <th>Durum</th><th>Takip</th><th>İşlem</th>
     </tr></thead>
     <tbody>
-        @if (_satirlar.Count == 0)
+        @if (_rows.Count == 0)
         {
             <tr><td colspan="12" class="muted">Bu filtreyle talep yok.</td></tr>
         }
-        @foreach (var s in _satirlar)
+        @foreach (var s in _rows)
         {
             var t = s.Talep;
             <tr>
@@ -90,15 +90,15 @@
                     else { <text>—</text> }
                 </td>
                 <td data-etiket="Durum">
-                    <span class="badge @DurumSinif(t.Durum)">@TalepDurumu.Label(t.Durum)</span>
+                    <span class="badge @StatusClass(t.Durum)">@TalepDurumu.Label(t.Durum)</span>
                     @if (t.Durum == PublicBookingRequestDurum.Donustu && t.DonusenReservationId is null)
                     {
                         @* Claim/release deseninde process çökerse kalabilecek TEK yarım durum — sessiz bırakılmaz. *@
                         <br /><span class="error small">(rezervasyonu bulunamadı)</span>
                     }
-                    @if (t.AtananAd is { Length: > 0 } ad)
+                    @if (t.AtananAd is { Length: > 0 } name)
                     {
-                        <br /><span class="muted small">@ad</span>
+                        <br /><span class="muted small">@name</span>
                     }
                 </td>
                 @* Takip: not listesi + "not ekle" formu. Etiketsiz bıraksaydım telefonda tamamen
@@ -109,7 +109,7 @@
                     {
                         <details>
                             <summary class="link">@s.NotSayisi not</summary>
-                            @foreach (var n in _notlar.GetValueOrDefault(t.Id) ?? [])
+                            @foreach (var n in _notes.GetValueOrDefault(t.Id) ?? [])
                             {
                                 <div>@n.ZamanUtc.ToLocalTime().ToString("dd.MM HH:mm")
                                     @if (!string.IsNullOrWhiteSpace(n.Kullanici)) { <text>· @n.Kullanici</text> }
@@ -135,7 +135,7 @@
                     {
                         <a class="link" href="@tel">Ara</a>
                     }
-                    @if (PhoneLink.Wa(t.Telefon, WaMesaj(t)) is { } wa)
+                    @if (PhoneLink.Wa(t.Telefon, WaMessage(t)) is { } wa)
                     {
                         <a class="link" href="@wa" target="_blank" rel="noopener">WhatsApp</a>
                     }
@@ -149,24 +149,24 @@
                             <button type="submit" class="link">@(t.AtananKullaniciId is null ? "Bana ata" : "Bırak")</button>
                         </form>
 
-                        @foreach (var hedef in Ilerlemeler(t.Durum))
+                        @foreach (var target in Progressions(t.Durum))
                         {
                             <form method="post" action="/gelen-talepler/durum" class="inline-form"><AntiforgeryToken />
                                 <input type="hidden" name="id" value="@t.Id" />
-                                <input type="hidden" name="durum" value="@((int)hedef)" />
-                                <button type="submit" class="link">@TalepDurumu.Label(hedef)</button>
+                                <input type="hidden" name="durum" value="@((int)target)" />
+                                <button type="submit" class="link">@TalepDurumu.Label(target)</button>
                             </form>
                         }
 
                         @if (Donustur != t.Id)
                         {
                             @* Müsaitlik sorgusu ancak BU bağlantıya basılınca koşar (N+1 yok). *@
-                            <a class="link" href="@DonusturLinki(t.Id)">Dönüştür</a>
+                            <a class="link" href="@ConvertLink(t.Id)">Dönüştür</a>
                         }
                         else
                         {
-                            var musait = _musait.GetValueOrDefault(t.Id) ?? [];
-                            @if (musait.Count == 0)
+                            var available = _available.GetValueOrDefault(t.Id) ?? [];
+                            @if (available.Count == 0)
                             {
                                 <p class="muted small">Bu tarihlerde müsait araç yok.</p>
                             }
@@ -176,26 +176,26 @@
                                    Düz tek liste, talebi karşılamayan bir aracı (ör. üst segment) seçmeyi
                                    ilk sıradaki kadar kolay kılıyordu — oysa ilandan gelen GÜNLÜK FİYAT
                                    rezervasyona aynen işleniyor: yanlış araç = yanlış fiyatlı sözleşme. *@
-                                var ilanAraclari = _ilanAraclari.GetValueOrDefault(t.Id) ?? [];
-                                var talepte = musait.Where(v => ilanAraclari.Contains(v.Id)).ToList();
-                                var digerleri = musait.Where(v => !ilanAraclari.Contains(v.Id)).ToList();
+                                var listingVehicles = _listingVehicles.GetValueOrDefault(t.Id) ?? [];
+                                var inRequest = available.Where(v => listingVehicles.Contains(v.Id)).ToList();
+                                var others = available.Where(v => !listingVehicles.Contains(v.Id)).ToList();
                                 <form method="post" action="/gelen-talepler/donustur" class="grid-form"><AntiforgeryToken />
                                     <input type="hidden" name="id" value="@t.Id" />
                                     <label>Araç
                                         <select name="vehicleId" required>
-                                            @if (talepte.Count > 0)
+                                            @if (inRequest.Count > 0)
                                             {
                                                 <optgroup label="Talep edilen ilan — @t.IlanBaslik">
-                                                    @foreach (var v in talepte)
+                                                    @foreach (var v in inRequest)
                                                     {
                                                         <option value="@v.Id">@v.Plaka — @v.Marka @v.Tip (@v.Grup)</option>
                                                     }
                                                 </optgroup>
                                             }
-                                            @if (digerleri.Count > 0)
+                                            @if (others.Count > 0)
                                             {
-                                                <optgroup label="@(talepte.Count > 0 ? "Diğer araçlar (ilan dışı)" : "Müsait araçlar")">
-                                                    @foreach (var v in digerleri)
+                                                <optgroup label="@(inRequest.Count > 0 ? "Diğer araçlar (ilan dışı)" : "Müsait araçlar")">
+                                                    @foreach (var v in others)
                                                     {
                                                         <option value="@v.Id">@v.Plaka — @v.Marka @v.Tip (@v.Grup)</option>
                                                     }
@@ -205,7 +205,7 @@
                                     </label>
                                     <button type="submit">Rezervasyona Dönüştür</button>
                                 </form>
-                                @if (t.IlanId is not null && talepte.Count == 0)
+                                @if (t.IlanId is not null && inRequest.Count == 0)
                                 {
                                     <p class="muted small"><strong>Dikkat:</strong> talep edilen ilandaki araçların
                                         hiçbiri bu tarihlerde müsait değil. Başka bir araç seçerseniz sözleşmeye
@@ -230,18 +230,18 @@
 </table>
 </div>
 
-@if (_toplam > Boyut)
+@if (_total > Size)
 {
     <div class="form-actions">
-        <span class="muted small">@_toplam talep · sayfa @SayfaNo / @((_toplam + Boyut - 1) / Boyut)</span>
+        <span class="muted small">@_total talep · sayfa @SayfaNo / @((_total + Size - 1) / Size)</span>
         @if (SayfaNo > 1) { <a class="link" href="@Link(SayfaNo - 1)">← Önceki</a> }
-        @if (SayfaNo * Boyut < _toplam) { <a class="link" href="@Link(SayfaNo + 1)">Sonraki →</a> }
+        @if (SayfaNo * Size < _total) { <a class="link" href="@Link(SayfaNo + 1)">Sonraki →</a> }
     </div>
 }
 
 @code {
     /// <summary>Sayfa boyutu — eski ekran TÜM talepleri çekiyordu (sınırsız liste).</summary>
-    private const int Boyut = 25;
+    private const int Size = 25;
 
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
@@ -253,23 +253,23 @@
 
     private int SayfaNo => Math.Max(1, Sayfa ?? 1);
 
-    private IReadOnlyList<TalepSatiri> _satirlar = [];
-    private Dictionary<Guid, IReadOnlyList<Vehicle>> _musait = [];
+    private IReadOnlyList<TalepSatiri> _rows = [];
+    private Dictionary<Guid, IReadOnlyList<Vehicle>> _available = [];
     /// <summary>Talep -> talebin geldiği ilanın ÜYE araç kimlikleri (dropdown gruplaması için).</summary>
-    private Dictionary<Guid, HashSet<Guid>> _ilanAraclari = [];
-    private Dictionary<Guid, IReadOnlyList<TalepNotu>> _notlar = [];
-    private TalepOzet? _ozet;
-    private int _toplam;
+    private Dictionary<Guid, HashSet<Guid>> _listingVehicles = [];
+    private Dictionary<Guid, IReadOnlyList<TalepNotu>> _notes = [];
+    private TalepOzet? _summary;
+    private int _total;
 
     /// <summary>Mevcut filtre/sayfayı koruyarak "dönüştür" panelini AÇAN adres.</summary>
-    private string DonusturLinki(Guid id) => Link(SayfaNo) + "&donustur=" + id;
+    private string ConvertLink(Guid id) => Link(SayfaNo) + "&donustur=" + id;
 
-    private string Link(int sayfa)
-        => $"/gelen-talepler?sayfa={sayfa}" +
+    private string Link(int page)
+        => $"/gelen-talepler?sayfa={page}" +
            (Durum is { } d ? $"&durum={d}" : "") +
            (string.IsNullOrWhiteSpace(Ara) ? "" : $"&ara={Uri.EscapeDataString(Ara)}");
 
-    private static string DurumSinif(PublicBookingRequestDurum d) => d switch
+    private static string StatusClass(PublicBookingRequestDurum d) => d switch
     {
         PublicBookingRequestDurum.Yeni => "warn",
         PublicBookingRequestDurum.Donustu => "ok",
@@ -279,7 +279,7 @@
 
     /// <summary>Bir durumdan ELLE geçilebilecek hedefler. "Dönüştü" listede YOK — o yalnız
     /// Dönüştür akışıyla atanır (elle atanması defterle çelişen bir lead durumu üretirdi).</summary>
-    private static PublicBookingRequestDurum[] Ilerlemeler(PublicBookingRequestDurum d) => d switch
+    private static PublicBookingRequestDurum[] Progressions(PublicBookingRequestDurum d) => d switch
     {
         PublicBookingRequestDurum.Yeni => [PublicBookingRequestDurum.Iletisimde, PublicBookingRequestDurum.Kayip],
         PublicBookingRequestDurum.Iletisimde => [PublicBookingRequestDurum.TeklifVerildi, PublicBookingRequestDurum.Kayip],
@@ -287,17 +287,17 @@
         _ => [],
     };
 
-    private static string WaMesaj(PublicBookingRequest t)
+    private static string WaMessage(PublicBookingRequest t)
         => $"Merhaba {t.AdSoyad}, {t.BasTar.LocalDateTime:dd.MM.yyyy}-{t.BitTar.LocalDateTime:dd.MM.yyyy} " +
            $"tarihleri için araç kiralama talebiniz hakkında görüşmek istiyoruz.";
 
     protected override async Task OnInitializedAsync()
     {
-        var durum = Durum is { } d && Enum.IsDefined(typeof(PublicBookingRequestDurum), d)
+        var status = Durum is { } d && Enum.IsDefined(typeof(PublicBookingRequestDurum), d)
             ? (PublicBookingRequestDurum?)d : null;
 
-        (_satirlar, _toplam) = await Talepler.ListRequestsAsync(new TalepFiltre(durum, Ara, SayfaNo, Boyut));
-        _ozet = await Talepler.SummaryAsync();
+        (_rows, _total) = await Talepler.ListRequestsAsync(new TalepFiltre(status, Ara, SayfaNo, Size));
+        _summary = await Talepler.SummaryAsync();
 
         // PR-21 — N+1 KALDIRILDI. Eskiden AÇIK her satır için müsaitlik sorgusu koşuyordu:
         // 25 satırlık bir sayfada 25 ek sorgu. Ölçüldü: aynı sayfa, satırlar kapalıyken 19 ms,
@@ -305,22 +305,22 @@
         // durumlar"a genişletmiştim, yani maliyeti ben büyütmüştüm.
         // Artık müsait araç listesi YALNIZ dönüştürülecek TEK talep için çekiliyor (`?donustur={id}`);
         // personel "Dönüştür"e bastığında sayfa o satırla birlikte yeniden basılır.
-        if (Donustur is Guid dId && _satirlar.FirstOrDefault(x => x.Talep.Id == dId) is { } hedef
-            && TalepDurumu.IsActive(hedef.Talep.Durum))
+        if (Donustur is Guid dId && _rows.FirstOrDefault(x => x.Talep.Id == dId) is { } target
+            && TalepDurumu.IsActive(target.Talep.Durum))
         {
-            _musait[dId] = await Musaitlik.FindAvailableAsync(
-                hedef.Talep.BasTar, hedef.Talep.BitTar, null, hedef.Talep.Sube);
+            _available[dId] = await Musaitlik.FindAvailableAsync(
+                target.Talep.BasTar, target.Talep.BitTar, null, target.Talep.Sube);
 
             // Talebin geldiği ilanın araçları — YALNIZ açılan tek talep için (N+1 yok, aynı gerekçe).
             // İlan silinmiş/yayından kalkmışsa küme boş kalır ve dropdown eski düz davranışına döner.
-            if (hedef.Talep.IlanId is Guid ilanId
-                && await Ilanlar.GetAsync(ilanId) is { } detay)
-                _ilanAraclari[dId] = [.. detay.Araclar.Select(v => v.Id)];
+            if (target.Talep.IlanId is Guid listingId
+                && await Ilanlar.GetAsync(listingId) is { } detail)
+                _listingVehicles[dId] = [.. detail.Araclar.Select(v => v.Id)];
         }
 
         // Notlar: yalnız NOTU OLAN satırlar için (sayı zaten tek sorguyla geldi) — notsuz satır
         // sorgu üretmez.
-        foreach (var s in _satirlar.Where(x => x.NotSayisi > 0))
-            _notlar[s.Talep.Id] = await Talepler.NotesAsync(s.Talep.Id);
+        foreach (var s in _rows.Where(x => x.NotSayisi > 0))
+            _notes[s.Talep.Id] = await Talepler.NotesAsync(s.Talep.Id);
     }
 }

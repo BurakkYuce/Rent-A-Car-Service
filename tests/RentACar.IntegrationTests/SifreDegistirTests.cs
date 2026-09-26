@@ -27,19 +27,19 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SifreDegistirTests(PostgresFixture fx)
 {
-    private const string Ilk = "ilkSifre1";
+    private const string First = "ilkSifre1";
 
     /// <summary>Saklanan hash verilen parolayı kabul ediyor mu — login'in yaptığı kontrolün aynısı.</summary>
-    private static async Task<bool> ParolaGecerliMi(IServiceProvider sp, Guid uid, string parola)
+    private static async Task<bool> IsPasswordValid(IServiceProvider sp, Guid uid, string password)
     {
         var u = await sp.GetRequiredService<IUserRepository>().FindAsync(uid);
         Assert.NotNull(u);
-        return sp.GetRequiredService<IPasswordHasher>().Verify(u!.PasswordHash, parola);
+        return sp.GetRequiredService<IPasswordHasher>().Verify(u!.PasswordHash, password);
     }
 
-    private static async Task<Guid> KullaniciAsync(IServiceProvider sp, string ad, string sifre = Ilk)
+    private static async Task<Guid> UserAsync(IServiceProvider sp, string name, string password = First)
         => await sp.GetRequiredService<UserService>().CreateAsync(new UserInput
-        { UserName = ad, DisplayName = ad, Rol = UserRole.Operator, Password = sifre });
+        { UserName = name, DisplayName = name, Rol = UserRole.Operator, Password = password });
 
     [Fact]
     public async Task Kendi_parolasini_degistirebilir_ve_YENI_parolayla_giris_yapar()
@@ -49,19 +49,19 @@ public sealed class SifreDegistirTests(PostgresFixture fx)
 
         Guid uid;
         using (var admin = host.ScopeFor(tenant))   // kullanıcı oluşturmak ManageUsers ister
-            uid = await KullaniciAsync(admin.ServiceProvider, "operator1");
+            uid = await UserAsync(admin.ServiceProvider, "operator1");
 
         // Operatör KENDİ oturumunda: admin yetkisi YOK.
         using (var s = host.ScopeFor(tenant, userId: uid, userName: "operator1", role: UserRole.Operator))
             Assert.True(await s.ServiceProvider.GetRequiredService<UserService>()
-                .ChangeOwnPasswordAsync(Ilk, "yeniSifre2"));
+                .ChangeOwnPasswordAsync(First, "yeniSifre2"));
 
         // Doğrulama, login'in kullandığı AYNI ilkelle: saklanan hash yeni parolayı kabul etmeli,
         // eskisini ETMEMELİ. (LoginService tenant'ı KODA göre arıyor; testte tenant kodu yok.)
         using (var s = host.ScopeFor(tenant))
         {
-            Assert.True(await ParolaGecerliMi(s.ServiceProvider, uid, "yeniSifre2"));
-            Assert.False(await ParolaGecerliMi(s.ServiceProvider, uid, Ilk));
+            Assert.True(await IsPasswordValid(s.ServiceProvider, uid, "yeniSifre2"));
+            Assert.False(await IsPasswordValid(s.ServiceProvider, uid, First));
         }
     }
 
@@ -71,7 +71,7 @@ public sealed class SifreDegistirTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
         Guid uid;
-        using (var admin = host.ScopeFor(tenant)) uid = await KullaniciAsync(admin.ServiceProvider, "operator2");
+        using (var admin = host.ScopeFor(tenant)) uid = await UserAsync(admin.ServiceProvider, "operator2");
 
         using (var s = host.ScopeFor(tenant, userId: uid, userName: "operator2", role: UserRole.Operator))
         {
@@ -82,7 +82,7 @@ public sealed class SifreDegistirTests(PostgresFixture fx)
 
         // Parola gerçekten değişmemiş olmalı (red sessizce yazmamalı).
         using (var s = host.ScopeFor(tenant))
-            Assert.True(await ParolaGecerliMi(s.ServiceProvider, uid, Ilk));
+            Assert.True(await IsPasswordValid(s.ServiceProvider, uid, First));
     }
 
     [Fact]
@@ -91,11 +91,11 @@ public sealed class SifreDegistirTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
         Guid uid;
-        using (var admin = host.ScopeFor(tenant)) uid = await KullaniciAsync(admin.ServiceProvider, "operator3");
+        using (var admin = host.ScopeFor(tenant)) uid = await UserAsync(admin.ServiceProvider, "operator3");
 
         using var s = host.ScopeFor(tenant, userId: uid, userName: "operator3", role: UserRole.Operator);
         var ex = await Assert.ThrowsAsync<ValidationException>(() => s.ServiceProvider
-            .GetRequiredService<UserService>().ChangeOwnPasswordAsync(Ilk, "kisa1"));
+            .GetRequiredService<UserService>().ChangeOwnPasswordAsync(First, "kisa1"));
         Assert.Contains("en az 6 karakter", ex.Message);
     }
 
@@ -105,7 +105,7 @@ public sealed class SifreDegistirTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid(), userId: null, role: UserRole.Operator);
         var ex = await Assert.ThrowsAsync<ValidationException>(() => s.ServiceProvider
-            .GetRequiredService<UserService>().ChangeOwnPasswordAsync(Ilk, "yeniSifre2"));
+            .GetRequiredService<UserService>().ChangeOwnPasswordAsync(First, "yeniSifre2"));
         Assert.Contains("Oturum bulunamadı", ex.Message);
     }
 
@@ -117,21 +117,21 @@ public sealed class SifreDegistirTests(PostgresFixture fx)
         Guid a, b;
         using (var admin = host.ScopeFor(tenant))
         {
-            a = await KullaniciAsync(admin.ServiceProvider, "kullaniciA");
-            b = await KullaniciAsync(admin.ServiceProvider, "kullaniciB");
+            a = await UserAsync(admin.ServiceProvider, "kullaniciA");
+            b = await UserAsync(admin.ServiceProvider, "kullaniciB");
         }
 
         // A kendi oturumunda parolasını değiştirir. B'nin id'sini geçirmenin YOLU YOK
         // (metot id parametresi almıyor) — dolayısıyla B etkilenemez.
         using (var s = host.ScopeFor(tenant, userId: a, userName: "kullaniciA", role: UserRole.Operator))
             Assert.True(await s.ServiceProvider.GetRequiredService<UserService>()
-                .ChangeOwnPasswordAsync(Ilk, "aNinYeniSifresi"));
+                .ChangeOwnPasswordAsync(First, "aNinYeniSifresi"));
 
         using (var s = host.ScopeFor(tenant))
         {
-            Assert.True(await ParolaGecerliMi(s.ServiceProvider, a, "aNinYeniSifresi"));
-            Assert.True(await ParolaGecerliMi(s.ServiceProvider, b, Ilk));            // B DOKUNULMAMIŞ
-            Assert.False(await ParolaGecerliMi(s.ServiceProvider, b, "aNinYeniSifresi"));
+            Assert.True(await IsPasswordValid(s.ServiceProvider, a, "aNinYeniSifresi"));
+            Assert.True(await IsPasswordValid(s.ServiceProvider, b, First));            // B DOKUNULMAMIŞ
+            Assert.False(await IsPasswordValid(s.ServiceProvider, b, "aNinYeniSifresi"));
         }
         Assert.NotEqual(a, b);
     }

@@ -20,11 +20,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class CariDerinlikTests(PostgresFixture fx)
 {
-    private const string Sifre = "portalSifre1";
+    private const string Password = "portalSifre1";
 
-    private static CustomerInput Dolu(string unvan) => new()
+    private static CustomerInput Filled(string title) => new()
     {
-        Tip = CustomerType.Kurumsal, Unvan = unvan, VergiNo = "1234567890",
+        Tip = CustomerType.Kurumsal, Unvan = title, VergiNo = "1234567890",
         Adres = " Bağdat Cad. 1 ", Il = "İstanbul", Ilce = "Kadıköy",
         TcDogrulama = true, Ulke = " Türkiye ", Tel2 = " 02161112233 ", OzelKod = " VIP ",
         EntegrasyonKodu = " ENT-1 ", Aciklama = " Kurumsal müşteri ", FaturaAdresFarkli = true,
@@ -32,7 +32,7 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
         AnonimAd = true, AnonimTc = true, AnonimTelefon = true, AnonimMail = true,
         AnonimAdres = true, AnonimBelge = true,
         DogumYeri = " Ankara ", PasaportTarihi = new DateTimeOffset(2020, 1, 5, 0, 0, 0, TimeSpan.Zero),
-        PasaportYeri = " İstanbul ", KurumsalNo = " K-99 ", Sifre = Sifre,
+        PasaportYeri = " İstanbul ", KurumsalNo = " K-99 ", Sifre = Password,
         UyariSerbest = " Ödeme gecikmesi var ", WebIndirim = 0.05m,
         KaraZamani = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
         IslemSubeId = Guid.NewGuid(), BakiyeGor = true, TevkifatKodu = " 601 ",
@@ -50,7 +50,7 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<CustomerService>();
 
-        var id = await svc.CreateAsync(Dolu("Alfa A.Ş."));
+        var id = await svc.CreateAsync(Filled("Alfa A.Ş."));
         var c = await svc.GetAsync(id);
 
         Assert.NotNull(c);
@@ -102,7 +102,7 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<CustomerService>();
-        var id = await svc.CreateAsync(Dolu("Beta A.Ş."));
+        var id = await svc.CreateAsync(Filled("Beta A.Ş."));
 
         // DB'ye DOĞRUDAN bak: ham şifre hiçbir kolonda geçmemeli.
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -110,25 +110,25 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
         {
             var row = await db.Customers.AsNoTracking().SingleAsync(x => x.Id == id);
             Assert.False(string.IsNullOrWhiteSpace(row.SifreHash));
-            Assert.DoesNotContain(Sifre, row.SifreHash!, StringComparison.Ordinal);
-            Assert.NotEqual(Sifre, row.SifreHash);
+            Assert.DoesNotContain(Password, row.SifreHash!, StringComparison.Ordinal);
+            Assert.NotEqual(Password, row.SifreHash);
         }
 
-        var ilk = (await svc.GetAsync(id))!.SifreHash;
+        var first = (await svc.GetAsync(id))!.SifreHash;
 
         // Şifre BOŞ bırakılarak güncelleme → mevcut özet KORUNMALI.
-        var g = Dolu("Beta A.Ş. (yeni ad)");
+        var g = Filled("Beta A.Ş. (yeni ad)");
         g.Sifre = null;
         await svc.UpdateAsync(id, g);
-        var sonra = await svc.GetAsync(id);
-        Assert.Equal("Beta A.Ş. (yeni ad)", sonra!.Unvan);
-        Assert.Equal(ilk, sonra.SifreHash);          // portal erişimi kaybolmadı
+        var after = await svc.GetAsync(id);
+        Assert.Equal("Beta A.Ş. (yeni ad)", after!.Unvan);
+        Assert.Equal(first, after.SifreHash);          // portal erişimi kaybolmadı
 
         // Yeni şifre verilince özet DEĞİŞMELİ.
-        var g2 = Dolu("Beta A.Ş.");
+        var g2 = Filled("Beta A.Ş.");
         g2.Sifre = "baskaSifre2";
         await svc.UpdateAsync(id, g2);
-        Assert.NotEqual(ilk, (await svc.GetAsync(id))!.SifreHash);
+        Assert.NotEqual(first, (await svc.GetAsync(id))!.SifreHash);
     }
 
     [Fact]
@@ -137,9 +137,9 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<CustomerService>();
-        var id = await svc.CreateAsync(Dolu("Gama A.Ş."));
+        var id = await svc.CreateAsync(Filled("Gama A.Ş."));
 
-        var g = Dolu("Gama A.Ş.");
+        var g = Filled("Gama A.Ş.");
         g.OzelKod = "PLATIN";
         g.AracVerilmez = false;
         await svc.UpdateAsync(id, g);
@@ -159,17 +159,17 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<CustomerService>();
 
         // ELLE: 3 cari — 1 aktif+araç verilmez, 1 aktif, 1 pasif.
-        await svc.CreateAsync(Dolu("Alfa A.Ş."));
+        await svc.CreateAsync(Filled("Alfa A.Ş."));
         await svc.CreateAsync(new CustomerInput
         { Tip = CustomerType.Kurumsal, Unvan = "Beta A.Ş.", MusteriTemsilcisi = "Ali", VadeGun = 30,
           Gsm2 = "05551112233", Ilce = "Beşiktaş", Sinif = "A", UyariNedeni = "Gecikme" });
         await svc.CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Gama A.Ş.", Pasif = true });
 
-        var hepsi = await svc.SearchRowsAsync(new CustomerFilter { PageSize = 50 });
-        Assert.Equal(3, hepsi.Items.Count);
+        var all = await svc.SearchRowsAsync(new CustomerFilter { PageSize = 50 });
+        Assert.Equal(3, all.Items.Count);
 
         // D3: entity'de olup projeksiyona girmeyen alanlar artık satırda.
-        var beta = hepsi.Items.Single(x => x.DisplayName == "Beta A.Ş.");
+        var beta = all.Items.Single(x => x.DisplayName == "Beta A.Ş.");
         Assert.Equal("Ali", beta.MusteriTemsilcisi);
         Assert.Equal(30, beta.VadeGun);
         Assert.Equal("05551112233", beta.Gsm2);
@@ -177,7 +177,7 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
         Assert.Equal("A", beta.Sinif);
         Assert.Equal("Gecikme", beta.UyariNedeni);
 
-        var alfa = hepsi.Items.Single(x => x.DisplayName == "Alfa A.Ş.");
+        var alfa = all.Items.Single(x => x.DisplayName == "Alfa A.Ş.");
         Assert.Equal("ENT-1", alfa.EntegrasyonKodu);
         Assert.Equal("VIP", alfa.OzelKod);
         Assert.Equal("Türkiye", alfa.Ulke);
@@ -196,7 +196,7 @@ public sealed class CariDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         Guid id;
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
-            id = await s1.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(Dolu("Gizli A.Ş."));
+            id = await s1.ServiceProvider.GetRequiredService<CustomerService>().CreateAsync(Filled("Gizli A.Ş."));
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var svc = s2.ServiceProvider.GetRequiredService<CustomerService>();

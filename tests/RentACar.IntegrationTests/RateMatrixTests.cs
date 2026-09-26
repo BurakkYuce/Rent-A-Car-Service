@@ -22,13 +22,13 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RateMatrixService>();
 
-        var bas = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var start = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var bit = new DateTimeOffset(2026, 12, 31, 0, 0, 0, TimeSpan.Zero);
         var id = await svc.CreateAsync(new RateMatrixInput
         {
             Kod = "web-eko-2026", Ad = "Web Ekonomik 2026",
             Kanal = "WEB", Sube = "Merkez", Lokasyon = "IST-AHL", AracGrupKod = "eko", ParaBirimi = "try",
-            BasTar = bas, BitTar = bit,
+            BasTar = start, BitTar = bit,
             Gun1 = 1000.00m, Gun2 = 950.00m, Gun3 = 900.00m, Gun4 = 875.00m,
             Gun5 = 850.00m, Gun6 = 825.00m, Gun7 = 800.00m,
             MaxEsneklik = 15.00m, OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "umit"
@@ -40,7 +40,7 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         Assert.Equal("EKO", r.AracGrupKod);        // grup kodu büyük harfe normalize
         Assert.Equal("TRY", r.ParaBirimi);         // para birimi büyük harfe normalize
         Assert.Equal("WEB", r.Kanal);
-        Assert.Equal(bas, r.BasTar);
+        Assert.Equal(start, r.BasTar);
         Assert.Equal(bit, r.BitTar);
         Assert.Equal(1000.00m, r.Gun1);
         Assert.Equal(800.00m, r.Gun7);
@@ -148,12 +148,12 @@ public sealed class RateMatrixTests(PostgresFixture fx)
     // ---------------------------------------------------------------------------------------
 
     /// <summary>ELLE kurulan senaryo: ACENTA/Bekliyor ×3, ACENTA/Onaylı ×1, WEB/Bekliyor ×1.</summary>
-    private static async Task BesSatirAsync(IServiceProvider sp)
+    private static async Task FiveRowsAsync(IServiceProvider sp)
     {
         var svc = sp.GetRequiredService<RateMatrixService>();
-        foreach (var kod in new[] { "AC-1", "AC-2", "AC-3" })
+        foreach (var code in new[] { "AC-1", "AC-2", "AC-3" })
             await svc.CreateAsync(new RateMatrixInput
-            { Kod = kod, Ad = kod, Kanal = "ACENTA", Gun1 = 100m, OnayDurumu = TariffApprovalStatus.Bekliyor });
+            { Kod = code, Ad = code, Kanal = "ACENTA", Gun1 = 100m, OnayDurumu = TariffApprovalStatus.Bekliyor });
 
         await svc.CreateAsync(new RateMatrixInput
         { Kod = "AC-ONAY", Ad = "Onaylı acenta", Kanal = "ACENTA", Gun1 = 100m, OnayDurumu = TariffApprovalStatus.Onayli });
@@ -167,7 +167,7 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await BesSatirAsync(sp);
+        await FiveRowsAsync(sp);
         var svc = sp.GetRequiredService<RateMatrixService>();
 
         Assert.Equal(5, (await svc.ListAsync()).Count);
@@ -177,10 +177,10 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         // ELLE ORACLE: tam 3 satır silinir (AC-1..AC-3).
         Assert.Equal(3, await svc.DeleteByChannelAsync("ACENTA", TariffApprovalStatus.Bekliyor));
 
-        var kalan = await svc.ListAsync();
-        Assert.Equal(2, kalan.Count);
-        Assert.Contains(kalan, r => r.Kod == "AC-ONAY");   // ONAYLI satır DOKUNULMADI
-        Assert.Contains(kalan, r => r.Kod == "WEB-1");     // BAŞKA kanal DOKUNULMADI
+        var remaining = await svc.ListAsync();
+        Assert.Equal(2, remaining.Count);
+        Assert.Contains(remaining, r => r.Kod == "AC-ONAY");   // ONAYLI satır DOKUNULMADI
+        Assert.Contains(remaining, r => r.Kod == "WEB-1");     // BAŞKA kanal DOKUNULMADI
 
         // İkinci çağrı 0 döner (silinecek bekleyen kalmadı) — hata değil.
         Assert.Equal(0, await svc.DeleteByChannelAsync("ACENTA", TariffApprovalStatus.Bekliyor));
@@ -202,9 +202,9 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         Assert.Equal(1, await svc.DeleteByChannelAsync("  acenta ", TariffApprovalStatus.Bekliyor));
 
         // KANALSIZ satır kanal-agnostik taban tarifedir; hiçbir kaynağa ait değildir → silinmez.
-        var kalan = Assert.Single(await svc.ListAsync());
-        Assert.Equal("K2", kalan.Kod);
-        Assert.Null(kalan.Kanal);
+        var remaining = Assert.Single(await svc.ListAsync());
+        Assert.Equal("K2", remaining.Kod);
+        Assert.Null(remaining.Kanal);
     }
 
     [Fact]
@@ -213,7 +213,7 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await BesSatirAsync(sp);
+        await FiveRowsAsync(sp);
         var svc = sp.GetRequiredService<RateMatrixService>();
 
         // KARAR: onaylı toplu silme bu fazda AÇILMADI. Sessizce daraltmak yerine gürültülü red —
@@ -235,7 +235,7 @@ public sealed class RateMatrixTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        using (var admin = host.ScopeFor(tenant)) await BesSatirAsync(admin.ServiceProvider);
+        using (var admin = host.ScopeFor(tenant)) await FiveRowsAsync(admin.ServiceProvider);
 
         // Yönetici tek-satır silebilir (OperationsWrite) ama TOPLU silemez — etki alanı farklı.
         using var yon = host.ScopeFor(tenant, Guid.NewGuid(), "yon", UserRole.Yonetici);
@@ -250,7 +250,7 @@ public sealed class RateMatrixTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
-        using (var s1 = host.ScopeFor(t1)) await BesSatirAsync(s1.ServiceProvider);
+        using (var s1 = host.ScopeFor(t1)) await FiveRowsAsync(s1.ServiceProvider);
 
         // Başka tenant aynı kanal adıyla siler → KENDİ satırlarını siler, t1'inkiler durur.
         using (var s2 = host.ScopeFor(Guid.NewGuid()))
@@ -260,8 +260,8 @@ public sealed class RateMatrixTests(PostgresFixture fx)
             Assert.Equal(1, await svc2.DeleteByChannelAsync("ACENTA", TariffApprovalStatus.Bekliyor));
         }
 
-        using var geri = host.ScopeFor(t1);
-        Assert.Equal(5, (await geri.ServiceProvider.GetRequiredService<RateMatrixService>().ListAsync()).Count);
+        using var back = host.ScopeFor(t1);
+        Assert.Equal(5, (await back.ServiceProvider.GetRequiredService<RateMatrixService>().ListAsync()).Count);
     }
 
     /// <summary>
@@ -293,18 +293,18 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         });
 
         var engine = sp.GetRequiredService<RentACar.Application.Pricing.RentalQuoteEngine>();
-        var bas = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
-        RentACar.Application.Pricing.QuoteRequest Istek() => new()
-        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = bas, BitTar = bas.AddDays(3) };
+        var start = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        RentACar.Application.Pricing.QuoteRequest Request() => new()
+        { AracGrupKod = "EKO", Kanal = "WEB", BasTar = start, BitTar = start.AddDays(3) };
 
-        var once = await engine.QuoteAsync(Istek());
+        var once = await engine.QuoteAsync(Request());
         Assert.Equal(900m, once.GunlukUcret);     // ELLE: 3 gün → Gun3 = 900 (onaylı satırdan)
 
         Assert.Equal(1, await svc.DeleteByChannelAsync("WEB", TariffApprovalStatus.Bekliyor));
 
-        var sonra = await engine.QuoteAsync(Istek());
-        Assert.Equal(900m, sonra.GunlukUcret);    // motor DEĞİŞMEDİ — sildiğimiz satırı zaten kullanmıyordu
-        Assert.Equal(once.GenelToplam, sonra.GenelToplam);
+        var after = await engine.QuoteAsync(Request());
+        Assert.Equal(900m, after.GunlukUcret);    // motor DEĞİŞMEDİ — sildiğimiz satırı zaten kullanmıyordu
+        Assert.Equal(once.GenelToplam, after.GenelToplam);
 
         // Onaylı satır hâlâ yerinde.
         Assert.Equal("EKO-WEB", Assert.Single(await svc.ListAsync()).Kod);
@@ -335,30 +335,30 @@ public sealed class RateMatrixTests(PostgresFixture fx)
                 .CreateAsync(new RateMatrixInput { Kod = "AC-1", Ad = "Acenta 1", Kanal = "ACENTA", Gun1 = 100m });
 
         // (A) Rakip oturum satırı ONAYLAR ama COMMIT ETMEZ → satır kilidi tutuluyor.
-        using var kilitScope = host.ScopeFor(tenant);
-        var factory = kilitScope.ServiceProvider
+        using var lockScope = host.ScopeFor(tenant);
+        var factory = lockScope.ServiceProvider
             .GetRequiredService<IDbContextFactory<RentACar.Infrastructure.Persistence.AppDbContext>>();
-        await using var kilitDb = await factory.CreateDbContextAsync();
-        await using var tx = await kilitDb.Database.BeginTransactionAsync();
-        var row = await kilitDb.RateMatrices.FirstAsync(r => r.Id == id);
+        await using var lockDb = await factory.CreateDbContextAsync();
+        await using var tx = await lockDb.Database.BeginTransactionAsync();
+        var row = await lockDb.RateMatrices.FirstAsync(r => r.Id == id);
         row.OnayDurumu = TariffApprovalStatus.Onayli;
         row.Onaylayan = "rakip";
-        await kilitDb.SaveChangesAsync();
+        await lockDb.SaveChangesAsync();
 
         // (B) Toplu silme başlar; aday okuması FOR UPDATE ile kilitte bekler.
-        using var silScope = host.ScopeFor(tenant);
-        var silTask = silScope.ServiceProvider.GetRequiredService<RateMatrixService>()
+        using var deleteScope = host.ScopeFor(tenant);
+        var deleteTask = deleteScope.ServiceProvider.GetRequiredService<RateMatrixService>()
             .DeleteByChannelAsync("ACENTA", TariffApprovalStatus.Bekliyor);
         await Task.Delay(1500);
-        Assert.False(silTask.IsCompleted);      // kurulum doğru: gerçekten bloklu
+        Assert.False(deleteTask.IsCompleted);      // kurulum doğru: gerçekten bloklu
 
         // (C) Onay COMMIT olur → silme devam eder.
         await tx.CommitAsync();
 
-        Assert.Equal(0, await silTask);         // onaylanan satır ADAYLIKTAN DÜŞTÜ
-        using var son = host.ScopeFor(tenant);
-        var kalan = Assert.Single(await son.ServiceProvider.GetRequiredService<RateMatrixService>().ListAsync());
-        Assert.Equal(TariffApprovalStatus.Onayli, kalan.OnayDurumu);   // ONAYLI tarife HAYATTA
+        Assert.Equal(0, await deleteTask);         // onaylanan satır ADAYLIKTAN DÜŞTÜ
+        using var last = host.ScopeFor(tenant);
+        var remaining = Assert.Single(await last.ServiceProvider.GetRequiredService<RateMatrixService>().ListAsync());
+        Assert.Equal(TariffApprovalStatus.Onayli, remaining.OnayDurumu);   // ONAYLI tarife HAYATTA
     }
 
     /// <summary>ADVERSARIAL L1 — toplu silme <b>tek transaction</b>: bir satır araya giren bir
@@ -378,8 +378,8 @@ public sealed class RateMatrixTests(PostgresFixture fx)
         }
 
         // Rakip oturum SADECE AC-1'i siler ve commit eder — toplu silme henüz başlamadı.
-        using (var rakip = host.ScopeFor(tenant))
-            Assert.True(await rakip.ServiceProvider.GetRequiredService<RateMatrixService>().DeleteAsync(id1));
+        using (var competitor = host.ScopeFor(tenant))
+            Assert.True(await competitor.ServiceProvider.GetRequiredService<RateMatrixService>().DeleteAsync(id1));
 
         // Toplu silme artık yalnız AC-2'yi bulur: temiz sonuç, exception yok.
         using var scope = host.ScopeFor(tenant);

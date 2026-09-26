@@ -25,11 +25,11 @@ public sealed partial class UiFinanceDocumentTests
             return await db.SaveChangesAsync();
         });
 
-    private static Invoice TestInvoice(Guid cari, decimal net, decimal kdv, string currency = "TRY", decimal rate = 1m)
+    private static Invoice TestInvoice(Guid account, decimal net, decimal vat, string currency = "TRY", decimal rate = 1m)
         => new()
         {
-            No = "TST" + Guid.NewGuid().ToString("N")[..10], CariId = cari, Tarih = TestZaman.GunSonra(-1), NetTutar = net,
-            KdvTutar = kdv, GenelToplam = net + kdv, Currency = currency, Kur = rate,
+            No = "TST" + Guid.NewGuid().ToString("N")[..10], CariId = account, Tarih = TestZaman.DaysLater(-1), NetTutar = net,
+            KdvTutar = vat, GenelToplam = net + vat, Currency = currency, Kur = rate,
         };
 
     private static JsonElement CurrencyTotal(JsonElement summary, string currency)

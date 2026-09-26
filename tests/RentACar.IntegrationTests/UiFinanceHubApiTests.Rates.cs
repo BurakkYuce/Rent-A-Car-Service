@@ -33,8 +33,8 @@ public sealed partial class UiFinanceHubApiTests
         await Problem(await SendAsync(s, HttpMethod.Put, $"/kurlar/sabit/{id}", update with { kur = 99m }, null), HttpStatusCode.Conflict, "cakisma");
         await Problem(await SendAsync(s, HttpMethod.Put, $"/kurlar/sabit/{id}", update with { surum = (string?)null }, null),
             HttpStatusCode.BadRequest, "dogrulama", "surum");
-        var kur = await DbAsync(e, db => db.SabitKurlar.AsNoTracking().Where(x => x.Id == id).Select(x => x.Kur).SingleAsync());
-        Assert.Equal(32m, kur);
+        var exchangeRate = await DbAsync(e, db => db.SabitKurlar.AsNoTracking().Where(x => x.Id == id).Select(x => x.Kur).SingleAsync());
+        Assert.Equal(32m, exchangeRate);
 
         // Sabit kur para çözümüne girer: kursuz USD virmanı 32'den yazılır.
         var transfer = await IdOf(await PostAsync(s, "/kasa/virman", new { kaynak = "Kasa", hedef = "Banka", tutar = 10m, doviz = "USD" }, NewKey()));

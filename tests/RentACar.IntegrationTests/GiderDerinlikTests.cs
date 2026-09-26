@@ -31,29 +31,29 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class GiderDerinlikTests(PostgresFixture fx)
 {
-    private static DateTimeOffset Gun(int fark)
+    private static DateTimeOffset Day(int difference)
     {
-        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(fark), DateTimeKind.Utc), TimeSpan.Zero);
+        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(difference), DateTimeKind.Utc), TimeSpan.Zero);
         return t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
     }
 
-    private static Task<Guid> CariAsync(IServiceScope s, string ad)
+    private static Task<Guid> CustomerAsync(IServiceScope s, string name)
         => s.ServiceProvider.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = ad });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = name });
 
     /// <summary>Açık hesap gideri: 1000 net + %20 KDV = 1200 borç.</summary>
-    private static async Task<Guid> AcikHesapGiderAsync(IServiceScope s, Guid cari, decimal net = 1000m)
+    private static async Task<Guid> OpenAccountExpenseAsync(IServiceScope s, Guid account, decimal net = 1000m)
     {
         await s.ServiceProvider.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Genel, NetTutar = net, KdvOrani = 0.20m,
-            OdemeYontemi = PaymentMethod.AcikHesap, CariId = cari
+            OdemeYontemi = PaymentMethod.AcikHesap, CariId = account
         });
-        var liste = await s.ServiceProvider.GetRequiredService<ExpenseService>().ListAsync();
-        return liste.OrderByDescending(x => x.CreatedAtUtc).First().Id;
+        var list = await s.ServiceProvider.GetRequiredService<ExpenseService>().ListAsync();
+        return list.OrderByDescending(x => x.CreatedAtUtc).First().Id;
     }
 
-    private static async Task<(int Satir, decimal Borc, decimal Alacak)> DefterAsync(
+    private static async Task<(int Satir, decimal Borc, decimal Alacak)> LedgerAsync(
         TestHost host, Guid tenant)
     {
         using var scope = host.ScopeFor(tenant);
@@ -75,28 +75,28 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
-        var kasa = await scope.ServiceProvider.GetRequiredService<FinancialAccountService>()
+        var cash = await scope.ServiceProvider.GetRequiredService<FinancialAccountService>()
             .CreateAsync(new FinancialAccountInput { Kod = "MRK", Ad = "Merkez Kasa", Tur = "Kasa" });
 
-        var odemeTar = Gun(-2);
+        var paymentDate = Day(-2);
         var rentalId = Guid.NewGuid();   // gevşek referans (FK yok) — bilgi
         await expenses.CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m,
-            OdemeYontemi = PaymentMethod.Nakit, FinansalHesapId = kasa,
-            OdemeTarihi = odemeTar, HazirAciklama = "Yakıt", RentalId = rentalId
+            OdemeYontemi = PaymentMethod.Nakit, FinansalHesapId = cash,
+            OdemeTarihi = paymentDate, HazirAciklama = "Yakıt", RentalId = rentalId
         });
 
-        var gider = Assert.Single(await expenses.ListAsync());
-        Assert.Equal(odemeTar, gider.OdemeTarihi);
-        Assert.Equal("Yakıt", gider.HazirAciklama);
-        Assert.Equal(rentalId, gider.RentalId);
+        var expense = Assert.Single(await expenses.ListAsync());
+        Assert.Equal(paymentDate, expense.OdemeTarihi);
+        Assert.Equal("Yakıt", expense.HazirAciklama);
+        Assert.Equal(rentalId, expense.RentalId);
 
         // Defter: elle 100 Gider Borç / 100 Kasa Alacak — bilgi alanları hiçbir satır üretmedi.
-        var (satir, borc, alacak) = await DefterAsync(host, tenant);
-        Assert.Equal(2, satir);
-        Assert.Equal(100m, borc);
-        Assert.Equal(100m, alacak);
+        var (row, debit, credit) = await LedgerAsync(host, tenant);
+        Assert.Equal(2, row);
+        Assert.Equal(100m, debit);
+        Assert.Equal(100m, credit);
     }
 
     // ---------------------------------------------------------------- Kısmi ödeme
@@ -108,30 +108,30 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(tenant);
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
-        var cari = await CariAsync(scope, "Tedarikçi");
-        var giderId = await AcikHesapGiderAsync(scope, cari);
+        var account = await CustomerAsync(scope, "Tedarikçi");
+        var expenseId = await OpenAccountExpenseAsync(scope, account);
 
-        var defterOnce = await DefterAsync(host, tenant);
+        var ledgerBefore = await LedgerAsync(host, tenant);
 
         // ELLE: 1200 borca 400 ödeme → kalan 800.
-        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 400m });
+        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 400m });
 
-        var durum = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[giderId];
-        Assert.True(durum.TakipEdilir);
-        Assert.Equal(1200m, durum.GenelToplam);
-        Assert.Equal(400m, durum.Odenen);
-        Assert.Equal(800m, durum.Kalan);
-        Assert.False(durum.TamamenOdendi);
+        var status = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[expenseId];
+        Assert.True(status.TakipEdilir);
+        Assert.Equal(1200m, status.GenelToplam);
+        Assert.Equal(400m, status.Odenen);
+        Assert.Equal(800m, status.Kalan);
+        Assert.False(status.TamamenOdendi);
 
         // KRİTİK: defter BİT-BİREBİR aynı (karar (i) — ödeme takip alanıdır).
-        Assert.Equal(defterOnce, await DefterAsync(host, tenant));
+        Assert.Equal(ledgerBefore, await LedgerAsync(host, tenant));
 
         // İkinci ödeme kalanı kapatır.
-        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 800m });
-        var durum2 = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[giderId];
-        Assert.Equal(0m, durum2.Kalan);
-        Assert.True(durum2.TamamenOdendi);
-        Assert.Equal(defterOnce, await DefterAsync(host, tenant));
+        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 800m });
+        var status2 = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[expenseId];
+        Assert.Equal(0m, status2.Kalan);
+        Assert.True(status2.TamamenOdendi);
+        Assert.Equal(ledgerBefore, await LedgerAsync(host, tenant));
     }
 
     [Fact]
@@ -140,15 +140,15 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
-        var cari = await CariAsync(scope, "Tek Tık");
-        var giderId = await AcikHesapGiderAsync(scope, cari);
+        var account = await CustomerAsync(scope, "Tek Tık");
+        var expenseId = await OpenAccountExpenseAsync(scope, account);
 
-        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 200m });
-        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId });   // kalanın tamamı
+        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 200m });
+        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId });   // kalanın tamamı
 
-        var durum = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[giderId];
-        Assert.Equal(1200m, durum.Odenen);
-        Assert.Equal(0m, durum.Kalan);
+        var status = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[expenseId];
+        Assert.Equal(1200m, status.Odenen);
+        Assert.Equal(0m, status.Kalan);
     }
 
     [Fact]
@@ -158,23 +158,23 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
-        var kasa = await scope.ServiceProvider.GetRequiredService<FinancialAccountService>()
+        var cash = await scope.ServiceProvider.GetRequiredService<FinancialAccountService>()
             .CreateAsync(new FinancialAccountInput { Kod = "MRK", Ad = "Merkez Kasa", Tur = "Kasa" });
         await expenses.CreateAsync(new ExpenseInput
         {
             Tip = ExpenseType.Genel, NetTutar = 500m, KdvOrani = 0m,
-            OdemeYontemi = PaymentMethod.Nakit, FinansalHesapId = kasa
+            OdemeYontemi = PaymentMethod.Nakit, FinansalHesapId = cash
         });
-        var gider = Assert.Single(await expenses.ListAsync());
+        var expense = Assert.Single(await expenses.ListAsync());
 
-        var durum = (await expenses.PaymentStatusesAsync([gider]))[gider.Id];
-        Assert.False(durum.TakipEdilir);
-        Assert.Equal(500m, durum.Odenen);
-        Assert.Equal(0m, durum.Kalan);
+        var status = (await expenses.PaymentStatusesAsync([expense]))[expense.Id];
+        Assert.False(status.TakipEdilir);
+        Assert.Equal(500m, status.Odenen);
+        Assert.Equal(0m, status.Kalan);
 
         // Nakit gidere ödeme kaydı GÜRÜLTÜLÜ reddedilir — sessizce kabul etmek sahte borç yaratırdı.
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-            expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = gider.Id, Tutar = 100m }));
+            expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expense.Id, Tutar = 100m }));
         Assert.Contains("açık hesap", ex.Message);
     }
 
@@ -186,20 +186,20 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
-        var cari = await CariAsync(scope, "Asiri");
-        var giderId = await AcikHesapGiderAsync(scope, cari);
+        var account = await CustomerAsync(scope, "Asiri");
+        var expenseId = await OpenAccountExpenseAsync(scope, account);
 
         // Tek seferde aşırı.
         await Assert.ThrowsAsync<ValidationException>(() =>
-            expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 1200.01m }));
+            expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 1200.01m }));
 
         // Kısmi ödemeden SONRA aşırı (kalan 200 iken 300).
-        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 1000m });
+        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 1000m });
         await Assert.ThrowsAsync<ValidationException>(() =>
-            expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 300m }));
+            expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 300m }));
 
-        var durum = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[giderId];
-        Assert.Equal(1000m, durum.Odenen);   // reddedilen ödeme hiç yazılmadı
+        var status = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[expenseId];
+        Assert.Equal(1000m, status.Odenen);   // reddedilen ödeme hiç yazılmadı
     }
 
     [Fact]
@@ -208,19 +208,19 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
-        var cari = await CariAsync(scope, "CiftSubmit");
-        var giderId = await AcikHesapGiderAsync(scope, cari);
+        var account = await CustomerAsync(scope, "CiftSubmit");
+        var expenseId = await OpenAccountExpenseAsync(scope, account);
 
-        var anahtar = Guid.NewGuid();
-        var ilk = await expenses.AddPaymentAsync(new GiderOdemeInput
-        { ExpenseId = giderId, Tutar = 300m, IslemAnahtari = anahtar });
-        var ikinci = await expenses.AddPaymentAsync(new GiderOdemeInput
-        { ExpenseId = giderId, Tutar = 300m, IslemAnahtari = anahtar });
+        var key = Guid.NewGuid();
+        var first = await expenses.AddPaymentAsync(new GiderOdemeInput
+        { ExpenseId = expenseId, Tutar = 300m, IslemAnahtari = key });
+        var second = await expenses.AddPaymentAsync(new GiderOdemeInput
+        { ExpenseId = expenseId, Tutar = 300m, IslemAnahtari = key });
 
-        Assert.NotNull(ilk);
-        Assert.Null(ikinci);   // yutuldu
-        var durum = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[giderId];
-        Assert.Equal(300m, durum.Odenen);   // 600 DEĞİL
+        Assert.NotNull(first);
+        Assert.Null(second);   // yutuldu
+        var status = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[expenseId];
+        Assert.Equal(300m, status.Odenen);   // 600 DEĞİL
     }
 
     [Fact]
@@ -229,29 +229,29 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         // TOCTOU: kilitsiz "önce oku sonra yaz" olsaydı üç istek birlikte geçip 900 yazardı.
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        Guid giderId;
+        Guid expenseId;
         using (var scope = host.ScopeFor(tenant))
         {
-            var cari = await CariAsync(scope, "Yaris");
-            giderId = await AcikHesapGiderAsync(scope, cari, net: 250m);   // 300 borç
+            var account = await CustomerAsync(scope, "Yaris");
+            expenseId = await OpenAccountExpenseAsync(scope, account, net: 250m);   // 300 borç
         }
 
         // 4 paralel × 100 → tam 3'ü geçmeli (300), dördüncü reddedilmeli.
-        var gorevler = Enumerable.Range(0, 4).Select(async _ =>
+        var tasks = Enumerable.Range(0, 4).Select(async _ =>
         {
             using var s = host.ScopeFor(tenant);
             var svc = s.ServiceProvider.GetRequiredService<ExpenseService>();
-            try { await svc.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 100m }); return true; }
+            try { await svc.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 100m }); return true; }
             catch (ValidationException) { return false; }
         }).ToList();
-        var sonuclar = await Task.WhenAll(gorevler);
+        var results = await Task.WhenAll(tasks);
 
-        using var oku = host.ScopeFor(tenant);
-        var expenses = oku.ServiceProvider.GetRequiredService<ExpenseService>();
-        var durum = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[giderId];
-        Assert.Equal(300m, durum.Odenen);
-        Assert.Equal(0m, durum.Kalan);
-        Assert.Equal(3, sonuclar.Count(x => x));
+        using var read = host.ScopeFor(tenant);
+        var expenses = read.ServiceProvider.GetRequiredService<ExpenseService>();
+        var status = (await expenses.PaymentStatusesAsync(await expenses.ListAsync()))[expenseId];
+        Assert.Equal(300m, status.Odenen);
+        Assert.Equal(0m, status.Kalan);
+        Assert.Equal(3, results.Count(x => x));
     }
 
     [Fact]
@@ -259,13 +259,13 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        Guid giderId;
+        Guid expenseId;
         using (var scope = host.ScopeFor(tenant))
         {
-            var cari = await CariAsync(scope, "Degismez");
-            giderId = await AcikHesapGiderAsync(scope, cari);
+            var account = await CustomerAsync(scope, "Degismez");
+            expenseId = await OpenAccountExpenseAsync(scope, account);
             await scope.ServiceProvider.GetRequiredService<ExpenseService>()
-                .AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 100m });
+                .AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 100m });
         }
 
         using var s2 = host.ScopeFor(tenant);
@@ -282,11 +282,11 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
-        var cari = await CariAsync(scope, "Gelecek");
-        var giderId = await AcikHesapGiderAsync(scope, cari);
+        var account = await CustomerAsync(scope, "Gelecek");
+        var expenseId = await OpenAccountExpenseAsync(scope, account);
 
         await Assert.ThrowsAsync<ValidationException>(() => expenses.AddPaymentAsync(
-            new GiderOdemeInput { ExpenseId = giderId, Tutar = 100m, Tarih = Gun(5) }));
+            new GiderOdemeInput { ExpenseId = expenseId, Tutar = 100m, Tarih = Day(5) }));
     }
 
     [Fact]
@@ -296,11 +296,11 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
 
-        Guid giderId;
+        Guid expenseId;
         using (var s1 = host.ScopeFor(t1))
         {
-            var cari = await CariAsync(s1, "T1 Tedarikçi");
-            giderId = await AcikHesapGiderAsync(s1, cari);
+            var account = await CustomerAsync(s1, "T1 Tedarikçi");
+            expenseId = await OpenAccountExpenseAsync(s1, account);
         }
 
         // Başka tenant'ın gider kimliğiyle ödeme: bulunamaz.
@@ -308,7 +308,7 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         {
             var svc = s2.ServiceProvider.GetRequiredService<ExpenseService>();
             await Assert.ThrowsAsync<ValidationException>(() =>
-                svc.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 100m }));
+                svc.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 100m }));
             Assert.Empty(await svc.ListAsync());
         }
 
@@ -316,7 +316,7 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         using var op = host.ScopeFor(t1, role: UserRole.Operator);
         await Assert.ThrowsAsync<NoPermissionException>(() => op.ServiceProvider
             .GetRequiredService<ExpenseService>()
-            .AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 100m }));
+            .AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 100m }));
     }
 
     [Fact]
@@ -328,21 +328,21 @@ public sealed class GiderDerinlikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant);
         var expenses = scope.ServiceProvider.GetRequiredService<ExpenseService>();
         var reports = scope.ServiceProvider.GetRequiredService<ReportService>();
-        var cari = await CariAsync(scope, "Rapor");
-        var giderId = await AcikHesapGiderAsync(scope, cari);
+        var account = await CustomerAsync(scope, "Rapor");
+        var expenseId = await OpenAccountExpenseAsync(scope, account);
 
         var ggOnce = await reports.GetRevenueExpenseAsync();
         var kbOnce = await reports.GetCashBankSummaryAsync();
 
-        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = giderId, Tutar = 700m });
+        await expenses.AddPaymentAsync(new GiderOdemeInput { ExpenseId = expenseId, Tutar = 700m });
 
-        var ggSonra = await reports.GetRevenueExpenseAsync();
-        var kbSonra = await reports.GetCashBankSummaryAsync();
-        Assert.Equal(ggOnce.GiderToplam, ggSonra.GiderToplam);
-        Assert.Equal(ggOnce.NetKar, ggSonra.NetKar);
-        Assert.Equal(kbOnce.KasaBakiye, kbSonra.KasaBakiye);
-        Assert.Equal(kbOnce.BankaBakiye, kbSonra.BankaBakiye);
+        var plAfter = await reports.GetRevenueExpenseAsync();
+        var cbAfter = await reports.GetCashBankSummaryAsync();
+        Assert.Equal(ggOnce.GiderToplam, plAfter.GiderToplam);
+        Assert.Equal(ggOnce.NetKar, plAfter.NetKar);
+        Assert.Equal(kbOnce.KasaBakiye, cbAfter.KasaBakiye);
+        Assert.Equal(kbOnce.BankaBakiye, cbAfter.BankaBakiye);
         // Elle: gider 1000 net (KDV indirilecek, gider toplamına girmez).
-        Assert.Equal(1000m, ggSonra.GiderToplam);
+        Assert.Equal(1000m, plAfter.GiderToplam);
     }
 }

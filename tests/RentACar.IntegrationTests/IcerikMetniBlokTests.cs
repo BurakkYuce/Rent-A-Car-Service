@@ -16,16 +16,16 @@ public sealed class IcerikMetniBlokTests
     [Fact]
     public void Iki_diyez_h2_uc_diyez_h3_uretir()
     {
-        var bloklar = ContentText.Blocks("Giriş cümlesi.\n\n## Ana Başlık\n\n### Alt Başlık\n\nSon söz.");
+        var blocks = ContentText.Blocks("Giriş cümlesi.\n\n## Ana Başlık\n\n### Alt Başlık\n\nSon söz.");
 
-        Assert.Equal(4, bloklar.Count);
-        Assert.Equal(ContentText.BlockType.Paragraf, bloklar[0].Tur);
-        Assert.Equal("Giriş cümlesi.", bloklar[0].Metin);
-        Assert.Equal(ContentText.BlockType.Baslik2, bloklar[1].Tur);
-        Assert.Equal("Ana Başlık", bloklar[1].Metin);       // işaretleyici AYIKLANIR
-        Assert.Equal(ContentText.BlockType.Baslik3, bloklar[2].Tur);
-        Assert.Equal("Alt Başlık", bloklar[2].Metin);
-        Assert.Equal(ContentText.BlockType.Paragraf, bloklar[3].Tur);
+        Assert.Equal(4, blocks.Count);
+        Assert.Equal(ContentText.BlockType.Paragraf, blocks[0].Tur);
+        Assert.Equal("Giriş cümlesi.", blocks[0].Metin);
+        Assert.Equal(ContentText.BlockType.Baslik2, blocks[1].Tur);
+        Assert.Equal("Ana Başlık", blocks[1].Metin);       // işaretleyici AYIKLANIR
+        Assert.Equal(ContentText.BlockType.Baslik3, blocks[2].Tur);
+        Assert.Equal("Alt Başlık", blocks[2].Metin);
+        Assert.Equal(ContentText.BlockType.Paragraf, blocks[3].Tur);
     }
 
     /// <summary>
@@ -35,25 +35,25 @@ public sealed class IcerikMetniBlokTests
     [Fact]
     public void Satir_ortasindaki_diyez_baslik_URETMEZ()
     {
-        var blok = Assert.Single(ContentText.Blocks("Fiyat ## dahil değildir."));
-        Assert.Equal(ContentText.BlockType.Paragraf, blok.Tur);
-        Assert.Equal("Fiyat ## dahil değildir.", blok.Metin);
+        var block = Assert.Single(ContentText.Blocks("Fiyat ## dahil değildir."));
+        Assert.Equal(ContentText.BlockType.Paragraf, block.Tur);
+        Assert.Equal("Fiyat ## dahil değildir.", block.Metin);
     }
 
     /// <summary>Diyezden sonra boşluk YOKSA başlık değildir ("#etiket" gibi kullanımlar korunur).</summary>
     [Fact]
     public void Bosluksuz_diyez_baslik_URETMEZ()
     {
-        var blok = Assert.Single(ContentText.Blocks("##EtiketGibi"));
-        Assert.Equal(ContentText.BlockType.Paragraf, blok.Tur);
+        var block = Assert.Single(ContentText.Blocks("##EtiketGibi"));
+        Assert.Equal(ContentText.BlockType.Paragraf, block.Tur);
     }
 
     /// <summary>Aynı blok içindeki ardışık satırlar TEK paragrafta birleşir (yazarın niyeti).</summary>
     [Fact]
     public void Ayni_bloktaki_satirlar_tek_paragrafta_birlesir()
     {
-        var blok = Assert.Single(ContentText.Blocks("Birinci satır\nikinci satır"));
-        Assert.Equal("Birinci satır ikinci satır", blok.Metin);
+        var block = Assert.Single(ContentText.Blocks("Birinci satır\nikinci satır"));
+        Assert.Equal("Birinci satır ikinci satır", block.Metin);
     }
 
     [Fact]
@@ -90,9 +90,9 @@ public sealed class IcerikMetniBlokTests
     [Fact]
     public void Ozet_kelime_ortasindan_kesmez()
     {
-        var ozet = ContentText.Summary("Antalya bölgesinde uzun dönem araç kiralama", 20);
-        Assert.Equal("Antalya bölgesinde…", ozet);
-        Assert.DoesNotContain("uzu…", ozet);
+        var summary = ContentText.Summary("Antalya bölgesinde uzun dönem araç kiralama", 20);
+        Assert.Equal("Antalya bölgesinde…", summary);
+        Assert.DoesNotContain("uzu…", summary);
     }
 
     [Fact]

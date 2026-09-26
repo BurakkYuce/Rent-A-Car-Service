@@ -15,20 +15,20 @@
     <p class="error">@Hata</p>
 }
 
-<p>Mevcut kilit: <strong>@(_closing is { } kapanis ? RentACar.Application.Periods.PeriodLock.LocalDay(kapanis).ToString("yyyy-MM-dd") : "yok (tüm dönemler açık)")</strong></p>
+<p>Mevcut kilit: <strong>@(_closing is { } closing ? RentACar.Application.Periods.PeriodLock.LocalDay(closing).ToString("yyyy-MM-dd") : "yok (tüm dönemler açık)")</strong></p>
 <p class="muted small">Kapanış tarihi ve <strong>öncesine</strong> tahsilat/ödeme/virman/cari-virman/ters kayıt/
     fatura/gider/ceza yansıtma/HGS yansıtma postlanamaz. İleri tarihe taşıma serbest. "Dönemi Kapat" ayrıca
     <strong>kapanış fişi</strong> keser: Gelir/Gider hesaplarını sıfırlayıp net dönem sonucunu
     <em>Dönem Sonucu</em> hesabına taşır (KDV/Kasa/Banka/Cari bilanço hesapları dokunulmaz).</p>
 
 <h2>Güncel Mizan (bugüne kadar)</h2>
-@if (_mizan is { Count: > 0 })
+@if (_trialBalance is { Count: > 0 })
 {
     <div class="table-scroll">
     <table class="grid">
         <thead><tr><th>Hesap</th><th class="num">Borç</th><th class="num">Alacak</th><th class="num">Bakiye</th></tr></thead>
         <tbody>
-        @foreach (var m in _mizan)
+        @foreach (var m in _trialBalance)
         {
             <tr>
                 <td>@m.Ad</td>
@@ -41,9 +41,9 @@
         <tfoot>
             <tr>
                 <td><strong>Toplam</strong></td>
-                <td class="num"><strong>@_mizan.Sum(x => x.Borc).ToString("N2")</strong></td>
-                <td class="num"><strong>@_mizan.Sum(x => x.Alacak).ToString("N2")</strong></td>
-                <td class="num"><strong>@_mizan.Sum(x => x.Bakiye).ToString("N2")</strong></td>
+                <td class="num"><strong>@_trialBalance.Sum(x => x.Borc).ToString("N2")</strong></td>
+                <td class="num"><strong>@_trialBalance.Sum(x => x.Alacak).ToString("N2")</strong></td>
+                <td class="num"><strong>@_trialBalance.Sum(x => x.Bakiye).ToString("N2")</strong></td>
             </tr>
         </tfoot>
     </table>
@@ -55,7 +55,7 @@ else
     <p class="muted">Defter boş.</p>
 }
 
-@if (_onizleme is { } o)
+@if (_preview is { } o)
 {
     <p>Şu an kapatılacak (güncel Gelir/Gider bakiyesi): <strong>Gelir @o.Gelir.ToString("N2")</strong> −
         <strong>Gider @o.Gider.ToString("N2")</strong> = <strong>Dönem Sonucu @o.DonemSonucu.ToString("N2")</strong>
@@ -82,18 +82,18 @@ else
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private DateTimeOffset? _closing;
-    private IReadOnlyList<RentACar.Application.Reporting.MizanSatirDto>? _mizan;
-    private RentACar.Application.Periods.DonemKapanisOnizleme? _onizleme;
+    private IReadOnlyList<RentACar.Application.Reporting.MizanSatirDto>? _trialBalance;
+    private RentACar.Application.Periods.DonemKapanisOnizleme? _preview;
 
     protected override async Task OnInitializedAsync()
     {
         _closing = await Donem.GetClosingDateAsync();
-        _mizan = await Rapor.GetTrialBalanceAsync();
+        _trialBalance = await Rapor.GetTrialBalanceAsync();
         // Önizleme GÜNCEL mizan bakiyesinden (kapanışın gerçekten sıfırlayacağı tutar): Gelir Alacak bakiyesi
         // (negatif) → gelir = −bakiye; Gider Borç bakiyesi (pozitif) → gider = bakiye.
-        decimal Bakiye(LedgerAccountType t) => _mizan.FirstOrDefault(m => m.Tip == t)?.Bakiye ?? 0m;
-        var gelir = -Bakiye(LedgerAccountType.Gelir);
-        var gider = Bakiye(LedgerAccountType.Gider);
-        _onizleme = new RentACar.Application.Periods.DonemKapanisOnizleme(gelir, gider, gelir - gider);
+        decimal Balance(LedgerAccountType t) => _trialBalance.FirstOrDefault(m => m.Tip == t)?.Bakiye ?? 0m;
+        var revenue = -Balance(LedgerAccountType.Gelir);
+        var expense = Balance(LedgerAccountType.Gider);
+        _preview = new RentACar.Application.Periods.DonemKapanisOnizleme(revenue, expense, revenue - expense);
     }
 }

@@ -10,12 +10,12 @@
     <div class="container">
         <h2 class="section-title">3 adımda araç kiralayın</h2>
         <ol class="adimlar">
-            @foreach (var (n, baslik, aciklama) in Adimlar)
+            @foreach (var (n, title, description) in Steps)
             {
                 <li class="adim">
                     <span class="adim-no" aria-hidden="true">@n</span>
-                    <h3>@baslik</h3>
-                    <p class="muted small">@aciklama</p>
+                    <h3>@title</h3>
+                    <p class="muted small">@description</p>
                 </li>
             }
         </ol>
@@ -23,7 +23,7 @@
 </section>
 
 @code {
-    private static readonly (int No, string Baslik, string Aciklama)[] Adimlar =
+    private static readonly (int No, string Baslik, string Aciklama)[] Steps =
     [
         (1, "Aracı seçin",
             "Tarihlerinizi girin, o aralıkta müsait araçları ve günlük/haftalık/aylık fiyatlarını görün."),

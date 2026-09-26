@@ -18,8 +18,8 @@
 <form method="get" class="grid-form">
     <label>Hesap
         <select name="hesap">
-            <option value="Kasa" selected="@(_hesap == LedgerAccountType.Kasa)">Kasa</option>
-            <option value="Banka" selected="@(_hesap == LedgerAccountType.Banka)">Banka</option>
+            <option value="Kasa" selected="@(_account == LedgerAccountType.Kasa)">Kasa</option>
+            <option value="Banka" selected="@(_account == LedgerAccountType.Banka)">Banka</option>
         </select>
     </label>
     @* FAZ-50 — spesifik hesap filtresi. "Hesap belirtilmemiş" AYRI bir seçenektir: bu fazdan
@@ -28,7 +28,7 @@
         <select name="hesapId">
             <option value="">— tümü —</option>
             <option value="@Guid.Empty" selected="@(HesapId == Guid.Empty.ToString())">— hesap belirtilmemiş —</option>
-            @foreach (var h in _hesaplar)
+            @foreach (var h in _accounts)
             {
                 <option value="@h.Id" selected="@(HesapId == h.Id.ToString())">@h.Ad (@h.Kod)</option>
             }
@@ -39,19 +39,19 @@
     <label>Döviz
         <select name="doviz">
             <option value="">Tümü</option>
-            @foreach (var d in _dovizler) { <option value="@d" selected="@(Doviz == d)">@d</option> }
+            @foreach (var d in _currencies) { <option value="@d" selected="@(Doviz == d)">@d</option> }
         </select>
     </label>
     <label>İşlem Türü
         <select name="tur">
             <option value="">Tümü</option>
-            @foreach (var t in _turler) { <option value="@t" selected="@(Tur == t)">@t</option> }
+            @foreach (var t in _types) { <option value="@t" selected="@(Tur == t)">@t</option> }
         </select>
     </label>
     <label>Şube
         <select name="sube">
             <option value="">Tümü</option>
-            @foreach (var b in _subeler) { <option value="@b" selected="@(Sube == b)">@b</option> }
+            @foreach (var b in _branches) { <option value="@b" selected="@(Sube == b)">@b</option> }
         </select>
     </label>
     <label>Başlangıç<input name="from" type="date" value="@From" /></label>
@@ -72,11 +72,11 @@
     </div>
     <div class="card">
         <div class="card-num pos">@Giris.ToString("N2")</div>
-        <div class="card-label">@_hesap Giriş ₺</div>
+        <div class="card-label">@_account Giriş ₺</div>
     </div>
     <div class="card">
         <div class="card-num neg">@Cikis.ToString("N2")</div>
-        <div class="card-label">@_hesap Çıkış ₺</div>
+        <div class="card-label">@_account Çıkış ₺</div>
     </div>
 </div>
 
@@ -91,18 +91,18 @@
 <table class="grid tr-grid">
     <thead><tr><th>Tür</th><th>Hesap</th><th class="num">Giriş ₺</th><th class="num">Çıkış ₺</th><th class="num">Bakiye ₺</th></tr></thead>
     <tbody>
-        @if (_hesapOzet.Count == 0)
+        @if (_accountSummary.Count == 0)
         {
             <tr><td colspan="5" class="muted">Hareket yok.</td></tr>
         }
-        @foreach (var o in _hesapOzet)
+        @foreach (var o in _accountSummary)
         {
             <tr>
                 <td>@o.Tur</td>
                 <td>
                     @if (o.HesapId is { } hid)
                     {
-                        @(_adlar.TryGetValue(hid, out var ad) ? ad : "(silinmiş hesap)")
+                        @(_names.TryGetValue(hid, out var name) ? name : "(silinmiş hesap)")
                     }
                     else
                     {
@@ -137,8 +137,8 @@
             <tr class="@(l.DevirMi ? "row-strong" : null)">
                 <td>@l.Tarih.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</td>
                 <td>@l.SourceType</td>
-                <td>@(l.HesapId is { } lh ? (_adlar.TryGetValue(lh, out var lad) ? lad : "(silinmiş hesap)") : "—")</td>
-                <td>@(l.HesapId is { } lh2 && _hesapNo.TryGetValue(lh2, out var hn) ? hn : "—")</td>
+                <td>@(l.HesapId is { } lh ? (_names.TryGetValue(lh, out var lad) ? lad : "(silinmiş hesap)") : "—")</td>
+                <td>@(l.HesapId is { } lh2 && _accountNo.TryGetValue(lh2, out var hn) ? hn : "—")</td>
                 <td>@(l.CariAd ?? "—")</td>
                 <td>@(l.BelgeNo ?? "—")</td>
                 <td>@(l.Sube ?? "—")</td>
@@ -166,54 +166,54 @@
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
 
-    private LedgerAccountType _hesap = LedgerAccountType.Kasa;
+    private LedgerAccountType _account = LedgerAccountType.Kasa;
     private CashboxSummaryDto _summary = new(0, 0, 0, 0, 0, 0);
     private IReadOnlyList<LedgerLineDto> _lines = [];
-    private IReadOnlyList<HesapOzetDto> _hesapOzet = [];
-    private IReadOnlyList<FinancialAccount> _hesaplar = [];
-    private Dictionary<Guid, string> _adlar = new();
-    private Dictionary<Guid, string> _hesapNo = new();
-    private IReadOnlyList<string> _dovizler = [];
-    private IReadOnlyList<string> _turler = [];
-    private IReadOnlyList<string> _subeler = [];
+    private IReadOnlyList<HesapOzetDto> _accountSummary = [];
+    private IReadOnlyList<FinancialAccount> _accounts = [];
+    private Dictionary<Guid, string> _names = new();
+    private Dictionary<Guid, string> _accountNo = new();
+    private IReadOnlyList<string> _currencies = [];
+    private IReadOnlyList<string> _types = [];
+    private IReadOnlyList<string> _branches = [];
 
     /// <summary>Ekrandaki süzgeç export'a AYNEN taşınır ("gördüğün = indirdiğin").</summary>
     private string ExportUrl(string format)
         => $"/raporlar/export/kasa-banka?format={format}&hesap={Hesap}&hesapId={HesapId}" +
            $"&from={From}&to={To}&doviz={Doviz}&tur={Tur}&sube={Uri.EscapeDataString(Sube ?? "")}&devir={Devir}";
 
-    private decimal Giris => _hesap == LedgerAccountType.Kasa ? _summary.KasaGiris : _summary.BankaGiris;
-    private decimal Cikis => _hesap == LedgerAccountType.Kasa ? _summary.KasaCikis : _summary.BankaCikis;
+    private decimal Giris => _account == LedgerAccountType.Kasa ? _summary.KasaGiris : _summary.BankaGiris;
+    private decimal Cikis => _account == LedgerAccountType.Kasa ? _summary.KasaCikis : _summary.BankaCikis;
 
     protected override async Task OnInitializedAsync()
     {
-        _hesap = string.Equals(Hesap, "Banka", StringComparison.OrdinalIgnoreCase)
+        _account = string.Equals(Hesap, "Banka", StringComparison.OrdinalIgnoreCase)
             ? LedgerAccountType.Banka : LedgerAccountType.Kasa;
         var from = ParseDate(From);
         var to = ParseDate(To)?.AddDays(1).AddTicks(-1); // gün sonuna dek dahil
 
         // Guid.Empty = "yalnız hesap belirtilmemiş"; boş = tümü (bkz. GetAccountLedgerAsync).
-        Guid? hesapFiltre = Guid.TryParse(HesapId, out var hf) ? hf : null;
+        Guid? accountFilter = Guid.TryParse(HesapId, out var hf) ? hf : null;
 
         _summary = await Reports.GetCashBankSummaryAsync(from, to);
-        _hesapOzet = await Reports.GetAccountBasedSummaryAsync(from, to);
-        _lines = await Reports.GetAccountLedgerAsync(_hesap, from, to, hesapFiltre,
+        _accountSummary = await Reports.GetAccountBasedSummaryAsync(from, to);
+        _lines = await Reports.GetAccountLedgerAsync(_account, from, to, accountFilter,
             currency: Doviz, transactionType: Tur, branch: Sube, carryForward: Devir == "true");
-        _hesaplar = await Hesaplar.ListAsync();
-        _adlar = _hesaplar.ToDictionary(h => h.Id, h => h.Ad);
+        _accounts = await Hesaplar.ListAsync();
+        _names = _accounts.ToDictionary(h => h.Id, h => h.Ad);
         // Hesap No / IBAN — banka_hesap_hareketleri.aspx kolonu; IBAN varsa o, yoksa hesap no.
-        _hesapNo = _hesaplar
+        _accountNo = _accounts
             .Where(h => !string.IsNullOrWhiteSpace(h.Iban) || !string.IsNullOrWhiteSpace(h.HesapNo))
             .ToDictionary(h => h.Id, h => (h.Iban ?? h.HesapNo)!);
 
         // Süzgeç seçenekleri VERİDEN türetilir: sabit liste bakımı unutulur ve gerçekte var olan
         // bir işlem türü listede görünmezse kullanıcı onu hiç süzemez.
-        var tumu = await Reports.GetAccountLedgerAsync(_hesap, from, to);
-        _dovizler = [.. tumu.Select(x => x.Doviz).Where(x => !string.IsNullOrWhiteSpace(x))
+        var all = await Reports.GetAccountLedgerAsync(_account, from, to);
+        _currencies = [.. all.Select(x => x.Doviz).Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.Ordinal)];
-        _turler = [.. tumu.Select(x => x.SourceType).Where(x => !string.IsNullOrWhiteSpace(x))
+        _types = [.. all.Select(x => x.SourceType).Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal)];
-        _subeler = [.. tumu.Select(x => x.Sube).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
+        _branches = [.. all.Select(x => x.Sube).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture)];
     }
 

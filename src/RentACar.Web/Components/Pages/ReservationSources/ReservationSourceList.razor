@@ -57,13 +57,13 @@
                 <td>@s.Ad</td>
                 <td>@(s.KaynakGrubu?.ToString() ?? "—")</td>
                 <td>@(s.Tedarikci ?? "—")</td>
-                <td class="num">@Yuzde(s.KiraOrani)</td>
-                <td class="num">@Yuzde(s.HizmetOrani)</td>
-                <td class="num">@Yuzde(s.DropOrani)</td>
-                <td class="num">@Yuzde(s.KomisyonOrani)</td>
+                <td class="num">@Percent(s.KiraOrani)</td>
+                <td class="num">@Percent(s.HizmetOrani)</td>
+                <td class="num">@Percent(s.DropOrani)</td>
+                <td class="num">@Percent(s.KomisyonOrani)</td>
                 @* Yalnız GERÇEKTEN uygulanan kurallar listelenir — bilgi işaretleri buraya girmez,
                    yoksa kolon "bu kaynak şunu yapar" diye yanlış vaat ederdi. *@
-                <td class="small">@Kurallar(s)</td>
+                <td class="small">@Rules(s)</td>
                 <td>@(s.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -112,7 +112,7 @@
 
     private IReadOnlyList<ReservationSource> _list = [];
 
-    private static string Yuzde(decimal? o) => o is { } v ? v.ToString("N2") : "—";
+    private static string Percent(decimal? o) => o is { } v ? v.ToString("N2") : "—";
 
     /// <summary>type=number değeri INVARIANT olmalı (tr-TR virgüllü değer alanı boşaltır).</summary>
     private static string? Inv(decimal? v) => v?.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -120,7 +120,7 @@
     private static string? Inv(int? v) => v?.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Listede yalnız DAVRANIŞ değiştiren bayraklar özetlenir (FAZ-49).</summary>
-    private static string Kurallar(ReservationSource s)
+    private static string Rules(ReservationSource s)
     {
         var k = new List<string>();
         if (s.Uzatamaz) k.Add("Uzatma yasak");

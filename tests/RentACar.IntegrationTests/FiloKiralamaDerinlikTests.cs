@@ -23,14 +23,14 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset T0 = TestZaman.Simdi().AddDays(-100);
+    private static readonly DateTimeOffset T0 = TestZaman.Now().AddDays(-100);
 
-    private static async Task<(Guid musteri, Guid arac)> TemelAsync(
-        IServiceProvider sp, string ad, string plaka)
+    private static async Task<(Guid musteri, Guid arac)> BaseAsync(
+        IServiceProvider sp, string name, string plate)
     {
         var m = await sp.GetRequiredService<CustomerService>()
-            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = ad });
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+            .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = name });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         return (m, v);
     }
 
@@ -40,7 +40,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (m, v) = await TemelAsync(sp, "Alfa A.Ş.", "34 FK 01");
+        var (m, v) = await BaseAsync(sp, "Alfa A.Ş.", "34 FK 01");
         var svc = sp.GetRequiredService<FleetRentalService>();
 
         var id = await svc.CreateAsync(new FiloKiralamaInput
@@ -80,7 +80,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (m, v) = await TemelAsync(sp, "Beta Ltd.", "34 FK 02");
+        var (m, v) = await BaseAsync(sp, "Beta Ltd.", "34 FK 02");
         var svc = sp.GetRequiredService<FleetRentalService>();
 
         var id = await svc.CreateAsync(new FiloKiralamaInput
@@ -96,18 +96,18 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         await svc.UpdateMetaAsync(id, new FiloKiralamaMetaInput
         { SatisTemsilcisi = "Yeni Temsilci", VadeGun = 30, Kaynak = "Acente", ToplamKm = 1000, CikisKm = 500 });
 
-        var sonra = await svc.GetAsync(id);
-        Assert.Equal("Yeni Temsilci", sonra!.SatisTemsilcisi);
-        Assert.Equal(30, sonra.VadeGun);
+        var after = await svc.GetAsync(id);
+        Assert.Equal("Yeni Temsilci", after!.SatisTemsilcisi);
+        Assert.Equal(30, after.VadeGun);
         // Para/süre alanları AYNEN duruyor → plan da aynı.
-        Assert.Equal(6, sonra.SureAy);
-        Assert.Equal(5000m, sonra.AylikUcret);
-        Assert.Equal(0.20m, sonra.KdvOrani);
-        Assert.Equal(100m, sonra.DamgaVergisi);
-        Assert.Equal(T0, sonra.BasTar);
-        var yeniPlan = FleetRentalService.InstallmentPlan(sonra);
-        Assert.Equal(once.GenelToplam, yeniPlan.GenelToplam);
-        Assert.Equal(once.Taksitler.Count, yeniPlan.Taksitler.Count);
+        Assert.Equal(6, after.SureAy);
+        Assert.Equal(5000m, after.AylikUcret);
+        Assert.Equal(0.20m, after.KdvOrani);
+        Assert.Equal(100m, after.DamgaVergisi);
+        Assert.Equal(T0, after.BasTar);
+        var newPlan = FleetRentalService.InstallmentPlan(after);
+        Assert.Equal(once.GenelToplam, newPlan.GenelToplam);
+        Assert.Equal(once.Taksitler.Count, newPlan.Taksitler.Count);
     }
 
     [Fact]
@@ -115,12 +115,12 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
     {
         // Sözleşme kilidi: biri ileride "kolaylık olsun" diye AylikUcret/SureAy/KdvOrani/Kur/BasTar
         // eklerse taksit planı sessizce değiştirilebilir hâle gelir. Test o anda kırmızıya döner.
-        var yasak = new[] { "AylikUcret", "SureAy", "KdvOrani", "Kur", "Doviz", "BasTar", "DamgaVergisi",
+        var ban = new[] { "AylikUcret", "SureAy", "KdvOrani", "Kur", "Doviz", "BasTar", "DamgaVergisi",
                             "MusteriId", "VehicleId", "Durum" };
-        var alanlar = typeof(FiloKiralamaMetaInput)
+        var fields = typeof(FiloKiralamaMetaInput)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(p => p.Name).ToHashSet();
-        foreach (var y in yasak)
-            Assert.DoesNotContain(y, alanlar);
+        foreach (var y in ban)
+            Assert.DoesNotContain(y, fields);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (m, v) = await TemelAsync(sp, "Gama", "34 FK 03");
+        var (m, v) = await BaseAsync(sp, "Gama", "34 FK 03");
         var svc = sp.GetRequiredService<FleetRentalService>();
         var id = await svc.CreateAsync(new FiloKiralamaInput
         { MusteriId = m, VehicleId = v, SureAy = 3, AylikUcret = 1000m });
@@ -157,7 +157,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (m, v) = await TemelAsync(sp, "Delta", "34 FK 04");
+        var (m, v) = await BaseAsync(sp, "Delta", "34 FK 04");
         var svc = sp.GetRequiredService<FleetRentalService>();
         var id = await svc.CreateAsync(new FiloKiralamaInput
         { MusteriId = m, VehicleId = v, SureAy = 3, AylikUcret = 1000m });
@@ -168,11 +168,11 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         Assert.Equal(FleetRentalStatus.Iptal, (await svc.GetAsync(id))!.Durum);
 
         // Aktif sözleşme hâlâ tamamlanabilir (guard yalnız İptal'i kapatır).
-        var (m2, v2) = await TemelAsync(sp, "Epsilon", "34 FK 05");
-        var aktif = await svc.CreateAsync(new FiloKiralamaInput
+        var (m2, v2) = await BaseAsync(sp, "Epsilon", "34 FK 05");
+        var active = await svc.CreateAsync(new FiloKiralamaInput
         { MusteriId = m2, VehicleId = v2, SureAy = 3, AylikUcret = 1000m });
-        Assert.True(await svc.CompleteAsync(aktif));
-        Assert.Equal(FleetRentalStatus.Tamamlandi, (await svc.GetAsync(aktif))!.Durum);
+        Assert.True(await svc.CompleteAsync(active));
+        Assert.Equal(FleetRentalStatus.Tamamlandi, (await svc.GetAsync(active))!.Durum);
     }
 
     [Fact]
@@ -183,8 +183,8 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<FleetRentalService>();
 
-        var (m1, v1) = await TemelAsync(sp, "Alfa Lojistik", "34 AL 01");
-        var (m2, v2) = await TemelAsync(sp, "Beta Turizm", "06 BT 02");
+        var (m1, v1) = await BaseAsync(sp, "Alfa Lojistik", "34 AL 01");
+        var (m2, v2) = await BaseAsync(sp, "Beta Turizm", "06 BT 02");
 
         var a = await svc.CreateAsync(new FiloKiralamaInput
         { MusteriId = m1, VehicleId = v1, BasTar = T0, SureAy = 12, AylikUcret = 9000m, SozlesmeNo = "FRM-A" });
@@ -235,7 +235,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (m, v) = await TemelAsync(sp, "Delta", "34 FK 04");
+        var (m, v) = await BaseAsync(sp, "Delta", "34 FK 04");
         var svc = sp.GetRequiredService<FleetRentalService>();
 
         var id = await svc.CreateAsync(new FiloKiralamaInput
@@ -255,7 +255,7 @@ public sealed class FiloKiralamaDerinlikTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var sp = s1.ServiceProvider;
-            var (m, v) = await TemelAsync(sp, "Gizli A.Ş.", "34 GZ 01");
+            var (m, v) = await BaseAsync(sp, "Gizli A.Ş.", "34 GZ 01");
             await sp.GetRequiredService<FleetRentalService>().CreateAsync(new FiloKiralamaInput
             { MusteriId = m, VehicleId = v, SureAy = 12, AylikUcret = 1000m, SozlesmeNo = "GIZLI" });
         }

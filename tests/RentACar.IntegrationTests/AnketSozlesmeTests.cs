@@ -22,20 +22,20 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class AnketSozlesmeTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset T0 = TestZaman.Simdi().AddDays(-2);
+    private static readonly DateTimeOffset T0 = TestZaman.Now().AddDays(-2);
 
-    private static async Task<(Guid kira, Guid cari)> KiraAsync(IServiceProvider sp, string plaka, string? ofis)
+    private static async Task<(Guid kira, Guid cari)> RentalAsync(IServiceProvider sp, string plate, string? office)
     {
-        var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        var account = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Kurumsal, Unvan = "Anket A.Ş." });
-        var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
-        var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = arac, BasTar = T0, BitTar = T0.AddDays(3), GunlukUcret = 1000m, CikisOfisi = ofis });
-        return (kira, cari);
+        var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
+        var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        { MusteriId = account, VehicleId = vehicle, BasTar = T0, BitTar = T0.AddDays(3), GunlukUcret = 1000m, CikisOfisi = office });
+        return (kira: rental, cari: account);
     }
 
-    private static List<AnketCevapInput> Cevaplar(int adet) =>
-        Enumerable.Range(1, adet).Select(i => new AnketCevapInput
+    private static List<AnketCevapInput> Answers(int count) =>
+        Enumerable.Range(1, count).Select(i => new AnketCevapInput
         { SoruNo = i, Soru = $"Soru {i}", Cevap = $"Cevap {i}", Aciklama = i == 1 ? "not" : null }).ToList();
 
     [Fact]
@@ -44,17 +44,17 @@ public sealed class AnketSozlesmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (kira, cari) = await KiraAsync(sp, "34 AN 01", "Merkez Ofis");
+        var (rental, account) = await RentalAsync(sp, "34 AN 01", "Merkez Ofis");
         var svc = sp.GetRequiredService<SurveyService>();
 
         var id = await svc.CreateAsync(new AnketInput
         {
-            CariId = cari, RentalId = kira, AnketTuru = SurveyType.Donus, Durum = SurveyStatus.Yapildi,
-            Puan = 9, Yorum = "Memnun", Tarih = T0.AddDays(3), Cevaplar = Cevaplar(8)
+            CariId = account, RentalId = rental, AnketTuru = SurveyType.Donus, Durum = SurveyStatus.Yapildi,
+            Puan = 9, Yorum = "Memnun", Tarih = T0.AddDays(3), Cevaplar = Answers(8)
         });
 
         var d = await svc.GetDetailAsync(id);
-        Assert.Equal(kira, d!.Anket.RentalId);
+        Assert.Equal(rental, d!.Anket.RentalId);
         Assert.Equal(SurveyType.Donus, d.Anket.AnketTuru);
         Assert.Equal(SurveyStatus.Yapildi, d.Anket.Durum);
         Assert.Equal("Merkez Ofis", d.Anket.CikisOfisi);      // sözleşmeden SNAPSHOT
@@ -73,11 +73,11 @@ public sealed class AnketSozlesmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (kira, _) = await KiraAsync(sp, "34 AN 02", "Merkez Ofis");
+        var (rental, _) = await RentalAsync(sp, "34 AN 02", "Merkez Ofis");
         var svc = sp.GetRequiredService<SurveyService>();
 
         var id = await svc.CreateAsync(new AnketInput
-        { RentalId = kira, CikisOfisi = " Havalimanı Ofisi ", Puan = 5, Cevaplar = Cevaplar(1) });
+        { RentalId = rental, CikisOfisi = " Havalimanı Ofisi ", Puan = 5, Cevaplar = Answers(1) });
 
         Assert.Equal("Havalimanı Ofisi", (await svc.GetAsync(id))!.CikisOfisi);
     }
@@ -108,22 +108,22 @@ public sealed class AnketSozlesmeTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<SurveyService>();
 
         // Eski form soruları ile bir anket.
-        var eski = await svc.CreateAsync(new AnketInput
+        var old = await svc.CreateAsync(new AnketInput
         {
             Puan = 8,
             Cevaplar = [new AnketCevapInput { SoruNo = 1, Soru = "ESKİ SORU: Araç temiz miydi?", Cevap = "Evet" }]
         });
 
         // Yeni form soruları ile başka bir anket.
-        var yeni = await svc.CreateAsync(new AnketInput
+        var newItem = await svc.CreateAsync(new AnketInput
         {
             Puan = 7,
             Cevaplar = [new AnketCevapInput { SoruNo = 1, Soru = "YENİ SORU: Araç bakımlı mıydı?", Cevap = "Evet" }]
         });
 
         // ELLE: eski anket ESKİ soruyu taşımaya devam ediyor.
-        Assert.Equal("ESKİ SORU: Araç temiz miydi?", (await svc.GetDetailAsync(eski))!.Cevaplar[0].Soru);
-        Assert.Equal("YENİ SORU: Araç bakımlı mıydı?", (await svc.GetDetailAsync(yeni))!.Cevaplar[0].Soru);
+        Assert.Equal("ESKİ SORU: Araç temiz miydi?", (await svc.GetDetailAsync(old))!.Cevaplar[0].Soru);
+        Assert.Equal("YENİ SORU: Araç bakımlı mıydı?", (await svc.GetDetailAsync(newItem))!.Cevaplar[0].Soru);
     }
 
     [Fact]
@@ -132,13 +132,13 @@ public sealed class AnketSozlesmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<SurveyService>();
-        var id = await svc.CreateAsync(new AnketInput { Puan = 5, Cevaplar = Cevaplar(8) });
+        var id = await svc.CreateAsync(new AnketInput { Puan = 5, Cevaplar = Answers(8) });
         Assert.Equal(8, (await svc.GetDetailAsync(id))!.Cevaplar.Count);
 
         // Formdan 3 soru gönderiliyor → 8 satır KALMAMALI (kısmi güncelleme yapsaydık ekranda
         // görünmeyen 5 eski cevap satırı kalırdı).
         Assert.True(await svc.UpdateAsync(id, new AnketInput
-        { Puan = 6, Durum = SurveyStatus.Yapildi, Cevaplar = Cevaplar(3) }));
+        { Puan = 6, Durum = SurveyStatus.Yapildi, Cevaplar = Answers(3) }));
 
         var d = await svc.GetDetailAsync(id);
         Assert.Equal(3, d!.Cevaplar.Count);
@@ -200,20 +200,20 @@ public sealed class AnketSozlesmeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var (kira, cari) = await KiraAsync(sp, "34 AN 03", "Merkez");
+        var (rental, account) = await RentalAsync(sp, "34 AN 03", "Merkez");
         var svc = sp.GetRequiredService<SurveyService>();
 
         // ELLE: 3 anket.
         await svc.CreateAsync(new AnketInput
-        { CariId = cari, RentalId = kira, AnketTuru = SurveyType.Cikis, Puan = 9, Tarih = T0 });
+        { CariId = account, RentalId = rental, AnketTuru = SurveyType.Cikis, Puan = 9, Tarih = T0 });
         await svc.CreateAsync(new AnketInput
-        { CariId = cari, RentalId = kira, AnketTuru = SurveyType.Donus, Puan = 7, Tarih = T0.AddDays(1),
+        { CariId = account, RentalId = rental, AnketTuru = SurveyType.Donus, Puan = 7, Tarih = T0.AddDays(1),
           Durum = SurveyStatus.Yapilmadi });
         await svc.CreateAsync(new AnketInput
         { Puan = 5, Tarih = T0.AddDays(2), CikisOfisi = "Şube 2" });
 
         Assert.Equal(3, (await svc.SearchAsync()).Count);
-        Assert.Equal(2, (await svc.SearchAsync(new AnketFilter { CariId = cari })).Count);
+        Assert.Equal(2, (await svc.SearchAsync(new AnketFilter { CariId = account })).Count);
         Assert.Single(await svc.SearchAsync(new AnketFilter { AnketTuru = SurveyType.Cikis }));
         Assert.Single(await svc.SearchAsync(new AnketFilter { Durum = SurveyStatus.Yapilmadi }));
         Assert.Equal(2, (await svc.SearchAsync(new AnketFilter { Durum = SurveyStatus.Yapildi })).Count);
@@ -222,7 +222,7 @@ public sealed class AnketSozlesmeTests(PostgresFixture fx)
         Assert.Equal(2, (await svc.SearchAsync(new AnketFilter { TarihMin = T0.AddDays(1) })).Count);
         Assert.Equal(2, (await svc.SearchAsync(new AnketFilter { TarihMax = T0.AddDays(1) })).Count);
         // Birleşik: cari + dönüş → 1
-        Assert.Single(await svc.SearchAsync(new AnketFilter { CariId = cari, AnketTuru = SurveyType.Donus }));
+        Assert.Single(await svc.SearchAsync(new AnketFilter { CariId = account, AnketTuru = SurveyType.Donus }));
     }
 
     [Fact]
@@ -234,7 +234,7 @@ public sealed class AnketSozlesmeTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var svc = s1.ServiceProvider.GetRequiredService<SurveyService>();
-            id = await svc.CreateAsync(new AnketInput { Puan = 8, Cevaplar = Cevaplar(4) });
+            id = await svc.CreateAsync(new AnketInput { Puan = 8, Cevaplar = Answers(4) });
             Assert.Equal(4, (await svc.GetDetailAsync(id))!.Cevaplar.Count);
         }
 

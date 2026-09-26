@@ -42,10 +42,10 @@ public sealed class TestHost : IDisposable
 {
     private readonly ServiceProvider _provider;
 
-    /// <param name="ek">Gerçek kayıtlardan SONRA çalışan ek kayıtlar — testin bir portu sahte
+    /// <param name="extra">Gerçek kayıtlardan SONRA çalışan ek kayıtlar — testin bir portu sahte
     /// uygulamayla değiştirmesine izin verir (ör. e-posta göndericisi; gerçek SMTP'ye çıkmayalım).
     /// Varsayılan null → mevcut testler birebir aynı grafiği kurar.</param>
-    public TestHost(string appConnectionString, Action<IServiceCollection>? ek = null)
+    public TestHost(string appConnectionString, Action<IServiceCollection>? extra = null)
     {
         var services = new ServiceCollection();
         services.AddLogging(); // LoginService gibi ILogger isteyen gerçek servisler için (no-op sink)
@@ -55,7 +55,7 @@ public sealed class TestHost : IDisposable
         services.AddSingleton<RentACar.Application.Common.IPasswordHasher, TestPasswordHasher>();
         services.AddApplication();
         services.AddInfrastructure(appConnectionString);
-        ek?.Invoke(services); // son kayıt kazanır → test double'ı gerçek uygulamayı override eder
+        extra?.Invoke(services); // son kayıt kazanır → test double'ı gerçek uygulamayı override eder
         _provider = services.BuildServiceProvider();
     }
 

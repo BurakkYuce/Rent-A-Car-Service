@@ -21,10 +21,10 @@ public sealed class ApiTests(PostgresFixture fx)
     private sealed record ErrBody(string error, string message);
     private sealed record Paged<T>(List<T> items, int total, int page, int pageSize, int totalPages);
 
-    private static async Task<HttpClient> LoginAsync(ApiFactory api, string firma, string user, string sifre)
+    private static async Task<HttpClient> LoginAsync(ApiFactory api, string company, string user, string password)
     {
         var c = api.CreateClient();
-        var resp = await c.PostAsJsonAsync("/api/v1/auth/login", new { firma, kullanici = user, sifre });
+        var resp = await c.PostAsJsonAsync("/api/v1/auth/login", new { firma = company, kullanici = user, sifre = password });
         resp.EnsureSuccessStatusCode();
         var body = await resp.Content.ReadFromJsonAsync<LoginBody>();
         c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body!.token);

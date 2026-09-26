@@ -17,7 +17,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KarlilikTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task Vehicle_pnl_from_ledger_and_reconciles_to_gelirgider()
@@ -37,7 +37,7 @@ public sealed class KarlilikTests(PostgresFixture fx)
 
         // Gelir: araca kira + fatura. 4 gün × 100 = 400 brüt → net 333.33 (KDV 66.67).
         var rentalId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = await TestCari.YeniAsync(sp), VehicleId = vehicleId, BasTar = Bas, BitTar = Bas.AddDays(4), GunlukUcret = 100m });
+        { MusteriId = await TestCustomer.NewAsync(sp), VehicleId = vehicleId, BasTar = Start, BitTar = Start.AddDays(4), GunlukUcret = 100m });
         await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rentalId);
 
         var rs = sp.GetRequiredService<ReportService>();
@@ -95,17 +95,17 @@ public sealed class KarlilikTests(PostgresFixture fx)
         var rs = sp.GetRequiredService<ReportService>();
 
         // Filtresiz: araç + Atanmamış (toplam gider 1500, defterle mutabık).
-        var hepsi = await rs.GetProfitabilityAsync();
-        Assert.Equal(2, hepsi.Satirlar.Count);
-        Assert.Contains(hepsi.Satirlar, r => r.VehicleId == null && r.Gider == 500m);
-        Assert.Equal(1500m, hepsi.ToplamGider);
-        Assert.Equal((await rs.GetRevenueExpenseAsync()).GiderToplam, hepsi.ToplamGider);
+        var all = await rs.GetProfitabilityAsync();
+        Assert.Equal(2, all.Satirlar.Count);
+        Assert.Contains(all.Satirlar, r => r.VehicleId == null && r.Gider == 500m);
+        Assert.Equal(1500m, all.ToplamGider);
+        Assert.Equal((await rs.GetRevenueExpenseAsync()).GiderToplam, all.ToplamGider);
 
         // Şube filtresi: yalnız araç satırı (Atanmamış hariç).
-        var filtre = await rs.GetProfitabilityAsync(branch: "Merkez");
-        var row = Assert.Single(filtre.Satirlar);
+        var filter = await rs.GetProfitabilityAsync(branch: "Merkez");
+        var row = Assert.Single(filter.Satirlar);
         Assert.Equal(vehicleId, row.VehicleId);
-        Assert.Equal(1000m, filtre.ToplamGider);
+        Assert.Equal(1000m, filter.ToplamGider);
     }
 
     [Fact]
@@ -122,11 +122,11 @@ public sealed class KarlilikTests(PostgresFixture fx)
         //  v1: grup EKO, segment Ekonomik, şube Merkez → gider 1000, satış geliri 5000 (net 4000)
         //  v2: grup EKO, segment Ekonomik, şube Merkez → gider  500, satış geliri 2000 (net 1500)
         //  v3: grup LUX, segment Lüks,     şube Sube2  → gider  200, satış geliri 1000 (net  800)
-        async Task Seed(string plaka, string grup, string segment, string sube, decimal gider, decimal gelir)
+        async Task Seed(string plate, string group, string segment, string branch, decimal expense, decimal revenue)
         {
-            var id = await veh.CreateAsync(new VehicleInput { Plaka = plaka, Grup = grup, Segment = segment, Sube = sube });
-            await exp.CreateAsync(new ExpenseInput { Tip = ExpenseType.Arac, VehicleId = id, NetTutar = gider, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit });
-            await sale.CreateAsync(new VehicleSaleInput { VehicleId = id, AliciCariId = Guid.NewGuid(), SatisNet = gelir, KdvOrani = 0m, Doviz = "TRY", Kur = 1m });
+            var id = await veh.CreateAsync(new VehicleInput { Plaka = plate, Grup = group, Segment = segment, Sube = branch });
+            await exp.CreateAsync(new ExpenseInput { Tip = ExpenseType.Arac, VehicleId = id, NetTutar = expense, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit });
+            await sale.CreateAsync(new VehicleSaleInput { VehicleId = id, AliciCariId = Guid.NewGuid(), SatisNet = revenue, KdvOrani = 0m, Doviz = "TRY", Kur = 1m });
         }
         await Seed("34 OZ 01", "EKO", "Ekonomik", "Merkez", 1000m, 5000m);
         await Seed("34 OZ 02", "EKO", "Ekonomik", "Merkez", 500m, 2000m);
@@ -135,38 +135,38 @@ public sealed class KarlilikTests(PostgresFixture fx)
         var rs = sp.GetRequiredService<ReportService>();
 
         // GRUP: EKO {2 araç, gelir 7000, gider 1500, net 5500} > LUX {1, 1000, 200, 800} (net desc sıra).
-        var grup = await rs.GetProfitabilitySummaryAsync("grup");
-        Assert.Equal("Grup", grup.BoyutAdi);
-        Assert.Equal(2, grup.Satirlar.Count);
-        var eko = grup.Satirlar[0];
+        var group = await rs.GetProfitabilitySummaryAsync("grup");
+        Assert.Equal("Grup", group.BoyutAdi);
+        Assert.Equal(2, group.Satirlar.Count);
+        var eko = group.Satirlar[0];
         Assert.Equal("EKO", eko.Boyut);
         Assert.Equal(2, eko.AracAdet);
         Assert.Equal(7000m, eko.Gelir);
         Assert.Equal(1500m, eko.Gider);
         Assert.Equal(5500m, eko.NetKar);
-        Assert.Equal("LUX", grup.Satirlar[1].Boyut);
-        Assert.Equal(800m, grup.Satirlar[1].NetKar);
-        Assert.Equal(8000m, grup.ToplamGelir);
-        Assert.Equal(1700m, grup.ToplamGider);
-        Assert.Equal(6300m, grup.ToplamNetKar);
+        Assert.Equal("LUX", group.Satirlar[1].Boyut);
+        Assert.Equal(800m, group.Satirlar[1].NetKar);
+        Assert.Equal(8000m, group.ToplamGelir);
+        Assert.Equal(1700m, group.ToplamGider);
+        Assert.Equal(6300m, group.ToplamNetKar);
 
         // SEGMENT: Ekonomik {2, 7000, 1500, 5500}, Lüks {1, 1000, 200, 800}.
         var seg = await rs.GetProfitabilitySummaryAsync("segment");
         Assert.Equal("Segment", seg.BoyutAdi);
-        var ekonomik = Assert.Single(seg.Satirlar, s => s.Boyut == "Ekonomik");
-        Assert.Equal(2, ekonomik.AracAdet);
-        Assert.Equal(5500m, ekonomik.NetKar);
+        var economic = Assert.Single(seg.Satirlar, s => s.Boyut == "Ekonomik");
+        Assert.Equal(2, economic.AracAdet);
+        Assert.Equal(5500m, economic.NetKar);
 
         // ŞUBE: Merkez {2, net 5500}, Sube2 {1, net 800}.
-        var subeOzet = await rs.GetProfitabilitySummaryAsync("sube");
-        Assert.Equal("Şube", subeOzet.BoyutAdi);
-        var merkez = Assert.Single(subeOzet.Satirlar, s => s.Boyut == "Merkez");
-        Assert.Equal(2, merkez.AracAdet);
-        Assert.Equal(5500m, merkez.NetKar);
-        Assert.Equal(2, subeOzet.Satirlar.Count);
+        var branchSummary = await rs.GetProfitabilitySummaryAsync("sube");
+        Assert.Equal("Şube", branchSummary.BoyutAdi);
+        var headOffice = Assert.Single(branchSummary.Satirlar, s => s.Boyut == "Merkez");
+        Assert.Equal(2, headOffice.AracAdet);
+        Assert.Equal(5500m, headOffice.NetKar);
+        Assert.Equal(2, branchSummary.Satirlar.Count);
 
         // INVARIANT: özet toplamı = araç-bazlı karlılık toplamı (tümü araca atfedildiğinden Atanmamış yok).
-        var arac = await rs.GetProfitabilityAsync();
-        Assert.Equal(arac.ToplamNetKar, grup.ToplamNetKar);
+        var vehicle = await rs.GetProfitabilityAsync();
+        Assert.Equal(vehicle.ToplamNetKar, group.ToplamNetKar);
     }
 }

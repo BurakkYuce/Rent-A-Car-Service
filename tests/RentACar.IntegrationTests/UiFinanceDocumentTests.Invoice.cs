@@ -8,7 +8,7 @@ namespace RentACar.IntegrationTests;
 
 public sealed partial class UiFinanceDocumentTests
 {
-    private static object Manual(Guid cari, decimal net, decimal? rate = 0.20m) => new { cariId = cari, netTutar = net, kdvOrani = rate, aciklama = "F8.1b manuel" };
+    private static object Manual(Guid account, decimal net, decimal? rate = 0.20m) => new { cariId = account, netTutar = net, kdvOrani = rate, aciklama = "F8.1b manuel" };
 
     [Fact]
     public async Task Manual_invoice_rounds_vat_per_line_posts_balanced_ledger_and_gib_number()

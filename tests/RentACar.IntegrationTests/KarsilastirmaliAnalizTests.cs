@@ -25,20 +25,20 @@ namespace RentACar.IntegrationTests;
 public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
 {
     // Sabit, geçmişte ve ay sınırlarından uzak iki ay (ay-sonu kayması olmasın).
-    private static readonly DateTimeOffset Ocak = new(2026, 1, 10, 9, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset Subat = new(2026, 2, 10, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset January = new(2026, 1, 10, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset February = new(2026, 2, 10, 9, 0, 0, TimeSpan.Zero);
 
-    private static async Task<Guid> AracAsync(IServiceProvider sp, string plaka, string grup)
+    private static async Task<Guid> VehicleAsync(IServiceProvider sp, string plate, string group)
         => await sp.GetRequiredService<VehicleService>()
-            .CreateAsync(new VehicleInput { Plaka = plaka, Grup = grup });
+            .CreateAsync(new VehicleInput { Plaka = plate, Grup = group });
 
-    private static async Task<Guid> KiraAsync(
-        IServiceProvider sp, Guid cari, Guid arac, DateTimeOffset bas, int gun,
-        string? ofis = null, string? kaynak = null)
+    private static async Task<Guid> RentalAsync(
+        IServiceProvider sp, Guid account, Guid vehicle, DateTimeOffset start, int day,
+        string? office = null, string? source = null)
         => await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = cari, VehicleId = arac, BasTar = bas, BitTar = bas.AddDays(gun),
-            GunlukUcret = 1000m, CikisOfisi = ofis, Kaynak = kaynak
+            MusteriId = account, VehicleId = vehicle, BasTar = start, BitTar = start.AddDays(day),
+            GunlukUcret = 1000m, CikisOfisi = office, Kaynak = source
         });
 
     /// <summary>
@@ -50,30 +50,30 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
     /// Gün : Ekonomik 5/4, Orta 1/0, Lüks 0/10  → genel 20
     /// </summary>
     /// <returns>İlk (Merkez / Ocak / Ekonomik) kiranın kimliği — iptal senaryosunda kullanılır.</returns>
-    private static async Task<Guid> SenaryoAsync(IServiceProvider sp)
+    private static async Task<Guid> ScenarioAsync(IServiceProvider sp)
     {
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Pivot A.Ş." });
-        var eko1 = await AracAsync(sp, "34 PV 01", "Ekonomik");
-        var eko2 = await AracAsync(sp, "34 PV 02", "Ekonomik");
-        var orta = await AracAsync(sp, "34 PV 03", "Orta");
-        var lux1 = await AracAsync(sp, "34 PV 04", "Lüks");
-        var lux2 = await AracAsync(sp, "34 PV 05", "Lüks");
+        var eko1 = await VehicleAsync(sp, "34 PV 01", "Ekonomik");
+        var eko2 = await VehicleAsync(sp, "34 PV 02", "Ekonomik");
+        var middle = await VehicleAsync(sp, "34 PV 03", "Orta");
+        var lux1 = await VehicleAsync(sp, "34 PV 04", "Lüks");
+        var lux2 = await VehicleAsync(sp, "34 PV 05", "Lüks");
 
-        var ilkMerkez = await KiraAsync(sp, cari, eko1, Ocak, 3, "Merkez", "Web");
-        await KiraAsync(sp, cari, eko2, Ocak, 2, "Merkez", "Acente");
-        await KiraAsync(sp, cari, eko1, Subat, 4, "Şube2", "Web");
-        await KiraAsync(sp, cari, orta, Ocak, 1, "Merkez", "Web");
-        await KiraAsync(sp, cari, lux1, Subat, 5, "Şube2", "Acente");
-        await KiraAsync(sp, cari, lux2, Subat, 5, "Şube2", "Acente");
-        return ilkMerkez;
+        var firstCenter = await RentalAsync(sp, account, eko1, January, 3, "Merkez", "Web");
+        await RentalAsync(sp, account, eko2, January, 2, "Merkez", "Acente");
+        await RentalAsync(sp, account, eko1, February, 4, "Şube2", "Web");
+        await RentalAsync(sp, account, middle, January, 1, "Merkez", "Web");
+        await RentalAsync(sp, account, lux1, February, 5, "Şube2", "Acente");
+        await RentalAsync(sp, account, lux2, February, 5, "Şube2", "Acente");
+        return firstCenter;
     }
 
-    private static KarsilastirmaliAnalizFilter Pencere(string kirilim = "AracGrubu", string veri = "Adet")
+    private static KarsilastirmaliAnalizFilter Window(string breakdown = "AracGrubu", string data = "Adet")
         => new()
         {
-            Tablo = "Kira", VeriTuru = veri, Kirilim = kirilim,
-            Bas = Ocak.AddDays(-9), Bit = Subat.AddDays(18)   // Ocak 1 – Şubat 28
+            Tablo = "Kira", VeriTuru = data, Kirilim = breakdown,
+            Bas = January.AddDays(-9), Bit = February.AddDays(18)   // Ocak 1 – Şubat 28
         };
 
     [Fact]
@@ -82,9 +82,9 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        await SenaryoAsync(sp);
+        await ScenarioAsync(sp);
 
-        var d = await sp.GetRequiredService<ReportService>().GetComparativeAnalysisAsync(Pencere());
+        var d = await sp.GetRequiredService<ReportService>().GetComparativeAnalysisAsync(Window());
 
         Assert.Equal("Kira", d.Tablo);
         Assert.Equal("Adet", d.VeriTuru);
@@ -96,9 +96,9 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
         Assert.Equal(1m, eko.Month("2026-02"));
         Assert.Equal(3m, eko.Toplam);
 
-        var orta = Assert.Single(d.Satirlar, x => x.Kirilim == "Orta");
-        Assert.Equal(1m, orta.Month("2026-01"));
-        Assert.Equal(0m, orta.Month("2026-02"));   // veri yok → 0
+        var middle = Assert.Single(d.Satirlar, x => x.Kirilim == "Orta");
+        Assert.Equal(1m, middle.Month("2026-01"));
+        Assert.Equal(0m, middle.Month("2026-02"));   // veri yok → 0
 
         var lux = Assert.Single(d.Satirlar, x => x.Kirilim == "Lüks");
         Assert.Equal(0m, lux.Month("2026-01"));
@@ -116,10 +116,10 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        await SenaryoAsync(sp);
+        await ScenarioAsync(sp);
 
         var d = await sp.GetRequiredService<ReportService>()
-            .GetComparativeAnalysisAsync(Pencere(veri: "Gun"));
+            .GetComparativeAnalysisAsync(Window(data: "Gun"));
 
         Assert.Equal("Gun", d.VeriTuru);
         var eko = Assert.Single(d.Satirlar, x => x.Kirilim == "Ekonomik");
@@ -135,23 +135,23 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        await SenaryoAsync(sp);
-        var rapor = sp.GetRequiredService<ReportService>();
+        await ScenarioAsync(sp);
+        var report = sp.GetRequiredService<ReportService>();
 
         // Rezervasyon kaynağı: Web ×3 (Ocak 2 + Şubat 1), Acente ×3 (Ocak 1 + Şubat 2)
-        var kaynak = await rapor.GetComparativeAnalysisAsync(Pencere(kirilim: "RezKaynagi"));
-        Assert.Equal(2, kaynak.Satirlar.Count);
-        var web = Assert.Single(kaynak.Satirlar, x => x.Kirilim == "Web");
+        var source = await report.GetComparativeAnalysisAsync(Window(breakdown: "RezKaynagi"));
+        Assert.Equal(2, source.Satirlar.Count);
+        var web = Assert.Single(source.Satirlar, x => x.Kirilim == "Web");
         Assert.Equal(2m, web.Month("2026-01"));
         Assert.Equal(1m, web.Month("2026-02"));
-        Assert.Equal(3m, Assert.Single(kaynak.Satirlar, x => x.Kirilim == "Acente").Toplam);
+        Assert.Equal(3m, Assert.Single(source.Satirlar, x => x.Kirilim == "Acente").Toplam);
 
         // Çıkış noktası: Merkez ×3 (hepsi Ocak), Şube2 ×3 (hepsi Şubat)
-        var ofis = await rapor.GetComparativeAnalysisAsync(Pencere(kirilim: "CikisNoktasi"));
-        var merkez = Assert.Single(ofis.Satirlar, x => x.Kirilim == "Merkez");
-        Assert.Equal(3m, merkez.Month("2026-01"));
-        Assert.Equal(0m, merkez.Month("2026-02"));
-        Assert.Equal(3m, Assert.Single(ofis.Satirlar, x => x.Kirilim == "Şube2").Month("2026-02"));
+        var office = await report.GetComparativeAnalysisAsync(Window(breakdown: "CikisNoktasi"));
+        var headOffice = Assert.Single(office.Satirlar, x => x.Kirilim == "Merkez");
+        Assert.Equal(3m, headOffice.Month("2026-01"));
+        Assert.Equal(0m, headOffice.Month("2026-02"));
+        Assert.Equal(3m, Assert.Single(office.Satirlar, x => x.Kirilim == "Şube2").Month("2026-02"));
     }
 
     [Fact]
@@ -160,12 +160,12 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        await SenaryoAsync(sp);
+        await ScenarioAsync(sp);
 
         // Pencereyi Mart'a kadar uzat: Mart'ta HİÇ kira yok ama kolon görünmeli.
         var d = await sp.GetRequiredService<ReportService>().GetComparativeAnalysisAsync(
             new KarsilastirmaliAnalizFilter
-            { Bas = Ocak.AddDays(-9), Bit = new DateTimeOffset(2026, 3, 31, 0, 0, 0, TimeSpan.Zero) });
+            { Bas = January.AddDays(-9), Bit = new DateTimeOffset(2026, 3, 31, 0, 0, 0, TimeSpan.Zero) });
 
         Assert.Equal(["2026-01", "2026-02", "2026-03"], d.AyAnahtarlari);
         Assert.Equal(0m, d.MonthTotal("2026-03"));    // boş ay kolonu duruyor
@@ -178,20 +178,20 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var ilkMerkez = await SenaryoAsync(sp);
-        var rapor = sp.GetRequiredService<ReportService>();
+        var firstCenter = await ScenarioAsync(sp);
+        var report = sp.GetRequiredService<ReportService>();
 
-        var f = Pencere();
+        var f = Window();
         f.Ofis = "Merkez";
-        var merkez = await rapor.GetComparativeAnalysisAsync(f);
-        Assert.Equal(3m, merkez.GenelToplam);        // Merkez'den 3 kira
-        Assert.Equal(0m, merkez.MonthTotal("2026-02"));
+        var headOffice = await report.GetComparativeAnalysisAsync(f);
+        Assert.Equal(3m, headOffice.GenelToplam);        // Merkez'den 3 kira
+        Assert.Equal(0m, headOffice.MonthTotal("2026-02"));
 
         // İptal edilen kira sayılmamalı.
-        await sp.GetRequiredService<RentalService>().CancelAsync(ilkMerkez);
+        await sp.GetRequiredService<RentalService>().CancelAsync(firstCenter);
 
-        var sonra = await rapor.GetComparativeAnalysisAsync(Pencere());
-        Assert.Equal(5m, sonra.GenelToplam);         // 6 → 5
+        var after = await report.GetComparativeAnalysisAsync(Window());
+        Assert.Equal(5m, after.GenelToplam);         // 6 → 5
     }
 
     [Fact]
@@ -200,10 +200,10 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        await SenaryoAsync(sp);
+        await ScenarioAsync(sp);
 
         // Kiralar var ama hiç rezervasyon yok → Rezervasyon tablosu BOŞ dönmeli.
-        var f = Pencere();
+        var f = Window();
         f.Tablo = "Rezervasyon";
         var d = await sp.GetRequiredService<ReportService>().GetComparativeAnalysisAsync(f);
         Assert.Equal("Rezervasyon", d.Tablo);
@@ -219,13 +219,13 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Grupsuz" });
-        var arac = await sp.GetRequiredService<VehicleService>()
+        var vehicle = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 NG 01" });   // grup YOK
-        await KiraAsync(sp, cari, arac, Ocak, 2);
+        await RentalAsync(sp, account, vehicle, January, 2);
 
-        var d = await sp.GetRequiredService<ReportService>().GetComparativeAnalysisAsync(Pencere());
+        var d = await sp.GetRequiredService<ReportService>().GetComparativeAnalysisAsync(Window());
         // Grupsuz araç sessizce DÜŞMEMELİ — ayrı bir satırda görünmeli.
         Assert.Equal("(belirtilmemiş)", Assert.Single(d.Satirlar).Kirilim);
         Assert.Equal(1m, d.GenelToplam);
@@ -235,11 +235,11 @@ public sealed class KarsilastirmaliAnalizTests(PostgresFixture fx)
     public async Task Pivot_tenant_izolasyonlu()
     {
         using var host = new TestHost(fx.AppConnectionString);
-        using (var s1 = host.ScopeFor(Guid.NewGuid())) await SenaryoAsync(s1.ServiceProvider);
+        using (var s1 = host.ScopeFor(Guid.NewGuid())) await ScenarioAsync(s1.ServiceProvider);
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var d = await s2.ServiceProvider.GetRequiredService<ReportService>()
-            .GetComparativeAnalysisAsync(Pencere());
+            .GetComparativeAnalysisAsync(Window());
         Assert.Empty(d.Satirlar);
         Assert.Equal(0m, d.GenelToplam);
     }

@@ -128,7 +128,7 @@ builder.Services.AddAuthorization();
 
 // ---- Login brute-force koruması (P0): IP başına sabit-pencere limiti (yalnız "login" policy'li uçlar) ----
 var loginPermit = builder.Configuration.GetValue("RateLimit:LoginPermit", 10);
-var loginWindowSec = builder.Configuration.GetValue("RateLimit:LoginWindowSeconds", 60);
+var loginWindowSeconds = builder.Configuration.GetValue("RateLimit:LoginWindowSeconds", 60);
 builder.Services.AddRateLimiter(o =>
 {
     o.AddPolicy("login", http => RateLimitPartition.GetFixedWindowLimiter(
@@ -136,13 +136,13 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = loginPermit,
-            Window = TimeSpan.FromSeconds(loginWindowSec),
+            Window = TimeSpan.FromSeconds(loginWindowSeconds),
             QueueLimit = 0,
         }));
     o.OnRejected = async (ctx, ct) =>
     {
         ctx.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        ctx.HttpContext.Response.Headers.RetryAfter = loginWindowSec.ToString();
+        ctx.HttpContext.Response.Headers.RetryAfter = loginWindowSeconds.ToString();
         await ctx.HttpContext.Response.WriteAsJsonAsync(
             new ApiError("too_many_requests", "Çok fazla giriş denemesi. Lütfen bekleyip yeniden deneyin."), ct);
     };
@@ -183,7 +183,7 @@ app.MapReservationsApi();
 app.MapRentalsApi();
 app.MapReportsApi();
 app.MapFinanceApi();
-app.MapEkHizmetlerApi();
+app.MapAddOnsApi();
 app.MapModulesApi();
 
 // Sağlık — liveness/readiness (MS deseni). Anonim (ops ping'i).

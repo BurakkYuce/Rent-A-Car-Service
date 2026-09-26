@@ -19,7 +19,7 @@
                     <label>Hesaplama Tipi
                         <select name="fiyatTuru">
                             <option value="" selected="@(Vm.TenantVarsayilanFiyatTuru is null)">—</option>
-                            @foreach (var o in KiraFormVm.FiyatTurleri)
+                            @foreach (var o in RentalFormVm.PriceTypes)
                             { <option value="@o" selected="@(o == Vm.TenantVarsayilanFiyatTuru)">@o</option> }
                         </select>
                     </label>
@@ -33,7 +33,7 @@
                     <label>Döviz
                         <select name="doviz">
                             <option value="">—</option>
-                            @foreach (var o in KiraFormVm.Dovizler) { <option>@o</option> }
+                            @foreach (var o in RentalFormVm.Currencies) { <option>@o</option> }
                         </select>
                     </label>
                     }
@@ -120,5 +120,5 @@
     </div>
 </section>
 @code {
-    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+    [Parameter, EditorRequired] public RentalFormVm Vm { get; set; } = default!;
 }

@@ -27,9 +27,9 @@ public static class ExpenseCategoryEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/gider-turleri", mesaj); }
+        try { await action(); return Result.Ok("/gider-turleri", message); }
         catch (ValidationException ex) { return Results.Redirect($"/gider-turleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

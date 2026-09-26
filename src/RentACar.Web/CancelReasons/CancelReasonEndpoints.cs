@@ -27,9 +27,9 @@ public static class CancelReasonEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/iptal-sebepleri", mesaj); }
+        try { await action(); return Result.Ok("/iptal-sebepleri", message); }
         catch (ValidationException ex) { return Results.Redirect($"/iptal-sebepleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

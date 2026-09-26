@@ -30,8 +30,8 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SubeDerinlikTests(PostgresFixture fx)
 {
-    private static async Task<Guid> SubeAsync(IServiceProvider sp, string kod, string ad)
-        => await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = kod, Ad = ad });
+    private static async Task<Guid> BranchAsync(IServiceProvider sp, string code, string name)
+        => await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = code, Ad = name });
 
     [Fact]
     public async Task Yeni_sube_alanlari_round_trip()
@@ -78,36 +78,36 @@ public sealed class SubeDerinlikTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
-        Guid sube, hizmet;
+        Guid branch, service;
         using (var s1 = host.ScopeFor(t1))
         {
             var sp = s1.ServiceProvider;
             var svc = sp.GetRequiredService<BranchService>();
-            sube = await SubeAsync(sp, "MRK", "Merkez");
-            hizmet = await svc.AddServiceAsync(new SubeUcretsizHizmetInput
-            { SubeId = sube, HizmetAdi = "  Havalimanı teslim  ", Aciklama = " ek ücret yok " });
+            branch = await BranchAsync(sp, "MRK", "Merkez");
+            service = await svc.AddServiceAsync(new SubeUcretsizHizmetInput
+            { SubeId = branch, HizmetAdi = "  Havalimanı teslim  ", Aciklama = " ek ücret yok " });
 
-            var liste = await svc.ListServicesAsync(sube);
-            Assert.Equal("Havalimanı teslim", Assert.Single(liste).HizmetAdi);   // trim
-            Assert.Equal("ek ücret yok", liste[0].Aciklama);
+            var list = await svc.ListServicesAsync(branch);
+            Assert.Equal("Havalimanı teslim", Assert.Single(list).HizmetAdi);   // trim
+            Assert.Equal("ek ücret yok", list[0].Aciklama);
 
             // Var olmayan şubeye hizmet eklenemez.
             await Assert.ThrowsAsync<ValidationException>(() => svc.AddServiceAsync(
                 new SubeUcretsizHizmetInput { SubeId = Guid.NewGuid(), HizmetAdi = "X" }));
             await Assert.ThrowsAsync<ValidationException>(() => svc.AddServiceAsync(
-                new SubeUcretsizHizmetInput { SubeId = sube, HizmetAdi = "   " }));
+                new SubeUcretsizHizmetInput { SubeId = branch, HizmetAdi = "   " }));
         }
 
         // Başka tenant hizmeti göremez ve silemez.
         using (var s2 = host.ScopeFor(Guid.NewGuid()))
         {
             var svc2 = s2.ServiceProvider.GetRequiredService<BranchService>();
-            Assert.Empty(await svc2.ListServicesAsync(sube));
-            Assert.False(await svc2.RemoveServiceAsync(hizmet));
+            Assert.Empty(await svc2.ListServicesAsync(branch));
+            Assert.False(await svc2.RemoveServiceAsync(service));
         }
 
         using var s3 = host.ScopeFor(t1);
-        Assert.True(await s3.ServiceProvider.GetRequiredService<BranchService>().RemoveServiceAsync(hizmet));
+        Assert.True(await s3.ServiceProvider.GetRequiredService<BranchService>().RemoveServiceAsync(service));
     }
 
     [Fact]
@@ -117,60 +117,60 @@ public sealed class SubeDerinlikTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var s = host.ScopeFor(tenant);
         var sp = s.ServiceProvider;
-        var subeler = sp.GetRequiredService<BranchService>();
+        var branches = sp.GetRequiredService<BranchService>();
 
-        var eski = await SubeAsync(sp, "ESK", "Eski Şube");
-        var yeni = await SubeAsync(sp, "YNI", "Yeni Şube");
+        var old = await BranchAsync(sp, "ESK", "Eski Şube");
+        var newItem = await BranchAsync(sp, "YNI", "Yeni Şube");
 
         // ELLE: 2 araç + 1 gider + 1 ücretsiz hizmet eski şubeye bağlanıyor.
-        var arac = sp.GetRequiredService<VehicleService>();
-        await arac.CreateAsync(new VehicleInput { Plaka = "34 SB 01", Sube = "Eski Şube" });
-        await arac.CreateAsync(new VehicleInput { Plaka = "34 SB 02", Sube = "Eski Şube" });
-        var tedarikci = await sp.GetRequiredService<CustomerService>()
+        var vehicle = sp.GetRequiredService<VehicleService>();
+        await vehicle.CreateAsync(new VehicleInput { Plaka = "34 SB 01", Sube = "Eski Şube" });
+        await vehicle.CreateAsync(new VehicleInput { Plaka = "34 SB 02", Sube = "Eski Şube" });
+        var supplier = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Tedarikçi" });
         await sp.GetRequiredService<ExpenseService>().CreateAsync(new ExpenseInput
-        { Tip = ExpenseType.Genel, CariId = tedarikci, NetTutar = 100m, KdvOrani = 0.20m, Sube = "Eski Şube" });
-        await subeler.AddServiceAsync(new SubeUcretsizHizmetInput { SubeId = eski, HizmetAdi = "Otopark" });
+        { Tip = ExpenseType.Genel, CariId = supplier, NetTutar = 100m, KdvOrani = 0.20m, Sube = "Eski Şube" });
+        await branches.AddServiceAsync(new SubeUcretsizHizmetInput { SubeId = old, HizmetAdi = "Otopark" });
 
         // ÖNİZLEME yazma yapmamalı ve dolu gelmeli.
-        var onizleme = await subeler.PreviewMergeAsync(eski, yeni);
-        Assert.NotNull(onizleme);
-        Assert.Equal("Eski Şube", onizleme!.KaynakAd);
-        Assert.Equal("Yeni Şube", onizleme.HedefAd);
-        Assert.True(onizleme.Toplam >= 4, $"beklenen ≥4, gelen {onizleme.Toplam}");
+        var preview = await branches.PreviewMergeAsync(old, newItem);
+        Assert.NotNull(preview);
+        Assert.Equal("Eski Şube", preview!.KaynakAd);
+        Assert.Equal("Yeni Şube", preview.HedefAd);
+        Assert.True(preview.Toplam >= 4, $"beklenen ≥4, gelen {preview.Toplam}");
         // Önizleme sonrası hiçbir şey değişmemiş olmalı.
-        Assert.Equal(2, (await arac.ListAsync()).Count(v => v.Sube == "Eski Şube"));
+        Assert.Equal(2, (await vehicle.ListAsync()).Count(v => v.Sube == "Eski Şube"));
 
-        var tasinan = await subeler.MergeAsync(eski, yeni);
-        Assert.True(tasinan >= 4);
+        var moved = await branches.MergeAsync(old, newItem);
+        Assert.True(moved >= 4);
 
         // Araçlar ve gider hedefe geçti, kaynakta kayıt kalmadı.
-        var araclar = await arac.ListAsync();
-        Assert.Equal(2, araclar.Count(v => v.Sube == "Yeni Şube"));
-        Assert.Empty(araclar.Where(v => v.Sube == "Eski Şube"));
-        Assert.All(araclar, v => Assert.NotEqual(eski, v.SubeId));
+        var vehicles = await vehicle.ListAsync();
+        Assert.Equal(2, vehicles.Count(v => v.Sube == "Yeni Şube"));
+        Assert.Empty(vehicles.Where(v => v.Sube == "Eski Şube"));
+        Assert.All(vehicles, v => Assert.NotEqual(old, v.SubeId));
 
         // GİDER TAŞINMAZ: değişmez mali belge (DB trigger + grant). Şubesi olduğu gibi kalır —
         // kesilmiş bir gider belgesini geriye dönük başka şubeye yazmak muhasebeyi tahrif ederdi.
-        var giderler = await sp.GetRequiredService<ExpenseService>().ListAsync();
-        Assert.Equal("Eski Şube", Assert.Single(giderler).Sube);
+        var expenses = await sp.GetRequiredService<ExpenseService>().ListAsync();
+        Assert.Equal("Eski Şube", Assert.Single(expenses).Sube);
         // …ama kullanıcı bunu ÖNİZLEMEDE görmüş olmalı.
-        Assert.Contains(onizleme.Etkilenen, x => x.Tablo.Contains("TAŞINMAZ"));
+        Assert.Contains(preview.Etkilenen, x => x.Tablo.Contains("TAŞINMAZ"));
 
         // Child kayıt da taşındı.
-        Assert.Empty(await subeler.ListServicesAsync(eski));
-        Assert.Single(await subeler.ListServicesAsync(yeni));
+        Assert.Empty(await branches.ListServicesAsync(old));
+        Assert.Single(await branches.ListServicesAsync(newItem));
 
         // Kaynak şube SİLİNMEDİ — pasife çekildi (geçmiş kayıtların adı çözülebilir kalsın).
-        var kaynak = await subeler.GetAsync(eski);
-        Assert.NotNull(kaynak);
-        Assert.False(kaynak!.Aktif);
-        Assert.True((await subeler.GetAsync(yeni))!.Aktif);
+        var source = await branches.GetAsync(old);
+        Assert.NotNull(source);
+        Assert.False(source!.Aktif);
+        Assert.True((await branches.GetAsync(newItem))!.Aktif);
 
         // Birleştirme sonrası önizlemede TAŞINABİLİR kayıt kalmamalı; yalnız taşınamayan
         // (değişmez mali belge) gider satırı görünmeye devam eder.
-        var sonrasi = await subeler.PreviewMergeAsync(eski, yeni);
-        Assert.All(sonrasi!.Etkilenen, x => Assert.Contains("TAŞINMAZ", x.Tablo));
+        var after = await branches.PreviewMergeAsync(old, newItem);
+        Assert.All(after!.Etkilenen, x => Assert.Contains("TAŞINMAZ", x.Tablo));
     }
 
     [Fact]
@@ -180,19 +180,19 @@ public sealed class SubeDerinlikTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var s = host.ScopeFor(tenant);
         var sp = s.ServiceProvider;
-        var subeler = sp.GetRequiredService<BranchService>();
-        var eski = await SubeAsync(sp, "ESK", "Eski");
-        var yeni = await SubeAsync(sp, "YNI", "Yeni");
+        var branches = sp.GetRequiredService<BranchService>();
+        var old = await BranchAsync(sp, "ESK", "Eski");
+        var newItem = await BranchAsync(sp, "YNI", "Yeni");
 
         var uid = await sp.GetRequiredService<UserService>().CreateAsync(new UserInput
         { UserName = "op1", DisplayName = "Operatör", Rol = UserRole.Operator, Password = "sifre123", AtanmisSube = "Eski" });
 
-        await subeler.MergeAsync(eski, yeni);
+        await branches.MergeAsync(old, newItem);
 
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         var u = await db.Users.AsNoTracking().SingleAsync(x => x.Id == uid);
-        Assert.Equal(yeni, u.AtanmisSubeId);
+        Assert.Equal(newItem, u.AtanmisSubeId);
         Assert.Equal("Yeni", u.AtanmisSube);
     }
 
@@ -202,26 +202,26 @@ public sealed class SubeDerinlikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var subeler = sp.GetRequiredService<BranchService>();
-        var a = await SubeAsync(sp, "A", "A Şube");
-        var b = await SubeAsync(sp, "B", "B Şube");
+        var branches = sp.GetRequiredService<BranchService>();
+        var a = await BranchAsync(sp, "A", "A Şube");
+        var b = await BranchAsync(sp, "B", "B Şube");
         await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 SB 09", Sube = "A Şube" });
 
         // Kendine birleştirme: tüm referansları kendine yazıp şubeyi pasife çekerdi.
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => subeler.MergeAsync(a, a));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => branches.MergeAsync(a, a));
         Assert.Contains("farklı olmalıdır", ex.Message);
 
-        await Assert.ThrowsAsync<ValidationException>(() => subeler.MergeAsync(a, Guid.NewGuid()));
-        await Assert.ThrowsAsync<ValidationException>(() => subeler.MergeAsync(Guid.NewGuid(), b));
+        await Assert.ThrowsAsync<ValidationException>(() => branches.MergeAsync(a, Guid.NewGuid()));
+        await Assert.ThrowsAsync<ValidationException>(() => branches.MergeAsync(Guid.NewGuid(), b));
 
         // Pasif hedefe taşımak kayıtları görünmez yapardı.
-        await subeler.UpdateAsync(b, new BranchInput { Kod = "B", Ad = "B Şube", Aktif = false });
-        var ex2 = await Assert.ThrowsAsync<ValidationException>(() => subeler.MergeAsync(a, b));
+        await branches.UpdateAsync(b, new BranchInput { Kod = "B", Ad = "B Şube", Aktif = false });
+        var ex2 = await Assert.ThrowsAsync<ValidationException>(() => branches.MergeAsync(a, b));
         Assert.Contains("pasif", ex2.Message);
 
         // Hiçbir red yazma yapmamış olmalı.
         Assert.Equal("A Şube", Assert.Single(await sp.GetRequiredService<VehicleService>().ListAsync()).Sube);
-        Assert.True((await subeler.GetAsync(a))!.Aktif);
+        Assert.True((await branches.GetAsync(a))!.Aktif);
     }
 
     [Fact]
@@ -232,8 +232,8 @@ public sealed class SubeDerinlikTests(PostgresFixture fx)
         Guid a, b;
         using (var admin = host.ScopeFor(tenant))
         {
-            a = await SubeAsync(admin.ServiceProvider, "A", "A");
-            b = await SubeAsync(admin.ServiceProvider, "B", "B");
+            a = await BranchAsync(admin.ServiceProvider, "A", "A");
+            b = await BranchAsync(admin.ServiceProvider, "B", "B");
         }
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
@@ -249,32 +249,32 @@ public sealed class SubeDerinlikTests(PostgresFixture fx)
         // referansı eklerse (SubeId / CikisSubeId / Sube metni) ve birleştirme kodunda adı
         // geçmiyorsa bu test kırmızıya döner — aksi hâlde o tablo PASİF bir şubede kalır ve
         // şube kapsamı onu kimseye göstermez (sessiz veri kaybı gibi davranır).
-        var kok = new DirectoryInfo(AppContext.BaseDirectory);
-        while (kok is not null && !File.Exists(Path.Combine(kok.FullName, "RentACar.slnx"))) kok = kok.Parent;
-        Assert.NotNull(kok);
-        var repoKaynak = File.ReadAllText(Path.Combine(kok!.FullName,
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "RentACar.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        var repoSource = File.ReadAllText(Path.Combine(root!.FullName,
             "src/RentACar.Infrastructure/Persistence/Repositories/BranchRepository.cs"));
 
-        var eksik = new List<string>();
+        var missing = new List<string>();
         foreach (var t in typeof(Vehicle).Assembly.GetTypes()
                      .Where(t => t.IsClass && !t.IsAbstract && typeof(ITenantOwned).IsAssignableFrom(t)))
         {
-            var subeAlani = t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            var branchField = t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Any(p => p.Name is "SubeId" or "CikisSubeId" or "Sube");
-            if (!subeAlani) continue;
+            if (!branchField) continue;
             if (t == typeof(Branch) || t == typeof(SubeUcretsizHizmet)) continue;  // şubenin kendisi/child
             // Entity adı ile DbSet adı her zaman aynı değil (RentalContract→Rentals,
             // PublicBookingRequest→SiteTalepleri). Bilinen eşlemeler de kabul edilir.
-            if (!Adlar(t.Name).Any(a => repoKaynak.Contains(a, StringComparison.Ordinal)))
-                eksik.Add(t.Name);
+            if (!Names(t.Name).Any(a => repoSource.Contains(a, StringComparison.Ordinal)))
+                missing.Add(t.Name);
         }
 
-        Assert.True(eksik.Count == 0,
-            "Şube referansı olan şu entity'ler birleştirme kapsamında görünmüyor:\n  " + string.Join("\n  ", eksik));
+        Assert.True(missing.Count == 0,
+            "Şube referansı olan şu entity'ler birleştirme kapsamında görünmüyor:\n  " + string.Join("\n  ", missing));
     }
 
     /// <summary>Entity adı → birleştirme kodunda geçebilecek adlar (DbSet adı entity adından farklı olabilir).</summary>
-    private static string[] Adlar(string entity) => entity switch
+    private static string[] Names(string entity) => entity switch
     {
         "RentalContract" => ["Rentals"],
         "PublicBookingRequest" => ["SiteTalepleri"],

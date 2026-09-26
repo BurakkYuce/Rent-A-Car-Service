@@ -22,7 +22,7 @@ public static class CustomerEndpoints
 
         group.MapPost("/create", async (CustomerService svc, HttpRequest req) =>
         {
-            try { await svc.CreateAsync(Build(req.Form)); return Sonuc.Tamam("/cariler", "Cari kaydedildi."); }
+            try { await svc.CreateAsync(Build(req.Form)); return Result.Ok("/cariler", "Cari kaydedildi."); }
             catch (ValidationException ex) { return Results.Redirect($"/cariler?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
 
@@ -31,7 +31,7 @@ public static class CustomerEndpoints
             try
             {
                 var ok = await svc.UpdateAsync(id, Build(req.Form));
-                return ok ? Sonuc.Tamam("/cariler", "Cari güncellendi.") : Results.NotFound();
+                return ok ? Result.Ok("/cariler", "Cari güncellendi.") : Results.NotFound();
             }
             catch (ValidationException ex) { return Results.Redirect($"/cariler/{id}?hata={Uri.EscapeDataString(ex.Message)}"); }
         });
@@ -39,7 +39,7 @@ public static class CustomerEndpoints
         group.MapPost("/delete", async (CustomerService svc, [FromForm] Guid id) =>
         {
             await svc.DeleteAsync(id);
-            return Sonuc.Tamam("/cariler", "Cari silindi.");
+            return Result.Ok("/cariler", "Cari silindi.");
         }).RequirePermission(Permission.OperationsDelete);
 
         return app;
@@ -94,7 +94,7 @@ public static class CustomerEndpoints
         PasaportNo = FormParse.Str(f, "pasaportNo"),
         FaturaDonemi = FormParse.Str(f, "faturaDonemi"),
         TevkifatOrani = FormParse.Dec(FormParse.Str(f, "tevkifatOrani")),
-        Kisiler = ParseKisiler(f), // PR-E: değişken sayıda yetkili kişi (kisi[i].*)
+        Kisiler = ParseContacts(f), // PR-E: değişken sayıda yetkili kişi (kisi[i].*)
         // roadmap K4 — KVKK + ek adres/banka/fatura adresi
         KvkkOnay = BoolN(f, "kvkkOnay"),
         KvkkOnayTarih = FormParse.Date(FormParse.Str(f, "kvkkOnayTarih")),
@@ -152,16 +152,16 @@ public static class CustomerEndpoints
     /// <summary>Checkbox: "true"/"on" işaretli → true; yoksa/boş → false.</summary>
     /// <summary>PR-E: değişken sayıda yetkili kişi — kisi[i].adSoyad/telefon/mail/gorev. AdSoyad'sız satır atlanır
     /// (seyrek indeksler için continue). Üst sınır 30 (kaba DoS koruması).</summary>
-    private static List<CustomerContactInput> ParseKisiler(IFormCollection f)
+    private static List<CustomerContactInput> ParseContacts(IFormCollection f)
     {
         var list = new List<CustomerContactInput>();
         for (var i = 0; i < 30; i++)
         {
-            var ad = FormParse.Str(f, $"kisi[{i}].adSoyad");
-            if (string.IsNullOrWhiteSpace(ad)) continue;
+            var name = FormParse.Str(f, $"kisi[{i}].adSoyad");
+            if (string.IsNullOrWhiteSpace(name)) continue;
             list.Add(new CustomerContactInput
             {
-                AdSoyad = ad,
+                AdSoyad = name,
                 Telefon = FormParse.Str(f, $"kisi[{i}].telefon"),
                 Mail = FormParse.Str(f, $"kisi[{i}].mail"),
                 Gorev = FormParse.Str(f, $"kisi[{i}].gorev")

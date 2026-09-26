@@ -28,15 +28,15 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FaturaDetayListesiTests(PostgresFixture fx)
 {
-    private static async Task<Guid> CariAsync(IServiceProvider sp, string unvan, string? il = null, string? mail = null)
+    private static async Task<Guid> CustomerAsync(IServiceProvider sp, string title, string? il = null, string? mail = null)
         => await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
-        { Tip = CustomerType.Kurumsal, Unvan = unvan, Il = il, Email = mail });
+        { Tip = CustomerType.Kurumsal, Unvan = title, Il = il, Email = mail });
 
-    private static Task<Guid> ManuelAsync(
-        IServiceProvider sp, Guid cari, string aciklama, decimal net,
-        decimal kdv = 0.20m, string? doviz = null, decimal? kur = null)
+    private static Task<Guid> ManualAsync(
+        IServiceProvider sp, Guid account, string description, decimal net,
+        decimal vat = 0.20m, string? currency = null, decimal? exchangeRate = null)
     {
-        var input = new ManualInvoiceInput { CariId = cari, Aciklama = aciklama, NetTutar = net, KdvOrani = kdv };
+        var input = new ManualInvoiceInput { CariId = account, Aciklama = description, NetTutar = net, KdvOrani = vat };
         return sp.GetRequiredService<InvoiceService>().CreateManualAsync(input);
     }
 
@@ -46,25 +46,25 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var cari = await CariAsync(sp, "Alfa A.Ş.", "İstanbul", "alfa@ornek.test");
+        var account = await CustomerAsync(sp, "Alfa A.Ş.", "İstanbul", "alfa@ornek.test");
 
         // ELLE: net 1.000, KDV %20 → satır 1.000 net / 200 kdv / 1.200 toplam.
-        await ManuelAsync(sp, cari, "Danışmanlık", 1000m);
+        await ManualAsync(sp, account, "Danışmanlık", 1000m);
 
-        var satir = Assert.Single(await sp.GetRequiredService<InvoiceService>().ListLinesAsync());
-        Assert.Equal(1000m, satir.SatirNet);
-        Assert.Equal(200m, satir.SatirKdv);
-        Assert.Equal(1200m, satir.SatirToplam);
-        Assert.Equal("Alfa A.Ş.", satir.CariAd);
-        Assert.Equal("İstanbul", satir.CariSehir);
-        Assert.Equal("alfa@ornek.test", satir.CariEmail);
-        Assert.True(satir.ManuelMi);
+        var row = Assert.Single(await sp.GetRequiredService<InvoiceService>().ListLinesAsync());
+        Assert.Equal(1000m, row.SatirNet);
+        Assert.Equal(200m, row.SatirKdv);
+        Assert.Equal(1200m, row.SatirToplam);
+        Assert.Equal("Alfa A.Ş.", row.CariAd);
+        Assert.Equal("İstanbul", row.CariSehir);
+        Assert.Equal("alfa@ornek.test", row.CariEmail);
+        Assert.True(row.ManuelMi);
 
         // KRİTİK: kirası olmayan fatura JOIN'de DÜŞMEMELİ (LEFT JOIN).
-        Assert.Null(satir.RentalId);
-        Assert.Null(satir.Plaka);
-        Assert.Null(satir.SozlesmeNo);
-        Assert.Null(satir.CikisOfisi);
+        Assert.Null(row.RentalId);
+        Assert.Null(row.Plaka);
+        Assert.Null(row.SozlesmeNo);
+        Assert.Null(row.CikisOfisi);
     }
 
     [Fact]
@@ -73,23 +73,23 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var cari = await CariAsync(sp, "Beta Turizm");
-        var arac = await sp.GetRequiredService<VehicleService>()
+        var account = await CustomerAsync(sp, "Beta Turizm");
+        var vehicle = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 FD 01" });
 
-        var bas = TestZaman.Simdi().AddDays(-10);
-        var kiraId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        var start = TestZaman.Now().AddDays(-10);
+        var rentalId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = cari, VehicleId = arac, BasTar = bas, BitTar = bas.AddDays(3),
+            MusteriId = account, VehicleId = vehicle, BasTar = start, BitTar = start.AddDays(3),
             GunlukUcret = 1000m, CikisOfisi = "Merkez Ofis"
         });
-        await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(kiraId);
+        await sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rentalId);
 
-        var satirlar = await sp.GetRequiredService<InvoiceService>().ListLinesAsync();
-        Assert.NotEmpty(satirlar);
-        Assert.All(satirlar, r =>
+        var rows = await sp.GetRequiredService<InvoiceService>().ListLinesAsync();
+        Assert.NotEmpty(rows);
+        Assert.All(rows, r =>
         {
-            Assert.Equal(kiraId, r.RentalId);
+            Assert.Equal(rentalId, r.RentalId);
             Assert.Equal("34FD01", r.Plaka);           // plaka DB'de normalize saklanıyor
             Assert.Equal("Merkez Ofis", r.CikisOfisi);
             Assert.False(string.IsNullOrWhiteSpace(r.SozlesmeNo));
@@ -105,28 +105,28 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var inv = sp.GetRequiredService<InvoiceService>();
-        var cari = await CariAsync(sp, "Gama");
+        var account = await CustomerAsync(sp, "Gama");
 
         // ELLE: 2 fatura — 1.000 net (brüt 1.200) ve 500 net (brüt 600). İkincisi iade edilir.
-        await ManuelAsync(sp, cari, "Kalır", 1000m);
-        var iadeEdilecek = await ManuelAsync(sp, cari, "İade edilecek", 500m);
-        await inv.CreateRefundAsync(iadeEdilecek);
+        await ManualAsync(sp, account, "Kalır", 1000m);
+        var toRefund = await ManualAsync(sp, account, "İade edilecek", 500m);
+        await inv.CreateRefundAsync(toRefund);
 
-        var satirlar = await inv.ListLinesAsync();
-        Assert.Equal(3, satirlar.Count);                                   // 2 fatura + 1 iade
-        var iade = Assert.Single(satirlar, r => r.IadeMi);
+        var rows = await inv.ListLinesAsync();
+        Assert.Equal(3, rows.Count);                                   // 2 fatura + 1 iade
+        var refund = Assert.Single(rows, r => r.IadeMi);
 
         // İade satırı DB'de POZİTİF saklanıyor — ham tutar kaynağın aynısı.
-        Assert.Equal(600m, iade.SatirToplam);
+        Assert.Equal(600m, refund.SatirToplam);
         // …ama işaretli toplamda NEGATİF görünmeli.
-        Assert.Equal(-600m, iade.IsaretliToplamTl);
-        Assert.Equal(-500m, iade.IsaretliNetTl);
-        Assert.Equal(-100m, iade.IsaretliKdvTl);
+        Assert.Equal(-600m, refund.IsaretliToplamTl);
+        Assert.Equal(-500m, refund.IsaretliNetTl);
+        Assert.Equal(-100m, refund.IsaretliKdvTl);
 
         // Ekrandaki toplam: 1.200 + 600 − 600 = 1.200. İşaret verilmeseydi 2.400 çıkardı.
-        Assert.Equal(1200m, satirlar.Where(r => !r.Iptal).Sum(r => r.IsaretliToplamTl));
-        Assert.Equal(1000m, satirlar.Where(r => !r.Iptal).Sum(r => r.IsaretliNetTl));
-        Assert.Equal(200m, satirlar.Where(r => !r.Iptal).Sum(r => r.IsaretliKdvTl));
+        Assert.Equal(1200m, rows.Where(r => !r.Iptal).Sum(r => r.IsaretliToplamTl));
+        Assert.Equal(1000m, rows.Where(r => !r.Iptal).Sum(r => r.IsaretliNetTl));
+        Assert.Equal(200m, rows.Where(r => !r.Iptal).Sum(r => r.IsaretliKdvTl));
     }
 
     [Fact]
@@ -135,17 +135,17 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var cari = await CariAsync(sp, "Delta");
+        var account = await CustomerAsync(sp, "Delta");
 
         // TRY fatura: net 100 @%20 → brüt 120, kur 1 → TL 120.
-        await ManuelAsync(sp, cari, "TL kalem", 100m);
+        await ManualAsync(sp, account, "TL kalem", 100m);
 
-        var satir = Assert.Single(await sp.GetRequiredService<InvoiceService>().ListLinesAsync());
-        Assert.Equal("TRY", satir.Doviz);
-        Assert.Equal(1m, satir.Kur);
+        var row = Assert.Single(await sp.GetRequiredService<InvoiceService>().ListLinesAsync());
+        Assert.Equal("TRY", row.Doviz);
+        Assert.Equal(1m, row.Kur);
         // Kur 1 olduğu için ham ile TL-baz eşit; formülün kuru ÇARPTIĞI burada kilitlenir.
-        Assert.Equal(satir.SatirToplam * satir.Kur, satir.IsaretliToplamTl);
-        Assert.Equal(120m, satir.IsaretliToplamTl);
+        Assert.Equal(row.SatirToplam * row.Kur, row.IsaretliToplamTl);
+        Assert.Equal(120m, row.IsaretliToplamTl);
     }
 
     [Fact]
@@ -156,11 +156,11 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var inv = sp.GetRequiredService<InvoiceService>();
 
-        var a = await CariAsync(sp, "Alfa Lojistik");
-        var b = await CariAsync(sp, "Beta Turizm");
-        await ManuelAsync(sp, a, "Kiralama bedeli", 1000m);
-        await ManuelAsync(sp, b, "Temizlik", 200m);
-        await ManuelAsync(sp, b, "Yakıt farkı", 300m);
+        var a = await CustomerAsync(sp, "Alfa Lojistik");
+        var b = await CustomerAsync(sp, "Beta Turizm");
+        await ManualAsync(sp, a, "Kiralama bedeli", 1000m);
+        await ManualAsync(sp, b, "Temizlik", 200m);
+        await ManualAsync(sp, b, "Yakıt farkı", 300m);
 
         // ELLE: 3 fatura → 3 kalem (manuel fatura tek satırlıdır).
         Assert.Equal(3, (await inv.ListLinesAsync()).Count);
@@ -174,9 +174,9 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
             Assert.Single(await inv.ListLinesAsync(new FaturaSatirFilter { Ara = "yakıt" })).Aciklama);
         Assert.Empty(await inv.ListLinesAsync(new FaturaSatirFilter { Ara = "yok-boyle-bir-sey" }));
 
-        var bugun = TestZaman.Simdi();
-        Assert.Equal(3, (await inv.ListLinesAsync(new FaturaSatirFilter { Bas = bugun.AddDays(-1) })).Count);
-        Assert.Empty(await inv.ListLinesAsync(new FaturaSatirFilter { Bit = bugun.AddDays(-1) }));
+        var today = TestZaman.Now();
+        Assert.Equal(3, (await inv.ListLinesAsync(new FaturaSatirFilter { Bas = today.AddDays(-1) })).Count);
+        Assert.Empty(await inv.ListLinesAsync(new FaturaSatirFilter { Bit = today.AddDays(-1) }));
 
         // Eşleşmeyen plaka/ofis: manuel faturaların kirası yok → bu filtreler hepsini eler.
         Assert.Empty(await inv.ListLinesAsync(new FaturaSatirFilter { Plaka = "34" }));
@@ -189,11 +189,11 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
-        var cari = await CariAsync(sp, "Epsilon", "Ankara");
-        await ManuelAsync(sp, cari, "Kalem 1", 100m);
-        await ManuelAsync(sp, cari, "Kalem 2", 150m);
+        var account = await CustomerAsync(sp, "Epsilon", "Ankara");
+        await ManualAsync(sp, account, "Kalem 1", 100m);
+        await ManualAsync(sp, account, "Kalem 2", 150m);
 
-        var t = ListExportCatalog.FaturaDetaylari(await sp.GetRequiredService<InvoiceService>().ListLinesAsync());
+        var t = ListExportCatalog.InvoiceDetails(await sp.GetRequiredService<InvoiceService>().ListLinesAsync());
         Assert.Equal("Fatura Detay", t.Sheet);
         Assert.Equal(21, t.Headers.Count);
         Assert.Equal("Fatura No", t.Headers[0]);
@@ -209,7 +209,7 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         using (var admin = host.ScopeFor(tenant))
-            await ManuelAsync(admin.ServiceProvider, await CariAsync(admin.ServiceProvider, "Zeta"), "X", 10m);
+            await ManualAsync(admin.ServiceProvider, await CustomerAsync(admin.ServiceProvider, "Zeta"), "X", 10m);
 
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator);
         await Assert.ThrowsAsync<NoPermissionException>(
@@ -221,7 +221,7 @@ public sealed class FaturaDetayListesiTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using (var s1 = host.ScopeFor(Guid.NewGuid()))
-            await ManuelAsync(s1.ServiceProvider, await CariAsync(s1.ServiceProvider, "Gizli"), "Gizli kalem", 999m);
+            await ManualAsync(s1.ServiceProvider, await CustomerAsync(s1.ServiceProvider, "Gizli"), "Gizli kalem", 999m);
 
         using var s2 = host.ScopeFor(Guid.NewGuid());
         var inv = s2.ServiceProvider.GetRequiredService<InvoiceService>();

@@ -42,11 +42,11 @@
                 <td>@a.TimestampUtc.LocalDateTime.ToString("dd.MM.yyyy HH:mm:ss")</td>
                 <td>@(a.UserName ?? "—")</td>
                 <td>@a.EntityName</td>
-                <td class="mono">@Kisalt(a.EntityId)</td>
+                <td class="mono">@Shorten(a.EntityId)</td>
                 <td>@a.Action</td>
                 <td class="audit-diff">
-                    @if (a.OldValues is not null) { <div><span class="muted">eski:</span> @Kisalt(Masked(a.OldValues, a.EntityName), 120)</div> }
-                    @if (a.NewValues is not null) { <div><span class="muted">yeni:</span> @Kisalt(Masked(a.NewValues, a.EntityName), 120)</div> }
+                    @if (a.OldValues is not null) { <div><span class="muted">eski:</span> @Shorten(Masked(a.OldValues, a.EntityName), 120)</div> }
+                    @if (a.NewValues is not null) { <div><span class="muted">yeni:</span> @Shorten(Masked(a.NewValues, a.EntityName), 120)</div> }
                 </td>
             </tr>
         }
@@ -85,7 +85,7 @@
     // kural öncesinden kalan kayıtlar için. Ayrıştırılamayan değer gösterilmez (ham metin sır taşıyabilir).
     public static string Masked(string json, string? table = null) => AuditSecretMask.MaskJson(json, table) ?? "(gösterilemiyor)";
 
-    private static string Kisalt(string? s, int n = 12)
+    private static string Shorten(string? s, int n = 12)
         => string.IsNullOrEmpty(s) ? "" : (s.Length <= n ? s : s[..n] + "…");
 
     private string PageUrl(int p)

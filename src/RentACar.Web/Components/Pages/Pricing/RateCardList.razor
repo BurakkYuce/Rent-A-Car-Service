@@ -20,7 +20,7 @@
     <form method="post" action="/tarifeler/create" class="grid-form"><AntiforgeryToken />
         <label>Kod<input name="kod" required placeholder="B-STD" /></label>
         <label>Ad<input name="ad" required placeholder="B Grubu Standart" /></label>
-        <ComboBox Name="grup" Label="Araç Grubu" Options="_grupOpts" Placeholder="B" required />
+        <ComboBox Name="grup" Label="Araç Grubu" Options="_groupOpts" Placeholder="B" required />
         <label>Min Gün<input name="minGun" type="number" min="1" value="1" /></label>
         <label>Max Gün<input name="maxGun" type="number" min="1" value="9999" /></label>
         <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" required /></label>
@@ -38,7 +38,7 @@
         <label>Tarife Grubu
             <select name="tarifeGrubuId">
                 <option value="">—</option>
-                @foreach (var g in _gruplar) { <option value="@g.Id">@g.Ad</option> }
+                @foreach (var g in _groups) { <option value="@g.Id">@g.Ad</option> }
             </select>
         </label>
         <button type="submit">Oluştur</button>
@@ -63,7 +63,7 @@
                 <td>@r.Grup</td>
                 <td>@r.MinGun–@(r.MaxGun >= 9999 ? "∞" : r.MaxGun.ToString())</td>
                 <td>@r.GunlukUcret.ToString("N2") @r.Doviz</td>
-                <td>@Donem(r)</td>
+                <td>@Period(r)</td>
                 <td>@(r.Aktif ? "Aktif" : "Pasif")</td>
                 <td>
                     <details>
@@ -72,7 +72,7 @@
                             <input type="hidden" name="id" value="@r.Id" />
                             <label>Kod<input name="kod" value="@r.Kod" required /></label>
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
-                            <ComboBox Name="grup" Label="Araç Grubu" Value="@r.Grup" Options="_grupOpts" ListId="dl-grup-edit" required />
+                            <ComboBox Name="grup" Label="Araç Grubu" Value="@r.Grup" Options="_groupOpts" ListId="dl-grup-edit" required />
                             <label>Min Gün<input name="minGun" type="number" min="1" value="@r.MinGun" /></label>
                             <label>Max Gün<input name="maxGun" type="number" min="1" value="@r.MaxGun" /></label>
                             <label>Günlük Ücret<input name="gunlukUcret" type="number" step="0.01" value="@r.GunlukUcret" required /></label>
@@ -99,7 +99,7 @@
                             <label>Tarife Grubu
                                 <select name="tarifeGrubuId">
                                     <option value="">—</option>
-                                    @foreach (var g in _gruplar) { <option value="@g.Id" selected="@(g.Id == r.TarifeGrubuId)">@g.Ad</option> }
+                                    @foreach (var g in _groups) { <option value="@g.Id" selected="@(g.Id == r.TarifeGrubuId)">@g.Ad</option> }
                                 </select>
                             </label>
                             <button type="submit">Kaydet</button>
@@ -120,17 +120,17 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<RateCard> _list = [];
-    private IReadOnlyList<TarifeGrubu> _gruplar = [];
-    private List<string> _grupOpts = [];
+    private IReadOnlyList<TarifeGrubu> _groups = [];
+    private List<string> _groupOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Rates.ListAsync();
-        _gruplar = await TarifeGruplari.ListActiveAsync();
-        _grupOpts = (await AracGruplari.ListActiveAsync()).Select(g => g.Ad).ToList();
+        _groups = await TarifeGruplari.ListActiveAsync();
+        _groupOpts = (await AracGruplari.ListActiveAsync()).Select(g => g.Ad).ToList();
     }
 
-    private static string Donem(RateCard r)
+    private static string Period(RateCard r)
     {
         if (r.GecerliBas is null && r.GecerliBit is null) return "—";
         var b = r.GecerliBas?.ToString("dd.MM.yyyy") ?? "…";

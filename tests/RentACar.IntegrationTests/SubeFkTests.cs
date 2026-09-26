@@ -14,8 +14,8 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SubeFkTests(PostgresFixture fx)
 {
-    private static async Task<Guid> Branch(IServiceProvider sp, string kod, string ad)
-        => await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = kod, Ad = ad, Aktif = true });
+    private static async Task<Guid> Branch(IServiceProvider sp, string code, string name)
+        => await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = code, Ad = name, Aktif = true });
 
     [Fact]
     public async Task Vehicle_resolves_subeid_from_branch_name_case_insensitive()
@@ -84,11 +84,11 @@ public sealed class SubeFkTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         await Branch(sp, "MRK", "Merkez");
-        var subeB = await Branch(sp, "SB", "Şube B");
+        var branchB = await Branch(sp, "SB", "Şube B");
         var vehicles = sp.GetRequiredService<VehicleService>();
 
         var id = await vehicles.CreateAsync(new VehicleInput { Plaka = "34 SF 04", Sube = "Merkez" });
         await vehicles.UpdateAsync(id, new VehicleInput { Plaka = "34 SF 04", Sube = "Şube B" });
-        Assert.Equal(subeB, (await vehicles.GetAsync(id))!.SubeId);
+        Assert.Equal(branchB, (await vehicles.GetAsync(id))!.SubeId);
     }
 }

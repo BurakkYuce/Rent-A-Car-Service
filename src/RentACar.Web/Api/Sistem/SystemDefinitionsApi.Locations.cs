@@ -32,10 +32,10 @@ public static partial class SystemDefinitionsApi
         {
             IEnumerable<Location> rows = await s.ListAsync(ct);
             if (SystemApiCommon.Clean(sube) is { } b) rows = rows.Where(x => TurkishText.EqualsIgnoreTurkishCase(x.Sube, b));
-            return TypedResults.Ok(F5Ortak.Sayfala(
+            return TypedResults.Ok(F5Shared.Paginate(
                 Filter(rows.Select(x => LocationDto.From(x, null)), ara, aktif, x => [x.Kod, x.Ad, x.Sube, x.Iata], x => x.Aktif),
                 LocationSort, sayfa, boyut, sirala));
-        }).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        }).MapFields(F5Shared.SortRules);
         g.MapGet("/{id:guid}", async Task<Results<Ok<LocationDto>, ProblemHttpResult>> (Guid id, LocationService s, CancellationToken ct)
             => await LocationAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound());
         g.MapPost("", async Task<Results<Created<LocationDto>, ProblemHttpResult>> (LocationRequest i, LocationService s, ICurrentUser user, CancellationToken ct) =>
@@ -44,7 +44,7 @@ public static partial class SystemDefinitionsApi
             BranchScope.RequireInScope(user, recordBranchId: null, SystemApiCommon.Clean(i.Sube));
             var id = await s.CreateAsync(LocationInput(i), ct);
             return await LocationAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/lokasyonlar/{id}", d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(LocationRules);
+        }).MapFields(LocationRules);
         g.MapPut("/{id:guid}", async Task<Results<Ok<LocationDto>, ProblemHttpResult>> (Guid id, LocationRequest i, LocationService s, ICurrentUser user, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is not { } current) return SystemApiCommon.NotFound();
@@ -54,7 +54,7 @@ public static partial class SystemDefinitionsApi
             BranchScope.RequireInScope(user, recordBranchId: null, SystemApiCommon.Clean(i.Sube));
             if (!await s.UpdateAsync(id, LocationInput(i), i.Surum, ct)) return SystemApiCommon.NotFound();
             return await LocationAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(LocationRules);
+        }).MapFields(LocationRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, LocationService s, ICurrentUser user, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is not { } current) return SystemApiCommon.NotFound();

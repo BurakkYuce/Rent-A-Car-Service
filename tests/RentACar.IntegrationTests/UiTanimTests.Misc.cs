@@ -73,7 +73,7 @@ public sealed partial class UiTanimTests
         Assert.NotEqual(first, renewed);
         Assert.Equal(renewed, (await Json(await Send(acc, HttpMethod.Get, V1 + "/takvim-abonelik"))).GetProperty("url").GetString());
         // The old feed no longer answers.
-        var oldFeed = await fx.Web.Istemci().GetAsync(new Uri(first).PathAndQuery);
+        var oldFeed = await fx.Web.Client().GetAsync(new Uri(first).PathAndQuery);
         Assert.NotEqual(HttpStatusCode.OK, oldFeed.StatusCode);
     }
 }

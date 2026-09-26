@@ -8,7 +8,7 @@ namespace RentACar.IntegrationTests;
 
 public sealed partial class UiCustomerApiTests
 {
-    private async Task<Guid> CustomerAsync(Env e, string surname, string? tc = null, bool anonymous = false)
+    private async Task<Guid> CustomerAsync(Env e, string surname, string? nationalId = null, bool anonymous = false)
     {
         var c = new Customer
         {
@@ -16,7 +16,7 @@ public sealed partial class UiCustomerApiTests
             AnonimAd = anonymous, AnonimTelefon = anonymous, AnonimMail = anonymous,
         };
         await WriteAsync(e.TenantId, db => db.Customers.Add(c));
-        if (tc is not null)
+        if (nationalId is not null)
         {
             // TC API üzerinden yazılır (şifre + blind-index servis yolundan geçsin).
             var admin = await LoginAsync(e, Who.Admin);
@@ -24,7 +24,7 @@ public sealed partial class UiCustomerApiTests
             var body = new Dictionary<string, object?>
             {
                 ["tip"] = "Bireysel", ["ad"] = anonymous ? null : "Can", ["soyad"] = anonymous ? null : surname,
-                ["tcKimlik"] = tc, ["anonimAd"] = anonymous, ["anonimTelefon"] = anonymous, ["anonimMail"] = anonymous,
+                ["tcKimlik"] = nationalId, ["anonimAd"] = anonymous, ["anonimTelefon"] = anonymous, ["anonimMail"] = anonymous,
                 ["surum"] = card.GetProperty("surum").GetString(),
             };
             await Json(await Send(admin, HttpMethod.Put, $"{Customers}/{c.Id}", body));
@@ -128,7 +128,7 @@ public sealed partial class UiCustomerApiTests
         body["puan"] = 11;
         await Problem(await Send(opA, HttpMethod.Put, $"{url}/{id}", body), HttpStatusCode.BadRequest, "dogrulama", "puan");
         body["puan"] = 5;
-        body["tarih"] = TestZaman.GunSonra(10);
+        body["tarih"] = TestZaman.DaysLater(10);
         await Problem(await Send(opA, HttpMethod.Put, $"{url}/{id}", body), HttpStatusCode.BadRequest, "dogrulama", "tarih");
     }
 
@@ -244,8 +244,8 @@ public sealed partial class UiCustomerApiTests
     public async Task Tc_is_absent_from_every_f7_response()
     {
         var e = await SetupAsync();
-        var tc = RandomTc();
-        var cust = await CustomerAsync(e, "Taramaoglu", tc);
+        var nationalId = RandomNationalId();
+        var cust = await CustomerAsync(e, "Taramaoglu", nationalId);
         var rental = await RentalAsync(e, cust, "SubeA");
         var admin = await LoginAsync(e, Who.Admin);
         await Json(await Send(admin, HttpMethod.Post, V1 + "/sikayetler", new { cariId = cust, konu = "Test", rentalId = rental.RentalId }), HttpStatusCode.Created);
@@ -255,14 +255,14 @@ public sealed partial class UiCustomerApiTests
 
         string[] urls =
         [
-            Customers, $"{Customers}?q={tc}", $"{Customers}/{cust}", $"{Customers}/{cust}/detay", $"{Customers}/secim/il",
+            Customers, $"{Customers}?q={nationalId}", $"{Customers}/{cust}", $"{Customers}/{cust}/detay", $"{Customers}/secim/il",
             V1 + "/sikayetler", V1 + "/anketler", V1 + "/assistans-talepleri", V1 + "/hukuk-dosyalari", V1 + "/crm/analiz",
             V1 + "/crm/secim/kira", V1 + "/secim/musteri?q=Taramaoglu", $"{V1}/secim/musteri/{cust}",
         ];
         foreach (var u in urls)
         {
             var (_, body) = await Json(await Send(admin, HttpMethod.Get, u));
-            Assert.False(body.Contains(tc, StringComparison.Ordinal), $"TC sızdı: {u}");
+            Assert.False(body.Contains(nationalId, StringComparison.Ordinal), $"TC sızdı: {u}");
         }
     }
 }

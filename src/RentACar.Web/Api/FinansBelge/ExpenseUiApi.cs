@@ -45,11 +45,11 @@ public static class ExpenseUiApi
     {
         var g = v1.MapGroup("/giderler").WithTags("Gider");
         var read = g.MapGroup("").RequireAnyPermission(Permission.FinanceWrite, Permission.ViewReports);
-        read.MapGet("", List).AlanlariEsle(SortRules);
+        read.MapGet("", List).MapFields(SortRules);
         read.MapGet("/{id:guid}", Detail);
         var write = g.MapGroup("").RequirePermission(Permission.FinanceWrite);
-        write.MapPost("", Create).Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
-        write.MapPost("/{id:guid}/odeme", Pay).Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        write.MapPost("", Create).Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        write.MapPost("/{id:guid}/odeme", Pay).Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         return g;
     }
 
@@ -78,21 +78,21 @@ public static class ExpenseUiApi
     {
         Text(f.Q, 128, "q");
         Text(f.Plaka, 16, "plaka");
-        var (bas, bit) = F5Ortak.GunAraligi(f.Bas, f.Bit);
+        var (start, bit) = F5Shared.DayRange(f.Bas, f.Bit);
         var rows = await expenses.ListAsync(new ExpenseFilter // şube kapsamı serviste HER ZAMAN uygulanır
         {
-            Ara = F5Ortak.Nz(f.Q), CariId = f.CariId, Plaka = F5Ortak.Nz(f.Plaka),
-            Tip = F5Ortak.EnumAdi<ExpenseType>(f.Tip, "tip"), Sube = F5Ortak.Nz(f.Sube), Bas = bas, Bit = bit,
+            Ara = F5Shared.Nz(f.Q), CariId = f.CariId, Plaka = F5Shared.Nz(f.Plaka),
+            Tip = F5Shared.EnumAdi<ExpenseType>(f.Tip, "tip"), Sube = F5Shared.Nz(f.Sube), Bas = start, Bit = bit,
         }, ct);
         var list = await RowsAsync(expenses, dbf, rows, ct);
-        return TypedResults.Ok(F5Ortak.Sayfala(list, Sort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(list, Sort, sayfa, boyut, sirala));
     }
 
     private static async Task<Results<Ok<ExpenseDetail>, ProblemHttpResult>> Detail(
         Guid id, ExpenseService expenses, IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         var e = await expenses.GetAsync(id, ct); // kapsam dışı → 403 (servis)
-        if (e is null) return F5Ortak.Bulunamadi("Gider bulunamadı.");
+        if (e is null) return F5Shared.NotFound("Gider bulunamadı.");
         var row = (await RowsAsync(expenses, dbf, [e], ct))[0];
         await using var db = await dbf.CreateDbContextAsync(ct);
         var payments = await db.GiderOdemeleri.AsNoTracking().Where(o => o.ExpenseId == id).OrderBy(o => o.Sira)
@@ -105,15 +105,15 @@ public static class ExpenseUiApi
         ExpenseService expenses, IDbContextFactory<AppDbContext> dbf, IReadOnlyList<Expense> rows, CancellationToken ct)
     {
         var status = await expenses.PaymentStatusesAsync(rows.ToList(), ct);
-        var plates = await F5Ortak.PlakalarAsync(dbf, rows.Where(e => e.VehicleId is not null).Select(e => e.VehicleId!.Value), ct);
-        var names = await F5Ortak.CarilerAsync(dbf, rows.Where(e => e.CariId is not null).Select(e => e.CariId!.Value), ct);
+        var plates = await F5Shared.PlatesAsync(dbf, rows.Where(e => e.VehicleId is not null).Select(e => e.VehicleId!.Value), ct);
+        var names = await F5Shared.CustomersAsync(dbf, rows.Where(e => e.CariId is not null).Select(e => e.CariId!.Value), ct);
         var contracts = await ContractNumbersAsync(dbf, rows.Where(e => e.RentalId is not null).Select(e => e.RentalId!.Value), ct);
         return rows.Select(e =>
         {
             var s = status.GetValueOrDefault(e.Id);
             return new ExpenseListRow(
-                e.Id, e.No, e.Tip.ToString(), e.Tarih, e.VehicleId, e.VehicleId is { } v ? F5Ortak.Plaka(plates, v) : null,
-                e.CariId, e.CariId is { } c ? F5Ortak.CariAdi(names, c) : null, e.Sube, e.EvrakNo, e.NetTutar, e.KdvOrani,
+                e.Id, e.No, e.Tip.ToString(), e.Tarih, e.VehicleId, e.VehicleId is { } v ? F5Shared.Plate(plates, v) : null,
+                e.CariId, e.CariId is { } c ? F5Shared.CustomerName(names, c) : null, e.Sube, e.EvrakNo, e.NetTutar, e.KdvOrani,
                 e.KdvTutar, e.GenelToplam, e.Currency, e.Kur, e.OdemeYontemi.ToString(), e.KasaBankaHesap.ToString(),
                 e.Aciklama, e.RentalId, e.Vade, e.OdemeTarihi, s?.Odenen ?? e.GenelToplam, s?.Kalan ?? 0m, s?.TakipEdilir ?? false,
                 e.RentalId is { } r ? contracts.GetValueOrDefault(r) : null);
@@ -138,9 +138,9 @@ public static class ExpenseUiApi
         ExpenseCreateRequest req, HttpContext http, ExpenseService expenses, ICurrentUser user,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
-        var tip = F5Ortak.EnumAdi<ExpenseType>(req.Tip, "tip") ?? ExpenseType.Genel;
-        var method = F5Ortak.EnumAdi<PaymentMethod>(req.OdemeYontemi, "odemeYontemi")
+        var key = IdempotencyHeader.RequiredKey(http);
+        var tip = F5Shared.EnumAdi<ExpenseType>(req.Tip, "tip") ?? ExpenseType.Genel;
+        var method = F5Shared.EnumAdi<PaymentMethod>(req.OdemeYontemi, "odemeYontemi")
                      ?? throw new ValidationException("Ödeme yöntemi seçilmelidir (Nakit, Banka, AcikHesap).", "odemeYontemi");
         Amount(req.NetTutar, "netTutar");
         VatRate(req.KdvOrani, "kdvOrani");
@@ -172,8 +172,8 @@ public static class ExpenseUiApi
 
             if (await db.Expenses.AsNoTracking().FirstOrDefaultAsync(x => x.IslemAnahtari == key, ct) is { } existing)
             {
-                var (kdv, gross) = VatMath.FromNet(req.NetTutar, req.KdvOrani);
-                var same = existing.GenelToplam == gross && existing.KdvTutar == kdv && existing.Currency == currency
+                var (vat, gross) = VatMath.FromNet(req.NetTutar, req.KdvOrani);
+                var same = existing.GenelToplam == gross && existing.KdvTutar == vat && existing.Currency == currency
                            && existing.OdemeYontemi == method && existing.Tip == tip && existing.CariId == req.CariId
                            && existing.VehicleId == req.AracId;
                 var amount = existing.GenelToplam.ToString("N2", Tr);
@@ -185,11 +185,11 @@ public static class ExpenseUiApi
 
         var id = await expenses.CreateAsync(new ExpenseInput
         {
-            Tip = tip, Tarih = F5Ortak.Utc(req.Tarih), VehicleId = req.AracId, CariId = req.CariId,
+            Tip = tip, Tarih = F5Shared.Utc(req.Tarih), VehicleId = req.AracId, CariId = req.CariId,
             Sube = Trimmed(req.Sube), EvrakNo = Trimmed(req.EvrakNo), NetTutar = req.NetTutar, KdvOrani = req.KdvOrani,
             OdemeYontemi = method, Doviz = currency, Kur = req.Kur, Aciklama = Trimmed(req.Aciklama),
-            FinansalHesapId = req.HesapId, OdemeTarihi = F5Ortak.Utc(req.OdemeTarihi),
-            HazirAciklama = Trimmed(req.HazirAciklama), RentalId = req.KiraId, Vade = F5Ortak.Utc(req.Vade),
+            FinansalHesapId = req.HesapId, OdemeTarihi = F5Shared.Utc(req.OdemeTarihi),
+            HazirAciklama = Trimmed(req.HazirAciklama), RentalId = req.KiraId, Vade = F5Shared.Utc(req.Vade),
             IslemAnahtari = key,
         }, ct);
         return TypedResults.Ok(new DocumentResult(id, (await expenses.GetAsync(id, ct))?.No ?? ""));
@@ -199,12 +199,12 @@ public static class ExpenseUiApi
         Guid id, ExpensePaymentRequest req, HttpContext http, ExpenseService expenses,
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
-        var key = IdempotencyBasligi.ZorunluAnahtar(http);
+        var key = IdempotencyHeader.RequiredKey(http);
         OptionalAmount(req.Tutar, "tutar");
         Text(req.MakbuzNo, 32, "makbuzNo");
         Text(req.Aciklama, 512, "aciklama");
         var e = await expenses.GetAsync(id, ct); // kapsam dışı → 403 (durumdan önce)
-        if (e is null) return F5Ortak.Bulunamadi("Gider bulunamadı.");
+        if (e is null) return F5Shared.NotFound("Gider bulunamadı.");
 
         await using (var db = await dbf.CreateDbContextAsync(ct))
             if (await db.GiderOdemeleri.AsNoTracking().FirstOrDefaultAsync(o => o.IslemAnahtari == key, ct) is { } o)
@@ -219,7 +219,7 @@ public static class ExpenseUiApi
 
         var p = await expenses.AddPaymentAsync(new GiderOdemeInput
         {
-            ExpenseId = id, Tutar = req.Tutar, Tarih = F5Ortak.Utc(req.Tarih), MakbuzNo = Trimmed(req.MakbuzNo),
+            ExpenseId = id, Tutar = req.Tutar, Tarih = F5Shared.Utc(req.Tarih), MakbuzNo = Trimmed(req.MakbuzNo),
             Aciklama = Trimmed(req.Aciklama), IslemAnahtari = key,
         }, ct);
         // Yarışı kaybeden aynı anahtar: servis sessiz null döner — yeni SPA için bu da mükerrerdir (yazılmadı).

@@ -19,13 +19,13 @@
     <label>Şube
         <select name="subeF">
             <option value="">— tümü —</option>
-            @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == SubeF)">@o</option> }
+            @foreach (var o in _branchOpts) { <option value="@o" selected="@(o == SubeF)">@o</option> }
         </select>
     </label>
     <label>Görev
         <select name="gorev">
             <option value="">— tümü —</option>
-            @foreach (var o in _gorevOpts) { <option value="@o" selected="@(o == Gorev)">@o</option> }
+            @foreach (var o in _positionOpts) { <option value="@o" selected="@(o == Gorev)">@o</option> }
         </select>
     </label>
     <label>Durum
@@ -86,10 +86,10 @@
     <label>Maaş<input name="maas" type="number" step="0.01" min="0" value="@_edit?.Maas" /></label>
     <label>İşe Giriş<input name="iseGiris" type="date" value="@(_edit?.IseGiris?.ToString("yyyy-MM-dd"))" /></label>
     <label>İşten Çıkış<input name="iseCikis" type="date" value="@(_edit?.IseCikis?.ToString("yyyy-MM-dd"))" /></label>
-    <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Value="@_edit?.Sube" />
+    <ComboBox Name="sube" Label="Şube" Options="_branchOpts" Value="@_edit?.Sube" />
     @* GÖREV TANIMI serbest metindir ve YETKİ VERMEZ — sistem rolü kullanıcı hesabından gelir.
        İkisini karıştırmak sessiz bir yetki yükseltme beklentisi yaratırdı. *@
-    <ComboBox Name="gorevTanimi" Label="Görev Tanımı" Options="GorevOnerileri" Value="@H?.GorevTanimi" ListId="dl-gorev" />
+    <ComboBox Name="gorevTanimi" Label="Görev Tanımı" Options="PositionSuggestions" Value="@H?.GorevTanimi" ListId="dl-gorev" />
     <label>Cep Tel<input name="cepTel" value="@H?.CepTel" maxlength="32" /></label>
     <label>Mail<input name="mailAdresi" type="email" value="@H?.MailAdresi" maxlength="128" /></label>
     <label>Ev Telefonu<input name="evTelefonu" value="@H?.EvTelefonu" maxlength="32" /></label>
@@ -138,13 +138,13 @@
 
     private IReadOnlyList<RentACar.Domain.Entities.Personel> _list = [];
     private PersonelDetail? _edit;
-    private List<string> _subeOpts = [];
-    private List<string> _gorevOpts = [];
+    private List<string> _branchOpts = [];
+    private List<string> _positionOpts = [];
 
     /// <summary>Düzenlenen kaydın ham entity'si — 23 derinlik alanı buradan okunur.</summary>
     private RentACar.Domain.Entities.Personel? H => _edit?.Ham;
 
-    private static readonly List<string> GorevOnerileri =
+    private static readonly List<string> PositionSuggestions =
         ["İç Ekip", "Yönetici", "Operasyon", "Şoför", "Muhasebe", "Satış"];
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Ara) || !string.IsNullOrWhiteSpace(SubeF)
@@ -158,11 +158,11 @@
             Aktif = bool.TryParse(Durum, out var d) ? d : null
         });
         if (Duzenle is { } id) _edit = await Personel.GetDetailAsync(id);
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
 
         // Görev seçenekleri FİLTRESİZ listeden (öneri listesi ∪ mevcut değerler) — filtrelenmişten
         // türetilseydi bir seçim sonrası diğer görevler kaybolur, filtre kendini kilitlerdi.
-        _gorevOpts = GorevOnerileri
+        _positionOpts = PositionSuggestions
             .Concat((await Personel.ListAsync()).Select(p => p.GorevTanimi ?? ""))
             .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
             .Distinct(StringComparer.CurrentCultureIgnoreCase)

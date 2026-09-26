@@ -8,10 +8,10 @@
         <p class="muted small">@Bos</p>
     }
     @{ var maxAbs = Dilimler.Count == 0 ? 1m : Math.Max(1e-9m, Dilimler.Max(d => Math.Abs(d.Deger))); }
-    @{ var toplam = Dilimler.Sum(d => d.Deger); }
+    @{ var total = Dilimler.Sum(d => d.Deger); }
     @foreach (var d in Dilimler)
     {
-        var yuzde = toplam != 0m ? d.Deger / toplam * 100m : 0m;
+        var percent = total != 0m ? d.Deger / total * 100m : 0m;
         <div class="kirilim-satir" title="@d.Etiket: @Fmt(d.Deger)">
             <span class="kirilim-etiket">@d.Etiket</span>
             <span class="kirilim-track">
@@ -19,7 +19,7 @@
                       style="width:@((Math.Abs(d.Deger) / maxAbs * 100m).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%"></span>
             </span>
             <span class="kirilim-deger @(d.Deger < 0m ? "neg" : "")">@Fmt(d.Deger)
-                <span class="muted">%@yuzde.ToString("0.#")</span></span>
+                <span class="muted">%@percent.ToString("0.#")</span></span>
         </div>
     }
 </div>

@@ -11,7 +11,7 @@ namespace RentACar.IntegrationTests;
 /// `MainLayout.razor`'a hiç eklenmediğini buldu — yani kod vardı, kullanıcı ulaşamıyordu.
 /// Hiçbir test bunu yakalamıyordu çünkü sayfalar teknik olarak sağlamdı.</para>
 ///
-/// <para><b>F4.6:</b> menü artık KAYITTAN çizilir (<see cref="MenuKaydi"/>, iki arayüzün tek kaynağı) — kapsama
+/// <para><b>F4.6:</b> menü artık KAYITTAN çizilir (<see cref="MenuRegistry"/>, iki arayüzün tek kaynağı) — kapsama
 /// MainLayout metnine değil kayda bakar.</para>
 ///
 /// <para>Kapsam bilinçli olarak DAR: yalnız <c>/raporlar/*</c>. Sistem sayfaları (`/login`,
@@ -21,7 +21,7 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class MenuKapsamaTests
 {
-    private static string RepoKok()
+    private static string RepoRoot()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx")))
@@ -33,28 +33,28 @@ public sealed class MenuKapsamaTests
     [Fact]
     public void Rapor_sayfalarinin_TAMAMI_menude()
     {
-        var kok = RepoKok();
-        var sayfalar = Path.Combine(kok, "src/RentACar.Web/Components/Pages");
+        var root = RepoRoot();
+        var pages = Path.Combine(root, "src/RentACar.Web/Components/Pages");
         // F10.3: rapor öğeleri spa (/app/raporlar/…); Blazor sayfası menüdeki SPA öğesinin Blazor karşılığıyla eşlenir.
-        var menu = MenuKaydi.Ogeler
-            .SelectMany(o => new[] { o.Rota, RentACar.Web.Spa.IlkKesis.BlazorKarsiligi(o.Rota) })
+        var menu = MenuRegistry.Items
+            .SelectMany(o => new[] { o.Rota, RentACar.Web.Spa.Cutover.BlazorEquivalent(o.Rota) })
             .OfType<string>().ToHashSet(StringComparer.Ordinal);
 
-        var eksik = new List<string>();
-        foreach (var dosya in Directory.EnumerateFiles(sayfalar, "*.razor", SearchOption.AllDirectories))
+        var missing = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(pages, "*.razor", SearchOption.AllDirectories))
         {
-            foreach (Match m in Regex.Matches(File.ReadAllText(dosya), @"@page\s+""(/raporlar[^""]*)"""))
+            foreach (Match m in Regex.Matches(File.ReadAllText(file), @"@page\s+""(/raporlar[^""]*)"""))
             {
-                var rota = m.Groups[1].Value;
-                if (rota.Contains('{')) continue;                       // parametrik detay: drill-down'dan açılır
-                if (!menu.Contains(rota))
-                    eksik.Add($"{rota}  ({Path.GetRelativePath(kok, dosya)})");
+                var route = m.Groups[1].Value;
+                if (route.Contains('{')) continue;                       // parametrik detay: drill-down'dan açılır
+                if (!menu.Contains(route))
+                    missing.Add($"{route}  ({Path.GetRelativePath(root, file)})");
             }
         }
 
-        Assert.True(eksik.Count == 0,
+        Assert.True(missing.Count == 0,
             "Bu rapor sayfaları yazılmış ama menü kaydında (MenuKaydi) yok — kullanıcı ulaşamaz:\n  "
-            + string.Join("\n  ", eksik));
+            + string.Join("\n  ", missing));
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ public sealed class MenuKapsamaTests
     [Fact]
     public void F7_SPA_list_routes_are_all_in_menu()
     {
-        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features");
+        var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app/features");
         var text = File.ReadAllText(Path.Combine(app, "customers/customers.routes.ts"))
             + File.ReadAllText(Path.Combine(app, "crm/crm.routes.ts"));
         var paths = Regex.Matches(text, @"path: '(?<p>[a-z-/:]+)',")
@@ -73,7 +73,7 @@ public sealed class MenuKapsamaTests
             .Where(p => !p.Contains(':') && p != "cariler/yeni")
             .ToList();
         Assert.Equal(new[] { "anketler", "assistans", "cariler", "crm", "hukuk", "sikayetler" }, paths.OrderBy(p => p, StringComparer.Ordinal));
-        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        var menu = MenuRegistry.Items.Where(o => o.Sahip == MenuRegistry.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
         Assert.All(paths, p => Assert.Contains("/app/" + p, menu));
     }
 
@@ -86,7 +86,7 @@ public sealed class MenuKapsamaTests
     [Fact]
     public void F11_SPA_routes_are_all_in_menu()
     {
-        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features");
+        var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app/features");
         var routes = File.ReadAllText(Path.Combine(app, "definitions/definitions.routes.ts"))
             + File.ReadAllText(Path.Combine(app, "system/system.routes.ts"));
         var definitionPaths = File.ReadAllText(Path.Combine(app, "definitions/definition-paths.ts"));
@@ -98,7 +98,7 @@ public sealed class MenuKapsamaTests
             .Where(p => !p.Contains(':') && !outsideMenu.Contains(p))
             .ToList();
         Assert.Equal(41, paths.Count); // 47 sayfa − 3 kimlikli − 3 menü dışı alt akış
-        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        var menu = MenuRegistry.Items.Where(o => o.Sahip == MenuRegistry.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
         var missing = paths.Where(p => !menu.Contains("/app/" + p)).ToList();
         Assert.True(missing.Count == 0, "Menüde spa öğesi olmayan F11 ekranı: " + string.Join(", ", missing));
     }
@@ -111,7 +111,7 @@ public sealed class MenuKapsamaTests
     [Fact]
     public void F8_SPA_routes_are_all_in_menu()
     {
-        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features");
+        var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app/features");
         var text = File.ReadAllText(Path.Combine(app, "finance/finance.routes.ts"))
             + File.ReadAllText(Path.Combine(app, "finance-documents/finance-documents.routes.ts"));
         var paths = Regex.Matches(text, @"path: '(?<p>[a-z-/:]+)',")
@@ -125,7 +125,7 @@ public sealed class MenuKapsamaTests
                 "otomatik-tahsilat", "satislar", "tek-cari-toplu", "toplu-gider", "toplu-tahsilat",
             },
             paths.OrderBy(p => p, StringComparer.Ordinal));
-        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        var menu = MenuRegistry.Items.Where(o => o.Sahip == MenuRegistry.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
         Assert.All(paths, p => Assert.Contains("/app/" + p, menu));
     }
 
@@ -138,7 +138,7 @@ public sealed class MenuKapsamaTests
     [Fact]
     public void F9_SPA_screen_routes_are_all_in_menu()
     {
-        var app = Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features");
+        var app = Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app/features");
         var text = File.ReadAllText(Path.Combine(app, "service-insurance/service-insurance.routes.ts"))
             + File.ReadAllText(Path.Combine(app, "pricing/pricing.routes.ts"));
         var tabs = File.ReadAllText(Path.Combine(app, "service-insurance/regulation/regulation-tabs.ts"));
@@ -156,7 +156,7 @@ public sealed class MenuKapsamaTests
                 "tarife-matris", "tarifeler", "vade",
             },
             paths.OrderBy(p => p, StringComparer.Ordinal));
-        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        var menu = MenuRegistry.Items.Where(o => o.Sahip == MenuRegistry.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
         Assert.All(paths, p => Assert.Contains("/app/" + p, menu));
     }
 
@@ -167,11 +167,11 @@ public sealed class MenuKapsamaTests
     [Fact]
     public void SPA_rapor_rotalarinin_TAMAMI_menude()
     {
-        var tablo = File.ReadAllText(Path.Combine(RepoKok(), "src/RentACar.Frontend/src/app/features/reports/reports.routes.ts"));
-        var kodlar = Regex.Matches(tablo, @"^\s*\['(?<kod>[a-z-]+)',", RegexOptions.Multiline)
+        var table = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Frontend/src/app/features/reports/reports.routes.ts"));
+        var codes = Regex.Matches(table, @"^\s*\['(?<kod>[a-z-]+)',", RegexOptions.Multiline)
             .Select(m => m.Groups["kod"].Value).Where(k => k != "arac-karne").ToList();
-        Assert.Equal(25, kodlar.Count);
-        var menu = MenuKaydi.Ogeler.Where(o => o.Sahip == MenuKaydi.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
-        Assert.All(kodlar, k => Assert.Contains("/app/raporlar/" + k, menu));
+        Assert.Equal(25, codes.Count);
+        var menu = MenuRegistry.Items.Where(o => o.Sahip == MenuRegistry.Spa).Select(o => o.Rota).ToHashSet(StringComparer.Ordinal);
+        Assert.All(codes, k => Assert.Contains("/app/raporlar/" + k, menu));
     }
 }

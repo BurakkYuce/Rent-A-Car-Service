@@ -57,7 +57,7 @@ public sealed class ReportExportService
         // Ham DateTimeOffset hücresi YEREL takvim gününe düşer: tarihler forma yerel gün
         // olarak girilip UTC'ye çevriliyor (FormParse.Date); UTC yazınca +03'te bir gün
         // GERİ görünürdü. Ekranla aynı gün inmeli.
-        DateTimeOffset dto => ExportTarih.Hucre(dto),
+        DateTimeOffset dto => ExportDate.Cell(dto),
         DateTime dt => dt,
         _ => v.ToString() ?? string.Empty
     };
@@ -68,7 +68,7 @@ public sealed class ReportExportService
         decimal d => d.ToString(CultureInfo.InvariantCulture),
         double db => db.ToString(CultureInfo.InvariantCulture),
         int i => i.ToString(CultureInfo.InvariantCulture),
-        DateTimeOffset dto => ExportTarih.Gun(dto) ?? string.Empty,
+        DateTimeOffset dto => ExportDate.Day(dto) ?? string.Empty,
         DateTime dt => dt.ToString("yyyy-MM-dd"),
         _ => v.ToString() ?? string.Empty
     };

@@ -17,7 +17,7 @@ public static class ReservationSourceEndpoints
 
         grp.MapPost("/create", async (ReservationSourceService svc, HttpRequest req,
             [FromForm] string kod, [FromForm] string ad) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, kod, ad, aktif: true)), "Kayıt eklendi."));
+            await Run(() => svc.CreateAsync(Build(req.Form, kod, ad, active: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (ReservationSourceService svc, HttpRequest req, [FromForm] Guid id,
             [FromForm] string kod, [FromForm] string ad, [FromForm] bool aktif) =>
@@ -38,18 +38,18 @@ public static class ReservationSourceEndpoints
     /// verirdi, bu yüzden string olarak alınıp FormParse.Dec/Int ile çevriliyor (CLAUDE.md §5 tuzağı).
     /// Checkbox'lar işaretsizken form'a HİÇ gelmez → <see cref="Chk"/> false döner (master formda
     /// üçlü/null semantiği yok: tam-durum gönderilir).</summary>
-    private static ReservationSourceInput Build(IFormCollection f, string kod, string ad, bool aktif) => new()
+    private static ReservationSourceInput Build(IFormCollection f, string code, string name, bool active) => new()
     {
-        Kod = kod,
-        Ad = ad,
-        Aktif = aktif,
+        Kod = code,
+        Ad = name,
+        Aktif = active,
         Tedarikci = FormParse.Str(f, "tedarikci"),
         KiraOrani = FormParse.Dec(FormParse.Str(f, "kiraOrani")),
         HizmetOrani = FormParse.Dec(FormParse.Str(f, "hizmetOrani")),
         DropOrani = FormParse.Dec(FormParse.Str(f, "dropOrani")),
 
         // ---- FAZ-49 kural matrisi ----------------------------------------------------------
-        KaynakGrubu = Grup(FormParse.Str(f, "kaynakGrubu")),
+        KaynakGrubu = Group(FormParse.Str(f, "kaynakGrubu")),
 
         // KURAL bayrakları (gerçekten uygulanır)
         Uzatamaz = Chk(f, "uzatamaz"),
@@ -101,13 +101,13 @@ public static class ReservationSourceEndpoints
     }
 
     /// <summary>Boş seçim → null ("belirtilmemiş"); tanınmayan değer de null (enjeksiyon sessizce yok sayılır).</summary>
-    private static ReservationSourceGroup? Grup(string? s)
+    private static ReservationSourceGroup? Group(string? s)
         => Enum.TryParse<ReservationSourceGroup>((s ?? "").Trim(), ignoreCase: true, out var g)
            && Enum.IsDefined(g) ? g : null;
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/rezervasyon-kaynaklari", mesaj); }
+        try { await action(); return Result.Ok("/rezervasyon-kaynaklari", message); }
         catch (ValidationException ex) { return Results.Redirect($"/rezervasyon-kaynaklari?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

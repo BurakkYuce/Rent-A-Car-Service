@@ -28,10 +28,10 @@ public sealed record BafDto(
     DateTimeOffset? DonusTarihi, TimeOnly? DonusSaat, int? DonusKm, int? DonusYakit, string? DonusSube,
     string? KullanimAmaci, Guid? Onaylayan, string? OnaylayanAd, bool KirayaVer, string? Aciklama)
 {
-    public static BafDto From(Baf b, string plaka, string personel, string? onaylayan) => new(
-        b.Id, b.No, b.Durum.ToString(), b.PersonelId, personel, b.VehicleId, plaka, b.CikisTarihi, b.CikisSaat, b.CikisKm,
+    public static BafDto From(Baf b, string plate, string staff, string? approver) => new(
+        b.Id, b.No, b.Durum.ToString(), b.PersonelId, staff, b.VehicleId, plate, b.CikisTarihi, b.CikisSaat, b.CikisKm,
         b.CikisYakit, b.Sube, b.DonusTarihi, b.DonusSaat, b.DonusKm, b.DonusYakit, b.DonusSube, b.KullanimAmaci?.ToString(),
-        b.Onaylayan, onaylayan, b.KirayaVer, b.Aciklama);
+        b.Onaylayan, approver, b.KirayaVer, b.Aciklama);
 }
 
 /// <summary><c>POST /hasar-dosyalari</c>. Tahmini tutar BİLGİ (deftere yazmaz).</summary>
@@ -53,8 +53,8 @@ public sealed record HasarDto(
     Guid Id, string No, string Durum, Guid VehicleId, string Plaka, Guid? RentalId, Guid? CariId, string? CariAd,
     DateTimeOffset AcilisTarihi, string? Aciklama, decimal? TahminiTutar, string? OnayNotu, HasarYetkileri Yetkiler)
 {
-    public static HasarDto From(DamageFile f, string plaka, string? cariAd) => new(
-        f.Id, f.No, f.Durum.ToString(), f.VehicleId, plaka, f.RentalId, f.CariId, cariAd, f.AcilisTarihi, f.Aciklama,
+    public static HasarDto From(DamageFile f, string plate, string? customerName) => new(
+        f.Id, f.No, f.Durum.ToString(), f.VehicleId, plate, f.RentalId, f.CariId, customerName, f.AcilisTarihi, f.Aciklama,
         f.TahminiTutar, f.OnayNotu, new HasarYetkileri(
             f.Durum == Domain.Enums.DamageStatus.Acik, f.Durum == Domain.Enums.DamageStatus.Onayda,
             f.Durum == Domain.Enums.DamageStatus.Onayda,
@@ -72,7 +72,7 @@ public sealed record FiloPlanDto(
     Guid Id, string? AracGrupAdi, string? Sipp, string? Donem, int HedefAdet, string? Aciklama, int Gerceklesen,
     int ToplamKayitli, int Fark, string Durum, string? Surum)
 {
-    public static FiloPlanDto From(FiloPlanSatir s, string? surum = null) => new(
+    public static FiloPlanDto From(FiloPlanSatir s, string? version = null) => new(
         s.Hedef.Id, s.Hedef.AracGrupAdi, s.Hedef.Sipp, s.Hedef.Donem, s.Hedef.HedefAdet, s.Hedef.Aciklama, s.Gerceklesen,
-        s.ToplamKayitli, s.Fark, s.Durum, surum);
+        s.ToplamKayitli, s.Fark, s.Durum, version);
 }

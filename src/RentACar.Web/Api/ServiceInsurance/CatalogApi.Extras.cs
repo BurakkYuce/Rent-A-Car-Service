@@ -61,9 +61,9 @@ internal static partial class CatalogApi
                 RateMatrixService s, CancellationToken ct) =>
             {
                 if (gun is not { } g || g is < 1 or > 3650) throw new ValidationException("Gün sayısı 1 ile 3650 arasında olmalıdır.", "gun");
-                var an = F5Ortak.GunBasi(tarih ?? DateOnly.FromDateTime(DateTime.UtcNow), "tarih");
-                var r = await s.ResolveAsync(new RateMatrisSorgu(F5Ortak.Nz(kanal), F5Ortak.Nz(sube), F5Ortak.Nz(aracGrupKod), an, g,
-                    F5Ortak.Nz(paraBirimi)), ct);
+                var an = F5Shared.DayStart(tarih ?? DateOnly.FromDateTime(DateTime.UtcNow), "tarih");
+                var r = await s.ResolveAsync(new RateMatrisSorgu(F5Shared.Nz(kanal), F5Shared.Nz(sube), F5Shared.Nz(aracGrupKod), an, g,
+                    F5Shared.Nz(paraBirimi)), ct);
                 return r is null
                     ? S.NotFound("Eşleşen onaylı tarife bulunamadı.")
                     : TypedResults.Ok(new RateMatrixPriceDto(r.Id, r.Kod, r.Ad, r.GunlukFiyat, r.ParaBirimi, r.ToplamFiyat, g));
@@ -74,16 +74,16 @@ internal static partial class CatalogApi
                 string? q, string? durum, string? tarihTipi, bool? kampanyaMi, string? kanal, DateOnly? gecerliBas,
                 DateOnly? gecerliBit, int? sayfa, int? boyut, string? sirala, RentalRuleService s, CancellationToken ct) =>
             {
-                var (bas, bit) = F5Ortak.GunAraligi(gecerliBas, gecerliBit, "gecerliBas", "gecerliBit");
+                var (start, bit) = F5Shared.DayRange(gecerliBas, gecerliBit, "gecerliBas", "gecerliBit");
                 var rows = await s.SearchAsync(new RentalRuleFilter
                 {
-                    Terim = F5Ortak.Nz(q), Durum = F5Ortak.EnumAdi<CampaignStatus>(durum, "durum"),
-                    TarihTipi = F5Ortak.EnumAdi<RuleDateType>(tarihTipi, "tarihTipi"), KampanyaMi = kampanyaMi,
-                    Kanal = F5Ortak.Nz(kanal), GecerliBas = bas, GecerliBit = bit,
+                    Terim = F5Shared.Nz(q), Durum = F5Shared.EnumAdi<CampaignStatus>(durum, "durum"),
+                    TarihTipi = F5Shared.EnumAdi<RuleDateType>(tarihTipi, "tarihTipi"), KampanyaMi = kampanyaMi,
+                    Kanal = F5Shared.Nz(kanal), GecerliBas = start, GecerliBit = bit,
                 }, ct);
-                return TypedResults.Ok(F5Ortak.Sayfala(rows.Select(r => RentalRuleDto.From(r, null)).ToList(),
+                return TypedResults.Ok(F5Shared.Paginate(rows.Select(r => RentalRuleDto.From(r, null)).ToList(),
                     RentalRules.Sort, sayfa, boyut, sirala));
-            }).AlanlariEsle(F5Ortak.SiralamaKurallari).WithTags("Fiyat & Tarife").RequirePermission(Permission.OperationsWrite);
+            }).MapFields(F5Shared.SortRules).WithTags("Fiyat & Tarife").RequirePermission(Permission.OperationsWrite);
     }
 }
 

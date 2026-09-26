@@ -15,11 +15,11 @@ public sealed record RateMatrixDto(Guid Id, string Kod, string Ad, string? Acikl
     int? KmHaftalik, decimal? KmHaftalikUcret, int? KmAylik, decimal? KmAylikUcret, decimal? MaxEsneklik,
     string OnayDurumu, string? Onaylayan, DateTimeOffset? OnayZaman, bool Aktif, string? Surum)
 {
-    public static RateMatrixDto From(RateMatrix x, string? surum) => new(x.Id, x.Kod, x.Ad, x.Aciklama, x.Kanal, x.Sube,
+    public static RateMatrixDto From(RateMatrix x, string? version) => new(x.Id, x.Kod, x.Ad, x.Aciklama, x.Kanal, x.Sube,
         x.Lokasyon, x.Turu, x.KiraSuresi, x.AracGrupKod, x.ParaBirimi, x.BasTar, x.BitTar, x.Gun1, x.Gun2, x.Gun3, x.Gun4,
         x.Gun5, x.Gun6, x.Gun7, x.GunHaftalik, x.GunAylik, x.Km1, x.Km2, x.Km3, x.Km4, x.Km5, x.Km6, x.Km1Ucret,
         x.Km2Ucret, x.Km3Ucret, x.Km4Ucret, x.Km5Ucret, x.Km6Ucret, x.KmHaftalik, x.KmHaftalikUcret, x.KmAylik,
-        x.KmAylikUcret, x.MaxEsneklik, x.OnayDurumu.ToString(), x.Onaylayan, x.OnayZaman, x.Aktif, surum);
+        x.KmAylikUcret, x.MaxEsneklik, x.OnayDurumu.ToString(), x.Onaylayan, x.OnayZaman, x.Aktif, version);
 }
 
 public sealed record RateMatrixRequest(string? Kod, string? Ad, string? Aciklama, string? Kanal, string? Sube,
@@ -38,11 +38,11 @@ public sealed record RentalRuleDto(Guid Id, string Kod, string Ad, string? Acikl
     string? PromosyonTuru, string? KuponGecerlilik, string? HesaplamaTipi, bool HizliIslem, string? HaftaGunKisiti,
     string TarihTipi, string KampanyaDurum, bool Aktif, string? Surum)
 {
-    public static RentalRuleDto From(RentalRule x, string? surum) => new(x.Id, x.Kod, x.Ad, x.Aciklama, x.Kanal, x.Sube,
+    public static RentalRuleDto From(RentalRule x, string? version) => new(x.Id, x.Kod, x.Ad, x.Aciklama, x.Kanal, x.Sube,
         x.AracGrupKod, x.MinGun, x.MaxGun, x.Iskonto, x.HaftaSonuFarkOran, x.SonraOdeOran, x.HediyeGun, x.KampanyaMi,
         x.KampanyaKodu, x.MusteriSegment, x.GecerlilikBas, x.GecerlilikBit, x.SartMetni, x.TalepBas, x.TalepBit,
         x.PromosyonTuru?.ToString(), x.KuponGecerlilik?.ToString(), x.HesaplamaTipi?.ToString(), x.HizliIslem,
-        x.HaftaGunKisiti, x.TarihTipi.ToString(), x.KampanyaDurum.ToString(), x.Aktif, surum);
+        x.HaftaGunKisiti, x.TarihTipi.ToString(), x.KampanyaDurum.ToString(), x.Aktif, version);
 }
 
 public sealed record RentalRuleRequest(string? Kod, string? Ad, string? Aciklama, string? Kanal, string? Sube,

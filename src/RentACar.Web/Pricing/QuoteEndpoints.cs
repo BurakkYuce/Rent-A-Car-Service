@@ -18,7 +18,7 @@ public static class QuoteEndpoints
         grp.MapPost("/hesapla", async (RentalQuoteEngine engine, HttpRequest req) =>
         {
             var f = req.Form;
-            var kodlar = (f["sigortaKodlari"].ToString() ?? string.Empty)
+            var codes = (f["sigortaKodlari"].ToString() ?? string.Empty)
                 .Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var input = new QuoteRequest
             {
@@ -29,7 +29,7 @@ public static class QuoteEndpoints
                 BitTar = FormParse.Date(FormParse.Str(f, "bitTar")) ?? default,
                 SurucuYas = FormParse.Int(FormParse.Str(f, "surucuYas")),
                 TahminiKm = FormParse.Int(FormParse.Str(f, "tahminiKm")),
-                SigortaUrunKodlari = kodlar
+                SigortaUrunKodlari = codes
             };
             try
             {

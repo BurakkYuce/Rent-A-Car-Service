@@ -31,16 +31,16 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var simdi = DateTimeOffset.UtcNow;
-        var satirlar = await reports.GetStatementSummaryAsync(new ExtreOzetiFilter
+        var now = DateTimeOffset.UtcNow;
+        var rowList = await reports.GetStatementSummaryAsync(new ExtreOzetiFilter
         {
             CariId = cariId, Plaka = F(plaka), Ofis = F(ofis), Bas = p.FromUtc, Bit = p.ToUtc,
             YalnizGecikmis = gecikmis == true,
-        }, simdi, ct);
-        var mask = await CustomerMask.LoadAsync(dbf, satirlar.Select(s => s.CariId), ct);
-        var rows = satirlar.Select(s => s with { CariAd = mask.Name(s.CariId, s.CariAd) }).ToList();
-        var ozet = new StatementReportSummary(rows.Sum(r => r.IsaretliTutarTl), rows.Count(r => r.RemainingDays(simdi) < 0));
-        return TypedResults.Ok(new ReportResult<StatementReportSummary, ExtreOzetiRowDto>(p.ToDto(), ozet,
+        }, now, ct);
+        var mask = await CustomerMask.LoadAsync(dbf, rowList.Select(s => s.CariId), ct);
+        var rows = rowList.Select(s => s with { CariAd = mask.Name(s.CariId, s.CariAd) }).ToList();
+        var summary = new StatementReportSummary(rows.Sum(r => r.IsaretliTutarTl), rows.Count(r => r.RemainingDays(now) < 0));
+        return TypedResults.Ok(new ReportResult<StatementReportSummary, ExtreOzetiRowDto>(p.ToDto(), summary,
             page.Apply(rows, StatementMap), null));
     }
 
@@ -80,19 +80,19 @@ public static partial class ReportApi
         var bd = F(bakiye)?.ToLowerInvariant();
         if (bd is not null and not "acik" and not "kapali")
             throw new ValidationException("Geçersiz bakiye değeri. İzin verilenler: acik, kapali.", "bakiye");
-        var satirlar = await reports.GetCollectionReconciliationAsync(new TahsilatMutabakatFilter
+        var rowList = await reports.GetCollectionReconciliationAsync(new TahsilatMutabakatFilter
         {
-            Ara = F(ara), Durum = F5Ortak.EnumAdi<RentalStatus>(durum, "durum"), BakiyeDurumu = bd,
+            Ara = F(ara), Durum = F5Shared.EnumAdi<RentalStatus>(durum, "durum"), BakiyeDurumu = bd,
             YalnizTutarsiz = tutarsiz == true, Bas = p.FromUtc, Bit = p.ToUtc,
         }, ct);
-        var mask = await CustomerMask.LoadAsync(dbf, satirlar.Select(s => s.MusteriId), ct);
-        var rows = satirlar.Select(s => new ReconciliationReportRow(s.RentalId, s.SozlesmeNo, s.Plaka, s.MusteriId,
+        var mask = await CustomerMask.LoadAsync(dbf, rowList.Select(s => s.MusteriId), ct);
+        var rows = rowList.Select(s => new ReconciliationReportRow(s.RentalId, s.SozlesmeNo, s.Plaka, s.MusteriId,
             mask.Name(s.MusteriId, s.MusteriAd), s.BasTar, s.Durum.ToString(), s.Doviz, s.Matrah, s.DamgaVergisi,
             s.GenelToplam, s.Tahsilat, s.DefterTahsilat, s.Faturalanan, s.MusteriBakiye, s.Bakiye, s.FaturaFarki,
             s.TahsilatAyrimi, s.Tutarsiz)).ToList();
-        var ozet = new ReconciliationReportSummary(rows.Sum(r => r.GenelToplam), rows.Sum(r => r.Tahsilat),
+        var summary = new ReconciliationReportSummary(rows.Sum(r => r.GenelToplam), rows.Sum(r => r.Tahsilat),
             rows.Sum(r => r.Faturalanan), rows.Count(r => r.Tutarsiz));
-        return TypedResults.Ok(new ReportResult<ReconciliationReportSummary, ReconciliationReportRow>(p.ToDto(), ozet,
+        return TypedResults.Ok(new ReportResult<ReconciliationReportSummary, ReconciliationReportRow>(p.ToDto(), summary,
             page.Apply(rows, ReconciliationMap), null));
     }
 
@@ -112,11 +112,11 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        var satirlar = await reports.GetInvoicePeriodAsync(p.FromUtc, p.ToUtc, ct);
+        var rowList = await reports.GetInvoicePeriodAsync(p.FromUtc, p.ToUtc, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
-        var rows = satirlar.Select(r => r with { Cari = mask.Name(r.Cari) }).ToList();
-        var ozet = new InvoicePeriodSummary(rows.Count, rows.Sum(r => (r.IadeMi ? -r.GenelToplam : r.GenelToplam) * r.Kur));
-        return TypedResults.Ok(new ReportResult<InvoicePeriodSummary, FaturaDonemRow>(p.ToDto(), ozet,
+        var rows = rowList.Select(r => r with { Cari = mask.Name(r.Cari) }).ToList();
+        var summary = new InvoicePeriodSummary(rows.Count, rows.Sum(r => (r.IadeMi ? -r.GenelToplam : r.GenelToplam) * r.Kur));
+        return TypedResults.Ok(new ReportResult<InvoicePeriodSummary, FaturaDonemRow>(p.ToDto(), summary,
             page.Apply(rows, InvoicePeriodMap), ReportExport.Links(http, user, "fatura-donem", ReportExport.Period(p))));
     }
 
@@ -134,17 +134,17 @@ public static partial class ReportApi
     {
         ReportScope.RequireFirmWide(user);
         var p = q.Validate();
-        bool? faturalanan = F(faturaDurum)?.ToLowerInvariant() switch
+        bool? invoiced = F(faturaDurum)?.ToLowerInvariant() switch
         {
             null => null, "yok" => false, "var" => true,
             _ => throw new ValidationException("Geçersiz faturaDurum değeri. İzin verilenler: yok, var.", "faturaDurum"),
         };
-        var satirlar = await reports.GetRentalInvoiceStatusAsync(p.FromUtc, p.ToUtc,
-            new KiraFaturaDurumFilter { Q = F(ara), Faturalanan = faturalanan, SubeId = subeId }, ct);
+        var rowList = await reports.GetRentalInvoiceStatusAsync(p.FromUtc, p.ToUtc,
+            new KiraFaturaDurumFilter { Q = F(ara), Faturalanan = invoiced, SubeId = subeId }, ct);
         var mask = await CustomerMask.LoadAsync(dbf, null, ct);
-        var rows = satirlar.Select(r => r with { Cari = mask.Name(r.Cari) }).ToList();
-        var ozet = new RentalInvoiceSummary(rows.Count, rows.Count(r => !r.Faturalanan), rows.Sum(r => r.FaturalananTutar));
-        return TypedResults.Ok(new ReportResult<RentalInvoiceSummary, KiraFaturaDurumRow>(p.ToDto(), ozet,
+        var rows = rowList.Select(r => r with { Cari = mask.Name(r.Cari) }).ToList();
+        var summary = new RentalInvoiceSummary(rows.Count, rows.Count(r => !r.Faturalanan), rows.Sum(r => r.FaturalananTutar));
+        return TypedResults.Ok(new ReportResult<RentalInvoiceSummary, KiraFaturaDurumRow>(p.ToDto(), summary,
             page.Apply(rows, RentalInvoiceMap),
             ReportExport.Links(http, user, "kira-fatura-durum",
                 [.. ReportExport.Period(p), ("q", ara), ("faturaDurum", faturaDurum), ("sube", subeId?.ToString())])));

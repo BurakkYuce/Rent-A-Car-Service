@@ -21,7 +21,7 @@ public static class CalendarFeedEndpoints
             var uid = http.User.FindFirst(IdentityClaims.UserId)?.Value;
             if (!Guid.TryParse(uid, out var userId)) return Results.Unauthorized();
             await svc.RegenerateAsync(userId, ct);
-            return Sonuc.Tamam("/takvim-abonelik?yeni=1", "Yenilendi.");
+            return Result.Ok("/takvim-abonelik?yeni=1", "Yenilendi.");
         }).RequireAuthorization().AntiforgeryByEnv();
 
         return app;

@@ -20,10 +20,10 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
 {
     private static readonly TimeZoneInfo Tz =
         TimeZoneInfo.CreateCustomTimeZone("ist3", TimeSpan.FromHours(3), "İstanbul", "İstanbul");
-    private static readonly DateTimeOffset Sabah09 = new(2026, 7, 6, 9, 0, 0, TimeSpan.FromHours(3));  // İstanbul 09:00
-    private static readonly DateTimeOffset Sabah06 = new(2026, 7, 6, 6, 0, 0, TimeSpan.FromHours(3));  // İstanbul 06:00
-    private static readonly DateTimeOffset GunIci = new(2026, 7, 6, 9, 0, 0, TimeSpan.Zero);  // 09:00Z = İstanbul 12:00 (gün-içi; DB'ye UTC yazılır)
-    private static readonly DateOnly Gun = new(2026, 7, 6);
+    private static readonly DateTimeOffset Morning09 = new(2026, 7, 6, 9, 0, 0, TimeSpan.FromHours(3));  // İstanbul 09:00
+    private static readonly DateTimeOffset Morning06 = new(2026, 7, 6, 6, 0, 0, TimeSpan.FromHours(3));  // İstanbul 06:00
+    private static readonly DateTimeOffset IntraDay = new(2026, 7, 6, 9, 0, 0, TimeSpan.Zero);  // 09:00Z = İstanbul 12:00 (gün-içi; DB'ye UTC yazılır)
+    private static readonly DateOnly Day = new(2026, 7, 6);
 
     private sealed class FakeWhatsApp : IWhatsAppService
     {
@@ -38,12 +38,12 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
     private DbContextOptions<AppDbContext> RawOptions() =>
         new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.AppConnectionString).Options;
 
-    private static async Task SeedAsync(IServiceScope scope, bool toggle, string? no, bool sahne = true)
+    private static async Task SeedAsync(IServiceScope scope, bool toggle, string? no, bool scene = true)
     {
         var f = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
         db.TenantSettings.Add(new TenantSettings { WhatsAppGunlukOzet = toggle, WhatsAppNumarasi = no });
-        if (sahne)
+        if (scene)
         {
             // Filo: 2 Kirada, 1 Musait (boşta), 1 Serviste
             db.Vehicles.Add(new Vehicle { Plaka = "34 A 1", Durum = VehicleStatus.Kirada });
@@ -51,13 +51,13 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
             db.Vehicles.Add(new Vehicle { Plaka = "34 A 3", Durum = VehicleStatus.Musait });
             db.Vehicles.Add(new Vehicle { Plaka = "34 A 4", Durum = VehicleStatus.Serviste });
             // Çıkış: 2 rezervasyon bugün başlıyor
-            db.Reservations.Add(new Reservation { ReservationNo = "R1", Durum = ReservationStatus.Rezerv, MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), BasTar = GunIci, BitTar = GunIci.AddDays(3) });
-            db.Reservations.Add(new Reservation { ReservationNo = "R2", Durum = ReservationStatus.Onayli, MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), BasTar = GunIci, BitTar = GunIci.AddDays(2) });
+            db.Reservations.Add(new Reservation { ReservationNo = "R1", Durum = ReservationStatus.Rezerv, MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), BasTar = IntraDay, BitTar = IntraDay.AddDays(3) });
+            db.Reservations.Add(new Reservation { ReservationNo = "R2", Durum = ReservationStatus.Onayli, MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), BasTar = IntraDay, BitTar = IntraDay.AddDays(2) });
             // Dönüş: 1 kira bugün bitiyor
-            db.Rentals.Add(new RentalContract { SozlesmeNo = "K1", Durum = RentalStatus.Kirada, MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), BasTar = GunIci.AddDays(-3), BitTar = GunIci });
+            db.Rentals.Add(new RentalContract { SozlesmeNo = "K1", Durum = RentalStatus.Kirada, MusteriId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), BasTar = IntraDay.AddDays(-3), BitTar = IntraDay });
             // Tahsilat: 100 TL + 50 EUR@40 = 2100 TL (çok-döviz TL-baz)
-            db.CashTransactions.Add(new CashTransaction { No = "C1", Tip = CashTransactionType.Tahsilat, CariId = Guid.NewGuid(), Tarih = GunIci, Amount = new Money(100m, "TRY", 1m) });
-            db.CashTransactions.Add(new CashTransaction { No = "C2", Tip = CashTransactionType.Tahsilat, CariId = Guid.NewGuid(), Tarih = GunIci, Amount = new Money(50m, "EUR", 40m) });
+            db.CashTransactions.Add(new CashTransaction { No = "C1", Tip = CashTransactionType.Tahsilat, CariId = Guid.NewGuid(), Tarih = IntraDay, Amount = new Money(100m, "TRY", 1m) });
+            db.CashTransactions.Add(new CashTransaction { No = "C2", Tip = CashTransactionType.Tahsilat, CariId = Guid.NewGuid(), Tarih = IntraDay, Amount = new Money(50m, "EUR", 40m) });
         }
         await db.SaveChangesAsync();
     }
@@ -71,15 +71,15 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
         var f = host.ScopeFor(tenant).ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await f.CreateDbContextAsync();
 
-        var ozet = await OperationSummaryGenerator.BuildAsync(db, Gun, Tz);
+        var summary = await OperationSummaryGenerator.BuildAsync(db, Day, Tz);
 
-        Assert.Equal(2, ozet.Cikis);
-        Assert.Equal(1, ozet.Donus);
-        Assert.Equal(2, ozet.AcikRez);
-        Assert.Equal(2100m, ozet.Tahsilat);   // 100×1 + 50×40 (çok-döviz TL-baz; düz 150 DEĞİL)
-        Assert.Equal(2, ozet.Kiradaki);
-        Assert.Equal(1, ozet.Bosta);
-        Assert.Equal(1, ozet.Serviste);
+        Assert.Equal(2, summary.Cikis);
+        Assert.Equal(1, summary.Donus);
+        Assert.Equal(2, summary.AcikRez);
+        Assert.Equal(2100m, summary.Tahsilat);   // 100×1 + 50×40 (çok-döviz TL-baz; düz 150 DEĞİL)
+        Assert.Equal(2, summary.Kiradaki);
+        Assert.Equal(1, summary.Bosta);
+        Assert.Equal(1, summary.Serviste);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
         using (var s = host.ScopeFor(tenant)) await SeedAsync(s, toggle: true, no: "0532 111 22 33");
         var wa = new FakeWhatsApp();
 
-        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Morning09, Tz, NullLogger.Instance);
         Assert.Equal(1, wa.Calls);
         Assert.Equal("+905321112233", wa.LastPhone);   // E.164 normalize
         Assert.Equal("2", wa.LastParams!["1"]);        // çıkış (kültür-güvenli int)
@@ -103,11 +103,11 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
             var log = await s.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
             var row = await log.WhatsAppGonderimler.SingleAsync();
             Assert.True(row.Basarili);
-            Assert.Equal(Gun, row.Gun);
+            Assert.Equal(Day, row.Gun);
         }
 
         // idempotent: 2. çağrı → gönderim YOK
-        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Morning09, Tz, NullLogger.Instance);
         Assert.Equal(1, wa.Calls);
     }
 
@@ -119,15 +119,15 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
 
         var t1 = Guid.NewGuid();
         using (var s = host.ScopeFor(t1)) await SeedAsync(s, toggle: false, no: "0532");     // toggle kapalı
-        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), t1, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), t1, wa, Morning09, Tz, NullLogger.Instance);
 
         var t2 = Guid.NewGuid();
         using (var s = host.ScopeFor(t2)) await SeedAsync(s, toggle: true, no: null);          // no boş
-        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), t2, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), t2, wa, Morning09, Tz, NullLogger.Instance);
 
         var t3 = Guid.NewGuid();
         using (var s = host.ScopeFor(t3)) await SeedAsync(s, toggle: true, no: "0532");
-        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), t3, wa, Sabah06, Tz, NullLogger.Instance); // 06:00 < 08:00
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), t3, wa, Morning06, Tz, NullLogger.Instance); // 06:00 < 08:00
 
         Assert.Equal(0, wa.Calls);
     }
@@ -140,11 +140,11 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
         using (var s = host.ScopeFor(tenant)) await SeedAsync(s, toggle: true, no: "0532");
         var wa = new FakeWhatsApp { Result = false }; // Twilio başarısız
 
-        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Morning09, Tz, NullLogger.Instance);
         Assert.Equal(1, wa.Calls); // denendi, başarısız → slot Basarili=false
 
         wa.Result = true;
-        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenant, wa, Morning09, Tz, NullLogger.Instance);
         Assert.Equal(2, wa.Calls); // madde1: başarısız satır → TEKRAR denendi (sessiz-düşme yok)
     }
 
@@ -155,7 +155,7 @@ public sealed class WhatsAppOzetTests(PostgresFixture fx)
         var tenantB = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
         using (var s = host.ScopeFor(tenantA)) await SeedAsync(s, toggle: true, no: "0532");
-        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenantA, new FakeWhatsApp(), Sabah09, Tz, NullLogger.Instance);
+        await WhatsAppSummarySender.SendDailyAsync(RawOptions(), tenantA, new FakeWhatsApp(), Morning09, Tz, NullLogger.Instance);
 
         // B, A'nın gönderim logunu GÖRMEZ (RLS, racar_app)
         using var sb = host.ScopeFor(tenantB);

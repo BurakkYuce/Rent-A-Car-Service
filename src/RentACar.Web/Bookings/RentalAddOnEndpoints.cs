@@ -21,7 +21,7 @@ public static class RentalAddOnEndpoints
             try
             {
                 await svc.AddAsync(rentalId, ekHizmetTanimId, FormParse.Dec(miktar) ?? 0m);
-                return Sonuc.Tamam($"/kiralar/{rentalId}", "Ek hizmet eklendi.");
+                return Result.Ok($"/kiralar/{rentalId}", "Ek hizmet eklendi.");
             }
             catch (ValidationException ex)
             {
@@ -35,7 +35,7 @@ public static class RentalAddOnEndpoints
             try
             {
                 await svc.RemoveAsync(addOnId);
-                return Sonuc.Tamam($"/kiralar/{rentalId}", "Ek hizmet silindi.");
+                return Result.Ok($"/kiralar/{rentalId}", "Ek hizmet silindi.");
             }
             catch (ValidationException ex)
             {

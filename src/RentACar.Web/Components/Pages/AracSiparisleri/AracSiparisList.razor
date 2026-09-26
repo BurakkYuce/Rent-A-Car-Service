@@ -16,9 +16,9 @@
 
 <div class="page-head"><h1>Araç Sipariş / Tedarik</h1>
     <div class="actions">
-        <a href="@ExportYolu("excel")">Excel</a> ·
-        <a href="@ExportYolu("csv")">CSV</a> ·
-        <a href="@ExportYolu("pdf")">PDF</a>
+        <a href="@ExportPath("excel")">Excel</a> ·
+        <a href="@ExportPath("csv")">CSV</a> ·
+        <a href="@ExportPath("pdf")">PDF</a>
     </div>
 </div>
 <p class="muted small">Tedarikçiden araç siparişi takibi (FiloStatus: Sipariş). Defter postlamaz; teslim/satınalma
@@ -38,7 +38,7 @@
     <label>Cari
         <select name="cariF">
             <option value="">— tümü —</option>
-            @foreach (var c in _cariler)
+            @foreach (var c in _accounts)
             {
                 <option value="@c.Id" selected="@(c.Id.ToString() == CariF)">@c.Ad</option>
             }
@@ -59,7 +59,7 @@
     <label>Sipariş ≥<input name="bas" type="date" value="@Bas" /></label>
     <label>Sipariş ≤<input name="bit" type="date" value="@Bit" /></label>
     <button type="submit">Filtrele</button>
-    @if (_filtreVar) { <a class="link" href="/arac-siparis">Temizle</a> }
+    @if (_hasFilter) { <a class="link" href="/arac-siparis">Temizle</a> }
 </form>
 
 <div class="table-scroll">
@@ -74,7 +74,7 @@
     <tbody>
         @if (_list.Count == 0)
         {
-            <tr><td colspan="20" class="muted">@(_filtreVar ? "Filtreye uyan sipariş yok." : "Sipariş yok.")</td></tr>
+            <tr><td colspan="20" class="muted">@(_hasFilter ? "Filtreye uyan sipariş yok." : "Sipariş yok.")</td></tr>
         }
         @foreach (var s in _list)
         {
@@ -84,7 +84,7 @@
                 <td>@s.Tedarikci</td>
                 @* Cari adı siparişe SNAPSHOT'lanmaz, cari bağından çözülür — cari yeniden
                    adlandırılırsa liste doğru kalır. *@
-                <td>@Cari(s.TedarikciCariId)</td>
+                <td>@Account(s.TedarikciCariId)</td>
                 <td>@($"{s.Marka} {s.Tip} {s.Grup} {s.Versiyon}".Replace("  ", " ").Trim())</td>
                 <td>@(s.Renk ?? "—")@(string.IsNullOrWhiteSpace(s.IcRenk) ? "" : $" / {s.IcRenk}")</td>
                 <td>@(s.KaynakTip ?? "—") / @(s.SatisTipi ?? "—")</td>
@@ -99,7 +99,7 @@
                 <td>@(s.ImzaTarih?.LocalDateTime.ToString("yyyy-MM-dd") ?? "—")</td>
                 <td>@(s.BeklenenTeslim?.LocalDateTime.ToString("yyyy-MM-dd") ?? "—")</td>
                 <td>@(s.TsbKayitNo ?? "—")</td>
-                <td>@Kredi(s.KrediId)</td>
+                <td>@Loan(s.KrediId)</td>
                 <td>@s.Durum</td>
                 <td>
                     @if (s.Durum == OrderStatus.Bekliyor)
@@ -116,7 +116,7 @@
                     }
                     @if (s.Durum != OrderStatus.Iptal)
                     {
-                        <a href="@DuzenleYolu(s.Id)" class="link">Düzenle</a>
+                        <a href="@EditPath(s.Id)" class="link">Düzenle</a>
                     }
                 </td>
             </tr>
@@ -132,13 +132,13 @@
     {
         <input type="hidden" name="id" value="@_edit.Id" />
     }
-    <ComboBox Name="tedarikci" Label="Tedarikçi (metin)" Value="@_edit?.Tedarikci" Options="_tedarikciOpts" required />
+    <ComboBox Name="tedarikci" Label="Tedarikçi (metin)" Value="@_edit?.Tedarikci" Options="_supplierOpts" required />
     @* Cari OPSİYONEL ve BİLGİ: tedarikçinin cari kartıyla ilişkisi. Cari bakiyesine/deftere
        HİÇBİR kayıt yazmaz (KARARLAR.md genel politikası). *@
     <label>Tedarikçi Cari (opsiyonel — cari bakiyesini değiştirmez)
         <select name="tedarikciCariId">
             <option value="">— bağlı cari yok —</option>
-            @foreach (var c in _cariler)
+            @foreach (var c in _accounts)
             {
                 <option value="@c.Id" selected="@(c.Id == _edit?.TedarikciCariId)">@c.Ad</option>
             }
@@ -147,14 +147,14 @@
     <label>Dosya No<input name="dosyaNo" value="@_edit?.DosyaNo" maxlength="64" /></label>
     @* Tarihler LOCAL güne basılır: FormParse.Date sunucu-yerel ayrıştırıp UTC'ye çevirir; UTC günü
        basmak her kayıtta tarihi 1 gün geri kaydırırdı. *@
-    <label>Sipariş Tarihi<input name="siparisTarihi" type="date" value="@Gun(_edit?.SiparisTarihi)" /></label>
-    <label>İmza Tarihi<input name="imzaTarih" type="date" value="@Gun(_edit?.ImzaTarih)" /></label>
-    <label>Beklenen Teslim<input name="beklenenTeslim" type="date" value="@Gun(_edit?.BeklenenTeslim)" /></label>
+    <label>Sipariş Tarihi<input name="siparisTarihi" type="date" value="@Day(_edit?.SiparisTarihi)" /></label>
+    <label>İmza Tarihi<input name="imzaTarih" type="date" value="@Day(_edit?.ImzaTarih)" /></label>
+    <label>Beklenen Teslim<input name="beklenenTeslim" type="date" value="@Day(_edit?.BeklenenTeslim)" /></label>
     <label>Satış Temsilcisi<input name="satisTemsilci" value="@_edit?.SatisTemsilci" maxlength="128" /></label>
     <label>Özel Temsilci<input name="ozelTemsilci" value="@_edit?.OzelTemsilci" maxlength="128" /></label>
-    <ComboBox Name="marka" Label="Marka" Value="@_edit?.Marka" Options="_markaOpts" maxlength="100" />
+    <ComboBox Name="marka" Label="Marka" Value="@_edit?.Marka" Options="_brandOpts" maxlength="100" />
     <ComboBox Name="tip" Label="Tip" Value="@_edit?.Tip" Options="_tipOpts" maxlength="100" />
-    <ComboBox Name="grup" Label="Grup" Value="@_edit?.Grup" Options="_grupOpts" maxlength="100" />
+    <ComboBox Name="grup" Label="Grup" Value="@_edit?.Grup" Options="_groupOpts" maxlength="100" />
     <label>Versiyon<input name="versiyon" value="@_edit?.Versiyon" maxlength="100" /></label>
     <label>Renk<input name="renk" value="@_edit?.Renk" maxlength="64" /></label>
     <label>İç Renk<input name="icRenk" value="@_edit?.IcRenk" maxlength="64" /></label>
@@ -172,7 +172,7 @@
     <label>Kredi (opsiyonel — kredi bakiyesini değiştirmez)
         <select name="krediId">
             <option value="">— bağlı kredi yok —</option>
-            @foreach (var k in _krediler)
+            @foreach (var k in _loans)
             {
                 <option value="@k.Id" selected="@(k.Id == _edit?.KrediId)">@k.No — @k.BankaAdi</option>
             }
@@ -220,12 +220,12 @@
     private AracSiparis? _edit;
     /// <summary>PII'sız seçim listesi — ListAsync her carinin TC/ehliyet cipher'ını çözerdi
     /// (dropdown için gereksiz ve gürültülü).</summary>
-    private IReadOnlyList<CariSecim> _cariler = [];
-    private IReadOnlyList<AracKredi> _krediler = [];
-    private Dictionary<Guid, string> _cariMap = [];
-    private Dictionary<Guid, string> _krediMap = [];
-    private List<string> _markaOpts = [], _tipOpts = [], _grupOpts = [], _tedarikciOpts = [];
-    private bool _filtreVar;
+    private IReadOnlyList<CariSecim> _accounts = [];
+    private IReadOnlyList<AracKredi> _loans = [];
+    private Dictionary<Guid, string> _accountMap = [];
+    private Dictionary<Guid, string> _loanMap = [];
+    private List<string> _brandOpts = [], _tipOpts = [], _groupOpts = [], _supplierOpts = [];
+    private bool _hasFilter;
 
     // Seç-veya-yaz önerileri: master tanım listesi ∪ mevcut kayıtların distinct'i. Tedarikçi için master
     // tanım YOK → yalnız mevcut siparişlerden distinct (veri girildikçe kendini besler).
@@ -235,7 +235,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var filtre = new AracSiparisFilter
+        var filter = new AracSiparisFilter
         {
             CariId = FormParse.Id(CariF),
             Ara = string.IsNullOrWhiteSpace(AraF) ? null : AraF,
@@ -246,51 +246,51 @@
             // Bitiş günü DAHİL: gün sonuna taşınır, yoksa o günün siparişleri listeden düşerdi.
             Bit = FormParse.Date(Bit)?.AddDays(1).AddTicks(-1)
         };
-        _filtreVar = !filtre.Bos;
-        _list = await Siparisler.SearchAsync(filtre);
+        _hasFilter = !filter.Bos;
+        _list = await Siparisler.SearchAsync(filter);
 
-        _cariler = await Cariler.ListForSelectAsync();
-        _cariMap = _cariler.ToDictionary(x => x.Id, x => x.Ad);
-        _krediler = await Krediler.ListAsync();
-        _krediMap = _krediler.ToDictionary(x => x.Id, x => $"{x.No} — {x.BankaAdi}");
+        _accounts = await Cariler.ListForSelectAsync();
+        _accountMap = _accounts.ToDictionary(x => x.Id, x => x.Ad);
+        _loans = await Krediler.ListAsync();
+        _loanMap = _loans.ToDictionary(x => x.Id, x => $"{x.No} — {x.BankaAdi}");
 
-        var markalar = await Markalar.ListActiveAsync();
-        var tipler = await AracTipleri.ListActiveAsync();
-        var gruplar = await AracGruplari.ListActiveAsync();
-        _markaOpts = Opts(markalar.Select(m => m.Ad), _list.Select(s => s.Marka));
-        _tipOpts = Opts(tipler.Select(t => t.Ad), _list.Select(s => s.Tip));
-        _grupOpts = Opts(gruplar.Select(g => g.Ad), _list.Select(s => s.Grup));
-        _tedarikciOpts = Opts(_list.Select(s => s.Tedarikci));
+        var brands = await Markalar.ListActiveAsync();
+        var types = await AracTipleri.ListActiveAsync();
+        var groups = await AracGruplari.ListActiveAsync();
+        _brandOpts = Opts(brands.Select(m => m.Ad), _list.Select(s => s.Marka));
+        _tipOpts = Opts(types.Select(t => t.Ad), _list.Select(s => s.Tip));
+        _groupOpts = Opts(groups.Select(g => g.Ad), _list.Select(s => s.Grup));
+        _supplierOpts = Opts(_list.Select(s => s.Tedarikci));
 
         if (Duzenle is { } id) _edit = await Siparisler.GetAsync(id);
     }
 
-    private string Cari(Guid? id) => id is { } g && _cariMap.TryGetValue(g, out var n) ? n : "—";
-    private string Kredi(Guid? id) => id is { } g && _krediMap.TryGetValue(g, out var n) ? n : "—";
+    private string Account(Guid? id) => id is { } g && _accountMap.TryGetValue(g, out var n) ? n : "—";
+    private string Loan(Guid? id) => id is { } g && _loanMap.TryGetValue(g, out var n) ? n : "—";
 
     private static string? Inv(decimal? d) => d?.ToString(CultureInfo.InvariantCulture);
-    private static string? Gun(DateTimeOffset? t) => t?.LocalDateTime.ToString("yyyy-MM-dd");
+    private static string? Day(DateTimeOffset? t) => t?.LocalDateTime.ToString("yyyy-MM-dd");
 
     /// <summary>Ekrandaki filtre export'a/işlem uçlarına AYNEN taşınır (gördüğün = indirdiğin).</summary>
-    private List<string> FiltreQs()
+    private List<string> FilterQs()
     {
         var q = new List<string>();
-        void Ekle(string ad, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{ad}={Uri.EscapeDataString(v)}"); }
-        Ekle("cariF", CariF); Ekle("araF", AraF); Ekle("aracF", AracF); Ekle("dosyaF", DosyaF);
-        Ekle("durumF", DurumF); Ekle("bas", Bas); Ekle("bit", Bit);
+        void Add(string name, string? v) { if (!string.IsNullOrWhiteSpace(v)) q.Add($"{name}={Uri.EscapeDataString(v)}"); }
+        Add("cariF", CariF); Add("araF", AraF); Add("aracF", AracF); Add("dosyaF", DosyaF);
+        Add("durumF", DurumF); Add("bas", Bas); Add("bit", Bit);
         return q;
     }
 
-    private string ExportYolu(string format)
-        => "/listeler/export/arac-siparisleri?" + string.Join("&", FiltreQs().Prepend($"format={format}"));
+    private string ExportPath(string format)
+        => "/listeler/export/arac-siparisleri?" + string.Join("&", FilterQs().Prepend($"format={format}"));
 
     private string TemizYol
     {
-        get { var q = FiltreQs(); return "/arac-siparis" + (q.Count > 0 ? "?" + string.Join("&", q) : ""); }
+        get { var q = FilterQs(); return "/arac-siparis" + (q.Count > 0 ? "?" + string.Join("&", q) : ""); }
     }
 
-    private string DuzenleYolu(Guid id)
-        => "/arac-siparis?" + string.Join("&", FiltreQs().Append($"duzenle={id}"));
+    private string EditPath(Guid id)
+        => "/arac-siparis?" + string.Join("&", FilterQs().Append($"duzenle={id}"));
 
     /// <summary>POST uçlarına filtreyi taşıyan gizli alanlar — işlemden sonra kullanıcı aynı
     /// süzgeçte kalır (uç yalnız bu bilinen anahtarları geri yazar, açık yönlendirme yok).</summary>

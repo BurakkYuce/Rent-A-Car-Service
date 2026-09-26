@@ -27,7 +27,7 @@
                 }
             </select>
         </label>
-        <ComboBox Name="atanmisSube" Label="Şube (operatör kapsamı)" Options="_subeOpts" Placeholder="boş = tüm şubeler" />
+        <ComboBox Name="atanmisSube" Label="Şube (operatör kapsamı)" Options="_branchOpts" Placeholder="boş = tüm şubeler" />
         <label>Parola<input name="password" type="password" required /></label>
         <button type="submit">Oluştur</button>
     </form>
@@ -72,14 +72,14 @@
 <table class="grid tr-grid kart-mobil">
     <thead><tr><th>Kullanıcı</th><th>İzin</th><th>Tür</th><th>Tanımlayan</th><th></th></tr></thead>
     <tbody>
-        @if (_istisnalar.Count == 0)
+        @if (_exceptions.Count == 0)
         {
             <tr><td colspan="5" class="muted">İstisna yok (herkes rol matrisine göre).</td></tr>
         }
-        @foreach (var i in _istisnalar)
+        @foreach (var i in _exceptions)
         {
             <tr>
-                <td class="kart-baslik" data-etiket="Kullanıcı">@KullaniciAdi(i.UserId)</td>
+                <td class="kart-baslik" data-etiket="Kullanıcı">@UserName(i.UserId)</td>
                 <td data-etiket="İzin">@i.Izin</td>
                 <td data-etiket="Tür">@(i.Ver ? "Ek izin" : "Yasak")</td>
                 <td data-etiket="Tanımlayan">@i.Tanimlayan</td>
@@ -127,16 +127,16 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<UserListItem> _list = [];
-    private IReadOnlyList<string> _subeOpts = [];
-    private IReadOnlyList<RentACar.Application.Users.KullaniciIzinSatiri> _istisnalar = [];
+    private IReadOnlyList<string> _branchOpts = [];
+    private IReadOnlyList<RentACar.Application.Users.KullaniciIzinSatiri> _exceptions = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Users.ListAsync();
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
-        _istisnalar = await Istisnalar.ListAsync();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _exceptions = await Istisnalar.ListAsync();
     }
 
-    private string KullaniciAdi(Guid id)
+    private string UserName(Guid id)
         => _list.FirstOrDefault(u => u.Id == id)?.UserName ?? id.ToString()[..8];
 }

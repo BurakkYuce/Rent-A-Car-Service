@@ -32,25 +32,25 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
 {
     // Gün başlangıcına hizalı UTC (tam saniye): DateTimeOffset round-trip eşitliği Linux CI'da
     // 100ns/µs artık-tick farkıyla patlıyordu.
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(3);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(3);
 
-    private static Task<Guid> KaynakAsync(IServiceProvider sp, ReservationSourceInput input)
+    private static Task<Guid> SourceAsync(IServiceProvider sp, ReservationSourceInput input)
         => sp.GetRequiredService<ReservationSourceService>().CreateAsync(input);
 
-    private static async Task<(Guid Musteri, Guid Arac)> TaraflarAsync(IServiceProvider sp, string plaka)
+    private static async Task<(Guid Musteri, Guid Arac)> PartiesAsync(IServiceProvider sp, string plate)
     {
-        var arac = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
-        var musteri = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
+        var vehicle = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
+        var customer = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Kural", Soyad = "Test" });
-        return (musteri, arac);
+        return (customer, vehicle);
     }
 
-    private static BookingInput Istek(Guid musteri, Guid arac, string? kaynak, int gun = 3)
+    private static BookingInput Request(Guid customer, Guid vehicle, string? source, int day = 3)
         => new()
         {
-            MusteriId = musteri, VehicleId = arac,
-            BasTar = Bas, BitTar = Bas.AddDays(gun),
-            GunlukUcret = 100m, Kaynak = kaynak
+            MusteriId = customer, VehicleId = vehicle,
+            BasTar = Start, BitTar = Start.AddDays(day),
+            GunlukUcret = 100m, Kaynak = source
         };
 
     // =====================================================================================
@@ -66,21 +66,21 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "BROKER", Ad = "Broker A", Uzatamaz = true });
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "OFIS", Ad = "Ofis Satış" });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "BROKER", Ad = "Broker A", Uzatamaz = true });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "OFIS", Ad = "Ofis Satış" });
 
-        var (m1, a1) = await TaraflarAsync(sp, "34 KM 01");
-        var yasakli = await rentals.CreateDirectAsync(Istek(m1, a1, "BROKER"));
+        var (m1, a1) = await PartiesAsync(sp, "34 KM 01");
+        var banned = await rentals.CreateDirectAsync(Request(m1, a1, "BROKER"));
         // POZİTİF: kaynak kuralı uzatmayı keser.
-        await Assert.ThrowsAsync<ValidationException>(() => rentals.ExtendAsync(yasakli, Bas.AddDays(5)));
-        Assert.Equal(Bas.AddDays(3), (await rentals.GetAsync(yasakli))!.BitTar);   // tarih DEĞİŞMEDİ
-        Assert.Equal(300m, (await rentals.GetAsync(yasakli))!.Tutar);              // ELLE: 3 × 100
+        await Assert.ThrowsAsync<ValidationException>(() => rentals.ExtendAsync(banned, Start.AddDays(5)));
+        Assert.Equal(Start.AddDays(3), (await rentals.GetAsync(banned))!.BitTar);   // tarih DEĞİŞMEDİ
+        Assert.Equal(300m, (await rentals.GetAsync(banned))!.Tutar);              // ELLE: 3 × 100
 
         // NEGATİF: kural yoksa uzatma çalışır (guard her zaman reddetmiyor).
-        var (m2, a2) = await TaraflarAsync(sp, "34 KM 02");
-        var serbest = await rentals.CreateDirectAsync(Istek(m2, a2, "OFIS"));
-        Assert.True(await rentals.ExtendAsync(serbest, Bas.AddDays(5)));
-        var c = (await rentals.GetAsync(serbest))!;
+        var (m2, a2) = await PartiesAsync(sp, "34 KM 02");
+        var free = await rentals.CreateDirectAsync(Request(m2, a2, "OFIS"));
+        Assert.True(await rentals.ExtendAsync(free, Start.AddDays(5)));
+        var c = (await rentals.GetAsync(free))!;
         Assert.Equal(5, c.Gun);
         Assert.Equal(500m, c.Tutar);                                               // ELLE: 5 × 100
     }
@@ -94,10 +94,10 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "BRK", Ad = "Broker A", Uzatamaz = true });
-        var (m, a) = await TaraflarAsync(sp, "34 KM 03");
-        var id = await rentals.CreateDirectAsync(Istek(m, a, "broker a"));          // AD + farklı büyük/küçük
-        await Assert.ThrowsAsync<ValidationException>(() => rentals.ExtendAsync(id, Bas.AddDays(5)));
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "BRK", Ad = "Broker A", Uzatamaz = true });
+        var (m, a) = await PartiesAsync(sp, "34 KM 03");
+        var id = await rentals.CreateDirectAsync(Request(m, a, "broker a"));          // AD + farklı büyük/küçük
+        await Assert.ThrowsAsync<ValidationException>(() => rentals.ExtendAsync(id, Start.AddDays(5)));
     }
 
     /// <summary>
@@ -110,17 +110,17 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kaynaklar = sp.GetRequiredService<ReservationSourceService>();
+        var sources = sp.GetRequiredService<ReservationSourceService>();
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var kid = await KaynakAsync(sp, new ReservationSourceInput { Kod = "ACENTE", Ad = "Acente", Uzatamaz = true });
-        var (m, a) = await TaraflarAsync(sp, "34 KM 04");
-        var id = await rentals.CreateDirectAsync(Istek(m, a, "ACENTE"));
+        var kid = await SourceAsync(sp, new ReservationSourceInput { Kod = "ACENTE", Ad = "Acente", Uzatamaz = true });
+        var (m, a) = await PartiesAsync(sp, "34 KM 04");
+        var id = await rentals.CreateDirectAsync(Request(m, a, "ACENTE"));
 
-        await kaynaklar.UpdateAsync(kid, new ReservationSourceInput
+        await sources.UpdateAsync(kid, new ReservationSourceInput
         { Kod = "ACENTE", Ad = "Acente", Aktif = false, Uzatamaz = true });
 
-        await Assert.ThrowsAsync<ValidationException>(() => rentals.ExtendAsync(id, Bas.AddDays(5)));
+        await Assert.ThrowsAsync<ValidationException>(() => rentals.ExtendAsync(id, Start.AddDays(5)));
     }
 
     /// <summary>Rezervasyon tarih kilidi: tarih değişimi reddedilir, DİĞER alanların düzenlenmesi serbest.</summary>
@@ -132,30 +132,30 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var res = sp.GetRequiredService<ReservationService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput
+        await SourceAsync(sp, new ReservationSourceInput
         { Kod = "OTEL", Ad = "Otel", RezTarihleriDegisemez = true });
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "WEB", Ad = "Web" });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "WEB", Ad = "Web" });
 
-        var (m, a) = await TaraflarAsync(sp, "34 KM 05");
-        var id = await res.CreateAsync(Istek(m, a, "OTEL"));
+        var (m, a) = await PartiesAsync(sp, "34 KM 05");
+        var id = await res.CreateAsync(Request(m, a, "OTEL"));
 
         // POZİTİF: bitişi (ve başlangıcı) değiştirme reddedilir.
-        var tarihli = Istek(m, a, "OTEL", gun: 5);
-        await Assert.ThrowsAsync<ValidationException>(() => res.UpdateAsync(id, tarihli));
+        var dated = Request(m, a, "OTEL", day: 5);
+        await Assert.ThrowsAsync<ValidationException>(() => res.UpdateAsync(id, dated));
 
         // NEGATİF-1: tarihe dokunmayan düzenleme geçer (guard aging/not düzenlemesini kilitlemiyor).
-        var notlu = Istek(m, a, "OTEL");
-        notlu.Aciklama = "Otel misafiri";
-        Assert.True(await res.UpdateAsync(id, notlu));
+        var withNote = Request(m, a, "OTEL");
+        withNote.Aciklama = "Otel misafiri";
+        Assert.True(await res.UpdateAsync(id, withNote));
         var r = (await res.GetAsync(id))!;
         Assert.Equal("Otel misafiri", r.Aciklama);
-        Assert.Equal(Bas.AddDays(3), r.BitTar);
+        Assert.Equal(Start.AddDays(3), r.BitTar);
 
         // NEGATİF-2: kuralsız kaynakta tarih değişimi çalışır.
-        var (m2, a2) = await TaraflarAsync(sp, "34 KM 06");
-        var serbest = await res.CreateAsync(Istek(m2, a2, "WEB"));
-        Assert.True(await res.UpdateAsync(serbest, Istek(m2, a2, "WEB", gun: 5)));
-        Assert.Equal(Bas.AddDays(5), (await res.GetAsync(serbest))!.BitTar);
+        var (m2, a2) = await PartiesAsync(sp, "34 KM 06");
+        var free = await res.CreateAsync(Request(m2, a2, "WEB"));
+        Assert.True(await res.UpdateAsync(free, Request(m2, a2, "WEB", day: 5)));
+        Assert.Equal(Start.AddDays(5), (await res.GetAsync(free))!.BitTar);
     }
 
     /// <summary>
@@ -170,17 +170,17 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var res = sp.GetRequiredService<ReservationService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput
+        await SourceAsync(sp, new ReservationSourceInput
         { Kod = "OTEL", Ad = "Otel", RezTarihleriDegisemez = true });
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "WEB", Ad = "Web" });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "WEB", Ad = "Web" });
 
-        var (m, a) = await TaraflarAsync(sp, "34 KM 07");
-        var id = await res.CreateAsync(Istek(m, a, "OTEL"));
+        var (m, a) = await PartiesAsync(sp, "34 KM 07");
+        var id = await res.CreateAsync(Request(m, a, "OTEL"));
 
         // Kaynak WEB'e çevriliyor + tarih uzatılıyor → yine RED (kayıtlı kaynağın kuralı geçerli).
-        await Assert.ThrowsAsync<ValidationException>(() => res.UpdateAsync(id, Istek(m, a, "WEB", gun: 5)));
+        await Assert.ThrowsAsync<ValidationException>(() => res.UpdateAsync(id, Request(m, a, "WEB", day: 5)));
         var r = (await res.GetAsync(id))!;
-        Assert.Equal(Bas.AddDays(3), r.BitTar);
+        Assert.Equal(Start.AddDays(3), r.BitTar);
         Assert.Equal("OTEL", r.Kaynak);          // istek tümüyle reddedildi, kaynak da değişmedi
     }
 
@@ -193,15 +193,15 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var res = sp.GetRequiredService<ReservationService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "BRK", Ad = "Broker", Uzatamaz = true });
-        var (m, a) = await TaraflarAsync(sp, "34 KM 08");
-        var id = await res.CreateAsync(Istek(m, a, "BRK", gun: 5));
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "BRK", Ad = "Broker", Uzatamaz = true });
+        var (m, a) = await PartiesAsync(sp, "34 KM 08");
+        var id = await res.CreateAsync(Request(m, a, "BRK", day: 5));
 
         // İleri alma (uzatma) → RED.
-        await Assert.ThrowsAsync<ValidationException>(() => res.UpdateAsync(id, Istek(m, a, "BRK", gun: 7)));
+        await Assert.ThrowsAsync<ValidationException>(() => res.UpdateAsync(id, Request(m, a, "BRK", day: 7)));
         // Kısaltma uzatma DEĞİLDİR (tarih kilidi bayrağı kapalı) → geçer.
-        Assert.True(await res.UpdateAsync(id, Istek(m, a, "BRK", gun: 4)));
-        Assert.Equal(Bas.AddDays(4), (await res.GetAsync(id))!.BitTar);
+        Assert.True(await res.UpdateAsync(id, Request(m, a, "BRK", day: 4)));
+        Assert.Equal(Start.AddDays(4), (await res.GetAsync(id))!.BitTar);
     }
 
     /// <summary>KM sınırsız: limit 0'a (sınırsız) sabitlenir — dönüşte fazla km bedeli çıkmaz.</summary>
@@ -214,27 +214,27 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
         var res = sp.GetRequiredService<ReservationService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "SINIRSIZ", Ad = "Sınırsız", KmSinirsiz = true });
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "NORMAL", Ad = "Normal" });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "SINIRSIZ", Ad = "Sınırsız", KmSinirsiz = true });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "NORMAL", Ad = "Normal" });
 
-        var (m1, a1) = await TaraflarAsync(sp, "34 KM 09");
-        var istek1 = Istek(m1, a1, "SINIRSIZ");
-        istek1.KmLimit = 500; istek1.FazlaKmUcret = 2m;
-        var kira = await rentals.CreateDirectAsync(istek1);
-        Assert.Equal(0, (await rentals.GetAsync(kira))!.KmLimit);      // POZİTİF: sınırsız
+        var (m1, a1) = await PartiesAsync(sp, "34 KM 09");
+        var request1 = Request(m1, a1, "SINIRSIZ");
+        request1.KmLimit = 500; request1.FazlaKmUcret = 2m;
+        var rental = await rentals.CreateDirectAsync(request1);
+        Assert.Equal(0, (await rentals.GetAsync(rental))!.KmLimit);      // POZİTİF: sınırsız
 
-        var (m2, a2) = await TaraflarAsync(sp, "34 KM 10");
-        var istek2 = Istek(m2, a2, "NORMAL");
-        istek2.KmLimit = 500;
-        var normal = await rentals.CreateDirectAsync(istek2);
+        var (m2, a2) = await PartiesAsync(sp, "34 KM 10");
+        var request2 = Request(m2, a2, "NORMAL");
+        request2.KmLimit = 500;
+        var normal = await rentals.CreateDirectAsync(request2);
         Assert.Equal(500, (await rentals.GetAsync(normal))!.KmLimit);  // NEGATİF: dokunulmadı
 
         // Rezervasyon yolu da aynı kuralı uygular.
-        var (m3, a3) = await TaraflarAsync(sp, "34 KM 11");
-        var istek3 = Istek(m3, a3, "SINIRSIZ");
-        istek3.KmLimit = 750;
-        var rez = await res.CreateAsync(istek3);
-        Assert.Equal(0, (await res.GetAsync(rez))!.KmLimit);
+        var (m3, a3) = await PartiesAsync(sp, "34 KM 11");
+        var request3 = Request(m3, a3, "SINIRSIZ");
+        request3.KmLimit = 750;
+        var resv = await res.CreateAsync(request3);
+        Assert.Equal(0, (await res.GetAsync(resv))!.KmLimit);
     }
 
     /// <summary>Açık kira güncellemesinde de km sınırsızlığı uygulanır (form 500 gönderse bile).</summary>
@@ -246,9 +246,9 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "SINIRSIZ", Ad = "Sınırsız", KmSinirsiz = true });
-        var (m, a) = await TaraflarAsync(sp, "34 KM 12");
-        var id = await rentals.CreateDirectAsync(Istek(m, a, kaynak: null));
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "SINIRSIZ", Ad = "Sınırsız", KmSinirsiz = true });
+        var (m, a) = await PartiesAsync(sp, "34 KM 12");
+        var id = await rentals.CreateDirectAsync(Request(m, a, source: null));
         Assert.Equal(0, (await rentals.GetAsync(id))!.KmLimit);
 
         // Kaynak sınırsıza çevriliyor + form km limiti gönderiyor → limit 0 kalır.
@@ -269,20 +269,20 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "KURUMSAL", Ad = "Kurumsal", ProvizyonYok = true });
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "WEB", Ad = "Web" });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "KURUMSAL", Ad = "Kurumsal", ProvizyonYok = true });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "WEB", Ad = "Web" });
 
-        var (m1, a1) = await TaraflarAsync(sp, "34 KM 13");
-        var i1 = Istek(m1, a1, "KURUMSAL"); i1.Provizyon = 2000m;
-        var yasakli = await rentals.CreateDirectAsync(i1);
-        await Assert.ThrowsAsync<ValidationException>(() => rentals.TakePreAuthAsync(yasakli));
-        Assert.Equal(PreAuthStatus.Yok, (await rentals.GetAsync(yasakli))!.ProvizyonDurum);
+        var (m1, a1) = await PartiesAsync(sp, "34 KM 13");
+        var i1 = Request(m1, a1, "KURUMSAL"); i1.Provizyon = 2000m;
+        var banned = await rentals.CreateDirectAsync(i1);
+        await Assert.ThrowsAsync<ValidationException>(() => rentals.TakePreAuthAsync(banned));
+        Assert.Equal(PreAuthStatus.Yok, (await rentals.GetAsync(banned))!.ProvizyonDurum);
 
-        var (m2, a2) = await TaraflarAsync(sp, "34 KM 14");
-        var i2 = Istek(m2, a2, "WEB"); i2.Provizyon = 2000m;
-        var serbest = await rentals.CreateDirectAsync(i2);
-        Assert.True(await rentals.TakePreAuthAsync(serbest));
-        Assert.Equal(PreAuthStatus.Alindi, (await rentals.GetAsync(serbest))!.ProvizyonDurum);
+        var (m2, a2) = await PartiesAsync(sp, "34 KM 14");
+        var i2 = Request(m2, a2, "WEB"); i2.Provizyon = 2000m;
+        var free = await rentals.CreateDirectAsync(i2);
+        Assert.True(await rentals.TakePreAuthAsync(free));
+        Assert.Equal(PreAuthStatus.Alindi, (await rentals.GetAsync(free))!.ProvizyonDurum);
     }
 
     /// <summary>En fazla gün: oluşturmada ve uzatmada aynı sınır; sınır içinde kalan işlem geçer.</summary>
@@ -295,20 +295,20 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
         var res = sp.GetRequiredService<ReservationService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "GUNLU", Ad = "Günlü Kaynak", MaxGun = 4 });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "GUNLU", Ad = "Günlü Kaynak", MaxGun = 4 });
 
         // POZİTİF (oluşturma): 5 gün > 4 → red.
-        var (m1, a1) = await TaraflarAsync(sp, "34 KM 15");
-        await Assert.ThrowsAsync<ValidationException>(() => rentals.CreateDirectAsync(Istek(m1, a1, "GUNLU", gun: 5)));
-        await Assert.ThrowsAsync<ValidationException>(() => res.CreateAsync(Istek(m1, a1, "GUNLU", gun: 5)));
+        var (m1, a1) = await PartiesAsync(sp, "34 KM 15");
+        await Assert.ThrowsAsync<ValidationException>(() => rentals.CreateDirectAsync(Request(m1, a1, "GUNLU", day: 5)));
+        await Assert.ThrowsAsync<ValidationException>(() => res.CreateAsync(Request(m1, a1, "GUNLU", day: 5)));
 
         // NEGATİF (sınırda): 4 gün geçer.
-        var kira = await rentals.CreateDirectAsync(Istek(m1, a1, "GUNLU", gun: 4));
-        Assert.Equal(4, (await rentals.GetAsync(kira))!.Gun);
+        var rental = await rentals.CreateDirectAsync(Request(m1, a1, "GUNLU", day: 4));
+        Assert.Equal(4, (await rentals.GetAsync(rental))!.Gun);
 
         // POZİTİF (uzatma): 4 → 6 gün red; kayıt bozulmadı.
-        await Assert.ThrowsAsync<ValidationException>(() => rentals.ExtendAsync(kira, Bas.AddDays(6)));
-        Assert.Equal(4, (await rentals.GetAsync(kira))!.Gun);
+        await Assert.ThrowsAsync<ValidationException>(() => rentals.ExtendAsync(rental, Start.AddDays(6)));
+        Assert.Equal(4, (await rentals.GetAsync(rental))!.Gun);
     }
 
     /// <summary>Drop yasağı: farklı dönüş ofisi reddedilir; aynı ofis (ve boş dönüş ofisi) geçer.</summary>
@@ -320,16 +320,16 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
 
-        await KaynakAsync(sp, new ReservationSourceInput { Kod = "TEKYON", Ad = "Tek Yön Yok", AyniYonDrop = true });
+        await SourceAsync(sp, new ReservationSourceInput { Kod = "TEKYON", Ad = "Tek Yön Yok", AyniYonDrop = true });
 
-        var (m, a) = await TaraflarAsync(sp, "34 KM 16");
-        var drop = Istek(m, a, "TEKYON");
+        var (m, a) = await PartiesAsync(sp, "34 KM 16");
+        var drop = Request(m, a, "TEKYON");
         drop.CikisOfisi = "Merkez"; drop.DonusOfisi = "Havalimanı";
         await Assert.ThrowsAsync<ValidationException>(() => rentals.CreateDirectAsync(drop));
 
-        var ayni = Istek(m, a, "TEKYON");
-        ayni.CikisOfisi = "Merkez"; ayni.DonusOfisi = "merkez";     // büyük/küçük harf duyarsız
-        var id = await rentals.CreateDirectAsync(ayni);
+        var same = Request(m, a, "TEKYON");
+        same.CikisOfisi = "Merkez"; same.DonusOfisi = "merkez";     // büyük/küçük harf duyarsız
+        var id = await rentals.CreateDirectAsync(same);
         Assert.Equal("Merkez", (await rentals.GetAsync(id))!.CikisOfisi);
     }
 
@@ -344,16 +344,16 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kaynaklar = sp.GetRequiredService<ReservationSourceService>();
+        var sources = sp.GetRequiredService<ReservationSourceService>();
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var kid = await KaynakAsync(sp, new ReservationSourceInput { Kod = "TEKYON", Ad = "Tek Yön" });
-        var (m, a) = await TaraflarAsync(sp, "34 KM 17");
-        var drop = Istek(m, a, "TEKYON");
+        var kid = await SourceAsync(sp, new ReservationSourceInput { Kod = "TEKYON", Ad = "Tek Yön" });
+        var (m, a) = await PartiesAsync(sp, "34 KM 17");
+        var drop = Request(m, a, "TEKYON");
         drop.CikisOfisi = "Merkez"; drop.DonusOfisi = "Havalimanı";
         var id = await rentals.CreateDirectAsync(drop);          // kural HENÜZ yok → drop'lu kayıt açıldı
 
-        await kaynaklar.UpdateAsync(kid, new ReservationSourceInput
+        await sources.UpdateAsync(kid, new ReservationSourceInput
         { Kod = "TEKYON", Ad = "Tek Yön", Aktif = true, AyniYonDrop = true });
 
         // Ofisler AYNI kalıyor, yalnız not değişiyor → GEÇMELİ (kayıt kilitlenmedi).
@@ -376,25 +376,25 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kaynaklar = sp.GetRequiredService<ReservationSourceService>();
+        var sources = sp.GetRequiredService<ReservationSourceService>();
         var res = sp.GetRequiredService<ReservationService>();
 
-        var kid = await KaynakAsync(sp, new ReservationSourceInput { Kod = "GUNLU", Ad = "Günlü" });
-        var (m, a) = await TaraflarAsync(sp, "34 KM 18");
-        var id = await res.CreateAsync(Istek(m, a, "GUNLU", gun: 10));   // sınır HENÜZ yok
+        var kid = await SourceAsync(sp, new ReservationSourceInput { Kod = "GUNLU", Ad = "Günlü" });
+        var (m, a) = await PartiesAsync(sp, "34 KM 18");
+        var id = await res.CreateAsync(Request(m, a, "GUNLU", day: 10));   // sınır HENÜZ yok
 
-        await kaynaklar.UpdateAsync(kid, new ReservationSourceInput
+        await sources.UpdateAsync(kid, new ReservationSourceInput
         { Kod = "GUNLU", Ad = "Günlü", Aktif = true, MaxGun = 4 });
 
         // Tarihe dokunmayan düzenleme geçer.
-        var notlu = Istek(m, a, "GUNLU", gun: 10);
-        notlu.Aciklama = "Sınır sonradan kondu";
-        Assert.True(await res.UpdateAsync(id, notlu));
+        var withNote = Request(m, a, "GUNLU", day: 10);
+        withNote.Aciklama = "Sınır sonradan kondu";
+        Assert.True(await res.UpdateAsync(id, withNote));
         Assert.Equal("Sınır sonradan kondu", (await res.GetAsync(id))!.Aciklama);
 
         // Tarihe DOKUNAN düzenleme yeni sınıra uymalı: 8 gün > 4 → red, 3 gün → geçer.
-        await Assert.ThrowsAsync<ValidationException>(() => res.UpdateAsync(id, Istek(m, a, "GUNLU", gun: 8)));
-        Assert.True(await res.UpdateAsync(id, Istek(m, a, "GUNLU", gun: 3)));
+        await Assert.ThrowsAsync<ValidationException>(() => res.UpdateAsync(id, Request(m, a, "GUNLU", day: 8)));
+        Assert.True(await res.UpdateAsync(id, Request(m, a, "GUNLU", day: 3)));
     }
 
     /// <summary>
@@ -411,21 +411,21 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var sp = s1.ServiceProvider;
-            await KaynakAsync(sp, new ReservationSourceInput { Kod = "ACENTE", Ad = "Acente", Uzatamaz = true });
-            var (m, a) = await TaraflarAsync(sp, "34 TN 01");
-            var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Istek(m, a, "ACENTE"));
+            await SourceAsync(sp, new ReservationSourceInput { Kod = "ACENTE", Ad = "Acente", Uzatamaz = true });
+            var (m, a) = await PartiesAsync(sp, "34 TN 01");
+            var id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Request(m, a, "ACENTE"));
             await Assert.ThrowsAsync<ValidationException>(
-                () => sp.GetRequiredService<RentalService>().ExtendAsync(id, Bas.AddDays(5)));
+                () => sp.GetRequiredService<RentalService>().ExtendAsync(id, Start.AddDays(5)));
         }
 
         using var s2 = host.ScopeFor(t2);
         var sp2 = s2.ServiceProvider;
         // t2'de AYNI kodlu kaynak var ama kural TAŞIMIYOR — t1'in bayrağı sızmamalı.
-        await KaynakAsync(sp2, new ReservationSourceInput { Kod = "ACENTE", Ad = "Acente" });
-        var (m2, a2) = await TaraflarAsync(sp2, "34 TN 01");
-        var kira2 = await sp2.GetRequiredService<RentalService>().CreateDirectAsync(Istek(m2, a2, "ACENTE"));
-        Assert.True(await sp2.GetRequiredService<RentalService>().ExtendAsync(kira2, Bas.AddDays(5)));
-        Assert.Equal(5, (await sp2.GetRequiredService<RentalService>().GetAsync(kira2))!.Gun);
+        await SourceAsync(sp2, new ReservationSourceInput { Kod = "ACENTE", Ad = "Acente" });
+        var (m2, a2) = await PartiesAsync(sp2, "34 TN 01");
+        var rental2 = await sp2.GetRequiredService<RentalService>().CreateDirectAsync(Request(m2, a2, "ACENTE"));
+        Assert.True(await sp2.GetRequiredService<RentalService>().ExtendAsync(rental2, Start.AddDays(5)));
+        Assert.Equal(5, (await sp2.GetRequiredService<RentalService>().GetAsync(rental2))!.Gun);
     }
 
     // =====================================================================================
@@ -444,7 +444,7 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var kaynaklar = sp.GetRequiredService<ReservationSourceService>();
+        var sources = sp.GetRequiredService<ReservationSourceService>();
 
         await sp.GetRequiredService<VehicleGroupService>()
             .CreateAsync(new VehicleGroupInput { Kod = "EKO", Ad = "Ekonomik" });
@@ -453,27 +453,27 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
             Kod = "EKO-WEB", Ad = "Eko Web", Kanal = "WEB", AracGrupKod = "EKO",
             Gun1 = 1000m, Gun2 = 950m, Gun3 = 900m, OnayDurumu = TariffApprovalStatus.Onayli
         });
-        var kid = await kaynaklar.CreateAsync(new ReservationSourceInput { Kod = "WEB", Ad = "Web Sitesi" });
+        var kid = await sources.CreateAsync(new ReservationSourceInput { Kod = "WEB", Ad = "Web Sitesi" });
 
-        var arac = await sp.GetRequiredService<VehicleService>()
+        var vehicle = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 OR 49", Grup = "EKO" });
-        var musteri = await sp.GetRequiredService<CustomerService>()
+        var customer = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Oran", Soyad = "Testi" });
 
-        BookingInput Talep() => new()
+        BookingInput Request() => new()
         {
-            MusteriId = musteri, VehicleId = arac,
-            BasTar = Bas, BitTar = Bas.AddDays(3),
+            MusteriId = customer, VehicleId = vehicle,
+            BasTar = Start, BitTar = Start.AddDays(3),
             Kaynak = "WEB", FiyatTuru = "Otomatik"
         };
 
-        var fiyat = sp.GetRequiredService<PricingService>();
-        var once = await fiyat.PriceAsync(Talep());
+        var price = sp.GetRequiredService<PricingService>();
+        var once = await price.PriceAsync(Request());
         Assert.Equal(3, once.Gun);
         Assert.Equal(2700m, once.Tutar);           // ELLE: 3 gün × Gun3 (900) = 2700
 
         // Kaynağa UÇUK oranlar + ek hizmet tutarları + tüm bilgi işaretleri yazılıyor.
-        await kaynaklar.UpdateAsync(kid, new ReservationSourceInput
+        await sources.UpdateAsync(kid, new ReservationSourceInput
         {
             Kod = "WEB", Ad = "Web Sitesi", Aktif = true,
             KaynakGrubu = ReservationSourceGroup.Acente,
@@ -489,13 +489,13 @@ public sealed class RezKaynakKuralMatrisiTests(PostgresFixture fx)
             ProvizyonSecenek = "Kart", MuafiyatSecenek = "Tam", MailAdres = "acente@example.com"
         });
 
-        var sonra = await fiyat.PriceAsync(Talep());
-        Assert.Equal(once.Gun, sonra.Gun);
-        Assert.Equal(2700m, sonra.Tutar);          // KURUŞU KURUŞUNA AYNI
+        var after = await price.PriceAsync(Request());
+        Assert.Equal(once.Gun, after.Gun);
+        Assert.Equal(2700m, after.Tutar);          // KURUŞU KURUŞUNA AYNI
 
         // Kayda geçen sözleşme de aynı: ek hizmet varsayılan tutarları satır ÜRETMEZ.
-        var kiraId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Talep());
-        var c = (await sp.GetRequiredService<RentalService>().GetAsync(kiraId))!;
+        var rentalId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Request());
+        var c = (await sp.GetRequiredService<RentalService>().GetAsync(rentalId))!;
         Assert.Equal(2700m, c.Tutar);
         Assert.Equal(2700m, c.GenelToplam);        // 4 × 9999 ek hizmet SIZMADI
         Assert.Equal(2700m, c.Bakiye);

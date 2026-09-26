@@ -21,15 +21,15 @@ namespace RentACar.IntegrationTests;
 public sealed class FirmaDokumanTests(PostgresFixture fx)
 {
     // ELLE kurulmuş asgari PDF: "%PDF-1.4" + gövde. Magic byte 0x25 0x50 0x44 0x46 0x2D.
-    private static byte[] Pdf(string kuyruk = "\n1 0 obj\n<<>>\nendobj\n%%EOF\n")
-        => System.Text.Encoding.ASCII.GetBytes("%PDF-1.4" + kuyruk);
+    private static byte[] Pdf(string queue = "\n1 0 obj\n<<>>\nendobj\n%%EOF\n")
+        => System.Text.Encoding.ASCII.GetBytes("%PDF-1.4" + queue);
 
     // PDF OLMAYAN dosya: uzantısı ve Content-Type'ı ".pdf" olsa bile içerik yalan söylüyor.
-    private static readonly byte[] PdfDegil = "MZ\0Bu bir PDF değil, çalıştırılabilir dosya."u8.ToArray();
+    private static readonly byte[] NotPdf = "MZ\0Bu bir PDF değil, çalıştırılabilir dosya."u8.ToArray();
 
-    private static FirmaDokumanInput Girdi(string baslik, byte[]? bytes = null,
-        string? aciklama = null, string dosyaAdi = "Boş Sözleşme.pdf")
-        => new(baslik, aciklama, dosyaAdi, bytes ?? Pdf());
+    private static FirmaDokumanInput Input(string title, byte[]? bytes = null,
+        string? description = null, string fileName = "Boş Sözleşme.pdf")
+        => new(title, description, fileName, bytes ?? Pdf());
 
     private static CompanyFileService Svc(IServiceScope scope)
         => scope.ServiceProvider.GetRequiredService<CompanyFileService>();
@@ -43,25 +43,25 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
         using var scope = host.ScopeFor(tenant, Guid.NewGuid(), "umit");
         var svc = Svc(scope);
 
-        var icerik = Pdf("\n% teslim formu\n%%EOF\n");
-        var id = await svc.UploadAsync(Girdi("Teslim Formu", icerik, aciklama: "Şubede elle doldurulur"));
+        var content = Pdf("\n% teslim formu\n%%EOF\n");
+        var id = await svc.UploadAsync(Input("Teslim Formu", content, description: "Şubede elle doldurulur"));
 
-        var liste = await svc.ListAsync();
-        var satir = Assert.Single(liste);
-        Assert.Equal(id, satir.Id);
-        Assert.Equal("Teslim Formu", satir.Baslik);
-        Assert.Equal("Şubede elle doldurulur", satir.Aciklama);
-        Assert.Equal(icerik.LongLength, satir.Boyut);      // ELLE: kaydedilen bayt sayısı = dosyanın kendisi
-        Assert.Equal(1, satir.Sira);                       // ELLE: ilk belge 1 numaralı yuvaya oturur
-        Assert.Equal("umit", satir.YukleyenKullanici);
+        var list = await svc.ListAsync();
+        var row = Assert.Single(list);
+        Assert.Equal(id, row.Id);
+        Assert.Equal("Teslim Formu", row.Baslik);
+        Assert.Equal("Şubede elle doldurulur", row.Aciklama);
+        Assert.Equal(content.LongLength, row.Boyut);      // ELLE: kaydedilen bayt sayısı = dosyanın kendisi
+        Assert.Equal(1, row.Sira);                       // ELLE: ilk belge 1 numaralı yuvaya oturur
+        Assert.Equal("umit", row.YukleyenKullanici);
         // Dosya adı ASCII'ye slug'lanır (Content-Disposition başlığı ham ASCII bekler): "Boş Sözleşme.pdf".
-        Assert.Equal("bos-sozlesme.pdf", satir.DosyaAdi);
+        Assert.Equal("bos-sozlesme.pdf", row.DosyaAdi);
 
-        var indirilen = await svc.DownloadAsync(id);
-        Assert.NotNull(indirilen);
-        Assert.Equal(icerik, indirilen!.Bytes);            // bayt-bayt AYNI dosya geri geliyor
-        Assert.Equal("application/pdf", indirilen.ContentType);
-        Assert.Equal("bos-sozlesme.pdf", indirilen.DosyaAdi);
+        var downloaded = await svc.DownloadAsync(id);
+        Assert.NotNull(downloaded);
+        Assert.Equal(content, downloaded!.Bytes);            // bayt-bayt AYNI dosya geri geliyor
+        Assert.Equal("application/pdf", downloaded.ContentType);
+        Assert.Equal("bos-sozlesme.pdf", downloaded.DosyaAdi);
 
         Assert.True(await svc.DeleteAsync(id));
         Assert.Empty(await svc.ListAsync());
@@ -79,26 +79,26 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
         var svc = Svc(scope);
 
         // ELLE: sınır 10. Onuncuya kadar sorunsuz.
-        var idler = new List<Guid>();
+        var ids = new List<Guid>();
         for (var i = 1; i <= 10; i++)
-            idler.Add(await svc.UploadAsync(Girdi($"Belge {i}")));
+            ids.Add(await svc.UploadAsync(Input($"Belge {i}")));
 
         Assert.Equal(10, (await svc.ListAsync()).Count);
 
         // 11. yükleme REDDEDİLİR (UI'da formu gizlemek yetmez — bu servis kararı).
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.UploadAsync(Girdi("Belge 11")));
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.UploadAsync(Input("Belge 11")));
         Assert.Contains("10", ex.Message);
         Assert.Equal(10, (await svc.ListAsync()).Count);
 
         // Ortadaki bir belge silinince yuvası SERBEST kalır → yeni yükleme o yuvaya oturur.
         // (Aksi halde 10 kez yükle-sil yapan firma bir daha belge ekleyemezdi.)
-        var silinenSira = (await svc.ListAsync()).First(s => s.Baslik == "Belge 4").Sira;
-        Assert.Equal(4, silinenSira); // ELLE: dördüncü yüklenen dördüncü yuvadadır
-        Assert.True(await svc.DeleteAsync(idler[3]));
+        var deletedOrder = (await svc.ListAsync()).First(s => s.Baslik == "Belge 4").Sira;
+        Assert.Equal(4, deletedOrder); // ELLE: dördüncü yüklenen dördüncü yuvadadır
+        Assert.True(await svc.DeleteAsync(ids[3]));
 
-        var yeniId = await svc.UploadAsync(Girdi("Yerine Gelen"));
-        var yeni = (await svc.ListAsync()).Single(s => s.Id == yeniId);
-        Assert.Equal(4, yeni.Sira);
+        var newId = await svc.UploadAsync(Input("Yerine Gelen"));
+        var newItem = (await svc.ListAsync()).Single(s => s.Id == newId);
+        Assert.Equal(4, newItem.Sira);
         Assert.Equal(10, (await svc.ListAsync()).Count);
     }
 
@@ -113,15 +113,15 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
 
         // Uzantı ".pdf", ama İÇERİK PDF değil → red. Uzantı ve Content-Type İSTEMCİDEN gelir.
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => svc.UploadAsync(Girdi("Sahte PDF", PdfDegil, dosyaAdi: "sozlesme.pdf")));
+            () => svc.UploadAsync(Input("Sahte PDF", NotPdf, fileName: "sozlesme.pdf")));
         Assert.Equal("Yalnız PDF yüklenebilir.", ex.Message);
 
         // İmzanın SON baytı bozuksa da red: "%PDF" var ama "-" yok (0x2D).
-        var eksikImza = System.Text.Encoding.ASCII.GetBytes("%PDF1.4 gövde");
-        await Assert.ThrowsAsync<ValidationException>(() => svc.UploadAsync(Girdi("Eksik imza", eksikImza)));
+        var missingSignature = System.Text.Encoding.ASCII.GetBytes("%PDF1.4 gövde");
+        await Assert.ThrowsAsync<ValidationException>(() => svc.UploadAsync(Input("Eksik imza", missingSignature)));
 
         // Boş dosya da red.
-        await Assert.ThrowsAsync<ValidationException>(() => svc.UploadAsync(Girdi("Boş", [])));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.UploadAsync(Input("Boş", [])));
 
         Assert.Empty(await svc.ListAsync()); // hiçbiri kaydedilmedi
     }
@@ -136,22 +136,22 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
         var svc = Svc(scope);
 
         // ELLE: sınır 3 MB = 3 * 1024 * 1024 = 3.145.728 bayt (kullanıcı kararı, 2026-08-17).
-        const int ucMb = 3 * 1024 * 1024;
+        const int threeMb = 3 * 1024 * 1024;
 
         // Bir bayt FAZLASI → red (geçerli PDF imzasıyla; hata boyut hatası olmalı, "PDF değil" değil).
-        var buyuk = new byte[ucMb + 1];
-        Pdf("").CopyTo(buyuk, 0);
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.UploadAsync(Girdi("Çok büyük", buyuk)));
+        var large = new byte[threeMb + 1];
+        Pdf("").CopyTo(large, 0);
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => svc.UploadAsync(Input("Çok büyük", large)));
         Assert.Equal("Dosya en fazla 3 MB olabilir.", ex.Message);
 
         // TAM sınır (3.145.728 bayt) → KABUL (sınır dahil).
-        var tamSinir = new byte[ucMb];
-        Pdf("").CopyTo(tamSinir, 0);
-        var id = await svc.UploadAsync(Girdi("Tam sınır", tamSinir));
-        Assert.Equal(ucMb, (await svc.ListAsync()).Single().Boyut);
+        var fullLimit = new byte[threeMb];
+        Pdf("").CopyTo(fullLimit, 0);
+        var id = await svc.UploadAsync(Input("Tam sınır", fullLimit));
+        Assert.Equal(threeMb, (await svc.ListAsync()).Single().Boyut);
 
-        var indirilen = await svc.DownloadAsync(id);
-        Assert.Equal(ucMb, indirilen!.Bytes.Length);
+        var downloaded = await svc.DownloadAsync(id);
+        Assert.Equal(threeMb, downloaded!.Bytes.Length);
     }
 
     [Fact]
@@ -163,13 +163,13 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
         // Admin bir belge koyar.
         Guid id;
         using (var admin = host.ScopeFor(tenant))
-            id = await Svc(admin).UploadAsync(Girdi("Ruhsat Örneği"));
+            id = await Svc(admin).UploadAsync(Input("Ruhsat Örneği"));
 
         // Muhasebe rolünde OperationsWrite YOKTUR (matris: FinanceWrite + ViewReports).
-        using var muhasebe = host.ScopeFor(tenant, Guid.NewGuid(), "muhasebeci", UserRole.Muhasebe);
-        var svc = Svc(muhasebe);
+        using var accounting = host.ScopeFor(tenant, Guid.NewGuid(), "muhasebeci", UserRole.Muhasebe);
+        var svc = Svc(accounting);
 
-        await Assert.ThrowsAsync<NoPermissionException>(() => svc.UploadAsync(Girdi("Muhasebenin belgesi")));
+        await Assert.ThrowsAsync<NoPermissionException>(() => svc.UploadAsync(Input("Muhasebenin belgesi")));
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.DeleteAsync(id));
 
         // Ama OKUMA/İNDİRME serbest: sahada çıktı alması gereken her personel erişebilmeli.
@@ -177,8 +177,8 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
         Assert.NotNull(await svc.DownloadAsync(id));
 
         // Rolsüz (oturumsuz) bağlam yazamaz — guard "izin yok"ta kapanır.
-        using var anonim = host.ScopeFor(tenant, role: null);
-        await Assert.ThrowsAsync<NoPermissionException>(() => Svc(anonim).UploadAsync(Girdi("Anonim")));
+        using var anonymous = host.ScopeFor(tenant, role: null);
+        await Assert.ThrowsAsync<NoPermissionException>(() => Svc(anonymous).UploadAsync(Input("Anonim")));
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
 
         Guid aId;
         using (var sa = host.ScopeFor(a))
-            aId = await Svc(sa).UploadAsync(Girdi("A'nın gizli sözleşmesi", Pdf("\n% A gizli\n%%EOF\n")));
+            aId = await Svc(sa).UploadAsync(Input("A'nın gizli sözleşmesi", Pdf("\n% A gizli\n%%EOF\n")));
 
         using (var sb = host.ScopeFor(b))
         {
@@ -200,7 +200,7 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
             Assert.False(await svc.DeleteAsync(aId));           // silinemez de
 
             // B kendi belgesini yükleyince 1 numaralı yuvadan başlar (yuva tenant başına).
-            await svc.UploadAsync(Girdi("B'nin belgesi"));
+            await svc.UploadAsync(Input("B'nin belgesi"));
             Assert.Equal(1, Assert.Single(await svc.ListAsync()).Sira);
         }
 
@@ -232,11 +232,11 @@ public sealed class FirmaDokumanTests(PostgresFixture fx)
             say.Parameters.AddWithValue("a", a);
             Assert.Equal(0L, (long)(await say.ExecuteScalarAsync())!);
         }
-        await using (var sil = new NpgsqlCommand(
+        await using (var remove = new NpgsqlCommand(
             "delete from \"FirmaDokumanlari\" where \"TenantId\" = @a", conn))
         {
-            sil.Parameters.AddWithValue("a", a);
-            Assert.Equal(0, await sil.ExecuteNonQueryAsync()); // B'nin GUC'uyla A'nın satırı SİLİNEMEZ
+            remove.Parameters.AddWithValue("a", a);
+            Assert.Equal(0, await remove.ExecuteNonQueryAsync()); // B'nin GUC'uyla A'nın satırı SİLİNEMEZ
         }
     }
 

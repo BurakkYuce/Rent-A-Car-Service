@@ -15,14 +15,14 @@ public sealed partial class UiFinanceDocumentTests
         var s = await LoginAsync(e, Who.Accountant);
 
         // Dürüst stub: entegrasyon yokken "0 eklendi" başarısı DÖNMEZ.
-        await Problem(await PostAsync(s, "/gelen-efatura/sync", new { bas = DateOnly.FromDateTime(TestZaman.GunSonra(-7).Date),
-            bit = DateOnly.FromDateTime(TestZaman.GunSonra(0).Date) }), HttpStatusCode.BadRequest, "dogrulama");
+        await Problem(await PostAsync(s, "/gelen-efatura/sync", new { bas = DateOnly.FromDateTime(TestZaman.DaysLater(-7).Date),
+            bit = DateOnly.FromDateTime(TestZaman.DaysLater(0).Date) }), HttpStatusCode.BadRequest, "dogrulama");
 
         var ettn = Guid.NewGuid().ToString();
         var id = await IdOf(await PostAsync(s, "/gelen-efatura", new
         {
             ettn, gonderenVkn = "1234567890", gonderenUnvan = "Tedarikçi A.Ş.", netTutar = 1000m, kdvTutar = 200m,
-            genelToplam = 1200m, doviz = "TL", tarih = TestZaman.GunSonra(-1),
+            genelToplam = 1200m, doviz = "TL", tarih = TestZaman.DaysLater(-1),
         }));
         await Problem(await PostAsync(s, "/gelen-efatura", new
         {
@@ -31,10 +31,10 @@ public sealed partial class UiFinanceDocumentTests
         await Problem(await PostAsync(s, $"/gelen-efatura/{id}/giderlestir", new { cariId = e.Supplier }), HttpStatusCode.BadRequest, "dogrulama");
 
         await Ok(await PostAsync(s, $"/gelen-efatura/{id}/onayla", null));
-        var surum = (await Ok(await GetAsync(s, $"/gelen-efatura/{id}"))).GetProperty("surum").GetString();
-        await Problem(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum, kdv20Matrah = 1000m, kdv20 = 200m, cariId = Guid.NewGuid() }, null),
+        var version = (await Ok(await GetAsync(s, $"/gelen-efatura/{id}"))).GetProperty("surum").GetString();
+        await Problem(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum = version, kdv20Matrah = 1000m, kdv20 = 200m, cariId = Guid.NewGuid() }, null),
             HttpStatusCode.BadRequest, "dogrulama", "cariId");
-        await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum, kdv20Matrah = 1000m, kdv20 = 200m, cariId = e.Supplier }, null));
+        await Ok(await SendAsync(s, HttpMethod.Put, $"/gelen-efatura/{id}/bag", new { surum = version, kdv20Matrah = 1000m, kdv20 = 200m, cariId = e.Supplier }, null));
 
         var results = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => PostAsync(s, $"/gelen-efatura/{id}/giderlestir", new { })));
         Assert.Single(results, r => r.StatusCode == HttpStatusCode.OK);

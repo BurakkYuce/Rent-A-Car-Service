@@ -43,30 +43,30 @@ else
     <label>Şube (Ofis)
         <select name="sube">
             <option value="">— tümü —</option>
-            @foreach (var o in _subeOpts) { <option value="@o" selected="@(o == Sube)">@o</option> }
+            @foreach (var o in _branchOpts) { <option value="@o" selected="@(o == Sube)">@o</option> }
         </select>
     </label>
     <label>Araç Sahibi
         <select name="aracSahibi">
             <option value="">— tümü —</option>
-            @foreach (var o in _sahipOpts) { <option value="@o" selected="@(o == AracSahibi)">@o</option> }
+            @foreach (var o in _ownerOpts) { <option value="@o" selected="@(o == AracSahibi)">@o</option> }
         </select>
     </label>
     <label>Grup
         <select name="grup">
             <option value="">— tümü —</option>
-            @foreach (var o in _grupOpts) { <option value="@o" selected="@(o == Grup)">@o</option> }
+            @foreach (var o in _groupOpts) { <option value="@o" selected="@(o == Grup)">@o</option> }
         </select>
     </label>
     <label>SIPP
         <select name="sipp">
             <option value="">— tümü —</option>
-            @foreach (var o in _sippOpts) { <option value="@o" selected="@(o == Sipp)">@o</option> }
+            @foreach (var o in _orderOpts) { <option value="@o" selected="@(o == Sipp)">@o</option> }
         </select>
     </label>
     <label>Plaka<input name="plaka" value="@Plaka" placeholder="34 ABC" /></label>
     <button type="submit">Göster</button>
-    @if (FiltreVar) { <a class="link" href="@ViewUrl(Gorunum, temiz: true)">Temizle</a> }
+    @if (FiltreVar) { <a class="link" href="@ViewUrl(Gorunum, clean: true)">Temizle</a> }
 </form>
 
 @if (AracModu)
@@ -77,11 +77,11 @@ else
             <th class="num">Aralık Gün</th><th class="num">Dolu Gün</th><th class="num">Bakım Gün</th>
             <th class="num">Baf Gün</th><th class="num">Boş Gün</th><th class="num">Doluluk %</th></tr></thead>
         <tbody>
-            @if (_aracRows.Count == 0)
+            @if (_vehicleRows.Count == 0)
             {
                 <tr><td colspan="11" class="muted">Filtreye uyan araç yok.</td></tr>
             }
-            @foreach (var r in _aracRows)
+            @foreach (var r in _vehicleRows)
             {
                 <tr>
                     <td>@r.Plaka</td>
@@ -98,16 +98,16 @@ else
                 </tr>
             }
         </tbody>
-        @if (_aracRows.Count > 0)
+        @if (_vehicleRows.Count > 0)
         {
             <tfoot>
                 <tr>
-                    <th colspan="5">TOPLAM (@_aracRows.Count araç)</th>
-                    <th class="num">@_aracRows.Sum(r => r.ToplamGun)</th>
-                    <th class="num">@_aracRows.Sum(r => r.DoluGun)</th>
-                    <th class="num">@_aracRows.Sum(r => r.BakimGun)</th>
-                    <th class="num">@_aracRows.Sum(r => r.BafGun)</th>
-                    <th class="num">@_aracRows.Sum(r => r.BosGun)</th>
+                    <th colspan="5">TOPLAM (@_vehicleRows.Count araç)</th>
+                    <th class="num">@_vehicleRows.Sum(r => r.ToplamGun)</th>
+                    <th class="num">@_vehicleRows.Sum(r => r.DoluGun)</th>
+                    <th class="num">@_vehicleRows.Sum(r => r.BakimGun)</th>
+                    <th class="num">@_vehicleRows.Sum(r => r.BafGun)</th>
+                    <th class="num">@_vehicleRows.Sum(r => r.BosGun)</th>
                     <th class="num"></th>
                 </tr>
             </tfoot>
@@ -152,8 +152,8 @@ else
     [SupplyParameterFromQuery(Name = "gorunum")] public string? Gorunum { get; set; }
 
     private IReadOnlyList<AracDurumTakipRow> _rows = [];
-    private IReadOnlyList<AracDurumTakipAracRow> _aracRows = [];
-    private string[] _subeOpts = [], _sahipOpts = [], _grupOpts = [], _sippOpts = [];
+    private IReadOnlyList<AracDurumTakipAracRow> _vehicleRows = [];
+    private string[] _branchOpts = [], _ownerOpts = [], _groupOpts = [], _orderOpts = [];
 
     private bool AracModu => Gorunum == "arac";
 
@@ -164,21 +164,21 @@ else
     {
         var from = ParseDate(From);
         var to = ParseDate(To);
-        var filtre = new AracDurumTakipFilter
+        var filter = new AracDurumTakipFilter
         {
             Sube = Sube, AracSahibi = AracSahibi, Grup = Grup, Sipp = Sipp, Plaka = Plaka
         };
 
-        if (AracModu) _aracRows = await Reports.GetVehicleStatusTrackingByVehicleAsync(filtre, from, to);
-        else _rows = await Reports.GetVehicleStatusTrackingAsync(filtre, from, to);
+        if (AracModu) _vehicleRows = await Reports.GetVehicleStatusTrackingByVehicleAsync(filter, from, to);
+        else _rows = await Reports.GetVehicleStatusTrackingAsync(filter, from, to);
 
         // Seçenekler FİLTRESİZ kaynaktan türetilir — filtrelenmiş listeden türetilseydi bir seçim
         // sonrası diğer seçenekler kaybolur ve filtre kendini kilitlerdi.
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
-        var tumArac = await Araclar.ListAsync();
-        _sahipOpts = Opts(tumArac.Select(v => v.AracSahibi));
-        _grupOpts = Opts(tumArac.Select(v => v.Grup));
-        _sippOpts = Opts(tumArac.Select(v => v.Sipp));
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
+        var allVehicles = await Araclar.ListAsync();
+        _ownerOpts = Opts(allVehicles.Select(v => v.AracSahibi));
+        _groupOpts = Opts(allVehicles.Select(v => v.Grup));
+        _orderOpts = Opts(allVehicles.Select(v => v.Sipp));
     }
 
     private static string[] Opts(IEnumerable<string?> src) => src
@@ -190,24 +190,24 @@ else
         => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
 
     /// <summary>Görünüm anahtarı URL'i — tarih ve filtreler KORUNUR (temiz=true yalnız tarihi tutar).</summary>
-    private string ViewUrl(string? gorunum, bool temiz = false)
+    private string ViewUrl(string? view, bool clean = false)
     {
         var qs = new List<string>();
-        void Ekle(string ad, string? deger)
+        void Add(string name, string? value)
         {
-            if (!string.IsNullOrWhiteSpace(deger)) qs.Add($"{ad}={Uri.EscapeDataString(deger)}");
+            if (!string.IsNullOrWhiteSpace(value)) qs.Add($"{name}={Uri.EscapeDataString(value)}");
         }
-        Ekle("from", From);
-        Ekle("to", To);
-        if (!temiz)
+        Add("from", From);
+        Add("to", To);
+        if (!clean)
         {
-            Ekle("sube", Sube);
-            Ekle("aracSahibi", AracSahibi);
-            Ekle("grup", Grup);
-            Ekle("sipp", Sipp);
-            Ekle("plaka", Plaka);
+            Add("sube", Sube);
+            Add("aracSahibi", AracSahibi);
+            Add("grup", Grup);
+            Add("sipp", Sipp);
+            Add("plaka", Plaka);
         }
-        Ekle("gorunum", gorunum);
+        Add("gorunum", view);
         return "/raporlar/arac-durum-takip" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
     }
 
@@ -217,17 +217,17 @@ else
         get
         {
             var qs = new List<string>();
-            void Ekle(string ad, string? deger)
+            void Add(string name, string? value)
             {
-                if (!string.IsNullOrWhiteSpace(deger)) qs.Add($"{ad}={Uri.EscapeDataString(deger)}");
+                if (!string.IsNullOrWhiteSpace(value)) qs.Add($"{name}={Uri.EscapeDataString(value)}");
             }
-            Ekle("from", From);
-            Ekle("to", To);
-            Ekle("sube", Sube);
-            Ekle("aracSahibi", AracSahibi);
-            Ekle("grup", Grup);
-            Ekle("sipp", Sipp);
-            Ekle("plaka", Plaka);
+            Add("from", From);
+            Add("to", To);
+            Add("sube", Sube);
+            Add("aracSahibi", AracSahibi);
+            Add("grup", Grup);
+            Add("sipp", Sipp);
+            Add("plaka", Plaka);
             return string.Join("&", qs);
         }
     }

@@ -27,7 +27,7 @@ public static class VehicleSaleEndpoints
             // FAZ-18 bilgi alanları: parametre listesi zaten sınırda → geri kalanı Form'dan okunur.
             // Checkbox işaretlenmemişse alan HİÇ gönderilmez → varlık kontrolü = false (bool? bağlama 400 verirdi).
             var f = req.Form;
-            bool Kutu(string k) => f.ContainsKey(k);
+            bool Box(string k) => f.ContainsKey(k);
             var input = new VehicleSaleInput
             {
                 VehicleId = vehicleId, AliciCariId = aliciCariId, SatisNet = satisNet, KdvOrani = kdvOrani,
@@ -40,20 +40,20 @@ public static class VehicleSaleEndpoints
                 NoterSatisTarihi = FormParse.Date(noterSatisTarihi),
                 SatisKanali = satisKanali, Devir = devir,
                 // ---- FAZ-18 bilgi alanları (deftere yazmaz) ----
-                KirayaVerme = Kutu("kirayaVerme"),
+                KirayaVerme = Box("kirayaVerme"),
                 IlanKm = FormParse.Int(FormParse.Str(f, "ilanKm")),
                 ListeDoviz = FormParse.Str(f, "listeDoviz"),
                 SatisNoktasi = FormParse.Str(f, "satisNoktasi"),
                 UygulananKampanya = FormParse.Str(f, "uygulananKampanya"),
                 IhaleSayisi = FormParse.Str(f, "ihaleSayisi"),
-                SatisiVerildi = Kutu("satisiVerildi"),
+                SatisiVerildi = Box("satisiVerildi"),
                 YevmiyeNumarasi = FormParse.Str(f, "yevmiyeNumarasi"),
                 Aciklama2 = FormParse.Str(f, "aciklama2")
             };
             try
             {
                 await svc.CreateAsync(input);
-                return Sonuc.Tamam("/satislar", "Kayıt eklendi.");
+                return Result.Ok("/satislar", "Kayıt eklendi.");
             }
             catch (ValidationException ex)
             {

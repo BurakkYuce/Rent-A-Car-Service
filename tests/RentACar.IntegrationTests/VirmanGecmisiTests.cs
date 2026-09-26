@@ -24,38 +24,38 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class VirmanGecmisiTests(PostgresFixture fx)
 {
-    private static DateTimeOffset Gun(int fark)
+    private static DateTimeOffset Day(int difference)
     {
-        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(fark), DateTimeKind.Utc), TimeSpan.Zero);
+        var t = new DateTimeOffset(DateTime.SpecifyKind(DateTime.UtcNow.AddDays(difference), DateTimeKind.Utc), TimeSpan.Zero);
         return t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
     }
 
-    private static Task<Guid> HesapAsync(IServiceScope s, string kod, string ad, string tur)
+    private static Task<Guid> AccountAsync(IServiceScope s, string code, string name, string type)
         => s.ServiceProvider.GetRequiredService<FinancialAccountService>()
-            .CreateAsync(new FinancialAccountInput { Kod = kod, Ad = ad, Tur = tur });
+            .CreateAsync(new FinancialAccountInput { Kod = code, Ad = name, Tur = type });
 
     /// <summary>
     /// FAZ-50 ÖNCESİ bir virmanı taklit eder: yalnız defter satırları, künye kaydı YOK.
     /// (Gerçek eski kayıtlar tam olarak böyle duruyor.)
     /// </summary>
-    private static async Task EskiVirmanYazAsync(
-        TestHost host, Guid tenant, decimal tutar, DateTimeOffset tarih)
+    private static async Task WriteOldTransferAsync(
+        TestHost host, Guid tenant, decimal amount, DateTimeOffset date)
     {
         using var scope = host.ScopeFor(tenant);
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         var sourceId = Guid.NewGuid();
-        var money = new Money(tutar, "TRY", 1m);
+        var money = new Money(amount, "TRY", 1m);
         db.AccountLedgerEntries.AddRange(
             new AccountLedgerEntry
             {
-                EntryDateUtc = tarih, AccountType = LedgerAccountType.Banka, AccountRef = null,
+                EntryDateUtc = date, AccountType = LedgerAccountType.Banka, AccountRef = null,
                 Direction = LedgerDirection.Debit, Amount = money,
                 SourceType = "Virman", SourceId = sourceId, Description = "Eski virman"
             },
             new AccountLedgerEntry
             {
-                EntryDateUtc = tarih, AccountType = LedgerAccountType.Kasa, AccountRef = null,
+                EntryDateUtc = date, AccountType = LedgerAccountType.Kasa, AccountRef = null,
                 Direction = LedgerDirection.Credit, Amount = money,
                 SourceType = "Virman", SourceId = sourceId, Description = "Eski virman"
             });
@@ -68,20 +68,20 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = await HesapAsync(scope, "ZR", "Ziraat TL", "Banka");
-        var b = await HesapAsync(scope, "IS", "İş Bankası TL", "Banka");
+        var a = await AccountAsync(scope, "ZR", "Ziraat TL", "Banka");
+        var b = await AccountAsync(scope, "IS", "İş Bankası TL", "Banka");
 
         await cash.TransferAsync(LedgerAccountType.Banka, LedgerAccountType.Banka, 1000m,
             sourceAccountId: a, targetAccountId: b, receiptNo: "MK-1", branch: "Merkez");
 
-        var satir = Assert.Single(await cash.ListCashTransfersAsync());
+        var row = Assert.Single(await cash.ListCashTransfersAsync());
         // Elle kurulan değerler: Debit = hedef (İş Bankası), Credit = kaynak (Ziraat).
-        Assert.Equal(a, satir.KaynakHesapId);
-        Assert.Equal(b, satir.HedefHesapId);
-        Assert.Equal(1000m, satir.Tutar);
-        Assert.Equal("MK-1", satir.MakbuzNo);
-        Assert.Equal("Merkez", satir.Sube);
-        Assert.True(satir.KunyeVar);
+        Assert.Equal(a, row.KaynakHesapId);
+        Assert.Equal(b, row.HedefHesapId);
+        Assert.Equal(1000m, row.Tutar);
+        Assert.Equal("MK-1", row.MakbuzNo);
+        Assert.Equal("Merkez", row.Sube);
+        Assert.True(row.KunyeVar);
     }
 
     [Fact]
@@ -90,20 +90,20 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         // FAZ-50'nin künye-öncelikli listesi bu kaydı GÖRMÜYORDU (sessiz veri kaybı gibi davranıyordu).
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        await EskiVirmanYazAsync(host, tenant, 750m, Gun(-5));
+        await WriteOldTransferAsync(host, tenant, 750m, Day(-5));
 
         using var scope = host.ScopeFor(tenant);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var satir = Assert.Single(await cash.ListCashTransfersAsync());
-        Assert.False(satir.KunyeVar);
-        Assert.Equal(750m, satir.Tutar);
+        var row = Assert.Single(await cash.ListCashTransfersAsync());
+        Assert.False(row.KunyeVar);
+        Assert.Equal(750m, row.Tutar);
         // Tür defterden okunur; hesap seçilmemiş (legacy) olduğu için null.
-        Assert.Equal(LedgerAccountType.Kasa, satir.KaynakTur);
-        Assert.Equal(LedgerAccountType.Banka, satir.HedefTur);
-        Assert.Null(satir.KaynakHesapId);
-        Assert.Null(satir.HedefHesapId);
-        Assert.Null(satir.MakbuzNo);
+        Assert.Equal(LedgerAccountType.Kasa, row.KaynakTur);
+        Assert.Equal(LedgerAccountType.Banka, row.HedefTur);
+        Assert.Null(row.KaynakHesapId);
+        Assert.Null(row.HedefHesapId);
+        Assert.Null(row.MakbuzNo);
     }
 
     [Fact]
@@ -111,20 +111,20 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        await EskiVirmanYazAsync(host, tenant, 250m, Gun(-5));
+        await WriteOldTransferAsync(host, tenant, 250m, Day(-5));
 
         using var scope = host.ScopeFor(tenant);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = await HesapAsync(scope, "A", "Kasa A", "Kasa");
-        var b = await HesapAsync(scope, "B", "Kasa B", "Kasa");
+        var a = await AccountAsync(scope, "A", "Kasa A", "Kasa");
+        var b = await AccountAsync(scope, "B", "Kasa B", "Kasa");
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Kasa, 1000m,
             sourceAccountId: a, targetAccountId: b);
 
         // Elle: 2 virman (biri eski/künyesiz 250, biri yeni 1000).
-        var satirlar = await cash.ListCashTransfersAsync();
-        Assert.Equal(2, satirlar.Count);
-        Assert.Equal(1250m, satirlar.Sum(x => x.Tutar));
-        Assert.Single(satirlar, x => !x.KunyeVar);
+        var rows = await cash.ListCashTransfersAsync();
+        Assert.Equal(2, rows.Count);
+        Assert.Equal(1250m, rows.Sum(x => x.Tutar));
+        Assert.Single(rows, x => !x.KunyeVar);
     }
 
     [Fact]
@@ -132,13 +132,13 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
     {
         var tenant = Guid.NewGuid();
         using var host = new TestHost(fx.AppConnectionString);
-        await EskiVirmanYazAsync(host, tenant, 250m, Gun(-30));   // pencere DIŞI
+        await WriteOldTransferAsync(host, tenant, 250m, Day(-30));   // pencere DIŞI
 
         using var scope = host.ScopeFor(tenant);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = await HesapAsync(scope, "A", "Kasa A", "Kasa");
-        var b = await HesapAsync(scope, "B", "Kasa B", "Kasa");
-        var c = await HesapAsync(scope, "C", "Kasa C", "Kasa");
+        var a = await AccountAsync(scope, "A", "Kasa A", "Kasa");
+        var b = await AccountAsync(scope, "B", "Kasa B", "Kasa");
+        var c = await AccountAsync(scope, "C", "Kasa C", "Kasa");
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Kasa, 1000m,
             sourceAccountId: a, targetAccountId: b, receiptNo: "MK-AB");
         await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Kasa, 500m,
@@ -147,7 +147,7 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         // Süzgeçsiz: 3.
         Assert.Equal(3, (await cash.ListCashTransfersAsync()).Count);
         // Tarih penceresi son 7 gün: eski kayıt düşer → 2.
-        Assert.Equal(2, (await cash.ListCashTransfersAsync(new KasaVirmanFilter { Bas = Gun(-7) })).Count);
+        Assert.Equal(2, (await cash.ListCashTransfersAsync(new KasaVirmanFilter { Bas = Day(-7) })).Count);
         // Hesap A: yalnız A→B → 1.
         Assert.Single(await cash.ListCashTransfersAsync(new KasaVirmanFilter { HesapId = a }));
         // Hesap B kaynak VEYA hedef olduğu iki virmanda da geçer → 2.
@@ -164,17 +164,17 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = await HesapAsync(scope, "A", "Banka A", "Banka");
-        var b = await HesapAsync(scope, "B", "Banka B", "Banka");
+        var a = await AccountAsync(scope, "A", "Banka A", "Banka");
+        var b = await AccountAsync(scope, "B", "Banka B", "Banka");
 
         // Dövizli virman: kur açıkça verilir → TL karşılığı elle: 100 × 40 = 4000.
         await cash.TransferAsync(LedgerAccountType.Banka, LedgerAccountType.Banka, 100m,
             currency: "EUR", exchangeRate: 40m, sourceAccountId: a, targetAccountId: b);
 
-        var satir = Assert.Single(await cash.ListCashTransfersAsync());
-        Assert.Equal(100m, satir.Tutar);
-        Assert.Equal("EUR", satir.Doviz);
-        Assert.Equal(4000m, satir.TutarTl);
+        var row = Assert.Single(await cash.ListCashTransfersAsync());
+        Assert.Equal(100m, row.Tutar);
+        Assert.Equal("EUR", row.Doviz);
+        Assert.Equal(4000m, row.TutarTl);
     }
 
     [Fact]
@@ -187,12 +187,12 @@ public sealed class VirmanGecmisiTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(t1))
         {
             var cash = s1.ServiceProvider.GetRequiredService<CashService>();
-            var a = await HesapAsync(s1, "A", "Kasa A", "Kasa");
-            var b = await HesapAsync(s1, "B", "Kasa B", "Kasa");
+            var a = await AccountAsync(s1, "A", "Kasa A", "Kasa");
+            var b = await AccountAsync(s1, "B", "Kasa B", "Kasa");
             await cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Kasa, 300m,
                 sourceAccountId: a, targetAccountId: b, receiptNo: "T1-GIZLI");
         }
-        await EskiVirmanYazAsync(host, t1, 400m, Gun(-2));   // künyesiz kayıt da sızmamalı
+        await WriteOldTransferAsync(host, t1, 400m, Day(-2));   // künyesiz kayıt da sızmamalı
 
         // racar_app ile bağlanan T2 bağlamı T1'in virmanlarını GÖRMEZ.
         using var s2 = host.ScopeFor(t2);

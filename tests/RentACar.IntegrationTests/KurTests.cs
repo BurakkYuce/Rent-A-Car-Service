@@ -36,7 +36,7 @@ public sealed class TcmbKurParserTests
     [Fact]
     public void Parse_dogru_deger_birim_tarih_ve_invariant_ondalik()
     {
-        var list = TcmbKurParser.Parse(Xml);
+        var list = TcmbExchangeRateParser.Parse(Xml);
 
         var usd = list.Single(x => x.Kod == "USD");
         Assert.Equal(34.2567m, usd.ForexSatis);   // INVARIANT: 342567 DEĞİL
@@ -65,22 +65,22 @@ public sealed class TcmbKurParserTests
 [Collection("postgres")]
 public sealed class KurServiceTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Cuma = new(2026, 7, 3, 0, 0, 0, TimeSpan.Zero); // 2026-07-03 Cuma
+    private static readonly DateTimeOffset Friday = new(2026, 7, 3, 0, 0, 0, TimeSpan.Zero); // 2026-07-03 Cuma
 
     // KurKayitlari PAYLAŞIMLI (RLS yok) → testler arası temizlenmez. İdempotent seed: (Tarih,Kod) varsa sil, ekle.
-    private static async Task SeedKurAsync(IServiceScope scope, DateTimeOffset tarih,
-        params (string kod, decimal satis, int birim)[] kurlar)
+    private static async Task SeedExchangeRateAsync(IServiceScope scope, DateTimeOffset date,
+        params (string kod, decimal satis, int birim)[] exchangeRates)
     {
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
-        var kodlar = kurlar.Select(k => k.kod).ToList();
-        var mevcut = await db.KurKayitlari.Where(x => x.Tarih == tarih && kodlar.Contains(x.Kod)).ToListAsync();
-        db.KurKayitlari.RemoveRange(mevcut);
-        foreach (var (kod, satis, birim) in kurlar)
+        var codes = exchangeRates.Select(k => k.kod).ToList();
+        var existing = await db.KurKayitlari.Where(x => x.Tarih == date && codes.Contains(x.Kod)).ToListAsync();
+        db.KurKayitlari.RemoveRange(existing);
+        foreach (var (code, sale, unit) in exchangeRates)
             db.KurKayitlari.Add(new KurKaydi
             {
-                Tarih = tarih, Kod = kod, Ad = kod, Birim = birim,
-                ForexSatis = satis, ForexAlis = satis - 0.5m
+                Tarih = date, Kod = code, Ad = code, Birim = unit,
+                ForexSatis = sale, ForexAlis = sale - 0.5m
             });
         await db.SaveChangesAsync();
     }
@@ -90,14 +90,14 @@ public sealed class KurServiceTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedKurAsync(scope, Cuma, ("USD", 34.50m, 1));
-        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
+        await SeedExchangeRateAsync(scope, Friday, ("USD", 34.50m, 1));
+        var exchangeRate = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
 
-        Assert.Equal(34.50m, await kur.GetRateAsync("USD", Cuma));       // 1 birim = Satış/Birim
-        Assert.Equal(3450m, await kur.ConvertAsync(100m, "USD", "TL", Cuma)); // 100 × 34.50 = 3450
-        Assert.True(await kur.ConvertAsync(100m, "USD", "TL", Cuma) > 100m);   // YÖN: 100 USD > 100 TL
-        Assert.Equal(100m, await kur.ConvertAsync(100m, "TL", "TL", Cuma));    // baz→baz
-        Assert.Equal(100m, await kur.ConvertAsync(100m, "USD", "USD", Cuma));  // aynı döviz
+        Assert.Equal(34.50m, await exchangeRate.GetRateAsync("USD", Friday));       // 1 birim = Satış/Birim
+        Assert.Equal(3450m, await exchangeRate.ConvertAsync(100m, "USD", "TL", Friday)); // 100 × 34.50 = 3450
+        Assert.True(await exchangeRate.ConvertAsync(100m, "USD", "TL", Friday) > 100m);   // YÖN: 100 USD > 100 TL
+        Assert.Equal(100m, await exchangeRate.ConvertAsync(100m, "TL", "TL", Friday));    // baz→baz
+        Assert.Equal(100m, await exchangeRate.ConvertAsync(100m, "USD", "USD", Friday));  // aynı döviz
     }
 
     [Fact]
@@ -106,11 +106,11 @@ public sealed class KurServiceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         // JPY Birim 100: 25.00/100 = 0.25. Çapraz temiz: EUR 45, USD 30 → 100×45/30 = 150.
-        await SeedKurAsync(scope, Cuma, ("JPY", 25.00m, 100), ("EUR", 45m, 1), ("USD", 30m, 1));
-        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
+        await SeedExchangeRateAsync(scope, Friday, ("JPY", 25.00m, 100), ("EUR", 45m, 1), ("USD", 30m, 1));
+        var exchangeRate = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
 
-        Assert.Equal(0.25m, await kur.GetRateAsync("JPY", Cuma));            // Birim 100
-        Assert.Equal(150m, await kur.ConvertAsync(100m, "EUR", "USD", Cuma));  // TL bazı: 100×45/30
+        Assert.Equal(0.25m, await exchangeRate.GetRateAsync("JPY", Friday));            // Birim 100
+        Assert.Equal(150m, await exchangeRate.ConvertAsync(100m, "EUR", "USD", Friday));  // TL bazı: 100×45/30
     }
 
     [Fact]
@@ -118,13 +118,13 @@ public sealed class KurServiceTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedKurAsync(scope, Cuma, ("USD", 34.50m, 1)); // yalnız Cuma
-        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
+        await SeedExchangeRateAsync(scope, Friday, ("USD", 34.50m, 1)); // yalnız Cuma
+        var exchangeRate = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
 
-        var pazar = Cuma.AddDays(2); // hafta sonu — kur yok
-        Assert.Equal(34.50m, await kur.GetRateAsync("USD", pazar)); // ≤pazar en yeni = Cuma
+        var sunday = Friday.AddDays(2); // hafta sonu — kur yok
+        Assert.Equal(34.50m, await exchangeRate.GetRateAsync("USD", sunday)); // ≤pazar en yeni = Cuma
 
-        await Assert.ThrowsAsync<ValidationException>(() => kur.GetRateAsync("XXX", Cuma)); // eksik → hata (0/1 değil)
+        await Assert.ThrowsAsync<ValidationException>(() => exchangeRate.GetRateAsync("XXX", Friday)); // eksik → hata (0/1 değil)
     }
 
     [Fact]
@@ -132,21 +132,21 @@ public sealed class KurServiceTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        await SeedKurAsync(scope, Cuma, ("USD", 34.50m, 1));
-        var sabit = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
-        var kur = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
+        await SeedExchangeRateAsync(scope, Friday, ("USD", 34.50m, 1));
+        var fixedValue = scope.ServiceProvider.GetRequiredService<FixedExchangeRateService>();
+        var exchangeRate = scope.ServiceProvider.GetRequiredService<ExchangeRateService>();
 
         // Süresiz sabit kur → TCMB'yi ezer
-        await sabit.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
-        Assert.Equal(40m, await kur.GetRateAsync("USD", Cuma));
+        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
+        Assert.Equal(40m, await exchangeRate.GetRateAsync("USD", Friday));
 
         // Pencere gelecekte → bugün TCMB'ye düşer
-        await sabit.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true, BasTar = Cuma.AddDays(10) });
-        Assert.Equal(34.50m, await kur.GetRateAsync("USD", Cuma));
+        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true, BasTar = Friday.AddDays(10) });
+        Assert.Equal(34.50m, await exchangeRate.GetRateAsync("USD", Friday));
 
         // Pasif → TCMB
-        await sabit.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = false });
-        Assert.Equal(34.50m, await kur.GetRateAsync("USD", Cuma));
+        await fixedValue.UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = false });
+        Assert.Equal(34.50m, await exchangeRate.GetRateAsync("USD", Friday));
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed class KurServiceTests(PostgresFixture fx)
 
         // Paylaşımlı TCMB kuru (her iki tenant görür)
         using (var s0 = host.ScopeFor(tenantA))
-            await SeedKurAsync(s0, Cuma, ("USD", 34.50m, 1));
+            await SeedExchangeRateAsync(s0, Friday, ("USD", 34.50m, 1));
 
         // A kendi sabit kurunu tanımlar
         using (var sa = host.ScopeFor(tenantA))
@@ -167,8 +167,8 @@ public sealed class KurServiceTests(PostgresFixture fx)
 
         // A → 40 (kendi sabiti); B → 34.50 (A'nınkini GÖRMEZ, TCMB'ye düşer)
         using (var sa = host.ScopeFor(tenantA))
-            Assert.Equal(40m, await sa.ServiceProvider.GetRequiredService<ExchangeRateService>().GetRateAsync("USD", Cuma));
+            Assert.Equal(40m, await sa.ServiceProvider.GetRequiredService<ExchangeRateService>().GetRateAsync("USD", Friday));
         using (var sb = host.ScopeFor(tenantB))
-            Assert.Equal(34.50m, await sb.ServiceProvider.GetRequiredService<ExchangeRateService>().GetRateAsync("USD", Cuma));
+            Assert.Equal(34.50m, await sb.ServiceProvider.GetRequiredService<ExchangeRateService>().GetRateAsync("USD", Friday));
     }
 }

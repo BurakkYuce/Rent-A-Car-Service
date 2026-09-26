@@ -24,10 +24,10 @@ public static partial class WebsiteApi
         var g = v1.MapGroup("/blog-yonetim").WithTags(SystemApiCommon.WebsiteTag).RequirePermission(Permission.OperationsWrite);
 
         g.MapGet("", async (int? sayfa, int? boyut, string? sirala, BlogService s, CancellationToken ct) =>
-            TypedResults.Ok(F5Ortak.Sayfala((await s.ListAllAsync(ct))
+            TypedResults.Ok(F5Shared.Paginate((await s.ListAllAsync(ct))
                 .Select(p => new BlogRowDto(p.Id, p.Baslik, p.Slug, p.Ozet, p.Durum.ToString(), p.YayinTarihi, p.KapakVar,
                     p.AltBaslik, p.AramaDisi)).ToList(), BlogSort, sayfa, boyut, sirala)))
-            .AlanlariEsle(F5Ortak.SiralamaKurallari);
+            .MapFields(F5Shared.SortRules);
 
         g.MapGet("/{id:guid}", async Task<Results<Ok<BlogDetailDto>, ProblemHttpResult>> (Guid id, BlogService s, CancellationToken ct)
             => await BlogAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Yazı bulunamadı."));
@@ -38,7 +38,7 @@ public static partial class WebsiteApi
             var id = await s.CreateAsync(input, ct);
             return await BlogAsync(id, s, ct) is { } d
                 ? TypedResults.Created($"{BlogRoot}/{id}", d) : SystemApiCommon.NotFound("Yazı bulunamadı.");
-        }).AlanlariEsle(BlogRules);
+        }).MapFields(BlogRules);
 
         g.MapPut("/{id:guid}", async Task<Results<Ok<BlogDetailDto>, ProblemHttpResult>> (
             Guid id, BlogRequest i, BlogService s, CancellationToken ct) =>
@@ -48,7 +48,7 @@ public static partial class WebsiteApi
             var input = ToBlogInput(i);
             if (!await s.UpdateAsync(id, input, i.Surum!, ct)) return SystemApiCommon.NotFound("Yazı bulunamadı.");
             return await BlogAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound("Yazı bulunamadı.");
-        }).AlanlariEsle(BlogRules);
+        }).MapFields(BlogRules);
 
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, BlogService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound("Yazı bulunamadı."));
@@ -60,7 +60,7 @@ public static partial class WebsiteApi
         // ---- kapak
         g.MapPost("/{id:guid}/kapak", UploadCover).DisableAntiforgery()
             .WithMetadata(new RequestSizeLimitAttribute(UploadRequestLimit))
-            .AlanlariEsle(CoverRules);
+            .MapFields(CoverRules);
 
         g.MapDelete("/{id:guid}/kapak", async Task<Results<Ok<BlogDetailDto>, ProblemHttpResult>> (
             Guid id, BlogService s, CancellationToken ct) =>
@@ -107,23 +107,23 @@ public static partial class WebsiteApi
 
     private static BlogInput ToBlogInput(BlogRequest i)
     {
-        Sinirlar.Metin(i.Baslik, 200, "baslik", "Başlık");
-        Sinirlar.Metin(i.Slug, 200, "slug", "Adres");
-        Sinirlar.Metin(i.Ozet, 500, "ozet", "Özet");
-        Sinirlar.Metin(i.Icerik, 20_000, "icerik", "İçerik");
-        Sinirlar.Metin(i.AltBaslik, 300, "altBaslik", "Alt başlık");
-        Sinirlar.Metin(i.SeoBaslik, 300, "seoBaslik", "SEO başlığı");
-        Sinirlar.Metin(i.MetaAciklama, 500, "metaAciklama", "Arama açıklaması");
-        Sinirlar.Metin(i.AnahtarKelimeler, 500, "anahtarKelimeler", "Anahtar kelimeler");
-        Sinirlar.Metin(i.Yazar, 160, "yazar", "Yazar");
-        Sinirlar.Metin(i.KapakAlt, 300, "kapakAlt", "Kapak açıklaması");
+        RentalLimits.Text(i.Baslik, 200, "baslik", "Başlık");
+        RentalLimits.Text(i.Slug, 200, "slug", "Adres");
+        RentalLimits.Text(i.Ozet, 500, "ozet", "Özet");
+        RentalLimits.Text(i.Icerik, 20_000, "icerik", "İçerik");
+        RentalLimits.Text(i.AltBaslik, 300, "altBaslik", "Alt başlık");
+        RentalLimits.Text(i.SeoBaslik, 300, "seoBaslik", "SEO başlığı");
+        RentalLimits.Text(i.MetaAciklama, 500, "metaAciklama", "Arama açıklaması");
+        RentalLimits.Text(i.AnahtarKelimeler, 500, "anahtarKelimeler", "Anahtar kelimeler");
+        RentalLimits.Text(i.Yazar, 160, "yazar", "Yazar");
+        RentalLimits.Text(i.KapakAlt, 300, "kapakAlt", "Kapak açıklaması");
         return new BlogInput
         {
             Baslik = i.Baslik ?? "",
             Slug = SystemApiCommon.Clean(i.Slug),
             Ozet = SystemApiCommon.Clean(i.Ozet),
             Icerik = i.Icerik ?? "",
-            Durum = F5Ortak.EnumAdi<BlogPostDurum>(i.Durum, "durum") ?? BlogPostDurum.Taslak,
+            Durum = F5Shared.EnumAdi<BlogPostDurum>(i.Durum, "durum") ?? BlogPostDurum.Taslak,
             AltBaslik = SystemApiCommon.Clean(i.AltBaslik),
             SeoBaslik = SystemApiCommon.Clean(i.SeoBaslik),
             MetaAciklama = SystemApiCommon.Clean(i.MetaAciklama),

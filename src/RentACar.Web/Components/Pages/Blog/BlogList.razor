@@ -52,14 +52,14 @@
                    "neden aramada çıkmıyor" diye aramaktan iyidir. Eksik alan yazıyı ENGELLEMEZ —
                    yalnız görünür kılar (hepsi opsiyonel, boşsa makul varsayılana düşüyor). *@
                 <td>
-                    @{ var eksik = SeoEksikler(_tam.GetValueOrDefault(p.Id)); }
-                    @if (eksik.Count == 0)
+                    @{ var missing = SeoMissing(_full.GetValueOrDefault(p.Id)); }
+                    @if (missing.Count == 0)
                     {
                         <span class="badge ok">Tam</span>
                     }
                     else
                     {
-                        <span class="badge warn" title="@string.Join(", ", eksik)">@eksik.Count eksik</span>
+                        <span class="badge warn" title="@string.Join(", ", missing)">@missing.Count eksik</span>
                     }
                 </td>
                 <td>@(p.YayinTarihi?.ToString("dd.MM.yyyy") ?? "—")</td>
@@ -86,11 +86,11 @@
                                     <option value="Yayinda" selected="@(p.Durum == BlogPostDurum.Yayinda)">Yayında</option>
                                 </select>
                             </label>
-                            <label class="full">İçerik<textarea name="icerik" required rows="10" maxlength="20000">@_tam.GetValueOrDefault(p.Id)?.Icerik</textarea></label>
+                            <label class="full">İçerik<textarea name="icerik" required rows="10" maxlength="20000">@_full.GetValueOrDefault(p.Id)?.Icerik</textarea></label>
                             <div class="full"><IcerikYardimi /></div>
                             @* SEO alanları ANA formun İÇİNDE (ayrı <form> açılmaz — iç içe form geçersizdir
                                ve tarayıcı içteki alanları hiç göndermez). *@
-                            <SeoAlanlari Post="_tam.GetValueOrDefault(p.Id)" />
+                            <SeoAlanlari Post="_full.GetValueOrDefault(p.Id)" />
                             <button type="submit">Kaydet</button>
                         </form>
                         <form method="post" action="/blog-yonetim/@p.Id/kapak" enctype="multipart/form-data" class="grid-form"><AntiforgeryToken />
@@ -124,7 +124,7 @@
     // Liste projeksiyonu İçerik ve SEO alanlarını taşımaz (blob/uzun metin listeye girmesin) —
     // düzenleme formu için tam kayıt ayrı çekilir. Önceden yalnız İçerik saklanıyordu; SEO alanları
     // da forma prefill edileceği için kaydın TAMAMI tutuluyor (ek sorgu YOK, aynı GetAsync çağrısı).
-    private Dictionary<Guid, BlogPost> _tam = [];
+    private Dictionary<Guid, BlogPost> _full = [];
 
     /// <summary>
     /// Arama sonucunu doğrudan etkileyen, DOLDURULMAMIŞ alanlar. Yalnız GÖSTERGE — hiçbiri zorunlu
@@ -133,27 +133,27 @@
     ///
     /// Kapak yalnız yazıda görsel VARSA alt metni sorulur (olmayan görselin alt metni anlamsız).
     /// </summary>
-    private static List<string> SeoEksikler(BlogPost? p)
+    private static List<string> SeoMissing(BlogPost? p)
     {
         if (p is null) return [];
-        var eksik = new List<string>();
-        if (string.IsNullOrWhiteSpace(p.SeoBaslik)) eksik.Add("Arama başlığı");
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(p.SeoBaslik)) missing.Add("Arama başlığı");
         if (string.IsNullOrWhiteSpace(p.MetaAciklama) && string.IsNullOrWhiteSpace(p.Ozet))
-            eksik.Add("Arama açıklaması");
-        if (string.IsNullOrWhiteSpace(p.AnahtarKelimeler)) eksik.Add("Anahtar kelimeler");
-        if (p.KapakBytes is null) eksik.Add("Kapak görseli");
-        else if (string.IsNullOrWhiteSpace(p.KapakAlt)) eksik.Add("Kapak alt metni");
-        return eksik;
+            missing.Add("Arama açıklaması");
+        if (string.IsNullOrWhiteSpace(p.AnahtarKelimeler)) missing.Add("Anahtar kelimeler");
+        if (p.KapakBytes is null) missing.Add("Kapak görseli");
+        else if (string.IsNullOrWhiteSpace(p.KapakAlt)) missing.Add("Kapak alt metni");
+        return missing;
     }
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Blog.ListAllAsync();
-        _tam = [];
+        _full = [];
         foreach (var p in _list)
         {
             var full = await Blog.GetAsync(p.Id);
-            if (full is not null) _tam[p.Id] = full;
+            if (full is not null) _full[p.Id] = full;
         }
     }
 }

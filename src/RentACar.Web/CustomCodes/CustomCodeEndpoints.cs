@@ -28,9 +28,9 @@ public static class CustomCodeEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/ozel-kodlar", mesaj); }
+        try { await action(); return Result.Ok("/ozel-kodlar", message); }
         catch (ValidationException ex) { return Results.Redirect($"/ozel-kodlar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

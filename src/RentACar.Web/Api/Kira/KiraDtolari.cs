@@ -194,7 +194,7 @@ public sealed record KiraPaylasimLinki(
 /// <summary>Paylaşım barı (yalnız OperationsWrite): aktif link + ön-doldurma (müşterinin kayıtlı GSM/e-postası;
 /// KVKK <c>AnonimTelefon</c>/<c>AnonimMail</c> işaretliyse <c>null</c>). <c>Mesaj</c> (F4.3b): WhatsApp/Gmail hazır özet
 /// metni — Blazor <c>KiraForm</c> metni, link HARİÇ (mutlak adresi SPA kendi kökünden kurup " Sözleşmeniz: …" olarak
-/// ekler); <c>AnonimAd</c>'da hitap "Sayın müşterimiz". Tarih İstanbul günü, tutar tr-TR N2. Kural: <see cref="MusteriGorunumu"/>.</summary>
+/// ekler); <c>AnonimAd</c>'da hitap "Sayın müşterimiz". Tarih İstanbul günü, tutar tr-TR N2. Kural: <see cref="CustomerView"/>.</summary>
 public sealed record KiraPaylasimBari(KiraPaylasimLinki? Link, string? MusteriTel, string? MusteriEmail, string Konu, string Mesaj);
 
 /// <summary>
@@ -206,7 +206,7 @@ public sealed record KiraToplamlari(decimal EkHizmetToplam, decimal CezaToplam);
 
 /// <summary>
 /// F4.3b — Müşteri sekmesinin salt-okunur cari özeti (<c>GET /kiralar/{id}/musteri-ozet</c>). <b>PII kuralı</b>
-/// (TEK yerde: <see cref="MusteriGorunumu"/>): TC kimlik numarası HİÇ dönmez — ne düz ne maskeli (Blazor paritesi;
+/// (TEK yerde: <see cref="CustomerView"/>): TC kimlik numarası HİÇ dönmez — ne düz ne maskeli (Blazor paritesi;
 /// KVKK en az veri). Ehliyet / pasaport numarası YALNIZ maskeli (≥ 8 → son 4, 5–7 → son 2, ≤ 4 tamamen yıldız).
 /// İletişim/adres Blazor ekranıyla aynı (tam) — ancak cari kartında KVKK anonimleştirme bayrağı işaretliyse o grup
 /// boş döner (<c>AnonimAd</c> → <c>Ad = null</c>; <c>AnonimBelge</c> → numara + belge üst bilgisi).

@@ -28,17 +28,17 @@ internal static partial class PricingApi
 
     public static void Map(RouteGroupBuilder v1)
     {
-        v1.MapGroup("").MapPost("/fiyat-hesapla", Quote).WithTags("Fiyat & Tarife").AlanlariEsle(QuoteRules)
+        v1.MapGroup("").MapPost("/fiyat-hesapla", Quote).WithTags("Fiyat & Tarife").MapFields(QuoteRules)
             .RequireAnyPermission(Permission.OperationsWrite, Permission.ViewReports);
-        v1.MapGroup("").MapPost("/maliyet-hesapla", Cost).WithTags("Fiyat & Tarife").AlanlariEsle(CostRules)
+        v1.MapGroup("").MapPost("/maliyet-hesapla", Cost).WithTags("Fiyat & Tarife").MapFields(CostRules)
             .RequirePermission(Permission.FinanceWrite);
         MapCostOffers(v1);
 
         var imp = v1.MapGroup("/tarife-aktar").WithTags("Fiyat & Tarife").RequirePermission(Permission.ManageUsers);
-        imp.MapGet("", ImportView).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        imp.MapGet("", ImportView).MapFields(F5Shared.SortRules);
         imp.MapPost("/yukle", Upload).DisableAntiforgery() // CSRF: group header filter (X-XSRF-TOKEN)
             .WithMetadata(new RequestSizeLimitAttribute(ImportRequestLimit));
-        imp.MapPost("/kanal-sil", DeleteChannel).AlanlariEsle([("Silinecek rezervasyon kaynağı", "kanal"), ("Toplu silme", "kanal")]);
+        imp.MapPost("/kanal-sil", DeleteChannel).MapFields([("Silinecek rezervasyon kaynağı", "kanal"), ("Toplu silme", "kanal")]);
     }
 
     // ------------------------------------------------------------------ fiyat hesapla
@@ -51,7 +51,7 @@ internal static partial class PricingApi
 
     private static async Task<Ok<PriceQuoteDto>> Quote(PriceQuoteRequest r, RentalQuoteEngine engine, CancellationToken ct)
     {
-        var group = F5Ortak.Nz(r.AracGrupKod) ?? throw new ValidationException("Araç grubu seçilmelidir.", "aracGrupKod");
+        var group = F5Shared.Nz(r.AracGrupKod) ?? throw new ValidationException("Araç grubu seçilmelidir.", "aracGrupKod");
         S.Text(group, 32, "aracGrupKod"); S.Text(r.Kanal, 64, "kanal"); S.Text(r.Sube, 64, "sube");
         S.Text(r.MusteriSegment, 64, "musteriSegment"); S.Text(r.KampanyaKodu, 64, "kampanyaKodu");
         var start = S.RequiredDate(r.BasTar, "basTar");
@@ -60,14 +60,14 @@ internal static partial class PricingApi
         if ((end - start).TotalDays > 3650) throw new ValidationException("Kiralama süresi en fazla 10 yıl olabilir.", "bitTar");
         S.IntRange(r.SurucuYas, 16, 120, "surucuYas");
         S.IntRange(r.TahminiKm, 0, 10_000_000, "tahminiKm");
-        var codes = (r.SigortaUrunKodlari ?? []).Select(F5Ortak.Nz).Where(c => c is not null).Select(c => c!).Distinct().ToList();
+        var codes = (r.SigortaUrunKodlari ?? []).Select(F5Shared.Nz).Where(c => c is not null).Select(c => c!).Distinct().ToList();
         if (codes.Count > 50 || codes.Any(c => c.Length > 32))
             throw new ValidationException("Sigorta ürün kodları geçersiz (en çok 50 kod, her biri en çok 32 karakter).", "sigortaUrunKodlari");
         var q = await engine.QuoteAsync(new QuoteRequest
         {
-            AracGrupKod = group, Kanal = F5Ortak.Nz(r.Kanal), Sube = F5Ortak.Nz(r.Sube), BasTar = start, BitTar = end,
+            AracGrupKod = group, Kanal = F5Shared.Nz(r.Kanal), Sube = F5Shared.Nz(r.Sube), BasTar = start, BitTar = end,
             SurucuYas = r.SurucuYas, TahminiKm = r.TahminiKm, SigortaUrunKodlari = codes,
-            MusteriSegment = F5Ortak.Nz(r.MusteriSegment), KampanyaKodu = F5Ortak.Nz(r.KampanyaKodu),
+            MusteriSegment = F5Shared.Nz(r.MusteriSegment), KampanyaKodu = F5Shared.Nz(r.KampanyaKodu),
         }, ct);
         return TypedResults.Ok(PriceQuoteDto.From(q));
     }
@@ -95,7 +95,7 @@ internal static partial class PricingApi
         {
             if (v is not { } x) return;
             if (Math.Abs(x) >= 1000m) throw new ValidationException("Oran çok büyük.", prefix + f);
-            AracFinansOrtak.EnsureMaxScale(x, 4, prefix + f);
+            VehicleFinanceShared.EnsureMaxScale(x, 4, prefix + f);
         }
         Amount(r.AlisBedeli, "alisBedeli"); Amount(r.KaskoYillik, "kaskoYillik"); Amount(r.TrafikSigortasiYillik, "trafikSigortasiYillik");
         Amount(r.MtvYillik, "mtvYillik"); Amount(r.BakimYillik, "bakimYillik"); Amount(r.LastikYillik, "lastikYillik");
@@ -115,7 +115,7 @@ internal static partial class PricingApi
             FaizOran = r.FaizOran ?? 0m, KkdfOran = r.KkdfOran ?? d.KkdfOran, BsmvOran = r.BsmvOran ?? d.BsmvOran,
             DamgaOran = r.DamgaOran ?? 0m, KarMarji = r.KarMarji ?? d.KarMarji, KdvOran = r.KdvOran ?? d.KdvOran,
             EnflasyonOran = r.EnflasyonOran ?? 0m,
-            KrediHesaplamaSekli = F5Ortak.EnumAdi<LoanCalculationMethod>(r.KrediHesaplamaSekli, prefix + "krediHesaplamaSekli")
+            KrediHesaplamaSekli = F5Shared.EnumAdi<LoanCalculationMethod>(r.KrediHesaplamaSekli, prefix + "krediHesaplamaSekli")
                                   ?? LoanCalculationMethod.EsitTaksitli,
             AracSayisi = r.AracSayisi ?? 1, KaskoYillik = r.KaskoYillik ?? 0m, TrafikSigortasiYillik = r.TrafikSigortasiYillik ?? 0m,
             MtvYillik = r.MtvYillik ?? 0m, BakimYillik = r.BakimYillik ?? 0m, LastikYillik = r.LastikYillik ?? 0m,

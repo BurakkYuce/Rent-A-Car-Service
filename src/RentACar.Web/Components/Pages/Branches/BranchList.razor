@@ -23,7 +23,7 @@
         <label>Telefon<input name="telefon" /></label>
         <label>E-posta<input name="eposta" type="email" /></label>
         <ComboBox Name="il" Label="İl" Options="_ilOpts" />
-        <ComboBox Name="ilce" Label="İlçe" Options="_ilceOpts" />
+        <ComboBox Name="ilce" Label="İlçe" Options="_districtOpts" />
         <label>Yetkili<input name="yetkili" /></label>
         <label>Çalışma Saatleri<input name="calismaSaatleri" placeholder="09:00-18:00" /></label>
         <label>Komisyon Oranı<input name="komisyonOran" type="number" step="0.0001" min="0" max="1" placeholder="0.10" /></label>
@@ -83,7 +83,7 @@
                             <label>Telefon<input name="telefon" value="@s.Telefon" /></label>
                             <label>E-posta<input name="eposta" type="email" value="@s.Eposta" /></label>
                             <ComboBox Name="il" Label="İl" Options="_ilOpts" Value="@s.Il" ListId="dl-il-edit" />
-                            <ComboBox Name="ilce" Label="İlçe" Options="_ilceOpts" Value="@s.Ilce" ListId="dl-ilce-edit" />
+                            <ComboBox Name="ilce" Label="İlçe" Options="_districtOpts" Value="@s.Ilce" ListId="dl-ilce-edit" />
                             <label>Yetkili<input name="yetkili" value="@s.Yetkili" /></label>
                             <label>Çalışma Saatleri<input name="calismaSaatleri" value="@s.CalismaSaatleri" /></label>
                             <label>Komisyon Oranı<input name="komisyonOran" type="number" step="0.0001" min="0" max="1" value="@s.KomisyonOran" /></label>
@@ -153,14 +153,14 @@
 <table class="grid tr-grid">
     <thead><tr><th>Şube</th><th>Hizmet</th><th>Açıklama</th><th></th></tr></thead>
     <tbody>
-        @if (_hizmetler.Count == 0)
+        @if (_services.Count == 0)
         {
             <tr><td colspan="4" class="muted">Tanımlı ücretsiz hizmet yok.</td></tr>
         }
-        @foreach (var h in _hizmetler)
+        @foreach (var h in _services)
         {
             <tr>
-                <td>@SubeAd(h.SubeId)</td>
+                <td>@BranchName(h.SubeId)</td>
                 <td>@h.HizmetAdi</td>
                 <td>@(h.Aciklama ?? "—")</td>
                 <td>
@@ -198,12 +198,12 @@
     <button type="submit">Önizle</button>
 </form>
 
-@if (_onizleme is { } o)
+@if (_preview is { } o)
 {
     <div class="filter-panel">
         <p><strong>@o.KaynakAd</strong> → <strong>@o.HedefAd</strong> · toplam <strong>@o.Toplam</strong> kayıt</p>
         <ul class="muted small">
-            @foreach (var (tablo, adet) in o.Etkilenen) { <li>@tablo: @adet</li> }
+            @foreach (var (table, count) in o.Etkilenen) { <li>@table: @count</li> }
             @if (o.Etkilenen.Count == 0) { <li>Taşınacak kayıt yok.</li> }
         </ul>
         <form method="post" action="/subeler/birlestir" class="filter-bar"
@@ -220,33 +220,33 @@
     [SupplyParameterFromQuery(Name = "kaynak")] public string? Kaynak { get; set; }
     [SupplyParameterFromQuery(Name = "hedef")] public string? Hedef { get; set; }
 
-    private IReadOnlyList<SubeUcretsizHizmet> _hizmetler = [];
-    private SubeBirlestirOnizleme? _onizleme;
+    private IReadOnlyList<SubeUcretsizHizmet> _services = [];
+    private SubeBirlestirOnizleme? _preview;
 
-    private string SubeAd(Guid id) => _list.FirstOrDefault(b => b.Id == id)?.Ad ?? "—";
+    private string BranchName(Guid id) => _list.FirstOrDefault(b => b.Id == id)?.Ad ?? "—";
 
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<Branch> _list = [];
-    private List<string> _ilOpts = [], _ilceOpts = [];
+    private List<string> _ilOpts = [], _districtOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Branches.ListAsync();
 
         // Tüm şubelerin ücretsiz hizmetleri tek listede (şube sayısı azdır).
-        var hepsi = new List<SubeUcretsizHizmet>();
-        foreach (var b in _list) hepsi.AddRange(await Branches.ListServicesAsync(b.Id));
-        _hizmetler = hepsi;
+        var all = new List<SubeUcretsizHizmet>();
+        foreach (var b in _list) all.AddRange(await Branches.ListServicesAsync(b.Id));
+        _services = all;
 
         // Birleştirme ÖNİZLEMESİ yalnız iki şube seçiliyken hesaplanır; yazma YAPMAZ.
         if (Guid.TryParse(Kaynak, out var k) && Guid.TryParse(Hedef, out var h) && k != h)
-            _onizleme = await Branches.PreviewMergeAsync(k, h);
+            _preview = await Branches.PreviewMergeAsync(k, h);
 
         // Seç-veya-yaz önerileri: mevcut şube kayıtlarından distinct İl/İlçe.
         _ilOpts = _list.Select(s => s.Il).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
-        _ilceOpts = _list.Select(s => s.Ilce).Where(x => !string.IsNullOrWhiteSpace(x))
+        _districtOpts = _list.Select(s => s.Ilce).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCulture).ToList();
     }
 }

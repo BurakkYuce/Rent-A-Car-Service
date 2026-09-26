@@ -50,7 +50,7 @@
                 }
                 @foreach (var k in _data.GelirKirilim)
                 {
-                    <tr><td>@KaynakAd(k.SourceType)</td><td class="pos">@k.Tutar.ToString("N2")</td></tr>
+                    <tr><td>@SourceName(k.SourceType)</td><td class="pos">@k.Tutar.ToString("N2")</td></tr>
                 }
             </tbody>
         </table>
@@ -68,7 +68,7 @@
                 }
                 @foreach (var k in _data.GiderKirilim)
                 {
-                    <tr><td>@KaynakAd(k.SourceType)</td><td class="neg">@k.Tutar.ToString("N2")</td></tr>
+                    <tr><td>@SourceName(k.SourceType)</td><td class="neg">@k.Tutar.ToString("N2")</td></tr>
                 }
             </tbody>
         </table>
@@ -92,7 +92,7 @@
     private static DateTimeOffset? ParseDate(string? s)
         => DateTimeOffset.TryParse(s, out var d) ? new DateTimeOffset(d.Date, TimeSpan.Zero) : null;
 
-    private static string KaynakAd(string sourceType) => sourceType switch
+    private static string SourceName(string sourceType) => sourceType switch
     {
         "Fatura" => "Fatura",
         "AracSatis" => "Araç Satış",

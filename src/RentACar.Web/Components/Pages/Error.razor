@@ -25,11 +25,11 @@
     içinde geçmezse yöneticinize haber verin.
 </p>
 
-@if (!string.IsNullOrEmpty(DestekKodu))
+@if (!string.IsNullOrEmpty(SupportCode))
 {
     <p>
         Yöneticinize ileteceğiniz destek kodu:<br />
-        <code class="destek-kodu">@DestekKodu</code>
+        <code class="destek-kodu">@SupportCode</code>
     </p>
 }
 
@@ -43,12 +43,12 @@
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
-    private string? DestekKodu { get; set; }
+    private string? SupportCode { get; set; }
 
     // Loglardaki `request_id` ile AYNI ifade (Observability/RequestEnrichment.cs): kullanıcının
     // ilettiği kod loglarda request_id, Tempo'da trace id olarak doğrudan aranır. Şablonun
     // Activity.Current.Id'si ("00-<trace>-<span>-00") loglardaki değerle birebir eşleşmiyordu.
     // Yeniden çalıştırma aynı istek içinde olduğu için trace, arızalanan isteğin trace'idir.
     protected override void OnInitialized() =>
-        DestekKodu = Activity.Current?.TraceId.ToString() ?? HttpContext?.TraceIdentifier;
+        SupportCode = Activity.Current?.TraceId.ToString() ?? HttpContext?.TraceIdentifier;
 }

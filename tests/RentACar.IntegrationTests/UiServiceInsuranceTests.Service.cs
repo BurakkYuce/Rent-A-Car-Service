@@ -67,9 +67,9 @@ public sealed partial class UiServiceInsuranceTests
         Assert.Equal(1, refl.Count(r => r.StatusCode == HttpStatusCode.OK));
         Assert.All(refl.Where(r => r.StatusCode != HttpStatusCode.OK), r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
         Assert.Equal((750m, 750m, 2), await LedgerAsync(e.TenantId, "ServisYansitma", id));
-        var cari = await ReadAsync(e.TenantId, db => db.AccountLedgerEntries.AsNoTracking()
+        var account = await ReadAsync(e.TenantId, db => db.AccountLedgerEntries.AsNoTracking()
             .Where(x => x.SourceId == id && x.Direction == LedgerDirection.Debit).Select(x => new { x.AccountType, x.AccountRef }).SingleAsync());
-        Assert.Equal((LedgerAccountType.Cari, (Guid?)e.CustomerId), (cari.AccountType, cari.AccountRef));
+        Assert.Equal((LedgerAccountType.Cari, (Guid?)e.CustomerId), (account.AccountType, account.AccountRef));
         var again = await Problem(await Send(s, HttpMethod.Post, $"{Svc}/{id}/yansit", new { cariId = e.CustomerId }), HttpStatusCode.Conflict, "mukerrer");
         Assert.True(again.GetProperty("mevcut").GetProperty("ayniIcerik").GetBoolean());
         Assert.Equal(750m, again.GetProperty("mevcut").GetProperty("tutar").GetDecimal());

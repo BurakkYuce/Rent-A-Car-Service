@@ -49,8 +49,8 @@ public sealed record AracSiparisDto(
     Guid? KrediId, int Adet, decimal BirimFiyat, decimal Toplam, decimal? PiyasaFiyat, decimal? OpsFiyat,
     decimal? FiloFiyat, string Doviz, decimal Kur, string? Aciklama, AracSiparisYetkileri Yetkiler)
 {
-    public static AracSiparisDto From(AracSiparis s, string? surum, string? cariAd, AracSiparisYetkileri y) => new(
-        s.Id, s.No, s.Durum.ToString(), surum, s.Tedarikci, s.TedarikciCariId, cariAd, s.SiparisTarihi, s.BeklenenTeslim,
+    public static AracSiparisDto From(AracSiparis s, string? version, string? customerName, AracSiparisYetkileri y) => new(
+        s.Id, s.No, s.Durum.ToString(), version, s.Tedarikci, s.TedarikciCariId, customerName, s.SiparisTarihi, s.BeklenenTeslim,
         s.ImzaTarih, s.DosyaNo, s.SatisTemsilci, s.OzelTemsilci, s.Marka, s.Tip, s.Grup, s.Versiyon, s.Opsiyon, s.Renk,
         s.IcRenk, s.KaynakTip, s.SatisTipi, s.TsbKayitNo, s.KrediId, s.Adet, s.BirimFiyat, s.Adet * s.BirimFiyat,
         s.PiyasaFiyat, s.OpsFiyat, s.FiloFiyat, s.Currency, s.Kur, s.Aciklama, y);
@@ -66,9 +66,9 @@ public sealed record AracSiparisSatiri(
     string? KaynakTip, string? SatisTipi, decimal? PiyasaFiyat, decimal? OpsFiyat, decimal? FiloFiyat,
     DateTimeOffset? ImzaTarih, string? TsbKayitNo, AracSiparisYetkileri Yetkiler);
 
-internal static class AracSiparisEsleme
+internal static class VehicleOrderMapping
 {
-    public static AracSiparisInput Girdi(AracSiparisIstegi i, string doviz, decimal kur) => new()
+    public static AracSiparisInput Input(AracSiparisIstegi i, string currency, decimal exchangeRate) => new()
     {
         Tedarikci = i.Tedarikci, TedarikciCariId = i.TedarikciCariId is { } c && c != Guid.Empty ? c : null,
         SiparisTarihi = i.SiparisTarihi?.ToUniversalTime(), BeklenenTeslim = i.BeklenenTeslim?.ToUniversalTime(),
@@ -77,6 +77,6 @@ internal static class AracSiparisEsleme
         Opsiyon = i.Opsiyon, Renk = i.Renk, IcRenk = i.IcRenk, KaynakTip = i.KaynakTip, SatisTipi = i.SatisTipi,
         TsbKayitNo = i.TsbKayitNo, KrediId = i.KrediId is { } k && k != Guid.Empty ? k : null, Adet = i.Adet ?? 1,
         BirimFiyat = i.BirimFiyat, PiyasaFiyat = i.PiyasaFiyat, OpsFiyat = i.OpsFiyat, FiloFiyat = i.FiloFiyat,
-        Doviz = doviz, Kur = kur, Aciklama = i.Aciklama,
+        Doviz = currency, Kur = exchangeRate, Aciklama = i.Aciklama,
     };
 }

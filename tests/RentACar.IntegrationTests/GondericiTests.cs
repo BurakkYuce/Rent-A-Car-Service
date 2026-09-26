@@ -14,9 +14,9 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class GondericiTests
 {
-    private static MailKitEmailSender Gonderici() => new(NullLogger<MailKitEmailSender>.Instance);
+    private static MailKitEmailSender Sender() => new(NullLogger<MailKitEmailSender>.Instance);
 
-    private static SmtpAyar GecerliAyar(string host = "smtp.ornek.com", int port = 587)
+    private static SmtpAyar ValidSetting(string host = "smtp.ornek.com", int port = 587)
         => new(host, port, true, "kullanici", "sifre", "gonderen@ornek.com", "Gönderen");
 
     [Theory]
@@ -25,13 +25,13 @@ public sealed class GondericiTests
     [InlineData("smtp.ornek.com", 70000, "gonderen@ornek.com", "alici@ornek.com")] // port aralık dışı
     [InlineData("smtp.ornek.com", 587, "", "alici@ornek.com")]        // gönderen yok
     [InlineData("smtp.ornek.com", 587, "gonderen@ornek.com", "")]     // alıcı yok
-    public async Task Eksik_alanlarda_aga_cikmadan_reddeder(string host, int port, string gonderen, string alici)
+    public async Task Eksik_alanlarda_aga_cikmadan_reddeder(string host, int port, string sender, string recipient)
     {
-        var ayar = new SmtpAyar(host, port, true, null, null, gonderen, null);
-        var sonuc = await Gonderici().SendAsync(ayar, new EpostaMesaj(alici, "konu", "<p>gövde</p>"));
+        var setting = new SmtpAyar(host, port, true, null, null, sender, null);
+        var result = await Sender().SendAsync(setting, new EpostaMesaj(recipient, "konu", "<p>gövde</p>"));
 
-        Assert.False(sonuc.Ok);
-        Assert.False(string.IsNullOrWhiteSpace(sonuc.Hata));
+        Assert.False(result.Ok);
+        Assert.False(string.IsNullOrWhiteSpace(result.Hata));
     }
 
     [Fact]
@@ -39,11 +39,11 @@ public sealed class GondericiTests
     {
         // MimeKit adres ayrıştırma istisnası yukarı SIZMAMALI: gönderimi tetikleyen arka plan işi
         // tek bir bozuk müşteri adresi yüzünden çökerse sıradaki bildirimler de gitmez.
-        var sonuc = await Gonderici().SendAsync(
-            GecerliAyar(), new EpostaMesaj("bu bir adres değil", "konu", "<p>gövde</p>"));
+        var result = await Sender().SendAsync(
+            ValidSetting(), new EpostaMesaj("bu bir adres değil", "konu", "<p>gövde</p>"));
 
-        Assert.False(sonuc.Ok);
-        Assert.Contains("geçersiz", sonuc.Hata, StringComparison.OrdinalIgnoreCase);
+        Assert.False(result.Ok);
+        Assert.Contains("geçersiz", result.Hata, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -51,18 +51,18 @@ public sealed class GondericiTests
     [InlineData("21408")]
     [InlineData("30007")]
     [InlineData("20003")]
-    public void Sms_hata_kodlari_turkce_aciklamaya_cevrilir(string kod)
+    public void Sms_hata_kodlari_turkce_aciklamaya_cevrilir(string code)
     {
-        var aciklama = TwilioSmsService.HataAciklama(kod);
-        Assert.False(string.IsNullOrWhiteSpace(aciklama));
+        var description = TwilioSmsService.ErrorDescription(code);
+        Assert.False(string.IsNullOrWhiteSpace(description));
         // Ham kodun kendisi cevap DEĞİLDİR: operatöre ne yapacağını söyleyen bir cümle beklenir.
-        Assert.NotEqual(kod, aciklama);
+        Assert.NotEqual(code, description);
     }
 
     [Fact]
     public void Sms_bilinmeyen_kod_sessiz_kalmaz_null_kod_bos_doner()
     {
-        Assert.Contains("99999", TwilioSmsService.HataAciklama("99999"));
-        Assert.Equal(string.Empty, TwilioSmsService.HataAciklama(null));
+        Assert.Contains("99999", TwilioSmsService.ErrorDescription("99999"));
+        Assert.Equal(string.Empty, TwilioSmsService.ErrorDescription(null));
     }
 }

@@ -52,7 +52,7 @@
        yürür (Sube + SubeId) — bu yüzden select şube master'ından beslenir. *@
     <select name="sube">
         <option value="">Şube (tümü)</option>
-        @foreach (var b in _subeAdlari)
+        @foreach (var b in _branchNames)
         {
             <option value="@b" selected="@(Sube == b)">@b</option>
         }
@@ -103,7 +103,7 @@
 
 @* Pasif sebebi serbest metin (FAZ-10) → seç-veya-yaz: mevcut kayıtlardan beslenen öneri listesi. *@
 <datalist id="durum-pasif-sebep">
-    @foreach (var s in _pasifSebepOpts)
+    @foreach (var s in _inactiveReasonOpts)
     {
         <option value="@s"></option>
     }
@@ -140,7 +140,7 @@
                     <td>@(r.MusteriAd ?? "—")</td>
                     <td>@(r.MusteriTel ?? "—")</td>
                     <td>@(r.KiraBitTar?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
-                    <td class="num">@KalanMetin(r.KiraKalanGun)</td>
+                    <td class="num">@RemainingText(r.KiraKalanGun)</td>
                     <td class="num">@(r.KiraBakiye?.ToString("N2") ?? "—")</td>
                     <td>@(r.RezMusteriAd is null ? "—" : $"{r.RezMusteriAd} ({r.RezBasTar?.LocalDateTime:dd.MM})")</td>
                     <td>@(r.AcikServisNo is null ? "—" : $"{r.AcikServisNo} {r.ServisAtolye}".Trim())</td>
@@ -151,7 +151,7 @@
                     <td>@(r.TakipNo ?? "—")</td>
                     <td>@(r.HgsNo ?? "—")</td>
                     <td>@(r.KarLastigi ? "Var" : "—")</td>
-                    <td>@RezKapaliMetin(r)</td>
+                    <td>@ReservationClosedText(r)</td>
                     <td class="num">@r.Km</td>
                     <td>@r.Sube</td>
                     <td>
@@ -186,7 +186,7 @@
                             {
                                 <span class="muted small" title="Açık servis kaydı var">Serviste</span>
                             }
-                            @if (!r.Bafta && !r.Kirada && _personeller.Count > 0)
+                            @if (!r.Bafta && !r.Kirada && _personnel.Count > 0)
                             {
                                 <form method="post" action="/baf/create"
                                       data-confirm="@($"{r.Plaka} personele tahsis edilsin mi?")"><AntiforgeryToken />
@@ -196,7 +196,7 @@
                                     <input type="hidden" name="aciklama" value="Araç Güncel Durum ekranından tahsis" />
                                     <select name="personelId" required title="Tahsis edilecek personel">
                                         <option value="">BAF personeli…</option>
-                                        @foreach (var p in _personeller)
+                                        @foreach (var p in _personnel)
                                         {
                                             <option value="@p.Id">@p.Ad @p.Soyad</option>
                                         }
@@ -236,11 +236,11 @@
     [SupplyParameterFromQuery(Name = "ofisRez")] public string? OfisRez { get; set; }
 
     private IReadOnlyList<FleetStatusRow> _rows = [];
-    private IReadOnlyList<string> _subeAdlari = [];
-    private IReadOnlyList<string> _pasifSebepOpts = [];
-    private IReadOnlyList<PersonelSecim> _personeller = [];
+    private IReadOnlyList<string> _branchNames = [];
+    private IReadOnlyList<string> _inactiveReasonOpts = [];
+    private IReadOnlyList<PersonelSecim> _personnel = [];
 
-    private static bool? Bayrak(string? s) => s switch { "true" => true, "false" => false, _ => null };
+    private static bool? Flag(string? s) => s switch { "true" => true, "false" => false, _ => null };
 
     protected override async Task OnInitializedAsync()
     {
@@ -257,36 +257,36 @@
             PasifSebep = string.IsNullOrWhiteSpace(PasifSebep) ? null : PasifSebep,
             HgsNo = string.IsNullOrWhiteSpace(Hgs) ? null : Hgs,
             TakipNo = string.IsNullOrWhiteSpace(Gps) ? null : Gps,
-            KarLastigi = Bayrak(KarLastigi),
-            WebRezKapat = Bayrak(WebRez),
-            OfisRezKapat = Bayrak(OfisRez),
+            KarLastigi = Flag(KarLastigi),
+            WebRezKapat = Flag(WebRez),
+            OfisRezKapat = Flag(OfisRez),
             KiradaMi = Kirada switch { "true" => true, "false" => false, _ => null }
         };
         _rows = await Fleet.QueryAsync(filter);
 
-        _subeAdlari = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _branchNames = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
         // Pasif sebebi serbest metindir (master tablosu yok) → öneriler mevcut satırlardan beslenir.
         // Bilinçli sınır: sebep filtresi uygulanmışken liste o sebebe daralır. Tam listeyi ayrıca
         // sorgulamak, 60 sn'de bir kendini yenileyen bu sayfada tüm filo sorgusunu İKİYE katlardı.
-        _pasifSebepOpts = _rows.Select(r => r.PasifSebep).Where(x => !string.IsNullOrWhiteSpace(x))
+        _inactiveReasonOpts = _rows.Select(r => r.PasifSebep).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.CurrentCulture).ToList();
 
         // ListAsync DEĞİL: o ManageUsers ister ve Operatör rolünde sayfayı 500'e düşürür
         // (BafList.razor'da aynı tuzağa düşülmüştü). ListForSelectAsync OperationsWrite yeter, PII taşımaz.
-        _personeller = await Personeller.ListForSelectAsync();
+        _personnel = await Personeller.ListForSelectAsync();
     }
 
     /// <summary>Kalan gün metni: 0 = "bugün", negatif = gecikme (operatörün en çok baktığı bilgi).</summary>
-    private static string KalanMetin(int? kalan) => kalan switch
+    private static string RemainingText(int? remaining) => remaining switch
     {
         null => "—",
         0 => "bugün",
-        < 0 => $"{-kalan.Value} gün gecikme",
-        _ => $"{kalan} gün"
+        < 0 => $"{-remaining.Value} gün gecikme",
+        _ => $"{remaining} gün"
     };
 
-    private static string RezKapaliMetin(FleetStatusRow r)
+    private static string ReservationClosedText(FleetStatusRow r)
     {
         if (r.WebRezKapat && r.OfisRezKapat) return "Web+Ofis";
         if (r.WebRezKapat) return "Web";

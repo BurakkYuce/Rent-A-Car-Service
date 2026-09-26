@@ -23,10 +23,10 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
 {
-    private static Task SabitKurAsync(IServiceProvider sp, string kod, decimal kur)
-        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = kod, Kur = kur, Aktif = true });
+    private static Task FixedExchangeRateAsync(IServiceProvider sp, string code, decimal exchangeRate)
+        => sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = code, Kur = exchangeRate, Aktif = true });
 
-    private static async Task<decimal> GiderToplamAsync(IServiceProvider sp)
+    private static async Task<decimal> ExpenseTotalAsync(IServiceProvider sp)
         => (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GiderToplam;
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SabitKurAsync(sp, "EUR", 40m);
+        await FixedExchangeRateAsync(sp, "EUR", 40m);
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KO 01" });
         var reg = sp.GetRequiredService<RegulationService>();
         var pol = await reg.AddInsuranceAsync(veh, InsuranceType.Kasko,
@@ -44,7 +44,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
 
         await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa); // kur YOK → otomatik 40
 
-        Assert.Equal(4000m, await GiderToplamAsync(sp)); // 100 EUR × 40 (elle)
+        Assert.Equal(4000m, await ExpenseTotalAsync(sp)); // 100 EUR × 40 (elle)
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SabitKurAsync(sp, "EUR", 40m); // otomatik 40 olurdu
+        await FixedExchangeRateAsync(sp, "EUR", 40m); // otomatik 40 olurdu
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KO 02" });
         var reg = sp.GetRequiredService<RegulationService>();
         var pol = await reg.AddInsuranceAsync(veh, InsuranceType.Trafik,
@@ -61,7 +61,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
 
         await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa, exchangeRate: 35m); // tarihsel düzeltme senaryosu
 
-        Assert.Equal(3500m, await GiderToplamAsync(sp)); // açık kur kazanır (elle)
+        Assert.Equal(3500m, await ExpenseTotalAsync(sp)); // açık kur kazanır (elle)
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
             DateTimeOffset.UtcNow.AddDays(-10), DateTimeOffset.UtcNow.AddYears(1), 100m, "P3", "X", null, "GBP");
 
         await Assert.ThrowsAsync<ValidationException>(() => reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa));
-        Assert.Equal(0m, await GiderToplamAsync(sp)); // hiçbir şey postlanmadı
+        Assert.Equal(0m, await ExpenseTotalAsync(sp)); // hiçbir şey postlanmadı
         Assert.False((await reg.ListInsuranceAsync()).Single(p => p.Id == pol).Odendi);
     }
 
@@ -94,7 +94,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
 
         await reg.PayInsuranceAsync(pol, LedgerAccountType.Kasa); // TRY → 1 (kur tablosu gerekmez)
 
-        Assert.Equal(100m, await GiderToplamAsync(sp));
+        Assert.Equal(100m, await ExpenseTotalAsync(sp));
     }
 
     [Fact]
@@ -103,21 +103,21 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SabitKurAsync(sp, "EUR", 40m);
-        var cari = await sp.GetRequiredService<CustomerService>()
+        await FixedExchangeRateAsync(sp, "EUR", 40m);
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Depo", Soyad = "Cari" });
-        var depo = sp.GetRequiredService<DepositService>();
+        var store = sp.GetRequiredService<DepositService>();
 
-        await depo.GetAsync(cari, 100m, LedgerAccountType.Kasa, currency: "EUR");   // kur otomatik 40
-        Assert.Equal(4000m, await depo.GetBalanceAsync(cari));                    // base 4000 (elle)
+        await store.GetAsync(account, 100m, LedgerAccountType.Kasa, currency: "EUR");   // kur otomatik 40
+        Assert.Equal(4000m, await store.GetBalanceAsync(account));                    // base 4000 (elle)
 
-        await depo.RefundAsync(cari, 50m, LedgerAccountType.Kasa, currency: "EUR");  // 2000 base iade
-        Assert.Equal(2000m, await depo.GetBalanceAsync(cari));
+        await store.RefundAsync(account, 50m, LedgerAccountType.Kasa, currency: "EUR");  // 2000 base iade
+        Assert.Equal(2000m, await store.GetBalanceAsync(account));
 
         // Kur'suz döviz (DKK): net red + bakiye değişmez.
         await Assert.ThrowsAsync<ValidationException>(
-            () => depo.GetAsync(cari, 10m, LedgerAccountType.Kasa, currency: "DKK"));
-        Assert.Equal(2000m, await depo.GetBalanceAsync(cari));
+            () => store.GetAsync(account, 10m, LedgerAccountType.Kasa, currency: "DKK"));
+        Assert.Equal(2000m, await store.GetBalanceAsync(account));
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SabitKurAsync(sp, "EUR", 40m);
+        await FixedExchangeRateAsync(sp, "EUR", 40m);
         var veh = sp.GetRequiredService<VehicleService>();
         var sale = sp.GetRequiredService<VehicleSaleService>();
 
@@ -151,7 +151,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KO 07" });
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rucu", Soyad = "Cari" });
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var id = await svc.CreateAsync(new ServiceRecordInput
@@ -163,7 +163,7 @@ public sealed class OdemeKurOtomatikTests(PostgresFixture fx)
         await svc.StartAsync(id);
         await svc.CompleteAsync(id, pickupKm: 10);
 
-        await svc.ReflectAsync(id, cari); // doviz TRY default, kur boş → 1
+        await svc.ReflectAsync(id, account); // doviz TRY default, kur boş → 1
 
         Assert.Equal(500m, (await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync()).GelirToplam);
     }

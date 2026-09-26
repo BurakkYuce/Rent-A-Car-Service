@@ -17,10 +17,10 @@ public static class VehicleGroupEndpoints
         var grp = app.MapGroup("/arac-gruplari").RequirePermission(Permission.OperationsWrite).AntiforgeryByEnv();
 
         grp.MapPost("/create", async (VehicleGroupService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, aktif: true)), "Kayıt eklendi."));
+            await Run(() => svc.CreateAsync(Build(req.Form, active: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (VehicleGroupService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, aktif: Bool(req.Form, "aktif") ?? true)), "Değişiklikler kaydedildi."));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, active: Bool(req.Form, "aktif") ?? true)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (VehicleGroupService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
@@ -46,7 +46,7 @@ public static class VehicleGroupEndpoints
         return app;
     }
 
-    private static VehicleGroupInput Build(IFormCollection f, bool aktif) => new()
+    private static VehicleGroupInput Build(IFormCollection f, bool active) => new()
     {
         Kod = f["kod"].ToString(),
         Ad = f["ad"].ToString(),
@@ -86,7 +86,7 @@ public static class VehicleGroupEndpoints
         EntegrasyonKod1 = FormParse.Str(f, "entegrasyonKod1"),
         WebId = FormParse.Str(f, "webId"),
         ServisId = FormParse.Str(f, "servisId"),
-        Aktif = aktif
+        Aktif = active
     };
 
 
@@ -98,9 +98,9 @@ public static class VehicleGroupEndpoints
         return v is "true" or "True" or "evet" or "Evet" or "on";
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/arac-gruplari", mesaj); }
+        try { await action(); return Result.Ok("/arac-gruplari", message); }
         catch (ValidationException ex) { return Results.Redirect($"/arac-gruplari?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

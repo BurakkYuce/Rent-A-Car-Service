@@ -27,21 +27,21 @@ public static partial class ReportApi
         string? tur, DateOnly? enGec, string? sahip, string? plaka, [AsParameters] ReportPageQuery page,
         ReportService reports, ICurrentUser user, CancellationToken ct)
     {
-        var t = F5Ortak.EnumAdi<InsuranceInspectionType>(tur, "tur") ?? InsuranceInspectionType.Hepsi;
-        var gun = ReportPeriod.ValidateDay(enGec, "enGec");
-        var kapsam = BranchScope.EffectiveFilter(user);
-        bool Gorunur(SigortaMuayeneRow r) => BranchScope.InScope(kapsam, null, r.Sube);
+        var t = F5Shared.EnumAdi<InsuranceInspectionType>(tur, "tur") ?? InsuranceInspectionType.Hepsi;
+        var day = ReportPeriod.ValidateDay(enGec, "enGec");
+        var scope = BranchScope.EffectiveFilter(user);
+        bool Visible(SigortaMuayeneRow r) => BranchScope.InScope(scope, null, r.Sube);
         var rows = (await reports.GetInsuranceInspectionAsync(new SigortaMuayeneFilter
         {
             Tur = t, AracSahibi = F(sahip), Plaka = F(plaka),
-            BitisEnGec = gun is { } g ? ReportPeriod.Anchor(g).AddDays(1).AddMicroseconds(-1) : null,
-        }, ct)).Where(Gorunur).ToList();
+            BitisEnGec = day is { } g ? ReportPeriod.Anchor(g).AddDays(1).AddMicroseconds(-1) : null,
+        }, ct)).Where(Visible).ToList();
         // Sahip seçenekleri FİLTRESİZ (ama kapsamlı) listeden — seçim sonrası diğerleri kaybolmasın.
-        var sahipler = (await reports.GetInsuranceInspectionAsync(ct: ct)).Where(Gorunur).Select(r => r.AracSahibi?.Trim())
+        var owners = (await reports.GetInsuranceInspectionAsync(ct: ct)).Where(Visible).Select(r => r.AracSahibi?.Trim())
             .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!)
             .Distinct(StringComparer.CurrentCultureIgnoreCase).OrderBy(x => x, StringComparer.Ordinal).ToList();
         return TypedResults.Ok(new ReportResult<InsuranceInspectionSummary, SigortaMuayeneRow>(
-            new ReportPeriodDto(null, gun), new InsuranceInspectionSummary(rows.Count, sahipler),
+            new ReportPeriodDto(null, day), new InsuranceInspectionSummary(rows.Count, owners),
             page.Apply(rows, InsuranceMap), null));
     }
 
@@ -80,10 +80,10 @@ public static partial class ReportApi
             Kirilim = Pick(Breakdowns, F(kirilim), "AracGrubu", "kirilim"), Ofis = F(ofis), Bas = p.FromUtc, Bit = p.ToUtc,
         };
         var d = await reports.GetComparativeAnalysisAsync(f, ct);
-        var rapor = new ComparativeReport(d.Tablo, d.VeriTuru, d.Kirilim, d.AyAnahtarlari,
+        var report = new ComparativeReport(d.Tablo, d.VeriTuru, d.Kirilim, d.AyAnahtarlari,
             d.Satirlar.Select(s => new ComparativeRow(s.Kirilim, s.Aylar, s.Toplam)).ToList(),
             d.AyAnahtarlari.Select(d.MonthTotal).ToList(), d.GenelToplam);
-        return TypedResults.Ok(new ReportSummaryResult<ComparativeReport>(p.ToDto(), rapor,
+        return TypedResults.Ok(new ReportSummaryResult<ComparativeReport>(p.ToDto(), report,
             ReportExport.Links(http, user, "karsilastirmali-analiz",
                 [("tablo", f.Tablo), ("veri", f.VeriTuru), ("kirilim", f.Kirilim), ("ofis", ofis), .. ReportExport.Period(p)])));
     }
@@ -111,19 +111,19 @@ public static partial class ReportApi
         DateOnly? bas, DateOnly? bit, Guid? personelId, string? sube, StaffShiftService shifts, CancellationToken ct)
     {
         ReportPeriod.Validate(bas, bit);
-        var filtre = new VardiyaFilter { Bas = bas, Bit = bit, PersonelId = personelId, Sube = F(sube) };
-        var (b, t) = StaffShiftService.Window(filtre);
-        var kirpildi = bas is { } fb && bit is { } ft && ft.DayNumber - fb.DayNumber + 1 > StaffShiftService.MaxDays;
-        var matris = await shifts.MatrixAsync(filtre, ct);
-        var liste = await shifts.ListAsync(filtre, ct);
-        var adlar = liste.ToDictionary(x => x.Vardiya.Id, x => (x.PersonelAd, x.PersonelKadroSube));
-        ShiftRow Row(Domain.Entities.PersonelVardiya v, string ad, string? kadro) => new(v.Id, v.PersonelId, ad, kadro,
+        var filter = new VardiyaFilter { Bas = bas, Bit = bit, PersonelId = personelId, Sube = F(sube) };
+        var (b, t) = StaffShiftService.Window(filter);
+        var clamped = bas is { } fb && bit is { } ft && ft.DayNumber - fb.DayNumber + 1 > StaffShiftService.MaxDays;
+        var matrix = await shifts.MatrixAsync(filter, ct);
+        var list = await shifts.ListAsync(filter, ct);
+        var names = list.ToDictionary(x => x.Vardiya.Id, x => (x.PersonelAd, x.PersonelKadroSube));
+        ShiftRow Row(Domain.Entities.PersonelVardiya v, string name, string? staff) => new(v.Id, v.PersonelId, name, staff,
             v.Tarih, v.BaslangicSaat, v.BitisSaat, v.SureDk, ShiftFormat.Range(v), v.Sube, v.Aciklama);
-        var satirlar = matris.Satirlar.Select(s => new ShiftMatrixRow(s.PersonelId, s.PersonelAd,
+        var rows = matrix.Satirlar.Select(s => new ShiftMatrixRow(s.PersonelId, s.PersonelAd,
             s.Gunler.OrderBy(k => k.Key).Select(k => new ShiftDay(k.Key, k.Value.Select(v =>
-                Row(v, s.PersonelAd, adlar.TryGetValue(v.Id, out var a) ? a.PersonelKadroSube : null)).ToList())).ToList(),
+                Row(v, s.PersonelAd, names.TryGetValue(v.Id, out var a) ? a.PersonelKadroSube : null)).ToList())).ToList(),
             s.ToplamDk, s.ToplamSaatMetni)).ToList();
-        return TypedResults.Ok(new ShiftReport(b, t, kirpildi, matris.Gunler, satirlar, matris.ToplamVardiya, matris.ToplamDk,
-            liste.Select(x => Row(x.Vardiya, x.PersonelAd, x.PersonelKadroSube)).ToList()));
+        return TypedResults.Ok(new ShiftReport(b, t, clamped, matrix.Gunler, rows, matrix.ToplamVardiya, matrix.ToplamDk,
+            list.Select(x => Row(x.Vardiya, x.PersonelAd, x.PersonelKadroSube)).ToList()));
     }
 }

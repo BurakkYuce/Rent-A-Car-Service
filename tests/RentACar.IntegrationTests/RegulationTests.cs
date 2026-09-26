@@ -18,20 +18,20 @@ public sealed class RegulationTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var reg = scope.ServiceProvider.GetRequiredService<RegulationService>();
-        var vade = scope.ServiceProvider.GetRequiredService<DueService>();
-        var arac = Guid.NewGuid();
+        var due = scope.ServiceProvider.GetRequiredService<DueService>();
+        var vehicle = Guid.NewGuid();
 
-        await reg.AddInsuranceAsync(arac, InsuranceType.Trafik, Now.AddYears(-1), Now.AddDays(5), 1000m, "P1", "Allianz", null); // ≤7
-        await reg.AddMtvAsync(arac, "2026-2", 800m, Now.AddDays(20));   // ≤30
-        await reg.AddInspectionAsync(arac, Now.AddYears(-2).AddDays(-1), Now.AddDays(-3), 600m); // geçmiş
+        await reg.AddInsuranceAsync(vehicle, InsuranceType.Trafik, Now.AddYears(-1), Now.AddDays(5), 1000m, "P1", "Allianz", null); // ≤7
+        await reg.AddMtvAsync(vehicle, "2026-2", 800m, Now.AddDays(20));   // ≤30
+        await reg.AddInspectionAsync(vehicle, Now.AddYears(-2).AddDays(-1), Now.AddDays(-3), 600m); // geçmiş
 
-        var items = await vade.GetAllAsync(Now);
+        var items = await due.GetAllAsync(Now);
         Assert.Equal(3, items.Count);
         Assert.Contains(items, i => i.Tur == "Trafik" && i.Bucket == DueBucket.YediGun);
         Assert.Contains(items, i => i.Tur == "MTV" && i.Bucket == DueBucket.OtuzGun);
         Assert.Contains(items, i => i.Tur == "Muayene" && i.Bucket == DueBucket.Gecmis);
 
-        var warnings = await vade.GetWarningsAsync(Now);
+        var warnings = await due.GetWarningsAsync(Now);
         Assert.Equal(3, warnings.Count); // hiçbiri İleri değil
     }
 
@@ -41,18 +41,18 @@ public sealed class RegulationTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var reg = scope.ServiceProvider.GetRequiredService<RegulationService>();
-        var vade = scope.ServiceProvider.GetRequiredService<DueService>();
-        var arac = Guid.NewGuid();
+        var due = scope.ServiceProvider.GetRequiredService<DueService>();
+        var vehicle = Guid.NewGuid();
 
         // Ödenmiş MTV doğrudan repo ile (servis Odendi set etmiyor) — DB'ye ödenmiş ekleyelim:
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.MtvRecords.Add(new() { VehicleId = arac, Donem = "2025-1", Tutar = 500m, Vade = Now.AddDays(3), Odendi = true });
+            db.MtvRecords.Add(new() { VehicleId = vehicle, Donem = "2025-1", Tutar = 500m, Vade = Now.AddDays(3), Odendi = true });
             await db.SaveChangesAsync();
         }
 
-        var items = await vade.GetAllAsync(Now);
+        var items = await due.GetAllAsync(Now);
         Assert.Empty(items); // ödenmiş MTV vade panosuna girmez
     }
 

@@ -23,10 +23,10 @@
 </p>
 
 <div class="u-row-wrap">
-    <a class="link @(DurumSecili(null) ? "aktif" : "")" href="/servisler">Tümü (@_tumu.Count)</a>
+    <a class="link @(IsStatusSelected(null) ? "aktif" : "")" href="/servisler">Tümü (@_all.Count)</a>
     @foreach (var d in Enum.GetValues<ServiceStatus>())
     {
-        <a class="link @(DurumSecili(d) ? "aktif" : "")" href="/servisler?durum=@d">@DurumAd(d) (@_tumu.Count(s => s.Durum == d))</a>
+        <a class="link @(IsStatusSelected(d) ? "aktif" : "")" href="/servisler?durum=@d">@StatusName(d) (@_all.Count(s => s.Durum == d))</a>
     }
 </div>
 
@@ -150,19 +150,19 @@
         }
         @foreach (var s in _list)
         {
-            var toplam = Toplam(s);
+            var total = Total(s);
             <tr>
                 <td class="kart-baslik">@s.No</td>
                 <td data-etiket="Araç">@VehLabel(s.VehicleId)</td>
                 <td data-etiket="Tür">@s.Tip</td>
                 <td data-etiket="Giriş">@s.GirisTarihi.LocalDateTime.ToString("dd.MM.yyyy")</td>
-                <td>@PlanMetin(s)</td>
+                <td>@PlanText(s)</td>
                 <td>@s.GirisKm@(s.CikisKm is int ck ? $" → {ck}" : "")</td>
                 <td class="num">@s.ToplamIscilik.ToString("N2")</td>
-                <td class="num">@toplam.KdvTutar.ToString("N2")</td>
-                <td class="num" data-etiket="Genel Toplam">@toplam.GenelToplam.ToString("N2")</td>
+                <td class="num">@total.KdvTutar.ToString("N2")</td>
+                <td class="num" data-etiket="Genel Toplam">@total.GenelToplam.ToString("N2")</td>
                 <td>@(s.FaturaNo ?? "—")@(s.FaturaGenelToplam is decimal fg ? $" / {fg:N2}" : "")</td>
-                <td data-etiket="Durum">@DurumAd(s.Durum)</td>
+                <td data-etiket="Durum">@StatusName(s.Durum)</td>
                 <td class="kart-aksiyon">
                     @if (s.Durum == ServiceStatus.Rezerve)
                     {
@@ -260,8 +260,8 @@
                                 <tfoot>
                                     <tr><td colspan="5">Toplam (satır bazında yuvarlanmış)</td>
                                         <td class="num" data-etiket="Net">@s.ToplamIscilik.ToString("N2")</td>
-                                        <td class="num" data-etiket="KDV">@toplam.KdvTutar.ToString("N2")</td>
-                                        <td class="num" data-etiket="Genel Toplam">@toplam.GenelToplam.ToString("N2")</td></tr>
+                                        <td class="num" data-etiket="KDV">@total.KdvTutar.ToString("N2")</td>
+                                        <td class="num" data-etiket="Genel Toplam">@total.GenelToplam.ToString("N2")</td></tr>
                                 </tfoot>
                             </table>
                         }
@@ -274,7 +274,7 @@
                             <fieldset>
                                 <legend>Kaza / Hasar (bilgi)</legend>
                                 <label>Beyan Türü<input name="beyanTuru" value="@s.BeyanTuru" /></label>
-                                <label>Kaza Tarihi<input name="kazaTarihi" type="date" value="@Gun(s.KazaTarihi)" /></label>
+                                <label>Kaza Tarihi<input name="kazaTarihi" type="date" value="@Day(s.KazaTarihi)" /></label>
                                 <label>Karşı Plaka<input name="karsiPlaka" value="@s.KarsiPlaka" /></label>
                                 <label>Karşı Trafik Sigortası<input name="karsiTrafikSigortasi" value="@s.KarsiTrafikSigortasi" /></label>
                                 <label>Kaza Sorumlusu<input name="kazaSorumlusu" value="@s.KazaSorumlusu" /></label>
@@ -284,7 +284,7 @@
 
                             <fieldset>
                                 <legend>Fatura (bilgi — deftere yazmaz)</legend>
-                                <label>Fatura Tarihi<input name="faturaTarihi" type="date" value="@Gun(s.FaturaTarihi)" /></label>
+                                <label>Fatura Tarihi<input name="faturaTarihi" type="date" value="@Day(s.FaturaTarihi)" /></label>
                                 <label>Fatura No<input name="faturaNo" value="@s.FaturaNo" /></label>
                                 <label>Fatura Tutarı (KDV hariç)<input name="faturaTutar" type="number" step="0.01" min="0" value="@Inv(s.FaturaTutar)" /></label>
                                 <label>Fatura KDV'si<input name="faturaKdv" type="number" step="0.01" min="0" value="@Inv(s.FaturaKdv)" /></label>
@@ -293,7 +293,7 @@
 
                             <fieldset>
                                 <legend>Ödeme (bilgi — kasa/banka bakiyesini değiştirmez)</legend>
-                                <label>Ödeme Tarihi<input name="odemeTarihi" type="date" value="@Gun(s.OdemeTarihi)" /></label>
+                                <label>Ödeme Tarihi<input name="odemeTarihi" type="date" value="@Day(s.OdemeTarihi)" /></label>
                                 <label>Ödeme Tutarı<input name="odeme" type="number" step="0.01" min="0" value="@Inv(s.Odeme)" /></label>
                                 <label>Döviz<input name="odemeDoviz" maxlength="3" value="@s.OdemeDoviz" /></label>
                                 <label>Kur<input name="odemeKur" type="number" step="0.0001" min="0" value="@Inv(s.OdemeKur)" /></label>
@@ -314,8 +314,8 @@
                                 <legend>Yakıt + Randevu</legend>
                                 <label>Çıkış Yakıt (0-12)<input name="cikisYakit" type="number" min="0" max="12" value="@s.CikisYakit" /></label>
                                 <label>Dönüş Yakıt (0-12)<input name="donusYakit" type="number" min="0" max="12" value="@s.DonusYakit" /></label>
-                                <label>Plan Başlangıç<input name="planBasTarihi" type="date" value="@Gun(s.PlanBasTarihi)" /></label>
-                                <label>Plan Bitiş<input name="planBitTarihi" type="date" value="@Gun(s.PlanBitTarihi)" /></label>
+                                <label>Plan Başlangıç<input name="planBasTarihi" type="date" value="@Day(s.PlanBasTarihi)" /></label>
+                                <label>Plan Bitiş<input name="planBitTarihi" type="date" value="@Day(s.PlanBitTarihi)" /></label>
                             </fieldset>
 
                             <button type="submit">Bilgileri Güncelle</button>
@@ -332,7 +332,7 @@
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
     [SupplyParameterFromQuery(Name = "durum")] public string? Durum { get; set; }
 
-    private IReadOnlyList<ServiceRecord> _tumu = [];
+    private IReadOnlyList<ServiceRecord> _all = [];
     private IReadOnlyList<ServiceRecord> _list = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Customer> _customers = [];
@@ -340,19 +340,19 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _tumu = await Services.ListAsync();
-        _list = Secili is ServiceStatus d ? _tumu.Where(s => s.Durum == d).ToList() : _tumu;
+        _all = await Services.ListAsync();
+        _list = Secili is ServiceStatus d ? _all.Where(s => s.Durum == d).ToList() : _all;
         _vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
     }
 
     private ServiceStatus? Secili => Enum.TryParse<ServiceStatus>(Durum, out var d) ? d : null;
-    private bool DurumSecili(ServiceStatus? d) => Secili == d;
+    private bool IsStatusSelected(ServiceStatus? d) => Secili == d;
 
     private string VehLabel(Guid id) => _vehMap.TryGetValue(id, out var p) ? p : "—";
 
-    private static string DurumAd(ServiceStatus d) => d switch
+    private static string StatusName(ServiceStatus d) => d switch
     {
         ServiceStatus.Acik => "Açık",
         ServiceStatus.Serviste => "Serviste",
@@ -362,7 +362,7 @@
         _ => d.ToString()
     };
 
-    private static string PlanMetin(ServiceRecord s) => (s.PlanBasTarihi, s.PlanBitTarihi) switch
+    private static string PlanText(ServiceRecord s) => (s.PlanBasTarihi, s.PlanBitTarihi) switch
     {
         (null, null) => "—",
         ({ } b, null) => b.LocalDateTime.ToString("dd.MM.yyyy"),
@@ -375,16 +375,16 @@
     /// tek seferde hesaplanmaz; yuvarlama artığı satırda kalır, ekran ile kalem birbirini tutar).
     /// Net toplam kalıcı <c>ToplamIscilik</c> ile aynıdır; burada hiçbir yeni para YARATILMAZ.
     /// </summary>
-    private static (decimal KdvTutar, decimal GenelToplam) Toplam(ServiceRecord s)
+    private static (decimal KdvTutar, decimal GenelToplam) Total(ServiceRecord s)
     {
-        decimal net = 0m, kdv = 0m;
+        decimal net = 0m, vat = 0m;
         foreach (var l in s.Lines)
         {
             var h = ServiceItemCalculation.Calculate(l.Tutar, l.BirimFiyat, l.Miktar, l.KdvOran);
             net += h.Net;
-            kdv += h.KdvTutar;
+            vat += h.KdvTutar;
         }
-        return (kdv, net + kdv);
+        return (vat, net + vat);
     }
 
     /// <summary>type=number değeri INVARIANT olmalı: tr-TR "1,2500" basıldığında tarayıcı alanı
@@ -394,5 +394,5 @@
     /// <summary>date input prefill'i LOCAL gün olmalı: FormParse.Date "2026-04-30"u sunucu yerelinde
     /// çözüp UTC'ye çeviriyor (+03:00 → 29 Nisan 21:00Z). UtcDateTime basmak her kaydetmede günü BİR
     /// GERİ kaydırırdı (VehicleEdit.razor'da canlı duman testiyle yakalanmıştı).</summary>
-    private static string? Gun(DateTimeOffset? d) => d?.LocalDateTime.ToString("yyyy-MM-dd");
+    private static string? Day(DateTimeOffset? d) => d?.LocalDateTime.ToString("yyyy-MM-dd");
 }

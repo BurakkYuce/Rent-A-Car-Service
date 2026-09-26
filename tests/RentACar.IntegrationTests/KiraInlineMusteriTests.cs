@@ -14,7 +14,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KiraInlineMusteriTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(1).AddHours(9);
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class KiraInlineMusteriTests(PostgresFixture fx)
         var custId = await customers.CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "İnline", Soyad = "Müşteri", CepTel = "5551234567" });
         var rentalId = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = custId, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
+        { MusteriId = custId, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(2), GunlukUcret = 100m });
 
         var rental = await rentals.GetAsync(rentalId);
         Assert.NotNull(rental);

@@ -13,8 +13,8 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class EkHizmetTanimTests(PostgresFixture fx)
 {
-    private static EkHizmetTanimInput In(string kod, string ad, decimal birim = 100m, decimal kdv = 0.20m, bool aktif = true)
-        => new() { Kod = kod, Ad = ad, BirimUcret = birim, KdvOrani = kdv, Aktif = aktif };
+    private static EkHizmetTanimInput In(string code, string name, decimal unit = 100m, decimal vat = 0.20m, bool active = true)
+        => new() { Kod = code, Ad = name, BirimUcret = unit, KdvOrani = vat, Aktif = active };
 
     [Fact]
     public async Task Create_normalizes_kod_and_roundtrips()
@@ -64,7 +64,7 @@ public sealed class EkHizmetTanimTests(PostgresFixture fx)
 
         var a = await svc.CreateAsync(In("A", "A hizmet"));
         await svc.CreateAsync(In("B", "B hizmet"));
-        await svc.UpdateAsync(a, In("A", "A hizmet", aktif: false));
+        await svc.UpdateAsync(a, In("A", "A hizmet", active: false));
 
         var active = await svc.ListActiveAsync();
         Assert.Single(active);

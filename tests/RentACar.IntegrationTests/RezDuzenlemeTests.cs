@@ -15,7 +15,7 @@ namespace RentACar.IntegrationTests;
 public sealed class RezDuzenlemeTests(PostgresFixture fx)
 {
     // Göreli: rezervasyon başlangıcı geçmişe kapalı (TarihPolitikasi) — sabit tarih takvimle kırmızıya döner.
-    private static readonly DateTimeOffset Bas = TestZaman.GunSonra(10);
+    private static readonly DateTimeOffset Start = TestZaman.DaysLater(10);
 
     [Fact]
     public async Task Duzenle_yeniden_fiyatla()
@@ -26,13 +26,13 @@ public sealed class RezDuzenlemeTests(PostgresFixture fx)
         var cust = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rez" });
         var v1 = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 RD 01", Durum = VehicleStatus.Musait });
         var v2 = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 RD 02", Durum = VehicleStatus.Musait });
-        var rez = sp.GetRequiredService<ReservationService>();
+        var res = sp.GetRequiredService<ReservationService>();
 
-        var id = await rez.CreateAsync(new BookingInput { MusteriId = cust, VehicleId = v1, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m });
-        Assert.True(await rez.UpdateAsync(id, new BookingInput
-        { MusteriId = cust, VehicleId = v2, BasTar = Bas, BitTar = Bas.AddDays(5), GunlukUcret = 150m, Kaynak = "Web" }));
+        var id = await res.CreateAsync(new BookingInput { MusteriId = cust, VehicleId = v1, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m });
+        Assert.True(await res.UpdateAsync(id, new BookingInput
+        { MusteriId = cust, VehicleId = v2, BasTar = Start, BitTar = Start.AddDays(5), GunlukUcret = 150m, Kaynak = "Web" }));
 
-        var r = await rez.GetAsync(id);
+        var r = await res.GetAsync(id);
         Assert.Equal(5, r!.Gun);
         Assert.Equal(750m, r.Tutar);     // 5 gün × 150 (elle oracle)
         Assert.Equal(v2, r.VehicleId);
@@ -47,11 +47,11 @@ public sealed class RezDuzenlemeTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var cust = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rez" });
         var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 RD 03", Durum = VehicleStatus.Musait });
-        var rez = sp.GetRequiredService<ReservationService>();
-        var id = await rez.CreateAsync(new BookingInput { MusteriId = cust, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
-        await rez.CancelAsync(id);
+        var res = sp.GetRequiredService<ReservationService>();
+        var id = await res.CreateAsync(new BookingInput { MusteriId = cust, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(2), GunlukUcret = 100m });
+        await res.CancelAsync(id);
 
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
-            rez.UpdateAsync(id, new BookingInput { MusteriId = cust, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 100m }));
+            res.UpdateAsync(id, new BookingInput { MusteriId = cust, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 100m }));
     }
 }

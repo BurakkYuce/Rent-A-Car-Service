@@ -20,7 +20,7 @@ namespace RentACar.Web.Persistence;
 public static class DbInitializer
 {
     /// <summary>Seed kullanıcılarının parolası (user-secret / ortam değişkeni <c>Seed__Parola</c>).</summary>
-    public const string SeedParolaAnahtari = "Seed:Parola";
+    public const string SeedPasswordKey = "Seed:Parola";
 
     /// <summary>Seed parolası kararı. <see cref="Parola"/> null → seed kullanıcıları oluşturulmaz.</summary>
     public readonly record struct SeedParolaKarari(string? Parola, bool Uretildi);
@@ -29,9 +29,9 @@ public static class DbInitializer
     /// Saf karar: yapılandırılmış parola her ortamda kazanır; yoksa Development'ta rastgele üretilir,
     /// diğer ortamlarda null (seed atlanır).
     /// </summary>
-    public static SeedParolaKarari SeedParolasiCoz(string? yapilandirilan, bool gelistirme)
-        => !string.IsNullOrWhiteSpace(yapilandirilan) ? new(yapilandirilan, Uretildi: false)
-         : gelistirme ? new(GelistirmeParolasi.Uret(), Uretildi: true)
+    public static SeedParolaKarari ResolveSeedPassword(string? configured, bool development)
+        => !string.IsNullOrWhiteSpace(configured) ? new(configured, Uretildi: false)
+         : development ? new(DevelopmentPassword.Generate(), Uretildi: true)
          : new(null, Uretildi: false);
 
     public static async Task MigrateAndSeedAsync(IServiceProvider sp, string migratorConnectionString)
@@ -58,16 +58,16 @@ public static class DbInitializer
 
         if (!await db.Tenants.AnyAsync()) // ilk kurulum: iki tenant + kullanıcıları
         {
-            var karar = SeedParolasiCoz(
-                sp.GetRequiredService<IConfiguration>()[SeedParolaAnahtari],
+            var decision = ResolveSeedPassword(
+                sp.GetRequiredService<IConfiguration>()[SeedPasswordKey],
                 sp.GetRequiredService<IHostEnvironment>().IsDevelopment());
 
-            if (karar.Parola is null)
+            if (decision.Parola is null)
             {
                 log.LogWarning(
                     "Seed atlandı: {Anahtar:l} yapılandırılmamış ve ortam Development değil — tahmin edilebilir "
                     + "parolalı demo firma/kullanıcı oluşturulmadı. Firmaları platform konsolundan açın.",
-                    SeedParolaAnahtari);
+                    SeedPasswordKey);
             }
             else
             {
@@ -78,19 +78,19 @@ public static class DbInitializer
                 db.Tenants.AddRange(t1, t2);
 
                 db.Users.AddRange(
-                    NewUser(t1.Id, "umit", "Ümit (Yüce Rent)", UserRole.Admin, hasher, karar.Parola),
-                    NewUser(t1.Id, "operator", "Operatör (Merkez şube)", UserRole.Operator, hasher, karar.Parola, sube: "Merkez"),
-                    NewUser(t2.Id, "umit", "Ümit (Demo Filo)", UserRole.Admin, hasher, karar.Parola));
+                    NewUser(t1.Id, "umit", "Ümit (Yüce Rent)", UserRole.Admin, hasher, decision.Parola),
+                    NewUser(t1.Id, "operator", "Operatör (Merkez şube)", UserRole.Operator, hasher, decision.Parola, branch: "Merkez"),
+                    NewUser(t2.Id, "umit", "Ümit (Demo Filo)", UserRole.Admin, hasher, decision.Parola));
 
                 await db.SaveChangesAsync();
 
                 // Üretilen parola hiçbir yerde saklanmaz → tek görünür yer bu satır (yalnız Development,
                 // yalnız bu ilk kurulum açılışında). Yapılandırılmış parola ASLA loglanmaz.
-                if (karar.Uretildi)
+                if (decision.Uretildi)
                     log.LogWarning(
                         "Seed kullanıcı parolası: {Parola:l} (firma yucerent/demo, kullanıcı umit/operator; "
                         + "yalnız bu ilk kurulumda üretildi ve bir daha basılmaz — sabitlemek için {Anahtar:l})",
-                        karar.Parola, SeedParolaAnahtari);
+                        decision.Parola, SeedPasswordKey);
             }
         }
 
@@ -101,13 +101,13 @@ public static class DbInitializer
 
     private static User NewUser(
         Guid tenantId, string userName, string displayName, UserRole rol, IPasswordHasher<User> hasher,
-        string parola, string? sube = null)
+        string password, string? branch = null)
     {
         var user = new User
         {
-            TenantId = tenantId, UserName = userName, DisplayName = displayName, Rol = rol, AtanmisSube = sube
+            TenantId = tenantId, UserName = userName, DisplayName = displayName, Rol = rol, AtanmisSube = branch
         };
-        user.PasswordHash = hasher.HashPassword(user, parola);
+        user.PasswordHash = hasher.HashPassword(user, password);
         return user;
     }
 }

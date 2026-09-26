@@ -27,17 +27,17 @@ namespace RentACar.IntegrationTests;
 public sealed class MaliyetTeklifiTests(PostgresFixture fx)
 {
     /// <summary>1.000.000 alış, %30 kalıntı, 36 ay, finansmansız, kâr 0, KDV %20.</summary>
-    private static MaliyetHesapInput Girdi() => new()
+    private static MaliyetHesapInput Input() => new()
     {
         AlisBedeli = 1_000_000m, ResidualYuzde = 0.30m, SureAy = 36,
         FaizOran = 0m, KkdfOran = 0m, BsmvOran = 0m, DamgaOran = 0m,
         KarMarji = 0m, KdvOran = 0.20m
     };
 
-    private static MaliyetTeklifiInput Teklif(string baslik, MaliyetHesapInput? g = null,
-        string? plaka = null, Guid? cari = null, DateTimeOffset? tarih = null) => new()
+    private static MaliyetTeklifiInput Quotation(string title, MaliyetHesapInput? g = null,
+        string? plate = null, Guid? account = null, DateTimeOffset? date = null) => new()
     {
-        Baslik = baslik, Plaka = plaka, CariId = cari, Tarih = tarih, Girdi = g ?? Girdi()
+        Baslik = title, Plaka = plate, CariId = account, Tarih = date, Girdi = g ?? Input()
     };
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<CostQuotationService>();
 
-        var g = Girdi();
+        var g = Input();
         g.KaskoYillik = 12_000m;          // 12000/12 × 36 = 36.000
         g.YonetimGideriAylik = 500m;      //   500 × 36    = 18.000
         g.BankaDosyaDigerMasraf = 4_000m; //   tek seferlik =  4.000
@@ -55,14 +55,14 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         // kalıntı 300.000 → amortisman 700.000 → toplam maliyet 758.000
         // başabaş/ay = 758.000/36 = 21.055,5555… → 21.055,56
         // teklif net = 758.000 (kâr 0) → aylık 21.055,56 → KDV'li 758.000 × 1,20 = 909.600
-        var id1 = await svc.CreateAsync(Teklif("İlk teklif", g, plaka: "34 MT 74"));
-        var id2 = await svc.CreateAsync(Teklif("İkinci teklif"));
-        var id3 = await svc.CreateAsync(Teklif("Üçüncü teklif"));
+        var id1 = await svc.CreateAsync(Quotation("İlk teklif", g, plate: "34 MT 74"));
+        var id2 = await svc.CreateAsync(Quotation("İkinci teklif"));
+        var id3 = await svc.CreateAsync(Quotation("Üçüncü teklif"));
 
         var t1 = (await svc.GetAsync(id1))!;
-        BelgeNoOracle.BeklenenlerdenBiri(17, 1, t1.KayitNo);
-        BelgeNoOracle.BeklenenlerdenBiri(17, 2, (await svc.GetAsync(id2))!.KayitNo);
-        BelgeNoOracle.BeklenenlerdenBiri(17, 3, (await svc.GetAsync(id3))!.KayitNo);   // sıra atlamıyor
+        DocumentNoOracle.OneOfExpected(17, 1, t1.KayitNo);
+        DocumentNoOracle.OneOfExpected(17, 2, (await svc.GetAsync(id2))!.KayitNo);
+        DocumentNoOracle.OneOfExpected(17, 3, (await svc.GetAsync(id3))!.KayitNo);   // sıra atlamıyor
 
         Assert.Equal(58_000m, t1.ToplamGider);
         Assert.Equal(700_000m, t1.NetAmortisman);
@@ -80,9 +80,9 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         Assert.Equal(LoanCalculationMethod.EsitTaksitli, t1.KrediHesaplamaSekli);
 
         // Snapshot'tan üretilen döküm, kayıtlı toplamla TUTAR (girdi ↔ sonuç ayrışmaz).
-        var kalemler = CostQuotationService.Items(t1);
-        Assert.Equal(3, kalemler.Count);
-        Assert.Equal(t1.ToplamGider, kalemler.Sum(k => k.DonemTutar));
+        var items = CostQuotationService.Items(t1);
+        Assert.Equal(3, items.Count);
+        Assert.Equal(t1.ToplamGider, items.Sum(k => k.DonemTutar));
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<CostQuotationService>();
 
-        var id = await svc.CreateAsync(Teklif("KDV snapshot"));
+        var id = await svc.CreateAsync(Quotation("KDV snapshot"));
         // ELLE: 700.000 net amortisman, gider 0 → teklif net 700.000 → KDV'li 700.000×1,20 = 840.000
         Assert.Equal(840_000m, (await svc.GetAsync(id))!.TeklifKdvli);
 
@@ -108,9 +108,9 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
             await db.SaveChangesAsync();
         }
 
-        var sonra = (await svc.GetAsync(id))!;
-        Assert.Equal(0.01m, sonra.KdvOran);          // girdi değişti
-        Assert.Equal(840_000m, sonra.TeklifKdvli);   // SONUÇ DEĞİŞMEDİ (snapshot)
+        var after = (await svc.GetAsync(id))!;
+        Assert.Equal(0.01m, after.KdvOran);          // girdi değişti
+        Assert.Equal(840_000m, after.TeklifKdvli);   // SONUÇ DEĞİŞMEDİ (snapshot)
     }
 
     [Fact]
@@ -120,17 +120,17 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<CostQuotationService>();
 
-        var g = Girdi();
+        var g = Input();
         g.KrediHesaplamaSekli = LoanCalculationMethod.Rotatif;
 
         var ex = await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(Teklif("Rotatif deneme", g)));
+            () => svc.CreateAsync(Quotation("Rotatif deneme", g)));
         Assert.Equal(CostCalculationService.RevolvingRejectMessage, ex.Message);
         Assert.Empty(await svc.SearchAsync());   // yarım/yanlış kayıt YOK
 
         // Numara da TÜKETİLMEDİ: red hesap aşamasında, sıra tahsisinden önce olur.
-        await svc.CreateAsync(Teklif("Eşit taksitli"));
-        BelgeNoOracle.BeklenenlerdenBiri(17, 1, Assert.Single(await svc.SearchAsync()).KayitNo);
+        await svc.CreateAsync(Quotation("Eşit taksitli"));
+        DocumentNoOracle.OneOfExpected(17, 1, Assert.Single(await svc.SearchAsync()).KayitNo);
     }
 
     [Fact]
@@ -141,13 +141,13 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         using var s = host.ScopeFor(tenant);
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<CostQuotationService>();
-        var rapor = sp.GetRequiredService<ReportService>();
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var report = sp.GetRequiredService<ReportService>();
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Teklif AŞ" });
 
-        var onceLedger = await LedgerSayimAsync(sp);
-        var onceGg = await rapor.GetRevenueExpenseAsync();
-        var onceBakiye = await rapor.GetAccountBalancesAsync();
+        var onceLedger = await LedgerCountAsync(sp);
+        var onceGg = await report.GetRevenueExpenseAsync();
+        var balanceBefore = await report.GetAccountBalancesAsync();
 
         // UÇUK tutarlar: 50 milyon alış, 100 araç, her kalem dolu. Rapora sızsaydı gözden kaçmazdı.
         var g = new MaliyetHesapInput
@@ -161,21 +161,21 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
             YedekAracYillik = 500_000m, YonetimGideriAylik = 75_000m, AylikGider = 25_000m,
             BankaDosyaDigerMasraf = 1_250_000m
         };
-        var id = await svc.CreateAsync(Teklif("Dev filo teklifi", g, cari: cari));
+        var id = await svc.CreateAsync(Quotation("Dev filo teklifi", g, account: account));
 
         // Kayıt GERÇEKTEN yazıldı (test boşa dönmüyor) — ama defter/rapor kıpırdamadı.
         Assert.True((await svc.GetAsync(id))!.TeklifKdvli > 0m);
-        Assert.Equal(onceLedger, await LedgerSayimAsync(sp));
+        Assert.Equal(onceLedger, await LedgerCountAsync(sp));
 
-        var sonraGg = await rapor.GetRevenueExpenseAsync();
-        Assert.Equal(onceGg.GelirToplam, sonraGg.GelirToplam);
-        Assert.Equal(onceGg.GiderToplam, sonraGg.GiderToplam);
-        Assert.Equal(onceGg.NetKar, sonraGg.NetKar);
+        var nextDay = await report.GetRevenueExpenseAsync();
+        Assert.Equal(onceGg.GelirToplam, nextDay.GelirToplam);
+        Assert.Equal(onceGg.GiderToplam, nextDay.GiderToplam);
+        Assert.Equal(onceGg.NetKar, nextDay.NetKar);
 
         // Cari bakiye de değişmedi: teklif borç/alacak DOĞURMAZ.
-        var sonraBakiye = await rapor.GetAccountBalancesAsync();
-        Assert.Equal(onceBakiye.Sum(x => x.Bakiye), sonraBakiye.Sum(x => x.Bakiye));
-        Assert.DoesNotContain(sonraBakiye, x => x.CariId == cari && x.Bakiye != 0m);
+        var balanceAfter = await report.GetAccountBalancesAsync();
+        Assert.Equal(balanceBefore.Sum(x => x.Bakiye), balanceAfter.Sum(x => x.Bakiye));
+        Assert.DoesNotContain(balanceAfter, x => x.CariId == account && x.Bakiye != 0m);
     }
 
     [Fact]
@@ -185,7 +185,7 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var sp = s.ServiceProvider;
         var svc = sp.GetRequiredService<CostQuotationService>();
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Filo AŞ" });
 
         // Tarih tabanı TAM SANİYEYE hizalı (Linux CI 100ns tick ↔ Mac µs farkı testi patlatır).
@@ -193,22 +193,22 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         t = t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond));
 
         // A: 1.000.000 alış, 36 ay → aylık net 700.000/36 = 19.444,4444… → 19.444,44
-        await svc.CreateAsync(Teklif("Ankara filosu", Girdi(), plaka: "06 AA 11", cari: cari, tarih: t));
+        await svc.CreateAsync(Quotation("Ankara filosu", Input(), plate: "06 AA 11", account: account, date: t));
         // B: 2.000.000 alış → amortisman 1.400.000 → aylık net 1.400.000/36 = 38.888,8888… → 38.888,89
-        var gB = Girdi(); gB.AlisBedeli = 2_000_000m;
-        var izmirId = await svc.CreateAsync(Teklif("İzmir filosu", gB, plaka: "35 BB 22", tarih: t.AddDays(10)));
+        var gB = Input(); gB.AlisBedeli = 2_000_000m;
+        var izmirId = await svc.CreateAsync(Quotation("İzmir filosu", gB, plate: "35 BB 22", date: t.AddDays(10)));
 
         Assert.Equal(2, (await svc.SearchAsync()).Count);
         Assert.Equal("Ankara filosu", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Metin = "ankara" })).Baslik);
         // Arama, ÜRETİLEN numarayla yapılır (format değiştiği için sabit dize yazılamaz).
-        var ikinciNo = (await svc.GetAsync(izmirId))!.KayitNo;
-        Assert.Equal(ikinciNo, Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Metin = ikinciNo })).KayitNo);
+        var secondNo = (await svc.GetAsync(izmirId))!.KayitNo;
+        Assert.Equal(secondNo, Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Metin = secondNo })).KayitNo);
         Assert.Equal("06 AA 11", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { Plaka = "06 aa" })).Plaka);
-        Assert.Equal("Ankara filosu", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { CariId = cari })).Baslik);
+        Assert.Equal("Ankara filosu", Assert.Single(await svc.SearchAsync(new MaliyetTeklifiFilter { CariId = account })).Baslik);
 
         // Tarih aralığı: yalnız ilk teklif (t) — ikincisi 10 gün sonra.
-        var tarihli = await svc.SearchAsync(new MaliyetTeklifiFilter { TarihMin = t.AddDays(-1), TarihMax = t.AddDays(1) });
-        Assert.Equal("Ankara filosu", Assert.Single(tarihli).Baslik);
+        var dated = await svc.SearchAsync(new MaliyetTeklifiFilter { TarihMin = t.AddDays(-1), TarihMax = t.AddDays(1) });
+        Assert.Equal("Ankara filosu", Assert.Single(dated).Baslik);
 
         // Fiyat aralığı ARAÇ BAŞINA aylık net üzerinden (elle: 19.444,44 ve 38.888,89).
         Assert.Equal("İzmir filosu", Assert.Single(
@@ -225,15 +225,15 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<CostQuotationService>();
 
-        var id = await svc.CreateAsync(Teklif("Taslak"));
+        var id = await svc.CreateAsync(Quotation("Taslak"));
         Assert.Equal(840_000m, (await svc.GetAsync(id))!.TeklifKdvli);   // 700.000 × 1,20
 
         // ELLE: Kasko 6.000/yıl → 6000/12 × 36 = 18.000 gider → maliyet 718.000 → KDV'li 861.600
-        var g = Girdi(); g.KaskoYillik = 6_000m;
-        Assert.True(await svc.UpdateAsync(id, Teklif("Revize", g, plaka: "34 RV 01")));
+        var g = Input(); g.KaskoYillik = 6_000m;
+        Assert.True(await svc.UpdateAsync(id, Quotation("Revize", g, plate: "34 RV 01")));
 
         var t = (await svc.GetAsync(id))!;
-        BelgeNoOracle.BeklenenlerdenBiri(17, 1, t.KayitNo);      // numara KORUNUR
+        DocumentNoOracle.OneOfExpected(17, 1, t.KayitNo);      // numara KORUNUR
         Assert.Equal("Revize", t.Baslik);
         Assert.Equal(18_000m, t.ToplamGider);
         Assert.Equal(718_000m, t.ToplamMaliyet);
@@ -241,8 +241,8 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         Assert.NotNull(t.UpdatedAtUtc);
 
         // GEÇERSİZ güncelleme mevcut satıra DOKUNMAZ (hesap önce, yazma sonra).
-        var bozuk = Girdi(); bozuk.KrediHesaplamaSekli = LoanCalculationMethod.Rotatif;
-        await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(id, Teklif("Bozuk", bozuk)));
+        var corrupt = Input(); corrupt.KrediHesaplamaSekli = LoanCalculationMethod.Rotatif;
+        await Assert.ThrowsAsync<ValidationException>(() => svc.UpdateAsync(id, Quotation("Bozuk", corrupt)));
         Assert.Equal("Revize", (await svc.GetAsync(id))!.Baslik);
 
         Assert.True(await svc.DeleteAsync(id));
@@ -257,12 +257,12 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         using var s = host.ScopeFor(Guid.NewGuid());
         var svc = s.ServiceProvider.GetRequiredService<CostQuotationService>();
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Teklif("  ")));      // başlıksız
-        var sifir = Girdi(); sifir.AlisBedeli = 0m;
-        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Teklif("Sıfır", sifir)));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Quotation("  ")));      // başlıksız
+        var zero = Input(); zero.AlisBedeli = 0m;
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(Quotation("Sıfır", zero)));
         // GELECEK tarihli teklif reddedilir (arama/dönem süzgeci sessizce yanlış kovaya düşmesin).
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.CreateAsync(Teklif("Gelecek", tarih: DateTimeOffset.UtcNow.AddDays(30))));
+            () => svc.CreateAsync(Quotation("Gelecek", date: DateTimeOffset.UtcNow.AddDays(30))));
 
         Assert.Empty(await svc.SearchAsync());
     }
@@ -278,13 +278,13 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         {
             var svc = op.ServiceProvider.GetRequiredService<CostQuotationService>();
             await Assert.ThrowsAsync<NoPermissionException>(() => svc.SearchAsync());
-            await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(Teklif("Operatör")));
+            await Assert.ThrowsAsync<NoPermissionException>(() => svc.CreateAsync(Quotation("Operatör")));
         }
 
         // Muhasebe: FinanceWrite → yazar VE okur.
         using var mh = host.ScopeFor(tenant, Guid.NewGuid(), "mh", UserRole.Muhasebe);
         var m = mh.ServiceProvider.GetRequiredService<CostQuotationService>();
-        await m.CreateAsync(Teklif("Muhasebe teklifi"));
+        await m.CreateAsync(Quotation("Muhasebe teklifi"));
         Assert.Single(await m.SearchAsync());
     }
 
@@ -297,9 +297,9 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
 
         using (var sa = host.ScopeFor(a))
         {
-            var g = Girdi(); g.KaskoYillik = 99_999m;
+            var g = Input(); g.KaskoYillik = 99_999m;
             await sa.ServiceProvider.GetRequiredService<CostQuotationService>()
-                .CreateAsync(Teklif("A'nın gizli teklifi", g, plaka: "34 GZ 01"));
+                .CreateAsync(Quotation("A'nın gizli teklifi", g, plate: "34 GZ 01"));
         }
 
         using (var sb = host.ScopeFor(b))
@@ -310,8 +310,8 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
             Assert.Equal(0m, CostQuotationService.Summary(await svc.SearchAsync()).FiloKdvli);
 
             // B kendi teklifini yazınca numara 1'DEN başlar (sıra tenant başına).
-            await svc.CreateAsync(Teklif("B'nin teklifi"));
-            BelgeNoOracle.BeklenenlerdenBiri(17, 1, Assert.Single(await svc.SearchAsync()).KayitNo);
+            await svc.CreateAsync(Quotation("B'nin teklifi"));
+            DocumentNoOracle.OneOfExpected(17, 1, Assert.Single(await svc.SearchAsync()).KayitNo);
         }
 
         // HAM RLS (racar_app, NOBYPASSRLS): B GUC'uyla A'nın satırı görünmez, UPDATE/DELETE 0 satır.
@@ -360,18 +360,18 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
         var svc = s.ServiceProvider.GetRequiredService<CostQuotationService>();
 
         // ELLE: A → 700.000/36 = 19.444,44 aylık, 5 araç → 97.222,20 ; KDV'li 840.000 × 5 = 4.200.000
-        var gA = Girdi(); gA.AracSayisi = 5;
-        await svc.CreateAsync(Teklif("Beşli", gA));
+        var gA = Input(); gA.AracSayisi = 5;
+        await svc.CreateAsync(Quotation("Beşli", gA));
         // B → 2.000.000 alış: amortisman 1.400.000 → aylık 38.888,89, 2 araç → 77.777,78
         //     KDV'li 1.400.000 × 1,20 = 1.680.000 × 2 = 3.360.000
-        var gB = Girdi(); gB.AlisBedeli = 2_000_000m; gB.AracSayisi = 2;
-        await svc.CreateAsync(Teklif("İkili", gB));
+        var gB = Input(); gB.AlisBedeli = 2_000_000m; gB.AracSayisi = 2;
+        await svc.CreateAsync(Quotation("İkili", gB));
 
-        var ozet = CostQuotationService.Summary(await svc.SearchAsync());
-        Assert.Equal(2, ozet.Adet);
-        Assert.Equal(7, ozet.AracAdet);
-        Assert.Equal(97_222.20m + 77_777.78m, ozet.FiloAylikNet);   // 174.999,98
-        Assert.Equal(4_200_000m + 3_360_000m, ozet.FiloKdvli);      // 7.560.000
+        var summary = CostQuotationService.Summary(await svc.SearchAsync());
+        Assert.Equal(2, summary.Adet);
+        Assert.Equal(7, summary.AracAdet);
+        Assert.Equal(97_222.20m + 77_777.78m, summary.FiloAylikNet);   // 174.999,98
+        Assert.Equal(4_200_000m + 3_360_000m, summary.FiloKdvli);      // 7.560.000
     }
 
     [Fact]
@@ -393,59 +393,59 @@ public sealed class MaliyetTeklifiTests(PostgresFixture fx)
             MuayeneEmisyonYillik = 3_333.33m, YedekAracYillik = 4_444.44m,
             YonetimGideriAylik = 555.55m, AylikGider = 666.66m, BankaDosyaDigerMasraf = 7_777.77m
         };
-        var id = await svc.CreateAsync(Teklif("Round-trip", g, plaka: "34 RT 01"));
-        var ilk = (await svc.GetAsync(id))!;
+        var id = await svc.CreateAsync(Quotation("Round-trip", g, plate: "34 RT 01"));
+        var first = (await svc.GetAsync(id))!;
 
         // 1) Kayıtlı snapshot'ı FORM ALANLARINA yaz (liste sayfasının "Forma Yükle" bağı gibi:
         //    InvariantCulture) → web ayrıştırıcısından geri oku → AYNI girdi çıkmalı.
-        var alanlar = new Dictionary<string, string?>
+        var fields = new Dictionary<string, string?>
         {
-            ["alisBedeli"] = Inv(ilk.AlisBedeli), ["residual"] = Inv(ilk.ResidualYuzde),
-            ["sureAy"] = ilk.SureAy.ToString(CultureInfo.InvariantCulture),
-            ["faiz"] = Inv(ilk.FaizOran), ["kkdf"] = Inv(ilk.KkdfOran), ["bsmv"] = Inv(ilk.BsmvOran),
-            ["damga"] = Inv(ilk.DamgaOran), ["aylikGider"] = Inv(ilk.AylikGider),
-            ["kar"] = Inv(ilk.KarMarji), ["kdv"] = Inv(ilk.KdvOran),
-            ["kasko"] = Inv(ilk.KaskoYillik), ["trafik"] = Inv(ilk.TrafikSigortasiYillik),
-            ["mtv"] = Inv(ilk.MtvYillik), ["bakim"] = Inv(ilk.BakimYillik),
-            ["lastik"] = Inv(ilk.LastikYillik), ["lastikKis"] = Inv(ilk.LastikKisYillik),
-            ["takip"] = Inv(ilk.AracTakipYillik), ["tescil"] = Inv(ilk.TescilPlakaYillik),
-            ["muayene"] = Inv(ilk.MuayeneEmisyonYillik), ["yedek"] = Inv(ilk.YedekAracYillik),
-            ["yonetim"] = Inv(ilk.YonetimGideriAylik), ["dosya"] = Inv(ilk.BankaDosyaDigerMasraf),
-            ["enflasyon"] = Inv(ilk.EnflasyonOran), ["kredi"] = ilk.KrediHesaplamaSekli.ToString(),
-            ["adet"] = ilk.AracSayisi.ToString(CultureInfo.InvariantCulture)
+            ["alisBedeli"] = Inv(first.AlisBedeli), ["residual"] = Inv(first.ResidualYuzde),
+            ["sureAy"] = first.SureAy.ToString(CultureInfo.InvariantCulture),
+            ["faiz"] = Inv(first.FaizOran), ["kkdf"] = Inv(first.KkdfOran), ["bsmv"] = Inv(first.BsmvOran),
+            ["damga"] = Inv(first.DamgaOran), ["aylikGider"] = Inv(first.AylikGider),
+            ["kar"] = Inv(first.KarMarji), ["kdv"] = Inv(first.KdvOran),
+            ["kasko"] = Inv(first.KaskoYillik), ["trafik"] = Inv(first.TrafikSigortasiYillik),
+            ["mtv"] = Inv(first.MtvYillik), ["bakim"] = Inv(first.BakimYillik),
+            ["lastik"] = Inv(first.LastikYillik), ["lastikKis"] = Inv(first.LastikKisYillik),
+            ["takip"] = Inv(first.AracTakipYillik), ["tescil"] = Inv(first.TescilPlakaYillik),
+            ["muayene"] = Inv(first.MuayeneEmisyonYillik), ["yedek"] = Inv(first.YedekAracYillik),
+            ["yonetim"] = Inv(first.YonetimGideriAylik), ["dosya"] = Inv(first.BankaDosyaDigerMasraf),
+            ["enflasyon"] = Inv(first.EnflasyonOran), ["kredi"] = first.KrediHesaplamaSekli.ToString(),
+            ["adet"] = first.AracSayisi.ToString(CultureInfo.InvariantCulture)
         };
         // Ekranın gizli alan listesi ile ayrıştırıcı AYNI ad kümesini kullanmalı — biri
         // eklenip diğeri unutulursa alan sessizce kaybolur (formu ikinci kaydedişte sıfırlanır).
-        Assert.Equal(MaliyetHesapGirdi.AlanAdlari.OrderBy(x => x), alanlar.Keys.OrderBy(x => x));
+        Assert.Equal(CostCalculationInput.FieldNames.OrderBy(x => x), fields.Keys.OrderBy(x => x));
 
-        var geri = MaliyetHesapGirdi.Kur(ad => alanlar.GetValueOrDefault(ad));
+        var back = CostCalculationInput.Setup(name => fields.GetValueOrDefault(name));
 
         // 2) İKİNCİ kez kaydet — hiçbir rakam kaymamalı.
-        var id2 = await svc.CreateAsync(new MaliyetTeklifiInput { Baslik = "Round-trip 2", Girdi = geri });
-        var ikinci = (await svc.GetAsync(id2))!;
+        var id2 = await svc.CreateAsync(new MaliyetTeklifiInput { Baslik = "Round-trip 2", Girdi = back });
+        var second = (await svc.GetAsync(id2))!;
 
-        Assert.Equal(ilk.AlisBedeli, ikinci.AlisBedeli);
-        Assert.Equal(ilk.ResidualYuzde, ikinci.ResidualYuzde);
-        Assert.Equal(ilk.SureAy, ikinci.SureAy);
-        Assert.Equal(ilk.EnflasyonOran, ikinci.EnflasyonOran);
-        Assert.Equal(ilk.AracSayisi, ikinci.AracSayisi);
-        Assert.Equal(ilk.KaskoYillik, ikinci.KaskoYillik);
-        Assert.Equal(ilk.BankaDosyaDigerMasraf, ikinci.BankaDosyaDigerMasraf);
-        Assert.Equal(ilk.ToplamGider, ikinci.ToplamGider);
-        Assert.Equal(ilk.ToplamMaliyet, ikinci.ToplamMaliyet);
-        Assert.Equal(ilk.TeklifAylikNet, ikinci.TeklifAylikNet);
-        Assert.Equal(ilk.TeklifKdvli, ikinci.TeklifKdvli);
+        Assert.Equal(first.AlisBedeli, second.AlisBedeli);
+        Assert.Equal(first.ResidualYuzde, second.ResidualYuzde);
+        Assert.Equal(first.SureAy, second.SureAy);
+        Assert.Equal(first.EnflasyonOran, second.EnflasyonOran);
+        Assert.Equal(first.AracSayisi, second.AracSayisi);
+        Assert.Equal(first.KaskoYillik, second.KaskoYillik);
+        Assert.Equal(first.BankaDosyaDigerMasraf, second.BankaDosyaDigerMasraf);
+        Assert.Equal(first.ToplamGider, second.ToplamGider);
+        Assert.Equal(first.ToplamMaliyet, second.ToplamMaliyet);
+        Assert.Equal(first.TeklifAylikNet, second.TeklifAylikNet);
+        Assert.Equal(first.TeklifKdvli, second.TeklifKdvli);
 
         // 3) Snapshot ↔ yeniden hesap tutarlılığı: kayıtlı girdiden hesap, kayıtlı sonucu verir.
-        var yeniden = CostCalculationService.Calculate(CostQuotationService.ToInput(ilk));
-        Assert.Equal(ilk.ToplamGider, yeniden.ToplamGider);
-        Assert.Equal(ilk.ToplamMaliyet, yeniden.ToplamMaliyet);
-        Assert.Equal(ilk.TeklifKdvli, yeniden.TeklifKdvli);
+        var again = CostCalculationService.Calculate(CostQuotationService.ToInput(first));
+        Assert.Equal(first.ToplamGider, again.ToplamGider);
+        Assert.Equal(first.ToplamMaliyet, again.ToplamMaliyet);
+        Assert.Equal(first.TeklifKdvli, again.TeklifKdvli);
     }
 
     private static string Inv(decimal v) => v.ToString(CultureInfo.InvariantCulture);
 
-    private static async Task<int> LedgerSayimAsync(IServiceProvider sp)
+    private static async Task<int> LedgerCountAsync(IServiceProvider sp)
     {
         var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();

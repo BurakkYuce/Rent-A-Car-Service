@@ -25,8 +25,8 @@ public sealed class ScreenPermissionTests(PostgresFixture fx)
         using (var op = host.ScopeFor(t, role: UserRole.Operator))
             Assert.True(await Svc(op).IsScreenAllowedAsync("ekranA", Permission.OperationsWrite)); // floor var, override yok
 
-        using var muh = host.ScopeFor(t, role: UserRole.Muhasebe);
-        Assert.False(await Svc(muh).IsScreenAllowedAsync("ekranA", Permission.OperationsWrite)); // floor yok
+        using var acct = host.ScopeFor(t, role: UserRole.Muhasebe);
+        Assert.False(await Svc(acct).IsScreenAllowedAsync("ekranA", Permission.OperationsWrite)); // floor yok
     }
 
     [Fact]
@@ -43,8 +43,8 @@ public sealed class ScreenPermissionTests(PostgresFixture fx)
             Assert.False(await Svc(op).IsScreenAllowedAsync("ekranB", Permission.OperationsWrite));
 
         // Admin override'da + floor → izin.
-        using var ad = host.ScopeFor(t, role: UserRole.Admin);
-        Assert.True(await Svc(ad).IsScreenAllowedAsync("ekranB", Permission.OperationsWrite));
+        using var name = host.ScopeFor(t, role: UserRole.Admin);
+        Assert.True(await Svc(name).IsScreenAllowedAsync("ekranB", Permission.OperationsWrite));
     }
 
     [Fact]
@@ -56,8 +56,8 @@ public sealed class ScreenPermissionTests(PostgresFixture fx)
         using (var admin = host.ScopeFor(t, role: UserRole.Admin))
             await Svc(admin).SetAsync("ekranC", new[] { UserRole.Muhasebe }); // Muhasebe'nin OperationsWrite floor'u yok
 
-        using var muh = host.ScopeFor(t, role: UserRole.Muhasebe);
-        Assert.False(await Svc(muh).IsScreenAllowedAsync("ekranC", Permission.OperationsWrite)); // floor yok → RED
+        using var acct = host.ScopeFor(t, role: UserRole.Muhasebe);
+        Assert.False(await Svc(acct).IsScreenAllowedAsync("ekranC", Permission.OperationsWrite)); // floor yok → RED
     }
 
     [Fact]

@@ -27,7 +27,7 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class UcIzinKapsamaTests
 {
-    private static string RepoKok()
+    private static string RepoRoot()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
@@ -42,51 +42,51 @@ public sealed class UcIzinKapsamaTests
     /// <c>grp.MapPost("/y", …).RequirePermission(Permission.B);</c> desenlerini eşleştirir.
     /// B ≠ A ise uç "dar"dır.
     /// </summary>
-    private static List<DarUc> DarUclar(string kok)
+    private static List<DarUc> NarrowEndpoints(string root)
     {
-        var grupRe = new Regex(
+        var groupRegex = new Regex(
             @"var\s+(?<degisken>\w+)\s*=\s*[\w\.]+\s*\.MapGroup\(\s*""(?<onek>[^""]+)""\s*\)(?<kuyruk>[^;]*);",
             RegexOptions.Singleline);
         // Uç BAŞLANGIÇLARI. Tek bir regex'le "başlangıç → RequirePermission" aralığı yakalamak
         // ÇALIŞMAZ: .NET eşleşmeleri örtüşmez, uzun bir aralık aradaki uçları yutar ve onlar sessizce
         // taranmamış kalır (ilk denemede 13 dar uçtan yalnız 3'ü bulundu). Bunun yerine her uç,
         // BİR SONRAKİ uç başlangıcına kadarki pencerede incelenir.
-        var baslangicRe = new Regex(@"(?<degisken>\w+)\s*\.Map(Post|Get)\(\s*""(?<alt>[^""]*)""");
-        var izinRe = new Regex(@"\.RequirePermission\(Permission\.(?<izin>\w+)\)");
+        var startRegex = new Regex(@"(?<degisken>\w+)\s*\.Map(Post|Get)\(\s*""(?<alt>[^""]*)""");
+        var permissionRegex = new Regex(@"\.RequirePermission\(Permission\.(?<izin>\w+)\)");
 
-        var sonuc = new List<DarUc>();
-        foreach (var dosya in Directory.EnumerateFiles(
-                     Path.Combine(kok, "src/RentACar.Web"), "*Endpoints.cs", SearchOption.AllDirectories))
+        var result = new List<DarUc>();
+        foreach (var file in Directory.EnumerateFiles(
+                     Path.Combine(root, "src/RentACar.Web"), "*Endpoints.cs", SearchOption.AllDirectories))
         {
-            var metin = File.ReadAllText(dosya);
+            var text = File.ReadAllText(file);
 
-            var gruplar = new Dictionary<string, (string Onek, Permission? Izin)>(StringComparer.Ordinal);
-            foreach (Match g in grupRe.Matches(metin))
+            var groups = new Dictionary<string, (string Onek, Permission? Izin)>(StringComparer.Ordinal);
+            foreach (Match g in groupRegex.Matches(text))
             {
-                var gi = izinRe.Match(g.Groups["kuyruk"].Value);
-                gruplar[g.Groups["degisken"].Value] =
+                var gi = permissionRegex.Match(g.Groups["kuyruk"].Value);
+                groups[g.Groups["degisken"].Value] =
                     (g.Groups["onek"].Value, gi.Success ? Enum.Parse<Permission>(gi.Groups["izin"].Value) : null);
             }
 
-            var baslangiclar = baslangicRe.Matches(metin);
-            for (var i = 0; i < baslangiclar.Count; i++)
+            var starts = startRegex.Matches(text);
+            for (var i = 0; i < starts.Count; i++)
             {
-                var m = baslangiclar[i];
-                var pencereSonu = i + 1 < baslangiclar.Count ? baslangiclar[i + 1].Index : metin.Length;
-                var pencere = metin[m.Index..pencereSonu];
+                var m = starts[i];
+                var windowEnd = i + 1 < starts.Count ? starts[i + 1].Index : text.Length;
+                var window = text[m.Index..windowEnd];
 
-                var ui = izinRe.Match(pencere);
+                var ui = permissionRegex.Match(window);
                 if (!ui.Success) continue;                                   // uç kendi izni yok → grup izni geçerli
-                if (!gruplar.TryGetValue(m.Groups["degisken"].Value, out var grp) || grp.Izin is null) continue;
+                if (!groups.TryGetValue(m.Groups["degisken"].Value, out var grp) || grp.Izin is null) continue;
 
-                var etkin = Enum.Parse<Permission>(ui.Groups["izin"].Value);
-                if (etkin == grp.Izin) continue;                             // dar değil
+                var active = Enum.Parse<Permission>(ui.Groups["izin"].Value);
+                if (active == grp.Izin) continue;                             // dar değil
 
-                var rota = (grp.Onek + m.Groups["alt"].Value).Replace("//", "/");
-                sonuc.Add(new DarUc(rota, etkin, grp.Izin.Value, Path.GetRelativePath(kok, dosya)));
+                var route = (grp.Onek + m.Groups["alt"].Value).Replace("//", "/");
+                result.Add(new DarUc(route, active, grp.Izin.Value, Path.GetRelativePath(root, file)));
             }
         }
-        return sonuc;
+        return result;
     }
 
     /// <summary>
@@ -94,8 +94,8 @@ public sealed class UcIzinKapsamaTests
     /// satırları). Silme PR'ları (F4.6b, F5 silmesi) bu uçları (ör. <c>/kiralar/cancel</c>, <c>/rezervasyonlar/cancel</c>)
     /// sildiğinde tarama çiti boşa düşmesin diye ön koşul onları SAYMAZ.
     /// </summary>
-    private static HashSet<string> KesisteSilinecekUclar(string kok, string faz)
-        => Regex.Matches(File.ReadAllText(Path.Combine(kok, $"docs/roadmap/{faz}.md")),
+    private static HashSet<string> EndpointsToDeleteAtCutover(string root, string faz)
+        => Regex.Matches(File.ReadAllText(Path.Combine(root, $"docs/roadmap/{faz}.md")),
                 $@"^\|\s*`(?<uc>/[^`]+)`\s*\|[^|]*\|\s*{faz} \(bu faz\)\s*\|", RegexOptions.Multiline)
             .Select(m => m.Groups["uc"].Value).ToHashSet(StringComparer.Ordinal);
 
@@ -107,63 +107,63 @@ public sealed class UcIzinKapsamaTests
         // F4.6 devri: çapa artık TEK rota (/kiralar/cancel — F4.6b'de silinir) değil; F4 kesişinden SONRA da
         // yaşayacak dar uçlar sayılır ve üç dar-izin türünün her biri en az bir kez aranır. /kiralar/cancel'in
         // (canlı hatanın kaynağı) SPA karşılığı UiDugmeIzinTests'te (kiraIptal: OperationsWrite + OperationsDelete).
-        var kok = RepoKok();
-        var silinecek = KesisteSilinecekUclar(kok, "F4");
-        Assert.Contains("/kiralar/cancel", silinecek); // envanter ayrıştırması çalışıyor
-        Assert.True(silinecek.Count >= 15, $"F4 envanteri şüpheli: {silinecek.Count} uç.");
+        var root = RepoRoot();
+        var toDelete = EndpointsToDeleteAtCutover(root, "F4");
+        Assert.Contains("/kiralar/cancel", toDelete); // envanter ayrıştırması çalışıyor
+        Assert.True(toDelete.Count >= 15, $"F4 envanteri şüpheli: {toDelete.Count} uç.");
         // F5.4 devri: F5 envanterinin 18 ucu (dar olanlar /rezervasyonlar/cancel, /filo-kiralama/iptal) da sayılmaz;
         // SPA karşılıkları sunucunun `yetkiler` bayrakları + UiRezervasyonTests.Izin_haritasi_Blazor_ile_ayni.
-        var f5 = KesisteSilinecekUclar(kok, "F5");
+        var f5 = EndpointsToDeleteAtCutover(root, "F5");
         Assert.Equal(18, f5.Count);
         Assert.Contains("/rezervasyonlar/cancel", f5);
-        silinecek.UnionWith(f5);
+        toDelete.UnionWith(f5);
         // F6.4 devri: F6 envanterinin 43 ucu (/servisler/create F9'a kalır) da sayılmaz; dar olanların
         // (/arac-kredi/create|taksit-ode|taksit-iptal|iptal, /musteri-taksit/*) SPA karşılıkları sunucunun `yetkiler`
         // bayrakları + UiAracFinansTests / UiAracTests izin testleri.
-        var f6 = KesisteSilinecekUclar(kok, "F6");
+        var f6 = EndpointsToDeleteAtCutover(root, "F6");
         Assert.Equal(43, f6.Count);
         Assert.Contains("/arac-kredi/create", f6);
         Assert.DoesNotContain("/servisler/create", f6);
-        silinecek.UnionWith(f6);
+        toDelete.UnionWith(f6);
         // F7.3 devri: F7 envanterinin 15 ucu (/cariler, /anketler, /sikayetler, /assistans, /hukuk × create|update|delete)
         // da sayılmaz; SPA karşılıkları /api/ui/v1 cari/CRM uçları (UiCustomerApiTests izin testleri).
-        var f7 = KesisteSilinecekUclar(kok, "F7");
+        var f7 = EndpointsToDeleteAtCutover(root, "F7");
         Assert.Equal(15, f7.Count);
         Assert.Contains("/cariler/delete", f7);
-        silinecek.UnionWith(f7);
+        toDelete.UnionWith(f7);
         // F10.3 devri: F10 envanterinin 3 ucu (/raporlar/personel-calisma/create|update|delete) da sayılmaz. Üçü de
         // grup izniyle (OperationsWrite) — dar değil, taban değişmez; SPA karşılığı /api/ui/v1/vardiyalar (UiShiftTests).
-        var f10 = KesisteSilinecekUclar(kok, "F10");
+        var f10 = EndpointsToDeleteAtCutover(root, "F10");
         Assert.Equal(3, f10.Count);
         Assert.Contains("/raporlar/personel-calisma/create", f10);
-        silinecek.UnionWith(f10);
+        toDelete.UnionWith(f10);
         // F9.3 devri: F9 envanterinin 46 ucu (servis, sigorta/MTV/muayene ödeme ve kayıt, zeyil, servis yansıtma, fiyat/tarife
         // tanımları, tarife aktar, maliyet teklifi; /servisler/create F6'dan buraya kalmıştı) da sayılmaz. Dar olanların
         // (/servisler/kalem, /regulasyon/muayene …) SPA karşılıkları sunucunun `yetkiler` bayrakları + UiServiceInsurance /
         // UiPricing izin testleri (#292).
-        var f9 = KesisteSilinecekUclar(kok, "F9");
+        var f9 = EndpointsToDeleteAtCutover(root, "F9");
         Assert.Equal(46, f9.Count);
         Assert.Contains("/servisler/create", f9);
         Assert.Contains("/servisler/kalem", f9);
-        silinecek.UnionWith(f9);
+        toDelete.UnionWith(f9);
         // F8.3 devri: F8 envanterinin 36 ucu (/finans/*, /cezalar/*, /depozito/*, /gelen-efatura/*, /giderler/*,
         // /kurlar/*, /donem-kapanis/*, /satislar/create) da sayılmaz; SPA karşılıkları /api/ui/v1 finans uçları
         // (F8.1 izin testleri) ve ekranlardaki izin kapılı düğmeler (#299, #300).
-        var f8 = KesisteSilinecekUclar(kok, "F8");
+        var f8 = EndpointsToDeleteAtCutover(root, "F8");
         Assert.Equal(36, f8.Count);
         Assert.Contains("/finans/tahsilat/ters", f8);
-        silinecek.UnionWith(f8);
+        toDelete.UnionWith(f8);
         // F11.3 devri: F11 envanterinin 136 ucu (tanım CRUD'ları, ayarlar, kullanıcılar, yetki, web sitesi, blog, gelen
         // talepler, içe aktar…) da sayılmaz; SPA karşılıkları /api/ui/v1 tanım/sistem/web uçları (UiTanimTests,
         // UiSystemAdminTests, UiSystemDefinitionsTests, UiWebsiteApiTests izin testleri). Taban değişmez (2): F11
         // envanterinde kalıcı sayılan dar uç yoktu.
-        var f11 = KesisteSilinecekUclar(kok, "F11");
+        var f11 = EndpointsToDeleteAtCutover(root, "F11");
         Assert.Equal(136, f11.Count);
         Assert.Contains("/kullanicilar/sifre", f11);
         Assert.Contains("/ice-aktar/cari", f11);
-        silinecek.UnionWith(f11);
+        toDelete.UnionWith(f11);
 
-        var kalici = DarUclar(kok).Where(u => !silinecek.Contains(u.Rota)).ToList();
+        var persistent = NarrowEndpoints(root).Where(u => !toDelete.Contains(u.Rota)).ToList();
         // Taban F6.4'te 10 → 8: F6'nın dar uçları (kredi/müşteri taksit) artık silinecek kümede; bugün 9 kalıcı dar uç
         // var. Üç dar-izin türünün her biri aşağıda ayrıca aranır, bu yüzden taban yalnız kaba bir çittir.
         // F9.3'te 8 → 5: F9'un dört dar ucu silinecek kümeye geçti.
@@ -171,40 +171,40 @@ public sealed class UcIzinKapsamaTests
         // kümede (SPA karşılıklarında düğmeler dar izinle gizli, #300).
         // F9.3 + F8.3 birlikte: bugün 2 kalıcı dar uç var (/kiralar/ornek-sozlesme/pdf FinanceWrite ⊂ OperationsWrite,
         // /listeler/export/{liste} ManageUsers ⊂ ViewReports).
-        Assert.True(kalici.Count >= 2, $"Beklenenden az dar uç bulundu ({kalici.Count}) — tarama bozulmuş olabilir.");
-        Assert.Contains(kalici, u => u.Etkin == Permission.FinanceWrite && u.Grup == Permission.OperationsWrite);
+        Assert.True(persistent.Count >= 2, $"Beklenenden az dar uç bulundu ({persistent.Count}) — tarama bozulmuş olabilir.");
+        Assert.Contains(persistent, u => u.Etkin == Permission.FinanceWrite && u.Grup == Permission.OperationsWrite);
         // Kalıcı OperationsDelete ve FinanceReverse ucu kalmadı (hepsi F8/F9 envanterinde: /servisler/iptal, /cezalar/iptal,
         // /finans/fatura-iade, /finans/tahsilat/ters …). Taramanın bu türleri hâlâ tanıdığı, uçlar yaşadıkça silinecek
         // kümede aranır; SPA karşılıkları düğmelerin dar izin kapısı (#292, #299, #300). F8/F9 Blazor POST silme PR'ları
         // bu iki satırı kaldırır.
-        var all = DarUclar(kok);
-        Assert.Contains(all, u => u.Etkin == Permission.OperationsDelete && u.Grup == Permission.OperationsWrite && silinecek.Contains(u.Rota));
+        var all = NarrowEndpoints(root);
+        Assert.Contains(all, u => u.Etkin == Permission.OperationsDelete && u.Grup == Permission.OperationsWrite && toDelete.Contains(u.Rota));
         Assert.Contains(all, u => u.Etkin == Permission.FinanceReverse && f8.Contains(u.Rota));
     }
 
     [Fact]
     public void Dar_izin_isteyen_uclarin_ekrani_dogru_kapida()
     {
-        var kok = RepoKok();
-        var razorlar = Directory
-            .EnumerateFiles(Path.Combine(kok, "src/RentACar.Web/Components"), "*.razor", SearchOption.AllDirectories)
+        var root = RepoRoot();
+        var razors = Directory
+            .EnumerateFiles(Path.Combine(root, "src/RentACar.Web/Components"), "*.razor", SearchOption.AllDirectories)
             .ToDictionary(f => f, File.ReadAllText);
 
-        var bulgular = new List<string>();
-        foreach (var uc in DarUclar(kok))
+        var findings = new List<string>();
+        foreach (var endpoint in NarrowEndpoints(root))
         {
-            var beklenen = $"Policy=\"{AuthExtensions.PolicyName(uc.Etkin)}\"";
-            foreach (var (yol, metin) in razorlar)
+            var expected = $"Policy=\"{AuthExtensions.PolicyName(endpoint.Etkin)}\"";
+            foreach (var (path, text) in razors)
             {
-                if (!metin.Contains($"action=\"{uc.Rota}\"", StringComparison.Ordinal)) continue;
-                if (!metin.Contains(beklenen, StringComparison.Ordinal))
-                    bulgular.Add($"{uc.Rota} ({uc.Etkin}, grup: {uc.Grup})  →  {Path.GetRelativePath(kok, yol)}");
+                if (!text.Contains($"action=\"{endpoint.Rota}\"", StringComparison.Ordinal)) continue;
+                if (!text.Contains(expected, StringComparison.Ordinal))
+                    findings.Add($"{endpoint.Rota} ({endpoint.Etkin}, grup: {endpoint.Grup})  →  {Path.GetRelativePath(root, path)}");
             }
         }
 
-        Assert.True(bulgular.Count == 0,
+        Assert.True(findings.Count == 0,
             "Bu uçlar grup kapısından DAHA DAR bir izin istiyor ama tetikleyici ekran o izinle " +
             "kapılanmamış. Kullanıcı düğmeyi AÇIK görür, basar, 403 alır ve /yetkisiz'e düşer — " +
-            "yapamayacağı bir işlem ona sunulmuş olur.\n  " + string.Join("\n  ", bulgular));
+            "yapamayacağı bir işlem ona sunulmuş olur.\n  " + string.Join("\n  ", findings));
     }
 }

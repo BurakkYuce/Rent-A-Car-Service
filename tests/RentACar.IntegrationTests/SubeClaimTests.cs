@@ -15,15 +15,15 @@ public sealed class SubeClaimTests
     [Fact]
     public void Circuit_yeni_claimli_oturum_id_parse_eder()
     {
-        var subeId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
         var ctx = new CircuitTenantContext();
         ctx.SetFrom(Principal(
             new Claim(IdentityClaims.TenantId, Guid.NewGuid().ToString()),
             new Claim(IdentityClaims.AssignedBranch, "Merkez"),
-            new Claim(IdentityClaims.AssignedBranchId, subeId.ToString())));
+            new Claim(IdentityClaims.AssignedBranchId, branchId.ToString())));
 
         Assert.Equal("Merkez", ctx.AssignedBranch);
-        Assert.Equal(subeId, ctx.AssignedBranchId);
+        Assert.Equal(branchId, ctx.AssignedBranchId);
     }
 
     [Fact]

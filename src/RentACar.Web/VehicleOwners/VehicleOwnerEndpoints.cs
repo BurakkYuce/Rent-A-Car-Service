@@ -28,9 +28,9 @@ public static class VehicleOwnerEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/arac-sahipleri", mesaj); }
+        try { await action(); return Result.Ok("/arac-sahipleri", message); }
         catch (ValidationException ex) { return Results.Redirect($"/arac-sahipleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

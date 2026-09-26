@@ -52,12 +52,12 @@ public sealed partial class UiSystemDefinitionsTests
 
         // sürümlü rename: 4 aracın hepsi yeni ada taşınır (aynı işlem)
         var current = await Json(await admin.C.GetAsync($"{path}/{ekoId}"));
-        var renamed = await Json(await Send(admin, HttpMethod.Put, $"{path}/{ekoId}", new { kod = "EKO", ad = "Ekonomik", surum = Surum(current) }));
+        var renamed = await Json(await Send(admin, HttpMethod.Put, $"{path}/{ekoId}", new { kod = "EKO", ad = "Ekonomik", surum = VersionOf(current) }));
         Assert.Equal(4, renamed.GetProperty("aracSayisi").GetInt32());
         var groups = await _kit.ReadAsync(e.TenantId, db => db.Vehicles.Select(v => v.Grup).ToListAsync());
         Assert.All(groups, g => Assert.Equal("Ekonomik", g));
         // bayat sürümle rename: hiçbir araç taşınmaz
-        await Problem(await Send(admin, HttpMethod.Put, $"{path}/{ekoId}", new { kod = "EKO", ad = "Bayat", surum = Surum(current) }), HttpStatusCode.Conflict, "cakisma");
+        await Problem(await Send(admin, HttpMethod.Put, $"{path}/{ekoId}", new { kod = "EKO", ad = "Bayat", surum = VersionOf(current) }), HttpStatusCode.Conflict, "cakisma");
         groups = await _kit.ReadAsync(e.TenantId, db => db.Vehicles.Select(v => v.Grup).ToListAsync());
         Assert.All(groups, g => Assert.Equal("Ekonomik", g));
 
@@ -93,7 +93,7 @@ public sealed partial class UiSystemDefinitionsTests
         await Problem(await Send(admin, HttpMethod.Post, path, new { belgeTuru = "Yok", ad = "X" }), HttpStatusCode.BadRequest, "dogrulama", "belgeTuru");
         await Problem(await Send(admin, HttpMethod.Post, path, new { belgeTuru = "KiraSozlesmesi", ad = "Uzun", altBilgi = new string('a', 513) }), HttpStatusCode.BadRequest, "dogrulama", "altBilgi");
 
-        var s1 = Surum(await Json(await admin.C.GetAsync($"{path}/{aId}")));
+        var s1 = VersionOf(await Json(await admin.C.GetAsync($"{path}/{aId}")));
         var upd = await Json(await Send(admin, HttpMethod.Put, $"{path}/{aId}", new { belgeTuru = "KiraSozlesmesi", ad = "Standart v2", imzaAlaniGoster = false, surum = s1 }));
         Assert.False(upd.GetProperty("imzaAlaniGoster").GetBoolean());
         await Problem(await Send(admin, HttpMethod.Put, $"{path}/{aId}", new { belgeTuru = "KiraSozlesmesi", ad = "Bayat", surum = s1 }), HttpStatusCode.Conflict, "cakisma");

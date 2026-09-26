@@ -31,7 +31,7 @@
             <option value="">(hepsi)</option>
             @foreach (var d in Enum.GetValues<IncomingEInvoiceStatus>())
             {
-                <option value="@d" selected="@(Durum == d.ToString())">@DurumEtiket(d)</option>
+                <option value="@d" selected="@(Durum == d.ToString())">@StatusLabel(d)</option>
             }
         </select>
     </label>
@@ -114,7 +114,7 @@
                 <td>@(r.VehicleId is { } vid && _vehMap.TryGetValue(vid, out var pl) ? pl : "—")</td>
                 <td>@(r.ExpenseCategoryId is { } kid && _katMap.TryGetValue(kid, out var ka) ? ka : "—")</td>
                 <td>@(r.CariId is { } cid && _custMap.TryGetValue(cid, out var cn) ? cn : "—")</td>
-                <td>@DurumEtiket(r.Durum)@(r.Durum == IncomingEInvoiceStatus.Reddedildi && !string.IsNullOrEmpty(r.RedNedeni) ? $" ({r.RedNedeni})" : "")</td>
+                <td>@StatusLabel(r.Durum)@(r.Durum == IncomingEInvoiceStatus.Reddedildi && !string.IsNullOrEmpty(r.RedNedeni) ? $" ({r.RedNedeni})" : "")</td>
                 <td>
                     @if (r.GiderlestirilmeUtc is { } g)
                     {
@@ -166,7 +166,7 @@
                                 <label>Gider Kategorisi
                                     <select name="expenseCategoryId">
                                         <option value="">—</option>
-                                        @foreach (var k in _kategoriler)
+                                        @foreach (var k in _categories)
                                         {
                                             <option value="@k.Id" selected="@(r.ExpenseCategoryId == k.Id)">@k.Ad</option>
                                         }
@@ -220,7 +220,7 @@
                                         }
                                     </select>
                                 </label>
-                                <ComboBox Name="sube" Label="Şube" Options="_subeOpts" Placeholder="(opsiyonel)" />
+                                <ComboBox Name="sube" Label="Şube" Options="_branchOpts" Placeholder="(opsiyonel)" />
                                 <button type="submit">Deftere Yaz</button>
                             </form>
                             <p class="muted small">Her KDV kademesi ayrı gider satırı olur; tümü tek
@@ -255,8 +255,8 @@
     private IReadOnlyList<GelenEFatura> _list = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Customer> _customers = [];
-    private IReadOnlyList<ExpenseCategory> _kategoriler = [];
-    private List<string> _subeOpts = [];
+    private IReadOnlyList<ExpenseCategory> _categories = [];
+    private List<string> _branchOpts = [];
     private Dictionary<Guid, string> _vehMap = [];
     private Dictionary<Guid, string> _custMap = [];
     private Dictionary<Guid, string> _katMap = [];
@@ -265,11 +265,11 @@
     {
         _vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
-        _kategoriler = await Kategoriler.ListActiveAsync();
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _categories = await Kategoriler.ListActiveAsync();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
         _vehMap = _vehicles.ToDictionary(v => v.Id, v => v.Plaka);
         _custMap = _customers.ToDictionary(c => c.Id, c => c.DisplayName);
-        _katMap = _kategoriler.ToDictionary(k => k.Id, k => k.Ad);
+        _katMap = _categories.ToDictionary(k => k.Id, k => k.Ad);
 
         _list = await GelenFaturalar.ListAsync(new GelenEFaturaFilter
         {
@@ -278,15 +278,15 @@
             EttnBit = EttnBit,
             Plaka = Plaka,
             Durum = Enum.TryParse<IncomingEInvoiceStatus>(Durum, out var d) ? d : null,
-            Bas = Tarih(Bas),
+            Bas = Date(Bas),
             // Üst sınır GÜN SONUNA genişletilir: date girişi 00:00'a düşer, aksi hâlde "bit"
             // günündeki faturalar dışarıda kalırdı (giderler ekranıyla aynı desen).
-            Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1),
+            Bit = Date(Bit)?.AddDays(1).AddTicks(-1),
             Giderlestirildi = Gider == "1" ? true : (Gider == "0" ? false : null)
         });
     }
 
-    private static DateTimeOffset? Tarih(string? s)
+    private static DateTimeOffset? Date(string? s)
         => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
 
@@ -297,7 +297,7 @@
     private static string Val(decimal? v)
         => v is { } d ? d.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "";
 
-    private static string DurumEtiket(IncomingEInvoiceStatus d) => d switch
+    private static string StatusLabel(IncomingEInvoiceStatus d) => d switch
     {
         IncomingEInvoiceStatus.Beklemede => "Beklemede",
         IncomingEInvoiceStatus.Onaylandi => "Onaylandı",

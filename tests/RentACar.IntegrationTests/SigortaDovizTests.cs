@@ -16,7 +16,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class SigortaDovizTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Bit = new(2027, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class SigortaDovizTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
 
         // küçük harf "eur" → servis normalize → "EUR"
-        var pol = await reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1000m, "POL-EUR", "Sig", null, currencyCode: "eur");
+        var pol = await reg.AddInsuranceAsync(v, InsuranceType.Kasko, Start, Bit, 1000m, "POL-EUR", "Sig", null, currencyCode: "eur");
 
         await using (var db = await factory.CreateDbContextAsync())
             Assert.Equal("EUR", (await db.InsurancePolicies.AsNoTracking().SingleAsync(x => x.Id == pol)).Currency);
@@ -42,14 +42,14 @@ public sealed class SigortaDovizTests(PostgresFixture fx)
         {
             var entries = await db.AccountLedgerEntries.AsNoTracking()
                 .Where(e => e.SourceType == "SigortaOdeme").ToListAsync();
-            var gider = entries.Single(e => e.AccountType == LedgerAccountType.Gider);
-            var kasa = entries.Single(e => e.AccountType == LedgerAccountType.Kasa);
+            var expense = entries.Single(e => e.AccountType == LedgerAccountType.Gider);
+            var cash = entries.Single(e => e.AccountType == LedgerAccountType.Kasa);
 
-            Assert.Equal("EUR", gider.Amount.Currency);
-            Assert.Equal(1000m, gider.Amount.Amount);
-            Assert.Equal(40m, gider.Amount.Rate);
-            Assert.Equal(40000m, gider.Amount.AmountInBase); // 1000 EUR × 40 = 40000 baz (oracle)
-            Assert.Equal(40000m, kasa.Amount.AmountInBase);  // denge: Σ borç(base) == Σ alacak(base)
+            Assert.Equal("EUR", expense.Amount.Currency);
+            Assert.Equal(1000m, expense.Amount.Amount);
+            Assert.Equal(40m, expense.Amount.Rate);
+            Assert.Equal(40000m, expense.Amount.AmountInBase); // 1000 EUR × 40 = 40000 baz (oracle)
+            Assert.Equal(40000m, cash.Amount.AmountInBase);  // denge: Σ borç(base) == Σ alacak(base)
         }
     }
 
@@ -66,9 +66,9 @@ public sealed class SigortaDovizTests(PostgresFixture fx)
         var reg = sp.GetRequiredService<RegulationService>();
 
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
-            reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1000m, "P", "S", null, currencyCode: "ABCD")); // 4 hane
+            reg.AddInsuranceAsync(v, InsuranceType.Kasko, Start, Bit, 1000m, "P", "S", null, currencyCode: "ABCD")); // 4 hane
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() =>
-            reg.AddInsuranceAsync(v, InsuranceType.Kasko, Bas, Bit, 1000m, "P", "S", null, currencyCode: "xyz"));  // bilinmeyen
+            reg.AddInsuranceAsync(v, InsuranceType.Kasko, Start, Bit, 1000m, "P", "S", null, currencyCode: "xyz"));  // bilinmeyen
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class SigortaDovizTests(PostgresFixture fx)
             .CreateAsync(new VehicleInput { Plaka = "34 TR 01", Durum = VehicleStatus.Musait });
         var reg = sp.GetRequiredService<RegulationService>();
 
-        var pol = await reg.AddInsuranceAsync(v, InsuranceType.Trafik, Bas, Bit, 500m, "POL-TRY", "Sig", null); // doviz yok → TRY
+        var pol = await reg.AddInsuranceAsync(v, InsuranceType.Trafik, Start, Bit, 500m, "POL-TRY", "Sig", null); // doviz yok → TRY
 
         await using (var db = await factory.CreateDbContextAsync())
             Assert.Equal("TRY", (await db.InsurancePolicies.AsNoTracking().SingleAsync(x => x.Id == pol)).Currency);
@@ -91,10 +91,10 @@ public sealed class SigortaDovizTests(PostgresFixture fx)
 
         await using (var db = await factory.CreateDbContextAsync())
         {
-            var gider = await db.AccountLedgerEntries.AsNoTracking()
+            var expense = await db.AccountLedgerEntries.AsNoTracking()
                 .Where(e => e.SourceType == "SigortaOdeme" && e.AccountType == LedgerAccountType.Gider).SingleAsync();
-            Assert.Equal("TRY", gider.Amount.Currency);
-            Assert.Equal(500m, gider.Amount.AmountInBase); // 500 × 1 (regresyon: davranış değişmedi)
+            Assert.Equal("TRY", expense.Amount.Currency);
+            Assert.Equal(500m, expense.Amount.AmountInBase); // 500 × 1 (regresyon: davranış değişmedi)
         }
     }
 }

@@ -60,20 +60,20 @@ internal static class CustomerInputMapper
 
     public static void Limit(CustomerRequest r)
     {
-        foreach (var (get, max, field, label) in Texts) Sinirlar.Metin(get(r), max, field, label);
-        Sinirlar.Tutar(r.RiskLimiti, "riskLimiti", "Risk limiti");
-        Sinirlar.Tutar(r.BayiKomisyon, "bayiKomisyon", "Bayi komisyonu");
-        Sinirlar.Tutar(r.WebIndirim, "webIndirim", "Web indirimi");
+        foreach (var (get, max, field, label) in Texts) RentalLimits.Text(get(r), max, field, label);
+        RentalLimits.Amount(r.RiskLimiti, "riskLimiti", "Risk limiti");
+        RentalLimits.Amount(r.BayiKomisyon, "bayiKomisyon", "Bayi komisyonu");
+        RentalLimits.Amount(r.WebIndirim, "webIndirim", "Web indirimi");
         if (r.VadeGun > 3650) throw new ValidationException("Vade günü en fazla 3.650 olabilir.", "vadeGun");
         var contacts = r.Kisiler ?? [];
         if (contacts.Count > MaxContacts)
             throw new ValidationException($"En fazla {MaxContacts} yetkili kişi girilebilir.", "kisiler");
         foreach (var k in contacts)
         {
-            Sinirlar.Metin(k.AdSoyad, 128, "kisiler", "Yetkili ad soyad");
-            Sinirlar.Metin(k.Telefon, 32, "kisiler", "Yetkili telefon");
-            Sinirlar.Metin(k.Mail, 256, "kisiler", "Yetkili e-posta");
-            Sinirlar.Metin(k.Gorev, 64, "kisiler", "Yetkili görevi");
+            RentalLimits.Text(k.AdSoyad, 128, "kisiler", "Yetkili ad soyad");
+            RentalLimits.Text(k.Telefon, 32, "kisiler", "Yetkili telefon");
+            RentalLimits.Text(k.Mail, 256, "kisiler", "Yetkili e-posta");
+            RentalLimits.Text(k.Gorev, 64, "kisiler", "Yetkili görevi");
         }
     }
 
@@ -82,7 +82,7 @@ internal static class CustomerInputMapper
     /// 11 rakam taşıyan değerde (eski kayıtta VergiNo alanına yazılmış TC). Böyle bir değer yalnız maskeli döner.
     /// </summary>
     public static bool TaxNumberHidden(CustomerType type, string? taxNumber)
-        => type == CustomerType.Bireysel || LooksLikeTc(taxNumber);
+        => type == CustomerType.Bireysel || LooksLikeNationalId(taxNumber);
 
     public static bool TaxNumberHidden(Customer c) => TaxNumberHidden(c.Tip, c.VergiNo);
 
@@ -90,7 +90,7 @@ internal static class CustomerInputMapper
     /// #295b L-A: karar YALNIZ rakamlara bakar — biçimli yazılmış eski TC ("123 456 789 01", "123-45678901", sonda
     /// boşluk) da 11 rakam taşır ve gizli sayılır. SQL karşılığı <c>CustomerRepository.ElevenDigitsPattern</c>.
     /// </summary>
-    public static bool LooksLikeTc(string? value) => value is not null && value.Count(char.IsAsciiDigit) == 11;
+    public static bool LooksLikeNationalId(string? value) => value is not null && value.Count(char.IsAsciiDigit) == 11;
 
     /// <summary>
     /// #295 H1: Bireysel → Kurumsal/Servis geçişinde saklı vergi no gizliydi (kart göstermedi). İstek yeni değer ya da
@@ -98,7 +98,7 @@ internal static class CustomerInputMapper
     /// </summary>
     public static void RequireTaxNumberOnTypeChange(Customer stored, CustomerRequest r)
     {
-        var newType = F5Ortak.EnumAdi<CustomerType>(r.Tip, "tip") ?? CustomerType.Bireysel;
+        var newType = F5Shared.EnumAdi<CustomerType>(r.Tip, "tip") ?? CustomerType.Bireysel;
         if (stored.Tip == CustomerType.Bireysel && newType != CustomerType.Bireysel && !string.IsNullOrEmpty(stored.VergiNo)
             && r.VergiNo is null)
             throw new ValidationException("Tür değişikliğinde vergi no yeniden girilmeli.", "vergiNo");
@@ -118,7 +118,7 @@ internal static class CustomerInputMapper
             address = s?.AnonimAdres == true, document = s?.AnonimBelge == true;
         return new CustomerInput
         {
-            Tip = F5Ortak.EnumAdi<CustomerType>(r.Tip, "tip") ?? CustomerType.Bireysel,
+            Tip = F5Shared.EnumAdi<CustomerType>(r.Tip, "tip") ?? CustomerType.Bireysel,
             Ad = Keep(r.Ad, name, s?.Ad), Soyad = Keep(r.Soyad, name, s?.Soyad), Unvan = Keep(r.Unvan, name, s?.Unvan),
             // Gizli numaralar: null = değiştirme (kart göstermez); "" servis normalizasyonunda null'a (temizle) döner.
             TcKimlik = r.TcKimlik ?? s?.TcKimlik,
@@ -132,21 +132,21 @@ internal static class CustomerInputMapper
             Kaynak = r.Kaynak, MusteriTemsilcisi = r.MusteriTemsilcisi, IysIzinli = r.IysIzinli, Uyari = r.Uyari,
             UyariNedeni = r.UyariNedeni,
             EhliyetSinifi = Keep(r.EhliyetSinifi, document, s?.EhliyetSinifi),
-            EhliyetTarihi = F5Ortak.Utc(KeepDate(r.EhliyetTarihi, document, s?.EhliyetTarihi)),
+            EhliyetTarihi = F5Shared.Utc(KeepDate(r.EhliyetTarihi, document, s?.EhliyetTarihi)),
             EhliyetYeri = Keep(r.EhliyetYeri, document, s?.EhliyetYeri),
             EhliyetUlke = Keep(r.EhliyetUlke, document, s?.EhliyetUlke),
             PasaportYeri = Keep(r.PasaportYeri, document, s?.PasaportYeri),
             Tarife = r.Tarife, VadeGun = r.VadeGun, RiskLimiti = r.RiskLimiti, RiskMesaji = r.RiskMesaji,
-            RiskTarihi = F5Ortak.Utc(r.RiskTarihi), HgsYansitmaTuru = r.HgsYansitmaTuru, KaraListe = r.KaraListe, Pasif = r.Pasif,
+            RiskTarihi = F5Shared.Utc(r.RiskTarihi), HgsYansitmaTuru = r.HgsYansitmaTuru, KaraListe = r.KaraListe, Pasif = r.Pasif,
             OzelCariTip = r.OzelCariTip, MusteriTipi = r.MusteriTipi, Dil = r.Dil, Doviz = r.Doviz,
             TevkifatDurum = r.TevkifatDurum, Sinif = r.Sinif, MailIzin = r.MailIzin, SmsIzin = r.SmsIzin,
             // r317 L2: doğum tarihi kimlik belgesi bilgisi — AnonimBelge'de kartta gizli, null = değiştirme.
-            TelefonIzin = r.TelefonIzin, DogumTarihi = F5Ortak.Utc(KeepDate(r.DogumTarihi, document, s?.DogumTarihi)),
+            TelefonIzin = r.TelefonIzin, DogumTarihi = F5Shared.Utc(KeepDate(r.DogumTarihi, document, s?.DogumTarihi)),
             BabaAdi = Keep(r.BabaAdi, name, s?.BabaAdi), AnaAdi = Keep(r.AnaAdi, name, s?.AnaAdi),
             FaturaDonemi = r.FaturaDonemi, TevkifatOrani = r.TevkifatOrani,
             Kisiler = (r.Kisiler ?? []).Select(k => new CustomerContactInput
             { AdSoyad = k.AdSoyad, Telefon = k.Telefon, Mail = k.Mail, Gorev = k.Gorev }).ToList(),
-            KvkkOnay = r.KvkkOnay, KvkkOnayTarih = F5Ortak.Utc(r.KvkkOnayTarih), EkAdres = Keep(r.EkAdres, address, s?.EkAdres),
+            KvkkOnay = r.KvkkOnay, KvkkOnayTarih = F5Shared.Utc(r.KvkkOnayTarih), EkAdres = Keep(r.EkAdres, address, s?.EkAdres),
             BankaIban = r.BankaIban, BankaAdi = r.BankaAdi, FaturaAdresi = Keep(r.FaturaAdresi, address, s?.FaturaAdresi),
             FaturaUnvan = Keep(r.FaturaUnvan, name, s?.FaturaUnvan), Ulke = r.Ulke, Tel2 = Keep(r.Tel2, phone, s?.Tel2),
             OzelKod = r.OzelKod, EntegrasyonKodu = r.EntegrasyonKodu, Aciklama = r.Aciklama, RiskIzin = r.RiskIzin,
@@ -162,15 +162,15 @@ internal static class CustomerInputMapper
             AnonimMail = r.AnonimMail, AnonimAdres = r.AnonimAdres, AnonimBelge = r.AnonimBelge, BakiyeGor = r.BakiyeGor,
             AracVerilmez = r.AracVerilmez, YasEhliyetSerbest = r.YasEhliyetSerbest, MerkezKurumsal = r.MerkezKurumsal,
             Broker = r.Broker, FindexZorunlu = r.FindexZorunlu, BayiKomisyon = r.BayiKomisyon,
-            PasaportTarihi = F5Ortak.Utc(KeepDate(r.PasaportTarihi, document, s?.PasaportTarihi)),
-            WebIndirim = r.WebIndirim, KaraZamani = F5Ortak.Utc(r.KaraZamani), IslemSubeId = r.IslemSubeId, FirmaId = r.FirmaId,
+            PasaportTarihi = F5Shared.Utc(KeepDate(r.PasaportTarihi, document, s?.PasaportTarihi)),
+            WebIndirim = r.WebIndirim, KaraZamani = F5Shared.Utc(r.KaraZamani), IslemSubeId = r.IslemSubeId, FirmaId = r.FirmaId,
             Sifre = r.Sifre,
         };
     }
 
     /// <summary>
     /// Kayıt (çözülmüş) → kart. TC ASLA; ehliyet/pasaport (ve bireysel caride vergi no) maskeli; <c>Anonim*</c> grupları
-    /// <c>null</c>. Gruplar birincil alanlarda <see cref="MusteriGorunumu"/> ile aynı, kartta İKİNCİL alanları da kapsar
+    /// <c>null</c>. Gruplar birincil alanlarda <see cref="CustomerView"/> ile aynı, kartta İKİNCİL alanları da kapsar
     /// (#283 M2) — <see cref="ToInput"/> aynı alanları korur:
     /// ad → ad/soyad/ünvan, fatura ünvanı, faturada kiralayan ismi, baba/ana adı; telefon → cep, GSM 2, telefon 2,
     /// iş telefonu; e-posta; adres → adres/il/ilçe, ek adres, fatura adresi, iş adresi, kayıtlı il/ilçe, mahalle/köy;
@@ -183,15 +183,15 @@ internal static class CustomerInputMapper
         {
             Id = c.Id, Surum = version, CreatedAtUtc = c.CreatedAtUtc, UpdatedAtUtc = c.UpdatedAtUtc,
             TcKimlikVar = !string.IsNullOrEmpty(c.TcKimlik) || !string.IsNullOrEmpty(c.TcKimlikHash),
-            EhliyetNoMaske = document ? null : MusteriGorunumu.Maske(c.EhliyetNo),
-            PasaportNoMaske = document ? null : MusteriGorunumu.Maske(c.PasaportNo),
+            EhliyetNoMaske = document ? null : CustomerView.Mask(c.EhliyetNo),
+            PasaportNoMaske = document ? null : CustomerView.Mask(c.PasaportNo),
             SifreVar = !string.IsNullOrEmpty(c.SifreHash),
             Tip = c.Tip.ToString(),
             Ad = name ? null : c.Ad, Soyad = name ? null : c.Soyad, Unvan = name ? null : c.Unvan,
             VergiDairesi = c.VergiDairesi,
             // #283 M3: an individual's tax number may be the TC → only masked.
             VergiNo = TaxNumberHidden(c) ? null : c.VergiNo,
-            VergiNoMaske = TaxNumberHidden(c) ? MusteriGorunumu.Maske(c.VergiNo) : null,
+            VergiNoMaske = TaxNumberHidden(c) ? CustomerView.Mask(c.VergiNo) : null,
             CepTel = phone ? null : c.CepTel, Gsm2 = phone ? null : c.Gsm2, Email = mail ? null : c.Email,
             Il = address ? null : c.Il, Ilce = address ? null : c.Ilce, Adres = address ? null : c.Adres,
             Kaynak = c.Kaynak, MusteriTemsilcisi = c.MusteriTemsilcisi, IysIzinli = c.IysIzinli, Uyari = c.Uyari,

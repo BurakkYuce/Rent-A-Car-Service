@@ -9,12 +9,12 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class ReturnMathTests
 {
-    private static readonly DateTimeOffset Bas = new(2026, 7, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2026, 7, 1, 9, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Bit = new(2026, 7, 5, 9, 0, 0, TimeSpan.Zero); // 4 gün
 
     private static RentalContract Base() => new()
     {
-        BasTar = Bas, BitTar = Bit, Gun = 4, GunlukUcret = 100m, Tutar = 400m,
+        BasTar = Start, BitTar = Bit, Gun = 4, GunlukUcret = 100m, Tutar = 400m,
         CikisKm = 1000, CikisYakit = 8
     };
 

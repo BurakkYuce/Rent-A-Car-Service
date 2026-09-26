@@ -23,15 +23,15 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class DonemKapanisTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Kilit = new(2026, 6, 15, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset Kapali = new(2026, 6, 10, 9, 0, 0, TimeSpan.Zero); // <= kilit
-    private static readonly DateTimeOffset Acik = new(2026, 6, 20, 9, 0, 0, TimeSpan.Zero);   // > kilit
+    private static readonly DateTimeOffset LockKey = new(2026, 6, 15, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Closed = new(2026, 6, 10, 9, 0, 0, TimeSpan.Zero); // <= kilit
+    private static readonly DateTimeOffset Open = new(2026, 6, 20, 9, 0, 0, TimeSpan.Zero);   // > kilit
 
-    private static CashInput Cash(Guid cari, DateTimeOffset tarih) => new()
-    { CariId = cari, Tutar = 100m, Kur = 1m, Doviz = "TRY", Hesap = LedgerAccountType.Kasa, Tarih = tarih };
+    private static CashInput Cash(Guid account, DateTimeOffset date) => new()
+    { CariId = account, Tutar = 100m, Kur = 1m, Doviz = "TRY", Hesap = LedgerAccountType.Kasa, Tarih = date };
 
-    private static ExpenseInput Exp(DateTimeOffset tarih) => new()
-    { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit, Tarih = tarih };
+    private static ExpenseInput Exp(DateTimeOffset date) => new()
+    { Tip = ExpenseType.Genel, NetTutar = 100m, KdvOrani = 0m, Doviz = "TRY", Kur = 1m, OdemeYontemi = PaymentMethod.Nakit, Tarih = date };
 
     [Fact]
     public async Task Backdated_postings_into_closed_period_rejected()
@@ -39,22 +39,22 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kilit Test" });
+        var customerId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Kilit Test" });
         var cash = sp.GetRequiredService<CashService>();
         var exp = sp.GetRequiredService<ExpenseService>();
 
-        await sp.GetRequiredService<PeriodLockService>().LockAsync(Kilit);
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(LockKey);
 
         // KAPALI tarih → red (her geri-tarihli yol)
-        await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(Cash(cariId, Kapali)));
-        await Assert.ThrowsAsync<ValidationException>(() => cash.PayAsync(Cash(cariId, Kapali)));
-        await Assert.ThrowsAsync<ValidationException>(() => exp.CreateAsync(Exp(Kapali)));
-        await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync([Cash(cariId, Kapali)]));
-        await Assert.ThrowsAsync<ValidationException>(() => exp.BatchCreateAsync([Exp(Kapali)]));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.CollectAsync(Cash(customerId, Closed)));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.PayAsync(Cash(customerId, Closed)));
+        await Assert.ThrowsAsync<ValidationException>(() => exp.CreateAsync(Exp(Closed)));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.BatchCollectAsync([Cash(customerId, Closed)]));
+        await Assert.ThrowsAsync<ValidationException>(() => exp.BatchCreateAsync([Exp(Closed)]));
 
         // AÇIK tarih → serbest
-        Assert.NotEqual(Guid.Empty, await cash.CollectAsync(Cash(cariId, Acik)));
-        Assert.NotEqual(Guid.Empty, await exp.CreateAsync(Exp(Acik)));
+        Assert.NotEqual(Guid.Empty, await cash.CollectAsync(Cash(customerId, Open)));
+        Assert.NotEqual(Guid.Empty, await exp.CreateAsync(Exp(Open)));
     }
 
     [Fact]
@@ -66,29 +66,29 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
 
         // Kilitsiz hazırlık (postlama-öncesi kayıtlar serbest).
         var cs = sp.GetRequiredService<CustomerService>();
-        var cari1 = await cs.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Cari Bir" });
-        var cari2 = await cs.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Cari İki" });
+        var account1 = await cs.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Cari Bir" });
+        var account2 = await cs.CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Cari İki" });
         var vId = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 DK 01" });
         var rId = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cari1, VehicleId = vId, BasTar = Acik, BitTar = Acik.AddDays(4), GunlukUcret = 100m });
+        { MusteriId = account1, VehicleId = vId, BasTar = Open, BitTar = Open.AddDays(4), GunlukUcret = 100m });
         var cash = sp.GetRequiredService<CashService>();
-        var txId = await cash.CollectAsync(Cash(cari1, Acik)); // ters kayıt için
+        var txId = await cash.CollectAsync(Cash(account1, Open)); // ters kayıt için
         var pId = await sp.GetRequiredService<PenaltyService>().CreateAsync(new PenaltyInput
-        { CezaTuru = "Hız", Tutar = 500m, VadeGun = 30, CariId = cari1, VehicleId = vId });
+        { CezaTuru = "Hız", Tutar = 500m, VadeGun = 30, CariId = account1, VehicleId = vId });
 
         // Bugünü kapsayan kilit → bugün-tarihli postlamalar kapalı.
         await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
         await Assert.ThrowsAsync<ValidationException>(() => cash.TransferAsync(LedgerAccountType.Kasa, LedgerAccountType.Banka, 100m));
-        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(cari1, cari2, 100m));
+        await Assert.ThrowsAsync<ValidationException>(() => cash.TransferBetweenAccountsAsync(account1, account2, 100m));
         await Assert.ThrowsAsync<ValidationException>(() => cash.ReverseAsync(txId));
         await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<InvoiceService>().CreateFromRentalAsync(rId));
         await Assert.ThrowsAsync<ValidationException>(() => sp.GetRequiredService<PenaltyService>().ReflectAsync(pId));
 
         var hgs = new HgsReflectionService(
-            new FakeHgs([new TollCrossing(Acik, "Köprü", 100m)]),
+            new FakeHgs([new TollCrossing(Open, "Köprü", 100m)]),
             sp.GetRequiredService<ILedgerPoster>(), sp.GetRequiredService<IPeriodLockGuard>(), sp.GetRequiredService<RentACar.Domain.Common.ICurrentUser>());
-        await Assert.ThrowsAsync<ValidationException>(() => hgs.ReflectAsync(cari1, "34DK01", Acik, Acik.AddDays(1)));
+        await Assert.ThrowsAsync<ValidationException>(() => hgs.ReflectAsync(account1, "34DK01", Open, Open.AddDays(1)));
 
         // Kilidi kaldır → bugün-tarihli postlama yeniden serbest.
         await sp.GetRequiredService<PeriodLockService>().UnlockAsync();
@@ -101,22 +101,22 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Satış Alıcı" });
+        var customerId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Satış Alıcı" });
         var vId = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 DS 01" });
         var sales = sp.GetRequiredService<VehicleSaleService>();
 
-        await sp.GetRequiredService<PeriodLockService>().LockAsync(Kilit);
+        await sp.GetRequiredService<PeriodLockService>().LockAsync(LockKey);
 
         VehicleSaleInput Sale(DateTimeOffset t) => new()
-        { VehicleId = vId, AliciCariId = cariId, SatisNet = 100m, KdvOrani = 0.20m, Doviz = "TRY", Kur = 1m, Tarih = t };
+        { VehicleId = vId, AliciCariId = customerId, SatisNet = 100m, KdvOrani = 0.20m, Doviz = "TRY", Kur = 1m, Tarih = t };
 
-        await Assert.ThrowsAsync<ValidationException>(() => sales.CreateAsync(Sale(Kapali))); // kapalı → red
-        Assert.NotEqual(Guid.Empty, await sales.CreateAsync(Sale(Acik)));                     // açık → serbest
+        await Assert.ThrowsAsync<ValidationException>(() => sales.CreateAsync(Sale(Closed))); // kapalı → red
+        Assert.NotEqual(Guid.Empty, await sales.CreateAsync(Sale(Open)));                     // açık → serbest
     }
 
     private sealed class FakeHgs(IReadOnlyList<TollCrossing> crossings) : IHgsService
     {
-        public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(string plaka, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+        public Task<IReadOnlyList<TollCrossing>> GetCrossingsAsync(string plate, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
             => Task.FromResult(crossings);
     }
 
@@ -126,9 +126,9 @@ public sealed class DonemKapanisTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Serbest" });
+        var customerId = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Serbest" });
 
         // Kilit yok → geri-tarihli bile serbest.
-        Assert.NotEqual(Guid.Empty, await sp.GetRequiredService<CashService>().CollectAsync(Cash(cariId, Kapali)));
+        Assert.NotEqual(Guid.Empty, await sp.GetRequiredService<CashService>().CollectAsync(Cash(customerId, Closed)));
     }
 }

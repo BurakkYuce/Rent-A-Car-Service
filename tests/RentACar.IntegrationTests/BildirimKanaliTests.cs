@@ -21,10 +21,10 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class BildirimKanaliTests(PostgresFixture fx)
 {
-    private const string SmtpSifre = "smtp-gizli-42";
+    private const string SmtpPassword = "smtp-gizli-42";
 
     /// <summary>Ayarları admin olarak yazar (yazma yolu ManageUsers ister), sonra tenant id'yi döner.</summary>
-    private static async Task AyarYazAsync(TestHost host, Guid tenant, TenantSettingsModel m)
+    private static async Task WriteSettingAsync(TestHost host, Guid tenant, TenantSettingsModel m)
     {
         using var scope = host.ScopeFor(tenant);
         await scope.ServiceProvider.GetRequiredService<TenantSettingsService>().SaveAsync(m);
@@ -37,13 +37,13 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var kanal = scope.ServiceProvider.GetRequiredService<NotificationChannelService>();
+        var channel = scope.ServiceProvider.GetRequiredService<NotificationChannelService>();
 
-        Assert.Null(await kanal.SmtpSettingAsync());
+        Assert.Null(await channel.SmtpSettingAsync());
 
-        var sonuc = await kanal.SendEmailAsync("musteri@ornek.com", "konu", "<p>gövde</p>");
-        Assert.False(sonuc.Ok);
-        Assert.False(string.IsNullOrWhiteSpace(sonuc.Hata)); // sessiz başarı YOK
+        var result = await channel.SendEmailAsync("musteri@ornek.com", "konu", "<p>gövde</p>");
+        Assert.False(result.Ok);
+        Assert.False(string.IsNullOrWhiteSpace(result.Hata)); // sessiz başarı YOK
     }
 
     [Fact]
@@ -51,29 +51,29 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        await AyarYazAsync(host, tenant, new TenantSettingsModel
+        await WriteSettingAsync(host, tenant, new TenantSettingsModel
         {
             FirmaUnvan = "Yüce Rent A.Ş.",
             SmtpHost = "mail.yucerent.com",
             SmtpPort = null,                       // yazılmadı → 587 beklenir
             SmtpKullanici = "no-reply@yucerent.com",
-            SmtpSifre = SmtpSifre,
+            SmtpSifre = SmtpPassword,
             SmtpSsl = true,
             SmtpGonderenAdres = "rezervasyon@yucerent.com",
             SmtpGonderenAd = "Yüce Rent Rezervasyon",
         });
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var ayar = await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmtpSettingAsync();
+        var setting = await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmtpSettingAsync();
 
-        Assert.NotNull(ayar);
-        Assert.Equal("mail.yucerent.com", ayar!.Host);
-        Assert.Equal(587, ayar.Port);
-        Assert.True(ayar.Ssl);
-        Assert.Equal("no-reply@yucerent.com", ayar.Kullanici);
-        Assert.Equal(SmtpSifre, ayar.Sifre); // at-rest şifreliydi, gönderim için çözüldü
-        Assert.Equal("rezervasyon@yucerent.com", ayar.GonderenAdres);
-        Assert.Equal("Yüce Rent Rezervasyon", ayar.GonderenAd);
+        Assert.NotNull(setting);
+        Assert.Equal("mail.yucerent.com", setting!.Host);
+        Assert.Equal(587, setting.Port);
+        Assert.True(setting.Ssl);
+        Assert.Equal("no-reply@yucerent.com", setting.Kullanici);
+        Assert.Equal(SmtpPassword, setting.Sifre); // at-rest şifreliydi, gönderim için çözüldü
+        Assert.Equal("rezervasyon@yucerent.com", setting.GonderenAdres);
+        Assert.Equal("Yüce Rent Rezervasyon", setting.GonderenAd);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        await AyarYazAsync(host, tenant, new TenantSettingsModel
+        await WriteSettingAsync(host, tenant, new TenantSettingsModel
         {
             FirmaUnvan = "Demo Kiralama",
             SmtpHost = "smtp.ornek.com",
@@ -92,12 +92,12 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         });
 
         using var scope = host.ScopeFor(tenant, role: UserRole.Operator);
-        var ayar = await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmtpSettingAsync();
+        var setting = await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmtpSettingAsync();
 
-        Assert.NotNull(ayar);
-        Assert.Equal("bilgi@demo.com", ayar!.GonderenAdres);
-        Assert.Equal("Demo Kiralama", ayar.GonderenAd); // gönderen adı boşsa firma unvanı
-        Assert.Equal(465, ayar.Port);
+        Assert.NotNull(setting);
+        Assert.Equal("bilgi@demo.com", setting!.GonderenAdres);
+        Assert.Equal("Demo Kiralama", setting.GonderenAd); // gönderen adı boşsa firma unvanı
+        Assert.Equal(465, setting.Port);
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         // yani operatör "gönderdim" sanır, müşteri hiçbir şey almaz.
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        await AyarYazAsync(host, tenant, new TenantSettingsModel
+        await WriteSettingAsync(host, tenant, new TenantSettingsModel
         {
             SmtpHost = "smtp.ornek.com",
             SmtpKullanici = "kullanici1",   // e-posta DEĞİL
@@ -123,14 +123,14 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
 
-        var basliksiz = Guid.NewGuid();
-        await AyarYazAsync(host, basliksiz, new TenantSettingsModel { FirmaUnvan = "Başlıksız" });
-        using (var scope = host.ScopeFor(basliksiz, role: UserRole.Operator))
+        var withoutHeader = Guid.NewGuid();
+        await WriteSettingAsync(host, withoutHeader, new TenantSettingsModel { FirmaUnvan = "Başlıksız" });
+        using (var scope = host.ScopeFor(withoutHeader, role: UserRole.Operator))
             Assert.Null(await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmsHeaderAsync());
 
-        var baslikli = Guid.NewGuid();
-        await AyarYazAsync(host, baslikli, new TenantSettingsModel { SmsBaslik = "YUCERENT" });
-        using (var scope = host.ScopeFor(baslikli, role: UserRole.Operator))
+        var withHeader = Guid.NewGuid();
+        await WriteSettingAsync(host, withHeader, new TenantSettingsModel { SmsBaslik = "YUCERENT" });
+        using (var scope = host.ScopeFor(withHeader, role: UserRole.Operator))
             Assert.Equal("YUCERENT",
                 await scope.ServiceProvider.GetRequiredService<NotificationChannelService>().SmsHeaderAsync());
     }
@@ -141,7 +141,7 @@ public sealed class BildirimKanaliTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var a = Guid.NewGuid();
         var b = Guid.NewGuid();
-        await AyarYazAsync(host, a, new TenantSettingsModel
+        await WriteSettingAsync(host, a, new TenantSettingsModel
         {
             SmtpHost = "mail.a-firma.com", SmtpGonderenAdres = "a@a-firma.com",
         });

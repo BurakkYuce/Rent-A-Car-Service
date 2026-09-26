@@ -36,12 +36,12 @@ else
         <span>KM: <strong>@h.Km.ToString("N0")</strong></span>
     </div>
     <div class="kv-inline">
-        <span>Alım Bedeli: <strong>@Para(h.AlimBedeli)</strong></span>
-        <span>Alım Tarihi: <strong>@Tarih(h.AlimTarihi)</strong></span>
-        <span>İkinci El Değeri: <strong>@Para(h.IkinciElDeger)</strong></span>
-        <span>Filo Giriş: <strong>@Tarih(h.FiloGirisTarih)</strong></span>
-        <span>Filo Çıkış: <strong>@Tarih(h.FiloCikisTarih)</strong></span>
-        <span>Son Bakım: <strong>@Tarih(h.SonBakimTarih)@(h.SonBakimKm is int sk ? $" ({sk:N0} km)" : "")</strong></span>
+        <span>Alım Bedeli: <strong>@Money(h.AlimBedeli)</strong></span>
+        <span>Alım Tarihi: <strong>@Date(h.AlimTarihi)</strong></span>
+        <span>İkinci El Değeri: <strong>@Money(h.IkinciElDeger)</strong></span>
+        <span>Filo Giriş: <strong>@Date(h.FiloGirisTarih)</strong></span>
+        <span>Filo Çıkış: <strong>@Date(h.FiloCikisTarih)</strong></span>
+        <span>Son Bakım: <strong>@Date(h.SonBakimTarih)@(h.SonBakimKm is int sk ? $" ({sk:N0} km)" : "")</strong></span>
     </div>
 
     <form method="get" class="grid-form">
@@ -59,20 +59,20 @@ else
         <div class="card"><div class="card-num">@_d.ToplamGelir.ToString("N2")</div><div class="card-label">Gelir</div></div>
         <div class="card"><div class="card-num">@_d.ToplamGider.ToString("N2")</div><div class="card-label">Gider</div></div>
         <div class="card"><div class="card-num">@_d.ToplamNetKar.ToString("N2")</div><div class="card-label">Net Kâr (defter)</div></div>
-        <div class="card"><div class="card-num">@Para(_d.Kpi.EkonomikKar)</div><div class="card-label">Ekonomik Kâr (− amortisman, ömür boyu)</div></div>
+        <div class="card"><div class="card-num">@Money(_d.Kpi.EkonomikKar)</div><div class="card-label">Ekonomik Kâr (− amortisman, ömür boyu)</div></div>
     </div>
 
     @* Kurumsal KPI'lar (ömür boyu) *@
     <h2>KPI — Ömür Boyu</h2>
     <div class="cards">
-        <div class="card"><div class="card-num">@Yuzde(_d.Kpi.DolulukYuzde)</div><div class="card-label">Doluluk</div></div>
-        <div class="card"><div class="card-num">@Para(_d.Kpi.RevPacd)</div><div class="card-label">RevPACD (ciro ÷ sahiplik günü)</div></div>
-        <div class="card"><div class="card-num">@Para(_d.Kpi.Adr)</div><div class="card-label">ADR (ciro ÷ kiralanan gün)</div></div>
-        <div class="card"><div class="card-num">@Para(_d.Kpi.KmBasinaMaliyet)</div><div class="card-label">Km Başına Maliyet</div></div>
+        <div class="card"><div class="card-num">@Percent(_d.Kpi.DolulukYuzde)</div><div class="card-label">Doluluk</div></div>
+        <div class="card"><div class="card-num">@Money(_d.Kpi.RevPacd)</div><div class="card-label">RevPACD (ciro ÷ sahiplik günü)</div></div>
+        <div class="card"><div class="card-num">@Money(_d.Kpi.Adr)</div><div class="card-label">ADR (ciro ÷ kiralanan gün)</div></div>
+        <div class="card"><div class="card-num">@Money(_d.Kpi.KmBasinaMaliyet)</div><div class="card-label">Km Başına Maliyet</div></div>
     </div>
     <div class="cards">
-        <div class="card"><div class="card-num">@Yuzde(_d.Kpi.NetMarjYuzde)</div><div class="card-label">Net Marj</div></div>
-        <div class="card"><div class="card-num">@Yuzde(_d.Kpi.RoiYuzde)</div><div class="card-label">ROI@(h.Durum == VehicleStatus.Satildi ? " (kapanış)" : "")</div></div>
+        <div class="card"><div class="card-num">@Percent(_d.Kpi.NetMarjYuzde)</div><div class="card-label">Net Marj</div></div>
+        <div class="card"><div class="card-num">@Percent(_d.Kpi.RoiYuzde)</div><div class="card-label">ROI@(h.Durum == VehicleStatus.Satildi ? " (kapanış)" : "")</div></div>
         <div class="card"><div class="card-num">@(_d.Kpi.GeriOdemeAy?.ToString() ?? "—")</div><div class="card-label">Geri Ödeme (ay)</div></div>
         <div class="card"><div class="card-num">@_d.Kpi.Tco.ToString("N2")</div><div class="card-label">TCO (alım + gider)</div></div>
     </div>
@@ -83,8 +83,8 @@ else
         <span>Boş: <strong>@_d.Kpi.BosGun gün</strong></span>
         <span>Kira Sayısı: <strong>@_d.Kpi.KiraSayisi</strong></span>
         <span>Katedilen KM: <strong>@_d.Kpi.ToplamKatedilenKm.ToString("N0")</strong></span>
-        <span>Gerçekleşen Amortisman: <strong>@Para(_d.Kpi.GerceklesenAmortisman)</strong></span>
-        <span>Aylık Amortisman: <strong>@Para(_d.Kpi.AylikAmortisman)</strong></span>
+        <span>Gerçekleşen Amortisman: <strong>@Money(_d.Kpi.GerceklesenAmortisman)</strong></span>
+        <span>Aylık Amortisman: <strong>@Money(_d.Kpi.AylikAmortisman)</strong></span>
     </div>
     @* FAZ 2.5: dönemsel km (km-log serisinden) — bilgi satırı; KPI km-maliyeti ömür-boyu kalır. *@
     @if (_d.DonemKm is { } dkm)
@@ -125,7 +125,7 @@ else
                     @if (_d.GelirKaynak.Count == 0) { <tr><td colspan="3" class="muted">Kayıt yok.</td></tr> }
                     @foreach (var r in _d.GelirKaynak)
                     {
-                        <tr><td>@r.Kategori</td><td class="num">@r.Tutar.ToString("N2")</td><td class="num">@Yuzde(r.YuzdeGelir)</td></tr>
+                        <tr><td>@r.Kategori</td><td class="num">@r.Tutar.ToString("N2")</td><td class="num">@Percent(r.YuzdeGelir)</td></tr>
                     }
                 </tbody>
             </table>
@@ -140,7 +140,7 @@ else
                     @if (_d.GiderKategori.Count == 0) { <tr><td colspan="3" class="muted">Kayıt yok.</td></tr> }
                     @foreach (var r in _d.GiderKategori)
                     {
-                        <tr><td>@r.Kategori</td><td class="num">@r.Tutar.ToString("N2")</td><td class="num">@Yuzde(r.YuzdeGelir)</td></tr>
+                        <tr><td>@r.Kategori</td><td class="num">@r.Tutar.ToString("N2")</td><td class="num">@Percent(r.YuzdeGelir)</td></tr>
                     }
                 </tbody>
             </table>
@@ -203,9 +203,9 @@ else
     <table class="grid tr-grid">
         <thead><tr><th>Tür</th><th>Bitiş / Hedef</th><th class="num">Kalan</th><th>Durum</th></tr></thead>
         <tbody>
-            @if (_vadeler.Count == 0 && _bakimKm?.SonrakiBakimKm is null)
+            @if (_dues.Count == 0 && _maintenanceKm?.SonrakiBakimKm is null)
             { <tr><td colspan="4" class="muted">Kayıtlı vade yok (sigorta/MTV/muayene girilmemiş olabilir).</td></tr> }
-            @foreach (var vi in _vadeler)
+            @foreach (var vi in _dues)
             {
                 <tr>
                     <td>@vi.Tur</td>
@@ -218,13 +218,13 @@ else
                         _ => "İleri" })</td>
                 </tr>
             }
-            @if (_bakimKm is { SonrakiBakimKm: { } hedefKm, KalanKm: { } kalanKm })
+            @if (_maintenanceKm is { SonrakiBakimKm: { } targetKm, KalanKm: { } remainingKm })
             {
                 <tr>
                     <td>Periyodik Bakım (KM)</td>
-                    <td>hedef @hedefKm.ToString("N0") km</td>
-                    <td class="num">@kalanKm.ToString("N0") km</td>
-                    <td>@(kalanKm <= 0 ? "GEÇMİŞ" : kalanKm <= 1000 ? "YAKIN" : "İleri")</td>
+                    <td>hedef @targetKm.ToString("N0") km</td>
+                    <td class="num">@remainingKm.ToString("N0") km</td>
+                    <td>@(remainingKm <= 0 ? "GEÇMİŞ" : remainingKm <= 1000 ? "YAKIN" : "İleri")</td>
                 </tr>
             }
         </tbody>
@@ -262,12 +262,12 @@ else
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
 
     private AracKarneDto? _d;
-    private IReadOnlyList<RentACar.Application.Regulation.VadeItem> _vadeler = [];
-    private PeriyodikServisRow? _bakimKm;
+    private IReadOnlyList<RentACar.Application.Regulation.VadeItem> _dues = [];
+    private PeriyodikServisRow? _maintenanceKm;
 
-    private static string Para(decimal? d) => d?.ToString("N2") ?? "—";
-    private static string Yuzde(decimal? d) => d is { } x ? x.ToString("N2") + "%" : "—";
-    private static string Tarih(DateTimeOffset? t) => t?.UtcDateTime.ToString("dd.MM.yyyy") ?? "—";
+    private static string Money(decimal? d) => d?.ToString("N2") ?? "—";
+    private static string Percent(decimal? d) => d is { } x ? x.ToString("N2") + "%" : "—";
+    private static string Date(DateTimeOffset? t) => t?.UtcDateTime.ToString("dd.MM.yyyy") ?? "—";
 
     protected override async Task OnInitializedAsync()
     {
@@ -276,8 +276,8 @@ else
         _d = await Reports.GetVehicleScorecardAsync(VehicleId, f, t);
         if (_d is not null)
         {
-            _vadeler = await Vadeler.GetForVehicleAsync(VehicleId); // FAZ 2.1 (ömür-boyu vade — pencereden bağımsız)
-            _bakimKm = (await Reports.GetPeriodicServiceAsync()).FirstOrDefault(r => r.Plaka == _d.Header.Plaka);
+            _dues = await Vadeler.GetForVehicleAsync(VehicleId); // FAZ 2.1 (ömür-boyu vade — pencereden bağımsız)
+            _maintenanceKm = (await Reports.GetPeriodicServiceAsync()).FirstOrDefault(r => r.Plaka == _d.Header.Plaka);
         }
     }
 }

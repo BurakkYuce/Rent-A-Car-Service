@@ -41,9 +41,9 @@ public static partial class SystemDefinitionsApi
         {
             var counts = await s.VehicleCountsAsync(ct);
             var rows = (await s.ListAsync(ct)).Select(x => VehicleGroupDto.From(x, counts.GetValueOrDefault(x.Id), null));
-            return TypedResults.Ok(F5Ortak.Sayfala(
+            return TypedResults.Ok(F5Shared.Paginate(
                 Filter(rows, ara, aktif, x => [x.Kod, x.Ad, x.Sipp, x.Segment], x => x.Aktif), GroupSort, sayfa, boyut, sirala));
-        }).AlanlariEsle(F5Ortak.SiralamaKurallari);
+        }).MapFields(F5Shared.SortRules);
         // Tanılama paneli: hiçbir aktif gruba eşleşmeyen filo Grup değerleri (+ grubu boş araçlar).
         g.MapGet("/eslesmeyen", async Task<Ok<IReadOnlyList<UnmatchedGroupValueDto>>> (VehicleGroupService s, CancellationToken ct)
             => TypedResults.Ok<IReadOnlyList<UnmatchedGroupValueDto>>((await s.ListUnmatchedGroupValuesAsync(ct))
@@ -55,7 +55,7 @@ public static partial class SystemDefinitionsApi
             var input = GroupInput(i);
             var id = await s.CreateAsync(input, ct);
             return await GroupAsync(id, s, ct) is { } d ? TypedResults.Created($"{UiApiExtensions.V1}/arac-gruplari/{id}", d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(GroupRules);
+        }).MapFields(GroupRules);
         g.MapPut("/{id:guid}", async Task<Results<Ok<VehicleGroupDto>, ProblemHttpResult>> (Guid id, VehicleGroupRequest i, VehicleGroupService s, CancellationToken ct) =>
         {
             if (await s.GetAsync(id, ct) is null) return SystemApiCommon.NotFound();
@@ -63,7 +63,7 @@ public static partial class SystemDefinitionsApi
             var input = GroupInput(i);
             if (!await s.UpdateAsync(id, input, i.Surum, ct)) return SystemApiCommon.NotFound();
             return await GroupAsync(id, s, ct) is { } d ? TypedResults.Ok(d) : SystemApiCommon.NotFound();
-        }).AlanlariEsle(GroupRules);
+        }).MapFields(GroupRules);
         g.MapDelete("/{id:guid}", async Task<Results<NoContent, ProblemHttpResult>> (Guid id, VehicleGroupService s, CancellationToken ct)
             => await s.DeleteAsync(id, ct) ? TypedResults.NoContent() : SystemApiCommon.NotFound());
         // Eşleme aracı: eşleşmeyen serbest-metin Grup değerini (ya da grubu boş araçları) tanımlı gruba taşır.
@@ -72,7 +72,7 @@ public static partial class SystemDefinitionsApi
             if (await s.GetAsync(i.HedefGrupId, ct) is null) return SystemApiCommon.NotFound("Hedef araç grubu bulunamadı.");
             Text(i.Kaynak, 64, "kaynak", "Kaynak grup değeri");
             return TypedResults.Ok(new GroupAssignResult(await s.AssignGroupValueAsync(i.Kaynak, i.Bos, i.HedefGrupId, ct)));
-        }).AlanlariEsle(AssignRules);
+        }).MapFields(AssignRules);
     }
 
     /// <summary>Uç sınırları (kolon uzunlukları + numeric(19,4)) + enum adları; iş kuralları serviste.</summary>

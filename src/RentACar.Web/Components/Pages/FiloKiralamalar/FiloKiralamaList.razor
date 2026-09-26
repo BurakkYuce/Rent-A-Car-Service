@@ -93,7 +93,7 @@
         }
         @foreach (var k in _list)
         {
-            var ozet = FleetRentalService.InstallmentPlan(k);
+            var summary = FleetRentalService.InstallmentPlan(k);
             <tr>
                 <td>@k.No</td>
                 <td>@(k.SozlesmeNo ?? "—")</td>
@@ -102,7 +102,7 @@
                 <td>@k.BasTar.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 <td class="num">@k.SureAy</td>
                 <td class="num">@k.AylikUcret.ToString("N2")</td>
-                <td class="num">@ozet.GenelToplam.ToString("N2") @k.Currency</td>
+                <td class="num">@summary.GenelToplam.ToString("N2") @k.Currency</td>
                 <td>@(k.SatisTemsilcisi ?? "—")</td>
                 <td>@(k.Kaynak ?? "—")</td>
                 <td class="num">@(k.VadeGun?.ToString() ?? "—")</td>
@@ -179,13 +179,13 @@
             Plaka = Plaka,
             Ara = Ara,
             Durum = Enum.TryParse<RentACar.Domain.Enums.FleetRentalStatus>(Durum, out var d) ? d : null,
-            Bas = Tarih(Bas),
+            Bas = Date(Bas),
             // Üst sınır GÜN SONUNA genişletilir (tarih girişi 00:00'a düşer).
-            Bit = Tarih(Bit)?.AddDays(1).AddTicks(-1)
+            Bit = Date(Bit)?.AddDays(1).AddTicks(-1)
         });
     }
 
-    private static DateTimeOffset? Tarih(string? s)
+    private static DateTimeOffset? Date(string? s)
         => DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
 

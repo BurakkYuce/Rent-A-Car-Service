@@ -18,21 +18,21 @@ namespace RentACar.IntegrationTests;
 public sealed class ServisYansitmaTests(PostgresFixture fx)
 {
     private static async Task<(IServiceProvider sp, Guid svcId, Guid cari)> Seed(
-        IServiceScope scope, string plaka, decimal maliyet = 1000m, decimal kusur = 0.5m,
-        DamageResponsible sorumlu = DamageResponsible.Musteri)
+        IServiceScope scope, string plate, decimal cost = 1000m, decimal fault = 0.5m,
+        DamageResponsible responsible = DamageResponsible.Musteri)
     {
         var sp = scope.ServiceProvider;
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka, Durum = VehicleStatus.Musait });
-        var cari = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rücu Cari" });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate, Durum = VehicleStatus.Musait });
+        var account = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Rücu Cari" });
         var svc = sp.GetRequiredService<ServiceRecordService>();
         var id = await svc.CreateAsync(new ServiceRecordInput
         {
-            VehicleId = v, Tip = ServiceType.Ariza, GirisKm = 0, HasarSorumlu = sorumlu, KusurOrani = kusur,
-            Lines = [new ServiceLineInput { Aciklama = "Tampon", Tutar = maliyet }]
+            VehicleId = v, Tip = ServiceType.Ariza, GirisKm = 0, HasarSorumlu = responsible, KusurOrani = fault,
+            Lines = [new ServiceLineInput { Aciklama = "Tampon", Tutar = cost }]
         });
         await svc.StartAsync(id);
         await svc.CompleteAsync(id, pickupKm: 100);
-        return (sp, id, cari);
+        return (sp, id, cari: account);
     }
 
     [Fact]
@@ -40,12 +40,12 @@ public sealed class ServisYansitmaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, svcId, cari) = await Seed(scope, "34 SV 01");
+        var (sp, svcId, account) = await Seed(scope, "34 SV 01");
         var svc = sp.GetRequiredService<ServiceRecordService>();
 
-        await svc.ReflectAsync(svcId, cari);
+        await svc.ReflectAsync(svcId, account);
 
-        Assert.Equal(500m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(cari)); // 1000 × 0.5
+        Assert.Equal(500m, await sp.GetRequiredService<CashService>().GetAccountBalanceAsync(account)); // 1000 × 0.5
         var gg = await sp.GetRequiredService<ReportService>().GetRevenueExpenseAsync();
         Assert.Equal(500m, gg.GelirToplam);
         Assert.Equal(0m, gg.GiderToplam);
@@ -54,7 +54,7 @@ public sealed class ServisYansitmaTests(PostgresFixture fx)
         Assert.True(rec.Yansitildi);
         Assert.Equal(500m, rec.YansitilanTutar);
 
-        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() => svc.ReflectAsync(svcId, cari));
+        await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(() => svc.ReflectAsync(svcId, account));
     }
 
     [Fact]
@@ -62,9 +62,9 @@ public sealed class ServisYansitmaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, svcId, cari) = await Seed(scope, "34 SV 02", sorumlu: DamageResponsible.Sirket);
+        var (sp, svcId, account) = await Seed(scope, "34 SV 02", responsible: DamageResponsible.Sirket);
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<ServiceRecordService>().ReflectAsync(svcId, cari));
+            () => sp.GetRequiredService<ServiceRecordService>().ReflectAsync(svcId, account));
     }
 
     [Fact]
@@ -72,9 +72,9 @@ public sealed class ServisYansitmaTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
-        var (sp, svcId, cari) = await Seed(scope, "34 SV 03");
+        var (sp, svcId, account) = await Seed(scope, "34 SV 03");
         await sp.GetRequiredService<PeriodLockService>().LockAsync(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero));
         await Assert.ThrowsAsync<RentACar.Application.Common.ValidationException>(
-            () => sp.GetRequiredService<ServiceRecordService>().ReflectAsync(svcId, cari));
+            () => sp.GetRequiredService<ServiceRecordService>().ReflectAsync(svcId, account));
     }
 }

@@ -12,7 +12,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class AracBayrakTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bakim = new(2026, 5, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Maintenance = new(2026, 5, 1, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task Bayraklar_ve_bakim_roundtrip()
@@ -25,7 +25,7 @@ public sealed class AracBayrakTests(PostgresFixture fx)
         {
             Plaka = "34 BK 01", Durum = VehicleStatus.Musait,
             WebRezKapat = true, Rehin = true, KarLastigi = true,
-            SonBakimTarih = Bakim, SonBakimKm = 15000, LastikDurumu = "Kışlık"
+            SonBakimTarih = Maintenance, SonBakimKm = 15000, LastikDurumu = "Kışlık"
         });
 
         var v = await svc.GetAsync(id);
@@ -33,7 +33,7 @@ public sealed class AracBayrakTests(PostgresFixture fx)
         Assert.True(v.Rehin);
         Assert.True(v.KarLastigi);
         Assert.False(v.Utts);            // set edilmedi → false
-        Assert.Equal(Bakim, v.SonBakimTarih);
+        Assert.Equal(Maintenance, v.SonBakimTarih);
         Assert.Equal(15000, v.SonBakimKm);
         Assert.Equal("Kışlık", v.LastikDurumu);
 

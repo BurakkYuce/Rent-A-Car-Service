@@ -22,24 +22,24 @@
         tarifenin günlük+toplam fiyatını çözer (en dar geçerlilik penceresi → en yeni → kod ile deterministik).</p>
     <form method="get" class="grid-form">
         <label>Kanal<input name="qkanal" value="@QKanal" placeholder="WEB" /></label>
-        <ComboBox Name="qsube" Label="Şube" Value="@QSube" Options="_subeOpts" />
+        <ComboBox Name="qsube" Label="Şube" Value="@QSube" Options="_branchOpts" />
         <label>Araç Grubu Kodu<input name="qgrup" value="@QGrup" placeholder="EKO" /></label>
         <label>Para Birimi<input name="qpara" value="@QPara" placeholder="(varsayılan)" maxlength="8" /></label>
         <label>Tarih<input name="qtarih" type="date" value="@QTarih" required /></label>
         <label>Gün Sayısı<input name="qgun" type="number" min="1" value="@(QGun > 0 ? QGun : 1)" required /></label>
         <button type="submit">Sorgula</button>
     </form>
-    @if (_sorgulandi)
+    @if (_queried)
     {
-        @if (_sonuc is null)
+        @if (_result is null)
         {
             <p class="muted">Eşleşen onaylı tarife bulunamadı.</p>
         }
         else
         {
             <p class="ok">
-                <strong>@_sonuc.Kod</strong> (@_sonuc.Ad) → günlük <strong>@_sonuc.GunlukFiyat.ToString("N2") @_sonuc.ParaBirimi</strong>,
-                @QGun gün toplam <strong>@_sonuc.ToplamFiyat.ToString("N2") @_sonuc.ParaBirimi</strong>.
+                <strong>@_result.Kod</strong> (@_result.Ad) → günlük <strong>@_result.GunlukFiyat.ToString("N2") @_result.ParaBirimi</strong>,
+                @QGun gün toplam <strong>@_result.ToplamFiyat.ToString("N2") @_result.ParaBirimi</strong>.
             </p>
         }
     }
@@ -52,9 +52,9 @@
         <label>Ad<input name="ad" required placeholder="Web Ekonomik 2026" /></label>
         <label>Açıklama<input name="aciklama" /></label>
         <label>Kanal<input name="kanal" placeholder="WEB/ACENTA/ÇAĞRI" /></label>
-        <ComboBox Name="sube" Label="Şube" Options="_subeOpts" />
+        <ComboBox Name="sube" Label="Şube" Options="_branchOpts" />
         <label>Lokasyon (birden çok)
-            <CokluSecim Name="lokasyon" Secenekler="_lokasyonOpts" Placeholder="ek lokasyon" />
+            <CokluSecim Name="lokasyon" Secenekler="_locationOpts" Placeholder="ek lokasyon" />
         </label>
         <label>Kayıt Türü
             <select name="turu"><option value="">—</option><option>Fiyat</option><option>Kampanya</option></select>
@@ -135,9 +135,9 @@
                             <label>Ad<input name="ad" value="@r.Ad" required /></label>
                             <label>Açıklama<input name="aciklama" value="@r.Aciklama" /></label>
                             <label>Kanal<input name="kanal" value="@r.Kanal" /></label>
-                            <ComboBox Name="sube" Label="Şube" Value="@r.Sube" Options="_subeOpts" ListId="dl-sube-edit" />
+                            <ComboBox Name="sube" Label="Şube" Value="@r.Sube" Options="_branchOpts" ListId="dl-sube-edit" />
                             <label>Lokasyon (birden çok)
-                                <CokluSecim Name="lokasyon" Secenekler="_lokasyonOpts" Deger="@r.Lokasyon" />
+                                <CokluSecim Name="lokasyon" Secenekler="_locationOpts" Deger="@r.Lokasyon" />
                             </label>
                             <label>Kayıt Türü
                                 <select name="turu">
@@ -223,27 +223,27 @@
     [SupplyParameterFromQuery(Name = "qgun")] public int QGun { get; set; }
 
     private IReadOnlyList<RateMatrix> _list = [];
-    private bool _sorgulandi;
-    private RateMatrisSonuc? _sonuc;
-    private List<string> _subeOpts = [];
-    private List<string> _lokasyonOpts = [];
+    private bool _queried;
+    private RateMatrisSonuc? _result;
+    private List<string> _branchOpts = [];
+    private List<string> _locationOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await TarifeMatris.ListAsync();
-        _subeOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
-        _lokasyonOpts = (await Locations.ListActiveAsync()).Select(l => l.Ad).ToList();
+        _branchOpts = (await Subeler.ListActiveAsync()).Select(s => s.Ad).ToList();
+        _locationOpts = (await Locations.ListActiveAsync()).Select(l => l.Ad).ToList();
 
         // Fiyat sorgusu: tarih + gün verildiyse çöz.
         if (!string.IsNullOrWhiteSpace(QTarih) && QGun >= 1
-            && DateTimeOffset.TryParse(QTarih, out var tarih))
+            && DateTimeOffset.TryParse(QTarih, out var date))
         {
-            _sorgulandi = true;
-            _sonuc = await TarifeMatris.ResolveAsync(new RateMatrisSorgu(
+            _queried = true;
+            _result = await TarifeMatris.ResolveAsync(new RateMatrisSorgu(
                 Kanal: string.IsNullOrWhiteSpace(QKanal) ? null : QKanal,
                 Sube: string.IsNullOrWhiteSpace(QSube) ? null : QSube,
                 AracGrupKod: string.IsNullOrWhiteSpace(QGrup) ? null : QGrup,
-                Tarih: tarih, GunSayisi: QGun,
+                Tarih: date, GunSayisi: QGun,
                 ParaBirimi: string.IsNullOrWhiteSpace(QPara) ? null : QPara));
         }
     }

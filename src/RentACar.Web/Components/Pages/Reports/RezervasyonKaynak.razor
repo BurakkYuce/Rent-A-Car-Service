@@ -32,13 +32,13 @@
     <label>Çıkış Ofisi
         <select name="ofis">
             <option value="">— tümü —</option>
-            @foreach (var o in _ofisOpts) { <option value="@o" selected="@(o == Ofis)">@o</option> }
+            @foreach (var o in _officeOpts) { <option value="@o" selected="@(o == Ofis)">@o</option> }
         </select>
     </label>
     <label>Araç Grubu
         <select name="grup">
             <option value="">— tümü —</option>
-            @foreach (var g in _grupOpts) { <option value="@g" selected="@(g == Grup)">@g</option> }
+            @foreach (var g in _groupOpts) { <option value="@g" selected="@(g == Grup)">@g</option> }
         </select>
     </label>
     <label class="kf-inline"><input type="checkbox" name="iptal" value="true" checked="@(Iptal == "true")" /> İptalleri dahil et</label>
@@ -70,7 +70,7 @@
     [SupplyParameterFromQuery(Name = "iptal")] public string? Iptal { get; set; }
 
     private IReadOnlyList<RezervasyonKaynakRow> _rows = [];
-    private string[] _ofisOpts = [], _grupOpts = [];
+    private string[] _officeOpts = [], _groupOpts = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,8 +81,8 @@
             Bas = from, Bit = to, TarihTipi = TarihTipi ?? "Cikis",
             Ofis = Ofis, Grup = Grup, IptalleriDahilEt = Iptal == "true"
         });
-        _ofisOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
-        _grupOpts = (await Gruplar.ListActiveAsync()).Select(g => g.Kod)
+        _officeOpts = (await Subeler.ListActiveAsync()).Select(b => b.Ad).OrderBy(a => a).ToArray();
+        _groupOpts = (await Gruplar.ListActiveAsync()).Select(g => g.Kod)
             .Where(x => !string.IsNullOrWhiteSpace(x)).OrderBy(x => x).ToArray();
     }
 

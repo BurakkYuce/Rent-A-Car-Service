@@ -196,8 +196,8 @@ public sealed class VehiclePhotoTests(PostgresFixture fx)
         await svc.AddAsync(vehicleId, TinyJpeg);
 
         var list = await svc.ListMetaAsync(vehicleId);
-        var kapak = list.MinBy(p => p.Sira)!;
-        Assert.Equal(list[0].Id, kapak.Id); // ListMetaAsync zaten Sira'ya göre sıralı döner
+        var cover = list.MinBy(p => p.Sira)!;
+        Assert.Equal(list[0].Id, cover.Id); // ListMetaAsync zaten Sira'ya göre sıralı döner
     }
 
     [Fact]

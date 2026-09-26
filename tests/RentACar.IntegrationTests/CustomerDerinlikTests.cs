@@ -12,7 +12,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class CustomerDerinlikTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Onay = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Approval = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task Kvkk_banka_fatura_roundtrip()
@@ -24,13 +24,13 @@ public sealed class CustomerDerinlikTests(PostgresFixture fx)
         var id = await svc.CreateAsync(new CustomerInput
         {
             Tip = CustomerType.Kurumsal, Unvan = "ABC A.Ş.",
-            KvkkOnay = true, KvkkOnayTarih = Onay, EkAdres = "Depo adresi",
+            KvkkOnay = true, KvkkOnayTarih = Approval, EkAdres = "Depo adresi",
             BankaIban = "tr120006...", BankaAdi = "Ziraat", FaturaAdresi = "Fatura adresi", FaturaUnvan = "ABC Ticaret A.Ş."
         });
 
         var c = await svc.GetAsync(id);
         Assert.True(c!.KvkkOnay);
-        Assert.Equal(Onay, c.KvkkOnayTarih);
+        Assert.Equal(Approval, c.KvkkOnayTarih);
         Assert.Equal("Depo adresi", c.EkAdres);
         Assert.Equal("TR120006...", c.BankaIban);     // büyük harfe normalize
         Assert.Equal("Ziraat", c.BankaAdi);

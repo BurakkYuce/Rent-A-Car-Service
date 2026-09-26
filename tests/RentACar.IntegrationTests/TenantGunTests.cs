@@ -45,8 +45,8 @@ public sealed class TenantGunTests
     {
         // Çağıran +03:00 offsetli bir an verirse de sonuç aynı olmalı (mutlak an aynı).
         var utc = new DateTimeOffset(2026, 8, 26, 21, 30, 0, TimeSpan.Zero);
-        var yerel = new DateTimeOffset(2026, 8, 27, 0, 30, 0, TimeSpan.FromHours(3));
-        Assert.Equal(TenantDay.Day(utc, Istanbul), TenantDay.Day(yerel, Istanbul));
+        var local = new DateTimeOffset(2026, 8, 27, 0, 30, 0, TimeSpan.FromHours(3));
+        Assert.Equal(TenantDay.Day(utc, Istanbul), TenantDay.Day(local, Istanbul));
     }
 
     [Fact]

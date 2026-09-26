@@ -83,17 +83,17 @@
     <label>Şablon Adı<input name="ad" placeholder="ör. Sıkı Şube Profili" required /></label>
     <button type="submit">Mevcut Yapılandırmayı Kaydet</button>
 </form>
-@if (_gruplar is { Count: > 0 })
+@if (_groups is { Count: > 0 })
 {
     <div class="table-scroll">
     <table class="grid">
         <thead><tr><th>Şablon</th><th>Ekran Sayısı</th><th></th></tr></thead>
         <tbody>
-        @foreach (var g in _gruplar)
+        @foreach (var g in _groups)
         {
             <tr>
                 <td>@g.Ad</td>
-                <td>@KalemSayisi(g.KalemlerJson)</td>
+                <td>@ItemCount(g.KalemlerJson)</td>
                 <td>
                     <form method="post" action="/yetki/grup/uygula" data-confirm="'@g.Ad' şablonu uygulansın mı?">
                         <input type="hidden" name="ad" value="@g.Ad" /><button type="submit">Uygula</button>
@@ -118,15 +118,15 @@ else
     [SupplyParameterFromQuery(Name = "hata")] public string? Hata { get; set; }
 
     private IReadOnlyList<RentACar.Domain.Entities.ScreenPermission> _list = [];
-    private IReadOnlyList<RentACar.Domain.Entities.YetkiGrup> _gruplar = [];
+    private IReadOnlyList<RentACar.Domain.Entities.YetkiGrup> _groups = [];
 
     protected override async Task OnInitializedAsync()
     {
         _list = await Yetkiler.ListAsync();
-        _gruplar = await Yetkiler.ListGroupsAsync();
+        _groups = await Yetkiler.ListGroupsAsync();
     }
 
-    private static int KalemSayisi(string json)
+    private static int ItemCount(string json)
     {
         try { return System.Text.Json.JsonSerializer.Deserialize<List<RentACar.Application.Authorization.YetkiGrupKalem>>(json)?.Count ?? 0; }
         catch { return 0; }

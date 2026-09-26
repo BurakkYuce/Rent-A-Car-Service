@@ -32,32 +32,32 @@ internal static partial class RegulationApi
         var g = v1.MapGroup("/regulasyon").WithTags("Sigorta & Regülasyon");
         g.MapGet("/secenekler", Options).RequireAnyPermission(ReadAny);
 
-        g.MapGet("/sigortalar", ListPolicies).AlanlariEsle(F5Ortak.SiralamaKurallari).RequireAnyPermission(ReadAny);
+        g.MapGet("/sigortalar", ListPolicies).MapFields(F5Shared.SortRules).RequireAnyPermission(ReadAny);
         g.MapGet("/sigortalar/{id:guid}", PolicyDetail).RequireAnyPermission(ReadAny);
-        g.MapPost("/sigortalar", CreatePolicy).AlanlariEsle(PolicyRules).RequirePermission(Permission.OperationsWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
-        g.MapPost("/sigortalar/{id:guid}/odeme", PayPolicy).AlanlariEsle(PaymentRules).RequirePermission(Permission.FinanceWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
-        g.MapPost("/sigortalar/{id:guid}/zeyiller", AddEndorsement).AlanlariEsle(EndorsementRules)
+        g.MapPost("/sigortalar", CreatePolicy).MapFields(PolicyRules).RequirePermission(Permission.OperationsWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPost("/sigortalar/{id:guid}/odeme", PayPolicy).MapFields(PaymentRules).RequirePermission(Permission.FinanceWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPost("/sigortalar/{id:guid}/zeyiller", AddEndorsement).MapFields(EndorsementRules)
             .RequirePermission(Permission.OperationsWrite);
         g.MapDelete("/zeyiller/{id:guid}", DeleteEndorsement).RequirePermission(Permission.OperationsWrite);
-        g.MapGet("/zeyiller", ListEndorsements).AlanlariEsle(F5Ortak.SiralamaKurallari).RequireAnyPermission(ReadAny);
+        g.MapGet("/zeyiller", ListEndorsements).MapFields(F5Shared.SortRules).RequireAnyPermission(ReadAny);
 
-        g.MapGet("/mtv", ListMtv).AlanlariEsle(F5Ortak.SiralamaKurallari).RequireAnyPermission(ReadAny);
+        g.MapGet("/mtv", ListMtv).MapFields(F5Shared.SortRules).RequireAnyPermission(ReadAny);
         g.MapGet("/mtv/{id:guid}", MtvDetailEndpoint).RequireAnyPermission(ReadAny);
-        g.MapPost("/mtv", CreateMtv).AlanlariEsle(MtvRules).RequirePermission(Permission.OperationsWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
-        g.MapPost("/mtv/{id:guid}/odeme", PayMtv).AlanlariEsle(PaymentRules).RequirePermission(Permission.FinanceWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPost("/mtv", CreateMtv).MapFields(MtvRules).RequirePermission(Permission.OperationsWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPost("/mtv/{id:guid}/odeme", PayMtv).MapFields(PaymentRules).RequirePermission(Permission.FinanceWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
 
-        g.MapGet("/muayeneler", ListInspections).AlanlariEsle(F5Ortak.SiralamaKurallari).RequireAnyPermission(ReadAny);
+        g.MapGet("/muayeneler", ListInspections).MapFields(F5Shared.SortRules).RequireAnyPermission(ReadAny);
         g.MapGet("/muayeneler/{id:guid}", InspectionDetailEndpoint).RequireAnyPermission(ReadAny);
-        g.MapPost("/muayeneler", CreateInspection).AlanlariEsle(InspectionRules).RequirePermission(Permission.OperationsWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
-        g.MapPost("/muayeneler/{id:guid}/odeme", PayInspection).AlanlariEsle(PaymentRules).RequirePermission(Permission.FinanceWrite)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPost("/muayeneler", CreateInspection).MapFields(InspectionRules).RequirePermission(Permission.OperationsWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+        g.MapPost("/muayeneler/{id:guid}/odeme", PayInspection).MapFields(PaymentRules).RequirePermission(Permission.FinanceWrite)
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
 
-        v1.MapGroup("").MapGet("/vade", DueBoardEndpoint).WithTags("Sigorta & Regülasyon").AlanlariEsle(F5Ortak.SiralamaKurallari)
+        v1.MapGroup("").MapGet("/vade", DueBoardEndpoint).WithTags("Sigorta & Regülasyon").MapFields(F5Shared.SortRules)
             .RequireAnyPermission(ReadAny);
     }
 
@@ -115,17 +115,17 @@ internal static partial class RegulationApi
         string? kova, string? tur, string? plaka, int? sayfa, int? boyut, string? sirala, DueService dues,
         IDbContextFactory<AppDbContext> dbf, ICurrentUser user, CancellationToken ct)
     {
-        var bucket = F5Ortak.EnumAdi<DueBucket>(kova, "kova");
+        var bucket = F5Shared.EnumAdi<DueBucket>(kova, "kova");
         var items = await S.VisibleAsync(dbf, user, await dues.GetAllAsync(ct: ct), i => i.VehicleId, ct);
         var plates = await S.PlatesAsync(dbf, items.Select(i => i.VehicleId), ct);
-        var rows = items.Select(i => new DueItemDto(i.VehicleId, F5Ortak.Plaka(plates, i.VehicleId), i.Tur, i.Bitis, i.KalanGun,
+        var rows = items.Select(i => new DueItemDto(i.VehicleId, F5Shared.Plate(plates, i.VehicleId), i.Tur, i.Bitis, i.KalanGun,
             i.Bucket.ToString())).ToList();
-        if (F5Ortak.Nz(tur) is { } t) rows = rows.Where(r => string.Equals(r.Tur, t, StringComparison.OrdinalIgnoreCase)).ToList();
-        if (F5Ortak.Nz(plaka) is { } p) rows = rows.Where(r => r.Plaka.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (F5Shared.Nz(tur) is { } t) rows = rows.Where(r => string.Equals(r.Tur, t, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (F5Shared.Nz(plaka) is { } p) rows = rows.Where(r => r.Plaka.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList();
         var summary = new DueSummary(rows.Count(r => r.Kova == nameof(DueBucket.Gecmis)),
             rows.Count(r => r.Kova == nameof(DueBucket.YediGun)), rows.Count(r => r.Kova == nameof(DueBucket.OtuzGun)),
             rows.Count(r => r.Kova == nameof(DueBucket.Ileri)));
         if (bucket is { } b) rows = rows.Where(r => r.Kova == b.ToString()).ToList();
-        return TypedResults.Ok(new DueBoard(summary, F5Ortak.Sayfala(rows, DueSort, sayfa, boyut, sirala)));
+        return TypedResults.Ok(new DueBoard(summary, F5Shared.Paginate(rows, DueSort, sayfa, boyut, sirala)));
     }
 }

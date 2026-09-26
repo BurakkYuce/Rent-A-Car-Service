@@ -26,16 +26,16 @@ public sealed class PublicTenantResolverTests(PostgresFixture fx)
         new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.OwnerConnectionString).Options,
         NullTenantContext.Instance, NullCurrentUser.Instance);
 
-    /// <summary>PR-12: <paramref name="modul"/> varsayılan TRUE — bu dosyanın konusu host→tenant
+    /// <summary>PR-12: <paramref name="module"/> varsayılan TRUE — bu dosyanın konusu host→tenant
     /// çözümlemesidir, lisans değil. Modül kapısı <see cref="WebSitesiModuluTests"/>'te ayrıca test edilir.
     /// (Kolonun ÜRETİM varsayılanı false'tur; burada bilinçli olarak açılıyor.)</summary>
-    private async Task<Guid> SeedTenantAsync(bool tenantActive = true, bool modul = true)
+    private async Task<Guid> SeedTenantAsync(bool tenantActive = true, bool module = true)
     {
         await using var db = Owner();
         var t = new Tenant
         {
             Code = "ps" + Guid.NewGuid().ToString("N")[..10], Name = "PS",
-            IsActive = tenantActive, WebSitesiModulu = modul,
+            IsActive = tenantActive, WebSitesiModulu = module,
         };
         db.Tenants.Add(t);
         await db.SaveChangesAsync();

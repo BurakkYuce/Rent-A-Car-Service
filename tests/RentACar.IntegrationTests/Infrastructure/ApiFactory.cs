@@ -61,10 +61,10 @@ public static class ApiSeed
 /// <summary>API testleri için login → Bearer header'lı HttpClient.</summary>
 public static class ApiClientExtensions
 {
-    public static async Task<HttpClient> LoginClientAsync(this ApiFactory api, string firma, string user, string sifre)
+    public static async Task<HttpClient> LoginClientAsync(this ApiFactory api, string company, string user, string password)
     {
         var c = api.CreateClient();
-        var resp = await c.PostAsJsonAsync("/api/v1/auth/login", new { firma, kullanici = user, sifre });
+        var resp = await c.PostAsJsonAsync("/api/v1/auth/login", new { firma = company, kullanici = user, sifre = password });
         resp.EnsureSuccessStatusCode();
         using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
         var token = doc.RootElement.GetProperty("token").GetString();

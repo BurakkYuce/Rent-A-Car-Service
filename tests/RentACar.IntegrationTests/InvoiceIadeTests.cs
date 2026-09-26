@@ -19,7 +19,7 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class InvoiceIadeTests(PostgresFixture fx)
 {
-    private static Task<Guid> Cari(IServiceProvider sp)
+    private static Task<Guid> Account(IServiceProvider sp)
         => sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "İade Cari" });
 
     private static async Task<(decimal debit, decimal credit)> LedgerBalanceAsync(IServiceProvider sp)
@@ -36,36 +36,36 @@ public sealed class InvoiceIadeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await Cari(sp);
+        var customerId = await Account(sp);
         var inv = sp.GetRequiredService<InvoiceService>();
         var cash = sp.GetRequiredService<CashService>();
         var rep = sp.GetRequiredService<ReportService>();
 
-        var srcId = await inv.CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 1000m, KdvOrani = 0.20m, Aciklama = "Kira" });
-        Assert.Equal(1200m, await cash.GetAccountBalanceAsync(cariId)); // önce: cari borçlu 1200
+        var srcId = await inv.CreateManualAsync(new ManualInvoiceInput { CariId = customerId, NetTutar = 1000m, KdvOrani = 0.20m, Aciklama = "Kira" });
+        Assert.Equal(1200m, await cash.GetAccountBalanceAsync(customerId)); // önce: cari borçlu 1200
 
-        var iadeId = await inv.CreateRefundAsync(srcId);
+        var refundId = await inv.CreateRefundAsync(srcId);
 
         // İade faturası doğru kuruldu (kaynak yansıması + RentalId null)
-        var iade = await inv.GetAsync(iadeId);
-        Assert.True(iade!.IadeMi);
-        Assert.Equal(srcId, iade.KaynakFaturaId);
-        Assert.Null(iade.RentalId);
-        Assert.Equal(1000m, iade.NetTutar);
-        Assert.Equal(200m, iade.KdvTutar);
-        Assert.Equal(1200m, iade.GenelToplam);
+        var refund = await inv.GetAsync(refundId);
+        Assert.True(refund!.IadeMi);
+        Assert.Equal(srcId, refund.KaynakFaturaId);
+        Assert.Null(refund.RentalId);
+        Assert.Equal(1000m, refund.NetTutar);
+        Assert.Equal(200m, refund.KdvTutar);
+        Assert.Equal(1200m, refund.GenelToplam);
 
         // ORACLE: iade sonrası her şey net 0
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cariId)); // 1200 borç − 1200 alacak
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(customerId)); // 1200 borç − 1200 alacak
 
         var gg = await rep.GetRevenueExpenseAsync();
         Assert.Equal(0m, gg.GelirToplam);      // 1000 − 1000
         Assert.Equal(0m, gg.KdvTahsil);        // 200 − 200
         Assert.Equal(0m, gg.KdvIndirilecek);   // iade Borç KDV, indirime YAZILMADI
 
-        var kdv = await rep.GetVatListAsync();
-        Assert.Equal(0m, kdv.ToplamKdv);       // fatura +200, iade −200
-        Assert.Equal(0m, kdv.ToplamNet);
+        var vat = await rep.GetVatListAsync();
+        Assert.Equal(0m, vat.ToplamKdv);       // fatura +200, iade −200
+        Assert.Equal(0m, vat.ToplamNet);
 
         var tf = await rep.GetCollectionInvoiceAsync();
         Assert.Equal(0m, tf.FaturaToplam);     // 1200 − 1200
@@ -78,10 +78,10 @@ public sealed class InvoiceIadeTests(PostgresFixture fx)
         // İade defter satırları cari ekstrede "İade" etiketli (adversarial Low fix — "Fatura" değil).
         await using (var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync())
         {
-            var iadeSatir = await db.AccountLedgerEntries.AsNoTracking()
+            var refundLine = await db.AccountLedgerEntries.AsNoTracking()
                 .Where(e => e.SourceType == "FaturaIade").ToListAsync();
-            Assert.NotEmpty(iadeSatir);
-            Assert.All(iadeSatir, e => Assert.StartsWith("İade", e.Description));
+            Assert.NotEmpty(refundLine);
+            Assert.All(refundLine, e => Assert.StartsWith("İade", e.Description));
         }
     }
 
@@ -91,14 +91,14 @@ public sealed class InvoiceIadeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cariId = await Cari(sp);
+        var customerId = await Account(sp);
         var inv = sp.GetRequiredService<InvoiceService>();
 
-        var srcId = await inv.CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 500m, KdvOrani = 0.20m });
-        var iadeId = await inv.CreateRefundAsync(srcId);
+        var srcId = await inv.CreateManualAsync(new ManualInvoiceInput { CariId = customerId, NetTutar = 500m, KdvOrani = 0.20m });
+        var refundId = await inv.CreateRefundAsync(srcId);
 
         await Assert.ThrowsAsync<ValidationException>(() => inv.CreateRefundAsync(srcId));   // aynı fatura ikinci kez
-        await Assert.ThrowsAsync<ValidationException>(() => inv.CreateRefundAsync(iadeId));  // iadenin iadesi
+        await Assert.ThrowsAsync<ValidationException>(() => inv.CreateRefundAsync(refundId));  // iadenin iadesi
         await Assert.ThrowsAsync<ValidationException>(() => inv.CreateRefundAsync(Guid.NewGuid())); // olmayan fatura
     }
 
@@ -111,9 +111,9 @@ public sealed class InvoiceIadeTests(PostgresFixture fx)
         Guid srcId;
         using (var s1 = host.ScopeFor(tenant))
         {
-            var cariId = await Cari(s1.ServiceProvider);
+            var customerId = await Account(s1.ServiceProvider);
             srcId = await s1.ServiceProvider.GetRequiredService<InvoiceService>()
-                .CreateManualAsync(new ManualInvoiceInput { CariId = cariId, NetTutar = 500m });
+                .CreateManualAsync(new ManualInvoiceInput { CariId = customerId, NetTutar = 500m });
         }
         // Kilit "o tarihe kadar (dahil) her şey kapalı" (bkz. InvoiceManualTests) → 2099 bugünü de kapatır.
         using (var s2 = host.ScopeFor(tenant))

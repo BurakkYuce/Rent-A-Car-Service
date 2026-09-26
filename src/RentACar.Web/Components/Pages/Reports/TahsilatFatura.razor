@@ -78,10 +78,10 @@
     <button type="submit">Filtrele</button>
 </form>
 
-<p class="muted small">@_satirlar.Count sözleşme · @_satirlar.Count(x => x.Tutarsiz) tutarsız ·
-    Borç @_satirlar.Sum(x => x.GenelToplam).ToString("N2") ·
-    Faturalanan @_satirlar.Sum(x => x.Faturalanan).ToString("N2") ·
-    Tahsilat @_satirlar.Sum(x => x.Tahsilat).ToString("N2")</p>
+<p class="muted small">@_rows.Count sözleşme · @_rows.Count(x => x.Tutarsiz) tutarsız ·
+    Borç @_rows.Sum(x => x.GenelToplam).ToString("N2") ·
+    Faturalanan @_rows.Sum(x => x.Faturalanan).ToString("N2") ·
+    Tahsilat @_rows.Sum(x => x.Tahsilat).ToString("N2")</p>
 
 <div class="table-scroll">
 <table class="grid tr-grid">
@@ -93,11 +93,11 @@
             <th class="num">Müşteri Bakiyesi</th></tr>
     </thead>
     <tbody>
-        @if (_satirlar.Count == 0)
+        @if (_rows.Count == 0)
         {
             <tr><td colspan="15" class="muted">Sözleşme yok.</td></tr>
         }
-        @foreach (var x in _satirlar)
+        @foreach (var x in _rows)
         {
             <tr>
                 <td class="mono">@x.SozlesmeNo</td>
@@ -139,7 +139,7 @@
     [SupplyParameterFromQuery(Name = "tutarsiz")] public string? Tutarsiz { get; set; }
 
     private TahsilatFaturaDto _data = new(0, 0m, 0, 0m, 0m);
-    private IReadOnlyList<TahsilatMutabakatRowDto> _satirlar = [];
+    private IReadOnlyList<TahsilatMutabakatRowDto> _rows = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -149,7 +149,7 @@
 
         // Satır modu AYNI dönem penceresini kullanır (kira başlangıcına göre) — iki bölüm
         // birbirinden bağımsız dönemler göstermesin.
-        _satirlar = await Reports.GetCollectionReconciliationAsync(new TahsilatMutabakatFilter
+        _rows = await Reports.GetCollectionReconciliationAsync(new TahsilatMutabakatFilter
         {
             Ara = Ara,
             Durum = Enum.TryParse<RentACar.Domain.Enums.RentalStatus>(Durum, out var d) ? d : null,

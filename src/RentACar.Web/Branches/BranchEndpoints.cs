@@ -20,10 +20,10 @@ public static class BranchEndpoints
         // FAZ-23: alan sayısı 30'a çıktı → pozisyonel imza yerine form koleksiyonu (diğer
         // uçlardaki desen). Opsiyonel sayısal/tarih alanları FormParse ile çevrilir.
         grp.MapPost("/create", async (BranchService svc, HttpRequest req) =>
-            await Run(() => svc.CreateAsync(Build(req.Form, varsayilanAktif: true)), "Kayıt eklendi."));
+            await Run(() => svc.CreateAsync(Build(req.Form, defaultActive: true)), "Kayıt eklendi."));
 
         grp.MapPost("/update", async (BranchService svc, HttpRequest req, [FromForm] Guid id) =>
-            await Run(() => svc.UpdateAsync(id, Build(req.Form, varsayilanAktif: null)), "Değişiklikler kaydedildi."));
+            await Run(() => svc.UpdateAsync(id, Build(req.Form, defaultActive: null)), "Değişiklikler kaydedildi."));
 
         grp.MapPost("/delete", async (BranchService svc, [FromForm] Guid id) =>
             await Run(() => svc.DeleteAsync(id), "Kayıt silindi."));
@@ -44,13 +44,13 @@ public static class BranchEndpoints
         // Onay kutusu ZORUNLU: geri alınamayan toplu bir işlem, kazara tıklamayla çalışmamalı.
         grp.MapPost("/birlestir", async (BranchService svc, HttpRequest req) =>
         {
-            var kaynak = FormParse.Id(FormParse.Str(req.Form, "kaynakId")) ?? Guid.Empty;
-            var hedef = FormParse.Id(FormParse.Str(req.Form, "hedefId")) ?? Guid.Empty;
+            var source = FormParse.Id(FormParse.Str(req.Form, "kaynakId")) ?? Guid.Empty;
+            var target = FormParse.Id(FormParse.Str(req.Form, "hedefId")) ?? Guid.Empty;
             if (FormParse.Str(req.Form, "onay") is not ("true" or "on" or "True"))
                 return Results.Redirect("/subeler?hata=" + Uri.EscapeDataString("Birleştirme için onay kutusunu işaretleyin."));
             try
             {
-                var n = await svc.MergeAsync(kaynak, hedef);
+                var n = await svc.MergeAsync(source, target);
                 return Results.Redirect($"/subeler?bilgi={Uri.EscapeDataString($"{n} kayıt taşındı; kaynak şube pasife alındı.")}");
             }
             catch (ValidationException ex) { return Results.Redirect($"/subeler?hata={Uri.EscapeDataString(ex.Message)}"); }
@@ -59,7 +59,7 @@ public static class BranchEndpoints
         return app;
     }
 
-    private static RentACar.Application.Branches.BranchInput Build(IFormCollection f, bool? varsayilanAktif) => new()
+    private static RentACar.Application.Branches.BranchInput Build(IFormCollection f, bool? defaultActive) => new()
     {
         Kod = f["kod"].ToString(),
         Ad = f["ad"].ToString(),
@@ -93,15 +93,15 @@ public static class BranchEndpoints
         EntegrasyonKodu = FormParse.Str(f, "entegrasyonKodu"),
         ResimDosyasi = FormParse.Str(f, "resimDosyasi"),
         HaftalikCalismaSaatleri = FormParse.Str(f, "haftalikCalismaSaatleri"),
-        Aktif = varsayilanAktif ?? ((FormParse.Str(f, "aktif") ?? "true") is "true" or "True")
+        Aktif = defaultActive ?? ((FormParse.Str(f, "aktif") ?? "true") is "true" or "True")
     };
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
         try
         {
             await action();
-            return Sonuc.Tamam("/subeler", mesaj);
+            return Result.Ok("/subeler", message);
         }
         catch (ValidationException ex)
         {

@@ -34,23 +34,23 @@
 
     protected override void OnParametersSet()
     {
-        var dugumler = new List<object>();
+        var nodes = new List<object>();
 
         if (!string.IsNullOrWhiteSpace(Marka?.Marka))
         {
-            dugumler.Add(new Dictionary<string, object?>
+            nodes.Add(new Dictionary<string, object?>
             {
                 ["@context"] = "https://schema.org",
                 ["@type"] = "AutoRental",   // LocalBusiness'ın araç kiralamaya özel alt tipi
                 ["name"] = Marka!.Marka,
-                ["url"] = Bos(KanonikUrl),
-                ["telephone"] = Bos(Marka.Tel) ?? Bos(Marka.MobilTel),
-                ["email"] = Bos(Marka.Email),
-                ["address"] = Bos(Marka.Adres) is { } adres
+                ["url"] = Empty(KanonikUrl),
+                ["telephone"] = Empty(Marka.Tel) ?? Empty(Marka.MobilTel),
+                ["email"] = Empty(Marka.Email),
+                ["address"] = Empty(Marka.Adres) is { } address
                     ? new Dictionary<string, object?>
                     {
                         ["@type"] = "PostalAddress",
-                        ["streetAddress"] = adres,
+                        ["streetAddress"] = address,
                         ["addressCountry"] = "TR",
                     }
                     : null,
@@ -59,7 +59,7 @@
 
         if (Sorular.Count > 0)
         {
-            dugumler.Add(new Dictionary<string, object?>
+            nodes.Add(new Dictionary<string, object?>
             {
                 ["@context"] = "https://schema.org",
                 ["@type"] = "FAQPage",
@@ -76,13 +76,13 @@
             });
         }
 
-        _json = dugumler.Count switch
+        _json = nodes.Count switch
         {
             0 => null,
-            1 => JsonSerializer.Serialize(dugumler[0], Opt),
-            _ => JsonSerializer.Serialize(dugumler, Opt),   // birden fazla düğüm → dizi
+            1 => JsonSerializer.Serialize(nodes[0], Opt),
+            _ => JsonSerializer.Serialize(nodes, Opt),   // birden fazla düğüm → dizi
         };
     }
 
-    private static string? Bos(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    private static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

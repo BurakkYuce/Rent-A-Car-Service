@@ -27,9 +27,9 @@ namespace RentACar.IntegrationTests;
 /// düşürmez, onlar kendi başarı satırlarını yazar; (3) log hangi üreticinin hangi tenant için
 /// patladığını söyler; (4) kaydedicinin kendi hatası sessiz değil, Warning'dir.</para>
 ///
-/// <para>Gerçek yol: job'ın GERÇEK adım listesi (<see cref="VadeBildirimJob.DbAdimlari"/>) alınır,
+/// <para>Gerçek yol: job'ın GERÇEK adım listesi (<see cref="DueNotificationJob.DbSteps"/>) alınır,
 /// biri #265'in gerçek arıza biçimiyle (Npgsql'in bağlantıyı kıran +03:00 timestamptz parametresi)
-/// patlayan adımla değiştirilir ve <see cref="VadeBildirimJob.TenantKosAsync"/> koşulur. Bağlantı
+/// patlayan adımla değiştirilir ve <see cref="DueNotificationJob.TenantKosAsync"/> koşulur. Bağlantı
 /// <c>racar_app</c> (NOBYPASSRLS) — RLS açık.</para>
 ///
 /// <para><b>BAĞIMSIZ ORACLE:</b> sahne elle kurulur — Kasko 5 gün sonra biter (vade: 1 bildirim),
@@ -42,39 +42,39 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
     // 09:00Z = İstanbul 12:00 → WhatsApp özetinin 08:00 saat kapısı açık (dilim UTC'ye düşse de 09:00 ≥ 08:00).
     private static readonly DateTimeOffset Now = new(2026, 7, 6, 9, 0, 0, TimeSpan.Zero);
 
-    private static readonly string[] Sira =
+    private static readonly string[] Order =
         [JobRunRecorder.DueNotification, JobRunRecorder.FleetNotification, JobRunRecorder.CustomerNotification];
 
     /// <summary>Elle kurulmuş sahneden beklenen üretim sayıları (sıra ile aynı).</summary>
-    private static readonly int[] Beklenen = [1, 1, 0];
+    private static readonly int[] Expected = [1, 1, 0];
 
-    private static readonly string[] BeklenenTur = ["Kasko", "Bakım-Km", ""];
+    private static readonly string[] ExpectedType = ["Kasko", "Bakım-Km", ""];
 
     private DbContextOptions<AppDbContext> AppOptions() =>
         new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fx.AppConnectionString).Options;
 
-    private sealed class SahteWhatsApp : IWhatsAppService
+    private sealed class WhatsAppFake : IWhatsAppService
     {
-        public int Cagri;
+        public int Calls;
         public Task<bool> SendTemplateAsync(string phone, string templateName,
             IReadOnlyDictionary<string, string> parameters, CancellationToken ct = default)
-        { Cagri++; return Task.FromResult(true); }
+        { Calls++; return Task.FromResult(true); }
     }
 
     private sealed record LogKaydi(LogLevel Seviye, string Mesaj, Exception? Hata, IReadOnlyDictionary<string, object?> Alanlar);
 
-    private sealed class LogYakalayici : ILogger
+    private sealed class LogCapturer : ILogger
     {
-        public List<LogKaydi> Kayitlar { get; } = [];
+        public List<LogKaydi> Records { get; } = [];
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            var alanlar = state is IEnumerable<KeyValuePair<string, object?>> kv
+            var fields = state is IEnumerable<KeyValuePair<string, object?>> kv
                 ? kv.ToDictionary(k => k.Key, k => k.Value)
                 : new Dictionary<string, object?>();
-            lock (Kayitlar) Kayitlar.Add(new LogKaydi(logLevel, formatter(state, exception), exception, alanlar));
+            lock (Records) Records.Add(new LogKaydi(logLevel, formatter(state, exception), exception, fields));
         }
     }
 
@@ -83,100 +83,100 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
     /// yazarken patlar ve bağlantıyı kırar. Öncesinde izleyiciye "yarım iş" bırakır: paylaşılan bir
     /// context'te sonraki üreticinin SaveChanges'ı onu da yazmaya kalkardı.
     /// </summary>
-    private static UreticiAdimi Patlayan(string ad, Guid tenant) => new(ad, async (db, ct) =>
+    private static UreticiAdimi Failing(string name, Guid tenant) => new(name, async (db, ct) =>
     {
         db.Bildirimler.Add(new Bildirim
         {
             TenantId = tenant, Tur = "YARIM-IS", VehicleId = Guid.NewGuid(), VadeTarihi = Now, Mesaj = "kaydedilmemeli",
         });
-        var ofsetli = new DateTimeOffset(2026, 7, 7, 0, 0, 0, TimeSpan.FromHours(3));
-        return await db.Reservations.CountAsync(r => r.BasTar >= ofsetli, ct);
+        var withOffset = new DateTimeOffset(2026, 7, 7, 0, 0, 0, TimeSpan.FromHours(3));
+        return await db.Reservations.CountAsync(r => r.BasTar >= withOffset, ct);
     });
 
-    private static async Task SahneAsync(IServiceProvider sp)
+    private static async Task SceneAsync(IServiceProvider sp)
     {
-        var arac = sp.GetRequiredService<VehicleService>();
-        var vadeArac = await arac.CreateAsync(new VehicleInput { Plaka = "34 YL 01", Durum = VehicleStatus.Musait });
-        await sp.GetRequiredService<RegulationService>().AddInsuranceAsync(vadeArac, InsuranceType.Kasko,
+        var vehicle = sp.GetRequiredService<VehicleService>();
+        var dueVehicle = await vehicle.CreateAsync(new VehicleInput { Plaka = "34 YL 01", Durum = VehicleStatus.Musait });
+        await sp.GetRequiredService<RegulationService>().AddInsuranceAsync(dueVehicle, InsuranceType.Kasko,
             Now.AddDays(-360), Now.AddDays(5), 1000m, "P-YL", "Sig", null);
 
-        var bakimArac = await arac.CreateAsync(new VehicleInput { Plaka = "34 YL 02", Km = 9_500 });
-        var servis = sp.GetRequiredService<ServiceRecordService>();
-        var sid = await servis.CreateAsync(new ServiceRecordInput { VehicleId = bakimArac, GirisKm = 9_000 });
-        Assert.True(await servis.StartAsync(sid));
-        Assert.True(await servis.CompleteAsync(sid, 9_500, nextMaintenanceKm: 10_000));
+        var maintenanceVehicle = await vehicle.CreateAsync(new VehicleInput { Plaka = "34 YL 02", Km = 9_500 });
+        var service = sp.GetRequiredService<ServiceRecordService>();
+        var sid = await service.CreateAsync(new ServiceRecordInput { VehicleId = maintenanceVehicle, GirisKm = 9_000 });
+        Assert.True(await service.StartAsync(sid));
+        Assert.True(await service.CompleteAsync(sid, 9_500, nextMaintenanceKm: 10_000));
 
         await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         db.TenantSettings.Add(new TenantSettings { WhatsAppGunlukOzet = true, WhatsAppNumarasi = "0532 111 22 33" });
         await db.SaveChangesAsync();
     }
 
-    private static VadeBildirimJob Job(IServiceProvider sp, IWhatsAppService wa) => new(
+    private static DueNotificationJob Job(IServiceProvider sp, IWhatsAppService wa) => new(
         new ConfigurationBuilder().Build(), wa,
         sp.GetRequiredService<ISecretProtector>(), sp.GetRequiredService<IEmailSender>(),
-        sp.GetRequiredService<ISmsService>(), TutSatEsikleri.Default, NullLogger<VadeBildirimJob>.Instance);
+        sp.GetRequiredService<ISmsService>(), TutSatEsikleri.Default, NullLogger<DueNotificationJob>.Instance);
 
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
-    public async Task Patlayan_uretici_Basarisiz_satiri_yazar_sonrakiler_ve_ozet_yine_calisir(int patlayan)
+    public async Task Patlayan_uretici_Basarisiz_satiri_yazar_sonrakiler_ve_ozet_yine_calisir(int failing)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        await SahneAsync(sp);
+        await SceneAsync(sp);
 
-        var wa = new SahteWhatsApp();
+        var wa = new WhatsAppFake();
         var job = Job(sp, wa);
-        var adimlar = job.DbAdimlari(tenant, Now).ToList();
-        Assert.Equal(Sira, adimlar.Select(a => a.Ad).ToArray()); // job'ın GERÇEK sırası
-        adimlar[patlayan] = Patlayan(adimlar[patlayan].Ad, tenant);
+        var steps = job.DbSteps(tenant, Now).ToList();
+        Assert.Equal(Order, steps.Select(a => a.Ad).ToArray()); // job'ın GERÇEK sırası
+        steps[failing] = Failing(steps[failing].Ad, tenant);
 
-        var log = new LogYakalayici();
-        var toplam = await VadeBildirimJob.TenantKosAsync(AppOptions(), tenant, adimlar,
-            job.OzetAdimi(AppOptions(), tenant, Now), log, CancellationToken.None);
+        var log = new LogCapturer();
+        var total = await DueNotificationJob.TenantKosAsync(AppOptions(), tenant, steps,
+            job.SummaryStep(AppOptions(), tenant, Now), log, CancellationToken.None);
 
         // Sonraki (ve önceki) üreticiler koştu: dönen toplam yalnız patlayanın payı kadar eksik.
-        Assert.Equal(Beklenen.Where((_, i) => i != patlayan).Sum(), toplam);
+        Assert.Equal(Expected.Where((_, i) => i != failing).Sum(), total);
 
         // (a) + (b): koşu günlüğü — patlayan Basarisiz, diğerleri kendi başarı satırıyla.
-        var loglar = await sp.GetRequiredService<JobRunLogService>().ListAsync();
-        Assert.Equal(3, loglar.Count);
-        for (var i = 0; i < Sira.Length; i++)
+        var logs = await sp.GetRequiredService<JobRunLogService>().ListAsync();
+        Assert.Equal(3, logs.Count);
+        for (var i = 0; i < Order.Length; i++)
         {
-            var satir = Assert.Single(loglar, l => l.JobAdi == Sira[i]);
-            if (i == patlayan)
+            var row = Assert.Single(logs, l => l.JobAdi == Order[i]);
+            if (i == failing)
             {
-                Assert.False(satir.Basarili);
-                Assert.Null(satir.SonucSayisi);
-                Assert.Contains("Offset=03:00:00", satir.Detay);
+                Assert.False(row.Basarili);
+                Assert.Null(row.SonucSayisi);
+                Assert.Contains("Offset=03:00:00", row.Detay);
             }
             else
             {
-                Assert.True(satir.Basarili, $"{Sira[i]}: {satir.Detay}");
-                Assert.Equal(Beklenen[i], satir.SonucSayisi);
+                Assert.True(row.Basarili, $"{Order[i]}: {row.Detay}");
+                Assert.Equal(Expected[i], row.SonucSayisi);
             }
         }
 
         // Diğer üreticilerin işi GERÇEKTEN yazıldı (RLS altında görünür) ve "yarım iş" hiçbir yere sızmadı.
         await using (var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync())
         {
-            var turler = await db.Bildirimler.AsNoTracking().Select(b => b.Tur).ToListAsync();
-            var beklenenTurler = BeklenenTur.Where((t, i) => i != patlayan && t != "").Order().ToArray();
-            Assert.Equal(beklenenTurler, turler.Order().ToArray());
+            var types = await db.Bildirimler.AsNoTracking().Select(b => b.Tur).ToListAsync();
+            var expectedTypes = ExpectedType.Where((t, i) => i != failing && t != "").Order().ToArray();
+            Assert.Equal(expectedTypes, types.Order().ToArray());
         }
 
         // WhatsApp özeti de düşmedi.
-        Assert.Equal(1, wa.Cagri);
+        Assert.Equal(1, wa.Calls);
 
         // (3) Log: TEK hata, hangi üretici + hangi tenant; kaydedici kendi satırını yazabildi (Warning yok).
-        var hata = Assert.Single(log.Kayitlar, k => k.Seviye >= LogLevel.Error);
-        Assert.Equal(Sira[patlayan], hata.Alanlar["Uretici"]);
-        Assert.Equal(tenant, hata.Alanlar["Tenant"]);
-        Assert.IsType<ArgumentException>(hata.Hata);
-        Assert.DoesNotContain(log.Kayitlar, k => k.Seviye == LogLevel.Warning);
+        var error = Assert.Single(log.Records, k => k.Seviye >= LogLevel.Error);
+        Assert.Equal(Order[failing], error.Alanlar["Uretici"]);
+        Assert.Equal(tenant, error.Alanlar["Tenant"]);
+        Assert.IsType<ArgumentException>(error.Hata);
+        Assert.DoesNotContain(log.Records, k => k.Seviye == LogLevel.Warning);
     }
 
     [Fact]
@@ -186,21 +186,21 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        await SahneAsync(sp);
+        await SceneAsync(sp);
 
-        var job = Job(sp, new SahteWhatsApp());
-        var log = new LogYakalayici();
-        var toplam = await VadeBildirimJob.TenantKosAsync(AppOptions(), tenant, job.DbAdimlari(tenant, Now),
+        var job = Job(sp, new WhatsAppFake());
+        var log = new LogCapturer();
+        var total = await DueNotificationJob.TenantKosAsync(AppOptions(), tenant, job.DbSteps(tenant, Now),
             _ => throw new HttpRequestException("WhatsApp sağlayıcısı yanıt vermedi"), log, CancellationToken.None);
 
-        Assert.Equal(Beklenen.Sum(), toplam);
-        var loglar = await sp.GetRequiredService<JobRunLogService>().ListAsync();
-        Assert.Equal(3, loglar.Count);
-        Assert.All(loglar, l => Assert.True(l.Basarili, $"{l.JobAdi}: {l.Detay}"));
+        Assert.Equal(Expected.Sum(), total);
+        var logs = await sp.GetRequiredService<JobRunLogService>().ListAsync();
+        Assert.Equal(3, logs.Count);
+        Assert.All(logs, l => Assert.True(l.Basarili, $"{l.JobAdi}: {l.Detay}"));
 
-        var hata = Assert.Single(log.Kayitlar, k => k.Seviye >= LogLevel.Error);
-        Assert.Equal(JobRunRecorder.WhatsAppSummary, hata.Alanlar["Uretici"]);
-        Assert.Equal(tenant, hata.Alanlar["Tenant"]);
+        var error = Assert.Single(log.Records, k => k.Seviye >= LogLevel.Error);
+        Assert.Equal(JobRunRecorder.WhatsAppSummary, error.Alanlar["Uretici"]);
+        Assert.Equal(tenant, error.Alanlar["Tenant"]);
     }
 
     /// <summary>
@@ -219,15 +219,15 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
         await using (var db = new AppDbContext(AppOptions(), sys, sys))
         {
             await TenantGuc.OpenAsync(db, tenant);
-            var ofsetli = new DateTimeOffset(2026, 7, 7, 0, 0, 0, TimeSpan.FromHours(3));
+            var withOffset = new DateTimeOffset(2026, 7, 7, 0, 0, 0, TimeSpan.FromHours(3));
             await Assert.ThrowsAsync<ArgumentException>(() => JobRunRecorder.RunAsync(db, tenant,
-                "kirik-baglanti", () => db.Reservations.CountAsync(r => r.BasTar >= ofsetli)));
+                "kirik-baglanti", () => db.Reservations.CountAsync(r => r.BasTar >= withOffset)));
         }
 
-        var satir = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
-        Assert.Equal("kirik-baglanti", satir.JobAdi);
-        Assert.False(satir.Basarili);
-        Assert.Contains("Offset=03:00:00", satir.Detay);
+        var row = Assert.Single(await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
+        Assert.Equal("kirik-baglanti", row.JobAdi);
+        Assert.False(row.Basarili);
+        Assert.Contains("Offset=03:00:00", row.Detay);
     }
 
     [Fact]
@@ -236,22 +236,22 @@ public sealed class JobUreticiYalitimTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
-        var log = new LogYakalayici();
+        var log = new LogCapturer();
 
         var sys = new SystemTenantContext { TenantId = tenant };
-        int sonuc;
+        int result;
         await using (var db = new AppDbContext(AppOptions(), sys, sys))
         {
             await TenantGuc.OpenAsync(db, tenant);
             // JobAdi kolonu varchar(64) → 100 karakterlik ad INSERT'te reddedilir (22001).
-            sonuc = await JobRunRecorder.RunAsync(db, tenant, new string('x', 100),
+            result = await JobRunRecorder.RunAsync(db, tenant, new string('x', 100),
                 () => Task.FromResult(7), n => n, log: log);
         }
 
-        Assert.Equal(7, sonuc); // işin sonucu aynen döndü, günlük hatası işi düşürmedi
-        var uyari = Assert.Single(log.Kayitlar, k => k.Seviye == LogLevel.Warning);
-        Assert.NotNull(uyari.Hata);
-        Assert.Equal(tenant, uyari.Alanlar["Tenant"]);
+        Assert.Equal(7, result); // işin sonucu aynen döndü, günlük hatası işi düşürmedi
+        var warning = Assert.Single(log.Records, k => k.Seviye == LogLevel.Warning);
+        Assert.NotNull(warning.Hata);
+        Assert.Equal(tenant, warning.Alanlar["Tenant"]);
         Assert.Empty(await scope.ServiceProvider.GetRequiredService<JobRunLogService>().ListAsync());
     }
 }

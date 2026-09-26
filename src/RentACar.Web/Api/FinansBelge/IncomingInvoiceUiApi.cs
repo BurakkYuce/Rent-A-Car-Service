@@ -35,7 +35,7 @@ public static class IncomingInvoiceUiApi
     public static RouteGroupBuilder MapIncomingInvoiceUiApi(this RouteGroupBuilder v1)
     {
         var g = v1.MapGroup("/gelen-efatura").WithTags("Gelen e-Fatura").RequirePermission(Permission.FinanceWrite);
-        g.MapGet("", List).AlanlariEsle(SortRules);
+        g.MapGet("", List).MapFields(SortRules);
         g.MapGet("/{id:guid}", Detail);
         g.MapPost("", Create);
         g.MapPost("/sync", Sync);
@@ -50,7 +50,7 @@ public static class IncomingInvoiceUiApi
             => TransitionAsync(id, s, u, () => s.IsleAsync(id, ct), IncomingEInvoiceStatus.Islendi, ct));
         g.MapPut("/{id:guid}/bag", Link);
         g.MapPost("/{id:guid}/giderlestir", ToExpense)
-            .Produces<UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+            .Produces<UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
         return g;
     }
 
@@ -81,14 +81,14 @@ public static class IncomingInvoiceUiApi
         Text(f.EttnBas, 64, "ettnBas");
         Text(f.EttnBit, 64, "ettnBit");
         Text(f.Plaka, 16, "plaka");
-        var (bas, bit) = F5Ortak.GunAraligi(f.Bas, f.Bit);
+        var (start, bit) = F5Shared.DayRange(f.Bas, f.Bit);
         var rows = await svc.ListAsync(new GelenEFaturaFilter
         {
-            Firma = F5Ortak.Nz(f.Firma), EttnBas = F5Ortak.Nz(f.EttnBas), EttnBit = F5Ortak.Nz(f.EttnBit),
-            Plaka = F5Ortak.Nz(f.Plaka), Durum = F5Ortak.EnumAdi<IncomingEInvoiceStatus>(f.Durum, "durum"),
-            Bas = bas, Bit = bit, Giderlestirildi = f.Giderlestirildi,
+            Firma = F5Shared.Nz(f.Firma), EttnBas = F5Shared.Nz(f.EttnBas), EttnBit = F5Shared.Nz(f.EttnBit),
+            Plaka = F5Shared.Nz(f.Plaka), Durum = F5Shared.EnumAdi<IncomingEInvoiceStatus>(f.Durum, "durum"),
+            Bas = start, Bit = bit, Giderlestirildi = f.Giderlestirildi,
         }, ct);
-        return TypedResults.Ok(F5Ortak.Sayfala(await RowsAsync(dbf, rows, ct), Sort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(await RowsAsync(dbf, rows, ct), Sort, sayfa, boyut, sirala));
     }
 
     private static async Task<Results<Ok<IncomingInvoiceDetail>, ProblemHttpResult>> Detail(
@@ -97,7 +97,7 @@ public static class IncomingInvoiceUiApi
     {
         RequireUnrestricted(user);
         var row = await svc.GetAsync(id, ct);
-        if (row is null) return F5Ortak.Bulunamadi("Gelen fatura bulunamadı.");
+        if (row is null) return F5Shared.NotFound("Gelen fatura bulunamadı.");
         var version = await repo.VersionAsync(id, ct) ?? "";
         return TypedResults.Ok(new IncomingInvoiceDetail((await RowsAsync(dbf, [row], ct))[0], version));
     }
@@ -105,14 +105,14 @@ public static class IncomingInvoiceUiApi
     private static async Task<List<IncomingInvoiceRow>> RowsAsync(
         IDbContextFactory<AppDbContext> dbf, IReadOnlyList<GelenEFatura> rows, CancellationToken ct)
     {
-        var plates = await F5Ortak.PlakalarAsync(dbf, rows.Where(r => r.VehicleId is not null).Select(r => r.VehicleId!.Value), ct);
-        var names = await F5Ortak.CarilerAsync(dbf, rows.Where(r => r.CariId is not null).Select(r => r.CariId!.Value), ct);
+        var plates = await F5Shared.PlatesAsync(dbf, rows.Where(r => r.VehicleId is not null).Select(r => r.VehicleId!.Value), ct);
+        var names = await F5Shared.CustomersAsync(dbf, rows.Where(r => r.CariId is not null).Select(r => r.CariId!.Value), ct);
         var categories = await CategoryNamesAsync(dbf, rows.Where(r => r.ExpenseCategoryId is not null).Select(r => r.ExpenseCategoryId!.Value), ct);
         return rows.Select(r => new IncomingInvoiceRow(
             r.Id, r.Ettn, r.GonderenVkn, r.GonderenUnvan, r.Tarih, r.NetTutar, r.KdvTutar, r.GenelToplam, r.Currency,
             r.Durum.ToString(), r.RedNedeni, r.Aciklama, r.Kdv20Matrah, r.Kdv20, r.Kdv10Matrah, r.Kdv10, r.Kdv1Matrah,
-            r.Kdv1, r.Kdv0Matrah, r.VehicleId, r.VehicleId is { } v ? F5Ortak.Plaka(plates, v) : null,
-            r.ExpenseCategoryId, r.CariId, r.CariId is { } c ? F5Ortak.CariAdi(names, c) : null, r.GiderTipi?.ToString(),
+            r.Kdv1, r.Kdv0Matrah, r.VehicleId, r.VehicleId is { } v ? F5Shared.Plate(plates, v) : null,
+            r.ExpenseCategoryId, r.CariId, r.CariId is { } c ? F5Shared.CustomerName(names, c) : null, r.GiderTipi?.ToString(),
             r.GiderlestirilmeUtc is not null, r.GiderlestirilmeUtc,
             r.ExpenseCategoryId is { } k ? categories.GetValueOrDefault(k) : null)).ToList();
     }
@@ -148,7 +148,7 @@ public static class IncomingInvoiceUiApi
         var id = await svc.CreateManualAsync(new GelenEFaturaInput
         {
             Ettn = req.Ettn.Trim(), GonderenVkn = req.GonderenVkn.Trim(), GonderenUnvan = req.GonderenUnvan.Trim(),
-            Tarih = F5Ortak.Utc(req.Tarih), NetTutar = req.NetTutar, KdvTutar = req.KdvTutar,
+            Tarih = F5Shared.Utc(req.Tarih), NetTutar = req.NetTutar, KdvTutar = req.KdvTutar,
             GenelToplam = req.GenelToplam, Currency = Currency(req.Doviz), Aciklama = Trimmed(req.Aciklama),
         }, ct);
         return TypedResults.Ok(new DocumentResult(id, req.Ettn.Trim()));
@@ -162,7 +162,7 @@ public static class IncomingInvoiceUiApi
         if (req.Bit.DayNumber - req.Bas.DayNumber > 92) throw new ValidationException("En çok 92 günlük aralık çekilebilir.", "bit");
         // Dürüst stub: yapılandırılmamış entegrasyon "0 yeni fatura" diye BAŞARI göstermez.
         if (einvoice is StubEInvoiceService) throw new ValidationException(IntegrationMissing);
-        var (from, to) = F5Ortak.GunAraligi(req.Bas, req.Bit);
+        var (from, to) = F5Shared.DayRange(req.Bas, req.Bit);
         return TypedResults.Ok(new IncomingInvoiceSyncResult(await svc.SyncFromGibAsync(from!.Value, to!.Value, ct)));
     }
 
@@ -170,7 +170,7 @@ public static class IncomingInvoiceUiApi
         Guid id, IncomingEInvoiceService svc, ICurrentUser user, Func<Task<bool>> act, IncomingEInvoiceStatus target, CancellationToken ct)
     {
         RequireUnrestricted(user);
-        if (await svc.GetAsync(id, ct) is null) return F5Ortak.Bulunamadi("Gelen fatura bulunamadı.");
+        if (await svc.GetAsync(id, ct) is null) return F5Shared.NotFound("Gelen fatura bulunamadı.");
         await act();
         return TypedResults.Ok(new IncomingInvoiceStateResult(id, target.ToString()));
     }
@@ -189,9 +189,9 @@ public static class IncomingInvoiceUiApi
             AmountLimit(v, f);
             if (v < 0m) throw new ValidationException("Tutar negatif olamaz.", f);
         }
-        var tip = F5Ortak.EnumAdi<ExpenseType>(req.GiderTipi, "giderTipi");
+        var tip = F5Shared.EnumAdi<ExpenseType>(req.GiderTipi, "giderTipi");
         var row = await svc.GetAsync(id, ct);
-        if (row is null) return F5Ortak.Bulunamadi("Gelen fatura bulunamadı.");
+        if (row is null) return F5Shared.NotFound("Gelen fatura bulunamadı.");
         await using (var db = await dbf.CreateDbContextAsync(ct))
         {
             await RequireVehicleAsync(db, req.AracId, "aracId", ct);
@@ -215,10 +215,10 @@ public static class IncomingInvoiceUiApi
         IDbContextFactory<AppDbContext> dbf, CancellationToken ct)
     {
         RequireUnrestricted(user);
-        var method = F5Ortak.EnumAdi<PaymentMethod>(req.OdemeYontemi, "odemeYontemi") ?? PaymentMethod.AcikHesap;
+        var method = F5Shared.EnumAdi<PaymentMethod>(req.OdemeYontemi, "odemeYontemi") ?? PaymentMethod.AcikHesap;
         Text(req.Sube, 64, "sube");
         var row = await svc.GetAsync(id, ct);
-        if (row is null) return F5Ortak.Bulunamadi("Gelen fatura bulunamadı.");
+        if (row is null) return F5Shared.NotFound("Gelen fatura bulunamadı.");
         await using (var db = await dbf.CreateDbContextAsync(ct))
             await RequireCustomerAsync(db, method == PaymentMethod.AcikHesap ? req.CariId ?? row.CariId : null, "cariId", ct);
         WithField("doviz", () => Currency(row.Currency)); // eski "TL"/etiket belge: defter ISO koda indirger (N1)

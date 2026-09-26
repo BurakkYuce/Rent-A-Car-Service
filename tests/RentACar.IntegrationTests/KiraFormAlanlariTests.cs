@@ -20,25 +20,25 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KiraFormAlanlariTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-10).AddHours(9);
 
-    private static async Task<(Guid cari, Guid veh)> CariAracAsync(IServiceProvider sp, string plaka)
+    private static async Task<(Guid cari, Guid veh)> CustomerVehicleAsync(IServiceProvider sp, string plate)
     {
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Form", Soyad = "Musteri" });
-        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
-        return (cari, veh);
+        var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
+        return (cari: account, veh);
     }
 
     /// <summary>3 gün × 120 = 360 TL baz (elle oracle) — detay alanları parametreyle.</summary>
-    private static BookingInput Kira(Guid cari, Guid veh, Action<BookingInput>? detay = null)
+    private static BookingInput Rental(Guid account, Guid veh, Action<BookingInput>? detail = null)
     {
         var input = new BookingInput
         {
-            MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 120m
+            MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 120m
         };
-        detay?.Invoke(input);
+        detail?.Invoke(input);
         return input;
     }
 
@@ -49,10 +49,10 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (cari, veh) = await CariAracAsync(sp, "34 KF 01");
+        var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 01");
         var rentals = sp.GetRequiredService<RentalService>();
 
-        var id = await rentals.CreateDirectAsync(Kira(cari, veh, i =>
+        var id = await rentals.CreateDirectAsync(Rental(account, veh, i =>
         {
             i.Kaynak = "Web Sitesi";
             i.UyariAciklama = "Depozito hatırlat";
@@ -60,7 +60,7 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
             i.FaturaListesindeGizle = true;
             i.UcusNo = "TK1923";
             i.ProvizyonNo = "PRV-777";
-            i.ProvizyonTarih = Bas;
+            i.ProvizyonTarih = Start;
             i.OnayKodu = "ON-1";
             i.FirmaKodu = "FRM-9";
             i.ProjeAdi = "Şantiye Kuzey";
@@ -91,7 +91,7 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         Assert.True(c.FaturaListesindeGizle);
         Assert.Equal("TK1923", c.UcusNo);
         Assert.Equal("PRV-777", c.ProvizyonNo);
-        Assert.Equal(Bas, c.ProvizyonTarih);
+        Assert.Equal(Start, c.ProvizyonTarih);
         Assert.Equal("ON-1", c.OnayKodu);
         Assert.Equal("FRM-9", c.FirmaKodu);
         Assert.Equal("Şantiye Kuzey", c.ProjeAdi);
@@ -122,9 +122,9 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (cari, veh) = await CariAracAsync(sp, "34 KF 02");
+        var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 02");
         var rentals = sp.GetRequiredService<RentalService>();
-        var id = await rentals.CreateDirectAsync(Kira(cari, veh));
+        var id = await rentals.CreateDirectAsync(Rental(account, veh));
         var c = await rentals.GetAsync(id);
         Assert.Equal(360m, c!.Tutar);
         Assert.Null(c.Kaynak);
@@ -139,9 +139,9 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (cari, veh) = await CariAracAsync(sp, "34 KF 03");
+        var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 03");
         var rentals = sp.GetRequiredService<RentalService>();
-        var id = await rentals.CreateDirectAsync(Kira(cari, veh, i => i.Kaynak = "Telefon"));
+        var id = await rentals.CreateDirectAsync(Rental(account, veh, i => i.Kaynak = "Telefon"));
 
         var ok = await rentals.UpdateOpenAsync(id, new RentalUpdateInput
         {
@@ -163,8 +163,8 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         Assert.Equal(360m, c!.Tutar);
         Assert.Equal(360m, c.GenelToplam);
         Assert.Equal(120m, c.GunlukUcret);
-        Assert.Equal(Bas, c.BasTar);
-        Assert.Equal(Bas.AddDays(3), c.BitTar);
+        Assert.Equal(Start, c.BasTar);
+        Assert.Equal(Start.AddDays(3), c.BitTar);
         Assert.Equal(3, c.Gun);
         // Whitelist alanları değişti:
         Assert.Equal("Güncellendi", c.Aciklama);
@@ -185,9 +185,9 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (cari, veh) = await CariAracAsync(sp, "34 KF 04");
+        var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 04");
         var rentals = sp.GetRequiredService<RentalService>();
-        var id = await rentals.CreateDirectAsync(Kira(cari, veh));
+        var id = await rentals.CreateDirectAsync(Rental(account, veh));
         await rentals.CancelAsync(id);
         var ex = await Assert.ThrowsAsync<ValidationException>(
             () => rentals.UpdateOpenAsync(id, new RentalUpdateInput { Aciklama = "x" }));
@@ -200,11 +200,11 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (cari, veh) = await CariAracAsync(sp, "34 KF 05");
+        var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 05");
         var rentals = sp.GetRequiredService<RentalService>();
-        var id = await rentals.CreateDirectAsync(Kira(cari, veh, i => { i.KmLimit = 300; i.FazlaKmUcret = 2m; }));
+        var id = await rentals.CreateDirectAsync(Rental(account, veh, i => { i.KmLimit = 300; i.FazlaKmUcret = 2m; }));
         await rentals.DeliverAsync(id, pickupKm: 10000, pickupFuel: 8);
-        await rentals.ReturnAsync(id, returnKm: 10100, returnFuel: 8, Bas.AddDays(3));
+        await rentals.ReturnAsync(id, returnKm: 10100, returnFuel: 8, Start.AddDays(3));
 
         // Aşım parametresi değişikliği RED (ReturnMath koştu; retroaktif oynanamaz):
         var ex = await Assert.ThrowsAsync<ValidationException>(() => rentals.UpdateOpenAsync(id,
@@ -230,23 +230,23 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (cari, veh) = await CariAracAsync(sp, "34 KF 06");
+        var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 06");
         var rentals = sp.GetRequiredService<RentalService>();
-        var id = await rentals.CreateDirectAsync(Kira(cari, veh));
+        var id = await rentals.CreateDirectAsync(Rental(account, veh));
 
         // Müşteriyle aynı → red
         var ex = await Assert.ThrowsAsync<ValidationException>(() => rentals.UpdateOpenAsync(id,
-            new RentalUpdateInput { IkinciSurucuId = cari }));
+            new RentalUpdateInput { IkinciSurucuId = account }));
         Assert.Contains("aynı olamaz", ex.Message);
         // Olmayan cari → red
         var ex2 = await Assert.ThrowsAsync<ValidationException>(() => rentals.UpdateOpenAsync(id,
             new RentalUpdateInput { IkinciSurucuId = Guid.NewGuid() }));
         Assert.Contains("bulunamadı", ex2.Message);
         // Geçerli cari → atanır
-        var ikinci = await sp.GetRequiredService<CustomerService>()
+        var second = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "İkinci", Soyad = "Sürücü" });
-        Assert.True(await rentals.UpdateOpenAsync(id, new RentalUpdateInput { IkinciSurucuId = ikinci }));
-        Assert.Equal(ikinci, (await rentals.GetAsync(id))!.IkinciSurucuId);
+        Assert.True(await rentals.UpdateOpenAsync(id, new RentalUpdateInput { IkinciSurucuId = second }));
+        Assert.Equal(second, (await rentals.GetAsync(id))!.IkinciSurucuId);
     }
 
     [Fact]
@@ -258,9 +258,9 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using (var seed = host.ScopeFor(tenant))
         {
             var sp = seed.ServiceProvider;
-            var (cari, veh) = await CariAracAsync(sp, "34 KF 07");
+            var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 07");
             id = await sp.GetRequiredService<RentalService>()
-                .CreateDirectAsync(Kira(cari, veh, i => i.CikisOfisi = "Ankara"));
+                .CreateDirectAsync(Rental(account, veh, i => i.CikisOfisi = "Ankara"));
         }
         // Operatör (Merkez): Ankara kirasına dokunamaz
         using (var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez"))
@@ -290,8 +290,8 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using (var s1 = host.ScopeFor(tenant1))
         {
             var sp = s1.ServiceProvider;
-            var (cari, veh) = await CariAracAsync(sp, "34 KF 08");
-            id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Kira(cari, veh));
+            var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 08");
+            id = await sp.GetRequiredService<RentalService>().CreateDirectAsync(Rental(account, veh));
         }
         // tenant2 aynı kirayı GÖREMEZ → update false (RLS + query filter)
         using var s2 = host.ScopeFor(Guid.NewGuid());
@@ -308,16 +308,16 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var (cari, veh) = await CariAracAsync(sp, "34 KF 09");
+        var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 09");
         var rentals = sp.GetRequiredService<RentalService>();
-        var id = await rentals.CreateDirectAsync(Kira(cari, veh, i => { i.KmLimit = 1000; i.FazlaKmUcret = 2m; }));
+        var id = await rentals.CreateDirectAsync(Rental(account, veh, i => { i.KmLimit = 1000; i.FazlaKmUcret = 2m; }));
 
         // Kirada: limit 1000 → 500'e indirildi (mega-formdan)
         Assert.True(await rentals.UpdateOpenAsync(id, new RentalUpdateInput
         { KmLimit = 500, FazlaKmUcret = 2m, YakitBirimUcret = 0m }));
 
         await rentals.DeliverAsync(id, pickupKm: 10000, pickupFuel: 8);
-        await rentals.ReturnAsync(id, returnKm: 10700, returnFuel: 8, Bas.AddDays(3));
+        await rentals.ReturnAsync(id, returnKm: 10700, returnFuel: 8, Start.AddDays(3));
 
         var c = await rentals.GetAsync(id);
         // ELLE ORACLE: kat edilen 700 − limit 500 = 200 fazla × 2 TL = 400 TL
@@ -336,21 +336,21 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         var rentals = sp.GetRequiredService<RentalService>();
         var invoices = sp.GetRequiredService<InvoiceService>();
 
-        var (cariA, vehA) = await CariAracAsync(sp, "34 KF 10");
-        var kiraA = await rentals.CreateDirectAsync(Kira(cariA, vehA));
-        var (cariB, vehB) = await CariAracAsync(sp, "34 KF 11");
-        var kiraB = await rentals.CreateDirectAsync(Kira(cariB, vehB));
+        var (accountA, vehA) = await CustomerVehicleAsync(sp, "34 KF 10");
+        var rentalA = await rentals.CreateDirectAsync(Rental(accountA, vehA));
+        var (accountB, vehB) = await CustomerVehicleAsync(sp, "34 KF 11");
+        var rentalB = await rentals.CreateDirectAsync(Rental(accountB, vehB));
 
-        await invoices.CreateFromRentalAsync(kiraA);            // base fatura A
-        await invoices.CreateFromRentalAsync(kiraB);            // base fatura B
-        await rentals.ExtendAsync(kiraA, Bas.AddDays(4));        // +1 gün × 120 → fark doğar
-        await invoices.CreateFromRentalAsync(kiraA);            // fark faturası A (KaynakKiraId)
+        await invoices.CreateFromRentalAsync(rentalA);            // base fatura A
+        await invoices.CreateFromRentalAsync(rentalB);            // base fatura B
+        await rentals.ExtendAsync(rentalA, Start.AddDays(4));        // +1 gün × 120 → fark doğar
+        await invoices.CreateFromRentalAsync(rentalA);            // fark faturası A (KaynakKiraId)
 
-        var listeA = await invoices.ListByRentalAsync(kiraA);
-        var listeB = await invoices.ListByRentalAsync(kiraB);
-        Assert.Equal(2, listeA.Count); // base + fark — B'ninki YOK
-        Assert.Single(listeB);
-        Assert.All(listeA, i => Assert.True(i.RentalId == kiraA || i.KaynakKiraId == kiraA));
+        var listA = await invoices.ListByRentalAsync(rentalA);
+        var listB = await invoices.ListByRentalAsync(rentalB);
+        Assert.Equal(2, listA.Count); // base + fark — B'ninki YOK
+        Assert.Single(listB);
+        Assert.All(listA, i => Assert.True(i.RentalId == rentalA || i.KaynakKiraId == rentalA));
     }
 
     [Fact]
@@ -360,18 +360,18 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var rentals = sp.GetRequiredService<RentalService>();
-        var cezalar = sp.GetRequiredService<PenaltyService>();
+        var penalties = sp.GetRequiredService<PenaltyService>();
 
-        var (cari, veh) = await CariAracAsync(sp, "34 KF 12");
-        var kira = await rentals.CreateDirectAsync(Kira(cari, veh));
+        var (account, veh) = await CustomerVehicleAsync(sp, "34 KF 12");
+        var rental = await rentals.CreateDirectAsync(Rental(account, veh));
 
-        await cezalar.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 1500m, RentalId = kira, CariId = cari });
-        await cezalar.CreateAsync(new PenaltyInput { CezaTuru = "Park", Tutar = 500m }); // kirasız ceza
+        await penalties.CreateAsync(new PenaltyInput { CezaTuru = "Hız", Tutar = 1500m, RentalId = rental, CariId = account });
+        await penalties.CreateAsync(new PenaltyInput { CezaTuru = "Park", Tutar = 500m }); // kirasız ceza
 
-        var liste = await cezalar.ListByRentalAsync(kira);
-        Assert.Single(liste);
-        Assert.Equal("Hız", liste[0].CezaTuru);
-        Assert.Equal(1500m, liste[0].Tutar);
+        var list = await penalties.ListByRentalAsync(rental);
+        Assert.Single(list);
+        Assert.Equal("Hız", list[0].CezaTuru);
+        Assert.Equal(1500m, list[0].Tutar);
     }
 
     // ---------- Personel seçim listesi yetkisi ----------
@@ -391,9 +391,9 @@ public sealed class KiraFormAlanlariTests(PostgresFixture fx)
         var svc = op.ServiceProvider.GetRequiredService<PersonnelService>();
 
         // Operatör dönüş formu için seçim listesini ALABİLİR (önceki gizli bug: ManageUsers guard patlıyordu)
-        var secim = await svc.ListForSelectAsync();
-        Assert.Single(secim); // yalnız Aktif
-        Assert.Equal("Aktif", secim[0].Ad);
+        var selection = await svc.ListForSelectAsync();
+        Assert.Single(selection); // yalnız Aktif
+        Assert.Equal("Aktif", selection[0].Ad);
 
         // Tam liste (PII'lı satır nesnesi) hâlâ Admin'e kilitli
         await Assert.ThrowsAsync<NoPermissionException>(() => svc.ListAsync());

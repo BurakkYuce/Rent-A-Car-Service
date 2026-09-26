@@ -12,8 +12,8 @@ public static class ApiClaims
     public const string UserId = "user_id";
     public const string AssignedBranch = "assigned_sube";
     public const string AssignedBranchId = "assigned_sube_id"; // FAZ 5-C1
-    public const string IzinEk = "izin_ek";       // kullanıcı-bazlı EK izin (web ile aynı ad)
-    public const string IzinYasak = "izin_yasak"; // kullanıcı-bazlı YASAK izin
+    public const string PermissionExtra = "izin_ek";       // kullanıcı-bazlı EK izin (web ile aynı ad)
+    public const string PermissionDenied = "izin_yasak"; // kullanıcı-bazlı YASAK izin
     // Rol standart ClaimTypes.Role; ad standart ClaimTypes.Name.
 }
 
@@ -55,8 +55,8 @@ public sealed class ApiIdentity(IHttpContextAccessor accessor) : ITenantContext,
     // İstisnalar JWT'den okunur — okunmasaydı API, web'de kısılmış kullanıcıya yan kapı olurdu
     // (servis guard'ı ICurrentUser'dan besleniyor; boş dönen varsayılan yasakları görmezdi).
     public IReadOnlyCollection<string> EkIzinler
-        => User.FindAll(ApiClaims.IzinEk).Select(c => c.Value).ToArray();
+        => User.FindAll(ApiClaims.PermissionExtra).Select(c => c.Value).ToArray();
 
     public IReadOnlyCollection<string> YasakIzinler
-        => User.FindAll(ApiClaims.IzinYasak).Select(c => c.Value).ToArray();
+        => User.FindAll(ApiClaims.PermissionDenied).Select(c => c.Value).ToArray();
 }

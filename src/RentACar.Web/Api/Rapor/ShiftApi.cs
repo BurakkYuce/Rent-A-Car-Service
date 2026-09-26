@@ -44,7 +44,7 @@ public static class ShiftApi
 
     public static RouteGroupBuilder MapShiftApi(this RouteGroupBuilder v1)
     {
-        var g = v1.MapGroup("/vardiyalar").WithTags("Rapor").AlanlariEsle(FieldRules);
+        var g = v1.MapGroup("/vardiyalar").WithTags("Rapor").MapFields(FieldRules);
 
         g.MapGet("/{id:guid}", async Task<Results<Ok<ShiftDto>, ProblemHttpResult>> (
                 Guid id, StaffShiftService s, CancellationToken ct)
@@ -79,16 +79,16 @@ public static class ShiftApi
         return g;
     }
 
-    private static ProblemHttpResult NotFound() => F5Ortak.Bulunamadi("Vardiya bulunamadı.");
+    private static ProblemHttpResult NotFound() => F5Shared.NotFound("Vardiya bulunamadı.");
 
     /// <summary>Endpoint limits + parsing; business rules stay in the service (same path as Blazor).</summary>
     private static VardiyaInput Input(ShiftRequest i)
     {
         ReportPeriod.ValidateDay(i.Tarih, "tarih");
-        var branch = F5Ortak.Nz(i.Sube);
+        var branch = F5Shared.Nz(i.Sube);
         if (branch is { Length: > BranchMax })
             throw new ValidationException($"Şube en fazla {BranchMax} karakter olabilir.", "sube");
-        var note = F5Ortak.Nz(i.Aciklama);
+        var note = F5Shared.Nz(i.Aciklama);
         if (note is { Length: > NoteMax })
             throw new ValidationException($"Açıklama en fazla {NoteMax} karakter olabilir.", "aciklama");
         return new VardiyaInput
@@ -105,7 +105,7 @@ public static class ShiftApi
     /// <summary>"SS:dd" (24 saat). Blazor <c>type="time"</c> girdisi de bu biçimi gönderir.</summary>
     internal static TimeOnly ParseTime(string? value, string field, string label)
     {
-        var s = F5Ortak.Nz(value) ?? throw new ValidationException($"{label} zorunludur.", field);
+        var s = F5Shared.Nz(value) ?? throw new ValidationException($"{label} zorunludur.", field);
         if (!TimeOnly.TryParseExact(s, ["HH:mm", "H:mm"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var t))
             throw new ValidationException($"{label} SS:dd biçiminde olmalıdır (ör. 08:30).", field);
         return t;

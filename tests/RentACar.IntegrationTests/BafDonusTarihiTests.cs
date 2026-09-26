@@ -16,9 +16,9 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class BafDonusTarihiTests(PostgresFixture fx)
 {
-    private static async Task<Guid> BafAsync(IServiceProvider sp, string plaka)
+    private static async Task<Guid> BafAsync(IServiceProvider sp, string plate)
     {
-        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plaka });
+        var v = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = plate });
         return await sp.GetRequiredService<BafService>().CreateAsync(new BafInput
         { PersonelId = Guid.NewGuid(), VehicleId = v, CikisKm = 10_000, Sube = "Merkez" });
     }

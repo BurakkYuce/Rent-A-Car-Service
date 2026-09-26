@@ -14,12 +14,12 @@ public sealed record BranchDto(
     string? SozlesmeNoFormati, Guid? NakitHesapId, Guid? BankaHesapId, string? EntegrasyonKodu,
     string? ResimDosyasi, string? HaftalikCalismaSaatleri, bool Aktif, string? Surum) : IDefinitionRow
 {
-    public static BranchDto From(Branch b, string? surum) => new(
+    public static BranchDto From(Branch b, string? version) => new(
         b.Id, b.Kod, b.Ad, b.Adres, b.Telefon, b.Eposta, b.Il, b.Ilce, b.Yetkili, b.CalismaSaatleri, b.KomisyonOran,
         b.EvrakNoOnek, b.WebIsim, b.FirmaUnvani, b.WebRezOncesiSaat, b.Enlem, b.Boylam, b.HizmetKomisyonOran,
         b.RezervasyonRengi, b.AlisSubesiDegilMi, b.WebSira, b.WebOtoparkId, b.BayiCariKod, b.BayiOfisId,
         b.KomisyonHesabi, b.OnlineRezId, b.SozlesmeNoFormati, b.NakitHesapId, b.BankaHesapId, b.EntegrasyonKodu,
-        b.ResimDosyasi, b.HaftalikCalismaSaatleri, b.Aktif, surum);
+        b.ResimDosyasi, b.HaftalikCalismaSaatleri, b.Aktif, version);
 
     internal static readonly SortFieldMap<BranchDto> Sort = SortFieldMap<BranchDto>
         .Create(x => x.Id).Alan("kod", x => x.Kod).Alan("ad", x => x.Ad).Alan("il", x => x.Il)

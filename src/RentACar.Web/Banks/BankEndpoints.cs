@@ -27,9 +27,9 @@ public static class BankEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/bankalar", mesaj); }
+        try { await action(); return Result.Ok("/bankalar", message); }
         catch (ValidationException ex) { return Results.Redirect($"/bankalar?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

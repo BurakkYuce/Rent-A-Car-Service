@@ -6,7 +6,7 @@ using RentACar.Web.Common;
 namespace RentACar.IntegrationTests;
 
 /// <summary>
-/// <see cref="DogrulamaHatasiMiddleware"/> — sayfa render'ındaki doğrulama hatası 500 OLMAMALI.
+/// <see cref="ValidationErrorMiddleware"/> — sayfa render'ındaki doğrulama hatası 500 OLMAMALI.
 ///
 /// <para><b>Neden var (canlı hata, 2026-08-26):</b> operatör şube kapsamı dışındaki bir kirayı
 /// açınca <c>RentalService.GetAsync</c> → <c>BranchScope.RequireInScope</c> ValidationException
@@ -15,12 +15,12 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class DogrulamaHatasiMiddlewareTests
 {
-    private static DogrulamaHatasiMiddleware Mw() => new(NullLogger<DogrulamaHatasiMiddleware>.Instance);
+    private static ValidationErrorMiddleware Mw() => new(NullLogger<ValidationErrorMiddleware>.Instance);
 
-    private static DefaultHttpContext Ctx(string yol, string? accept = null)
+    private static DefaultHttpContext Ctx(string path, string? accept = null)
     {
         var c = new DefaultHttpContext();
-        c.Request.Path = yol;
+        c.Request.Path = path;
         c.Response.Body = new MemoryStream();
         if (accept is not null) c.Request.Headers.Accept = accept;
         return c;
@@ -33,10 +33,10 @@ public sealed class DogrulamaHatasiMiddlewareTests
         await Mw().InvokeAsync(ctx, _ => throw new ValidationException("Bu kayıt şube kapsamınız dışında."));
 
         Assert.Equal(StatusCodes.Status302Found, ctx.Response.StatusCode);
-        var hedef = ctx.Response.Headers.Location.ToString();
-        Assert.StartsWith("/hata?mesaj=", hedef, StringComparison.Ordinal);
+        var target = ctx.Response.Headers.Location.ToString();
+        Assert.StartsWith("/hata?mesaj=", target, StringComparison.Ordinal);
         // Mesaj kaçışlanmış olarak taşınır (Türkçe karakter + boşluk).
-        Assert.Contains(Uri.EscapeDataString("Bu kayıt şube kapsamınız dışında."), hedef, StringComparison.Ordinal);
+        Assert.Contains(Uri.EscapeDataString("Bu kayıt şube kapsamınız dışında."), target, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -52,9 +52,9 @@ public sealed class DogrulamaHatasiMiddlewareTests
         ctx.Response.Body.Position = 0;
         // Ham metinde ARAMA yapılmaz: JsonSerializer ASCII-dışı karakterleri \u00E7 gibi kaçışlar
         // (geçerli JSON, JS doğru çözer). Kaçışlama biçimi uygulama detayı — DEĞER doğrulanır.
-        using var belge = await System.Text.Json.JsonDocument.ParseAsync(ctx.Response.Body);
-        Assert.False(belge.RootElement.GetProperty("ok").GetBoolean());
-        Assert.Equal("TC kimlik geçersiz.", belge.RootElement.GetProperty("hata").GetString());
+        using var document = await System.Text.Json.JsonDocument.ParseAsync(ctx.Response.Body);
+        Assert.False(document.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal("TC kimlik geçersiz.", document.RootElement.GetProperty("hata").GetString());
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class DogrulamaHatasiMiddlewareTests
     /// <c>DefaultHttpContext</c>'in varsayılan yanıt özelliği <c>HasStarted</c>'ı hep false döner
     /// (set edilemez), bu yüzden o dalı test etmek için kendi özelliğimizi takıyoruz.
     /// </summary>
-    private sealed class BaslamisYanit : Microsoft.AspNetCore.Http.Features.IHttpResponseFeature
+    private sealed class StartedResponse : Microsoft.AspNetCore.Http.Features.IHttpResponseFeature
     {
         public Stream Body { get; set; } = new MemoryStream();
         public bool HasStarted => true;
@@ -85,7 +85,7 @@ public sealed class DogrulamaHatasiMiddlewareTests
     {
         // Yarım HTML'e yönlendirme eklenemez; istisna yukarı çıkmalı (çerçeve kendi yolunu izler).
         var ctx = Ctx("/kiralar");
-        ctx.Features.Set<Microsoft.AspNetCore.Http.Features.IHttpResponseFeature>(new BaslamisYanit());
+        ctx.Features.Set<Microsoft.AspNetCore.Http.Features.IHttpResponseFeature>(new StartedResponse());
 
         await Assert.ThrowsAsync<ValidationException>(
             () => Mw().InvokeAsync(ctx, _ => throw new ValidationException("geç kalan hata")));
@@ -95,10 +95,10 @@ public sealed class DogrulamaHatasiMiddlewareTests
     public async Task Hata_yoksa_dokunmaz()
     {
         var ctx = Ctx("/kiralar");
-        var calisti = false;
-        await Mw().InvokeAsync(ctx, _ => { calisti = true; return Task.CompletedTask; });
+        var ran = false;
+        await Mw().InvokeAsync(ctx, _ => { ran = true; return Task.CompletedTask; });
 
-        Assert.True(calisti);
+        Assert.True(ran);
         Assert.Equal(StatusCodes.Status200OK, ctx.Response.StatusCode);
         Assert.True(string.IsNullOrEmpty(ctx.Response.Headers.Location));
     }
@@ -119,7 +119,7 @@ public sealed class DogrulamaHatasiMiddlewareTests
         var ctx = Ctx("/kiralar");
         await Mw().InvokeAsync(ctx, _ => throw new ValidationException(new string('x', 500)));
 
-        var hedef = ctx.Response.Headers.Location.ToString();
-        Assert.Equal("/hata?mesaj=" + new string('x', 300), hedef);
+        var target = ctx.Response.Headers.Location.ToString();
+        Assert.Equal("/hata?mesaj=" + new string('x', 300), target);
     }
 }

@@ -18,11 +18,11 @@
     }
     else
     {
-        @foreach (var grup in _hits.GroupBy(h => h.Tur))
+        @foreach (var group in _hits.GroupBy(h => h.Tur))
         {
-            <h2>@grup.Key (@grup.Count())</h2>
+            <h2>@group.Key (@group.Count())</h2>
             <ul>
-                @foreach (var h in grup)
+                @foreach (var h in group)
                 {
                     <li>
                         <a href="@h.Url">@h.Baslik</a>

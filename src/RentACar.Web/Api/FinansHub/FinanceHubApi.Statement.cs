@@ -19,7 +19,7 @@ public static partial class FinanceHubApi
         financeRead.MapGet("/cariler/{cariId:guid}/ekstre", GetStatement);
         write.MapGet("/cariler/{cariId:guid}/acik-kalemler", GetOpenItems);
         write.MapPost("/cariler/{cariId:guid}/toplu-kapat", PostCloseItems)
-            .Produces<Api.UiHata.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
+            .Produces<Api.UiError.MukerrerProblemi>(StatusCodes.Status409Conflict, "application/problem+json");
     }
 
     /// <summary>
@@ -36,18 +36,18 @@ public static partial class FinanceHubApi
             "ozet" => true,
             _ => throw new ValidationException("Görünüm 'detay' ya da 'ozet' olmalıdır.", "mod"),
         };
-        FinansApi.Metin(doviz, 8, "doviz");
-        FinansApi.Metin(kaynak, 64, "kaynak");
-        var rentalStatus = F5Ortak.EnumAdi<RentalStatus>(kiraDurum, "kiraDurum");
-        var names = await F5Ortak.CarilerAsync(f, [cariId], ct);
-        if (!names.ContainsKey(cariId)) return F5Ortak.Bulunamadi("Cari bulunamadı.");
+        FinanceOpsApi.Text(doviz, 8, "doviz");
+        FinanceOpsApi.Text(kaynak, 64, "kaynak");
+        var rentalStatus = F5Shared.EnumAdi<RentalStatus>(kiraDurum, "kiraDurum");
+        var names = await F5Shared.CustomersAsync(f, [cariId], ct);
+        if (!names.ContainsKey(cariId)) return F5Shared.NotFound("Cari bulunamadı.");
 
         var balance = await cash.GetAccountBalanceAsync(cariId, ct);
         var all = (await cash.GetStatementAsync(cariId, null, ct)).Satirlar;
-        var (min, max) = F5Ortak.GunAraligi(bas, bit);
+        var (min, max) = F5Shared.DayRange(bas, bit);
         var filter = new CariEkstreFilter
         {
-            Bas = min, Bit = max, Doviz = F5Ortak.Nz(doviz), SourceType = F5Ortak.Nz(kaynak), KiraDurum = rentalStatus,
+            Bas = min, Bit = max, Doviz = F5Shared.Nz(doviz), SourceType = F5Shared.Nz(kaynak), KiraDurum = rentalStatus,
         };
         var result = await cash.GetStatementAsync(cariId, filter, ct);
 
@@ -65,7 +65,7 @@ public static partial class FinanceHubApi
 
         IReadOnlyList<CustomerStatementSummaryLine>? byMonth = summary ? Summarize(result.Satirlar) : null;
         return TypedResults.Ok(new CustomerStatement(
-            cariId, F5Ortak.CariAdi(names, cariId), balance, result.Devir, !filter.TarihDisiDaraltmaVar, lines, byMonth,
+            cariId, F5Shared.CustomerName(names, cariId), balance, result.Devir, !filter.TarihDisiDaraltmaVar, lines, byMonth,
             lines.Sum(l => l.Borc), lines.Sum(l => l.Alacak),
             [.. all.Select(e => e.Amount.Currency).Where(c => !string.IsNullOrWhiteSpace(c))
                 .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c, StringComparer.Ordinal)],
@@ -89,8 +89,8 @@ public static partial class FinanceHubApi
     private static async Task<Results<Ok<CustomerOpenItems>, ProblemHttpResult>> GetOpenItems(
         Guid cariId, CashService cash, IDbContextFactory<AppDbContext> f, CancellationToken ct)
     {
-        var names = await F5Ortak.CarilerAsync(f, [cariId], ct);
-        if (!names.ContainsKey(cariId)) return F5Ortak.Bulunamadi("Cari bulunamadı.");
+        var names = await F5Shared.CustomersAsync(f, [cariId], ct);
+        if (!names.ContainsKey(cariId)) return F5Shared.NotFound("Cari bulunamadı.");
         var debts = (await cash.GetStatementAsync(cariId, null, ct)).Satirlar
             .Where(x => x.Direction == LedgerDirection.Debit).OrderBy(x => x.EntryDateUtc).ToList();
         var closed = await cash.SettledAmountsAsync([.. debts.Select(x => x.Id)], ct);
@@ -102,7 +102,7 @@ public static partial class FinanceHubApi
             return new CustomerOpenItem(s.Id, s.EntryDateUtc, s.SourceType, s.Description, s.Amount.Amount,
                 s.Amount.Currency, s.Amount.AmountInBase, done, isClosed ? 0m : rest, isClosed);
         }).ToList();
-        return TypedResults.Ok(new CustomerOpenItems(cariId, F5Ortak.CariAdi(names, cariId),
+        return TypedResults.Ok(new CustomerOpenItems(cariId, F5Shared.CustomerName(names, cariId),
             await cash.GetAccountBalanceAsync(cariId, ct), items.Where(i => !i.Kapali).Sum(i => i.Kalan), items));
     }
 }

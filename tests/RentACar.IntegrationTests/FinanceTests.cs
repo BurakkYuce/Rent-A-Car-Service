@@ -23,12 +23,12 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
 
-        await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 500m });
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 500m });
 
         // Tahsilat → Alacak Cari → bakiye -500 (müşteri alacaklı/avans).
-        Assert.Equal(-500m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(-500m, await cash.GetAccountBalanceAsync(account));
     }
 
     [Fact]
@@ -37,12 +37,12 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
 
-        await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 100m, Doviz = "USD", Kur = 30m });
+        await cash.CollectAsync(new CashInput { CariId = account, Tutar = 100m, Doviz = "USD", Kur = 30m });
 
         // 100 USD * 30 = 3000 base, Alacak → -3000.
-        Assert.Equal(-3000m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(-3000m, await cash.GetAccountBalanceAsync(account));
     }
 
     [Fact]
@@ -51,13 +51,13 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
 
-        var txId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 750m });
-        Assert.Equal(-750m, await cash.GetAccountBalanceAsync(cari));
+        var txId = await cash.CollectAsync(new CashInput { CariId = account, Tutar = 750m });
+        Assert.Equal(-750m, await cash.GetAccountBalanceAsync(account));
 
         await cash.ReverseAsync(txId);
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await cash.CollectAsync(new CashInput { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 250m, Doviz = "EUR", Kur = 35m });
+        await cash.CollectAsync(new CashInput { CariId = await TestCustomer.NewAsync(scope.ServiceProvider), Tutar = 250m, Doviz = "EUR", Kur = 35m });
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -86,21 +86,21 @@ public sealed class FinanceTests(PostgresFixture fx)
         var rent = scope.ServiceProvider.GetRequiredService<RentalService>();
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
 
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
         var rentalId = await rent.CreateDirectAsync(new BookingInput
         {
-            MusteriId = cari, VehicleId = await TestArac.YeniAsync(scope.ServiceProvider),
+            MusteriId = account, VehicleId = await TestVehicle.NewAsync(scope.ServiceProvider),
             BasTar = new DateTimeOffset(2026, 10, 1, 9, 0, 0, TimeSpan.Zero),
             BitTar = new DateTimeOffset(2026, 10, 5, 9, 0, 0, TimeSpan.Zero),
             GunlukUcret = 100m // 4 gün → 400
         });
 
-        await cash.CollectAsync(new CashInput { CariId = cari, RentalId = rentalId, Tutar = 400m });
+        await cash.CollectAsync(new CashInput { CariId = account, RentalId = rentalId, Tutar = 400m });
 
         var rental = await rent.GetAsync(rentalId);
         Assert.Equal(400m, rental!.Tahsilat);
         Assert.Equal(0m, rental.Bakiye);                 // sözleşme tahsil edildi
-        Assert.Equal(-400m, await cash.GetAccountBalanceAsync(cari)); // faturasız → cari alacaklı
+        Assert.Equal(-400m, await cash.GetAccountBalanceAsync(account)); // faturasız → cari alacaklı
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        await cash.CollectAsync(new CashInput { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 100m });
+        await cash.CollectAsync(new CashInput { CariId = await TestCustomer.NewAsync(scope.ServiceProvider), Tutar = 100m });
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -124,15 +124,15 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var cari = await TestCari.YeniAsync(scope.ServiceProvider);
+        var account = await TestCustomer.NewAsync(scope.ServiceProvider);
 
-        var txId = await cash.CollectAsync(new CashInput { CariId = cari, Tutar = 500m });
+        var txId = await cash.CollectAsync(new CashInput { CariId = account, Tutar = 500m });
         await cash.ReverseAsync(txId);
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account));
 
         // İkinci ters kayıt reddedilmeli (idempotency) → bakiye bozulmaz. F1.4: mükerrer (409) tipi.
         await Assert.ThrowsAsync<DuplicateOperationException>(() => cash.ReverseAsync(txId));
-        Assert.Equal(0m, await cash.GetAccountBalanceAsync(cari));
+        Assert.Equal(0m, await cash.GetAccountBalanceAsync(account));
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         // Tahsilat IAuditable → audit satırı yazılır.
         await scope.ServiceProvider.GetRequiredService<CashService>()
-            .CollectAsync(new CashInput { CariId = await TestCari.YeniAsync(scope.ServiceProvider), Tutar = 100m });
+            .CollectAsync(new CashInput { CariId = await TestCustomer.NewAsync(scope.ServiceProvider), Tutar = 100m });
 
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
@@ -157,14 +157,14 @@ public sealed class FinanceTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid();
         var t2 = Guid.NewGuid();
-        var cari = await TestCari.YeniAsync(host, t1);
+        var account = await TestCustomer.NewAsync(host, t1);
 
         using (var s1 = host.ScopeFor(t1))
             await s1.ServiceProvider.GetRequiredService<CashService>()
-                .CollectAsync(new CashInput { CariId = cari, Tutar = 999m });
+                .CollectAsync(new CashInput { CariId = account, Tutar = 999m });
 
         using var s2 = host.ScopeFor(t2);
-        var balance = await s2.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(cari);
+        var balance = await s2.ServiceProvider.GetRequiredService<CashService>().GetAccountBalanceAsync(account);
         Assert.Equal(0m, balance); // T2 T1'in defterini göremez (RLS)
     }
 }

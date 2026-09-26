@@ -98,8 +98,8 @@ public sealed partial class UiCustomerApiTests
     {
         var e = await SetupAsync();
         var admin = await LoginAsync(e, Who.Admin);
-        var tc = RandomTc();
-        await Problem(await Send(admin, HttpMethod.Post, Customers, new Dictionary<string, object?> { ["tip"] = "Bireysel", ["ad"] = "Vedat", ["vergiNo"] = tc }),
+        var nationalId = RandomNationalId();
+        await Problem(await Send(admin, HttpMethod.Post, Customers, new Dictionary<string, object?> { ["tip"] = "Bireysel", ["ad"] = "Vedat", ["vergiNo"] = nationalId }),
             HttpStatusCode.BadRequest, "dogrulama", "vergiNo");
         await Problem(await Send(admin, HttpMethod.Post, Customers, new Dictionary<string, object?> { ["tip"] = "Bireysel", ["ad"] = "Vedat", ["vergiNo"] = "12345" }),
             HttpStatusCode.BadRequest, "dogrulama", "vergiNo");

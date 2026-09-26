@@ -25,10 +25,10 @@
         {
             <tr><td colspan="5" class="muted">Yaklaşan vade yok.</td></tr>
         }
-        @foreach (var i in _items.Where(x => PlakaUyar(x.VehicleId)))
+        @foreach (var i in _items.Where(x => WarnPlate(x.VehicleId)))
         {
             <tr>
-                <td class="kart-baslik">@Plaka(i.VehicleId)</td>
+                <td class="kart-baslik">@Plate(i.VehicleId)</td>
                 <td data-etiket="Tür">@i.Tur</td>
                 <td data-etiket="Bitiş">@i.Bitis.LocalDateTime.ToString("dd.MM.yyyy")</td>
                 <td data-etiket="Kalan Gün">@i.KalanGun</td>
@@ -51,12 +51,12 @@
         _vehMap = (await Vehicles.ListAsync()).ToDictionary(v => v.Id, v => v.Plaka);
     }
 
-    private string Plaka(Guid id) => _vehMap.GetValueOrDefault(id, "—");
+    private string Plate(Guid id) => _vehMap.GetValueOrDefault(id, "—");
 
     // FAZ 2.1: plaka filtresi (?plaka=) — normalize karşılaştırma (boşluksuz, case-insensitive).
-    private bool PlakaUyar(Guid id)
+    private bool WarnPlate(Guid id)
         => string.IsNullOrWhiteSpace(PlakaFiltre)
-           || Plaka(id).Replace(" ", "").Contains(PlakaFiltre.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
+           || Plate(id).Replace(" ", "").Contains(PlakaFiltre.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
 
     private static string BucketClass(DueBucket b) => b switch
     {

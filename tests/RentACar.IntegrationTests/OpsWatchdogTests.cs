@@ -24,24 +24,24 @@ public sealed class OpsWatchdogPolicyTests
     [InlineData("+905551112233", "ops", "true", true)]
     [InlineData("+905551112233", "ops", "false", false)] // açıkça kapatıldı
     [InlineData("+905551112233", "ops", "FALSE", false)] // büyük/küçük harf duyarsız
-    public void Aktif_kapisi(string? phone, string? template, string? enabled, bool beklenen)
-        => Assert.Equal(beklenen, OpsWatchdog.Aktif(phone, template, enabled));
+    public void Aktif_kapisi(string? phone, string? template, string? enabled, bool expected)
+        => Assert.Equal(expected, OpsWatchdog.IsActive(phone, template, enabled));
 
     [Fact]
     public void KurBayatMi_null_kayit_bayat_degil()   // henüz kur çekilmemiş → soğuk-başlangıç gürültüsü yok
-        => Assert.False(OpsWatchdog.KurBayatMi(null, Now, 3));
+        => Assert.False(OpsWatchdog.IsExchangeRateStale(null, Now, 3));
 
     [Fact]
     public void KurBayatMi_bir_gunluk_taze()          // 1 gün < 3 eşik
-        => Assert.False(OpsWatchdog.KurBayatMi(Now.AddDays(-1), Now, 3));
+        => Assert.False(OpsWatchdog.IsExchangeRateStale(Now.AddDays(-1), Now, 3));
 
     [Fact]
     public void KurBayatMi_dort_gun_bayat()           // 4 gün > 3 eşik
-        => Assert.True(OpsWatchdog.KurBayatMi(Now.AddDays(-4), Now, 3));
+        => Assert.True(OpsWatchdog.IsExchangeRateStale(Now.AddDays(-4), Now, 3));
 
     [Fact]
     public void KurBayatMi_tam_esik_sinirda_bayat_degil() // tam 3.0 gün → > değil
-        => Assert.False(OpsWatchdog.KurBayatMi(Now.AddDays(-3), Now, 3));
+        => Assert.False(OpsWatchdog.IsExchangeRateStale(Now.AddDays(-3), Now, 3));
 
     [Theory]
     // guncelToplam, sonAlarm, esik -> alarm?
@@ -51,24 +51,24 @@ public sealed class OpsWatchdogPolicyTests
     [InlineData(5, 5, 2, false)]  // delta 0
     [InlineData(5, 3, 0, false)]  // eşik 0 → alarm yok
     [InlineData(7, 3, 4, true)]   // delta 4 >= 4
-    public void JobHataAlarmi_delta(long guncel, long sonAlarm, int esik, bool beklenen)
-        => Assert.Equal(beklenen, OpsWatchdog.JobHataAlarmi(guncel, sonAlarm, esik));
+    public void JobHataAlarmi_delta(long current, long lastAlarm, int threshold, bool expected)
+        => Assert.Equal(expected, OpsWatchdog.JobErrorAlarm(current, lastAlarm, threshold));
 
     [Fact]
     public void KurMesaji_gun_ve_tarih_icerir()
     {
         // now - sonTarih = 4.5 gün → floor 4; tarih 2026-07-16 (elle).
-        var mesaj = OpsWatchdog.KurMesaji(new DateTimeOffset(2026, 7, 16, 0, 0, 0, TimeSpan.Zero), Now);
-        Assert.Contains("4 gündür", mesaj);
-        Assert.Contains("2026-07-16", mesaj);
+        var message = OpsWatchdog.ExchangeRateMessage(new DateTimeOffset(2026, 7, 16, 0, 0, 0, TimeSpan.Zero), Now);
+        Assert.Contains("4 gündür", message);
+        Assert.Contains("2026-07-16", message);
     }
 
     [Fact]
     public void JobMesaji_ad_ve_sayi_icerir()
     {
-        var mesaj = OpsWatchdog.JobMesaji("tcmb-kur", 3);
-        Assert.Contains("'tcmb-kur'", mesaj);
-        Assert.Contains("3 kez", mesaj);
+        var message = OpsWatchdog.JobMessage("tcmb-kur", 3);
+        Assert.Contains("'tcmb-kur'", message);
+        Assert.Contains("3 kez", message);
     }
 }
 
@@ -97,11 +97,11 @@ public sealed class OpsWatchdogKurTests(PostgresFixture fx)
         }
 
         await using var db = await factory.CreateDbContextAsync();
-        var son = await OpsWatchdog.SonKurTarihiAsync(db);
+        var last = await OpsWatchdog.LastExchangeRateDateAsync(db);
 
-        Assert.Equal(now.AddDays(-5), son);                    // en yeni (-5), -10 değil
-        Assert.True(OpsWatchdog.KurBayatMi(son, now, 3));      // 5 gün > 3 → bayat
-        Assert.False(OpsWatchdog.KurBayatMi(son, now, 7));     // 5 gün < 7 → değil
+        Assert.Equal(now.AddDays(-5), last);                    // en yeni (-5), -10 değil
+        Assert.True(OpsWatchdog.IsExchangeRateStale(last, now, 3));      // 5 gün > 3 → bayat
+        Assert.False(OpsWatchdog.IsExchangeRateStale(last, now, 7));     // 5 gün < 7 → değil
     }
 
     [Fact]
@@ -118,6 +118,6 @@ public sealed class OpsWatchdogKurTests(PostgresFixture fx)
         }
 
         await using var db = await factory.CreateDbContextAsync();
-        Assert.Null(await OpsWatchdog.SonKurTarihiAsync(db));  // kayıt yok → null → bayat DEĞİL
+        Assert.Null(await OpsWatchdog.LastExchangeRateDateAsync(db));  // kayıt yok → null → bayat DEĞİL
     }
 }

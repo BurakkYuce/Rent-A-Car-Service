@@ -16,7 +16,7 @@
     isterseniz aynı anda tahsilatını yazar. Gecikmiş/atlanmış kalemleri toparlamak içindir.</p>
 <p class="muted small">Bu ekran Ayarlar'daki gece işinden <strong>bağımsızdır</strong>: seçtiğiniz
     dönemler, otomatik iş kapalı olsa da çalışır.
-    @if (!_jobAcik)
+    @if (!_jobEnabled)
     {
         <strong> Şu an gece işi KAPALI</strong>
         <text> — yalnız buradan elle çalıştırabilirsiniz.</text>
@@ -46,14 +46,14 @@
 
 @* Tutarlar DÖVİZ KIRILIMLI yazılır: native tutarları tek sayıda toplamak (EUR + TRY) anlamsız
    bir rakam üretiyordu (adversarial L1). Cari bakiye BAZ paradır, ayrı gösterilir. *@
-<p class="muted small">@_adaylar.Count aday dönem@(FiltreVar ? " (filtreli)" : "") ·
-    @foreach (var (doviz, toplam) in AutoCollectionService.CurrencyTotals(_adaylar))
+<p class="muted small">@_candidates.Count aday dönem@(FiltreVar ? " (filtreli)" : "") ·
+    @foreach (var (currency, total) in AutoCollectionService.CurrencyTotals(_candidates))
     {
-        <text>@toplam.ToString("N2") @doviz · </text>
+        <text>@total.ToString("N2") @currency · </text>
     }
-    borçlu cari @_adaylar.Count(a => a.CariBakiye > 0)</p>
+    borçlu cari @_candidates.Count(a => a.CariBakiye > 0)</p>
 
-@if (_adaylar.Count == 0)
+@if (_candidates.Count == 0)
 {
     <p class="muted">Vadesi gelmiş, kesilmeyi bekleyen dönem yok.</p>
 }
@@ -66,7 +66,7 @@ else
                     <th>Bitiş</th><th>Müşteri</th><th>Şube</th><th class="num">Kira Tutarı (kendi dövizinde)</th>
                     <th>Döviz</th><th class="num">Cari Bakiye ₺</th></tr></thead>
                 <tbody>
-                    @foreach (var a in _adaylar)
+                    @foreach (var a in _candidates)
                     {
                         <tr>
                             <td><input type="checkbox" name="secili" value="@($"{a.RentalId}:{a.DonemSira}")" /></td>
@@ -109,16 +109,16 @@ else
     [SupplyParameterFromQuery(Name = "max")] public string? Max { get; set; }
     [SupplyParameterFromQuery(Name = "bakiyeli")] public string? Bakiyeli { get; set; }
 
-    private IReadOnlyList<OtomatikTahsilatAdayi> _adaylar = [];
-    private bool _jobAcik;
+    private IReadOnlyList<OtomatikTahsilatAdayi> _candidates = [];
+    private bool _jobEnabled;
 
     private bool FiltreVar => !string.IsNullOrWhiteSpace(Soz) || !string.IsNullOrWhiteSpace(Min)
         || !string.IsNullOrWhiteSpace(Max) || !string.IsNullOrWhiteSpace(Bakiyeli);
 
     protected override async Task OnInitializedAsync()
     {
-        _jobAcik = (await Ayarlar.GetAsync())?.DonemselOtomatikTahsilat ?? false;
-        _adaylar = await Tetik.CandidatesAsync(new OtomatikTahsilatFiltre
+        _jobEnabled = (await Ayarlar.GetAsync())?.DonemselOtomatikTahsilat ?? false;
+        _candidates = await Tetik.CandidatesAsync(new OtomatikTahsilatFiltre
         {
             SozlesmeNo = Soz,
             VadeMin = DateTimeOffset.TryParse(Min, out var a) ? new DateTimeOffset(a.Date, TimeSpan.Zero) : null,

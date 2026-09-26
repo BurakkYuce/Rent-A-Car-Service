@@ -23,10 +23,10 @@ public static partial class PlatformApi
         d.MapGet("", ListDocuments);
         d.MapPost("", UploadDocument).DisableAntiforgery() // CSRF: group header filter (X-XSRF-TOKEN)
             .WithMetadata(new RequestSizeLimitAttribute(DocumentRequestLimit))
-            .AlanlariEsle(DocumentRules);
+            .MapFields(DocumentRules);
         d.MapPost("/{id:guid}/surum", UploadDocumentVersion).DisableAntiforgery()
             .WithMetadata(new RequestSizeLimitAttribute(DocumentRequestLimit))
-            .AlanlariEsle(DocumentRules);
+            .MapFields(DocumentRules);
         d.MapPost("/{id:guid}/durum", ChangeDocumentStatus);
         d.MapDelete("/{id:guid}", DeleteDocument);
         d.MapGet("/{id:guid}/icerik", DocumentContent)
@@ -39,7 +39,7 @@ public static partial class PlatformApi
         ("Belge başlığı", "baslik"), ("Başlık", "baslik"), ("Dosya", "dosya"), ("Yalnız PDF", "dosya"),
     ];
 
-    private static ProblemHttpResult DocumentNotFound() => F5Ortak.Bulunamadi("Belge bulunamadı.");
+    private static ProblemHttpResult DocumentNotFound() => F5Shared.NotFound("Belge bulunamadı.");
 
     private static PlatformConsoleDocumentDto ToDto(PlatformAdminService.PlatformBelgeSatiri b) => new(
         b.Id, b.Baslik, b.Aciklama, b.DosyaAdi, b.Boyut, b.Surum, DocumentStatusName(b.Durum),
@@ -53,10 +53,10 @@ public static partial class PlatformApi
     };
 
     private static async Task<PlatformConsoleDocumentDto?> FindDocumentAsync(PlatformAdminService svc, Guid id, CancellationToken ct)
-        => (await svc.ListBelgelerAsync(ct)).FirstOrDefault(b => b.Id == id) is { } b ? ToDto(b) : null;
+        => (await svc.ListDocumentsAsync(ct)).FirstOrDefault(b => b.Id == id) is { } b ? ToDto(b) : null;
 
     private static async Task<Ok<IReadOnlyList<PlatformConsoleDocumentDto>>> ListDocuments(PlatformAdminService svc, CancellationToken ct)
-        => TypedResults.Ok<IReadOnlyList<PlatformConsoleDocumentDto>>((await svc.ListBelgelerAsync(ct)).Select(ToDto).ToList());
+        => TypedResults.Ok<IReadOnlyList<PlatformConsoleDocumentDto>>((await svc.ListDocumentsAsync(ct)).Select(ToDto).ToList());
 
     /// <summary>Reads an uploaded PDF with the size checked BEFORE buffering (the request cap is the outer fence).</summary>
     private static async Task<byte[]> ReadPdfAsync(IFormFile? file, CancellationToken ct)
@@ -77,11 +77,11 @@ public static partial class PlatformApi
     private static async Task<Results<Created<PlatformConsoleDocumentDto>, ProblemHttpResult>> UploadDocument(
         [FromForm] PlatformDocumentUploadForm form, HttpContext http, PlatformAdminService svc, CancellationToken ct)
     {
-        var (baslik, aciklama, dosya, yalnizYoneticiler, hedef) =
+        var (title, description, file, managersOnly, target) =
             (form.Baslik, form.Aciklama, form.Dosya, form.YalnizYoneticiler, form.Hedef);
-        if ((aciklama ?? "").Trim().Length > 1000)
+        if ((description ?? "").Trim().Length > 1000)
             throw new ValidationException("Açıklama en çok 1000 karakter olabilir.", "aciklama");
-        var onlyManagers = (yalnizYoneticiler ?? "").Trim().ToLowerInvariant() switch
+        var onlyManagers = (managersOnly ?? "").Trim().ToLowerInvariant() switch
         {
             "" or "false" => false,
             "true" => true,
@@ -89,7 +89,7 @@ public static partial class PlatformApi
         };
 
         var targets = new List<Guid>();
-        foreach (var raw in hedef ?? [])
+        foreach (var raw in target ?? [])
         {
             if (string.IsNullOrWhiteSpace(raw)) continue;
             if (!Guid.TryParse(raw, out var tid)) throw new ValidationException("Hedef firma kimliği geçersiz.", "hedef");
@@ -101,8 +101,8 @@ public static partial class PlatformApi
             if (targets.Any(t => !known.Contains(t))) throw new ValidationException("Hedef firma bulunamadı.", "hedef");
         }
 
-        var bytes = await ReadPdfAsync(dosya, ct);
-        var id = await svc.BelgeYukleAsync(baslik ?? "", aciklama, dosya!.FileName, bytes, targets, onlyManagers,
+        var bytes = await ReadPdfAsync(file, ct);
+        var id = await svc.UploadDocumentAsync(title ?? "", description, file!.FileName, bytes, targets, onlyManagers,
             OperatorName(http), ct);
         return await FindDocumentAsync(svc, id, ct) is { } dto
             ? TypedResults.Created($"{Root}/belgeler/{id}", dto)
@@ -114,7 +114,7 @@ public static partial class PlatformApi
     {
         if (await FindDocumentAsync(svc, id, ct) is null) return DocumentNotFound();
         var bytes = await ReadPdfAsync(dosya, ct);
-        await svc.BelgeSurumGuncelleAsync(id, dosya!.FileName, bytes, OperatorName(http), ct);
+        await svc.UpdateDocumentVersionAsync(id, dosya!.FileName, bytes, OperatorName(http), ct);
         return await FindDocumentAsync(svc, id, ct) is { } dto ? TypedResults.Ok(dto) : DocumentNotFound();
     }
 
@@ -131,7 +131,7 @@ public static partial class PlatformApi
             "arsiv" => PlatformBelgeDurum.Arsiv,
             _ => throw new ValidationException("Durum Taslak, Yayinda ya da Arsiv olmalıdır.", "durum"),
         };
-        await svc.BelgeDurumAsync(id, status, OperatorName(http), ct);
+        await svc.DocumentStatusAsync(id, status, OperatorName(http), ct);
         return await FindDocumentAsync(svc, id, ct) is { } dto ? TypedResults.Ok(dto) : DocumentNotFound();
     }
 
@@ -139,7 +139,7 @@ public static partial class PlatformApi
         Guid id, HttpContext http, PlatformAdminService svc, CancellationToken ct)
     {
         if (await FindDocumentAsync(svc, id, ct) is null) return DocumentNotFound();
-        await svc.BelgeSilAsync(id, OperatorName(http), ct);
+        await svc.DeleteDocumentAsync(id, OperatorName(http), ct);
         return TypedResults.NoContent();
     }
 
@@ -147,7 +147,7 @@ public static partial class PlatformApi
     /// sanitized ASCII file name (Blazor parity).</summary>
     private static async Task<Results<FileContentHttpResult, ProblemHttpResult>> DocumentContent(
         Guid id, PlatformAdminService svc, CancellationToken ct)
-        => await svc.BelgeIcerikAsync(id, ct) is { } c
+        => await svc.DocumentContentAsync(id, ct) is { } c
             ? TypedResults.File(c.Bytes, "application/pdf", c.DosyaAdi)
             : DocumentNotFound();
 }

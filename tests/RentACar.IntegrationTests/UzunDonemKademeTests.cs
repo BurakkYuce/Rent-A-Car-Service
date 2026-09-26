@@ -22,23 +22,23 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class UzunDonemKademeTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
+    private static readonly DateTimeOffset Start = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(5);
 
-    private static async Task SeedMatrisAsync(IServiceProvider sp, decimal? haftalik, decimal? aylik)
+    private static async Task SeedMatrixAsync(IServiceProvider sp, decimal? weekly, decimal? monthly)
     {
         await sp.GetRequiredService<VehicleGroupService>().CreateAsync(new VehicleGroupInput
         { Kod = "EKO", Ad = "Ekonomik", GunlukKmLimiti = 300, AsimKmUcreti = 5.00m });
         await sp.GetRequiredService<RateMatrixService>().CreateAsync(new RateMatrixInput
         {
             Kod = "EKO-STD", Ad = "Eko Standart", AracGrupKod = "EKO", ParaBirimi = "TRY",
-            Gun7 = 700m, GunHaftalik = haftalik, GunAylik = aylik,
+            Gun7 = 700m, GunHaftalik = weekly, GunAylik = monthly,
             OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
     }
 
-    private static Task<QuoteResult> TeklifAsync(IServiceProvider sp, DateTimeOffset bit) =>
+    private static Task<QuoteResult> QuoteAsync(IServiceProvider sp, DateTimeOffset bit) =>
         sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = Bas, BitTar = bit });
+        { AracGrupKod = "EKO", BasTar = Start, BitTar = bit });
 
     [Fact]
     public async Task Kademeler_elle_oracle()
@@ -46,29 +46,29 @@ public sealed class UzunDonemKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedMatrisAsync(sp, haftalik: 650m, aylik: 500m);
+        await SeedMatrixAsync(sp, weekly: 650m, monthly: 500m);
 
-        var g7 = await TeklifAsync(sp, Bas.AddDays(7));      // 7g: haftalık DEĞİL → Gun7 700 → 4900
+        var g7 = await QuoteAsync(sp, Start.AddDays(7));      // 7g: haftalık DEĞİL → Gun7 700 → 4900
         Assert.Equal(700.00m, g7.GunlukUcret);
         Assert.Equal(4900.00m, g7.GenelToplam);
 
-        var g10 = await TeklifAsync(sp, Bas.AddDays(10));    // 10g: haftalık 650 → 6500
+        var g10 = await QuoteAsync(sp, Start.AddDays(10));    // 10g: haftalık 650 → 6500
         Assert.Equal(650.00m, g10.GunlukUcret);
         Assert.Equal(6500.00m, g10.GenelToplam);
 
-        var g30 = await TeklifAsync(sp, Bas.AddDays(30));    // 30g: aylık 500 → 15000
+        var g30 = await QuoteAsync(sp, Start.AddDays(30));    // 30g: aylık 500 → 15000
         Assert.Equal(500.00m, g30.GunlukUcret);
         Assert.Equal(15000.00m, g30.GenelToplam);
 
         // 29g: 650×29 = 18850 > 30×500 = 15000 → TERS-DÖNME bilgisi notu (otomatik düzeltme yok).
-        var g29 = await TeklifAsync(sp, Bas.AddDays(29));
+        var g29 = await QuoteAsync(sp, Start.AddDays(29));
         Assert.Equal(18850.00m, g29.GenelToplam);
         Assert.Contains(g29.Notlar, n => n.Contains("30 güne uzatmak toplamda daha ucuz"));
 
         // ComputeGun sınırı: 29 gün 23 saat → 30 gün sayılır → aylık kademe.
-        var sinir = await TeklifAsync(sp, Bas.AddDays(29).AddHours(23));
-        Assert.Equal(30, sinir.Gun);
-        Assert.Equal(15000.00m, sinir.GenelToplam);
+        var limit = await QuoteAsync(sp, Start.AddDays(29).AddHours(23));
+        Assert.Equal(30, limit.Gun);
+        Assert.Equal(15000.00m, limit.GenelToplam);
     }
 
     [Fact]
@@ -77,10 +77,10 @@ public sealed class UzunDonemKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedMatrisAsync(sp, haftalik: null, aylik: null);
+        await SeedMatrixAsync(sp, weekly: null, monthly: null);
 
         // Geriye uyum: uzun-dönem kolonları null → bugünkü Gun7-clamp davranışı + açık not.
-        var g10 = await TeklifAsync(sp, Bas.AddDays(10));
+        var g10 = await QuoteAsync(sp, Start.AddDays(10));
         Assert.Equal(7000.00m, g10.GenelToplam);             // 10 × 700 (elle)
         Assert.Contains(g10.Notlar, n => n.Contains("uzun-dönem kademesi"));
     }
@@ -91,22 +91,22 @@ public sealed class UzunDonemKademeTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedMatrisAsync(sp, haftalik: 650m, aylik: 500m);
+        await SeedMatrixAsync(sp, weekly: 650m, monthly: 500m);
         var v = await sp.GetRequiredService<VehicleService>()
             .CreateAsync(new VehicleInput { Plaka = "34 UD 01", Grup = "EKO" });
         var m = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "UD", Soyad = "M" });
 
-        BookingInput Girdi(int gun) => new()
-        { MusteriId = m, VehicleId = v, BasTar = Bas, BitTar = Bas.AddDays(gun), FiyatTuru = "Otomatik" };
+        BookingInput Input(int day) => new()
+        { MusteriId = m, VehicleId = v, BasTar = Start, BitTar = Start.AddDays(day), FiyatTuru = "Otomatik" };
 
-        var rez = sp.GetRequiredService<ReservationService>();
-        var id = await rez.CreateAsync(Girdi(7));
-        Assert.Equal(4900.00m, (await rez.GetAsync(id))!.Tutar);   // 7 × 700 (elle)
+        var res = sp.GetRequiredService<ReservationService>();
+        var id = await res.CreateAsync(Input(7));
+        Assert.Equal(4900.00m, (await res.GetAsync(id))!.Tutar);   // 7 × 700 (elle)
 
         // 10 güne uzat: reprice kademe atlar → 10 × 650 = 6500 (7×700 kalıntısı DEĞİL).
-        await rez.UpdateAsync(id, Girdi(10));
-        var g = (await rez.GetAsync(id))!;
+        await res.UpdateAsync(id, Input(10));
+        var g = (await res.GetAsync(id))!;
         Assert.Equal(6500.00m, g.Tutar);
         Assert.Equal(650.00m, g.GunlukUcret);
     }

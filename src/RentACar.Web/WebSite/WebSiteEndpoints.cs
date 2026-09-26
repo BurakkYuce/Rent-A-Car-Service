@@ -11,7 +11,7 @@ namespace RentACar.Web.WebSite;
 /// <summary>
 /// PR-12/13: "Web Sitesi" modülünün form-POST uçları — ilan sihirbazının üç adımı.
 ///
-/// İKİ KATMANLI KAPI: <see cref="AuthExtensions.RequireWebSitesiModulu"/> (satın alma, platform
+/// İKİ KATMANLI KAPI: <see cref="AuthExtensions.RequireWebsiteModule"/> (satın alma, platform
 /// kararı) + <see cref="Permission.OperationsWrite"/> (rol). Yeni bir <c>Permission</c> enum değeri
 /// EKLENMEDİ (matris testlerini dalgalandırır); daraltma <c>ScreenPermissionService</c>'in
 /// "web-sitesi" ekran kodu ile yapılır.
@@ -26,26 +26,26 @@ public static class WebSiteEndpoints
     {
         var grp = app.MapGroup("/web-sitesi")
             .RequirePermission(Permission.OperationsWrite)
-            .RequireWebSitesiModulu()
+            .RequireWebsiteModule()
             .AntiforgeryByEnv();
 
         // ---- Adım 1: araç seçimi → TASLAK ilan(lar) ----
         grp.MapPost("/ilan/olustur", async (WebListingService svc, HttpRequest req) =>
         {
-            var ayri = req.Form["mod"].ToString() == "ayri"; // varsayılan: beraber
+            var separate = req.Form["mod"].ToString() == "ayri"; // varsayılan: beraber
             try
             {
                 // Beraber modda form İMZA gönderir (bir satır = bir model kümesi), ayrı modda ARAÇ ID'si.
-                var ilanId = ayri
+                var listingId = separate
                     ? await svc.StepOneAsync(
                         [.. req.Form["aracId"].Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty)],
                         together: false)
                     : await svc.StepOneSignatureAsync([.. req.Form["imza"].Select(s => s ?? "").Where(s => s.Length > 0)]);
-                return Sonuc.Tamam($"/web-sitesi/ilan/{ilanId}/fiyat", "Kayıt oluşturuldu.");
+                return Result.Ok($"/web-sitesi/ilan/{listingId}/fiyat", "Kayıt oluşturuldu.");
             }
             catch (ValidationException ex)
             {
-                return Geri("/web-sitesi/arac-ekle" + (ayri ? "?mod=ayri" : ""), ex);
+                return Back("/web-sitesi/arac-ekle" + (separate ? "?mod=ayri" : ""), ex);
             }
         });
 
@@ -60,9 +60,9 @@ public static class WebSiteEndpoints
                     FormParse.Dec(FormParse.Str(f, "haftalikToplam")),
                     FormParse.Dec(FormParse.Str(f, "aylikToplam")),
                     f["kdvDahil"].ToString() != "false");
-                return Sonuc.Tamam($"/web-sitesi/ilan/{id}/ozellikler", "Kaydedildi.");
+                return Result.Ok($"/web-sitesi/ilan/{id}/ozellikler", "Kaydedildi.");
             }
-            catch (ValidationException ex) { return Geri($"/web-sitesi/ilan/{id}/fiyat", ex); }
+            catch (ValidationException ex) { return Back($"/web-sitesi/ilan/{id}/fiyat", ex); }
         });
 
         // ---- Adım 3: teknik özellikler → YAYINDA ----
@@ -70,30 +70,30 @@ public static class WebSiteEndpoints
         {
             var f = req.Form;
             // Satırlar paralel dizilerle gelir: etiket[i] / deger[i] / gorunur (checkbox → index listesi).
-            var etiketler = f["etiket"];
-            var degerler = f["deger"];
-            var gorunurler = f["gorunur"].Select(s => s ?? "").ToHashSet(StringComparer.Ordinal);
+            var labels = f["etiket"];
+            var values = f["deger"];
+            var visibleItems = f["gorunur"].Select(s => s ?? "").ToHashSet(StringComparer.Ordinal);
 
-            var satirlar = new List<OzellikSatiri>();
-            for (var i = 0; i < etiketler.Count; i++)
+            var rows = new List<OzellikSatiri>();
+            for (var i = 0; i < labels.Count; i++)
             {
-                var etiket = etiketler[i] ?? "";
-                var deger = i < degerler.Count ? degerler[i] ?? "" : "";
-                if (string.IsNullOrWhiteSpace(etiket) || string.IsNullOrWhiteSpace(deger)) continue;
-                satirlar.Add(new OzellikSatiri(etiket, deger, gorunurler.Contains(i.ToString())));
+                var label = labels[i] ?? "";
+                var value = i < values.Count ? values[i] ?? "" : "";
+                if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(value)) continue;
+                rows.Add(new OzellikSatiri(label, value, visibleItems.Contains(i.ToString())));
             }
 
             try
             {
                 // false = özellikler kaydedildi ama FOTOĞRAF olmadığı için taslakta kaldı. Sessizce
                 // "yayınlandı" demek yalan olurdu: vitrin fotosuz ilanı hiç göstermiyor.
-                if (await svc.StepThreeAsync(id, satirlar))
+                if (await svc.StepThreeAsync(id, rows))
                     return Results.Redirect("/web-sitesi?ok=1");
                 return Results.Redirect($"/web-sitesi/ilan/{id}/ozellikler?hata="
                     + Uri.EscapeDataString("Özellikler kaydedildi. Yayınlamak için en az bir fotoğraf ekleyin — "
                         + "fotoğrafsız ilan sitede görünmez."));
             }
-            catch (ValidationException ex) { return Geri($"/web-sitesi/ilan/{id}/ozellikler", ex); }
+            catch (ValidationException ex) { return Back($"/web-sitesi/ilan/{id}/ozellikler", ex); }
         });
 
         // ---- Fotoğraflar (adım-3 içinde) ----
@@ -102,20 +102,20 @@ public static class WebSiteEndpoints
         // ulaşamıyordu (tek yol araç düzenleme ekranıydı). Yol artık sihirbazın içinde.
         grp.MapPost("/ilan/{id:guid}/foto", async (WebListingService svc, Guid id, IFormFile? foto) =>
         {
-            var geri = $"/web-sitesi/ilan/{id}/ozellikler";
-            if (foto is null || foto.Length == 0) return Results.Redirect(geri);
+            var back = $"/web-sitesi/ilan/{id}/ozellikler";
+            if (foto is null || foto.Length == 0) return Results.Redirect(back);
             using var ms = new MemoryStream();
             await foto.CopyToAsync(ms);
-            try { await svc.AddPhotoAsync(id, ms.ToArray()); return Results.Redirect(geri); }
-            catch (ValidationException ex) { return Geri(geri, ex); }
+            try { await svc.AddPhotoAsync(id, ms.ToArray()); return Results.Redirect(back); }
+            catch (ValidationException ex) { return Back(back, ex); }
         }).WithMetadata(new RequestSizeLimitAttribute(3_000_000)); // 2 MB foto + multipart payı (araç ucuyla aynı)
 
         grp.MapPost("/ilan/{id:guid}/foto/{vehicleId:guid}/{photoId:guid}/sil",
             async (WebListingService svc, Guid id, Guid vehicleId, Guid photoId) =>
         {
-            var geri = $"/web-sitesi/ilan/{id}/ozellikler";
-            try { await svc.DeletePhotoAsync(id, vehicleId, photoId); return Results.Redirect(geri); }
-            catch (ValidationException ex) { return Geri(geri, ex); }
+            var back = $"/web-sitesi/ilan/{id}/ozellikler";
+            try { await svc.DeletePhotoAsync(id, vehicleId, photoId); return Results.Redirect(back); }
+            catch (ValidationException ex) { return Back(back, ex); }
         });
 
         // ---- Yönetim ----
@@ -126,18 +126,18 @@ public static class WebSiteEndpoints
                 await svc.SetStatusAsync(id, durum == "pasif" ? WebIlanDurum.Pasif : WebIlanDurum.Yayinda);
                 return Results.Redirect("/web-sitesi?ok=1");
             }
-            catch (ValidationException ex) { return Geri("/web-sitesi", ex); }
+            catch (ValidationException ex) { return Back("/web-sitesi", ex); }
         });
 
         grp.MapPost("/ilan/{id:guid}/sil", async (WebListingService svc, Guid id) =>
         {
             try { await svc.DeleteAsync(id); return Results.Redirect("/web-sitesi?ok=1"); }
-            catch (ValidationException ex) { return Geri("/web-sitesi", ex); }
+            catch (ValidationException ex) { return Back("/web-sitesi", ex); }
         });
 
         return app;
     }
 
-    private static IResult Geri(string yol, ValidationException ex)
-        => Results.Redirect(yol + (yol.Contains('?') ? "&" : "?") + "hata=" + Uri.EscapeDataString(ex.Message));
+    private static IResult Back(string path, ValidationException ex)
+        => Results.Redirect(path + (path.Contains('?') ? "&" : "?") + "hata=" + Uri.EscapeDataString(ex.Message));
 }

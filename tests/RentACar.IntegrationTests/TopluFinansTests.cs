@@ -18,12 +18,12 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class TopluFinansTests(PostgresFixture fx)
 {
-    private static CashInput Row(Guid cari, decimal tutar) => new()
-    { CariId = cari, Tutar = tutar, Doviz = "TRY", Kur = 1m, Hesap = LedgerAccountType.Kasa, Aciklama = "Toplu" };
+    private static CashInput Row(Guid account, decimal amount) => new()
+    { CariId = account, Tutar = amount, Doviz = "TRY", Kur = 1m, Hesap = LedgerAccountType.Kasa, Aciklama = "Toplu" };
 
     // Toplu yol artık cari varlığını denetler (tekil yolla aynı kural) → satırlar GERÇEK cari ister.
-    private static Task<Guid> CariAsync(IServiceProvider sp, string ad) =>
-        sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = ad });
+    private static Task<Guid> CustomerAsync(IServiceProvider sp, string name) =>
+        sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = name });
 
     // ---- Toplu tahsilat ----
 
@@ -33,9 +33,9 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = await CariAsync(scope.ServiceProvider, "A");
-        var b = await CariAsync(scope.ServiceProvider, "B");
-        var c = await CariAsync(scope.ServiceProvider, "C");
+        var a = await CustomerAsync(scope.ServiceProvider, "A");
+        var b = await CustomerAsync(scope.ServiceProvider, "B");
+        var c = await CustomerAsync(scope.ServiceProvider, "C");
 
         await cash.BatchCollectAsync([Row(a, 1500m), Row(b, 2000m), Row(c, 500m)]);
 
@@ -48,10 +48,10 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         await using var db = await factory.CreateDbContextAsync();
         var entries = await db.AccountLedgerEntries.AsNoTracking().Where(e => e.SourceType == "Tahsilat").ToListAsync();
         Assert.Equal(6, entries.Count); // 3 satır × 2 kayıt
-        var borc = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.Amount * e.Amount.Rate);
-        var alacak = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.Amount * e.Amount.Rate);
-        Assert.Equal(borc, alacak);
-        Assert.Equal(4000m, borc);
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.Amount * e.Amount.Rate);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.Amount * e.Amount.Rate);
+        Assert.Equal(debit, credit);
+        Assert.Equal(4000m, debit);
         // 3 ayrı No tahsis edildi (boşluksuz, benzersiz).
         var nos = await db.CashTransactions.AsNoTracking().Select(t => t.No).ToListAsync();
         Assert.Equal(3, nos.Distinct().Count());
@@ -63,7 +63,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = await CariAsync(scope.ServiceProvider, "A");
+        var a = await CustomerAsync(scope.ServiceProvider, "A");
 
         // 2. satır geçersiz (boş cari) → TÜM batch reddedilir, hiçbir şey yazılmaz.
         await Assert.ThrowsAsync<ValidationException>(
@@ -86,7 +86,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var cash = scope.ServiceProvider.GetRequiredService<CashService>();
-        var a = await CariAsync(scope.ServiceProvider, "A");
+        var a = await CustomerAsync(scope.ServiceProvider, "A");
         var key = Guid.NewGuid();
 
         await cash.BatchCollectAsync([Row(a, 1000m)], key);
@@ -134,7 +134,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var a = await CariAsync(sp, "A");
+        var a = await CustomerAsync(sp, "A");
         var ghost = Guid.NewGuid(); // hiç var olmayan cari
 
         IReadOnlyList<CashInput> rows = [Row(a, 1500m), Row(ghost, 100m)];
@@ -157,12 +157,12 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         var t1 = Guid.NewGuid(); var t2 = Guid.NewGuid();
         Guid foreign;
-        using (var s2 = host.ScopeFor(t2)) foreign = await CariAsync(s2.ServiceProvider, "Yabancı");
+        using (var s2 = host.ScopeFor(t2)) foreign = await CustomerAsync(s2.ServiceProvider, "Yabancı");
 
         using var s1 = host.ScopeFor(t1);
         var sp = s1.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var own = await CariAsync(sp, "Kendi");
+        var own = await CustomerAsync(sp, "Kendi");
 
         IReadOnlyList<CashInput> rows = [Row(foreign, 250m), Row(own, 100m)];
         var ex = await Assert.ThrowsAsync<ValidationException>(
@@ -182,8 +182,8 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         var cash = sp.GetRequiredService<CashService>();
-        var a = await CariAsync(sp, "A");
-        var b = await CariAsync(sp, "B");
+        var a = await CustomerAsync(sp, "A");
+        var b = await CustomerAsync(sp, "B");
 
         // Aynı cari iki satırda (tekrarlı kimlik) da geçerli.
         await cash.BatchPayAsync([Row(a, 300m), Row(b, 200m), Row(a, 50m)]);
@@ -200,7 +200,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
 
     // ---- Toplu gider ----
 
-    private static ExpenseInput Gider(decimal net) => new()
+    private static ExpenseInput MakeExpense(decimal net) => new()
     {
         Tip = ExpenseType.Genel, NetTutar = net, KdvOrani = 0.20m, Doviz = "TRY", Kur = 1m,
         OdemeYontemi = PaymentMethod.Nakit, Aciklama = "Toplu gider"
@@ -213,15 +213,15 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var exp = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
-        await exp.BatchCreateAsync([Gider(1000m), Gider(500m)]);
+        await exp.BatchCreateAsync([MakeExpense(1000m), MakeExpense(500m)]);
 
         Assert.Equal(2, (await exp.ListAsync()).Count);
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         var entries = await db.AccountLedgerEntries.AsNoTracking().Where(e => e.SourceType == "Gider").ToListAsync();
-        var borc = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.Amount * e.Amount.Rate);
-        var alacak = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.Amount * e.Amount.Rate);
-        Assert.Equal(borc, alacak); // her kalem dengeli → toplam dengeli
+        var debit = entries.Where(e => e.Direction == LedgerDirection.Debit).Sum(e => e.Amount.Amount * e.Amount.Rate);
+        var credit = entries.Where(e => e.Direction == LedgerDirection.Credit).Sum(e => e.Amount.Amount * e.Amount.Rate);
+        Assert.Equal(debit, credit); // her kalem dengeli → toplam dengeli
     }
 
     [Fact]
@@ -232,7 +232,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         var exp = scope.ServiceProvider.GetRequiredService<ExpenseService>();
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => exp.BatchCreateAsync([Gider(1000m), Gider(0m)])); // 2. kalem net 0 → hep-ya-hiç
+            () => exp.BatchCreateAsync([MakeExpense(1000m), MakeExpense(0m)])); // 2. kalem net 0 → hep-ya-hiç
         Assert.Empty(await exp.ListAsync());
     }
 
@@ -244,8 +244,8 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         var exp = scope.ServiceProvider.GetRequiredService<ExpenseService>();
         var key = Guid.NewGuid();
 
-        await exp.BatchCreateAsync([Gider(1000m)], key);
-        await Assert.ThrowsAsync<DuplicateOperationException>(() => exp.BatchCreateAsync([Gider(1000m)], key));
+        await exp.BatchCreateAsync([MakeExpense(1000m)], key);
+        await Assert.ThrowsAsync<DuplicateOperationException>(() => exp.BatchCreateAsync([MakeExpense(1000m)], key));
         Assert.Single(await exp.ListAsync());
     }
 
@@ -257,7 +257,7 @@ public sealed class TopluFinansTests(PostgresFixture fx)
         Guid a;
         using (var s1 = host.ScopeFor(t1))
         {
-            a = await CariAsync(s1.ServiceProvider, "A");
+            a = await CustomerAsync(s1.ServiceProvider, "A");
             await s1.ServiceProvider.GetRequiredService<CashService>().BatchCollectAsync([Row(a, 700m)]);
         }
 

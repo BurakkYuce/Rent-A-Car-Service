@@ -29,11 +29,11 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(10);
 
     /// <summary>10 araçlı EKO filosu; 42/50 araç-gün dolu → %84 (elle sayıldı).</summary>
-    private static async Task SeedFiloAsync(IServiceProvider sp, string? aracSube = null)
+    private static async Task SeedFleetAsync(IServiceProvider sp, string? vehicleBranch = null)
     {
         await sp.GetRequiredService<VehicleGroupService>().CreateAsync(new VehicleGroupInput
         { Kod = "EKO", Ad = "Ekonomik" });
@@ -44,22 +44,22 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
             OnayDurumu = TariffApprovalStatus.Onayli, Onaylayan = "t"
         });
         var veh = sp.GetRequiredService<VehicleService>();
-        var araclar = new List<Guid>();
+        var vehicles = new List<Guid>();
         for (var i = 1; i <= 10; i++)
-            araclar.Add(await veh.CreateAsync(new VehicleInput { Plaka = $"34 YZ {i:00}", Grup = "EKO", Sube = aracSube }));
+            vehicles.Add(await veh.CreateAsync(new VehicleInput { Plaka = $"34 YZ {i:00}", Grup = "EKO", Sube = vehicleBranch }));
         var m = await sp.GetRequiredService<CustomerService>().CreateAsync(new CustomerInput
         { Tip = CustomerType.Bireysel, Ad = "Dolu", Soyad = "M" });
         var rentals = sp.GetRequiredService<RentalService>();
         for (var i = 0; i < 8; i++)   // 8 araç × 5 gün = 40 araç-gün
             await rentals.CreateDirectAsync(new BookingInput
-            { MusteriId = m, VehicleId = araclar[i], BasTar = Bas, BitTar = Bas.AddDays(5), GunlukUcret = 100m });
+            { MusteriId = m, VehicleId = vehicles[i], BasTar = Start, BitTar = Start.AddDays(5), GunlukUcret = 100m });
         await rentals.CreateDirectAsync(new BookingInput  // 9. araç 2 gün → toplam 42
-        { MusteriId = m, VehicleId = araclar[8], BasTar = Bas, BitTar = Bas.AddDays(2), GunlukUcret = 100m });
+        { MusteriId = m, VehicleId = vehicles[8], BasTar = Start, BitTar = Start.AddDays(2), GunlukUcret = 100m });
     }
 
-    private static Task<QuoteResult> Teklif(IServiceProvider sp, string? sube = null)
+    private static Task<QuoteResult> GetQuote(IServiceProvider sp, string? branch = null)
         => sp.GetRequiredService<RentalQuoteEngine>().QuoteAsync(new QuoteRequest
-        { AracGrupKod = "EKO", BasTar = Bas, BitTar = Bas.AddDays(5), Sube = sube, SigortaUrunKodlari = [] });
+        { AracGrupKod = "EKO", BasTar = Start, BitTar = Start.AddDays(5), Sube = branch, SigortaUrunKodlari = [] });
 
     // ---------------------------------------------------------------------------------------
     // 1) KIRILGAN REGRESYON — "fiyat DEĞİŞMEDİ"
@@ -80,10 +80,10 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedFiloAsync(sp);
+        await SeedFleetAsync(sp);
 
         // (a) Hiç doluluk kuralı yok → tarife kademesi aynen: 1000/gün, 5 gün = 5000.
-        var q0 = await Teklif(sp);
+        var q0 = await GetQuote(sp);
         Assert.Equal(1000m, q0.GunlukUcret);
         Assert.Equal(5000m, q0.BazTutar);
         Assert.Equal(5000m, q0.GenelToplam);
@@ -94,17 +94,17 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
         { Kod = "D80", Ad = "Doluluk 80", EsikYuzde = 80, CarpanYuzde = 15m, Sube = "Merkez" });
 
-        var q1 = await Teklif(sp);                    // teklifte şube YOK
+        var q1 = await GetQuote(sp);                    // teklifte şube YOK
         Assert.Equal(1150m, q1.GunlukUcret);
         Assert.Equal(5750m, q1.BazTutar);
-        var q2 = await Teklif(sp, sube: "Baska");     // teklifte ALAKASIZ şube
+        var q2 = await GetQuote(sp, branch: "Baska");     // teklifte ALAKASIZ şube
         Assert.Equal(1150m, q2.GunlukUcret);
         Assert.Equal(5750m, q2.BazTutar);
 
         // (c) Kampanya durumu varsayılan (Aktif) iskonto kuralı → 5750 × 0,90 = 5175.
         await sp.GetRequiredService<RentalRuleService>()
             .CreateAsync(new RentalRuleInput { Kod = "GENEL", Ad = "G", Iskonto = 10m });
-        var q3 = await Teklif(sp);
+        var q3 = await GetQuote(sp);
         Assert.Equal(575m, q3.IskontoTutar);
         Assert.Equal(5175m, q3.GenelToplam);
     }
@@ -120,24 +120,24 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedFiloAsync(sp);
+        await SeedFleetAsync(sp);
         await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
         { Kod = "D80", Ad = "Doluluk 80", EsikYuzde = 80, CarpanYuzde = 15m });
-        var kurallar = sp.GetRequiredService<RentalRuleService>();
-        var id = await kurallar.CreateAsync(new RentalRuleInput
+        var rules = sp.GetRequiredService<RentalRuleService>();
+        var id = await rules.CreateAsync(new RentalRuleInput
         { Kod = "GENEL", Ad = "G", Iskonto = 10m, TarihTipi = RuleDateType.Rezervasyon });
 
-        var once = await Teklif(sp);
+        var once = await GetQuote(sp);
         Assert.Equal(5175m, once.GenelToplam);
 
-        await kurallar.UpdateAsync(id, new RentalRuleInput
+        await rules.UpdateAsync(id, new RentalRuleInput
         { Kod = "GENEL", Ad = "G", Iskonto = 10m, TarihTipi = RuleDateType.Talep });
-        Assert.Equal(RuleDateType.Talep, (await kurallar.GetAsync(id))!.TarihTipi);
+        Assert.Equal(RuleDateType.Talep, (await rules.GetAsync(id))!.TarihTipi);
 
-        var sonra = await Teklif(sp);
-        Assert.Equal(5175m, sonra.GenelToplam);       // tek kuruş oynamadı
-        Assert.Equal(once.GunlukUcret, sonra.GunlukUcret);
-        Assert.Equal(once.IskontoTutar, sonra.IskontoTutar);
+        var after = await GetQuote(sp);
+        Assert.Equal(5175m, after.GenelToplam);       // tek kuruş oynamadı
+        Assert.Equal(once.GunlukUcret, after.GunlukUcret);
+        Assert.Equal(once.IskontoTutar, after.IskontoTutar);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -154,7 +154,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedFiloAsync(sp);
+        await SeedFleetAsync(sp);
         await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = "MRK", Ad = "Merkez" });
         await sp.GetRequiredService<BranchService>().CreateAsync(new BranchInput { Kod = "IZM", Ad = "Izmir" });
         await sp.GetRequiredService<OccupancyPriceRuleService>().CreateAsync(new DolulukFiyatKuralInput
@@ -163,22 +163,22 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
             Sube = "Merkez", SadeceKendiSubeleri = true
         });
 
-        var ayni = await Teklif(sp, sube: "Merkez");
-        Assert.Equal(1150m, ayni.GunlukUcret);
-        Assert.Equal(5750m, ayni.BazTutar);
-        Assert.Contains(ayni.Notlar, n => n.Contains("Doluluk %84"));
+        var same = await GetQuote(sp, branch: "Merkez");
+        Assert.Equal(1150m, same.GunlukUcret);
+        Assert.Equal(5750m, same.BazTutar);
+        Assert.Contains(same.Notlar, n => n.Contains("Doluluk %84"));
 
-        var farkli = await Teklif(sp, sube: "Izmir");
-        Assert.Equal(1000m, farkli.GunlukUcret);
-        Assert.Equal(5000m, farkli.BazTutar);
-        Assert.DoesNotContain(farkli.Notlar, n => n.Contains("Doluluk"));
+        var different = await GetQuote(sp, branch: "Izmir");
+        Assert.Equal(1000m, different.GunlukUcret);
+        Assert.Equal(5000m, different.BazTutar);
+        Assert.DoesNotContain(different.Notlar, n => n.Contains("Doluluk"));
 
-        var subesiz = await Teklif(sp);
-        Assert.Equal(1000m, subesiz.GunlukUcret);      // "belirtilmemiş" şube kısıtı DELMEZ
-        Assert.Equal(5000m, subesiz.BazTutar);
+        var withoutBranch = await GetQuote(sp);
+        Assert.Equal(1000m, withoutBranch.GunlukUcret);      // "belirtilmemiş" şube kısıtı DELMEZ
+        Assert.Equal(5000m, withoutBranch.BazTutar);
 
         // Şube eşleşmesi harf-duyarsız (RowMatches ile aynı konvansiyon).
-        Assert.Equal(1150m, (await Teklif(sp, sube: "merkez")).GunlukUcret);
+        Assert.Equal(1150m, (await GetQuote(sp, branch: "merkez")).GunlukUcret);
     }
 
     /// <summary>Şubesiz "sadece kendi şubesi" kuralı SESSİZCE ölü olurdu → giriş noktasında reddedilir.</summary>
@@ -207,23 +207,23 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedFiloAsync(sp);
+        await SeedFleetAsync(sp);
         var svc = sp.GetRequiredService<OccupancyPriceRuleService>();
 
-        var idler = await svc.BulkCreateAsync(new DolulukTopluInput
+        var ids = await svc.BulkCreateAsync(new DolulukTopluInput
         {
             KodOnEk = "yaz-eko", AdOnEk = "Yaz Doluluk", AracGrupKod = "EKO",
             Kademeler = [new(60, 5m), new(80, 20m), new(95, 40m)]
         });
-        Assert.Equal(3, idler.Count);
+        Assert.Equal(3, ids.Count);
 
-        var hepsi = await svc.ListAsync();
-        Assert.Equal(3, hepsi.Count);
-        Assert.Contains(hepsi, k => k.Kod == "YAZ-EKO-60" && k.EsikYuzde == 60 && k.CarpanYuzde == 5m);
-        Assert.Contains(hepsi, k => k.Kod == "YAZ-EKO-80" && k.Ad == "Yaz Doluluk %80");
-        Assert.Contains(hepsi, k => k.Kod == "YAZ-EKO-95" && k.CarpanYuzde == 40m);
+        var all = await svc.ListAsync();
+        Assert.Equal(3, all.Count);
+        Assert.Contains(all, k => k.Kod == "YAZ-EKO-60" && k.EsikYuzde == 60 && k.CarpanYuzde == 5m);
+        Assert.Contains(all, k => k.Kod == "YAZ-EKO-80" && k.Ad == "Yaz Doluluk %80");
+        Assert.Contains(all, k => k.Kod == "YAZ-EKO-95" && k.CarpanYuzde == 40m);
 
-        var q = await Teklif(sp);
+        var q = await GetQuote(sp);
         Assert.Equal(1200m, q.GunlukUcret);
         Assert.Equal(6000m, q.BazTutar);
     }
@@ -269,27 +269,27 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedFiloAsync(sp);
-        var kurallar = sp.GetRequiredService<RentalRuleService>();
+        await SeedFleetAsync(sp);
+        var rules = sp.GetRequiredService<RentalRuleService>();
 
-        var id = await kurallar.CreateAsync(new RentalRuleInput
+        var id = await rules.CreateAsync(new RentalRuleInput
         { Kod = "KAMP", Ad = "Kampanya", Iskonto = 10m, KampanyaDurum = CampaignStatus.Aktif });
-        Assert.Equal(4500m, (await Teklif(sp)).GenelToplam);   // 5000 − 500
+        Assert.Equal(4500m, (await GetQuote(sp)).GenelToplam);   // 5000 − 500
 
-        foreach (var durum in new[]
+        foreach (var status in new[]
                  { CampaignStatus.Planlandi, CampaignStatus.Taslak, CampaignStatus.Pasif, CampaignStatus.Iptal })
         {
-            await kurallar.UpdateAsync(id, new RentalRuleInput
-            { Kod = "KAMP", Ad = "Kampanya", Iskonto = 10m, KampanyaDurum = durum });
-            Assert.Equal(durum, (await kurallar.GetAsync(id))!.KampanyaDurum);
-            Assert.Empty(await kurallar.ListActiveAsync());
-            Assert.Equal(5000m, (await Teklif(sp)).GenelToplam);   // iskonto UYGULANMAZ
+            await rules.UpdateAsync(id, new RentalRuleInput
+            { Kod = "KAMP", Ad = "Kampanya", Iskonto = 10m, KampanyaDurum = status });
+            Assert.Equal(status, (await rules.GetAsync(id))!.KampanyaDurum);
+            Assert.Empty(await rules.ListActiveAsync());
+            Assert.Equal(5000m, (await GetQuote(sp)).GenelToplam);   // iskonto UYGULANMAZ
         }
 
         // Aktife dönünce iskonto geri gelir (durum gerçekten okunuyor, kalıcı bir yan etki değil).
-        await kurallar.UpdateAsync(id, new RentalRuleInput
+        await rules.UpdateAsync(id, new RentalRuleInput
         { Kod = "KAMP", Ad = "Kampanya", Iskonto = 10m, KampanyaDurum = CampaignStatus.Aktif });
-        Assert.Equal(4500m, (await Teklif(sp)).GenelToplam);
+        Assert.Equal(4500m, (await GetQuote(sp)).GenelToplam);
     }
 
     /// <summary>
@@ -306,21 +306,21 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         var tenant = Guid.NewGuid();
         using var scope = host.ScopeFor(tenant);
         var sp = scope.ServiceProvider;
-        var kurallar = sp.GetRequiredService<RentalRuleService>();
+        var rules = sp.GetRequiredService<RentalRuleService>();
 
         // (a) Eski yol: yalnız Aktif bayrağı.
-        var a = await kurallar.CreateAsync(new RentalRuleInput { Kod = "A", Ad = "A", Aktif = true });
-        var p = await kurallar.CreateAsync(new RentalRuleInput { Kod = "P", Ad = "P", Aktif = false });
-        Assert.Equal(CampaignStatus.Aktif, (await kurallar.GetAsync(a))!.KampanyaDurum);
-        Assert.Equal(CampaignStatus.Pasif, (await kurallar.GetAsync(p))!.KampanyaDurum);
-        Assert.Single(await kurallar.ListActiveAsync());        // yalnız A
+        var a = await rules.CreateAsync(new RentalRuleInput { Kod = "A", Ad = "A", Aktif = true });
+        var p = await rules.CreateAsync(new RentalRuleInput { Kod = "P", Ad = "P", Aktif = false });
+        Assert.Equal(CampaignStatus.Aktif, (await rules.GetAsync(a))!.KampanyaDurum);
+        Assert.Equal(CampaignStatus.Pasif, (await rules.GetAsync(p))!.KampanyaDurum);
+        Assert.Single(await rules.ListActiveAsync());        // yalnız A
 
         // (b) Yeni yol: durum verilir, Aktif ondan türetilir.
-        await kurallar.UpdateAsync(a, new RentalRuleInput
+        await rules.UpdateAsync(a, new RentalRuleInput
         { Kod = "A", Ad = "A", KampanyaDurum = CampaignStatus.Iptal, Aktif = true });   // Aktif=true YOK SAYILIR
-        var guncel = (await kurallar.GetAsync(a))!;
-        Assert.Equal(CampaignStatus.Iptal, guncel.KampanyaDurum);
-        Assert.False(guncel.Aktif);
+        var current = (await rules.GetAsync(a))!;
+        Assert.Equal(CampaignStatus.Iptal, current.KampanyaDurum);
+        Assert.False(current.Aktif);
 
         // (c) DB çiti: iki kolonu elle ayrıştırmak CHECK ihlaliyle reddedilir.
         var db = sp.GetRequiredService<IDbContextFactory<RentACar.Infrastructure.Persistence.AppDbContext>>();
@@ -390,24 +390,24 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
             Kod = "Y1", Ad = "Acenta kısıtı", Kaynak = "Acenta A",
             AracGrupKod = "EKO,STD", MinGun = 3, Aktif = true
         };
-        var liste = new List<BrokerYasak> { y };
+        var list = new List<BrokerYasak> { y };
         var t = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero);
 
-        Assert.NotNull(BrokerAvailability.Block(liste, "Acenta A", "EKO", null, 2, t));   // 2 < 3 → engel
-        Assert.Null(BrokerAvailability.Block(liste, "Acenta A", "EKO", null, 3, t));      // 3 ≥ 3 → serbest
-        Assert.Null(BrokerAvailability.Block(liste, "Acenta A", "LUX", null, 2, t));      // kapsam dışı grup
-        Assert.Null(BrokerAvailability.Block(liste, "Acenta B", "EKO", null, 2, t));      // başka kaynak
-        Assert.Null(BrokerAvailability.Block(liste, null, "EKO", null, 2, t));            // kaynak seçilmemiş
+        Assert.NotNull(BrokerAvailability.Block(list, "Acenta A", "EKO", null, 2, t));   // 2 < 3 → engel
+        Assert.Null(BrokerAvailability.Block(list, "Acenta A", "EKO", null, 3, t));      // 3 ≥ 3 → serbest
+        Assert.Null(BrokerAvailability.Block(list, "Acenta A", "LUX", null, 2, t));      // kapsam dışı grup
+        Assert.Null(BrokerAvailability.Block(list, "Acenta B", "EKO", null, 2, t));      // başka kaynak
+        Assert.Null(BrokerAvailability.Block(list, null, "EKO", null, 2, t));            // kaynak seçilmemiş
 
         // Tüm satış kapalı: gün'e bakılmaz.
-        var kapali = new List<BrokerYasak>
+        var closed = new List<BrokerYasak>
         {
             new() { Kod = "Y2", Ad = "Kapalı", Kaynak = "Acenta A", TumSatisKapali = true, Aktif = true }
         };
-        Assert.NotNull(BrokerAvailability.Block(kapali, "Acenta A", "EKO", null, 30, t));
+        Assert.NotNull(BrokerAvailability.Block(closed, "Acenta A", "EKO", null, 30, t));
 
         // Geçerlilik penceresi dışı → engel yok.
-        var gecmis = new List<BrokerYasak>
+        var history = new List<BrokerYasak>
         {
             new()
             {
@@ -415,7 +415,7 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
                 GecerlilikBit = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)
             }
         };
-        Assert.Null(BrokerAvailability.Block(gecmis, "Acenta A", "EKO", null, 5, t));
+        Assert.Null(BrokerAvailability.Block(history, "Acenta A", "EKO", null, 5, t));
     }
 
     /// <summary>
@@ -428,16 +428,16 @@ public sealed class FiyatMotoruYuzeyTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        await SeedFiloAsync(sp);
+        await SeedFleetAsync(sp);
         await sp.GetRequiredService<BrokerBanService>().CreateAsync(new BrokerYasakInput
         { Kod = "Y1", Ad = "EKO kapalı", Kaynak = "Acenta A", AracGrupKod = "EKO", TumSatisKapali = true });
 
-        var yasaklar = await sp.GetRequiredService<BrokerBanService>().ListActiveAsync();
-        Assert.NotNull(BrokerAvailability.Block(yasaklar, "Acenta A", "EKO", null, 5, Bas));
-        Assert.Null(BrokerAvailability.Block(yasaklar, "Acenta B", "EKO", null, 5, Bas));
+        var bans = await sp.GetRequiredService<BrokerBanService>().ListActiveAsync();
+        Assert.NotNull(BrokerAvailability.Block(bans, "Acenta A", "EKO", null, 5, Start));
+        Assert.Null(BrokerAvailability.Block(bans, "Acenta B", "EKO", null, 5, Start));
 
         // Çit fiyata dokunmaz: motor aynı teklifi verir (5 gün × 1000 = 5000 — elle).
-        var q = await Teklif(sp);
+        var q = await GetQuote(sp);
         Assert.Equal(1000m, q.GunlukUcret);
         Assert.Equal(5000m, q.GenelToplam);
     }

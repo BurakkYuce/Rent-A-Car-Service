@@ -22,9 +22,9 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
             && !ShouldSkip(ctx.Request.Path))
         {
             // F1.2: yeni arayüz API'si konsola yönlendirilmez (JSON istemcisi 302 izlemez) → 403 ProblemDetails.
-            if (RentACar.Web.Api.UiApiExtensions.UiYolu(ctx.Request.Path))
+            if (RentACar.Web.Api.UiApiExtensions.UiPath(ctx.Request.Path))
             {
-                await RentACar.Web.Api.UiApiExtensions.YazAsync(ctx, RentACar.Web.Api.UiHata.YetkiYok,
+                await RentACar.Web.Api.UiApiExtensions.WriteAsync(ctx, RentACar.Web.Api.UiError.Forbidden,
                     "Platform operatörü firma arayüzünü kullanamaz.");
                 return;
             }
@@ -35,7 +35,7 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
     }
 
     /// <summary>SPA platform screens root (<c>/app/platform</c>).</summary>
-    public const string SpaPlatformRoot = RentACar.Web.Spa.SpaBarindirma.Onek + "/platform";
+    public const string SpaPlatformRoot = RentACar.Web.Spa.SpaHosting.Prefix + "/platform";
 
     private static bool ShouldSkip(PathString path)
     {
@@ -48,9 +48,9 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
             || p.StartsWith("/_content", StringComparison.OrdinalIgnoreCase)
             || p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
             // F1.2: yeni arayüzün oturum uçları (giriş/çıkış çalışmalı; ben → 401 "firma oturumu yok").
-            || RentACar.Web.Api.UiApiExtensions.OturumYolu(path)
+            || RentACar.Web.Api.UiApiExtensions.SessionPath(path)
             // F12.1: platform konsolunun UI API'si (/api/ui/v1/platform/*) — Blazor /platform muafiyetinin karşılığı.
-            || RentACar.Web.Api.UiApiExtensions.PlatformYolu(path)
+            || RentACar.Web.Api.UiApiExtensions.PlatformPath(path)
             // F12.2: yeni arayüzün platform ekranları (/app/platform/*) — SPA kabuğu anonim, veri yukarıdaki
             // platform API'sinde korunur. Muaf olmasa platform operatörünün derin bağlantısı/yenilemesi Blazor
             // konsoluna düşerdi. Segment eşleşmesi: /app/platformx, /app/panel muaf DEĞİL.

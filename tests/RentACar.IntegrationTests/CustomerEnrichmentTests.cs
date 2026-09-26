@@ -20,12 +20,12 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
 
         // Canlı musteri_kayit/musteri_crm parite alanları (docs/parite/03). Beklenenler senaryodan.
-        var dogum = new DateTimeOffset(1985, 7, 20, 0, 0, 0, TimeSpan.Zero);
+        var birth = new DateTimeOffset(1985, 7, 20, 0, 0, 0, TimeSpan.Zero);
         var id = await svc.CreateAsync(new CustomerInput
         {
             Tip = CustomerType.Kurumsal, Unvan = "Yüce Turizm A.Ş.", VergiNo = "1234567890",
             Sinif = "VIP", MailIzin = true, SmsIzin = false, TelefonIzin = true,
-            DogumTarihi = dogum, BabaAdi = "Ahmet", AnaAdi = "Fatma", PasaportNo = "U1234567",
+            DogumTarihi = birth, BabaAdi = "Ahmet", AnaAdi = "Fatma", PasaportNo = "U1234567",
             FaturaDonemi = "Aylık", TevkifatOrani = 20.00m,
             Kisiler =
             [
@@ -41,7 +41,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         Assert.True(c.MailIzin);
         Assert.False(c.SmsIzin);
         Assert.True(c.TelefonIzin);
-        Assert.Equal(dogum, c.DogumTarihi);
+        Assert.Equal(birth, c.DogumTarihi);
         Assert.Equal("Ahmet", c.BabaAdi);
         Assert.Equal("Fatma", c.AnaAdi);
         Assert.Equal("U1234567", c.PasaportNo);
@@ -106,7 +106,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<CustomerService>();
 
-        var ehliyetTar = new DateTimeOffset(2015, 3, 10, 0, 0, 0, TimeSpan.Zero);
+        var driverLicenseDate = new DateTimeOffset(2015, 3, 10, 0, 0, 0, TimeSpan.Zero);
         var riskTar = new DateTimeOffset(2026, 1, 5, 0, 0, 0, TimeSpan.Zero);
 
         var id = await svc.CreateAsync(new CustomerInput
@@ -114,7 +114,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
             Tip = CustomerType.Bireysel, Ad = "Ayşe", Soyad = "Yıldız",
             CepTel = "5551112233", Gsm2 = "5324445566", Kaynak = "Web",
             MusteriTemsilcisi = "Mehmet", IysIzinli = true, Uyari = true, UyariNedeni = "Geç ödeme",
-            EhliyetNo = "ABC123", EhliyetSinifi = "B", EhliyetTarihi = ehliyetTar, EhliyetYeri = "İstanbul",
+            EhliyetNo = "ABC123", EhliyetSinifi = "B", EhliyetTarihi = driverLicenseDate, EhliyetYeri = "İstanbul",
             RiskMesaji = "Dikkat", RiskTarihi = riskTar, HgsYansitmaTuru = "Faturalı"
         });
 
@@ -128,7 +128,7 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         Assert.Equal("Geç ödeme", c.UyariNedeni);
         Assert.Equal("ABC123", c.EhliyetNo);
         Assert.Equal("B", c.EhliyetSinifi);
-        Assert.Equal(ehliyetTar, c.EhliyetTarihi);
+        Assert.Equal(driverLicenseDate, c.EhliyetTarihi);
         Assert.Equal("İstanbul", c.EhliyetYeri);
         Assert.Equal("Dikkat", c.RiskMesaji);
         Assert.Equal(riskTar, c.RiskTarihi);
@@ -214,15 +214,15 @@ public sealed class CustomerEnrichmentTests(PostgresFixture fx)
         { Tip = CustomerType.Bireysel, Ad = "Selim", Soyad = "Kaya", TcKimlik = "10000000146" });
         await svc.CreateAsync(new CustomerInput { Tip = CustomerType.Kurumsal, Unvan = "Kaya Filo A.Ş." });
 
-        var secim = await svc.ListForSelectAsync();
-        var tam = await svc.ListAsync();
-        Assert.Equal(tam.Select(x => x.DisplayName).OrderBy(x => x),
-                     secim.Select(x => x.Ad).OrderBy(x => x));
-        Assert.Contains(secim, x => x.Ad == "Selim Kaya");
-        Assert.Contains(secim, x => x.Ad == "Kaya Filo A.Ş.");
+        var selection = await svc.ListForSelectAsync();
+        var full = await svc.ListAsync();
+        Assert.Equal(full.Select(x => x.DisplayName).OrderBy(x => x),
+                     selection.Select(x => x.Ad).OrderBy(x => x));
+        Assert.Contains(selection, x => x.Ad == "Selim Kaya");
+        Assert.Contains(selection, x => x.Ad == "Kaya Filo A.Ş.");
 
         // Tenant izolasyonu (racar_app + RLS): başka tenant hiçbir ad görmez.
-        using var digeri = host.ScopeFor(Guid.NewGuid());
-        Assert.Empty(await digeri.ServiceProvider.GetRequiredService<CustomerService>().ListForSelectAsync());
+        using var theOther = host.ScopeFor(Guid.NewGuid());
+        Assert.Empty(await theOther.ServiceProvider.GetRequiredService<CustomerService>().ListForSelectAsync());
     }
 }

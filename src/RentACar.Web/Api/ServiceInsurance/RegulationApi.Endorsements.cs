@@ -32,7 +32,7 @@ internal static partial class RegulationApi
     {
         S.Text(plaka, 32, "plaka");
         S.Text(tipi, 64, "tipi");
-        var (min, max) = F5Ortak.GunAraligi(bas, bit);
+        var (min, max) = F5Shared.DayRange(bas, bit);
         var policies = await S.VisibleAsync(dbf, user, await reg.ListInsuranceAsync(ct), p => p.VehicleId, ct);
         var byId = policies.ToDictionary(p => p.Id);
         var plates = await S.PlatesAsync(dbf, policies.Select(p => p.VehicleId), ct);
@@ -42,11 +42,11 @@ internal static partial class RegulationApi
             .Select(z =>
             {
                 var p = byId[z.PolicyId];
-                return new EndorsementListRow(z.Id, z.PolicyId, p.VehicleId, F5Ortak.Plaka(plates, p.VehicleId), p.PoliceNo,
+                return new EndorsementListRow(z.Id, z.PolicyId, p.VehicleId, F5Shared.Plate(plates, p.VehicleId), p.PoliceNo,
                     p.Firma, p.Tip.ToString(), z.ZeyilNo, z.Tarih, z.Tanzim, z.Deger, z.Brut, z.Net, z.FonVergi, z.Tipi, z.Neden);
             })
             .Where(r => S.Nz(plaka) is not { } q || r.Plaka.Contains(q, StringComparison.OrdinalIgnoreCase))
             .ToList();
-        return TypedResults.Ok(F5Ortak.Sayfala(rows, EndorsementSort, sayfa, boyut, sirala));
+        return TypedResults.Ok(F5Shared.Paginate(rows, EndorsementSort, sayfa, boyut, sirala));
     }
 }

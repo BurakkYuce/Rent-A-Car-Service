@@ -24,7 +24,7 @@ internal static partial class CatalogApi
     /// </summary>
     private static RateMatrixInput RateMatrixInput(RateMatrixRequest r, RateMatrix? old, HttpContext http)
     {
-        var state = F5Ortak.EnumAdi<TariffApprovalStatus>(r.OnayDurumu, "onayDurumu") ?? TariffApprovalStatus.Bekliyor;
+        var state = F5Shared.EnumAdi<TariffApprovalStatus>(r.OnayDurumu, "onayDurumu") ?? TariffApprovalStatus.Bekliyor;
         string? approver = null;
         DateTimeOffset? approvedAt = null;
         if (state == TariffApprovalStatus.Onayli)
@@ -70,7 +70,7 @@ internal static partial class CatalogApi
         S.CatalogAmount(r.KmHaftalikUcret, o?.KmHaftalikUcret, "kmHaftalikUcret");
         S.CatalogAmount(r.KmAylikUcret, o?.KmAylikUcret, "kmAylikUcret");
         S.Ratio(r.MaxEsneklik, o?.MaxEsneklik, "maxEsneklik");
-        F5Ortak.EnumAdi<TariffApprovalStatus>(r.OnayDurumu, "onayDurumu");
+        F5Shared.EnumAdi<TariffApprovalStatus>(r.OnayDurumu, "onayDurumu");
     }
 
     private static readonly CatalogSpec<RateMatrixService, RateMatrix, RateMatrixRequest, RateMatrixDto> RateMatrices = new()
@@ -106,12 +106,12 @@ internal static partial class CatalogApi
         MusteriSegment = r.MusteriSegment, GecerlilikBas = S.Date(r.GecerlilikBas, "gecerlilikBas"),
         GecerlilikBit = S.Date(r.GecerlilikBit, "gecerlilikBit"), SartMetni = r.SartMetni,
         TalepBas = S.Date(r.TalepBas, "talepBas"), TalepBit = S.Date(r.TalepBit, "talepBit"),
-        PromosyonTuru = F5Ortak.EnumAdi<PromotionType>(r.PromosyonTuru, "promosyonTuru"),
-        KuponGecerlilik = F5Ortak.EnumAdi<CouponValidity>(r.KuponGecerlilik, "kuponGecerlilik"),
-        HesaplamaTipi = F5Ortak.EnumAdi<CalculationType>(r.HesaplamaTipi, "hesaplamaTipi"), HizliIslem = r.HizliIslem,
+        PromosyonTuru = F5Shared.EnumAdi<PromotionType>(r.PromosyonTuru, "promosyonTuru"),
+        KuponGecerlilik = F5Shared.EnumAdi<CouponValidity>(r.KuponGecerlilik, "kuponGecerlilik"),
+        HesaplamaTipi = F5Shared.EnumAdi<CalculationType>(r.HesaplamaTipi, "hesaplamaTipi"), HizliIslem = r.HizliIslem,
         HaftaGunKisiti = r.HaftaGunKisiti,
-        TarihTipi = F5Ortak.EnumAdi<RuleDateType>(r.TarihTipi, "tarihTipi") ?? RuleDateType.Rezervasyon,
-        KampanyaDurum = F5Ortak.EnumAdi<CampaignStatus>(r.KampanyaDurum, "kampanyaDurum"), Aktif = r.Aktif,
+        TarihTipi = F5Shared.EnumAdi<RuleDateType>(r.TarihTipi, "tarihTipi") ?? RuleDateType.Rezervasyon,
+        KampanyaDurum = F5Shared.EnumAdi<CampaignStatus>(r.KampanyaDurum, "kampanyaDurum"), Aktif = r.Aktif,
     };
 
     private static readonly CatalogSpec<RentalRuleService, RentalRule, RentalRuleRequest, RentalRuleDto> RentalRules = new()

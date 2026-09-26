@@ -19,7 +19,7 @@
 <details class="new-vehicle" open="@(_rows.Count == 0)">
     <summary>+ Yeni Ceza</summary>
     <form method="post" action="/cezalar/create" class="grid-form"><AntiforgeryToken />
-        <ComboBox Name="cezaTuru" Label="Ceza Türü" Options="_cezaTuruOpts" required="true" />
+        <ComboBox Name="cezaTuru" Label="Ceza Türü" Options="_penaltyTypeOpts" required="true" />
         <label>Tebliğ Tarihi<input name="tebligTarihi" type="date" /></label>
         <label>Ceza Saati<input name="saat" type="time" /></label>
         <label>Vade (gün)<input name="vadeGun" type="number" value="15" /></label>
@@ -126,7 +126,7 @@
                 <td data-etiket="Müşteri">@(row.MusteriAd ?? "—")</td>
                 <td>@(row.MusteriEposta ?? "—")</td>
                 <td>@(row.SozlesmeNo ?? "—")</td>
-                <td>@Fatura(row)</td>
+                <td>@InvoiceLabel(row)</td>
                 <td>@(p.IslemSube ?? "—")</td>
                 <td>@(row.RezKaynak ?? "—")</td>
                 <td>@(p.MakbuzNo ?? "—")</td>
@@ -134,7 +134,7 @@
                 <td>@p.OdenenTutar.ToString("N2")</td>
                 <td data-etiket="Kalan">@p.Kalan.ToString("N2")</td>
                 <td>@(p.OdenmeTarihi?.LocalDateTime.ToString("dd.MM.yyyy") ?? "—")</td>
-                <td>@Sekil(row)</td>
+                <td>@Method(row)</td>
                 <td data-etiket="Durum">@p.Durum</td>
                 <td class="kart-aksiyon">
                     @if (p.Durum == PenaltyStatus.Yeni && p.CariId is not null)
@@ -241,8 +241,8 @@
     private IReadOnlyList<PenaltyRow> _rows = [];
     private IReadOnlyList<Vehicle> _vehicles = [];
     private IReadOnlyList<Customer> _customers = [];
-    private IReadOnlyList<PenaltyType> _cezaTurleri = [];
-    private List<string> _cezaTuruOpts = [];
+    private IReadOnlyList<PenaltyType> _penaltyTypes = [];
+    private List<string> _penaltyTypeOpts = [];
 
     private bool SuzgecVar =>
         !string.IsNullOrWhiteSpace(Musteri) || !string.IsNullOrWhiteSpace(Makbuz)
@@ -258,19 +258,19 @@
             MakbuzNo = Makbuz,
             Plaka = Plaka,
             // Takvim günü: alt sınır günün başı, üst sınır repository'de GÜN DAHİL genişletilir.
-            Bas = Gun(Bas),
-            Bit = Gun(Bit),
+            Bas = Day(Bas),
+            Bit = Day(Bit),
             Durum = Enum.TryParse<PenaltyStatus>(Durum, out var d) ? d : null,
             OdemeDurum = Enum.TryParse<PenaltyPaymentStatus>(Odeme, out var o) ? o : null,
             IslemSube = Sube
         };
         _rows = await Penalties.ListRowsAsync(filter);
-        _cezaTurleri = await CezaTurleri.ListActiveAsync();
+        _penaltyTypes = await CezaTurleri.ListActiveAsync();
         _vehicles = await Vehicles.ListAsync();
         _customers = await Customers.ListAsync();
 
         // Seç-veya-yaz önerileri: master tanım (Ad) ∪ mevcut kayıtların distinct'i.
-        _cezaTuruOpts = _cezaTurleri.Select(t => t.Ad)
+        _penaltyTypeOpts = _penaltyTypes.Select(t => t.Ad)
             .Concat(_rows.Select(r => r.Ceza.CezaTuru))
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())
@@ -279,15 +279,15 @@
             .ToList();
     }
 
-    private static DateTimeOffset? Gun(string? s)
+    private static DateTimeOffset? Day(string? s)
         => DateTimeOffset.TryParse((s ?? "").Trim(), CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var d) ? d.ToUniversalTime() : null;
 
-    private static string Fatura(PenaltyRow r)
+    private static string InvoiceLabel(PenaltyRow r)
         => r.FaturaNo is null ? "—" : $"{r.FaturaTarihi?.LocalDateTime.ToString("dd.MM.yyyy")} / {r.FaturaNo}";
 
     /// <summary>Ödeme şekli = ödemelerin kullandığı hesap türleri (Kasa/Banka) — defterden gelir.</summary>
-    private static string Sekil(PenaltyRow r)
+    private static string Method(PenaltyRow r)
         => r.Odemeler.Count == 0 ? "—"
             : string.Join(", ", r.Odemeler.Select(o => o.Hesap.ToString()).Distinct());
 }

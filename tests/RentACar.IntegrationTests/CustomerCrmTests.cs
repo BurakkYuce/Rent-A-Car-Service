@@ -75,9 +75,9 @@ public sealed class CustomerCrmTests(PostgresFixture fx)
         Assert.Single((await svc.SearchRowsAsync(new CustomerFilter { Tip = CustomerType.Kurumsal })).Items);
         Assert.Single((await svc.SearchRowsAsync(new CustomerFilter { IysIzinli = true })).Items);
         Assert.Single((await svc.SearchRowsAsync(new CustomerFilter { Uyari = true })).Items);
-        var kara = (await svc.SearchRowsAsync(new CustomerFilter { KaraListe = true })).Items;
-        Assert.Single(kara);
-        Assert.Equal("Beta A.Ş.", kara[0].DisplayName);
+        var blacklisted = (await svc.SearchRowsAsync(new CustomerFilter { KaraListe = true })).Items;
+        Assert.Single(blacklisted);
+        Assert.Equal("Beta A.Ş.", blacklisted[0].DisplayName);
         // İYS izinsiz → yalnız Beta.
         Assert.Single((await svc.SearchRowsAsync(new CustomerFilter { IysIzinli = false })).Items);
     }

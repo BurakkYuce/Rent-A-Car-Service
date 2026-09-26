@@ -11,9 +11,9 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed partial class UiServiceInsuranceTests
 {
-    private async Task<Guid> ServiceAsync(Session s, Guid car, string tip, object? kalem)
+    private async Task<Guid> ServiceAsync(Session s, Guid car, string tip, object? item)
     {
-        var body = new { vehicleId = car, tip, girisKm = 1000, hasarSorumlu = "Sirket", kalem };
+        var body = new { vehicleId = car, tip, girisKm = 1000, hasarSorumlu = "Sirket", kalem = item };
         return (await Json(await Send(s, HttpMethod.Post, Svc, body, Key()), HttpStatusCode.Created))
             .GetProperty("kayit").GetProperty("id").GetGuid();
     }
@@ -72,11 +72,11 @@ public sealed partial class UiServiceInsuranceTests
         var s = await LoginAsync(e, Who.Admin);
         async Task<Guid> PolicyAsync(Guid car, string no) => (await Json(await Send(s, HttpMethod.Post, $"{Reg}/sigortalar", new
         {
-            vehicleId = car, tip = "Kasko", baslangic = TestZaman.GunSonra(-1), bitis = TestZaman.GunSonra(360), prim = 1000m,
+            vehicleId = car, tip = "Kasko", baslangic = TestZaman.DaysLater(-1), bitis = TestZaman.DaysLater(360), prim = 1000m,
             policeNo = no, firma = "Sigorta A.Ş.",
         }), HttpStatusCode.Created)).GetProperty("police").GetProperty("id").GetGuid();
-        async Task<Guid> EndorseAsync(Guid policy, string no, string tipi, int day) => (await Json(await Send(s, HttpMethod.Post,
-            $"{Reg}/sigortalar/{policy}/zeyiller", new { zeyilNo = no, tarih = TestZaman.GunSonra(day), brut = 120m, net = 100m, tipi }),
+        async Task<Guid> EndorseAsync(Guid policy, string no, string type, int day) => (await Json(await Send(s, HttpMethod.Post,
+            $"{Reg}/sigortalar/{policy}/zeyiller", new { zeyilNo = no, tarih = TestZaman.DaysLater(day), brut = 120m, net = 100m, tipi = type }),
             HttpStatusCode.Created)).GetProperty("id").GetGuid();
         var pa1 = await PolicyAsync(carA, "P-A1");
         var pa2 = await PolicyAsync(carA, "P-A2");
@@ -94,8 +94,8 @@ public sealed partial class UiServiceInsuranceTests
 
         var zam = await Json(await s.C.GetAsync($"{Reg}/zeyiller?tipi=zam"));
         Assert.Equal(2, zam.GetProperty("kayitlar").GetArrayLength());
-        var bas = DateOnly.FromDateTime(TestZaman.GunSonra(-5).Date);
-        var recent = await Json(await s.C.GetAsync($"{Reg}/zeyiller?bas={bas:yyyy-MM-dd}"));
+        var start = DateOnly.FromDateTime(TestZaman.DaysLater(-5).Date);
+        var recent = await Json(await s.C.GetAsync($"{Reg}/zeyiller?bas={start:yyyy-MM-dd}"));
         Assert.Equal(2, recent.GetProperty("kayitlar").GetArrayLength());
 
         var opA = (await Json(await (await LoginAsync(e, Who.OperatorA)).C.GetAsync($"{Reg}/zeyiller")))

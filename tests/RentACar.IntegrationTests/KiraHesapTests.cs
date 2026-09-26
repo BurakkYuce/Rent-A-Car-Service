@@ -22,13 +22,13 @@ namespace RentACar.IntegrationTests;
 [Collection("postgres")]
 public sealed class KiraHesapTests(PostgresFixture fx)
 {
-    private static readonly DateTimeOffset Bas =
+    private static readonly DateTimeOffset Start =
         new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-5).AddHours(9);
 
-    private static KiraHesapIstek Istek(
-        Guid? vehicleId = null, decimal? ucret = 100m, string? fiyatTuru = null, string? doviz = null,
-        int gun = 3, IReadOnlyList<KiraHesapEkHizmet>? ek = null, Guid? rentalId = null, string? cikisOfisi = null)
-        => new(vehicleId, Bas, Bas.AddDays(gun), ucret, fiyatTuru, doviz, cikisOfisi, ek ?? [], rentalId);
+    private static KiraHesapIstek Request(
+        Guid? vehicleId = null, decimal? fee = 100m, string? priceType = null, string? currency = null,
+        int day = 3, IReadOnlyList<KiraHesapEkHizmet>? extra = null, Guid? rentalId = null, string? pickupOffice = null)
+        => new(vehicleId, Start, Start.AddDays(day), fee, priceType, currency, pickupOffice, extra ?? [], rentalId);
 
     // ---------- Baz modlar (elle oracle) ----------
     [Fact]
@@ -37,7 +37,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalCalculationService>();
-        var r = await svc.CalculateAsync(Istek());
+        var r = await svc.CalculateAsync(Request());
         Assert.True(r.Ok);
         Assert.Equal(3, r.Gun);
         Assert.Equal(300m, r.Tutar);      // 3 × 100 (brüt)
@@ -54,8 +54,8 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalCalculationService>();
         // Net modda çift gross-up riski (PriceAsync input mutasyonu) → her çağrı TAZE input kurmalı.
-        var r1 = await svc.CalculateAsync(Istek(fiyatTuru: "Günlük"));
-        var r2 = await svc.CalculateAsync(Istek(fiyatTuru: "Günlük"));
+        var r1 = await svc.CalculateAsync(Request(priceType: "Günlük"));
+        var r2 = await svc.CalculateAsync(Request(priceType: "Günlük"));
         Assert.Equal(360m, r1.Tutar);         // net 100 → brüt 120 × 3 gün (elle)
         Assert.Equal(120m, r1.GunlukUcret);   // brüte normalize edilmiş günlük
         Assert.Equal(r1.Tutar, r2.Tutar);     // ikinci çağrı ASLA 432 (çift gross-up) olmamalı
@@ -67,7 +67,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalCalculationService>();
-        var r = await svc.CalculateAsync(Istek(ucret: 1000m, fiyatTuru: "Toplam", gun: 5));
+        var r = await svc.CalculateAsync(Request(fee: 1000m, priceType: "Toplam", day: 5));
         Assert.Equal(1200m, r.Tutar);     // NET toplam 1000 → brüt 1200 (gün sayısından bağımsız)
         Assert.Equal(5, r.Gun);
         Assert.Equal(240m, r.GunlukUcret); // türetilen günlük 1200/5
@@ -90,7 +90,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         });
         var svc = sp.GetRequiredService<RentalCalculationService>();
         // Manuel ücret gönderilse bile Otomatik'te yok sayılır (sunucu kuralı ile aynı).
-        var r = await svc.CalculateAsync(Istek(vehicleId: veh, ucret: 999m, fiyatTuru: "Otomatik"));
+        var r = await svc.CalculateAsync(Request(vehicleId: veh, fee: 999m, priceType: "Otomatik"));
         Assert.True(r.Ok);
         Assert.Equal(600m, r.Tutar);      // 3 gün × 200 (elle — kural/iskonto seed'i yok)
         Assert.Equal(200m, r.GunlukUcret);
@@ -105,7 +105,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KH 02", Grup = "YOK" });
         var r = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(
-            Istek(vehicleId: veh, ucret: 100m, fiyatTuru: "Otomatik"));
+            Request(vehicleId: veh, fee: 100m, priceType: "Otomatik"));
         Assert.True(r.Ok);
         Assert.Equal(120m, r.GunlukUcret);   // 100 × 1,20 (elle)
         Assert.Equal(360m, r.Tutar);         // 3 × 120 (elle)
@@ -120,7 +120,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         var sp = scope.ServiceProvider;
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KH 03", Grup = "YOK" });
         var r = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(
-            Istek(vehicleId: veh, ucret: 0m, fiyatTuru: "Otomatik"));
+            Request(vehicleId: veh, fee: 0m, priceType: "Otomatik"));
         Assert.False(r.Ok);
         Assert.Contains("tarife", r.Hata, StringComparison.OrdinalIgnoreCase);
     }
@@ -132,10 +132,10 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var tanim = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
+        var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
             new EkHizmetTanimInput { Kod = "BKS", Ad = "Bebek Koltuğu", BirimUcret = 50m, KdvOrani = 0.20m });
         var svc = sp.GetRequiredService<RentalCalculationService>();
-        var r = await svc.CalculateAsync(Istek(ek: [new KiraHesapEkHizmet(tanim, 2m)]));
+        var r = await svc.CalculateAsync(Request(extra: [new KiraHesapEkHizmet(definition, 2m)]));
         // ELLE: net 2×50=100; KDV %20 → 20; kalem brüt 120; genel = 300 + 120 = 420.
         Assert.Single(r.EkKalemler);
         Assert.Equal(100m, r.EkKalemler[0].Net);
@@ -152,7 +152,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalCalculationService>();
-        var r = await svc.CalculateAsync(Istek(ek: [new KiraHesapEkHizmet(Guid.NewGuid(), 2m)]));
+        var r = await svc.CalculateAsync(Request(extra: [new KiraHesapEkHizmet(Guid.NewGuid(), 2m)]));
         Assert.True(r.Ok);
         Assert.Empty(r.EkKalemler);       // önizlemede düşer; kayıtta AddAsync temiz reddeder
         Assert.Equal(300m, r.GenelToplam);
@@ -166,7 +166,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
         await sp.GetRequiredService<FixedExchangeRateService>().UpsertAsync(new SabitKurInput { Kod = "USD", Kur = 40m, Aktif = true });
-        var r = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(Istek(doviz: "USD"));
+        var r = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(Request(currency: "USD"));
         Assert.Equal(300m, r.GenelToplam);     // kira dövizinde (USD)
         Assert.Equal(40m, r.Kur);
         Assert.Equal(12_000m, r.GenelToplamTl); // 300 × 40 (elle)
@@ -179,7 +179,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var scope = host.ScopeFor(Guid.NewGuid());
         // İZOLE kod "CHF": KurKayitlari PLATFORM tablosudur (RLS yok) — başka testlerin seed ettiği
         // USD/EUR kurları sızar (tam pakette USD=34.5 gelmişti). CHF'yi hiçbir test seed etmez.
-        var r = await scope.ServiceProvider.GetRequiredService<RentalCalculationService>().CalculateAsync(Istek(doviz: "CHF"));
+        var r = await scope.ServiceProvider.GetRequiredService<RentalCalculationService>().CalculateAsync(Request(currency: "CHF"));
         Assert.True(r.Ok);                 // önizleme nazik — kayıt anında FX kur yoksa zaten temiz red var
         Assert.Null(r.Kur);
         Assert.Null(r.GenelToplamTl);
@@ -193,17 +193,17 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Hesap", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KH 03" });
         var rentals = sp.GetRequiredService<RentalService>();
-        var kira = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 120m }); // 360
+        var rental = await rentals.CreateDirectAsync(new BookingInput
+        { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 120m }); // 360
         await sp.GetRequiredService<CashService>().CollectAsync(new CashInput
-        { CariId = cari, RentalId = kira, Tutar = 100m });
+        { CariId = account, RentalId = rental, Tutar = 100m });
 
         var r = await sp.GetRequiredService<RentalCalculationService>().CalculateAsync(
-            Istek(vehicleId: veh, ucret: 120m, rentalId: kira));
+            Request(vehicleId: veh, fee: 120m, rentalId: rental));
         Assert.Equal(360m, r.GenelToplam); // 3 × 120
         Assert.Equal(100m, r.Tahsilat);
         Assert.Equal(260m, r.Kalan);       // 360 − 100 (elle)
@@ -214,20 +214,20 @@ public sealed class KiraHesapTests(PostgresFixture fx)
     {
         using var host = new TestHost(fx.AppConnectionString);
         var tenant = Guid.NewGuid();
-        Guid kira, veh;
+        Guid rental, veh;
         using (var seed = host.ScopeFor(tenant))
         {
             var sp = seed.ServiceProvider;
-            var cari = await sp.GetRequiredService<CustomerService>()
+            var account = await sp.GetRequiredService<CustomerService>()
                 .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Ankara", Soyad = "Musteri" });
             veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KH 04" });
-            kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-            { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 120m, CikisOfisi = "Ankara" });
+            rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+            { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 120m, CikisOfisi = "Ankara" });
         }
         using var op = host.ScopeFor(tenant, Guid.NewGuid(), "op", UserRole.Operator, assignedBranch: "Merkez");
         await Assert.ThrowsAsync<NoPermissionException>(() =>
             op.ServiceProvider.GetRequiredService<RentalCalculationService>()
-              .CalculateAsync(Istek(vehicleId: veh, ucret: 120m, rentalId: kira)));
+              .CalculateAsync(Request(vehicleId: veh, fee: 120m, rentalId: rental)));
     }
 
     // ---------- Guard'lar + yan-etkisizlik ----------
@@ -237,7 +237,7 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var svc = scope.ServiceProvider.GetRequiredService<RentalCalculationService>();
-        var r = await svc.CalculateAsync(new KiraHesapIstek(null, Bas, Bas, 100m, null, null, null, []));
+        var r = await svc.CalculateAsync(new KiraHesapIstek(null, Start, Start, 100m, null, null, null, []));
         Assert.False(r.Ok);
         Assert.Contains("Bitiş", r.Hata);
     }
@@ -251,26 +251,26 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         var svc = sp.GetRequiredService<RentalCalculationService>();
 
         // Devasa günlük ücret → nazik red (önceden gün×ücret çarpımı OverflowException → 500 idi)
-        var r1 = await svc.CalculateAsync(Istek(ucret: decimal.MaxValue));
+        var r1 = await svc.CalculateAsync(Request(fee: decimal.MaxValue));
         Assert.False(r1.Ok);
         // Negatif ücret → nazik red (negatif Tutar önizlemesi yanıltıcıydı)
-        var r2 = await svc.CalculateAsync(Istek(ucret: -100m));
+        var r2 = await svc.CalculateAsync(Request(fee: -100m));
         Assert.False(r2.Ok);
         // Devasa ek hizmet miktarı → nazik red (round(birim×miktar) taşması)
-        var tanim = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
+        var definition = await sp.GetRequiredService<AddOnDefinitionService>().CreateAsync(
             new EkHizmetTanimInput { Kod = "TSM", Ad = "Taşma", BirimUcret = 50m, KdvOrani = 0.20m });
-        var r3 = await svc.CalculateAsync(Istek(ek: [new KiraHesapEkHizmet(tanim, decimal.MaxValue)]));
+        var r3 = await svc.CalculateAsync(Request(extra: [new KiraHesapEkHizmet(definition, decimal.MaxValue)]));
         Assert.False(r3.Ok);
 
         // Simetrik guard create yolunda da (AddAsync) — taşma yerine temiz ValidationException
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Taşma", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KH 06" });
-        var kira = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 120m });
+        var rental = await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
+        { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 120m });
         await Assert.ThrowsAsync<ValidationException>(() =>
             sp.GetRequiredService<RentACar.Application.RentalAddOns.RentalAddOnService>()
-              .AddAsync(kira, tanim, decimal.MaxValue));
+              .AddAsync(rental, definition, decimal.MaxValue));
     }
 
     [Fact]
@@ -279,19 +279,19 @@ public sealed class KiraHesapTests(PostgresFixture fx)
         using var host = new TestHost(fx.AppConnectionString);
         using var scope = host.ScopeFor(Guid.NewGuid());
         var sp = scope.ServiceProvider;
-        var cari = await sp.GetRequiredService<CustomerService>()
+        var account = await sp.GetRequiredService<CustomerService>()
             .CreateAsync(new CustomerInput { Tip = CustomerType.Bireysel, Ad = "Sabit", Soyad = "Musteri" });
         var veh = await sp.GetRequiredService<VehicleService>().CreateAsync(new VehicleInput { Plaka = "34 KH 05" });
         var rentals = sp.GetRequiredService<RentalService>();
-        var kira = await rentals.CreateDirectAsync(new BookingInput
-        { MusteriId = cari, VehicleId = veh, BasTar = Bas, BitTar = Bas.AddDays(3), GunlukUcret = 120m });
+        var rental = await rentals.CreateDirectAsync(new BookingInput
+        { MusteriId = account, VehicleId = veh, BasTar = Start, BitTar = Start.AddDays(3), GunlukUcret = 120m });
 
         var svc = sp.GetRequiredService<RentalCalculationService>();
-        await svc.CalculateAsync(Istek(vehicleId: veh, ucret: 999m, fiyatTuru: "Günlük"));
-        await svc.CalculateAsync(Istek(vehicleId: veh, ucret: 5m, gun: 30, rentalId: kira));
+        await svc.CalculateAsync(Request(vehicleId: veh, fee: 999m, priceType: "Günlük"));
+        await svc.CalculateAsync(Request(vehicleId: veh, fee: 5m, day: 30, rentalId: rental));
 
         Assert.Single(await rentals.ListAsync());                 // yeni satır yok
-        var c = await rentals.GetAsync(kira);
+        var c = await rentals.GetAsync(rental);
         Assert.Equal(360m, c!.Tutar);                             // mevcut kira DOKUNULMAMIŞ (3×120 elle)
         Assert.Equal(120m, c.GunlukUcret);
     }

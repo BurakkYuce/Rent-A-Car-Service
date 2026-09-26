@@ -44,8 +44,8 @@ public sealed partial class UiFinanceDocumentTests
     private Task<Guid> BranchBRentalAsync(Env e)
         => ReadAsync(e.TenantId, async sp => await sp.GetRequiredService<RentalService>().CreateDirectAsync(new BookingInput
         {
-            MusteriId = e.Customer, VehicleId = await VehicleAsync(sp, "SubeB"), BasTar = TestZaman.GunSonra(20),
-            BitTar = TestZaman.GunSonra(22), GunlukUcret = 100m, CikisOfisi = "SubeB",
+            MusteriId = e.Customer, VehicleId = await VehicleAsync(sp, "SubeB"), BasTar = TestZaman.DaysLater(20),
+            BitTar = TestZaman.DaysLater(22), GunlukUcret = 100m, CikisOfisi = "SubeB",
         }));
 
     [Fact]
@@ -140,9 +140,9 @@ public sealed partial class UiFinanceDocumentTests
             kdvTutar = 20m, genelToplam = 120m,
         }));
         await Ok(await PostAsync(accountant, $"/gelen-efatura/{incoming}/onayla", null));
-        var surum = (await Ok(await GetAsync(accountant, $"/gelen-efatura/{incoming}"))).GetProperty("surum").GetString();
+        var version = (await Ok(await GetAsync(accountant, $"/gelen-efatura/{incoming}"))).GetProperty("surum").GetString();
         await Ok(await SendAsync(accountant, HttpMethod.Put, $"/gelen-efatura/{incoming}/bag",
-            new { surum, kdv20Matrah = 100m, kdv20 = 20m, giderKategoriId = active }, null));
+            new { surum = version, kdv20Matrah = 100m, kdv20 = 20m, giderKategoriId = active }, null));
         var linked = (await Ok(await GetAsync(accountant, $"/gelen-efatura/{incoming}"))).GetProperty("fatura");
         Assert.Equal(active, linked.GetProperty("giderKategoriId").GetGuid());
         Assert.Equal("Yakıt", linked.GetProperty("giderKategoriAd").GetString());

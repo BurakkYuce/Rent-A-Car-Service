@@ -28,22 +28,22 @@
     <label>Cari
         <select name="cariId">
             <option value="">— seçiniz —</option>
-            @foreach (var c in _cariler) { <option value="@c.Id" selected="@(c.Id == CariId)">@c.DisplayName</option> }
+            @foreach (var c in _accounts) { <option value="@c.Id" selected="@(c.Id == CariId)">@c.DisplayName</option> }
         </select>
     </label>
     <button type="submit">Carinin İşlem Listesini Getir</button>
 </form>
 
-@if (_cari is not null)
+@if (_account is not null)
 {
     <div class="cards">
-        <div class="card"><div class="card-num @(_bakiye > 0 ? "neg" : "pos")">@_bakiye.ToString("N2")</div>
-            <div class="card-label">Güncel Bakiye ₺ @(_bakiye > 0 ? "(borçlu)" : "")</div></div>
-        <div class="card"><div class="card-num">@_borclar.Count</div><div class="card-label">Açık borç kalemi</div></div>
-        <div class="card"><div class="card-num">@_borcToplam.ToString("N2")</div><div class="card-label">Borç kalemleri ₺</div></div>
+        <div class="card"><div class="card-num @(_balance > 0 ? "neg" : "pos")">@_balance.ToString("N2")</div>
+            <div class="card-label">Güncel Bakiye ₺ @(_balance > 0 ? "(borçlu)" : "")</div></div>
+        <div class="card"><div class="card-num">@_debts.Count</div><div class="card-label">Açık borç kalemi</div></div>
+        <div class="card"><div class="card-num">@_debtTotal.ToString("N2")</div><div class="card-label">Borç kalemleri ₺</div></div>
     </div>
 
-    @if (_borclar.Count == 0)
+    @if (_debts.Count == 0)
     {
         <p class="muted">Bu carinin borç kalemi yok.</p>
     }
@@ -53,9 +53,9 @@
            dokunmuyor. Kapatma bu yüzden fiilen geri alınamaz; mesaj bunu söyler. Kalem başına KISMİ tutar
            girilebildiği için mesaj "kalem kapanır" DEMEZ: yalnız girilen tutar tahsis edilir (CashService). *@
         <form method="post" action="/finans/tek-cari-kapat"
-              data-confirm="@_cari.DisplayName carisinin seçili borç kalemleri tek tahsilatla kapatılsın mı? Tahsilat seçilen tutarların toplamı kadar deftere yazılır ve bu tutarlar kalemlere KALICI olarak tahsis edilir (kısmi tutar girdiyseniz kalemin kalanı açık kalır); tahsilat sonradan ters kayıtla iptal edilse bile tahsis kalkmaz."><AntiforgeryToken />
+              data-confirm="@_account.DisplayName carisinin seçili borç kalemleri tek tahsilatla kapatılsın mı? Tahsilat seçilen tutarların toplamı kadar deftere yazılır ve bu tutarlar kalemlere KALICI olarak tahsis edilir (kısmi tutar girdiyseniz kalemin kalanı açık kalır); tahsilat sonradan ters kayıtla iptal edilse bile tahsis kalkmaz."><AntiforgeryToken />
             <input type="hidden" name="islemAnahtari" value="@_token" />
-            <input type="hidden" name="cariId" value="@_cari.Id" />
+            <input type="hidden" name="cariId" value="@_account.Id" />
             <div class="table-scroll">
                 <table class="grid tr-grid">
                     <thead><tr><th></th><th>Tarih</th><th>Kaynak</th><th>Açıklama</th>
@@ -63,14 +63,14 @@
                         <th class="num">Kapanan</th><th class="num">Kalan</th>
                         <th class="num">Kapatılacak</th></tr></thead>
                     <tbody>
-                        @foreach (var s in _borclar)
+                        @foreach (var s in _debts)
                         {
-                            var kapanan = _kapanan.GetValueOrDefault(s.Id);
-                            var kalan = s.Amount.AmountInBase - kapanan;
-                            var tamKapali = kalan <= 0.005m;
-                            <tr class="@(tamKapali ? "muted" : null)">
+                            var closed = _closed.GetValueOrDefault(s.Id);
+                            var remaining = s.Amount.AmountInBase - closed;
+                            var fullyClosed = remaining <= 0.005m;
+                            <tr class="@(fullyClosed ? "muted" : null)">
                                 <td>
-                                    @if (tamKapali)
+                                    @if (fullyClosed)
                                     {
                                         <span class="status-pill sp-success">Kapalı</span>
                                     }
@@ -85,15 +85,15 @@
                                 <td class="num">@s.Amount.Amount.ToString("N2")</td>
                                 <td>@s.Amount.Currency</td>
                                 <td class="num">@s.Amount.AmountInBase.ToString("N2")</td>
-                                <td class="num">@(kapanan > 0m ? kapanan.ToString("N2") : "—")</td>
-                                <td class="num">@(tamKapali ? "—" : kalan.ToString("N2"))</td>
+                                <td class="num">@(closed > 0m ? closed.ToString("N2") : "—")</td>
+                                <td class="num">@(fullyClosed ? "—" : remaining.ToString("N2"))</td>
                                 <td class="num">
-                                    @if (!tamKapali)
+                                    @if (!fullyClosed)
                                     {
                                         @* Boş = kalanın TAMAMI. Kısmi kapatma için tutar yazılır;
                                            değer InvariantCulture (tr-TR virgülü alanı boşaltırdı). *@
                                         <input type="number" name="tutar_@s.Id" step="0.01" min="0.01"
-                                               max="@Inv(decimal.Round(kalan, 2, MidpointRounding.ToZero))"
+                                               max="@Inv(decimal.Round(remaining, 2, MidpointRounding.ToZero))"
                                                placeholder="tamamı" style="width:7rem"
                                                title="Boş bırakılırsa kalemin kalanı kapatılır" />
                                     }
@@ -132,33 +132,33 @@
     [SupplyParameterFromQuery(Name = "ok")] public string? Ok { get; set; }
 
     private readonly Guid _token = Guid.NewGuid();   // çift-submit idempotency (form render'ı başına tek)
-    private IReadOnlyList<Customer> _cariler = [];
-    private Customer? _cari;
-    private List<AccountLedgerEntry> _borclar = [];
-    private Dictionary<Guid, decimal> _kapanan = new();
-    private decimal _bakiye;
-    private decimal _borcToplam;
+    private IReadOnlyList<Customer> _accounts = [];
+    private Customer? _account;
+    private List<AccountLedgerEntry> _debts = [];
+    private Dictionary<Guid, decimal> _closed = new();
+    private decimal _balance;
+    private decimal _debtTotal;
 
     private static string? Inv(decimal v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     protected override async Task OnInitializedAsync()
     {
-        _cariler = await Cariler.ListAsync();
+        _accounts = await Cariler.ListAsync();
         if (CariId is not { } id || id == Guid.Empty) return;
 
-        _cari = await Cariler.GetAsync(id);
-        if (_cari is null) return;
+        _account = await Cariler.GetAsync(id);
+        if (_account is null) return;
 
         // Yalnız BORÇ satırları listelenir: kapatılabilir olan onlardır (alacak satırı zaten
         // ödemedir). Servis de aynı çiti uyguluyor — ekran onu tekrar etmiyor, GÖRÜNÜRLÜĞÜ
         // hizalıyor (kullanıcı seçemediği bir şeyi görmemeli).
-        var ekstre = await Kasa.GetStatementAsync(id);
-        _borclar = ekstre.Satirlar.Where(x => x.Direction == LedgerDirection.Debit)
+        var statement = await Kasa.GetStatementAsync(id);
+        _debts = statement.Satirlar.Where(x => x.Direction == LedgerDirection.Debit)
             .OrderBy(x => x.EntryDateUtc).ToList();
         // Kapanan tutarlar SERVİSİN kullandığı kaynaktan okunur — ekran ayrı bir hesap yapsaydı
         // "kapalı" göstergesi ile çit ayrışabilirdi.
-        _kapanan = await Kasa.SettledAmountsAsync([.. _borclar.Select(x => x.Id)]);
-        _borcToplam = _borclar.Sum(x => x.Amount.AmountInBase - _kapanan.GetValueOrDefault(x.Id));
-        _bakiye = await Kasa.GetAccountBalanceAsync(id);
+        _closed = await Kasa.SettledAmountsAsync([.. _debts.Select(x => x.Id)]);
+        _debtTotal = _debts.Sum(x => x.Amount.AmountInBase - _closed.GetValueOrDefault(x.Id));
+        _balance = await Kasa.GetAccountBalanceAsync(id);
     }
 }

@@ -129,8 +129,8 @@ public sealed partial class UiFinanceHubApiTests
         Assert.Equal(120m, lines[^1].GetProperty("yuruyen").GetDecimal());
         Assert.Equal(200m, st.GetProperty("toplamBorc").GetDecimal());
         Assert.Equal(80m, st.GetProperty("toplamAlacak").GetDecimal());
-        var ozet = st.GetProperty("ozet").EnumerateArray().ToList();
-        Assert.Equal(200m, ozet.Sum(o => o.GetProperty("borc").GetDecimal()));
+        var summary = st.GetProperty("ozet").EnumerateArray().ToList();
+        Assert.Equal(200m, summary.Sum(o => o.GetProperty("borc").GetDecimal()));
         Assert.Equal(collection, lines.Single(l => l.GetProperty("kaynak").GetString() == "Tahsilat").GetProperty("kasaIslemId").GetGuid());
 
         await Problem(await GetAsync(s, $"/cariler/{foreign}/ekstre"), HttpStatusCode.NotFound, null);

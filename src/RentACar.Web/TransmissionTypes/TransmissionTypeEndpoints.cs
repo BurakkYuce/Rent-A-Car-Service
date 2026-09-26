@@ -27,9 +27,9 @@ public static class TransmissionTypeEndpoints
         return app;
     }
 
-    private static async Task<IResult> Run(Func<Task> action, string mesaj)
+    private static async Task<IResult> Run(Func<Task> action, string message)
     {
-        try { await action(); return Sonuc.Tamam("/vites-turleri", mesaj); }
+        try { await action(); return Result.Ok("/vites-turleri", message); }
         catch (ValidationException ex) { return Results.Redirect($"/vites-turleri?hata={Uri.EscapeDataString(ex.Message)}"); }
     }
 }

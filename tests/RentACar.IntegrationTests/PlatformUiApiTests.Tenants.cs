@@ -10,7 +10,7 @@ public sealed partial class PlatformUiApiTests
     /// <summary>Creates a tenant THROUGH the API; returns (id, first admin credentials).</summary>
     private async Task<(Guid Id, TestKimlik Admin)> CreateTenantAsync(Session s, string? name = null)
     {
-        var admin = new TestKimlik(NewCode(), "admin" + Guid.NewGuid().ToString("N")[..6], WebFixture.RastgeleParola(), "");
+        var admin = new TestKimlik(NewCode(), "admin" + Guid.NewGuid().ToString("N")[..6], WebFixture.RandomPassword(), "");
         var r = await Send(s, HttpMethod.Post, P + "/kiracilar",
             new { kod = admin.Firma, ad = name ?? "Platform API Firması", adminKullanici = admin.Kullanici, adminSifre = admin.Sifre });
         Assert.True(r.StatusCode == HttpStatusCode.Created, await r.Content.ReadAsStringAsync());
@@ -29,18 +29,18 @@ public sealed partial class PlatformUiApiTests
 
         // Same code → 409 cakisma on the field; different case → format error (codes are lowercase only).
         var dup = await Send(s, HttpMethod.Post, P + "/kiracilar",
-            new { kod = admin.Firma, ad = "Kopya", adminKullanici = "a", adminSifre = WebFixture.RastgeleParola() });
+            new { kod = admin.Firma, ad = "Kopya", adminKullanici = "a", adminSifre = WebFixture.RandomPassword() });
         await ExpectProblem(dup, HttpStatusCode.Conflict, "cakisma", "kod");
         foreach (var bad in new[] { admin.Firma.ToUpperInvariant(), "a", "-abc", "ab c", "abc-", "çiçek", new string('a', 65) })
             await ExpectProblem(await Send(s, HttpMethod.Post, P + "/kiracilar",
-                new { kod = bad, ad = "X", adminKullanici = "a", adminSifre = WebFixture.RastgeleParola() }),
+                new { kod = bad, ad = "X", adminKullanici = "a", adminSifre = WebFixture.RandomPassword() }),
                 HttpStatusCode.BadRequest, "dogrulama", "kod");
         await ExpectProblem(await Send(s, HttpMethod.Post, P + "/kiracilar",
             new { kod = NewCode(), ad = "X", adminKullanici = "a", adminSifre = "12345" }),
             HttpStatusCode.BadRequest, "dogrulama", "adminSifre");
 
         // The first admin can log in to the tenant UI (login is pilot-exempt).
-        var login = await TenantLoginRawAsync(fx.Web.Istemci(), admin);
+        var login = await TenantLoginRawAsync(fx.Web.Client(), admin);
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
 
         var audit = await AuditRowsAsync(id);
@@ -63,7 +63,7 @@ public sealed partial class PlatformUiApiTests
         Assert.Equal(HttpStatusCode.OK, r.StatusCode);
         Assert.Equal("Pasif", (await Json(r)).GetProperty("durum").GetString());
         await ExpectProblem(await open.C.GetAsync(V1 + "/oturum/ben"), HttpStatusCode.Unauthorized, "kiraci_kapali");
-        await ExpectProblem(await TenantLoginRawAsync(fx.Web.Istemci(), admin), HttpStatusCode.BadRequest, "dogrulama");
+        await ExpectProblem(await TenantLoginRawAsync(fx.Web.Client(), admin), HttpStatusCode.BadRequest, "dogrulama");
 
         // Pasif → Aktif: login works again.
         Assert.Equal(HttpStatusCode.OK, (await Send(s, HttpMethod.Post, P + $"/kiracilar/{id}/durum", new { durum = "Aktif" })).StatusCode);
@@ -77,7 +77,7 @@ public sealed partial class PlatformUiApiTests
         var close = await Send(s, HttpMethod.Post, P + $"/kiracilar/{id}/durum", new { durum = "Kapali", onayKod = admin.Firma });
         Assert.Equal("Kapali", (await Json(close)).GetProperty("durum").GetString());
         await ExpectProblem(await again.C.GetAsync(V1 + "/oturum/ben"), HttpStatusCode.Unauthorized, "kiraci_kapali");
-        await ExpectProblem(await TenantLoginRawAsync(fx.Web.Istemci(), admin), HttpStatusCode.BadRequest, "dogrulama");
+        await ExpectProblem(await TenantLoginRawAsync(fx.Web.Client(), admin), HttpStatusCode.BadRequest, "dogrulama");
         // Kapali → Pasif is refused (reopen first).
         await ExpectProblem(await Send(s, HttpMethod.Post, P + $"/kiracilar/{id}/durum", new { durum = "Pasif" }),
             HttpStatusCode.BadRequest, "dogrulama", "durum");
@@ -85,7 +85,7 @@ public sealed partial class PlatformUiApiTests
         // Kapali → Aktif = reopen.
         var reopen = await Send(s, HttpMethod.Post, P + $"/kiracilar/{id}/durum", new { durum = "Aktif" });
         Assert.Equal("Aktif", (await Json(reopen)).GetProperty("durum").GetString());
-        Assert.Equal(HttpStatusCode.OK, (await TenantLoginRawAsync(fx.Web.Istemci(), admin)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await TenantLoginRawAsync(fx.Web.Client(), admin)).StatusCode);
 
         // Same-state request: idempotent, no extra audit row.
         Assert.Equal(HttpStatusCode.OK, (await Send(s, HttpMethod.Post, P + $"/kiracilar/{id}/durum", new { durum = "Aktif" })).StatusCode);

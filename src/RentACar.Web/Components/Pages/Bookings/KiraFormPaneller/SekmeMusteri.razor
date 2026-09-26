@@ -63,11 +63,11 @@
     <div class="card">
         <strong>İletişim / Kimlik (müşteriden)</strong>
         <div class="grid-form">
-            <label>Cep Tel<input readonly value="@MusteriAlan(c => c.CepTel)" /></label>
-            <label>Mail<input readonly value="@MusteriAlan(c => c.Email)" /></label>
+            <label>Cep Tel<input readonly value="@CustomerField(c => c.CepTel)" /></label>
+            <label>Mail<input readonly value="@CustomerField(c => c.Email)" /></label>
             <label>TC Kimlik<input readonly value="@(Vm.Edit ? "***şifreli — cari kartında" : "kayıt sonrası dolar")" /></label>
-            <label>Ehliyet Sınıfı<input readonly value="@MusteriAlan(c => c.EhliyetSinifi)" /></label>
-            <label>Ehliyet Yeri<input readonly value="@MusteriAlan(c => c.EhliyetYeri)" /></label>
+            <label>Ehliyet Sınıfı<input readonly value="@CustomerField(c => c.EhliyetSinifi)" /></label>
+            <label>Ehliyet Yeri<input readonly value="@CustomerField(c => c.EhliyetYeri)" /></label>
         </div>
         @if (Vm.Edit && KayitliMusteri is { } m && (m.KaraListe || m.Uyari))
         {
@@ -82,17 +82,17 @@
     <div class="card">
         <strong>Adres / Sürücü Belgesi (cari karttan — salt-okunur)</strong>
         <div class="grid-form">
-            <label class="u-col-full">Adres<input readonly value="@MusteriAlan(c => c.Adres)" /></label>
-            <label>İl<input readonly value="@MusteriAlan(c => c.Il)" /></label>
-            <label>İlçe<input readonly value="@MusteriAlan(c => c.Ilce)" /></label>
-            <label>Müşteri Tipi<input readonly value="@MusteriAlan(c => c.MusteriTipi)" /></label>
-            <label>Ehliyet No (maskeli)<input readonly value="@MusteriAlan(c => Maske(c.EhliyetNo))"
+            <label class="u-col-full">Adres<input readonly value="@CustomerField(c => c.Adres)" /></label>
+            <label>İl<input readonly value="@CustomerField(c => c.Il)" /></label>
+            <label>İlçe<input readonly value="@CustomerField(c => c.Ilce)" /></label>
+            <label>Müşteri Tipi<input readonly value="@CustomerField(c => c.MusteriTipi)" /></label>
+            <label>Ehliyet No (maskeli)<input readonly value="@CustomerField(c => Mask(c.EhliyetNo))"
                 title="Tam değer cari kartında — şifreli saklanır (KVKK)" /></label>
-            <label>Ehliyet Tarihi<input readonly value="@MusteriAlan(c => c.EhliyetTarihi is { } t ? t.LocalDateTime.ToString("dd.MM.yyyy") : null)" /></label>
-            <label>Ehliyet Ülke<input readonly value="@MusteriAlan(c => c.EhliyetUlke)" /></label>
-            <label>Pasaport No (maskeli)<input readonly value="@MusteriAlan(c => Maske(c.PasaportNo))"
+            <label>Ehliyet Tarihi<input readonly value="@CustomerField(c => c.EhliyetTarihi is { } t ? t.LocalDateTime.ToString("dd.MM.yyyy") : null)" /></label>
+            <label>Ehliyet Ülke<input readonly value="@CustomerField(c => c.EhliyetUlke)" /></label>
+            <label>Pasaport No (maskeli)<input readonly value="@CustomerField(c => Mask(c.PasaportNo))"
                 title="Tam değer cari kartında — şifreli saklanır (KVKK)" /></label>
-            <label>Pasaport Yeri<input readonly value="@MusteriAlan(c => c.PasaportYeri)" /></label>
+            <label>Pasaport Yeri<input readonly value="@CustomerField(c => c.PasaportYeri)" /></label>
         </div>
         @if (Vm.Edit)
         {
@@ -103,7 +103,7 @@
         <strong>Risk / Kefil</strong>
         <div class="grid-form">
             <label>Manuel Findeks Puanı<input name="manuelFindexPuan" type="number" min="0" step="1" value="@Vm.I(c => c.ManuelFindexPuan)" /></label>
-            <label>Risk Limiti (cariden)<input readonly value="@MusteriAlan(c => c.RiskLimiti.ToString("N2"))"
+            <label>Risk Limiti (cariden)<input readonly value="@CustomerField(c => c.RiskLimiti.ToString("N2"))"
                 title="Limit tanımlıysa (>0) ve cari borç bakiyesi limiti aşıyorsa kira açılışı Yönetici onayı ister (FAZ 4.4)." /></label>
             <AuthorizeView Roles="Admin,Yonetici" Context="riskCtx">
                 <label title="Risk limiti aşımında kira açılış onayı — yalnız Yönetici/Admin (servis rolü ayrıca doğrular)">
@@ -118,17 +118,17 @@
     </div>
 </section>
 @code {
-    [Parameter, EditorRequired] public KiraFormVm Vm { get; set; } = default!;
+    [Parameter, EditorRequired] public RentalFormVm Vm { get; set; } = default!;
 
     private Customer? KayitliMusteri => Vm.Edit
         ? Vm.Customers.FirstOrDefault(c => c.Id == Vm.Rental!.MusteriId)
         : null;
 
-    private string MusteriAlan(Func<Customer, string?> f)
+    private string CustomerField(Func<Customer, string?> f)
         => KayitliMusteri is { } m ? (string.IsNullOrWhiteSpace(f(m)) ? "—" : f(m)!) : "kayıt sonrası dolar";
 
     /// <summary>Kimlik/belge numarası maskesi: yalnız son 4 hane görünür (tam değer cari kartında).</summary>
-    private static string? Maske(string? v)
+    private static string? Mask(string? v)
         => string.IsNullOrWhiteSpace(v)
             ? null
             : v!.Length <= 4 ? new string('*', v.Length) : new string('*', v.Length - 4) + v[^4..];

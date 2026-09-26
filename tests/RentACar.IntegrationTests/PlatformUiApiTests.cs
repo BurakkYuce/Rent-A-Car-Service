@@ -47,7 +47,7 @@ public sealed partial class PlatformUiApiTests(WebFixture fx)
 
     private async Task<Session> PlatformLoginAsync()
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var before = await XsrfAsync(c);
         var r = await Send(c, before, HttpMethod.Post, P + "/oturum/giris",
             new { kullanici = fx.Platform.Kullanici, sifre = fx.Platform.Sifre });
@@ -61,7 +61,7 @@ public sealed partial class PlatformUiApiTests(WebFixture fx)
 
     private async Task<Session> TenantLoginAsync(TestKimlik k)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var r = await TenantLoginRawAsync(c, k);
         Assert.True(r.StatusCode == HttpStatusCode.OK, await r.Content.ReadAsStringAsync());
         return new Session(c, CookieValue(r, "XSRF-TOKEN")!);
@@ -70,14 +70,14 @@ public sealed partial class PlatformUiApiTests(WebFixture fx)
     private static async Task<JsonElement> Json(HttpResponseMessage r)
         => JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement.Clone();
 
-    private static async Task ExpectProblem(HttpResponseMessage r, HttpStatusCode status, string? kod, string? field = null)
+    private static async Task ExpectProblem(HttpResponseMessage r, HttpStatusCode status, string? code, string? field = null)
     {
         var text = await r.Content.ReadAsStringAsync();
         Assert.True(status == r.StatusCode, $"expected {(int)status}, got {(int)r.StatusCode}: {text}");
         Assert.Null(r.Headers.Location); // never a redirect
         Assert.Equal("application/problem+json", r.Content.Headers.ContentType?.MediaType);
         var j = JsonDocument.Parse(text).RootElement;
-        if (kod is not null) Assert.Equal(kod, j.GetProperty("kod").GetString());
+        if (code is not null) Assert.Equal(code, j.GetProperty("kod").GetString());
         if (field is not null) Assert.True(j.GetProperty("errors").TryGetProperty(field, out _), text);
     }
 
@@ -114,7 +114,7 @@ public sealed partial class PlatformUiApiTests(WebFixture fx)
     [Fact]
     public async Task Anonymous_gets_401_json_without_redirect()
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         await ExpectProblem(await c.GetAsync(P + "/kiracilar"), HttpStatusCode.Unauthorized, "oturum_yok");
         await ExpectProblem(await c.GetAsync(P + "/oturum/ben"), HttpStatusCode.Unauthorized, "oturum_yok");
         await ExpectProblem(await c.GetAsync(P + "/ozet"), HttpStatusCode.Unauthorized, "oturum_yok");
@@ -124,7 +124,7 @@ public sealed partial class PlatformUiApiTests(WebFixture fx)
     public async Task Tenant_admin_is_forbidden_on_every_platform_endpoint_and_changes_nothing()
     {
         var admin = await TenantLoginAsync(fx.PilotAdmin); // pilot firm, role Admin
-        var id = fx.PilotFirmaId;
+        var id = fx.PilotCompanyId;
         foreach (var url in new[] { P + "/kiracilar", P + "/kiracilar/secim", P + "/ozet", P + "/oturum/ben",
                      P + $"/kiracilar/{id}", P + $"/kiracilar/{id}/logo", P + "/belgeler" })
             await ExpectProblem(await admin.C.GetAsync(url), HttpStatusCode.Forbidden, "yetki_yok");
@@ -134,7 +134,7 @@ public sealed partial class PlatformUiApiTests(WebFixture fx)
         await ExpectProblem(await Send(admin, HttpMethod.Post, P + $"/kiracilar/{id}/yeni-arayuz-pilot", new { aktif = false }),
             HttpStatusCode.Forbidden, "yetki_yok");
         await ExpectProblem(await Send(admin, HttpMethod.Post, P + "/kiracilar",
-            new { kod = "x" + Guid.NewGuid().ToString("N")[..8], ad = "X", adminKullanici = "a", adminSifre = WebFixture.RastgeleParola() }),
+            new { kod = "x" + Guid.NewGuid().ToString("N")[..8], ad = "X", adminKullanici = "a", adminSifre = WebFixture.RandomPassword() }),
             HttpStatusCode.Forbidden, "yetki_yok");
 
         // Nothing happened: the tenant session still works on its own API (still active, still pilot).

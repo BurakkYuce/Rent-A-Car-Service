@@ -41,7 +41,7 @@ public sealed class SystemApiTestKit(WebFixture fx)
     {
         var e = new Env
         {
-            TenantId = Guid.NewGuid(), Code = Random("f11b"), Password = WebFixture.RastgeleParola(),
+            TenantId = Guid.NewGuid(), Code = Random("f11b"), Password = WebFixture.RandomPassword(),
             Users = Enum.GetValues<Who>().ToDictionary(k => k, _ => Random("u")),
             UserIds = [],
         };
@@ -66,7 +66,7 @@ public sealed class SystemApiTestKit(WebFixture fx)
             }
             await db.SaveChangesAsync();
         }
-        if (pilot) await fx.PilotYapAsync(e.TenantId, true);
+        if (pilot) await fx.MakePilotAsync(e.TenantId, true);
         return e;
     }
 
@@ -102,7 +102,7 @@ public sealed class SystemApiTestKit(WebFixture fx)
 
     public async Task<Session> LoginAsync(Env e, Who who, string? password = null)
     {
-        var c = fx.Web.Istemci();
+        var c = fx.Web.Client();
         var before = CookieValue(await c.GetAsync(V1 + "/oturum/xsrf"), "XSRF-TOKEN")!;
         var req = new HttpRequestMessage(HttpMethod.Post, V1 + "/oturum/giris")
         { Content = JsonContent.Create(new { firma = e.Code, kullanici = e.Users[who], sifre = password ?? e.Password }) };
