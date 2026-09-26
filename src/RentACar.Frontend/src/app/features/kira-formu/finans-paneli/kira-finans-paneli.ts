@@ -105,7 +105,11 @@ export type FinansSekmesi = (typeof FINANS_SEKMELERI)[number];
     }
   `,
   template: `
-    <section class="kf-kart" aria-labelledby="kf-finans-baslik" data-testid="finans-paneli">
+    <section
+      class="rc-bolum rc-bolum--katman kf-kart"
+      aria-labelledby="kf-finans-baslik"
+      data-testid="finans-paneli"
+    >
       <div class="kf-finans__ust">
         <h2 class="kf-kart__baslik" id="kf-finans-baslik">{{ 'kiraFinans.baslik' | transloco }}</h2>
         @if (f.kira(); as k) {

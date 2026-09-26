@@ -183,7 +183,7 @@ describe('KiraListesi sayfası', () => {
     const { ac, kok, baglanti } = await kur(['OperationsWrite', 'FinanceWrite', 'ViewReports']);
     await ac([satir('2026220901001'), satir('2026220901002', { faturali: true })]);
 
-    expect(kok.querySelector('h1')?.textContent).toContain('Kira Sözleşmeleri');
+    expect(kok.querySelector('h1')?.textContent).toContain('Kira listesi');
     expect(kok.textContent).toContain('2 sözleşme · 2 kirada · 1 faturasız');
 
     // Sözleşme no → SPA kira formu rotası (form F4.3'te; burada yalnız bağlantı).
@@ -287,5 +287,35 @@ describe('KiraListesi sayfası', () => {
     istek.flush(sayfa([]));
     await bekle();
     expect(TestBed.inject(Router).url).toContain('q=Y%C4%B1lmaz');
+  });
+  it('?gorunum= ön ayarı mevcut süzgeçlere çevrilir; süzgeç değişince görünüm URL’den düşer', async () => {
+    const { ac, bekle, kok, listeIstegi } = await kur(['OperationsWrite']);
+    await ac([satir('2026220901001')]);
+    const router = TestBed.inject(Router);
+
+    // Kenar çubuğu bağlantısı yalnız `gorunum` taşır → liste ön ayarı (durum=Kirada) uygular.
+    await router.navigateByUrl('/?gorunum=kirada');
+    await bekle();
+    http.expectOne((r) => r.url === OZET).flush({ toplam: 1, kirada: 1, faturasiz: 1 });
+    const istek = listeIstegi();
+    expect(istek.request.params.get('durum')).toBe('Kirada');
+    istek.flush(sayfa([satir('2026220901001')]));
+    await bekle();
+    expect(router.url).toBe('/?gorunum=kirada&durum=Kirada');
+    const aktif = kok.querySelector('rc-gorunum-cipleri [aria-current="page"]');
+    expect(aktif?.textContent).toContain('Kiradaki araçlar');
+    // Bant pill'i etkin görünümü ve kayıt sayısını söyler.
+    expect(kok.querySelector('rc-sayfa-bandi')?.textContent).toContain(
+      'Kiradaki araçlar · 1 kayıt',
+    );
+
+    // Kullanıcı süzgeci değiştirir → görünüm artık o değil: `gorunum` düşer, süzgeç kalır.
+    await router.navigateByUrl('/?gorunum=kirada&durum=Tamamlandi');
+    await bekle();
+    http.expectOne((r) => r.url === OZET).flush({ toplam: 0, kirada: 0, faturasiz: 0 });
+    listeIstegi().flush(sayfa([]));
+    await bekle();
+    expect(router.url).toBe('/?durum=Tamamlandi');
+    expect(kok.querySelector('rc-gorunum-cipleri [aria-current="page"]')).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { KiraFormuDurumu } from '../kira-formu-durumu';
 import { aracSecenegi, sayiya } from '../kira-formu-modeli';
 import { AracKarti } from './arac-karti';
+import { PlateChipComponent } from '@shared/plaka/plaka';
 import { KF_ORTAK } from './ortak';
 
 /**
@@ -11,10 +12,10 @@ import { KF_ORTAK } from './ortak';
 @Component({
   selector: 'rc-kf-arac',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK, AracKarti],
+  imports: [...KF_ORTAK, AracKarti, PlateChipComponent],
   template: `
     @if (d.yeni) {
-      <section class="kf-kart">
+      <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.musaitlik' | transloco }}</h3>
         <div class="rc-form-izgara" [formGroup]="d.musaitFormu">
           <rc-alan [etiket]="'kiraFormu.alan.vfrom' | transloco">
@@ -51,13 +52,13 @@ import { KF_ORTAK } from './ortak';
         @if (d.musait.veri(); as liste) {
           @if (liste.length > 0) {
             <div
-              class="kf-tablo-kutusu"
+              class="rc-tablo-kap"
               role="region"
               tabindex="0"
               [attr.aria-label]="'kiraFormu.bolum.musaitAraclar' | transloco"
             >
               <table
-                class="kf-tablo"
+                class="rc-duz-tablo"
                 [attr.aria-label]="'kiraFormu.bolum.musaitAraclar' | transloco"
               >
                 <thead>
@@ -65,7 +66,7 @@ import { KF_ORTAK } from './ortak';
                     <th scope="col">{{ 'kiraFormu.arac.plaka' | transloco }}</th>
                     <th scope="col">{{ 'kiraFormu.arac.markaTip' | transloco }}</th>
                     <th scope="col">{{ 'kiraFormu.arac.grup' | transloco }}</th>
-                    <th scope="col" class="num">{{ 'kiraFormu.arac.km' | transloco }}</th>
+                    <th scope="col" class="rc-num">{{ 'kiraFormu.arac.km' | transloco }}</th>
                     <th scope="col">{{ 'kiraFormu.arac.sube' | transloco }}</th>
                     <th scope="col">
                       <span class="rc-gorunmez">{{ 'kiraFormu.eylem.sec' | transloco }}</span>
@@ -74,11 +75,11 @@ import { KF_ORTAK } from './ortak';
                 </thead>
                 <tbody>
                   @for (a of liste; track a.id) {
-                    <tr [class.kf-secili]="d.secilenArac()?.id === a.id">
-                      <td>{{ a.plaka }}</td>
+                    <tr [class.rc-satir-secili]="d.secilenArac()?.id === a.id">
+                      <td><rc-plaka boyut="sm" [plaka]="a.plaka" /></td>
                       <td>{{ a.marka }} {{ a.tip }}</td>
                       <td>{{ a.grup || '—' }}</td>
-                      <td class="num">{{ km(a.km) | sayi }}</td>
+                      <td class="rc-num">{{ km(a.km) | sayi }}</td>
                       <td>{{ a.sube || '—' }}</td>
                       <td>
                         <button
@@ -102,7 +103,7 @@ import { KF_ORTAK } from './ortak';
       </section>
     }
 
-    <section class="kf-kart" [formGroup]="d.form">
+    <section class="rc-bolum kf-kart" [formGroup]="d.form">
       <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.aracSecimi' | transloco }}</h3>
       <div class="rc-form-izgara">
         <rc-alan
@@ -120,7 +121,7 @@ import { KF_ORTAK } from './ortak';
       <rc-kf-arac-karti />
     </section>
 
-    <section class="kf-kart">
+    <section class="rc-bolum kf-kart">
       <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.cikis' | transloco }}</h3>
       <dl class="kf-bilgiler">
         <div>

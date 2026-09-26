@@ -94,7 +94,7 @@ import { KF_ORTAK } from './ortak';
         data-kf-alt="finans"
         [hidden]="aktif() !== 'finans'"
       >
-        <section class="kf-kart">
+        <section class="rc-bolum kf-kart">
           <h4 class="kf-kart__baslik">{{ 'kiraFormu.bolum.provizyon' | transloco }}</h4>
           <p class="kf-not">{{ 'kiraFormu.not.pci' | transloco }}</p>
           @if (d.kira(); as k) {
@@ -150,7 +150,7 @@ import { KF_ORTAK } from './ortak';
             <p class="kf-not">{{ 'kiraFormu.not.onceKaydet' | transloco }}</p>
           }
         </section>
-        <section class="kf-kart">
+        <section class="rc-bolum kf-kart">
           <h4 class="kf-kart__baslik">{{ 'kiraFormu.bolum.referanslar' | transloco }}</h4>
           <div class="rc-form-izgara">
             <rc-alan [etiket]="'kiraFormu.alan.provizyonNo' | transloco">
@@ -272,12 +272,12 @@ import { KF_ORTAK } from './ortak';
         [hidden]="aktif() !== 'aksesuar'"
       >
         <div
-          class="kf-tablo-kutusu"
+          class="rc-tablo-kap"
           role="region"
           tabindex="0"
           [attr.aria-label]="'kiraFormu.alt.aksesuar' | transloco"
         >
-          <table class="kf-tablo" [attr.aria-label]="'kiraFormu.alt.aksesuar' | transloco">
+          <table class="rc-duz-tablo" [attr.aria-label]="'kiraFormu.alt.aksesuar' | transloco">
             <thead>
               <tr>
                 <th scope="col">{{ 'kiraFormu.aksesuar.ad' | transloco }}</th>

@@ -31,7 +31,7 @@ import { KiraFormuDurumu } from '../kira-formu-durumu';
   imports: [TranslocoPipe, ...BICIM_PIPELARI],
   template: `
     @if (d.gorunenDetay()?.paylasim; as bar) {
-      <section class="kf-kart" [attr.aria-label]="'kiraFormu.paylasim.baslik' | transloco">
+      <section class="rc-bolum kf-kart" [attr.aria-label]="'kiraFormu.paylasim.baslik' | transloco">
         <h2 class="kf-kart__baslik">{{ 'kiraFormu.paylasim.baslik' | transloco }}</h2>
         @if (bar.link; as link) {
           <input

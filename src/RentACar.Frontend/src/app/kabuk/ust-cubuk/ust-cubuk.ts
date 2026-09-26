@@ -18,6 +18,8 @@ import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { TemaServisi, type TemaModu } from '@core/tema/tema-servisi';
 import { Ikon } from '@shared/ikon/ikon';
 import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
+import { PlateSearchComponent } from '@shared/plaka/plaka-arama';
+import type { NormalizedPlate } from '@shared/plaka/plaka-normalize';
 
 interface TemaSecenegi {
   readonly mod: TemaModu;
@@ -30,15 +32,16 @@ interface TemaSecenegi {
  * bildirim zili (menüde bildirim öğesi varsa; sayaç sunucu rozetinden), tema üçlüsü. Kullanıcı bloğu ve çıkış
  * kenar çubuğunda — burada tekrar YOK.
  *
- * Plaka arama: **YER TUTUCU** — `rc-plaka-arama` (PR-B, `shared/plaka/`) gelince onunla değişir. Enter → araç
- * listesi plaka süzgeciyle (`/araclar?q=…`, mevcut liste sorgusu; yeni uç yok).
+ * Plaka arama: `rc-plaka-arama` (`shared/plaka/`, TR şeritli). Enter → araç listesi plaka süzgeciyle
+ * (`/araclar?q=…`, mevcut liste sorgusu; yeni uç yok); boş aramada gezinme yok. Erişilebilir adı "Hızlı araç
+ * arama" — "Plaka" GEÇMEZ (e2e `getByLabel('Plaka')` form alanlarını hedefler).
  */
 @Component({
   selector: 'rc-ust-cubuk',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Ikon, TranslocoPipe],
+  imports: [Ikon, PlateSearchComponent, TranslocoPipe],
   templateUrl: './ust-cubuk.html',
-  styleUrls: ['./ust-cubuk.scss', './plaka-yer-tutucu.scss'],
+  styleUrl: './ust-cubuk.scss',
 })
 export class UstCubuk {
   protected readonly tema = inject(TemaServisi);
@@ -59,7 +62,12 @@ export class UstCubuk {
   readonly bildirimAc = output<void>();
 
   private readonly menuDugmesi = viewChild<ElementRef<HTMLButtonElement>>('menuDugmesi');
-  private readonly plakaGirdisi = viewChild<ElementRef<HTMLInputElement>>('plakaGirdisi');
+  private readonly plakaArama = viewChild(PlateSearchComponent, { read: ElementRef });
+  private plakaGirdisi(): HTMLInputElement | null {
+    return (
+      (this.plakaArama()?.nativeElement as HTMLElement | undefined)?.querySelector('input') ?? null
+    );
+  }
 
   /** Mobilde plaka arama ikon düğmesiyle tam genişlik açılır. */
   protected readonly plakaAcik = signal(false);
@@ -83,25 +91,24 @@ export class UstCubuk {
 
   protected plakaAramasiniAc(): void {
     this.plakaAcik.set(true);
-    afterNextRender(() => this.plakaGirdisi()?.nativeElement.focus(), {
+    afterNextRender(() => this.plakaGirdisi()?.focus(), {
       injector: this.enjektor,
     });
   }
 
-  protected plakaAra(olay: Event, girdi: HTMLInputElement): void {
-    olay.preventDefault();
-    const plaka = girdi.value.trim().replace(/\s+/g, ' ');
+  protected plakaAra(sonuc: NormalizedPlate): void {
+    const plaka = sonuc.ham.trim().replace(/\s+/g, ' ');
     if (!plaka) return;
-    girdi.value = '';
+    const girdi = this.plakaGirdisi();
+    if (girdi) girdi.value = '';
     this.plakaAcik.set(false);
     void this.router.navigate(['/araclar'], { queryParams: { q: plaka } });
   }
 
-  protected plakaTus(olay: KeyboardEvent): void {
-    if (olay.key === 'Escape' && this.plakaAcik()) {
-      olay.stopPropagation();
-      this.plakaAcik.set(false);
-    }
+  protected plakaKapat(olay: Event): void {
+    if (!this.plakaAcik()) return;
+    olay.stopPropagation();
+    this.plakaAcik.set(false);
   }
 
   protected rozetMetni(sayi: number | null): string | null {

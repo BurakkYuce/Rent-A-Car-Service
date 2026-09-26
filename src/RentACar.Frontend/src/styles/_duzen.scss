@@ -33,6 +33,11 @@
   padding-block: var(--rc-bosluk-3);
 }
 
+// Katman bölümü (ör. yapışkan finans paneli): gölge yalnız katmanlarda (§1.1).
+.rc-bolum--katman {
+  box-shadow: var(--rc-golge-katman);
+}
+
 .rc-bolum > h2,
 .rc-bolum__baslik > h2 {
   margin: 0;

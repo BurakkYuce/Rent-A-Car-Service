@@ -232,3 +232,53 @@ yeniden tanımı 0 · düz tablolar `.rc-duz-tablo` · plakalar `rc-plaka` · ba
 ## Ek B — Ekran görüntüsü listesi (her PR)
 Giriş → Panel · Kira listesi (Kirada) · Kira formu (finans paneli açık) · Araç listesi · Cari kartı · Rapor ekranı — 1440 ve
 390, açık ve koyu; PR-C sonrası ek: kenar çubuğu daraltılmış, komut paleti açık, sekme şeridi 10/10.
+
+## 18. Göç reçetesi (PR-P'den — D-ajanları bunu kopyalar)
+Pilot: `features/kiralar/kira-listesi` (liste kalıbı) ve `features/kira-formu` (form kalıbı). Davranış/iş mantığı
+DEĞİŞMEZ; yalnız şablon + stil. Hedef: feature SCSS'te stil denetimi bulgusu 0 (`node scripts/stil-denetimi.mjs --ayrinti`).
+
+| Önce (yerel) | Sonra (global / paylaşılan) |
+|---|---|
+| `<div class="sayfa"><header class="ust"><h1>…</h1>…eylemler…</header>` | `<rc-sayfa-bandi ikon baslik [pill] [altMetin]>` + `<div class="rc-sayfa">` gövde. Bant sayfanın TEK `<h1>`'i |
+| başlıktaki `rc-dugme--birincil rc-dugme--kucuk` "Yeni …" | `<a birincil class="rc-dugme rc-dugme--birincil">` (bantta tek dolu) |
+| başlık/araç çubuğundaki ikincil bağlantılar, tablo içi Excel/CSV/PDF | `<ng-container eylemler>` içinde `class="rc-dugme"` (≤ 900 px "…" menüsü); dışa aktarma `disaAktarmaAdresi(d, bicim)` ile banda, `rc-tablo`'ya `[disaAktarma]` VERİLMEZ (çift bağlantı olmasın) |
+| `<rc-katlanir-filtre>` + `<form [formGroup]>` + `.filtre__eylemler` (Filtrele/Temizle) | `<rc-filtre-paneli [formGroup] depoAnahtari="rc.filtre.<ekran>" [etkinSayisi] (filtrele) (temizle)>` — alanlar doğrudan içerik (6 sütun ızgara), `<form>` ve Filtrele/Temizle düğmeleri PANELİN |
+| — | `<rc-gorunum-cipleri [gorunumler]>`: `?gorunum=` ön ayarı mevcut süzgeçlere çevrilir (bkz. `kira-gorunumleri.ts`), yeni uç yok |
+| `.ozet` satırı tablonun üstünde | `<p rcTabloAraclari class="ozet" aria-live="polite">` (tablo araç çubuğunun solu) |
+| `{{ satir.plaka }}` | `<rc-plaka boyut="sm" [plaka]="satir.plaka" />` (tabloda `rcTabloHucre="plaka"`, formda md) |
+| durum rozeti `rc-rozet--bilgi` (kirada) | §1.2: kirada `--basari`, gecikmiş `--hata` ("n gün gecikti"), bugün `--uyari`, kapalı `--notr`; hesap SAF fonksiyonda (`satirGorunumu`), yalnız gösterim |
+| — | `rc-tablo [satirSinifi]="fn"` → bugünün işi `rc-satir-bugun` |
+| `.kart`, `.kf-kart` kutu stili | `class="rc-bolum"` (yan yana dizilim boşluğu gerekiyorsa yerel yalnız `margin`) |
+| `.tablo-kutusu` + `.tablo` / `.kf-tablo` + `.num` | `.rc-tablo-kap > table.rc-duz-tablo` + `.rc-num`; boş satır `td.rc-bos`; seçili satır `[class.rc-satir-secili]` |
+| yerel form eylem satırı | `.rc-form-eylemler` |
+| feature'da `box-shadow` | global `.rc-bolum--katman` (yalnız katman: yapışkan finans paneli) |
+| host sınıfı `rc-<ekran>` (kapsülsüz stil) | `rc-` önekli OLMAYAN host sınıfı (`kira-formu`) — `.rc-*` feature SCSS'te tanımlanamaz |
+| `@media (max-width: 900px)` | `@use 'kirilim' as k;` + `k.$rc-kirilim-mobil` / `-dar` |
+
+```html
+<rc-sayfa-bandi ikon="key" [baslik]="'x.baslik' | transloco" [pill]="bantPill()" [altMetin]="bantAltMetni()">
+  <ng-container eylemler>
+    <a class="rc-dugme" [href]="disaAktarmaAdresi(d, 'excel')">Excel</a>
+  </ng-container>
+  @if (yeniIzni()) {
+    <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/x/yeni">Yeni x</a>
+  }
+</rc-sayfa-bandi>
+<div class="rc-sayfa">
+  <rc-gorunum-cipleri [gorunumler]="gorunumler()" />
+  <rc-filtre-paneli depoAnahtari="rc.filtre.x" [formGroup]="filtreFormu" (filtrele)="filtrele()" (temizle)="temizle()">
+    <rc-alan etiket="Ara"><rc-metin-girdisi formControlName="q" tur="search" /></rc-alan>
+  </rc-filtre-paneli>
+  <rc-tablo … [satirSinifi]="satirSinifi()">
+    <p rcTabloAraclari class="ozet" aria-live="polite">{{ ozet() }}</p>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="sutunlar" let-s>
+      <rc-plaka boyut="sm" [plaka]="s.plaka" />
+    </ng-template>
+  </rc-tablo>
+</div>
+```
+Notlar: `SayfaBandi` kabukta (`kabuk/sayfa-bandi`) — feature'dan göreli içe aktarılır. Band başlığı değişirse e2e
+`hazirBekle` (`baslik`) ve `getByRole('heading', { level: 1 })` beklentileri aynı PR'da güncellenir. Filtre paneli
+varsayılan AÇIK: e2e'de "Filtreler" düğmesine tıklamak paneli KAPATIR (tıklama satırı silinir). İki satırlı hücre
+(`.rc-hucre-alt`) yalnız API alanı varsa: kira listesinde araç modeli/yakıt/vites/yıl ve müşteri türü `KiraListeSatiri`'nda
+YOK — pilotta uygulanmadı (API eki ayrı iş).

@@ -1,10 +1,16 @@
 {
   "kiraListesi": {
-    "baslik": "Kira Sözleşmeleri",
+    "baslik": "Kira listesi",
     "tabloEtiketi": "Kira sözleşmeleri",
     "yeniKira": "Yeni kira",
     "ornekSozlesme": "Örnek sözleşme (PDF)",
     "ozet": "{{toplam}} sözleşme · {{kirada}} kirada · {{faturasiz}} faturasız",
+    "bant": {
+      "pill": "{{ad}} · {{adet}} kayıt",
+      "suzgecli": "Süzgeçli liste"
+    },
+    "gecikti": "{{gun}} gün gecikti",
+    "bugunDonuyor": "Bugün dönüyor",
     "filtre": {
       "baslik": "Filtreler",
       "ara": "Ara",
@@ -23,9 +29,7 @@
       "kaynak": "Rezervasyon kaynağı",
       "personel": "Teslim alan personel",
       "seciliPersonel": "Seçili personel",
-      "tumu": "Tümü",
-      "filtrele": "Filtrele",
-      "temizle": "Temizle"
+      "tumu": "Tümü"
     },
     "durumlar": {
       "Kirada": "Kirada",

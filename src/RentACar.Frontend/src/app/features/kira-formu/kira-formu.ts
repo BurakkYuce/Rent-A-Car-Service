@@ -12,7 +12,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
-import { paraBicimle } from '@core/bicim/bicim';
+import { paraBicimle, tarihSaatBicimle } from '@core/bicim/bicim';
 import {
   type KaydedilmemisDegisiklikSahibi,
   sayfaTerkKorumasi,
@@ -21,6 +21,8 @@ import { ceviriFonksiyonu } from '@core/i18n/ceviri';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { FormHatalari } from '@shared/form/form-hatalari';
 import { SekmePaneli, SekmeliForm, type SekmeTanimi } from '@shared/form/sekmeli-form/sekmeli-form';
+import { Ikon } from '@shared/ikon/ikon';
+import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
 import { KiraFinansYuvasi } from './finans-paneli/kira-finans-yuvasi';
 import { KiraFormuDurumu } from './kira-formu-durumu';
 import {
@@ -63,6 +65,8 @@ import { Paylasim } from './sekmeler/paylasim';
     RouterLink,
     TranslocoPipe,
     FormHatalari,
+    Ikon,
+    SayfaBandi,
     SekmeliForm,
     SekmePaneli,
     KiraFinansYuvasi,
@@ -77,7 +81,7 @@ import { Paylasim } from './sekmeler/paylasim';
     PaylasBari,
     Paylasim,
   ],
-  host: { class: 'rc-kira-formu' },
+  host: { class: 'kira-formu' },
   templateUrl: './kira-formu.html',
   styleUrl: './kira-formu.scss',
 })
@@ -96,6 +100,13 @@ export class KiraFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
   }));
 
   protected readonly pdfAdresi = computed(() => sozlesmePdfAdresi(this.d.kira()?.id));
+  /** Bant ikincil metni: çıkış ofisi · başlangıç – bitiş (İstanbul saati). */
+  protected readonly bantAltMetni = computed(() => {
+    const k = this.d.kira();
+    if (!k) return null;
+    const aralik = `${tarihSaatBicimle(k.basTar)} – ${tarihSaatBicimle(k.bitTar)}`;
+    return k.cikisOfisi ? `${k.cikisOfisi} · ${aralik}` : aralik;
+  });
   protected readonly bulunamadi = computed(() => this.d.detay.hata()?.status === 404);
 
   constructor() {

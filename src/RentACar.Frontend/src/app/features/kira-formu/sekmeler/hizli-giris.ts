@@ -20,7 +20,7 @@ import { YeniMusteri } from './yeni-musteri';
   template: `
     <div class="kf-iki-sutun" [formGroup]="d.form.controls.ayna">
       <div class="kf-sutun">
-        <section class="kf-kart">
+        <section class="rc-bolum kf-kart">
           <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.musteri' | transloco }}</h3>
           <div class="rc-form-izgara">
             <rc-alan [etiket]="'kiraFormu.alan.musteri' | transloco" class="rc-form-izgara__genis">
@@ -46,7 +46,7 @@ import { YeniMusteri } from './yeni-musteri';
           }
         </section>
 
-        <section class="kf-kart">
+        <section class="rc-bolum kf-kart">
           <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.tarihLokasyon' | transloco }}</h3>
           <div class="rc-form-izgara">
             <rc-alan [etiket]="'kiraFormu.alan.basTar' | transloco">
@@ -65,7 +65,7 @@ import { YeniMusteri } from './yeni-musteri';
           <p class="kf-not">{{ 'kiraFormu.not.drop' | transloco }}</p>
         </section>
 
-        <section class="kf-kart">
+        <section class="rc-bolum kf-kart">
           <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.arac' | transloco }}</h3>
           <div class="rc-form-izgara">
             <rc-alan [etiket]="'kiraFormu.alan.arac' | transloco" class="rc-form-izgara__genis">
@@ -81,7 +81,7 @@ import { YeniMusteri } from './yeni-musteri';
       </div>
 
       <div class="kf-sutun">
-        <section class="kf-kart">
+        <section class="rc-bolum kf-kart">
           <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.fiyat' | transloco }}</h3>
           <div class="rc-form-izgara">
             <rc-alan [etiket]="'kiraFormu.alan.kiralamaTuru' | transloco">
@@ -110,7 +110,10 @@ import { YeniMusteri } from './yeni-musteri';
           </div>
         </section>
         <rc-kf-hesap-ozeti kisa />
-        <section class="kf-kart" [attr.aria-label]="'kiraFormuParite.rozet.etiket' | transloco">
+        <section
+          class="rc-bolum kf-kart"
+          [attr.aria-label]="'kiraFormuParite.rozet.etiket' | transloco"
+        >
           <div class="kf-eylemler" data-testid="hizli-rozetler">
             <span class="rc-rozet">{{
               'kiraFormuParite.rozet.tahsilat' | transloco: { tutar: rozetler().tahsilat }

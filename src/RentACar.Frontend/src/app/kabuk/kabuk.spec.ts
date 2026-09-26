@@ -370,16 +370,19 @@ describe('Kabuk', () => {
 
   it('plaka arama: Enter araç listesine plaka süzgeciyle gider; boş aramada gezinme yok', async () => {
     const { h, kok } = await ac();
-    const girdi = kok.querySelector<HTMLInputElement>('rc-ust-cubuk .plaka__girdi');
-    const form = kok.querySelector<HTMLFormElement>('rc-ust-cubuk form[role="search"]');
-    if (!girdi || !form) throw new Error('plaka arama yok');
+    const girdi = kok.querySelector<HTMLInputElement>('rc-ust-cubuk rc-plaka-arama input');
+    if (!girdi) throw new Error('plaka arama yok');
+    // Erişilebilir ad "Plaka" içermez (e2e getByLabel('Plaka') form alanlarını hedefler).
+    expect(girdi.labels?.[0]?.textContent?.trim()).toBe('Hızlı araç arama');
+    const enter = () =>
+      girdi.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
     girdi.value = '   ';
-    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    enter();
     await h.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/');
 
     girdi.value = ' 07  bkl 496 ';
-    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    enter();
     await h.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/araclar?q=07%20bkl%20496');
     expect(girdi.value).toBe('');

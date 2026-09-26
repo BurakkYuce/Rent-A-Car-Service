@@ -18,18 +18,18 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
       <p class="kf-not">{{ 'kiraFinans.kur.yok' | transloco }}</p>
     } @else {
       <div
-        class="kf-tablo-kutusu"
+        class="rc-tablo-kap"
         role="region"
         tabindex="0"
         [attr.aria-label]="'kiraFinans.kur.liste' | transloco"
         [attr.aria-busy]="s.yukleniyor()"
       >
-        <table class="kf-tablo" [attr.aria-label]="'kiraFinans.kur.liste' | transloco">
+        <table class="rc-duz-tablo" [attr.aria-label]="'kiraFinans.kur.liste' | transloco">
           <thead>
             <tr>
               <th scope="col">{{ 'kiraFinans.kur.kod' | transloco }}</th>
-              <th scope="col" class="num">{{ 'kiraFinans.kur.alis' | transloco }}</th>
-              <th scope="col" class="num">{{ 'kiraFinans.kur.satis' | transloco }}</th>
+              <th scope="col" class="rc-num">{{ 'kiraFinans.kur.alis' | transloco }}</th>
+              <th scope="col" class="rc-num">{{ 'kiraFinans.kur.satis' | transloco }}</th>
               <th scope="col">{{ 'kiraFinans.alan.tarih' | transloco }}</th>
             </tr>
           </thead>
@@ -42,8 +42,8 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
                     ({{ x.birim }})
                   }
                 </td>
-                <td class="num">{{ sayiya(x.dovizAlis) | sayi: '1.4-4' }}</td>
-                <td class="num">{{ sayiya(x.dovizSatis) | sayi: '1.4-4' }}</td>
+                <td class="rc-num">{{ sayiya(x.dovizAlis) | sayi: '1.4-4' }}</td>
+                <td class="rc-num">{{ sayiya(x.dovizSatis) | sayi: '1.4-4' }}</td>
                 <td>{{ x.tarih | tarih }}</td>
               </tr>
             }
@@ -70,19 +70,19 @@ export class FinansKurlar {
       <p class="kf-not">{{ s.hata()?.detay }}</p>
     }
     <div
-      class="kf-tablo-kutusu"
+      class="rc-tablo-kap"
       role="region"
       tabindex="0"
       [attr.aria-label]="'kiraFinans.ceza.liste' | transloco"
       [attr.aria-busy]="s.yukleniyor()"
     >
-      <table class="kf-tablo" [attr.aria-label]="'kiraFinans.ceza.liste' | transloco">
+      <table class="rc-duz-tablo" [attr.aria-label]="'kiraFinans.ceza.liste' | transloco">
         <thead>
           <tr>
             <th scope="col">{{ 'kiraFinans.ceza.no' | transloco }}</th>
             <th scope="col">{{ 'kiraFinans.alan.tur' | transloco }}</th>
-            <th scope="col" class="num">{{ 'kiraFinans.alan.tutar' | transloco }}</th>
-            <th scope="col" class="num">{{ 'kiraFinans.ceza.kalan' | transloco }}</th>
+            <th scope="col" class="rc-num">{{ 'kiraFinans.alan.tutar' | transloco }}</th>
+            <th scope="col" class="rc-num">{{ 'kiraFinans.ceza.kalan' | transloco }}</th>
             <th scope="col">{{ 'kiraFinans.alan.durum' | transloco }}</th>
           </tr>
         </thead>
@@ -91,14 +91,14 @@ export class FinansKurlar {
             <tr>
               <td>{{ c.no }}</td>
               <td>{{ c.cezaTuru }}</td>
-              <td class="num">{{ para(c.tutar, null) }}</td>
-              <td class="num">{{ para(c.kalan, null) }}</td>
+              <td class="rc-num">{{ para(c.tutar, null) }}</td>
+              <td class="rc-num">{{ para(c.kalan, null) }}</td>
               <td>{{ c.durum }}</td>
             </tr>
           } @empty {
             @if (s.tur() === 'hazir') {
               <tr>
-                <td colspan="5" class="kf-bos">{{ 'kiraFinans.ceza.yok' | transloco }}</td>
+                <td colspan="5" class="rc-bos">{{ 'kiraFinans.ceza.yok' | transloco }}</td>
               </tr>
             }
           }
@@ -106,17 +106,17 @@ export class FinansKurlar {
       </table>
     </div>
     <div
-      class="kf-tablo-kutusu"
+      class="rc-tablo-kap"
       role="region"
       tabindex="0"
       [attr.aria-label]="'kiraFinans.ceza.hgs' | transloco"
     >
-      <table class="kf-tablo" [attr.aria-label]="'kiraFinans.ceza.hgs' | transloco">
+      <table class="rc-duz-tablo" [attr.aria-label]="'kiraFinans.ceza.hgs' | transloco">
         <thead>
           <tr>
             <th scope="col">{{ 'kiraFinans.ceza.zaman' | transloco }}</th>
             <th scope="col">{{ 'kiraFinans.ceza.gise' | transloco }}</th>
-            <th scope="col" class="num">{{ 'kiraFinans.alan.tutar' | transloco }}</th>
+            <th scope="col" class="rc-num">{{ 'kiraFinans.alan.tutar' | transloco }}</th>
           </tr>
         </thead>
         <tbody>
@@ -124,12 +124,12 @@ export class FinansKurlar {
             <tr>
               <td>{{ g.zaman | tarihSaat }}</td>
               <td>{{ g.gecis }}</td>
-              <td class="num">{{ para(g.tutar, null) }}</td>
+              <td class="rc-num">{{ para(g.tutar, null) }}</td>
             </tr>
           } @empty {
             @if (s.tur() === 'hazir') {
               <tr>
-                <td colspan="3" class="kf-bos">{{ 'kiraFinans.ceza.hgsYok' | transloco }}</td>
+                <td colspan="3" class="rc-bos">{{ 'kiraFinans.ceza.hgsYok' | transloco }}</td>
               </tr>
             }
           }

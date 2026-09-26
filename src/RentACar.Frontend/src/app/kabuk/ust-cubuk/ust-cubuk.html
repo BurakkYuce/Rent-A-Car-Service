@@ -40,27 +40,15 @@
 
   <span class="bosluk"></span>
 
-  <!-- YER TUTUCU: rc-plaka-arama (PR-B) gelince onunla değişir. -->
-  <form
+  <!-- Erişilebilir ad "Plaka" İÇERMEZ: e2e'deki getByLabel('Plaka') form alanlarıyla çakışmasın. -->
+  <div
     class="plaka"
     [class.plaka--acik]="plakaAcik()"
     role="search"
     [attr.aria-label]="'kabuk.plaka.etiket' | transloco"
-    (submit)="plakaAra($event, plakaGirdisi)"
+    (keydown.escape)="plakaKapat($event)"
   >
-    <span class="plaka__serit" aria-hidden="true">TR</span>
-    <input
-      #plakaGirdisi
-      class="plaka__girdi"
-      type="text"
-      autocomplete="off"
-      spellcheck="false"
-      enterkeyhint="search"
-      maxlength="16"
-      [attr.aria-label]="'kabuk.plaka.etiket' | transloco"
-      [placeholder]="'kabuk.plaka.yerTutucu' | transloco"
-      (keydown)="plakaTus($event)"
-    />
+    <rc-plaka-arama [etiket]="'kabuk.plaka.etiket' | transloco" (ara)="plakaAra($event)" />
     @if (plakaAcik()) {
       <button
         type="button"
@@ -71,7 +59,7 @@
         <rc-ikon ad="x" [boyut]="16" />
       </button>
     }
-  </form>
+  </div>
   <button
     type="button"
     class="ikon-dugme plaka-dugmesi"

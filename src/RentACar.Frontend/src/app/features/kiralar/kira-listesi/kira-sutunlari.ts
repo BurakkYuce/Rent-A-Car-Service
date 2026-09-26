@@ -77,14 +77,14 @@ export function kiraSutunlari(t: Ceviri): readonly TabloSutunu<KiraListeSatiri>[
       sirala: true,
       genislik: 180,
     },
-    { kod: 'plaka', baslik: s('plaka'), deger: (r) => r.plaka, sirala: true, genislik: 100 },
+    { kod: 'plaka', baslik: s('plaka'), deger: (r) => r.plaka, sirala: true, genislik: 124 },
     {
       kod: 'basTar',
       baslik: s('basTar'),
       deger: (r) => r.basTar,
       tur: 'tarihSaat',
       sirala: true,
-      genislik: 130,
+      genislik: 140,
     },
     {
       kod: 'bitTar',
@@ -92,7 +92,7 @@ export function kiraSutunlari(t: Ceviri): readonly TabloSutunu<KiraListeSatiri>[
       deger: (r) => r.bitTar,
       tur: 'tarihSaat',
       sirala: true,
-      genislik: 130,
+      genislik: 140,
     },
     {
       kod: 'vadeTar',

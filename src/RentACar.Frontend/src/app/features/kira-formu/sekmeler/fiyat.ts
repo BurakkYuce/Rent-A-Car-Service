@@ -15,7 +15,7 @@ import { KF_ORTAK } from './ortak';
   template: `
     <div class="kf-iki-sutun" [formGroup]="d.form">
       <div class="kf-sutun">
-        <section class="kf-kart">
+        <section class="rc-bolum kf-kart">
           <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.fiyatGirisi' | transloco }}</h3>
           <div class="rc-form-izgara">
             <rc-alan [etiket]="'kiraFormu.alan.fiyatTuru' | transloco">
@@ -49,7 +49,7 @@ import { KF_ORTAK } from './ortak';
           </div>
         </section>
 
-        <section class="kf-kart">
+        <section class="rc-bolum kf-kart">
           <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.odeme' | transloco }}</h3>
           <div class="rc-form-izgara">
             <rc-alan [etiket]="'kiraFormu.alan.odemeSekli' | transloco">

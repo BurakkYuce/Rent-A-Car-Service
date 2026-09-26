@@ -113,7 +113,7 @@ async function kiraUclari(page: Page, satirlar: () => unknown[]): Promise<Sahte>
 const SAYFA: VitrinSayfasi = {
   ad: 'kiralar',
   yol: '/app/kiralar',
-  baslik: 'Kira Sözleşmeleri',
+  baslik: 'Kira listesi',
   hazir: async (page) => {
     const izgara = page.getByRole('grid', { name: 'Kira sözleşmeleri' });
     await expect(izgara).not.toHaveAttribute('aria-busy', 'true');
@@ -165,7 +165,6 @@ test('liste: axe iki temada ciddi/kritik 0, konsol hatası yok; bağlantılar Bl
   expect(await ciddiIhlaller(page), 'koyu tema').toEqual([]);
 
   // Süzgeç: URL'e yazılır, API aynı adla çağrılır, dışa aktarma süzgeci taşır.
-  await page.getByRole('button', { name: /Filtreler/ }).click();
   await page.getByRole('searchbox', { name: 'Ara', exact: true }).fill('Yılmaz');
   await page.getByRole('button', { name: 'Filtrele', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/kiralar\?q=Y%C4%B1lmaz$/);
