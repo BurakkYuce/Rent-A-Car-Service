@@ -36,9 +36,9 @@ public sealed class ValidationErrorMiddleware(ILogger<ValidationErrorMiddleware>
         // yönlendirme ya da {ok,hata} gövdesi üretilmez, istisna dıştaki /api/ui çitine bırakılır.
         catch (ValidationException ex) when (!RentACar.Web.Api.UiApiExtensions.UiPath(ctx.Request.Path))
         {
-            // Gövde yazılmaya başladıysa müdahale edemeyiz (yarım HTML'e yönlendirme eklenemez).
-            // Döngü koruması: /hata sayfasının kendisi hata verirse tekrar oraya yönlendirmeyelim.
-            if (ctx.Response.HasStarted || ctx.Request.Path.StartsWithSegments("/hata"))
+            // Gövde yazılmaya başladıysa müdahale edemeyiz (yarım yanıta yönlendirme eklenemez).
+            // Döngü yok: hedef /app (statik SPA kabuğu, ValidationException üretmez).
+            if (ctx.Response.HasStarted)
                 throw;
 
             log.LogWarning(ex, "Doğrulama hatası sayfa yolunda yakalandı: {Yol}", ctx.Request.Path);
@@ -56,8 +56,9 @@ public sealed class ValidationErrorMiddleware(ILogger<ValidationErrorMiddleware>
                 return;
             }
 
+            // F13.1b: Blazor /hata sayfası yerine yeni arayüzün Panel'i + hata bandı (?hata=).
             ctx.Response.Clear();
-            ctx.Response.Redirect("/hata?mesaj=" + Uri.EscapeDataString(message));
+            ctx.Response.Redirect(RentACar.Web.Spa.Cutover.ErrorTarget(message));
         }
     }
 

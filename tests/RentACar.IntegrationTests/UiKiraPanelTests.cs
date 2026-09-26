@@ -447,15 +447,14 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         await ExpectProblem(await op.C.GetAsync($"{Rental}/{id}/karne-ozeti"), HttpStatusCode.Forbidden, UiError.Forbidden);
     }
 
+    /// <summary>F13.1b: pilot kapısı kalktı — bayrağı kapalı firma da kira listesini ve paneli okur.</summary>
     [Fact]
-    public async Task Pilot_olmayan_firma_403_pilot_degil()
+    public async Task Pilot_bayragi_kapali_firma_da_kira_ve_panel_okur()
     {
         var o = await SetUpEnvironmentAsync(pilot: false);
         var s = await LoginAsync(o, Kim.Admin);
-        await ExpectProblem(await s.C.GetAsync(Rental), HttpStatusCode.Forbidden, UiError.NotPilot);
-        await ExpectProblem(await s.C.GetAsync(V1 + "/panel/ozet"), HttpStatusCode.Forbidden, UiError.NotPilot);
-        await ExpectProblem(await Gonder(s, HttpMethod.Post, Rental, new { musteriId = o.MusteriId, vehicleId = Guid.NewGuid(),
-            basTar = Now(), bitTar = Now().AddDays(1) }), HttpStatusCode.Forbidden, UiError.NotPilot);
+        Assert.Equal(HttpStatusCode.OK, (await s.C.GetAsync(Rental)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await s.C.GetAsync(V1 + "/panel/ozet")).StatusCode);
     }
 
     [Fact]
@@ -487,7 +486,9 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         // F13.1a: Blazor GET /kiralar/hesapla silindi (parite karşılaştırması anlamını yitirdi); motor aynı
         // (RentalCalculationService), değerler aşağıdaki elle kurulmuş oracle'la kilitli.
         var api = await Json(await s.C.GetAsync($"{Rental}/hesapla?{q}"));
-        Assert.Equal(HttpStatusCode.NotFound, (await s.C.GetAsync($"/kiralar/hesapla?{q}")).StatusCode);
+        // Uç yok: F13.1b'den beri gövdesiz 404 SPA Panel'ine bulunamadı bandıyla gider (JSON değil).
+        var gone = await s.C.GetAsync($"/kiralar/hesapla?{q}");
+        Assert.StartsWith("/app/panel?hata=", gone.Headers.Location?.OriginalString);
 
         // ORACLE: 3 × 100 net = 300; KDV 60; baz 360. GPS 60. Genel 420.
         Assert.True(api.GetProperty("ok").GetBoolean(), api.ToString());
@@ -629,10 +630,11 @@ public sealed class UiKiraPanelTests(WebFixture fx)
         var lastDay = start.AddDays(14).ToOffset(TimeSpan.FromHours(3)).ToString("yyyy-MM-dd");
         Assert.Equal(1, await DataRowAsync(await s.C.GetAsync(Endpoint + "&basMin=" + lastDay)));
 
-        // Tanımsız durum adı sessizce "hepsi"ne düşmez (yanlış dosya indirilmez): doğrulama hatası sayfası.
+        // Tanımsız durum adı sessizce "hepsi"ne düşmez (yanlış dosya indirilmez): doğrulama hatası (F13.1b: SPA Panel +
+        // hata bandı).
         var corrupt = await s.C.GetAsync(Endpoint + "&durum=Yok");
         Assert.Equal(HttpStatusCode.Redirect, corrupt.StatusCode);
-        Assert.StartsWith("/hata", corrupt.Headers.Location?.OriginalString);
+        Assert.StartsWith("/app/panel?hata=", corrupt.Headers.Location?.OriginalString);
     }
 
     [Fact]

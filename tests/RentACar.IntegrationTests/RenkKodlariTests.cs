@@ -128,36 +128,16 @@ public sealed class RenkKodlariTests(PostgresFixture fx)
     }
 
     [Fact]
-    public void CSS_fallback_zinciri_KIRILMAMIS()
+    public void Oturum_ucu_renkleri_DOGRULAYARAK_verir()
     {
-        // Kaynak çiti: birisi var(--tr-renk-x) yazıp fallback'i düşürürse renk seçmemiş
-        // tenant'ta rozet renksiz kalır. Fallback'in KORUNDUĞU dosyadan doğrulanır.
+        // F13.1b: Blazor MainLayout'un <style> bildirimi ve app.css fallback zinciri kabukla birlikte silindi. Renkler
+        // artık /api/ui/v1/oturum/ben ile SPA'ya gider; uç ikinci savunmayı taşır: biçim sınaması kaldırılırsa servis
+        // doğrulamasını atlayan bir yol (import/seed) istemciye serbest metin sızdırabilirdi.
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
         Assert.NotNull(d);
-        var css = File.ReadAllText(Path.Combine(d!.FullName, "src/RentACar.Web/wwwroot/app.css"));
+        var session = File.ReadAllText(Path.Combine(d!.FullName, "src/RentACar.Web/Api/Oturum/SessionApi.cs"));
 
-        // --tr-renk-* her kullanımda İKİ argümanlı var(...) içinde olmalı (fallback'li).
-        foreach (Match m in Regex.Matches(css, @"var\(\s*--tr-renk-[a-z-]+\s*(,)?"))
-            Assert.True(m.Groups[1].Success,
-                $"CSS'te fallback'siz tenant renk değişkeni var: {m.Value}");
-
-        Assert.Contains("--tr-renk-gecikenler", css, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Layout_renk_bildirimini_DOGRULAYARAK_basar()
-    {
-        // Değerler <style> içine yazıldığı için layout ikinci savunmayı taşımalı: biçim sınaması
-        // kaldırılırsa servis doğrulamasını atlayan herhangi bir yol (import/seed) CSS'e serbest
-        // metin sızdırabilirdi.
-        var d = new DirectoryInfo(AppContext.BaseDirectory);
-        while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
-        Assert.NotNull(d);
-        var layout = File.ReadAllText(Path.Combine(d!.FullName,
-            "src/RentACar.Web/Components/Layout/MainLayout.razor"));
-
-        Assert.Contains("^#[0-9a-fA-F]{6}$", layout, StringComparison.Ordinal);
-        Assert.Contains("--tr-renk-", layout, StringComparison.Ordinal);
+        Assert.Contains("^#[0-9a-fA-F]{6}$", session, StringComparison.Ordinal);
     }
 }

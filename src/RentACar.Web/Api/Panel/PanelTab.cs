@@ -1,4 +1,4 @@
-namespace RentACar.Web.Components.Pages;
+namespace RentACar.Web.Api.Panel;
 
 /// <summary>
 /// Panel "Dönüşler" / "Çıkışlar" kartlarında hangi gün-sekmesinin (Gecikmiş/Bugün/Yarın) açılacağı.

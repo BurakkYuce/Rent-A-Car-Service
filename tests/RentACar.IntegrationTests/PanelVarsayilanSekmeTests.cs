@@ -1,5 +1,4 @@
-using System.Text.RegularExpressions;
-using RentACar.Web.Components.Pages;
+using RentACar.Web.Api.Panel;
 
 namespace RentACar.IntegrationTests;
 
@@ -16,14 +15,6 @@ namespace RentACar.IntegrationTests;
 /// </summary>
 public sealed class PanelVarsayilanSekmeTests
 {
-    private static string RepoRoot()
-    {
-        var d = new DirectoryInfo(AppContext.BaseDirectory);
-        while (d is not null && !File.Exists(Path.Combine(d.FullName, "RentACar.slnx"))) d = d.Parent;
-        Assert.NotNull(d);
-        return d!.FullName;
-    }
-
     // ── Etkin sekme: (ham URL değeri, gecikmiş sayısı) → açılan sekme ──────────────────────────
     [Theory]
     // Seçim YOK (parametre yok) → gecikmiş varsa gec, yoksa bugun. Canlı vaka: null + 9 → gec.
@@ -129,51 +120,6 @@ public sealed class PanelVarsayilanSekmeTests
     // F13.1a: Blazor Panel (Home.razor) silindi; "kararı ham df/cf'den verme" kaynak çiti anlamını yitirdi. Kural
     // yukarıdaki saf PanelTab testlerinde ve sunucunun hesapladığı `varsayilanSekme`'de (PanelApi → PanelTab) yaşar.
 
-    // ── Acil çipin metin rengi zeminden türetilir (adversarial bulgu) ──────────────────────────
-    // Zemin tenant'ın serbest seçtiği "Gecikenler" rengi; sabit beyaz metin sarı seçen tenant'ta
-    // ~1,3:1 kontrastla okunmuyordu. Beklenenler ELLE: WCAG oranları bilinen renk çiftlerinden.
-    [Theory]
-    [InlineData("#fde047", "#0f172a")]   // yellow-300 → koyu metin (beyazla ~1,3:1)
-    [InlineData("#facc15", "#0f172a")]   // yellow-400
-    [InlineData("#ffffff", "#0f172a")]
-    [InlineData("#808080", "#0f172a")]   // orta gri: koyuyla ~5:1, beyazla ~3,9:1
-    [InlineData("#dc2626", "#ffffff")]   // varsayılan kırmızı → beyaz (bugünkü görünüm korunur)
-    [InlineData("#1e3a8a", "#ffffff")]   // koyu lacivert
-    [InlineData("#000000", "#ffffff")]
-    [InlineData("#DC2626", "#ffffff")]   // büyük harf hex
-    public void Acil_cip_metin_rengi_zeminden_turetilir(string background, string expected)
-        => Assert.Equal(expected, RentACar.Web.Components.Layout.ColorContrast.TextOn(background));
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("fde047")]
-    [InlineData("#fde04")]
-    [InlineData("#gggggg")]
-    [InlineData("# de047")]
-    [InlineData("#-de047")]
-    public void Bicimsiz_renk_icin_metin_rengi_uretilmez(string? background)
-        => Assert.Null(RentACar.Web.Components.Layout.ColorContrast.TextOn(background));
-
-    [Fact]
-    public void Acil_cip_metin_rengini_sabit_beyazdan_degil_degiskenden_alir()
-    {
-        var css = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/wwwroot/app.css"));
-        var rules = Regex.Matches(css, @"(?<s>[^{}]*\.dc-tabs a\.acil[^{}]*)\{(?<g>[^}]*)\}");
-        Assert.NotEmpty(rules);
-        foreach (Match k in rules)
-            if (Regex.IsMatch(k.Groups["g"].Value, @"(^|;)\s*color\s*:"))
-                Assert.Contains("var(--tr-renk-gecikenler-on", k.Groups["g"].Value, StringComparison.Ordinal);
-
-        var layout = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Components/Layout/MainLayout.razor"));
-        Assert.Contains("ColorContrast.TextOn(renk)", layout, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Acil_cip_stili_app_css_te_tanimli()
-    {
-        // `acil` sınıfı stilsiz kalırsa Gecikmiş çipi yine gri görünür ve hata SESSİZCE geri gelir.
-        var css = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/wwwroot/app.css"));
-        Assert.Contains(".dc-tabs a.acil", css, StringComparison.Ordinal);
-    }
+    // F13.1b: Blazor kabuğunun "acil çip metin rengi" (ColorContrast + app.css + MainLayout) testleri kabukla birlikte
+    // silindi; yeni arayüz rozet renklerini kendi tasarım token'larından alır (stil denetimi `npm run lint`).
 }

@@ -38,12 +38,11 @@ public sealed class UcIzinKapsamaTests
     private static readonly Regex WriteMap = new(@"\.Map(Post|Put|Patch|Delete)\(\s*""(?<rota>[^""]*)""");
 
     /// <summary>
-    /// Gerekçeli izin listesi: oturum uçları (F13.1b <c>/auth/*</c>'ı SPA'ya bağlar) ve makine webhook'u (Grafana alarm
-    /// köprüsü; anonim, gizli anahtar kapılı, kullanıcı arayüzü değil).
+    /// Gerekçeli izin listesi: eski form çıkış ucu (oturum ucu; F13.1b'de SPA girişine döner, giriş formu ucu silindi)
+    /// ve makine webhook'u (Grafana alarm köprüsü; anonim, gizli anahtar kapılı, kullanıcı arayüzü değil).
     /// </summary>
     private static readonly HashSet<string> AllowedWrites = new(StringComparer.Ordinal)
     {
-        "Identity/AuthEndpoints.cs /auth/login",
         "Identity/AuthEndpoints.cs /auth/logout",
         "Program.cs /internal/alert",
     };
@@ -60,19 +59,18 @@ public sealed class UcIzinKapsamaTests
     }
 
     /// <summary>
-    /// <c>@page</c> yalnız kabuk sayfalarında (hata/404/yetkisiz/doğrulama hatası); F13.1b bunları da SPA'ya bağlayıp
-    /// sayıyı 0'a indirir.
+    /// F13 Exit: <c>@page</c> = 0 — Web projesinde hiç razor bileşeni yok (kabuk dahil; hata/404/yetkisiz SPA'da).
+    /// PublicSite ayrı bir uygulamadır, kapsam dışı.
     /// </summary>
     [Fact]
-    public void Blazor_pages_only_shell_pages_remain()
+    public void No_blazor_component_remains_in_web()
     {
-        var components = Path.Combine(RepoRoot(), "src/RentACar.Web/Components");
-        var pages = Directory.Exists(components)
-            ? Directory.EnumerateFiles(components, "*.razor", SearchOption.AllDirectories)
-                .Where(f => Regex.IsMatch(File.ReadAllText(f), @"^@page\s", RegexOptions.Multiline))
-                .Select(Path.GetFileName).OrderBy(x => x, StringComparer.Ordinal).ToList()
-            : [];
-        Assert.True(pages.All(p => p is "DogrulamaHatasi.razor" or "Error.razor" or "NotFound.razor" or "Yetkisiz.razor"),
-            "Beklenmeyen Blazor sayfası: " + string.Join(", ", pages));
+        var web = Path.Combine(RepoRoot(), "src/RentACar.Web");
+        var razors = Directory.EnumerateFiles(web, "*.razor", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(web, f).Replace('\\', '/'))
+            .Where(f => !f.StartsWith("obj/", StringComparison.Ordinal) && !f.StartsWith("bin/", StringComparison.Ordinal))
+            .ToList();
+        Assert.True(razors.Count == 0, "Web'de Blazor bileşeni kaldı: " + string.Join(", ", razors));
+        Assert.False(Directory.Exists(Path.Combine(web, "wwwroot")), "Blazor statik dosyaları (wwwroot) kaldı.");
     }
 }

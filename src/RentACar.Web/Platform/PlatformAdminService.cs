@@ -472,52 +472,8 @@ public sealed class PlatformAdminService(
             tenant.Code, tenantId, active ? "AÇILDI" : "KAPATILDI", operatorName);
     }
 
-    /// <summary>
-    /// F4.6: yeni arayüz (Angular <c>/app</c>) PİLOT anahtarı. Açıkken firmanın <c>/api/ui/v1</c> uçları çalışır ve
-    /// Blazor Panel/Kira sayfaları (GET) <c>/app</c>'e yönlenir; kapatınca ANINDA eski arayüz (bayrak önbelleksiz okunur).
-    /// Yalnız platform konsolundan: <c>TenantSettings</c> ekranı bu alanı yazmaz (firma kendi kendine pilota giremez).
-    /// Ayar satırı yoksa (yeni firma) oluşturulur. Denetim: firmanın <c>AuditLogs</c>'una açık satır (owner bağlamında
-    /// denetim interceptor'ı yok) + platform uyarı logu. Aynı değere yazmak no-op (denetim satırı da yazılmaz).
-    /// </summary>
-    public async Task SetNewUiPilotAsync(Guid tenantId, bool active, string operatorName, CancellationToken ct = default)
-    {
-        await using var db = OwnerDb();
-        var tenant = await db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tenantId, ct)
-            ?? throw new ValidationException("Tenant bulunamadı.");
-
-        var changed = await InTenantScope(db, tenantId, async () =>
-        {
-            var setting = await db.TenantSettings.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.TenantId == tenantId, ct);
-            if (setting is null)
-            {
-                if (!active) return false; // satır yok = pilot değil; kapatmak için satır açmaya gerek yok
-                setting = new RentACar.Domain.Entities.TenantSettings { TenantId = tenantId };
-                db.TenantSettings.Add(setting);
-            }
-            else if (setting.YeniArayuzPilot == active) return false;
-
-            var old = setting.YeniArayuzPilot;
-            setting.YeniArayuzPilot = active;
-            setting.UpdatedAtUtc = DateTimeOffset.UtcNow;
-            db.AuditLogs.Add(new AuditLog
-            {
-                TenantId = tenantId,
-                EntityName = nameof(RentACar.Domain.Entities.TenantSettings),
-                EntityId = setting.Id.ToString(),
-                Action = AuditAction.Update,
-                UserName = "platform:" + operatorName,
-                TimestampUtc = DateTimeOffset.UtcNow,
-                OldValues = $"{{\"YeniArayuzPilot\":{(old ? "true" : "false")}}}",
-                NewValues = $"{{\"YeniArayuzPilot\":{(active ? "true" : "false")}}}",
-            });
-            await db.SaveChangesAsync(ct);
-            return true;
-        }, ct);
-
-        if (changed)
-            log.LogWarning("PLATFORM: tenant {Code} ({TenantId}) yeni arayüz pilotu {Durum} — operatör {Operator}.",
-                tenant.Code, tenantId, active ? "AÇILDI" : "KAPATILDI", operatorName);
-    }
+    // F13.1b: yeni arayüz PİLOT anahtarı (SetNewUiPilotAsync) kaldırıldı — pilot kapısı yok, yeni arayüz herkes için.
+    // TenantSettings.YeniArayuzPilot kolonu kullanılmıyor (ayrı migration'la düşer); detayda salt okunur gösterilir.
 
     /// <summary>Tenant erişimini aç/kapa — PASİF geçici askıya alma (+ anlık kesme).
     /// KAPALI tenant buradan AÇILAMAZ (Yeniden Aç ayrı ve bilinçli işlemdir).</summary>

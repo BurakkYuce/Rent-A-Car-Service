@@ -71,10 +71,6 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
     <PackageVersion Include="Npgsql.OpenTelemetry" Version="10.0.3" />
   </ItemGroup>
-  <!-- Back-office interaktif grid temeli (MIT): ağır liste ekranları için Radzen DataGrid (server-side). -->
-  <ItemGroup>
-    <PackageVersion Include="Radzen.Blazor" Version="11.1.0" />
-  </ItemGroup>
   <!-- Test paketleri -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />

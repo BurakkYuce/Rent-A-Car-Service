@@ -22,10 +22,9 @@ namespace RentACar.Web.Api.Oturum;
 /// AYNI claim seti (<see cref="SessionPrincipal"/>), AYNI cookie şeması ve AYNI hız sınırı (<c>login</c>).</item>
 /// <item><c>POST cikis</c>: oturumu kapatır; anonim kimliğe bağlı yeni belirteç verir.</item>
 /// <item><c>GET ben</c>: kullanıcı, firma, rol, etkin izinler (kullanıcı-bazlı istisnalar dahil), şube kapsamı,
-/// modül bayrakları, firma renkleri, pilot bayrağı.</item>
+/// modül bayrakları, firma renkleri, pilot bayrağı (F13.1b'den beri hep <c>true</c> — pilot kapısı kalktı).</item>
 /// </list>
-/// İzin kapısı bilinçli olarak yok (<see cref="AuthExtensions.PermissionExempt{TBuilder}"/>); pilot kapısından muaf
-/// (pilot olmayan firmanın kullanıcısı "yeni arayüz açık değil" bandını <c>ben.pilot</c>'tan okur).
+/// İzin kapısı bilinçli olarak yok (<see cref="AuthExtensions.PermissionExempt{TBuilder}"/>).
 /// </summary>
 public static class SessionApi
 {
@@ -116,7 +115,7 @@ public static class SessionApi
 
         var sp = http.RequestServices;
         var ct = http.RequestAborted;
-        var current = sp.GetRequiredService<ICurrentUser>(); // HybridIdentity: http.User'ı CANLI okur
+        var current = sp.GetRequiredService<ICurrentUser>(); // HttpContextIdentity: http.User'ı CANLI okur
 
         string? fullName;
         string tenantName;
@@ -139,7 +138,8 @@ public static class SessionApi
             new BenSubeKapsami(branch.Unrestricted, branch.SubeId, branch.SubeAd),
             new BenModuller(website),
             Colors(setting),
-            setting?.YeniArayuzPilot == true);
+            // F13.1b: pilot kapısı kalktı — yeni arayüz herkes için açık; alan sözleşmede kalır (eski istemci), hep true.
+            true);
     }
 
     private static readonly Regex HexRenk = new("^#[0-9a-fA-F]{6}$", RegexOptions.Compiled);

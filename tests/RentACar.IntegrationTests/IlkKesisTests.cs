@@ -431,63 +431,43 @@ public sealed class IlkKesisKararTests
         => Assert.Equal(expected, Cutover.LoginRedirect(new QueryString(query.Length == 0 ? null : query)));
 
     [Theory]
-    // pilot: SPA hedefi — /app dönüşü aynen, haritadaki Blazor adresi SPA karşılığına, varsayılan Panel
-    [InlineData(true, null, "/app/panel")]
-    [InlineData(true, "/", "/app/panel")]
-    [InlineData(true, "/kiralar?varac=x&vfrom=y", "/app/kiralar?varac=x&vfrom=y")]
-    [InlineData(true, "/kiralar/yeni?varac=x", "/app/kiralar/yeni?varac=x")]
-    [InlineData(true, "/kiralar/" + G + "#sekme=odeme", "/app/kiralar/" + G + "#sekme=odeme")]
-    [InlineData(true, "/app/kiralar?q=a", "/app/kiralar?q=a")]
-    [InlineData(true, "/app/giris?returnUrl=%2Fapp", "/app/panel")]                     // döngü yok
-    [InlineData(true, "/APP/GIRIS", "/app/panel")]
-    [InlineData(true, "/rezervasyonlar?durum=Rezerv", "/app/rezervasyonlar?durum=Rezerv")] // F5.4
-    [InlineData(true, "/musaitlik?from=2026-10-01&to=2026-10-04", "/app/musaitlik?from=2026-10-01&to=2026-10-04")]
-    [InlineData(true, "/takvim-abonelik", "/app/takvim-abonelik")]                      // F11.3 (F5 dışı benzer ad)
-    [InlineData(true, "/gelen-talepler?durum=0", "/app/gelen-talepler?durum=0")]        // F11.3
-    [InlineData(true, "/web-sitesi/ilan/" + G + "/fiyat", "/app/web-sitesi/ilan/" + G + "/fiyat")]
-    [InlineData(true, "/bildirimler?x=1", "/app/bildirimler?x=1")]                      // F11.3
-    [InlineData(true, "/yetkisiz?x=1", "/yetkisiz?x=1")]                                // hâlâ Blazor'da olan sayfa
-    [InlineData(true, "/cariler?x=1", "/app/cariler?x=1")]                              // F7.3
-    [InlineData(true, "/cariler/" + G + "/detay#sekme=ekstre", "/app/cariler/" + G + "/detay#sekme=ekstre")]
-    [InlineData(true, "/cariler/" + G + "/ekstre", "/app/cariler/" + G + "/ekstre")]    // F8.3
-    [InlineData(true, "/kasa?x=1", "/app/kasa?x=1")]
-    [InlineData(true, "/faturalar?durum=Acik#liste", "/app/faturalar?durum=Acik#liste")]
-    [InlineData(true, "/faturalar/" + G + "/pdf", "/faturalar/" + G + "/pdf")]          // fatura PDF yönlenmez
-    [InlineData(true, "/vehicles?x=1", "/app/araclar?x=1")]                             // F6.4
-    [InlineData(true, "/araclar/" + G + "#km", "/app/araclar/" + G + "/detay#km")]
-    [InlineData(true, "/raporlar/gelir-gider?bas=2026-09-01", "/app/raporlar/gelir-gider?bas=2026-09-01")] // F10.3
-    [InlineData(true, "/raporlar/arac-karne/" + G, "/app/raporlar/arac-karne/" + G)]
-    [InlineData(true, "/vade?plaka=34ABC12", "/app/vade?plaka=34ABC12")]                 // F9.3
-    [InlineData(true, "/servisler?durum=Serviste", "/app/servisler?durum=Serviste")]
-    [InlineData(true, "/regulasyon#mtv", "/app/regulasyon#mtv")]
-    [InlineData(true, "/listeler/export/vade", "/app/panel")]                            // indirme dönüş olamaz
-    [InlineData(true, "/kiralar/" + G + "/pdf", "/kiralar/" + G + "/pdf")]              // PDF yönlenmez
-    [InlineData(true, "//evil.com", "/app/panel")]
-    [InlineData(true, "/login", "/app/panel")]
-    [InlineData(true, "/listeler/export/cariler", "/app/panel")]
-    // pilot değil: Blazor — /app dönüşü Panel'e
-    [InlineData(false, null, "/")]
-    [InlineData(false, "/app/kiralar", "/")]
-    [InlineData(false, "/app", "/")]
-    [InlineData(false, "/kiralar?varac=x", "/kiralar?varac=x")]
-    [InlineData(false, "/rezervasyonlar?durum=Rezerv", "/rezervasyonlar?durum=Rezerv")]
-    [InlineData(false, "/app/rezervasyonlar", "/")]
-    [InlineData(false, "/vehicles", "/vehicles")]
-    [InlineData(false, "/app/araclar", "/")]
-    [InlineData(false, "/cariler?x=1", "/cariler?x=1")]
-    [InlineData(false, "/app/cariler", "/")]
-    [InlineData(false, "/kasa?x=1", "/kasa?x=1")]
-    [InlineData(false, "/app/kasa", "/")]
-    [InlineData(false, "/raporlar/gunluk", "/raporlar/gunluk")]
-    [InlineData(false, "/app/raporlar/gunluk", "/")]
-    [InlineData(false, "/ayarlar", "/ayarlar")]
-    [InlineData(false, "/app/ayarlar", "/")]
-    [InlineData(false, "/tarifeler", "/tarifeler")]
-    [InlineData(false, "/app/tarifeler", "/")]
-    [InlineData(false, "//evil.com", "/")]
-    [InlineData(false, "/platform/tenants", "/")]
-    public void Oturumlu_giris_sonrasi_hedef(bool pilot, string? returnInfo, string expected)
-        => Assert.Equal(expected, Cutover.AfterLogin(pilot, returnInfo));
+    // F13.1b: pilot ayrımı yok — /app dönüşü aynen, haritadaki eski Blazor adresi SPA karşılığına, varsayılan Panel
+    [InlineData(null, "/app/panel")]
+    [InlineData("/", "/app/panel")]
+    [InlineData("/kiralar?varac=x&vfrom=y", "/app/kiralar?varac=x&vfrom=y")]
+    [InlineData("/kiralar/yeni?varac=x", "/app/kiralar/yeni?varac=x")]
+    [InlineData("/kiralar/" + G + "#sekme=odeme", "/app/kiralar/" + G + "#sekme=odeme")]
+    [InlineData("/app/kiralar?q=a", "/app/kiralar?q=a")]
+    [InlineData("/app/giris?returnUrl=%2Fapp", "/app/panel")]                     // döngü yok
+    [InlineData("/APP/GIRIS", "/app/panel")]
+    [InlineData("/rezervasyonlar?durum=Rezerv", "/app/rezervasyonlar?durum=Rezerv")] // F5.4
+    [InlineData("/musaitlik?from=2026-10-01&to=2026-10-04", "/app/musaitlik?from=2026-10-01&to=2026-10-04")]
+    [InlineData("/takvim-abonelik", "/app/takvim-abonelik")]                      // F11.3 (F5 dışı benzer ad)
+    [InlineData("/gelen-talepler?durum=0", "/app/gelen-talepler?durum=0")]        // F11.3
+    [InlineData("/web-sitesi/ilan/" + G + "/fiyat", "/app/web-sitesi/ilan/" + G + "/fiyat")]
+    [InlineData("/bildirimler?x=1", "/app/bildirimler?x=1")]                      // F11.3
+    [InlineData("/yetkisiz?x=1", "/yetkisiz?x=1")]                                // kabuk adresi: GET'i ShellTarget ile Panel'e
+    [InlineData("/cariler?x=1", "/app/cariler?x=1")]                              // F7.3
+    [InlineData("/cariler/" + G + "/detay#sekme=ekstre", "/app/cariler/" + G + "/detay#sekme=ekstre")]
+    [InlineData("/cariler/" + G + "/ekstre", "/app/cariler/" + G + "/ekstre")]    // F8.3
+    [InlineData("/kasa?x=1", "/app/kasa?x=1")]
+    [InlineData("/faturalar?durum=Acik#liste", "/app/faturalar?durum=Acik#liste")]
+    [InlineData("/faturalar/" + G + "/pdf", "/faturalar/" + G + "/pdf")]          // fatura PDF yönlenmez
+    [InlineData("/vehicles?x=1", "/app/araclar?x=1")]                             // F6.4
+    [InlineData("/araclar/" + G + "#km", "/app/araclar/" + G + "/detay#km")]
+    [InlineData("/raporlar/gelir-gider?bas=2026-09-01", "/app/raporlar/gelir-gider?bas=2026-09-01")] // F10.3
+    [InlineData("/raporlar/arac-karne/" + G, "/app/raporlar/arac-karne/" + G)]
+    [InlineData("/vade?plaka=34ABC12", "/app/vade?plaka=34ABC12")]                 // F9.3
+    [InlineData("/servisler?durum=Serviste", "/app/servisler?durum=Serviste")]
+    [InlineData("/regulasyon#mtv", "/app/regulasyon#mtv")]
+    [InlineData("/listeler/export/vade", "/app/panel")]                            // indirme dönüş olamaz
+    [InlineData("/kiralar/" + G + "/pdf", "/kiralar/" + G + "/pdf")]              // PDF yönlenmez
+    [InlineData("//evil.com", "/app/panel")]
+    [InlineData("/login", "/app/panel")]
+    [InlineData("/listeler/export/cariler", "/app/panel")]
+    [InlineData("/platform/tenants", "/app/panel")]                                    // alan geçişi reddedilir
+    public void Oturumlu_giris_sonrasi_hedef(string? returnInfo, string expected)
+        => Assert.Equal(expected, Cutover.AfterLogin(returnInfo));
 
     [Theory]
     [InlineData("/app/panel", "/")]
@@ -994,6 +974,15 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         Assert.Equal(expected, r.Headers.Location?.OriginalString);
     }
 
+    /// <summary>F13.1b: eski Blazor sayfa adresi → SPA, KALICI (301).</summary>
+    private static async Task MovedAsync(HttpClient c, string url, string expected, HttpMethod? method = null)
+    {
+        using var request = new HttpRequestMessage(method ?? HttpMethod.Get, url);
+        var r = await c.SendAsync(request);
+        Assert.True(r.StatusCode == HttpStatusCode.MovedPermanently, $"{url}: beklenen 301, gelen {(int)r.StatusCode}");
+        Assert.Equal(expected, r.Headers.Location?.OriginalString);
+    }
+
     /// <summary>302 zincirini elle izler (en çok 8 adım): (adres, durum) listesi. Döngü = aynı adres iki kez.</summary>
     private static async Task<List<(string Adres, HttpStatusCode Durum)>> ChainAsync(HttpClient c, string url)
     {
@@ -1013,98 +1002,98 @@ public sealed class IlkKesisHostTests(WebFixture fx)
     // ------------------------------------------------------------ pilot yönlendirme haritası
 
     [Fact]
-    public async Task Pilot_F4_sayfalari_SPA_ya_302_sorgu_AYNEN()
+    public async Task Old_F4_sayfalari_SPA_ya_301_sorgu_AYNEN()
     {
         var c = await SessionAsync(fx.PilotAdmin);
         const string rent = "?varac=" + G + "&vfrom=2026-10-01T10%3A00&vto=2026-10-04T10%3A00&vgrup=Ekonomi&musteriId=" + G;
 
-        await RedirectsAsync(c, "/", "/app/panel");
-        await RedirectsAsync(c, "/?df=bugun", "/app/panel?df=bugun");
-        await RedirectsAsync(c, "/kiralar", "/app/kiralar");
-        await RedirectsAsync(c, "/kiralar?q=Y%C4%B1lmaz&bilgi=Kaydedildi", "/app/kiralar?q=Y%C4%B1lmaz&bilgi=Kaydedildi");
-        await RedirectsAsync(c, "/kiralar/yeni" + rent, "/app/kiralar/yeni" + rent);
-        await RedirectsAsync(c, "/kiralar/" + G, "/app/kiralar/" + G);
-        await RedirectsAsync(c, "/kiralar/" + G + "?hata=x", "/app/kiralar/" + G + "?hata=x");
-        await RedirectsAsync(c, "/kiralar/" + G + "/yazdir", "/app/kiralar/" + G + "/yazdir");
-        await RedirectsAsync(c, "/kiralar", "/app/kiralar", HttpMethod.Head);
+        await MovedAsync(c, "/", "/app/panel");
+        await MovedAsync(c, "/?df=bugun", "/app/panel?df=bugun");
+        await MovedAsync(c, "/kiralar", "/app/kiralar");
+        await MovedAsync(c, "/kiralar?q=Y%C4%B1lmaz&bilgi=Kaydedildi", "/app/kiralar?q=Y%C4%B1lmaz&bilgi=Kaydedildi");
+        await MovedAsync(c, "/kiralar/yeni" + rent, "/app/kiralar/yeni" + rent);
+        await MovedAsync(c, "/kiralar/" + G, "/app/kiralar/" + G);
+        await MovedAsync(c, "/kiralar/" + G + "?hata=x", "/app/kiralar/" + G + "?hata=x");
+        await MovedAsync(c, "/kiralar/" + G + "/yazdir", "/app/kiralar/" + G + "/yazdir");
+        await MovedAsync(c, "/kiralar", "/app/kiralar", HttpMethod.Head);
 
         // Operatör de (izin kapısı SPA'da/API'de; Blazor sayfaları yalnız [Authorize]).
         var op = await SessionAsync(fx.PilotOperator);
-        await RedirectsAsync(op, "/kiralar/yeni" + rent, "/app/kiralar/yeni" + rent);
+        await MovedAsync(op, "/kiralar/yeni" + rent, "/app/kiralar/yeni" + rent);
     }
 
     /// <summary>F5.4: rezervasyon modülünün altı Blazor sayfası pilot firmada SPA'ya; Blazor sorgusu AYNEN taşınır.</summary>
     [Fact]
-    public async Task Pilot_F5_sayfalari_SPA_ya_302_sorgu_AYNEN()
+    public async Task Old_F5_sayfalari_SPA_ya_301_sorgu_AYNEN()
     {
         var c = await SessionAsync(fx.PilotAdmin);
-        await RedirectsAsync(c, "/rezervasyonlar", "/app/rezervasyonlar");
-        await RedirectsAsync(c, "/rezervasyonlar?durum=Rezerv&ara=Y%C4%B1lmaz", "/app/rezervasyonlar?durum=Rezerv&ara=Y%C4%B1lmaz");
-        await RedirectsAsync(c, "/rezervasyonlar?vurgu=" + G, "/app/rezervasyonlar?vurgu=" + G); // gelen talep dönüşümü
-        await RedirectsAsync(c, "/teklifler", "/app/teklifler");
-        await RedirectsAsync(c, "/takvim?ay=2026-10", "/app/takvim?ay=2026-10");
-        await RedirectsAsync(c, "/musaitlik?from=2026-10-01&to=2026-10-04", "/app/musaitlik?from=2026-10-01&to=2026-10-04");
-        await RedirectsAsync(c, "/rez-sartlari?musteriId=" + G, "/app/rez-sartlari?musteriId=" + G);
-        await RedirectsAsync(c, "/filo-kiralama/", "/app/filo-kiralama");
-        await RedirectsAsync(c, "/musaitlik", "/app/musaitlik", HttpMethod.Head);
+        await MovedAsync(c, "/rezervasyonlar", "/app/rezervasyonlar");
+        await MovedAsync(c, "/rezervasyonlar?durum=Rezerv&ara=Y%C4%B1lmaz", "/app/rezervasyonlar?durum=Rezerv&ara=Y%C4%B1lmaz");
+        await MovedAsync(c, "/rezervasyonlar?vurgu=" + G, "/app/rezervasyonlar?vurgu=" + G); // gelen talep dönüşümü
+        await MovedAsync(c, "/teklifler", "/app/teklifler");
+        await MovedAsync(c, "/takvim?ay=2026-10", "/app/takvim?ay=2026-10");
+        await MovedAsync(c, "/musaitlik?from=2026-10-01&to=2026-10-04", "/app/musaitlik?from=2026-10-01&to=2026-10-04");
+        await MovedAsync(c, "/rez-sartlari?musteriId=" + G, "/app/rez-sartlari?musteriId=" + G);
+        await MovedAsync(c, "/filo-kiralama/", "/app/filo-kiralama");
+        await MovedAsync(c, "/musaitlik", "/app/musaitlik", HttpMethod.Head);
 
         var op = await SessionAsync(fx.PilotOperator);
-        await RedirectsAsync(op, "/rezervasyonlar", "/app/rezervasyonlar");
-        await RedirectsAsync(op, "/musaitlik", "/app/musaitlik");
+        await MovedAsync(op, "/rezervasyonlar", "/app/rezervasyonlar");
+        await MovedAsync(op, "/musaitlik", "/app/musaitlik");
     }
 
     /// <summary>F6.4: araç modülünün 14 Blazor sayfası pilot firmada SPA'ya; Blazor sorgusu AYNEN taşınır.</summary>
     [Fact]
-    public async Task Pilot_F6_sayfalari_SPA_ya_302_sorgu_AYNEN()
+    public async Task Old_F6_sayfalari_SPA_ya_301_sorgu_AYNEN()
     {
         var c = await SessionAsync(fx.PilotAdmin);
-        await RedirectsAsync(c, "/vehicles", "/app/araclar");
-        await RedirectsAsync(c, "/vehicles?q=34&gorunum=grup", "/app/araclar?q=34&gorunum=grup");
-        await RedirectsAsync(c, "/vehicles/detayli?sube=Merkez", "/app/araclar/detayli?sube=Merkez");
-        await RedirectsAsync(c, "/vehicles/" + G, "/app/araclar/" + G);
-        await RedirectsAsync(c, "/vehicles/" + G + "?bilgi=Kaydedildi", "/app/araclar/" + G + "?bilgi=Kaydedildi");
-        await RedirectsAsync(c, "/araclar/" + G, "/app/araclar/" + G + "/detay");
-        await RedirectsAsync(c, "/arac-durum?durum=Kirada", "/app/arac-durum?durum=Kirada");
-        await RedirectsAsync(c, "/arac-sahipleri", "/app/arac-sahipleri");
-        await RedirectsAsync(c, "/segmentler", "/app/segmentler");
-        await RedirectsAsync(c, "/arac-tipleri", "/app/arac-tipleri");
-        await RedirectsAsync(c, "/arac-kredi?durum=Aktif", "/app/arac-kredi?durum=Aktif");
-        await RedirectsAsync(c, "/musteri-taksit", "/app/musteri-taksit");
-        await RedirectsAsync(c, "/arac-siparis", "/app/arac-siparis");
-        await RedirectsAsync(c, "/baf", "/app/baf");
-        await RedirectsAsync(c, "/hasar", "/app/hasar");
-        await RedirectsAsync(c, "/filo-plan/", "/app/filo-plan");
-        await RedirectsAsync(c, "/vehicles", "/app/araclar", HttpMethod.Head);
+        await MovedAsync(c, "/vehicles", "/app/araclar");
+        await MovedAsync(c, "/vehicles?q=34&gorunum=grup", "/app/araclar?q=34&gorunum=grup");
+        await MovedAsync(c, "/vehicles/detayli?sube=Merkez", "/app/araclar/detayli?sube=Merkez");
+        await MovedAsync(c, "/vehicles/" + G, "/app/araclar/" + G);
+        await MovedAsync(c, "/vehicles/" + G + "?bilgi=Kaydedildi", "/app/araclar/" + G + "?bilgi=Kaydedildi");
+        await MovedAsync(c, "/araclar/" + G, "/app/araclar/" + G + "/detay");
+        await MovedAsync(c, "/arac-durum?durum=Kirada", "/app/arac-durum?durum=Kirada");
+        await MovedAsync(c, "/arac-sahipleri", "/app/arac-sahipleri");
+        await MovedAsync(c, "/segmentler", "/app/segmentler");
+        await MovedAsync(c, "/arac-tipleri", "/app/arac-tipleri");
+        await MovedAsync(c, "/arac-kredi?durum=Aktif", "/app/arac-kredi?durum=Aktif");
+        await MovedAsync(c, "/musteri-taksit", "/app/musteri-taksit");
+        await MovedAsync(c, "/arac-siparis", "/app/arac-siparis");
+        await MovedAsync(c, "/baf", "/app/baf");
+        await MovedAsync(c, "/hasar", "/app/hasar");
+        await MovedAsync(c, "/filo-plan/", "/app/filo-plan");
+        await MovedAsync(c, "/vehicles", "/app/araclar", HttpMethod.Head);
 
         var op = await SessionAsync(fx.PilotOperator);
-        await RedirectsAsync(op, "/vehicles", "/app/araclar");
-        await RedirectsAsync(op, "/arac-durum", "/app/arac-durum");
+        await MovedAsync(op, "/vehicles", "/app/araclar");
+        await MovedAsync(op, "/arac-durum", "/app/arac-durum");
     }
 
     /// <summary>F7.3: cari/CRM modülünün 8 Blazor sayfası pilot firmada SPA'ya; Blazor sorgusu AYNEN taşınır.</summary>
     [Fact]
-    public async Task Pilot_F7_pages_redirect_302_to_SPA_query_kept()
+    public async Task Old_F7_pages_redirect_301_to_SPA_query_kept()
     {
         var c = await SessionAsync(fx.PilotAdmin);
-        await RedirectsAsync(c, "/cariler", "/app/cariler");
-        await RedirectsAsync(c, "/cariler?ara=Y%C4%B1lmaz&bilgi=Kaydedildi", "/app/cariler?ara=Y%C4%B1lmaz&bilgi=Kaydedildi");
-        await RedirectsAsync(c, "/cariler/" + G, "/app/cariler/" + G);
-        await RedirectsAsync(c, "/cariler/" + G + "/detay", "/app/cariler/" + G + "/detay");
-        await RedirectsAsync(c, "/anketler", "/app/anketler");
-        await RedirectsAsync(c, "/sikayetler?durum=Acik", "/app/sikayetler?durum=Acik");
-        await RedirectsAsync(c, "/assistans", "/app/assistans");
-        await RedirectsAsync(c, "/hukuk/", "/app/hukuk");
-        await RedirectsAsync(c, "/crm", "/app/crm");
-        await RedirectsAsync(c, "/cariler", "/app/cariler", HttpMethod.Head);
+        await MovedAsync(c, "/cariler", "/app/cariler");
+        await MovedAsync(c, "/cariler?ara=Y%C4%B1lmaz&bilgi=Kaydedildi", "/app/cariler?ara=Y%C4%B1lmaz&bilgi=Kaydedildi");
+        await MovedAsync(c, "/cariler/" + G, "/app/cariler/" + G);
+        await MovedAsync(c, "/cariler/" + G + "/detay", "/app/cariler/" + G + "/detay");
+        await MovedAsync(c, "/anketler", "/app/anketler");
+        await MovedAsync(c, "/sikayetler?durum=Acik", "/app/sikayetler?durum=Acik");
+        await MovedAsync(c, "/assistans", "/app/assistans");
+        await MovedAsync(c, "/hukuk/", "/app/hukuk");
+        await MovedAsync(c, "/crm", "/app/crm");
+        await MovedAsync(c, "/cariler", "/app/cariler", HttpMethod.Head);
 
         var op = await SessionAsync(fx.PilotOperator);
-        await RedirectsAsync(op, "/cariler", "/app/cariler");
-        await RedirectsAsync(op, "/sikayetler", "/app/sikayetler");
+        await MovedAsync(op, "/cariler", "/app/cariler");
+        await MovedAsync(op, "/sikayetler", "/app/sikayetler");
     }
 
     /// <summary>F10.3: 26 rapor sayfası pilot firmada SPA'ya (aynı ad); Blazor sorgusu AYNEN taşınır.</summary>
     [Fact]
-    public async Task Pilot_F10_sayfalari_SPA_ya_302_sorgu_AYNEN()
+    public async Task Old_F10_sayfalari_SPA_ya_301_sorgu_AYNEN()
     {
         var c = await SessionAsync(fx.PilotAdmin);
         foreach (var code in new[]
@@ -1115,22 +1104,22 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                      "periyodik-servis", "personel-calisma", "rezervasyon-kaynak", "servis-ozet", "sigorta-muayene",
                      "tahsilat-fatura", "virman-gecmisi",
                  })
-            await RedirectsAsync(c, "/raporlar/" + code, "/app/raporlar/" + code);
-        await RedirectsAsync(c, "/raporlar/arac-karne/" + G, "/app/raporlar/arac-karne/" + G);
-        await RedirectsAsync(c, "/raporlar/gelir-gider?from=2026-09-01&to=2026-09-30", "/app/raporlar/gelir-gider?from=2026-09-01&to=2026-09-30");
-        await RedirectsAsync(c, "/raporlar/personel-calisma?bas=2026-09-21&bit=2026-09-27&personelFiltre=" + G,
+            await MovedAsync(c, "/raporlar/" + code, "/app/raporlar/" + code);
+        await MovedAsync(c, "/raporlar/arac-karne/" + G, "/app/raporlar/arac-karne/" + G);
+        await MovedAsync(c, "/raporlar/gelir-gider?from=2026-09-01&to=2026-09-30", "/app/raporlar/gelir-gider?from=2026-09-01&to=2026-09-30");
+        await MovedAsync(c, "/raporlar/personel-calisma?bas=2026-09-21&bit=2026-09-27&personelFiltre=" + G,
             "/app/raporlar/personel-calisma?bas=2026-09-21&bit=2026-09-27&personelFiltre=" + G);
-        await RedirectsAsync(c, "/raporlar/kasa-banka/", "/app/raporlar/kasa-banka");
-        await RedirectsAsync(c, "/raporlar/gunluk", "/app/raporlar/gunluk", HttpMethod.Head);
+        await MovedAsync(c, "/raporlar/kasa-banka/", "/app/raporlar/kasa-banka");
+        await MovedAsync(c, "/raporlar/gunluk", "/app/raporlar/gunluk", HttpMethod.Head);
 
         var op = await SessionAsync(fx.PilotOperator);
-        await RedirectsAsync(op, "/raporlar/personel-calisma", "/app/raporlar/personel-calisma");
-        await RedirectsAsync(op, "/raporlar/km-detay", "/app/raporlar/km-detay");
+        await MovedAsync(op, "/raporlar/personel-calisma", "/app/raporlar/personel-calisma");
+        await MovedAsync(op, "/raporlar/km-detay", "/app/raporlar/km-detay");
     }
 
     /// <summary>F9.3: servis/sigorta/vade ve fiyat/tarife modülünün 15 Blazor sayfası pilot firmada SPA'ya (aynı ad).</summary>
     [Fact]
-    public async Task Pilot_F9_pages_redirect_302_to_SPA_query_kept()
+    public async Task Old_F9_pages_redirect_301_to_SPA_query_kept()
     {
         var c = await SessionAsync(fx.PilotAdmin);
         foreach (var path in new[]
@@ -1139,16 +1128,16 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                      "/tarife-gruplari", "/tarife-aktar", "/sigorta-urunleri", "/kira-kurallari", "/broker-yasaklari",
                      "/fiyat-hesapla", "/maliyet-hesapla", "/maliyet-teklifleri", "/ek-hizmetler",
                  })
-            await RedirectsAsync(c, path, "/app" + path);
-        await RedirectsAsync(c, "/servisler?durum=Serviste&hata=x", "/app/servisler?durum=Serviste&hata=x");
-        await RedirectsAsync(c, "/vade?plaka=34%20ABC%2012", "/app/vade?plaka=34%20ABC%2012");
-        await RedirectsAsync(c, "/kira-kurallari?q=Yaz&durum=Aktif", "/app/kira-kurallari?q=Yaz&durum=Aktif");
-        await RedirectsAsync(c, "/regulasyon/", "/app/regulasyon");
-        await RedirectsAsync(c, "/vade", "/app/vade", HttpMethod.Head);
+            await MovedAsync(c, path, "/app" + path);
+        await MovedAsync(c, "/servisler?durum=Serviste&hata=x", "/app/servisler?durum=Serviste&hata=x");
+        await MovedAsync(c, "/vade?plaka=34%20ABC%2012", "/app/vade?plaka=34%20ABC%2012");
+        await MovedAsync(c, "/kira-kurallari?q=Yaz&durum=Aktif", "/app/kira-kurallari?q=Yaz&durum=Aktif");
+        await MovedAsync(c, "/regulasyon/", "/app/regulasyon");
+        await MovedAsync(c, "/vade", "/app/vade", HttpMethod.Head);
 
         var op = await SessionAsync(fx.PilotOperator);
-        await RedirectsAsync(op, "/servisler", "/app/servisler");
-        await RedirectsAsync(op, "/vade", "/app/vade");
+        await MovedAsync(op, "/servisler", "/app/servisler");
+        await MovedAsync(op, "/vade", "/app/vade");
     }
 
     /// <summary>
@@ -1156,7 +1145,7 @@ public sealed class IlkKesisHostTests(WebFixture fx)
     /// de yönlenir (Blazor cari ekstresi yalnız [Authorize] idi); izin kapısı SPA rotasında ve API'de.
     /// </summary>
     [Fact]
-    public async Task Pilot_F8_pages_redirect_302_to_SPA_query_kept()
+    public async Task Old_F8_pages_redirect_301_to_SPA_query_kept()
     {
         var c = await SessionAsync(fx.PilotAdmin);
         foreach (var path in new[]
@@ -1165,23 +1154,23 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                      "/toplu-tahsilat", "/toplu-gider", "/otomatik-tahsilat", "/donem-kapanis", "/kurlar", "/faturalar",
                      "/faturalar/detay-listesi", "/cezalar", "/giderler", "/gelen-efatura", "/satislar",
                  })
-            await RedirectsAsync(c, path, "/app" + path);
-        await RedirectsAsync(c, "/cariler/" + G + "/ekstre", "/app/cariler/" + G + "/ekstre");
-        await RedirectsAsync(c, "/faturalar/" + G + "/yazdir", "/app/faturalar/" + G + "/yazdir");
-        await RedirectsAsync(c, "/kasa?hesap=" + G + "&bilgi=Kaydedildi", "/app/kasa?hesap=" + G + "&bilgi=Kaydedildi");
-        await RedirectsAsync(c, "/faturalar?q=Y%C4%B1lmaz&durum=Acik", "/app/faturalar?q=Y%C4%B1lmaz&durum=Acik");
-        await RedirectsAsync(c, "/cariler/" + G + "/ekstre?from=2026-09-01", "/app/cariler/" + G + "/ekstre?from=2026-09-01");
-        await RedirectsAsync(c, "/donem-kapanis/", "/app/donem-kapanis");
-        await RedirectsAsync(c, "/kasa", "/app/kasa", HttpMethod.Head);
+            await MovedAsync(c, path, "/app" + path);
+        await MovedAsync(c, "/cariler/" + G + "/ekstre", "/app/cariler/" + G + "/ekstre");
+        await MovedAsync(c, "/faturalar/" + G + "/yazdir", "/app/faturalar/" + G + "/yazdir");
+        await MovedAsync(c, "/kasa?hesap=" + G + "&bilgi=Kaydedildi", "/app/kasa?hesap=" + G + "&bilgi=Kaydedildi");
+        await MovedAsync(c, "/faturalar?q=Y%C4%B1lmaz&durum=Acik", "/app/faturalar?q=Y%C4%B1lmaz&durum=Acik");
+        await MovedAsync(c, "/cariler/" + G + "/ekstre?from=2026-09-01", "/app/cariler/" + G + "/ekstre?from=2026-09-01");
+        await MovedAsync(c, "/donem-kapanis/", "/app/donem-kapanis");
+        await MovedAsync(c, "/kasa", "/app/kasa", HttpMethod.Head);
 
         var op = await SessionAsync(fx.PilotOperator);
-        await RedirectsAsync(op, "/cezalar", "/app/cezalar");
-        await RedirectsAsync(op, "/cariler/" + G + "/ekstre", "/app/cariler/" + G + "/ekstre");
+        await MovedAsync(op, "/cezalar", "/app/cezalar");
+        await MovedAsync(op, "/cariler/" + G + "/ekstre", "/app/cariler/" + G + "/ekstre");
     }
 
     /// <summary>F11.3: 47 tanım/sistem/web sitesi sayfası pilot firmada SPA'ya (aynı ad); Blazor sorgusu AYNEN taşınır.</summary>
     [Fact]
-    public async Task Pilot_F11_pages_redirect_302_to_SPA_query_kept()
+    public async Task Old_F11_pages_redirect_301_to_SPA_query_kept()
     {
         var c = await SessionAsync(fx.PilotAdmin);
         foreach (var path in new[]
@@ -1195,33 +1184,42 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                      "profil/sifre-degistir", "web-sitesi", "web-sitesi/arac-ekle", "site-icerik", "blog-yonetim",
                      "gelen-talepler",
                  })
-            await RedirectsAsync(c, "/" + path, "/app/" + path);
-        await RedirectsAsync(c, "/web-sitesi/ilan/" + G + "/fiyat", "/app/web-sitesi/ilan/" + G + "/fiyat");
-        await RedirectsAsync(c, "/web-sitesi/ilan/" + G + "/ozellikler?bos=1", "/app/web-sitesi/ilan/" + G + "/ozellikler?bos=1");
-        await RedirectsAsync(c, "/blog-yonetim/" + G + "/onizleme", "/app/blog-yonetim/" + G + "/onizleme");
-        await RedirectsAsync(c, "/gelen-talepler?durum=0", "/app/gelen-talepler?durum=0");
-        await RedirectsAsync(c, "/ara?q=Y%C4%B1lmaz", "/app/ara?q=Y%C4%B1lmaz");
-        await RedirectsAsync(c, "/denetim?entity=Rental&page=2", "/app/denetim?entity=Rental&page=2");
-        await RedirectsAsync(c, "/subeler/", "/app/subeler");
-        await RedirectsAsync(c, "/ayarlar", "/app/ayarlar", HttpMethod.Head);
+            await MovedAsync(c, "/" + path, "/app/" + path);
+        await MovedAsync(c, "/web-sitesi/ilan/" + G + "/fiyat", "/app/web-sitesi/ilan/" + G + "/fiyat");
+        await MovedAsync(c, "/web-sitesi/ilan/" + G + "/ozellikler?bos=1", "/app/web-sitesi/ilan/" + G + "/ozellikler?bos=1");
+        await MovedAsync(c, "/blog-yonetim/" + G + "/onizleme", "/app/blog-yonetim/" + G + "/onizleme");
+        await MovedAsync(c, "/gelen-talepler?durum=0", "/app/gelen-talepler?durum=0");
+        await MovedAsync(c, "/ara?q=Y%C4%B1lmaz", "/app/ara?q=Y%C4%B1lmaz");
+        await MovedAsync(c, "/denetim?entity=Rental&page=2", "/app/denetim?entity=Rental&page=2");
+        await MovedAsync(c, "/subeler/", "/app/subeler");
+        await MovedAsync(c, "/ayarlar", "/app/ayarlar", HttpMethod.Head);
 
         // Operatör de (izin kapısı SPA'da/API'de; Blazor sayfaları yalnız [Authorize] ya da kendi politikası).
         var op = await SessionAsync(fx.PilotOperator);
-        await RedirectsAsync(op, "/markalar", "/app/markalar");
-        await RedirectsAsync(op, "/bildirimler", "/app/bildirimler");
-        await RedirectsAsync(op, "/profil/sifre-degistir", "/app/profil/sifre-degistir");
+        await MovedAsync(op, "/markalar", "/app/markalar");
+        await MovedAsync(op, "/bildirimler", "/app/bildirimler");
+        await MovedAsync(op, "/profil/sifre-degistir", "/app/profil/sifre-degistir");
     }
 
     /// <summary>
-    /// F13.1a: Blazor sayfaları SİLİNDİ. Pilot olmayan firmada eski adres artık Blazor sayfası açmaz (404, HTML sayfa
-    /// değil ve yönlendirme yok). Ara durum: F13.1b haritayı pilotsuz ve kalıcı (301) yapar; bu test orada değişir.
+    /// F13.1b: pilot kapısı kalktı — eski Blazor adresleri HER oturumda (eski pilot olmayan firma, operatör, oturumsuz)
+    /// SPA karşılığına KALICI (301) yönlenir. Oturum kapısı SPA'da ve /api/ui'de (oturumsuz SPA girişe düşer).
     /// </summary>
     [Fact]
-    public async Task Pilot_olmayan_firmada_Blazor_sayfasi_artik_yok()
+    public async Task Pilot_kapisi_yok_eski_adresler_herkes_icin_301()
     {
-        var c = await SessionAsync(fx.OtherAdmin);
-        foreach (var url in new[]
-                 {
+        // Elle yazılmış oracle: aynı adla /app altına; farklı adlı üç şablon açıkça.
+        static string Expected(string url) => url switch
+        {
+            "/" => "/app/panel",
+            "/vehicles" => "/app/araclar",
+            "/vehicles/detayli" => "/app/araclar/detayli",
+            _ => "/app" + url,
+        };
+        var sessions = new[] { await SessionAsync(fx.OtherAdmin), await SessionAsync(fx.PilotOperator), fx.Web.Client() };
+        foreach (var c in sessions)
+            foreach (var url in new[]
+                     {
                      "/", "/kiralar", "/kiralar/yeni",
                      "/rezervasyonlar", "/teklifler", "/takvim", "/musaitlik", "/rez-sartlari", "/filo-kiralama",
                      "/vehicles", "/vehicles/detayli", "/arac-durum", "/arac-sahipleri", "/segmentler", "/arac-tipleri",
@@ -1233,11 +1231,7 @@ public sealed class IlkKesisHostTests(WebFixture fx)
                      "/servisler", "/regulasyon", "/vade", "/tarifeler", "/tarife-aktar", "/fiyat-hesapla", "/maliyet-teklifleri",
                      "/kasa", "/faturalar", "/giderler", "/cezalar", "/kurlar", "/donem-kapanis", "/cari-virman",
                  })
-        {
-            var r = await c.GetAsync(url);
-            Assert.True(r.StatusCode == HttpStatusCode.NotFound, $"{url}: {(int)r.StatusCode} {r.Headers.Location}");
-            Assert.Null(r.Headers.Location);
-        }
+                await MovedAsync(c, url, Expected(url));
     }
 
     /// <summary>
@@ -1310,7 +1304,11 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         foreach (var url in addresses)
         {
             var location = await LocationAsync(c, url);
-            if (location is not null && location.StartsWith("/app", StringComparison.OrdinalIgnoreCase)) violation.Add($"{url} → {location}");
+            // F13.1b: kaydı bulunamayan dosya ucunun gövdesiz 404'ü SPA Panel'ine bulunamadı bandıyla gider (hata hedefi,
+            // harita yönlendirmesi değil) — ihlal sayılmaz; harita hedefine (sayfa rotasına) giden yönlendirme ihlaldir.
+            if (location is not null && location.StartsWith("/app", StringComparison.OrdinalIgnoreCase)
+                && !location.StartsWith("/app/panel?hata=", StringComparison.Ordinal))
+                violation.Add($"{url} → {location}");
         }
         Assert.True(violation.Count == 0, "Harita dışı GET ucu SPA'ya yönlendi:\n  " + string.Join("\n  ", violation));
     }
@@ -1412,69 +1410,62 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         await RedirectsAsync(c, "/login?ReturnUrl=%2F%2Fevil.com", "/app/giris");
         await RedirectsAsync(c, "/login?hata=kapali", "/app/giris?neden=kiraci_kapali");
 
-        // F12 kesiş: platform girişi de yeni arayüzde; pilot/oturum koşulu yok (platform bir kiracı değil).
-        await RedirectsAsync(c, "/platform/login", "/app/platform/giris");
-        await RedirectsAsync(c, "/platform/login?hata=1", "/app/platform/giris?hata=1");
-        await RedirectsAsync(c, "/platform/login", "/app/platform/giris", HttpMethod.Head);
-        // F13.1a: Blazor konsol sayfası silindi (challenge alacak uç yok) → doğrudan SPA konsolu; oturum kapısı SPA'da ve
-        // /api/ui/v1/platform'da. Döngü yok.
+        // Platform girişi de yeni arayüzde; kalıcı (301), oturum koşulu yok.
+        await MovedAsync(c, "/platform/login", "/app/platform/giris");
+        await MovedAsync(c, "/platform/login?hata=1", "/app/platform/giris?hata=1");
+        await MovedAsync(c, "/platform/login", "/app/platform/giris", HttpMethod.Head);
         var chain = await ChainAsync(c, "/platform/tenants");
         Assert.Equal(new[] { "/platform/tenants", "/app/platform/kiracilar" }, chain.Select(z => z.Adres));
 
-        // F13.1a: korumalı Blazor sayfası kalmadığı için eski adreslerde cookie challenge yok (uç yok). Challenge
-        // hâlâ korumalı minimal-API GET'lerinde: dönüş adresi indirme olduğu için taşınmaz.
-        await RedirectsAsync(c, "/listeler/export/kiralar", "/login");
+        // F13.1b: cookie challenge'ın hedefi doğrudan SPA girişi (LoginPath = /app/giris); korumalı dosya GET'inde dönüş
+        // adresi indirme olduğu için taşınmaz.
+        await RedirectsAsync(c, "/listeler/export/kiralar", "/app/giris");
+        await RedirectsAsync(c, "/kiralar/" + G + "/pdf", "/app/giris?returnUrl=%2Fkiralar%2F" + G + "%2Fpdf");
     }
 
     [Fact]
-    public async Task Oturumlu_login_hedefe_pilot_SPA_pilot_degil_Blazor_platform_konsol()
+    public async Task Oturumlu_login_hedefi_SPA_platform_konsol()
     {
-        var pilot = await SessionAsync(fx.PilotAdmin);
-        await RedirectsAsync(pilot, "/login", "/app/panel");
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fkiralar%3Fvarac%3Dx", "/app/kiralar?varac=x");
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fapp%2Fkiralar%3Fq%3Da", "/app/kiralar?q=a");
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fvehicles", "/app/araclar");            // F6.4
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fraporlar%2Fgunluk%3Fsube%3DMerkez", "/app/raporlar/gunluk?sube=Merkez"); // F10.3
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fbildirimler", "/app/bildirimler");     // F11.3
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fyetkisiz", "/yetkisiz");               // hâlâ Blazor'da olan sayfa
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fkasa", "/app/kasa");                   // F8.3
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fcariler", "/app/cariler");             // F7.3
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fayarlar", "/app/ayarlar");             // F11.3
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fvade%3Fplaka%3Dx", "/app/vade?plaka=x"); // F9.3
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Frezervasyonlar%3Fdurum%3DRezerv", "/app/rezervasyonlar?durum=Rezerv"); // F5.4
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2F%2Fevil.com", "/app/panel");
-        await RedirectsAsync(pilot, "/login?ReturnUrl=%2Fapp%2Fgiris", "/app/panel");
-
-        var other = await SessionAsync(fx.OtherAdmin);
-        await RedirectsAsync(other, "/login", "/");
-        await RedirectsAsync(other, "/login?ReturnUrl=%2Fapp%2Fkiralar", "/");
-        await RedirectsAsync(other, "/login?ReturnUrl=%2Fvehicles%3Fx%3D1", "/vehicles?x=1");
+        // F13.1b: pilot ayrımı yok — her firma kullanıcısı aynı hedefi alır.
+        foreach (var who in new[] { fx.PilotAdmin, fx.OtherAdmin })
+        {
+            var c = await SessionAsync(who);
+            await RedirectsAsync(c, "/login", "/app/panel");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fkiralar%3Fvarac%3Dx", "/app/kiralar?varac=x");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fapp%2Fkiralar%3Fq%3Da", "/app/kiralar?q=a");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fvehicles%3Fx%3D1", "/app/araclar?x=1");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fraporlar%2Fgunluk%3Fsube%3DMerkez", "/app/raporlar/gunluk?sube=Merkez");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fbildirimler", "/app/bildirimler");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fkasa", "/app/kasa");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fcariler", "/app/cariler");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fvade%3Fplaka%3Dx", "/app/vade?plaka=x");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2F%2Fevil.com", "/app/panel");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fapp%2Fgiris", "/app/panel");
+            await RedirectsAsync(c, "/login?ReturnUrl=%2Fplatform%2Ftenants", "/app/panel");
+        }
 
         var platform = await PlatformSessionAsync();
         await RedirectsAsync(platform, "/login", "/app/platform/kiracilar");
     }
 
     /// <summary>
-    /// F12 kesiş: dört platform konsolu sayfası HER oturumda (platform operatörü, pilot olmayan firma, oturumsuz giriş)
-    /// SPA platform rotasına 302; sorgu AYNEN. Firma kullanıcısı konsola giremez (403 → platform girişi). Platform
-    /// operatörünün firma sayfası isteği tek adımda SPA konsoluna. POST ve dosya GET'leri yönlenmez.
+    /// F12: dört platform konsolu sayfası HER oturumda SPA platform rotasına (F13.1b: 301); sorgu AYNEN. Platform
+    /// operatörünün firma sayfası isteği tek adımda SPA konsoluna (PlatformIsolation, 302). Firma kullanıcısı konsola
+    /// yönlenir ama platform verisini okuyamaz (kapı /api/ui/v1/platform'da).
     /// </summary>
     [Fact]
     public async Task F12_platform_pages_redirect_to_SPA_for_every_session()
     {
         var platform = await PlatformSessionAsync();
-        await RedirectsAsync(platform, "/platform/tenants", "/app/platform/kiracilar");
-        await RedirectsAsync(platform, "/platform/tenants?ok=1", "/app/platform/kiracilar?ok=1");
-        await RedirectsAsync(platform, "/platform/tenants/" + G, "/app/platform/kiracilar/" + G);
-        await RedirectsAsync(platform, "/platform/belgeler", "/app/platform/belgeler");
-        await RedirectsAsync(platform, "/platform/login", "/app/platform/giris");
+        await MovedAsync(platform, "/platform/tenants", "/app/platform/kiracilar");
+        await MovedAsync(platform, "/platform/tenants?ok=1", "/app/platform/kiracilar?ok=1");
+        await MovedAsync(platform, "/platform/tenants/" + G, "/app/platform/kiracilar/" + G);
+        await MovedAsync(platform, "/platform/belgeler", "/app/platform/belgeler");
+        await MovedAsync(platform, "/platform/login", "/app/platform/giris");
         await RedirectsAsync(platform, "/kiralar", "/app/platform/kiracilar"); // PlatformIsolation: tek adım
         await RedirectsAsync(platform, "/", "/app/platform/kiracilar");
-        // SPA konsolu kendisi yönlenmez (döngü yok). Dosya GET'leri ve POST'lar birim testlerde (Harita_disi_yol_yonlenmez).
         Assert.Null(await LocationAsync(platform, "/app/platform/kiracilar"));
 
-        // Pilot OLMAYAN firmanın kullanıcısı da SPA konsoluna yönlenir (Blazor sayfası yok); veri kapısı platform API'sinde:
-        // firma oturumu platform verisini okuyamaz.
         var other = await SessionAsync(fx.OtherAdmin);
         var chain = await ChainAsync(other, "/platform/tenants");
         Assert.Equal(new[] { "/platform/tenants", "/app/platform/kiracilar" }, chain.Select(z => z.Adres));
@@ -1482,26 +1473,32 @@ public sealed class IlkKesisHostTests(WebFixture fx)
     }
 
     /// <summary>
-    /// DÖNGÜ YOK: challenge <c>/login</c>'e, <c>/login</c> <c>/app/giris</c>'e gider; <c>/app/giris</c> (ve /app'in hiçbir
-    /// yolu) challenge ALMAZ. Oturumsuz her başlangıç en çok iki adımda /app/giris'te biter (SPA bu host'ta kurulu
-    /// değil → 404; önemli olan yönlendirme olmaması).
+    /// DÖNGÜ YOK (F13.1b): eski adresler tek adımda /app'e (301; /app anonim, challenge almaz — SPA bu host'ta kurulu
+    /// değil → 404, önemli olan yönlendirme olmaması). Korumalı dosya GET'leri challenge'la doğrudan /app/giris'e.
+    /// Hiçbir zincir 3 adımı aşmaz ve aynı adrese dönmez.
     /// </summary>
     [Fact]
-    public async Task Oturumsuz_zincir_app_giriste_biter_dongu_yok()
+    public async Task Oturumsuz_zincir_app_te_biter_dongu_yok()
     {
         var c = fx.Web.Client();
         foreach (var start in new[]
                  {
-                     // F13.1a: eski Blazor sayfa adresleri oturumsuz 404 (uç yok, challenge yok); F13.1b onları pilotsuz
-                     // kalıcı yönlendirmeyle bu listeye geri ekler.
-                     "/kiralar/" + G + "/pdf", "/faturalar/" + G + "/pdf",
-                     "/login", "/login?ReturnUrl=%2Flogin", "/app/giris", "/app/giris?returnUrl=%2Fkiralar",
+                     "/", "/kiralar", "/kiralar/yeni?varac=" + G, "/kiralar/" + G + "/yazdir", "/kiralar/" + G + "/pdf",
+                     "/vehicles", "/login", "/login?ReturnUrl=%2Flogin", "/app/giris", "/app/giris?returnUrl=%2Fkiralar",
+                     "/rezervasyonlar", "/musaitlik?from=2026-10-01", "/filo-kiralama",
+                     "/vehicles/" + G, "/araclar/" + G, "/arac-kredi",
+                     "/cariler", "/cariler/" + G + "/detay", "/crm",
+                     "/raporlar/gelir-gider", "/raporlar/arac-karne/" + G,
+                     "/markalar", "/ayarlar", "/profil/sifre-degistir", "/web-sitesi/ilan/" + G + "/fiyat",
+                     "/gelen-talepler?durum=0", "/servisler", "/vade", "/tarifeler",
+                     "/kasa", "/faturalar/" + G + "/yazdir", "/cariler/" + G + "/ekstre",
+                     "/platform/tenants", "/hata?mesaj=x", "/yetkisiz", "/Error", "/not-found", "/boyle-bir-sayfa-yok",
                  })
         {
             var chain = await ChainAsync(c, start);
             var last = chain[^1];
-            Assert.True(last.Adres.StartsWith("/app/giris", StringComparison.Ordinal),
-                $"{start}: zincir /app/giris'te bitmedi: " + string.Join(" → ", chain.Select(z => $"{z.Adres} ({(int)z.Durum})")));
+            Assert.True(last.Adres.StartsWith("/app/", StringComparison.Ordinal),
+                $"{start}: zincir /app'te bitmedi: " + string.Join(" → ", chain.Select(z => $"{z.Adres} ({(int)z.Durum})")));
             Assert.True(chain.Count <= 3, $"{start}: {chain.Count} adım");
         }
     }
@@ -1527,26 +1524,23 @@ public sealed class IlkKesisHostTests(WebFixture fx)
     [Fact]
     public async Task Oturumlu_zincir_dongu_yok()
     {
-        var pilot = await SessionAsync(fx.PilotAdmin);
-        var z1 = await ChainAsync(pilot, "/login");
-        Assert.Equal(new[] { "/login", "/app/panel" }, z1.Select(z => z.Adres));
-        var z2 = await ChainAsync(pilot, "/");
-        Assert.Equal(new[] { "/", "/app/panel" }, z2.Select(z => z.Adres));
-
-        var other = await SessionAsync(fx.OtherAdmin);
-        var z3 = await ChainAsync(other, "/login?ReturnUrl=%2Fapp%2Fkiralar");
-        Assert.Equal(new[] { "/login?ReturnUrl=%2Fapp%2Fkiralar", "/" }, z3.Select(z => z.Adres));
-        Assert.Equal(HttpStatusCode.NotFound, z3[^1].Durum); // F13.1a: Blazor Panel silindi (F13.1b: pilotsuz /app/panel)
+        foreach (var who in new[] { fx.PilotAdmin, fx.OtherAdmin })
+        {
+            var c = await SessionAsync(who);
+            Assert.Equal(new[] { "/login", "/app/panel" }, (await ChainAsync(c, "/login")).Select(z => z.Adres));
+            Assert.Equal(new[] { "/", "/app/panel" }, (await ChainAsync(c, "/")).Select(z => z.Adres));
+            Assert.Equal(new[] { "/login?ReturnUrl=%2Fapp%2Fkiralar", "/app/kiralar" },
+                (await ChainAsync(c, "/login?ReturnUrl=%2Fapp%2Fkiralar")).Select(z => z.Adres));
+        }
     }
 
     [Fact]
     public async Task Kapatilan_firmanin_oturumu_SPA_girisine_mesajla_duser_dongu_yok()
     {
-        var k = await fx.CompanyAndUserAsync("Kapanacak Pilot Firma");
+        var k = await fx.CompanyAndUserAsync("Kapanacak Firma");
         var id = await fx.TenantIdAsync(k.Firma);
-        await fx.MakePilotAsync(id, true);
         var c = await SessionAsync(k);
-        await RedirectsAsync(c, "/kiralar", "/app/kiralar");
+        await MovedAsync(c, "/kiralar", "/app/kiralar");
 
         await using (var conn = new NpgsqlConnection(fx.Pg.OwnerConnectionString))
         {
@@ -1562,77 +1556,60 @@ public sealed class IlkKesisHostTests(WebFixture fx)
         Assert.Equal(new[] { "/kiralar", "/login?hata=kapali", "/app/giris?neden=kiraci_kapali" }, chain.Select(z => z.Adres));
     }
 
-    // ------------------------------------------------------------ platform pilot anahtarı
+    // ------------------------------------------------------------ F13.1b: kabuk sayfaları, 404 ve 403 SPA'da
 
+    private const string NoPermission = "/app/panel?hata=Bu%20i%C5%9Flem%20i%C3%A7in%20yetkiniz%20yok.";
+    private const string NotFound = "/app/panel?hata=Arad%C4%B1%C4%9F%C4%B1n%C4%B1z%20sayfa%20ya%20da%20kay%C4%B1t%20bulunamad%C4%B1.";
+
+    /// <summary>
+    /// Eski kabuk sayfaları ve gövdesiz 404 yeni arayüzün Panel'ine hata bandıyla (302). Hedef yol SABİT; kullanıcı girdisi
+    /// (<c>?mesaj=</c>) yalnız kodlanmış sorgu DEĞERİ olur — açık yönlendirme yok. Uzantılı dosya isteği, /api/ui ve
+    /// GET dışı istek ham durum kodunu alır (tarayıcının arka plan isteği SPA'ya yönlenmez).
+    /// </summary>
     [Fact]
-    public async Task Platform_pilot_anahtari_acar_kapatir_denetime_yazar_firma_kendisi_acamaz()
+    public async Task Shell_pages_and_404_go_to_SPA_panel_with_error_band()
     {
-        var k = await fx.CompanyAndUserAsync("Anahtar Testi Firması");
-        var id = await fx.TenantIdAsync(k.Firma);
-        var user = await SessionAsync(k);
-        Assert.False(await IsPilotAsync(user));
-        Assert.Null(await LocationAsync(user, "/kiralar")); // pilot değil: yönlenmez (F13.1a: sayfa yok → 404)
+        var c = fx.Web.Client();
+        await RedirectsAsync(c, "/hata?mesaj=Kapsam%20d%C4%B1%C5%9F%C4%B1", "/app/panel?hata=Kapsam%20d%C4%B1%C5%9F%C4%B1");
+        await RedirectsAsync(c, "/hata", "/app/panel");
+        await RedirectsAsync(c, "/yetkisiz?x=1", NoPermission);
+        await RedirectsAsync(c, "/not-found", NotFound);
+        await RedirectsAsync(c, "/boyle-bir-sayfa-yok?q=1", NotFound);
 
-        // Firma yöneticisi (Admin) anahtara dokunamaz: PlatformAdmin politikası (API: 403).
-        var red = await PilotSwitchAsync(user, id, true);
-        Assert.Equal(HttpStatusCode.Forbidden, red.StatusCode);
-        Assert.False(await IsPilotAsync(user));
-
-        // F13.1a: Blazor anahtar formu kalktı; yeni arayüzün platform ucu (/api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot).
-        var platform = await PlatformSessionAsync();
-        await RedirectsAsync(platform, $"/platform/tenants/{id}", $"/app/platform/kiracilar/{id}");
-
-        Assert.Equal(HttpStatusCode.OK, (await PilotSwitchAsync(platform, id, true)).StatusCode);
-        Assert.True(await IsPilotAsync(user));
-        await RedirectsAsync(user, "/kiralar", "/app/kiralar"); // önbelleksiz: ANINDA
-        Assert.Equal(1, await AuditCountAsync(id, "true"));
-
-        Assert.Equal(HttpStatusCode.OK, (await PilotSwitchAsync(platform, id, true)).StatusCode); // no-op
-        Assert.Equal(1, await AuditCountAsync(id, "true"));
-
-        Assert.Equal(HttpStatusCode.OK, (await PilotSwitchAsync(platform, id, false)).StatusCode);
-        Assert.False(await IsPilotAsync(user));
-        Assert.Null(await LocationAsync(user, "/kiralar")); // ANINDA yönlendirme durur
-        Assert.Equal(1, await AuditCountAsync(id, "false"));
-
-        Assert.Equal(HttpStatusCode.NotFound, (await PilotSwitchAsync(platform, Guid.NewGuid(), true)).StatusCode);
-    }
-
-    /// <summary>Platform pilot anahtarı (JSON + XSRF başlığı; aynı çerez istemcide).</summary>
-    private static async Task<HttpResponseMessage> PilotSwitchAsync(HttpClient c, Guid id, bool active)
-    {
-        var x = await c.GetAsync("/api/ui/v1/oturum/xsrf");
-        var xsrf = CookieValue(x, "XSRF-TOKEN") ?? throw new Xunit.Sdk.XunitException("XSRF yok");
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/ui/v1/platform/kiracilar/{id}/yeni-arayuz-pilot")
+        // Açık yönlendirme denemeleri: hedef daima /app/panel (yol sabit), girdi yalnız sorgu değeri.
+        // ("//evil.com" HttpClient'ta şema-göreli URL olarak başka host'a gider; Kestrel'e aynı yol "/%2F%2Fevil.com" ile.)
+        foreach (var evil in new[] { "/hata?mesaj=https://evil.com", "/hata?mesaj=%2F%2Fevil.com", "/%2F%2Fevil.com", "/%5Cevil.com" })
         {
-            Content = JsonContent.Create(new { aktif = active }),
-        };
-        request.Headers.Add("X-XSRF-TOKEN", xsrf);
-        return await c.SendAsync(request);
-    }
-
-    private static async Task<bool> IsPilotAsync(HttpClient c)
-    {
-        var j = JsonDocument.Parse(await c.GetStringAsync("/api/ui/v1/oturum/ben")).RootElement;
-        return j.GetProperty("pilot").GetBoolean();
-    }
-
-    /// <summary>Firmanın denetim kaydındaki platform pilot satırları (FORCE RLS: tx-yerel tenant GUC ile okunur).</summary>
-    private async Task<long> AuditCountAsync(Guid tenantId, string newValue)
-    {
-        await using var conn = new NpgsqlConnection(fx.Pg.OwnerConnectionString);
-        await conn.OpenAsync();
-        await using var tx = await conn.BeginTransactionAsync();
-        await using (var set = new NpgsqlCommand("SELECT set_config('app.tenant_id', @t, true)", conn, tx))
-        {
-            set.Parameters.AddWithValue("t", tenantId.ToString());
-            await set.ExecuteScalarAsync();
+            // Ya yönlendirme yok (".com" uzantılı yol dosya isteği sayılır → ham 404) ya da sabit Panel yolu.
+            var location = await LocationAsync(c, evil);
+            Assert.True(location is null || location.StartsWith("/app/panel", StringComparison.Ordinal), $"{evil} → {location}");
         }
-        await using var cmd = new NpgsqlCommand(
-            "SELECT count(*) FROM \"AuditLogs\" WHERE \"TenantId\" = @t AND \"EntityName\" = 'TenantSettings' " +
-            "AND \"UserName\" LIKE 'platform:%' AND \"NewValues\" = CAST(@v AS jsonb)", conn, tx);
-        cmd.Parameters.AddWithValue("t", tenantId);
-        cmd.Parameters.AddWithValue("v", "{\"YeniArayuzPilot\":" + newValue + "}");
-        return (long)(await cmd.ExecuteScalarAsync())!;
+
+        // Ham durum kodu: dosya isteği, API, GET dışı.
+        var favicon = await c.GetAsync("/favicon.ico");
+        Assert.Equal(HttpStatusCode.NotFound, favicon.StatusCode);
+        Assert.Null(favicon.Headers.Location);
+        var api = await c.GetAsync("/api/ui/v1/boyle-bir-uc-yok");
+        Assert.Null(api.Headers.Location);
+        Assert.Null(await LocationAsync(c, "/boyle-bir-sayfa-yok", HttpMethod.Post));
+    }
+
+    /// <summary>F13.1b: 403 (girişli ama yetkisiz dosya GET'i) → SPA Panel + yetki bandı; eski /yetkisiz sayfası yok.</summary>
+    [Fact]
+    public async Task Forbidden_download_goes_to_SPA_panel_with_permission_band()
+    {
+        var op = await SessionAsync(fx.PilotOperator); // Operatör: ViewReports yok → rapor export'u 403
+        await RedirectsAsync(op, "/raporlar/export/gelir-gider", NoPermission);
+    }
+
+    /// <summary>F13.1b: eski form çıkış ucu oturumu kapatır ve SPA girişine döner (sabit hedef).</summary>
+    [Fact]
+    public async Task Old_logout_signs_out_and_goes_to_SPA_login()
+    {
+        var c = await SessionAsync(fx.PilotAdmin);
+        var r = await c.PostAsync("/auth/logout", new FormUrlEncodedContent([]));
+        Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
+        Assert.Equal("/app/giris?neden=cikis", r.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await c.GetAsync("/api/ui/v1/oturum/ben")).StatusCode);
     }
 }

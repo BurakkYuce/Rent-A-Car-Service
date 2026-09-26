@@ -4,7 +4,7 @@ import { problem, writeXsrf } from './ortak';
 
 /**
  * Stateful fake of `/api/ui/v1/platform/*` (F12.2 e2e). Shapes follow the OpenAPI contract
- * (`PlatformTenantDetailDto`, `PlatformConsoleDocumentDto`…); status/close/pilot rules mirror the server
+ * (`PlatformTenantDetailDto`, `PlatformConsoleDocumentDto`…); status/close rules mirror the server
  * (`PlatformApi.ChangeStatus`: →Kapali needs `onayKod` == code, otherwise 400 with `errors.onayKod`).
  */
 export const TENANT_A = '7a000000-0000-4000-8000-00000000000a';
@@ -217,10 +217,6 @@ async function handle(route: Route, s: FakePlatform): Promise<void> {
         d.durum = String(b['durum']);
         d['kapanisTarihi'] = null;
       }
-      return route.fulfill({ json: d });
-    }
-    if (sub === '/yeni-arayuz-pilot') {
-      d['yeniArayuzPilot'] = json()['aktif'] === true;
       return route.fulfill({ json: d });
     }
     if (sub === '/web-sitesi-modulu') {

@@ -131,13 +131,13 @@ public sealed partial class PlatformUiApiTests(WebFixture fx)
 
         await ExpectProblem(await Send(admin, HttpMethod.Post, P + $"/kiracilar/{id}/durum", new { durum = "Pasif" }),
             HttpStatusCode.Forbidden, "yetki_yok");
-        await ExpectProblem(await Send(admin, HttpMethod.Post, P + $"/kiracilar/{id}/yeni-arayuz-pilot", new { aktif = false }),
+        await ExpectProblem(await Send(admin, HttpMethod.Post, P + $"/kiracilar/{id}/web-sitesi-modulu", new { aktif = true }),
             HttpStatusCode.Forbidden, "yetki_yok");
         await ExpectProblem(await Send(admin, HttpMethod.Post, P + "/kiracilar",
             new { kod = "x" + Guid.NewGuid().ToString("N")[..8], ad = "X", adminKullanici = "a", adminSifre = WebFixture.RandomPassword() }),
             HttpStatusCode.Forbidden, "yetki_yok");
 
-        // Nothing happened: the tenant session still works on its own API (still active, still pilot).
+        // Nothing happened: the tenant session still works on its own API (still active).
         Assert.Equal(HttpStatusCode.OK, (await admin.C.GetAsync(V1 + "/oturum/ben")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await admin.C.GetAsync(V1 + "/araclar?boyut=1")).StatusCode);
     }

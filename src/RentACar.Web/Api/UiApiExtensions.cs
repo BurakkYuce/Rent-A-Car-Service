@@ -31,8 +31,8 @@ namespace RentACar.Web.Api;
 /// HTML alırsa sessizce bozulur, 172 alanlı kira formu kaybolur.</item>
 /// <item><b>CSRF her ortamda:</b> güvensiz her istek <c>X-XSRF-TOKEN</c> başlığı taşımak zorunda
 /// (Blazor formlarının "yalnız prod" anahtarından <see cref="Identity.FormSecurity"/> BAĞIMSIZ).</item>
-/// <item><b>Pilot kapısı:</b> <c>oturum/*</c> ve <c>istemci-hata</c> dışında pilot olmayan firmaya 403
-/// <c>pilot_degil</c> (<c>TenantSettings.YeniArayuzPilot</c>).</item>
+/// <item><b>Pilot kapısı (F13.1b'de KALKTI):</b> eskiden pilot olmayan firmaya 403 <c>pilot_degil</c>; Blazor
+/// söküldüğü için yeni arayüz herkes için açık. <c>pilot_degil</c> kodu sözleşmede kalır (eski istemci), üretilmez.</item>
 /// <item><b><c>Cache-Control: no-store</c></b> tüm <c>/api/ui</c> yanıtlarında (kişisel veri önbelleğe düşmez).</item>
 /// </list>
 /// Grubun dışında <c>/api/ui</c> ucu açmak YASAK — CSRF ve pilot filtreleri yalnız grupta; yapısal test
@@ -69,14 +69,6 @@ public static class UiApiExtensions
     /// bu yolu platform operatörüne açar; pilot kapısı uygulanmaz (platform oturumunun firması yok).</summary>
     public static bool PlatformPath(PathString path)
         => path.StartsWithSegments(PlatformPrefix, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>Pilot kapısından muaf rota: oturum (giriş yapılabilsin, "pilot değilsiniz" bandı için
-    /// <c>ben</c> okunabilsin), istemci hata raporu ve platform konsolu (F12.1 — firma bağlamı yok; erişimi
-    /// PlatformAdmin policy'si belirler). Rota DESENİ üzerinden karar verilir.</summary>
-    public static bool PilotExempt(string route)
-        => new PathString(route.StartsWith('/') ? route : "/" + route) is var p
-           && (SessionPath(p) || p.StartsWithSegments(V1 + "/istemci-hata", StringComparison.OrdinalIgnoreCase)
-               || PlatformPath(p));
 
     /// <summary>RFC 9110 güvenli yöntemler — CSRF doğrulaması yalnız bunların DIŞINDA.</summary>
     public static bool SafeMethod(string method)
@@ -208,8 +200,9 @@ public static class UiApiExtensions
             .RequireAuthorization()                 // varsayılan: oturum şart; anonim uçlar AllowAnonymous der
             .WithMetadata(new UiApiGrubuMetadata())
             .AddEndpointFilter(ErrorFilter)        // en dış: aşağıdakilerin de istisnası ProblemDetails olur
-            .AddEndpointFilter(XsrfFilter)
-            .AddEndpointFilter(PilotFilter);
+            .AddEndpointFilter(XsrfFilter);
+        // F13.1b: pilot kapısı (PilotFilter, 403 pilot_degil) kaldırıldı — Blazor söküldü, yeni arayüz herkes için.
+        // TenantSettings.YeniArayuzPilot kolonu kullanılmıyor (backend yalnız eklemeli; ayrı migration'la düşer).
 
         v1.MapSessionApi();
         v1.MapMenuApi();    // F1.6
@@ -275,23 +268,6 @@ public static class UiApiExtensions
                     "Güvenlik belirteci geçersiz ya da oturumla eşleşmiyor; belirteci yenileyip tekrar deneyin.");
         }
         return await next(c);
-    }
-
-    private static async ValueTask<object?> PilotFilter(EndpointFilterInvocationContext c, EndpointFilterDelegate next)
-    {
-        var http = c.HttpContext;
-        var route = (http.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? http.Request.Path.Value ?? "";
-        if (!PilotExempt(route) && !await IsPilotAsync(http))
-            return UiError.Problem(UiError.NotPilot, "Yeni arayüz bu firmada henüz açık değil.");
-        return await next(c);
-    }
-
-    /// <summary>Firmanın pilot bayrağı (ayar satırı yoksa false). Önbelleksiz: bayrak kapatılınca ANINDA kapanır.</summary>
-    internal static async Task<bool> IsPilotAsync(HttpContext http)
-    {
-        if (http.RequestServices.GetRequiredService<ITenantContext>().TenantId is null) return false;
-        var setting = await http.RequestServices.GetRequiredService<ITenantSettingsRepository>().GetAsync(http.RequestAborted);
-        return setting?.YeniArayuzPilot == true;
     }
 
     /// <summary>

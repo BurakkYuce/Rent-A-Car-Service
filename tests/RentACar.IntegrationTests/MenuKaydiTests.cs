@@ -47,12 +47,6 @@ public sealed class MenuKaydiTests
         return d?.FullName ?? throw new InvalidOperationException("Repo kökü bulunamadı.");
     }
 
-    private static string Clear(string html)
-    {
-        var s = Regex.Replace(html, @"@if\s*\([^)]*\)\s*\{[^}]*\}", " ");
-        s = Regex.Replace(s, "<[^>]+>", " ");
-        return Regex.Replace(s, @"\s+", " ").Trim();
-    }
 
     /// <summary>
     /// F4.6 öncesi MainLayout menüsü (kısa yollar + nav) — sırasıyla (grup, rota, etiket, rozet). MainLayout artık
@@ -69,36 +63,6 @@ public sealed class MenuKaydiTests
     /// <summary>Kaydın, F4.6 öncesi menüyle karşılaştırılabilir hâli: <c>spa</c> öğesinin rotası Blazor karşılığına çevrilir.</summary>
     private static string OldRoute(MenuOgesi o)
         => o.Sahip == MenuRegistry.Spa ? RentACar.Web.Spa.Cutover.BlazorEquivalent(o.Rota) ?? o.Rota : o.Rota;
-
-    /// <summary>F4.6 ÖNCESİ MainLayout'u ayrıştıran kod (oracle dosyası bununla üretildi; bugün MainLayout'ta sabit bağlantı yok).</summary>
-    private static List<LayoutOgesi> OldLayoutMenu(string text)
-    {
-        text = Regex.Replace(text, @"@\*.*?\*@", "", RegexOptions.Singleline); // Razor yorumları
-        var start = text.IndexOf("<div class=\"sb-quick\">", StringComparison.Ordinal);
-        var last = text.IndexOf("</nav>", StringComparison.Ordinal);
-        Assert.True(start > 0 && last > start, "MainLayout menü bölgesi bulunamadı (sb-quick … </nav>).");
-        var region = text[start..last];
-        var navStart = region.IndexOf("<nav", StringComparison.Ordinal);
-
-        var result = new List<LayoutOgesi>();
-        var group = Shortcuts;
-        var token = new Regex(@"<summary>(?<grup>.*?)</summary>|</details>|<a\b(?<attr>[^>]*)>(?<ic>.*?)</a>", RegexOptions.Singleline);
-        foreach (Match m in token.Matches(region))
-        {
-            if (group == Shortcuts && m.Index > navStart) group = "";
-            if (m.Groups["grup"].Success) group = Clear(m.Groups["grup"].Value);
-            else if (m.Value == "</details>") group = "";
-            else
-            {
-                var href = Regex.Match(m.Groups["attr"].Value, "href=\"([^\"]+)\"").Groups[1].Value;
-                var ic = m.Groups["ic"].Value;
-                var badge = ic.Contains("_yeniTalep", StringComparison.Ordinal) ? MenuRegistry.BadgeNewRequest
-                    : ic.Contains("_okunmamis", StringComparison.Ordinal) ? MenuRegistry.BadgeUnreadNotification : null;
-                result.Add(new LayoutOgesi(group, href, Clear(ic), badge));
-            }
-        }
-        return result;
-    }
 
     [Fact]
     public void Kayit_F46_oncesi_MainLayout_menusuyle_birebir_ayni_sirada()
@@ -199,18 +163,8 @@ public sealed class MenuKaydiTests
         Assert.True(errors.Count == 0, "Menü izni sayfa yetkisiyle uyuşmuyor:\n" + string.Join("\n", errors));
     }
 
-    [Fact]
-    public void MainLayout_menuyu_kayittan_cizer_sabit_menu_baglantisi_yok()
-    {
-        var text = File.ReadAllText(Path.Combine(RepoRoot(), "src", "RentACar.Web", "Components", "Layout", "MainLayout.razor"));
-        Assert.Contains("MenuApi.Visible(", text, StringComparison.Ordinal);   // yeni arayüzle AYNI süzgeç (etkin izin + modül)
-        Assert.Contains("MenuGorunumu.Setup(", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("<AuthorizeView Roles=", text, StringComparison.Ordinal); // rol kapısı kalmadı
-        var fixedValue = MenuRegistry.Items.Select(o => o.Rota).Concat(MenuRegistry.Items.Select(OldRoute)).Distinct()
-            .Where(r => r != "/" && text.Contains($"href=\"{r}\"", StringComparison.Ordinal)).ToList();
-        Assert.True(fixedValue.Count == 0, "MainLayout'ta elle yazılmış menü bağlantısı: " + string.Join(", ", fixedValue));
-        Assert.Empty(OldLayoutMenu(text).Where(x => x.Rota.StartsWith('/'))); // menü bölgesinde sabit (literal) href kalmadı
-    }
+    // F13.1b: "MainLayout menüyü kayıttan çizer" testi Blazor kabuğuyla birlikte silindi; menü yalnız /api/ui/v1/menu
+    // (MenuApi.Visible — UiSecimMenuTests) üzerinden çizilir.
 
     // ---- F4.6 rol → izin geçişi (KASITLI davranış değişikliği; PR'daki önce/sonra tablosunun kilidi)
 

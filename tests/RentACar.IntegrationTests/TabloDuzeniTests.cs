@@ -475,12 +475,13 @@ public sealed class TabloDuzeniApiTests(WebFixture fx)
     }
 
     [Fact]
-    public async Task Oturumsuz_401_pilot_olmayan_403()
+    public async Task Oturumsuz_401_pilot_kapisi_yok()
     {
         var anonymous = await fx.Web.Client().GetAsync(Root + "kiralar");
         await ExpectProblem(anonymous, HttpStatusCode.Unauthorized, "oturum_yok");
 
+        // F13.1b: pilot kapısı kalktı — eski pilot olmayan firma da kendi düzenini okur.
         var (c, _) = await Login(fx.OtherAdmin);
-        await ExpectProblem(await c.GetAsync(Root + "kiralar"), HttpStatusCode.Forbidden, "pilot_degil");
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync(Root + "kiralar")).StatusCode);
     }
 }

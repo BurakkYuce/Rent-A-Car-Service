@@ -34,7 +34,8 @@ public sealed class DogrulamaHatasiMiddlewareTests
 
         Assert.Equal(StatusCodes.Status302Found, ctx.Response.StatusCode);
         var target = ctx.Response.Headers.Location.ToString();
-        Assert.StartsWith("/hata?mesaj=", target, StringComparison.Ordinal);
+        // F13.1b: Blazor /hata sayfası yerine yeni arayüzün Panel'i + hata bandı.
+        Assert.StartsWith("/app/panel?hata=", target, StringComparison.Ordinal);
         // Mesaj kaçışlanmış olarak taşınır (Türkçe karakter + boşluk).
         Assert.Contains(Uri.EscapeDataString("Bu kayıt şube kapsamınız dışında."), target, StringComparison.Ordinal);
     }
@@ -55,14 +56,6 @@ public sealed class DogrulamaHatasiMiddlewareTests
         using var document = await System.Text.Json.JsonDocument.ParseAsync(ctx.Response.Body);
         Assert.False(document.RootElement.GetProperty("ok").GetBoolean());
         Assert.Equal("TC kimlik geçersiz.", document.RootElement.GetProperty("hata").GetString());
-    }
-
-    [Fact]
-    public async Task Hata_sayfasinin_KENDISI_patlarsa_donguye_girmez()
-    {
-        var ctx = Ctx("/hata");
-        await Assert.ThrowsAsync<ValidationException>(
-            () => Mw().InvokeAsync(ctx, _ => throw new ValidationException("ikinci hata")));
     }
 
     /// <summary>
@@ -120,6 +113,6 @@ public sealed class DogrulamaHatasiMiddlewareTests
         await Mw().InvokeAsync(ctx, _ => throw new ValidationException(new string('x', 500)));
 
         var target = ctx.Response.Headers.Location.ToString();
-        Assert.Equal("/hata?mesaj=" + new string('x', 300), target);
+        Assert.Equal("/app/panel?hata=" + new string('x', 300), target);
     }
 }

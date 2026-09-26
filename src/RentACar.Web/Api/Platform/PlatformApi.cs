@@ -15,7 +15,7 @@ namespace RentACar.Web.Api.Platform;
 /// <list type="bullet">
 /// <item><b>Access</b>: <see cref="PlatformClaims.Policy"/> (claim <c>platform_admin=true</c>, written only by a
 /// platform login). A tenant user — Admin included — gets 403 <c>yetki_yok</c>; anonymous 401. The tenant permission
-/// matrix does not apply (<c>IzinMuaf</c>), and the pilot gate is skipped (<see cref="UiApiExtensions.PilotExempt"/>).
+/// matrix does not apply (<c>IzinMuaf</c>) (the new-UI pilot gate was removed in F13.1b).
 /// The reverse direction (platform session → tenant <c>/api/ui</c>) stays closed by <see cref="PlatformIsolationMiddleware"/>.</item>
 /// <item><b>Data</b>: only through <see cref="PlatformAdminService"/> (owner connection + tx-local <c>set_config</c> for
 /// FORCE-RLS tables) — no new data path. Tenant META only: counts, status, contact fields, flags; never customer PII

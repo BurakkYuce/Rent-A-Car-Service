@@ -100,25 +100,21 @@ public sealed partial class PlatformUiApiTests
             HttpStatusCode.BadRequest, "dogrulama", "durum");
     }
 
+    /// <summary>
+    /// F13.1b: pilot anahtarı kaldırıldı — yeni oluşturulan firma (pilot bayrağı hiç açılmadan) yeni arayüz API'sini
+    /// hemen kullanır; eski anahtar ucu artık yok (POST'u 404/405, hiçbir şey yazılmaz).
+    /// </summary>
     [Fact]
-    public async Task Pilot_switch_opens_and_closes_the_tenant_ui_api_and_is_audited()
+    public async Task New_tenant_uses_the_ui_api_without_a_pilot_switch()
     {
         var s = await PlatformLoginAsync();
         var (id, admin) = await CreateTenantAsync(s);
         var t = await TenantLoginAsync(admin);
-        await ExpectProblem(await t.C.GetAsync(V1 + "/araclar?boyut=1"), HttpStatusCode.Forbidden, "pilot_degil");
-
-        var on = await Send(s, HttpMethod.Post, P + $"/kiracilar/{id}/yeni-arayuz-pilot", new { aktif = true });
-        Assert.True((await Json(on)).GetProperty("yeniArayuzPilot").GetBoolean());
         Assert.Equal(HttpStatusCode.OK, (await t.C.GetAsync(V1 + "/araclar?boyut=1")).StatusCode);
 
-        var off = await Send(s, HttpMethod.Post, P + $"/kiracilar/{id}/yeni-arayuz-pilot", new { aktif = false });
-        Assert.False((await Json(off)).GetProperty("yeniArayuzPilot").GetBoolean());
-        await ExpectProblem(await t.C.GetAsync(V1 + "/araclar?boyut=1"), HttpStatusCode.Forbidden, "pilot_degil");
-
-        await ExpectProblem(await Send(s, HttpMethod.Post, P + $"/kiracilar/{id}/yeni-arayuz-pilot", new { }),
-            HttpStatusCode.BadRequest, "dogrulama", "aktif");
+        var gone = await Send(s, HttpMethod.Post, P + $"/kiracilar/{id}/yeni-arayuz-pilot", new { aktif = true });
+        Assert.True(gone.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed, gone.StatusCode.ToString());
         var audit = await AuditRowsAsync(id);
-        Assert.Equal(2, audit.Count(a => a.EntityName == "TenantSettings" && (a.NewValues ?? "").Contains("YeniArayuzPilot")));
+        Assert.DoesNotContain(audit, a => (a.NewValues ?? "").Contains("YeniArayuzPilot"));
     }
 }

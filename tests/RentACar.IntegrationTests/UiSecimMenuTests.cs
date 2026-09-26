@@ -263,13 +263,14 @@ public sealed class UiSecimMenuTests(WebFixture fx)
         }
     }
 
+    /// <summary>F13.1b: pilot kapısı kalktı — bayrağı kapalı firma da seçim ve menü uçlarını kullanır.</summary>
     [Fact]
-    public async Task Pilot_olmayan_firmada_secim_ve_menu_403_pilot_degil()
+    public async Task Pilot_bayragi_kapali_firma_da_secim_ve_menu_okur()
     {
         var o = await SetUpEnvironmentAsync(pilot: false);
         var c = await LoginAsync(o, Kim.Admin);
-        await ExpectProblem(await c.GetAsync($"{V1}/secim/musteri"), HttpStatusCode.Forbidden, "pilot_degil");
-        await ExpectProblem(await c.GetAsync($"{V1}/menu"), HttpStatusCode.Forbidden, "pilot_degil");
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync($"{V1}/secim/musteri")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync($"{V1}/menu")).StatusCode);
     }
 
     // ------------------------------------------------------------ şube kapsamı + alan kümeleri

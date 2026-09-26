@@ -11,9 +11,14 @@ namespace RentACar.Web.Spa;
 /// silinecek Blazor <c>@page</c> ŞABLONLARINDAN türetilmiş AÇIK liste — önek eşleşmesi YOK. Bu yüzden aynı öneki paylaşan GET uçları
 /// (<c>/kiralar/{id}/pdf</c>, <c>/kiralar/hesapla</c>, <c>/kiralar/donus-hesapla</c>, <c>/kiralar/musait-arac</c>,
 /// <c>/kiralar/ornek-sozlesme/pdf</c>, export, makbuz…) YÖNLENMEZ: bir şablonla segment segment birebir
-/// eşleşmeyen yol haritada yoktur. Yalnız GET/HEAD, yalnız PİLOT kiracının oturumu (middleware karar verir); F12 platform bloğu istisna (her oturum).
-/// Sorgu dizesi AYNEN taşınır (<c>?varac=…&amp;vfrom=…</c>); fragment tarayıcıda kalır (Location'a eklenmez —
-/// tarayıcı fragment'sız Location'da özgün fragment'ı korur). 302 (geçici; F13'te kalıcı olur).</para>
+/// eşleşmeyen yol haritada yoktur. Yalnız GET/HEAD; F13.1b'den beri HERKES için (pilot kapısı yok, oturum koşulu yok —
+/// Blazor sayfaları silindi, eski adresin tek karşılığı SPA). Sorgu dizesi AYNEN taşınır (<c>?varac=…&amp;vfrom=…</c>);
+/// fragment tarayıcıda kalır (Location'a eklenmez — tarayıcı fragment'sız Location'da özgün fragment'ı korur).
+/// <b>301 (kalıcı)</b>: yer imleri ve bildirim bağlantıları kalıcı olarak SPA'ya taşınır.</para>
+///
+/// <para><b>Kabuk sayfaları</b> (<see cref="ShellTarget"/>): eski Blazor <c>/Error</c>, <c>/not-found</c>, <c>/hata</c>,
+/// <c>/yetkisiz</c> yeni arayüzün Panel'ine gider; mesaj <c>?hata=</c> sorgusuyla (SPA hata bandında metin olarak,
+/// kısaltılarak gösterir). Hedef SABİT yol — kullanıcı girdisi yalnız sorgu DEĞERİ olarak kodlanır (açık yönlendirme yok).</para>
 ///
 /// <para><b>Tek giriş</b>: <c>GET /login</c> artık form çizmez. Oturumsuz → <c>/app/giris</c> (dönüş adresi
 /// <see cref="PermissionRedirect.SafeReturn"/>'ten geçerek taşınır); oturumlu → <see cref="AfterLogin"/>.
@@ -30,8 +35,71 @@ public static class Cutover
     /// <summary>Yeni arayüz giriş sayfası (anonim).</summary>
     public const string SpaLogin = SpaHosting.Prefix + "/giris";
 
-    /// <summary>Pilot kiracının varsayılan inişi.</summary>
+    /// <summary>Firma kullanıcısının varsayılan inişi (yeni arayüz Panel'i).</summary>
     public const string SpaPanel = SpaHosting.Prefix + "/panel";
+
+    /// <summary>SPA'nın hata bandı parametresi (<c>core/geri-bildirim/query-messages.ts</c>; metin olarak, 300 karakter).</summary>
+    public const string SpaErrorParameter = "hata";
+
+    /// <summary>URL'de taşınan mesajın üst sınırı (SPA da aynı sınırla kısaltır).</summary>
+    public const int MaxMessage = 300;
+
+    /// <summary>Genel sistem hatası metni (ayrıntı YOK — istisna ayrıntısı bilgi sızıntısıdır).</summary>
+    public const string UnexpectedErrorMessage =
+        "Beklenmeyen bir hata oluştu; son işleminiz tamamlanmamış olabilir. Tekrar denemeden önce kaydın oluşup oluşmadığını kontrol edin.";
+
+    /// <summary>Bulunamayan sayfa/kayıt metni.</summary>
+    public const string NotFoundMessage = "Aradığınız sayfa ya da kayıt bulunamadı.";
+
+    /// <summary>
+    /// SPA Panel'i + hata bandı: <c>/app/panel?hata=…</c>. Mesaj kırpılır ve kodlanır; hedef yol sabit. Boş mesajda
+    /// yalnız Panel.
+    /// </summary>
+    public static string ErrorTarget(string? message)
+    {
+        var text = message?.Trim();
+        if (string.IsNullOrEmpty(text)) return SpaPanel;
+        if (text.Length > MaxMessage) text = text[..MaxMessage];
+        return SpaPanel + QueryString.Create(SpaErrorParameter, text).ToUriComponent();
+    }
+
+    /// <summary>
+    /// Gövdesiz hata durumunun (StatusCodePages) ya da işlenmemiş istisnanın (ExceptionHandler) tarayıcı hedefi: YALNIZ
+    /// sayfa gezinmesi sayılabilecek istek — GET/HEAD, <c>/api/ui</c> değil (orada ProblemDetails), <c>/app</c> değil
+    /// (SPA kendi 404'ünü verir), dosya adı taşımayan yol (<c>/favicon.ico</c> gibi uzantılı istek ham durum kodunu alır:
+    /// tarayıcının arka plan isteği SPA'ya yönlenmesin). 404 → bulunamadı mesajı; 500 → genel hata + destek kodu.
+    /// Diğer durumlar <c>null</c> (ham durum kodu).
+    /// </summary>
+    public static string? StatusTarget(string method, PathString path, int status, string? supportCode = null)
+    {
+        if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method)) return null;
+        if (RentACar.Web.Api.UiApiExtensions.UiPath(path) || IsSpaPath(path.Value ?? "")) return null;
+        if (Path.HasExtension(path.Value)) return null;
+        return status switch
+        {
+            StatusCodes.Status404NotFound => ErrorTarget(NotFoundMessage),
+            StatusCodes.Status500InternalServerError => ErrorTarget(string.IsNullOrWhiteSpace(supportCode)
+                ? UnexpectedErrorMessage
+                : $"{UnexpectedErrorMessage} Destek kodu: {supportCode}"),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Eski Blazor kabuk sayfalarının (GET/HEAD) SPA karşılığı ya da <c>null</c>. <c>/hata?mesaj=</c> mesajı taşınır
+    /// (kırpılmış, kodlanmış); <c>/yetkisiz</c> yetki mesajı; <c>/Error</c> genel hata; <c>/not-found</c> bulunamadı.
+    /// Segment eşitliği, büyük/küçük harf duyarsız (sondaki <c>/</c> yok sayılır).
+    /// </summary>
+    public static string? ShellTarget(PathString path, QueryString query)
+    {
+        var p = (path.Value ?? "").TrimEnd('/');
+        if (p.Equals("/hata", StringComparison.OrdinalIgnoreCase))
+            return ErrorTarget(QueryHelpers.ParseQuery(query.Value).TryGetValue("mesaj", out var m) ? m.ToString() : null);
+        if (p.Equals("/yetkisiz", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(PermissionRedirect.UnauthorizedMessage);
+        if (p.Equals("/Error", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(UnexpectedErrorMessage);
+        if (p.Equals("/not-found", StringComparison.OrdinalIgnoreCase)) return ErrorTarget(NotFoundMessage);
+        return null;
+    }
 
     /// <summary>Blazor platform konsolunun kökü (F12 kesişinden sonra yalnız POST uçları ve dosya GET'leri).</summary>
     public const string PlatformConsoleRoot = "/platform";
@@ -262,7 +330,7 @@ public static class Cutover
 
     /// <summary>
     /// Platform konsolu alanı (<c>/platform</c> ve altı; segment eşleşmesi — <c>/platformlar</c> DEĞİL). Haritanın F12
-    /// bloğu bu alandadır ve pilot/oturum koşulu olmadan yönlenir (<see cref="CutoverMiddleware"/>).
+    /// bloğu bu alandadır (401/403 hedefi platform girişi — <see cref="PermissionRedirect"/>).
     /// </summary>
     public static bool IsPlatformConsolePath(PathString path)
         => path.StartsWithSegments(PlatformConsoleRoot, StringComparison.OrdinalIgnoreCase);
@@ -302,22 +370,22 @@ public static class Cutover
 
     /// <summary>
     /// İsteğin SPA hedefi (yol + AYNEN sorgu) ya da <c>null</c>. YALNIZ GET/HEAD: form gönderimleri
-    /// (POST <c>/kiralar/create</c> …) ve diğer yöntemler asla yönlenmez. Pilot kararı çağıranın (middleware).
+    /// (POST …) ve diğer yöntemler asla yönlenmez.
     /// </summary>
     public static string? SpaTarget(string method, PathString path, QueryString query)
     {
         if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method)) return null;
         // Sorgu HAM taşınır (tarayıcı zaten yüzde-kodlar). Yazdırılabilir ASCII dışı ham bayt yalnız elle
-        // üretilmiş istekte olur; Location başlığına yazılamaz (Kestrel reddeder → 500) → yönlendirme yapılmaz,
-        // Blazor sayfası açılır.
+        // üretilmiş istekte olur; Location başlığına yazılamaz (Kestrel reddeder → 500) → yönlendirme yapılmaz
+        // (istek uçsuz kalır → 404 akışı).
         foreach (var c in query.Value ?? "")
             if (c < '!' || c > '~') return null;
         return SpaPath(path.Value) is { } target ? target + query.Value : null;
     }
 
     /// <summary>
-    /// SPA menü rotasının (parametresiz) Blazor karşılığı — pilot OLMAYAN kiracıda Blazor menüsü bunu açar
-    /// (<c>/app/kiralar</c> → <c>/kiralar</c>). Haritada yoksa <c>null</c>.
+    /// SPA menü rotasının (parametresiz) eski Blazor karşılığı (<c>/app/kiralar</c> → <c>/kiralar</c>) — menü kaydı
+    /// testlerinin eski oracle'larıyla eşleşmek için. Haritada yoksa <c>null</c>.
     /// </summary>
     public static string? BlazorEquivalent(string spaRoute)
         => Map.FirstOrDefault(e => !e.Kaynak.Contains('{') && string.Equals(e.Hedef, spaRoute, StringComparison.OrdinalIgnoreCase))?.Kaynak;
@@ -352,24 +420,19 @@ public static class Cutover
     /// <summary>
     /// Oturum açmış firma kullanıcısının <c>/login</c>'den sonraki hedefi (SPA girişi de Blazor dönüş adresini
     /// buraya verir). Dönüş önce <see cref="PermissionRedirect.SafeReturn"/>'ten geçer (açık yönlendirme çiti).
-    /// <list type="bullet">
-    /// <item>Pilot: <c>/app/…</c> dönüş olduğu gibi (<c>/app/giris…</c> → Panel — döngü yok); haritadaki Blazor
-    /// adresi SPA karşılığına (<c>/</c> → <c>/app/panel</c>, <c>/kiralar?x</c> → <c>/app/kiralar?x</c>); diğer
-    /// Blazor sayfaları (henüz taşınmamış modüller) olduğu gibi.</item>
-    /// <item>Pilot değil: <c>/app/…</c> dönüş → Blazor Panel (<c>/</c>; yeni arayüz bu firmada kapalı), diğerleri
-    /// olduğu gibi.</item>
-    /// </list>
+    /// <c>/app/…</c> dönüş olduğu gibi (<c>/app/giris…</c> → Panel — döngü yok); haritadaki eski Blazor adresi SPA
+    /// karşılığına (<c>/</c> → <c>/app/panel</c>, <c>/kiralar?x</c> → <c>/app/kiralar?x</c>); diğer yerel adresler
+    /// (PDF/export gibi dosya uçları — indirme adresi <see cref="PermissionRedirect.SafeReturn"/>'ten geçmez) olduğu gibi.
+    /// F13.1b: pilot ayrımı kalktı (herkes yeni arayüzde).
     /// </summary>
-    public static string AfterLogin(bool pilot, string? returnInfo)
+    public static string AfterLogin(string? returnInfo)
     {
         var g = PermissionRedirect.SafeReturn(returnInfo);
         var end = g.AsSpan().IndexOfAny('?', '#');
         var path = end < 0 ? g : g[..end];
         var remaining = end < 0 ? "" : g[end..];
-        var spa = IsSpaPath(path);
 
-        if (!pilot) return spa ? PermissionRedirect.Default : g;
-        if (spa) return IsSpaEntryPath(path) ? SpaPanel : g;
+        if (IsSpaPath(path)) return IsSpaEntryPath(path) ? SpaPanel : g;
         return SpaPath(path) is { } target ? target + remaining : g;
     }
 

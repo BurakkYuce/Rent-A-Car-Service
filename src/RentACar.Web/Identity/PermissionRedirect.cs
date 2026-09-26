@@ -31,20 +31,32 @@ public static class PermissionRedirect
     /// <summary>Tenant girişinden sonraki varsayılan iniş: Panel.</summary>
     public const string Default = "/";
 
-    private const string LoginPage = "/login";
+    /// <summary>F13.1b: cookie şemasının giriş sayfası yeni arayüzün girişi (anonim; challenge almaz → döngü yok).</summary>
+    private const string LoginPage = RentACar.Web.Spa.Cutover.SpaLogin;
+
+    /// <summary>403 mesajı — yeni arayüz <c>?hata=</c> sorgusunu hata bandında gösterir (metin olarak, kısaltarak).</summary>
+    public const string UnauthorizedMessage = "Bu işlem için yetkiniz yok.";
 
     /// <summary>Platform alanı ayrı bir kabuk kullanır; oradaki 401/403 kendi login'ine gider.</summary>
     private static bool Platform(PathString path) => path.StartsWithSegments("/platform");
 
-    /// <summary>401 (kimlik yok) hedefi.</summary>
-    public static string LoginTarget(PathString path) => Platform(path) ? "/platform/login" : LoginPage;
-
-    /// <summary>403 (kimlik var, yetki yok) hedefi.</summary>
-    public static string UnauthorizedTarget(PathString path) => Platform(path) ? "/platform/login" : "/yetkisiz";
+    /// <summary>401 (kimlik yok) hedefi: yeni arayüz girişi (platform alanında platform girişi).</summary>
+    public static string LoginTarget(PathString path) => Platform(path) ? RentACar.Web.Spa.Cutover.SpaPlatformLogin : LoginPage;
 
     /// <summary>
-    /// 401 yönlendirmesinin TAM adresi: <see cref="LoginTarget"/> + (uygunsa) <c>?ReturnUrl=</c>.
-    /// <c>OnRedirectToLogin</c> bunu çağırır.
+    /// 403 (kimlik var, yetki yok) hedefi. F13.1b: Blazor <c>/yetkisiz</c> sayfası yerine yeni arayüzün Panel'i +
+    /// <c>?hata=</c> bandı (kullanıcı neden düştüğünü görür; eski "durduk yere ana ekran" hatasının dersi). Platform
+    /// alanında platform girişi.
+    /// </summary>
+    public static string UnauthorizedTarget(PathString path)
+        => Platform(path)
+            ? RentACar.Web.Spa.Cutover.SpaPlatformLogin
+            : RentACar.Web.Spa.Cutover.ErrorTarget(UnauthorizedMessage);
+
+    /// <summary>
+    /// 401 yönlendirmesinin TAM adresi: <see cref="LoginTarget"/> + (uygunsa) SPA'nın <c>?returnUrl=</c>'i.
+    /// <c>OnRedirectToLogin</c> bunu çağırır. SPA girişi Blazor adresini kendisi çözmez, girişten sonra
+    /// <c>/login?ReturnUrl=</c>'e geri verir (<c>Cutover.AfterLogin</c>, aynı <see cref="SafeReturn"/> çiti).
     /// </summary>
     /// <param name="previousPage">
     /// İsteğin geldiği sayfanın YEREL yolu (aynı kökenli Referer'dan <see cref="SameOriginPath"/> ile
@@ -78,30 +90,11 @@ public static class PermissionRedirect
 
         return returnInfo == Default
             ? target
-            : target + QueryString.Create(ReturnParameter, returnInfo).ToUriComponent();
+            : target + QueryString.Create(RentACar.Web.Spa.Cutover.SpaReturnParameter, returnInfo).ToUriComponent();
     }
 
-    /// <summary>
-    /// Hatalı girişte login sayfasına geri dönüş adresi: <c>/login?hata=1</c> + (uygunsa) dönüş.
-    /// Dönüş korunmazsa kullanıcı şifresini bir kez yanlış yazdığında derin bağlantıyı kaybederdi.
-    /// Yalnız <see cref="SafeReturn"/>'ten geçen değer geri yansıtılır.
-    /// </summary>
-    public static string InvalidLoginTarget(string? returnInfo) => ErrorTarget("1", returnInfo);
-
-    /// <summary>
-    /// Giriş hız sınırına takılan isteğin hedefi: <c>/login?hata=limit</c> + (uygunsa) dönüş. Hatalı
-    /// girişle AYNI gerekçe: şifreyi birkaç kez yanlış yazıp sınıra takılan kullanıcı (aynı NAT
-    /// arkasındaki ofiste daha sık) bir dakika sonraki doğru girişte derin bağlantısını kaybetmesin.
-    /// </summary>
-    public static string LimitTarget(string? returnInfo) => ErrorTarget("limit", returnInfo);
-
-    private static string ErrorTarget(string error, string? returnInfo)
-    {
-        var safe = SafeReturn(returnInfo);
-        var query = QueryString.Create("hata", error);
-        if (safe != Default) query = query.Add(ReturnParameter, safe);
-        return LoginPage + query.ToUriComponent();
-    }
+    // F13.1b: InvalidLoginTarget / LimitTarget (Blazor giriş formunun /login?hata=1|limit dönüşleri) kaldırıldı —
+    // form uçları silindi; yeni arayüz girişi hatayı JSON (ProblemDetails, 401/429) olarak alır, form korunur.
 
     /// <summary>
     /// Referer başlığı BİZİM sunucumuzu (aynı host[:port]) gösteriyorsa yolu + sorgusu (kodlanmış
