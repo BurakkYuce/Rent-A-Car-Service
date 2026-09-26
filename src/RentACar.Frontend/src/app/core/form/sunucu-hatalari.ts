@@ -1,15 +1,15 @@
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
-import { type AlanHatalari, apiHatasinaCevir } from '../api/api-hatasi';
-import { trKucukHarf } from '../metin/tr-normalize';
+import { type FieldErrors, toApiError } from '../api/api-hatasi';
+import { trLowerCase } from '../metin/tr-normalize';
 
-export type { AlanHatalari } from '../api/api-hatasi';
+export type { FieldErrors as AlanHatalari } from '../api/api-hatasi';
 
 /** Kontrol hatası anahtarı: değeri sunucunun mesaj listesi. Kullanıcı alanı değiştirince kalkar. */
-export const SUNUCU_HATASI = 'sunucu';
+export const SERVER_ERROR = 'sunucu';
 
 /** Herhangi bir hatadan alan hataları (`ApiHatasi.alanlar`; ham `HttpErrorResponse` da çevrilir). */
-export function alanHatalariniAl(hata: unknown): AlanHatalari | undefined {
-  return apiHatasinaCevir(hata).alanlar;
+export function getFieldErrors(error: unknown): FieldErrors | undefined {
+  return toApiError(error).alanlar;
 }
 
 /**
@@ -18,67 +18,67 @@ export function alanHatalariniAl(hata: unknown): AlanHatalari | undefined {
  * çözülür (sunucu `Plaka`, form `plaka`). Karşılığı olmayan mesajlar (ör. `Idempotency-Key`) döner —
  * form düzeyinde gösterilir, yutulmaz.
  */
-export function sunucuHatalariniUygula(
-  kok: AbstractControl,
-  alanlar: AlanHatalari | undefined,
-  esleme?: Readonly<Record<string, string>>,
+export function applyServerErrors(
+  root: AbstractControl,
+  fields: FieldErrors | undefined,
+  mapping?: Readonly<Record<string, string>>,
 ): string[] {
-  const eslesmeyen: string[] = [];
-  if (!alanlar) return eslesmeyen;
-  for (const [alan, mesajlar] of Object.entries(alanlar)) {
-    const kontrol = kontrolBul(kok, esleme?.[alan] ?? alan);
-    if (!kontrol || kontrol === kok) {
-      eslesmeyen.push(...mesajlar);
+  const unmatched: string[] = [];
+  if (!fields) return unmatched;
+  for (const [alan, messages] of Object.entries(fields)) {
+    const check = findControl(root, mapping?.[alan] ?? alan);
+    if (!check || check === root) {
+      unmatched.push(...messages);
       continue;
     }
-    kontrol.setErrors({ ...(kontrol.errors ?? {}), [SUNUCU_HATASI]: mesajlar });
-    kontrol.markAsTouched();
+    check.setErrors({ ...(check.errors ?? {}), [SERVER_ERROR]: messages });
+    check.markAsTouched();
   }
-  return eslesmeyen;
+  return unmatched;
 }
 
 /** Yeniden göndermeden önce: sunucu hatalarını kaldırır (istemci doğrulayıcıları yeniden koşar). */
-export function sunucuHatalariniTemizle(kok: AbstractControl): void {
-  gez(kok, (k) => {
-    if (k.errors?.[SUNUCU_HATASI] !== undefined) k.updateValueAndValidity({ onlySelf: false });
+export function clearServerErrors(root: AbstractControl): void {
+  gez(root, (k) => {
+    if (k.errors?.[SERVER_ERROR] !== undefined) k.updateValueAndValidity({ onlySelf: false });
   });
 }
 
-function gez(kontrol: AbstractControl, ziyaret: (k: AbstractControl) => void): void {
-  if (kontrol instanceof FormGroup || kontrol instanceof FormArray) {
-    for (const cocuk of Object.values(kontrol.controls as Record<string, AbstractControl>)) {
-      gez(cocuk, ziyaret);
+function gez(check: AbstractControl, visit: (k: AbstractControl) => void): void {
+  if (check instanceof FormGroup || check instanceof FormArray) {
+    for (const child of Object.values(check.controls as Record<string, AbstractControl>)) {
+      gez(child, visit);
     }
   }
-  ziyaret(kontrol);
+  visit(check);
 }
 
-function kontrolBul(kok: AbstractControl, yol: string): AbstractControl | null {
-  const parcalar = yol
+function findControl(root: AbstractControl, path: string): AbstractControl | null {
+  const parts = path
     .replace(/\[(\d+)\]/g, '.$1')
     .split('.')
     .filter((p) => p !== '');
-  let gecerli: AbstractControl | null = kok;
-  for (const parca of parcalar) {
-    if (gecerli instanceof FormArray) {
-      gecerli = /^\d+$/.test(parca) ? (gecerli.at(Number(parca)) ?? null) : null;
-    } else if (gecerli instanceof FormGroup) {
-      const grup: FormGroup = gecerli;
-      const aranan = adKatla(parca);
-      const ad = Object.keys(grup.controls).find((k) => adKatla(k) === aranan);
-      gecerli = ad === undefined ? null : (grup.controls[ad] ?? null);
+  let valid: AbstractControl | null = root;
+  for (const part of parts) {
+    if (valid instanceof FormArray) {
+      valid = /^\d+$/.test(part) ? (valid.at(Number(part)) ?? null) : null;
+    } else if (valid instanceof FormGroup) {
+      const group: FormGroup = valid;
+      const searched = foldName(part);
+      const name = Object.keys(group.controls).find((k) => foldName(k) === searched);
+      valid = name === undefined ? null : (group.controls[name] ?? null);
     } else {
       return null;
     }
-    if (!gecerli) return null;
+    if (!valid) return null;
   }
-  return gecerli;
+  return valid;
 }
 
 /**
  * Alan ADI (ASCII tanımlayıcı) karşılaştırması: Türkçe küçük harf "I"yı "ı" yapar, form adı "i" ile
  * yazılır (`IslemAnahtari` ↔ `islemAnahtari`); ikisi de "i"ye katlanır.
  */
-function adKatla(ad: string): string {
-  return trKucukHarf(ad).replace(/ı/g, 'i');
+function foldName(name: string): string {
+  return trLowerCase(name).replace(/ı/g, 'i');
 }

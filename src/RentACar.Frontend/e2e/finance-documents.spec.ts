@@ -9,8 +9,8 @@ import {
   invoiceDetail,
   penaltyDetail,
 } from './finance-document-fakes';
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F8.2b finans belge ekranları: faturalar (+ detay listesi), cezalar, giderler, gelen e-fatura, araç satışları.
@@ -18,7 +18,7 @@ import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
  * `cakisma` formu silmez) + para (kaybolan yanıttan sonra aynı anahtar → `mukerrer` + mevcut; farklı içerikte form
  * korunur) + axe iki tema + 320/390/768/1440 taşma.
  */
-const AG_HATASI = [
+const NETWORK_ERROR = [
   /Failed to load resource: the server responded with a status of 4\d\d/,
   /Failed to load resource: net::ERR_FAILED/,
 ];
@@ -66,7 +66,7 @@ const SALES: VitrinSayfasi = {
 const PAGES = [INVOICES, LINES, PENALTIES, EXPENSES, INCOMING, SALES];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, {
+  await logIn(page, {
     ...BEN,
     izinler: [...BEN.izinler, 'OperationsDelete', 'FinanceReverse'],
   });
@@ -75,22 +75,22 @@ test.beforeEach(async ({ page }) => {
 // Sayfa başına ayrı test: tek testte tüm sayfalar × 2 tema axe taraması CI'da 30 sn sınırına dayanıyordu.
 for (const s of PAGES) {
   test(`${s.ad}: içerik + axe iki tema, konsol hatası yok`, async ({ page }) => {
-    const hatalar = hatalariTopla(page, AG_HATASI);
+    const errors = collectErrors(page, NETWORK_ERROR);
     await documentEndpoints(page);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
+    await waitReady(page, s);
+    expect(await seriousViolations(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
-    expect(hatalar).toEqual([]);
+    expect(await seriousViolations(page), `${s.ad} koyu`).toEqual([]);
+    expect(errors).toEqual([]);
   });
 }
 
 test('manuel fatura: doğrulama hatasında form korunur; "1.500,50" → 1500.50; 3 ondalık reddedilir; tekrar AYNI anahtar', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let n = 0;
   const written = await documentEndpoints(page, {
     write: async (r, path) => {
@@ -104,7 +104,7 @@ test('manuel fatura: doğrulama hatasında form korunur; "1.500,50" → 1500.50;
     },
   });
   await page.goto(INVOICES.yol);
-  await hazirBekle(page, INVOICES);
+  await waitReady(page, INVOICES);
   const form = page.getByRole('region', { name: 'Manuel Fatura' });
   await form.getByRole('combobox', { name: 'Cari' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -126,14 +126,14 @@ test('manuel fatura: doğrulama hatasında form korunur; "1.500,50" → 1500.50;
     tarih: '2026-08-31T21:00:00.000Z',
   });
   expect(JSON.parse(written[0]?.govde ?? '{}')).not.toHaveProperty('kdvTutar');
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
 
   await form.getByRole('textbox', { name: 'Fatura Tarihi' }).fill('');
   await form.getByRole('button', { name: 'Manuel Fatura Kes' }).click();
   await expect(page.getByText('Fatura kesildi (RNT2026000000002).')).toBeVisible();
   expect(written[1]?.anahtar).toBe(written[0]?.anahtar); // ilk istek yazılmadı: aynı işlem
   expect(written[1]?.anahtar).toMatch(/^[0-9a-f-]{36}$/);
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('manuel fatura: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (aynı anahtar + gövde)', async ({
@@ -149,15 +149,15 @@ test('manuel fatura: oturum düşünce form kaybolmaz — yerinde giriş, AYNI i
     },
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
+    await writeXsrf(page, 'yeni-belirtec');
     return route.fulfill({ json: BEN });
   });
   await page.goto(INVOICES.yol);
-  await hazirBekle(page, INVOICES);
+  await waitReady(page, INVOICES);
   const form = page.getByRole('region', { name: 'Manuel Fatura' });
   await form.getByRole('combobox', { name: 'Cari' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -181,24 +181,24 @@ test('manuel fatura: oturum düşünce form kaybolmaz — yerinde giriş, AYNI i
 test('gelen e-fatura bağlama: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
-  let surum = 'v-1';
-  let giderTipi: string | null = null;
+  const errors = collectErrors(page, NETWORK_ERROR);
+  let version = 'v-1';
+  let expenseType: string | null = null;
   let put = 0;
   const written = await documentEndpoints(page, {
-    incoming: () => ({ fatura: incomingRow({ giderTipi }), surum }),
+    incoming: () => ({ fatura: incomingRow({ giderTipi: expenseType }), surum: version }),
     write: async (r) => {
       if (r.request().method() !== 'PUT') return false;
       if (++put === 1) {
-        surum = 'v-2';
-        giderTipi = 'Arac'; // başka oturum gider türünü değiştirdi
+        version = 'v-2';
+        expenseType = 'Arac'; // başka oturum gider türünü değiştirdi
         await problem(r, 409, 'cakisma', 'Kayıt siz düzenlerken değişti; güncel hâli yükleyin.');
       } else await r.fulfill({ json: { id: INCOMING_1, durum: 'Onaylandi', surum: 'v-3' } });
       return true;
     },
   });
   await page.goto(INCOMING.yol);
-  await hazirBekle(page, INCOMING);
+  await waitReady(page, INCOMING);
   await page.getByRole('button', { name: 'KDV Kırılımı / Bağla' }).click();
   const form = page.getByRole('region', { name: 'KDV Kırılımı / Bağla — ETTN-0001' });
   await expect(form.getByRole('textbox', { name: '%20 KDV' })).toHaveValue('200,00');
@@ -225,13 +225,13 @@ test('gelen e-fatura bağlama: cakisma formu silmez — güncel kayıt birleşir
     kdv0Matrah: '150.25',
     giderTipi: 'Arac',
   });
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('ceza ödemesi: kaybolan yanıt → form korunur, tekrar AYNI anahtar + gövde → mukerrer + mevcut, tek ödeme', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let payments = 0;
   const written = await documentEndpoints(page, {
     penalty: () => penaltyDetail(payments === 0 ? 0 : 900),
@@ -256,7 +256,7 @@ test('ceza ödemesi: kaybolan yanıt → form korunur, tekrar AYNI anahtar + gö
     },
   });
   await page.goto(PENALTIES.yol);
-  await hazirBekle(page, PENALTIES);
+  await waitReady(page, PENALTIES);
   await page.getByRole('button', { name: 'Detay' }).click();
   const form = page.getByRole('region', { name: 'Kalem Ödemesi' });
   await form.getByRole('combobox', { name: 'Kalem' }).selectOption({ index: 1 });
@@ -280,7 +280,7 @@ test('ceza ödemesi: kaybolan yanıt → form korunur, tekrar AYNI anahtar + gö
   expect(written[1]?.govde).toBe(written[0]?.govde);
   expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({ hesap: 'Banka', tutar: null });
   expect(payments).toBe(1);
-  expect(hatalar.filter((h) => !/Failed to load resource/.test(h))).toEqual([]);
+  expect(errors.filter((h) => !/Failed to load resource/.test(h))).toEqual([]);
 });
 
 test('gider: mukerrer + mevcut (farklı içerik) → "önceki denemeniz kaydedildi" notu, form temizlenir; sonraki işlem yeni anahtar', async ({
@@ -305,7 +305,7 @@ test('gider: mukerrer + mevcut (farklı içerik) → "önceki denemeniz kaydedil
     },
   });
   await page.goto(EXPENSES.yol);
-  await hazirBekle(page, EXPENSES);
+  await waitReady(page, EXPENSES);
   await page.getByRole('button', { name: 'Yeni Gider' }).click();
   const form = page.getByRole('region', { name: 'Yeni Gider' });
   const amount = form.getByRole('textbox', { name: 'Net Tutar' });
@@ -378,7 +378,7 @@ test('r300 P1 gider: kaybolan yanıt → gövde DONAR, tutar düzeltilemez; tekr
     },
   });
   await page.goto(EXPENSES.yol);
-  await hazirBekle(page, EXPENSES);
+  await waitReady(page, EXPENSES);
   await page.getByRole('button', { name: 'Yeni Gider' }).click();
   const form = page.getByRole('region', { name: 'Yeni Gider' });
   const amount = form.getByRole('textbox', { name: 'Net Tutar' });
@@ -421,7 +421,7 @@ test('r300 P2 manuel fatura: istek uçarken form KİLİTLİ; başarı mesajı su
     },
   });
   await page.goto(INVOICES.yol);
-  await hazirBekle(page, INVOICES);
+  await waitReady(page, INVOICES);
   const form = page.getByRole('region', { name: 'Manuel Fatura' });
   await form.getByRole('combobox', { name: 'Cari' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -450,7 +450,7 @@ test('r300 P3 gider: döviz değişince açık kur temizlenir (USD kuru EUR gide
     },
   });
   await page.goto(EXPENSES.yol);
-  await hazirBekle(page, EXPENSES);
+  await waitReady(page, EXPENSES);
   await page.getByRole('button', { name: 'Yeni Gider' }).click();
   const form = page.getByRole('region', { name: 'Yeni Gider' });
   await form.getByRole('textbox', { name: 'Net Tutar' }).fill('100');
@@ -483,7 +483,7 @@ test('r300 P4 ceza ödemesi: mevcut\'suz 409 → "daha önce kaydedildi", anahta
     },
   });
   await page.goto(PENALTIES.yol);
-  await hazirBekle(page, PENALTIES);
+  await waitReady(page, PENALTIES);
   await page.getByRole('button', { name: 'Detay' }).click();
   const form = page.getByRole('region', { name: 'Kalem Ödemesi' });
   await form.getByRole('combobox', { name: 'Kalem' }).selectOption({ index: 1 });
@@ -516,7 +516,7 @@ test('r300 L4 ceza ödemesi: belirsiz deneme varken başka cezaya geçiş onay i
     },
   });
   await page.goto(PENALTIES.yol);
-  await hazirBekle(page, PENALTIES);
+  await waitReady(page, PENALTIES);
   await page.getByRole('button', { name: 'Detay' }).click();
   const form = page.getByRole('region', { name: 'Kalem Ödemesi' });
   await form.getByRole('combobox', { name: 'Kalem' }).selectOption({ index: 1 });
@@ -545,7 +545,7 @@ test('r300 P5 gelen e-fatura: kirli kırılım onaysız atılmaz; giderleştirme
 }) => {
   const written = await documentEndpoints(page);
   await page.goto(INCOMING.yol);
-  await hazirBekle(page, INCOMING);
+  await waitReady(page, INCOMING);
   await page.getByRole('button', { name: 'KDV Kırılımı / Bağla' }).click();
   const link = page.getByRole('region', { name: 'KDV Kırılımı / Bağla — ETTN-0001' });
   await expect(link.getByRole('textbox', { name: '%20 KDV' })).toHaveValue('200,00');
@@ -590,7 +590,7 @@ test('r300b A gider ödemesi: istek uçarken Kapat / başka Öde / Yeni Gider pa
     },
   });
   await page.goto(EXPENSES.yol);
-  await hazirBekle(page, EXPENSES);
+  await waitReady(page, EXPENSES);
   await page.getByRole('button', { name: 'Öde', exact: true }).first().click();
   const form = page.getByRole('region', { name: /Gider Ödemesi/ });
   await form.getByRole('button', { name: 'Öde', exact: true }).click();
@@ -620,7 +620,7 @@ test('r300b B gider (USD, kur 35): belirsiz → form kapat (onaylı) / aç → k
     },
   });
   await page.goto(EXPENSES.yol);
-  await hazirBekle(page, EXPENSES);
+  await waitReady(page, EXPENSES);
   const toggle = page.getByRole('button', { name: 'Yeni Gider' });
   await toggle.click();
   let form = page.getByRole('region', { name: 'Yeni Gider' });
@@ -666,7 +666,7 @@ test('r300b C araç satışı: belirsiz → tekrar → "Araç zaten satılmış"
     },
   });
   await page.goto(SALES.yol);
-  await hazirBekle(page, SALES);
+  await waitReady(page, SALES);
   await page.getByRole('button', { name: 'Yeni Satış' }).click();
   const form = page.getByRole('region', { name: 'Yeni Satış' });
   await form.getByRole('combobox', { name: 'Araç' }).fill('34');
@@ -689,20 +689,20 @@ test('r300b C araç satışı: belirsiz → tekrar → "Araç zaten satılmış"
 test('r300 L3 şubeye bağlı kullanıcı: manuel fatura ve gelen e-fatura eylemleri yok; gider şubesi ön-dolu', async ({
   page,
 }) => {
-  await oturumAc(page, {
+  await logIn(page, {
     ...BEN,
     subeKapsami: { tumSubeler: false, subeId: 's1', subeAd: 'Merkez' },
   });
   await documentEndpoints(page);
   await page.goto(INVOICES.yol);
-  await hazirBekle(page, INVOICES);
+  await waitReady(page, INVOICES);
   await expect(page.getByRole('region', { name: 'Manuel Fatura' })).toHaveCount(0);
   await page.goto(INCOMING.yol);
-  await hazirBekle(page, INCOMING);
+  await waitReady(page, INCOMING);
   await expect(page.getByRole('button', { name: 'Elle Gelen Fatura Gir' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Giderleştir', exact: true })).toHaveCount(0);
   await page.goto(EXPENSES.yol);
-  await hazirBekle(page, EXPENSES);
+  await waitReady(page, EXPENSES);
   await page.getByRole('button', { name: 'Yeni Gider' }).click();
   await expect(
     page.getByRole('region', { name: 'Yeni Gider' }).getByRole('combobox', { name: 'Şube' }),
@@ -736,7 +736,7 @@ test('#300 L1 gider ödemesi uçuşta: süzgeç formu (Filtrele) PASİF — öde
     },
   });
   await page.goto(EXPENSES.yol);
-  await hazirBekle(page, EXPENSES);
+  await waitReady(page, EXPENSES);
   const filter = page.getByRole('button', { name: 'Filtrele' });
   await expect(filter).toBeEnabled();
   await page.getByRole('button', { name: 'Öde', exact: true }).first().click();
@@ -762,7 +762,7 @@ test('#300 L2 araç satışı: belirsiz denemenin tekrarı BAŞKA bir kesin redl
     },
   });
   await page.goto(SALES.yol);
-  await hazirBekle(page, SALES);
+  await waitReady(page, SALES);
   await page.getByRole('button', { name: 'Yeni Satış' }).click();
   const form = page.getByRole('region', { name: 'Yeni Satış' });
   await form.getByRole('combobox', { name: 'Araç' }).fill('34');
@@ -789,8 +789,8 @@ for (const s of PAGES) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -798,7 +798,7 @@ for (const s of PAGES) {
     await documentEndpoints(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

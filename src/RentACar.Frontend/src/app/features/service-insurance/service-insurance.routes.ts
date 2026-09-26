@@ -1,7 +1,7 @@
 import type { Routes } from '@angular/router';
 
-import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriBloguyla } from '@core/i18n/ceviri-blogu';
+import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
 import { anyPermissionGuard } from '@features/vehicles/vehicle-guards';
 
 /** Servis / sigorta / vade uçlarının okuma izni (F9.1 `ReadAny`; Blazor sayfaları tüm rollere açıktı). */
@@ -13,14 +13,14 @@ const READ = anyPermissionGuard('OperationsWrite', 'FinanceWrite', 'ViewReports'
  * `/regulasyon/mtv`, `/regulasyon/muayene`); kayıtlar `:id` ile. Yazma izinleri (kayıt/kalem OperationsWrite, ödeme ve
  * yansıtma FinanceWrite, iptal OperationsDelete) sunucu `yetkiler`'inden düğmelerde.
  */
-export const SERVICE_INSURANCE_ROUTES: Routes = ceviriBloguyla('servis-sigorta', [
+export const SERVICE_INSURANCE_ROUTES: Routes = withTranslationBlock('servis-sigorta', [
   {
     path: 'servisler',
     title: 'Servis / Bakım — RentACar',
     canMatch: [READ],
     loadComponent: () =>
       import('@features/service-insurance/services/service-list').then((m) => m.ServiceList),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'servisler/:id',
@@ -28,7 +28,7 @@ export const SERVICE_INSURANCE_ROUTES: Routes = ceviriBloguyla('servis-sigorta',
     canMatch: [READ],
     loadComponent: () =>
       import('@features/service-insurance/services/service-detail').then((m) => m.ServiceDetail),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'regulasyon',
@@ -36,7 +36,7 @@ export const SERVICE_INSURANCE_ROUTES: Routes = ceviriBloguyla('servis-sigorta',
     canMatch: [READ],
     loadComponent: () =>
       import('@features/service-insurance/regulation/policy-list').then((m) => m.PolicyList),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'regulasyon/sigortalar/:id',
@@ -44,7 +44,7 @@ export const SERVICE_INSURANCE_ROUTES: Routes = ceviriBloguyla('servis-sigorta',
     canMatch: [READ],
     loadComponent: () =>
       import('@features/service-insurance/regulation/policy-detail').then((m) => m.PolicyDetail),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'regulasyon/zeyiller',
@@ -64,7 +64,7 @@ export const SERVICE_INSURANCE_ROUTES: Routes = ceviriBloguyla('servis-sigorta',
       import('@features/service-insurance/regulation/installment-list').then(
         (m) => m.InstallmentList,
       ),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'regulasyon/mtv/:id',
@@ -75,7 +75,7 @@ export const SERVICE_INSURANCE_ROUTES: Routes = ceviriBloguyla('servis-sigorta',
       import('@features/service-insurance/regulation/installment-record').then(
         (m) => m.InstallmentRecord,
       ),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'regulasyon/muayene',
@@ -86,7 +86,7 @@ export const SERVICE_INSURANCE_ROUTES: Routes = ceviriBloguyla('servis-sigorta',
       import('@features/service-insurance/regulation/installment-list').then(
         (m) => m.InstallmentList,
       ),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'regulasyon/muayeneler/:id',
@@ -97,7 +97,7 @@ export const SERVICE_INSURANCE_ROUTES: Routes = ceviriBloguyla('servis-sigorta',
       import('@features/service-insurance/regulation/installment-record').then(
         (m) => m.InstallmentRecord,
       ),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'vade',

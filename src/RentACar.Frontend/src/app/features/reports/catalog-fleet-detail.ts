@@ -1,4 +1,4 @@
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 
 import { scorecardLink } from './catalog-sales';
 import {
@@ -17,7 +17,7 @@ const R = '/api/ui/v1/raporlar';
 
 // ── Doluluk ─────────────────────────────────────────────────────────────────────────────────
 const dl = cardsFor<SummaryOf<`${typeof R}/doluluk`>>();
-const dlGun = columnsFor<Sema<'DolulukGunRow'>>();
+const dlDay = columnsFor<Schema<'DolulukGunRow'>>();
 export const OCCUPANCY = defineReport({
   kod: 'doluluk',
   baslik: 'rapor.baslik.doluluk',
@@ -63,13 +63,13 @@ export const OCCUPANCY = defineReport({
           baslik: 'rapor.bolum.gunluk',
           satirlar: (s) => s.gunluk.satirlar,
           sutunlar: [
-            dlGun.field('gun', 'tarih'),
-            dlGun.field('seri', 'metin'),
-            dlGun.field('aracSayisi', 'tamsayi', { baslik: 'rapor.alan.aracAdet' }),
-            dlGun.field('kiraGun', 'tamsayi'),
-            dlGun.field('rezGun', 'tamsayi'),
-            dlGun.field('kiraYuzde', 'yuzde'),
-            dlGun.field('rezYuzde', 'yuzde'),
+            dlDay.field('gun', 'tarih'),
+            dlDay.field('seri', 'metin'),
+            dlDay.field('aracSayisi', 'tamsayi', { baslik: 'rapor.alan.aracAdet' }),
+            dlDay.field('kiraGun', 'tamsayi'),
+            dlDay.field('rezGun', 'tamsayi'),
+            dlDay.field('kiraYuzde', 'yuzde'),
+            dlDay.field('rezYuzde', 'yuzde'),
           ],
         }),
       ],
@@ -79,7 +79,7 @@ export const OCCUPANCY = defineReport({
 
 // ── Araç günlük durum ───────────────────────────────────────────────────────────────────────
 const ag = cardsFor<SummaryOf<`${typeof R}/arac-gunluk-durum`>>();
-const agSatir = columnsFor<RowOf<`${typeof R}/arac-gunluk-durum`>>();
+const networkRow = columnsFor<RowOf<`${typeof R}/arac-gunluk-durum`>>();
 export const VEHICLE_DAILY = defineReport({
   kod: 'arac-gunluk-durum',
   baslik: 'rapor.baslik.aracGunlukDurum',
@@ -108,22 +108,22 @@ export const VEHICLE_DAILY = defineReport({
         siralanabilir: ['plaka', 'sozlesmeNo', 'gunlukToplam', 'basTar'],
         satirKimligi: (r) => `${r.vehicleId}:${r.rentalId}`,
         sutunlar: [
-          agSatir.field('plaka', 'metin', { sirala: true, sabit: true }),
-          agSatir.field('sozlesmeNo', 'metin', {
+          networkRow.field('plaka', 'metin', { sirala: true, sabit: true }),
+          networkRow.field('sozlesmeNo', 'metin', {
             sirala: true,
             bag: (r) => ['/kiralar', r.rentalId],
           }),
-          agSatir.field('musteri', 'metin'),
-          agSatir.field('sipp', 'metin', { gizli: true }),
-          agSatir.field('grup', 'metin'),
-          agSatir.field('aracSahibi', 'metin', { gizli: true }),
-          agSatir.field('cikisOfisi', 'metin'),
-          agSatir.field('basTar', 'tarih', { sirala: true }),
-          agSatir.field('bitTar', 'tarih'),
-          agSatir.field('gun', 'tamsayi', { baslik: 'rapor.alan.kiraGun' }),
-          agSatir.field('gunlukKira', 'para'),
-          agSatir.field('gunlukHizmet', 'para'),
-          agSatir.field('gunlukToplam', 'para', { sirala: true }),
+          networkRow.field('musteri', 'metin'),
+          networkRow.field('sipp', 'metin', { gizli: true }),
+          networkRow.field('grup', 'metin'),
+          networkRow.field('aracSahibi', 'metin', { gizli: true }),
+          networkRow.field('cikisOfisi', 'metin'),
+          networkRow.field('basTar', 'tarih', { sirala: true }),
+          networkRow.field('bitTar', 'tarih'),
+          networkRow.field('gun', 'tamsayi', { baslik: 'rapor.alan.kiraGun' }),
+          networkRow.field('gunlukKira', 'para'),
+          networkRow.field('gunlukHizmet', 'para'),
+          networkRow.field('gunlukToplam', 'para', { sirala: true }),
         ],
       },
     }),
@@ -132,7 +132,7 @@ export const VEHICLE_DAILY = defineReport({
 
 // ── Servis maliyet özeti ────────────────────────────────────────────────────────────────────
 const so = cardsFor<SummaryOf<`${typeof R}/servis-ozet`>>();
-const soSatir = columnsFor<RowOf<`${typeof R}/servis-ozet`>>();
+const soRow = columnsFor<RowOf<`${typeof R}/servis-ozet`>>();
 export const SERVICE_COST = defineReport({
   kod: 'servis-ozet',
   baslik: 'rapor.baslik.servisOzet',
@@ -148,14 +148,14 @@ export const SERVICE_COST = defineReport({
         siralanabilir: ['plaka', 'tip', 'toplam', 'adet'],
         satirKimligi: (r) => `${r.vehicleId}:${r.tip}`,
         sutunlar: [
-          soSatir.field('plaka', 'metin', {
+          soRow.field('plaka', 'metin', {
             sirala: true,
             sabit: true,
             bag: (r) => scorecardLink(r.vehicleId),
           }),
-          soSatir.field('tip', 'metin', { sirala: true, baslik: 'rapor.alan.servisTipi' }),
-          soSatir.field('toplam', 'para', { sirala: true }),
-          soSatir.field('adet', 'tamsayi', { sirala: true }),
+          soRow.field('tip', 'metin', { sirala: true, baslik: 'rapor.alan.servisTipi' }),
+          soRow.field('toplam', 'para', { sirala: true }),
+          soRow.field('adet', 'tamsayi', { sirala: true }),
         ],
       },
     }),

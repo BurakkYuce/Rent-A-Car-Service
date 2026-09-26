@@ -1,4 +1,4 @@
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 
 import {
   VIEW_REPORTS,
@@ -16,15 +16,15 @@ const R = '/api/ui/v1/raporlar';
 
 // ── Araç karnesi ────────────────────────────────────────────────────────────────────────────
 const kr = cardsFor<SummaryOf<`${typeof R}/arac-karne/{id}`>>();
-const yil = columnsFor<Sema<'AracYilPnlRow'>>();
-const kir = columnsFor<Sema<'AracKirilimRow'>>();
-const olay = columnsFor<Sema<'AracOlayRow'>>();
-const vade = columnsFor<Sema<'ScorecardDue'>>();
-const kalem = columnsFor<Sema<'ScorecardCostItem'>>();
-const kirilimSutunlari = [
-  kir.field('kategori', 'metin'),
-  kir.field('tutar', 'para'),
-  kir.field('yuzdeGelir', 'yuzde'),
+const year = columnsFor<Schema<'AracYilPnlRow'>>();
+const rent = columnsFor<Schema<'AracKirilimRow'>>();
+const evt = columnsFor<Schema<'AracOlayRow'>>();
+const vade = columnsFor<Schema<'ScorecardDue'>>();
+const kalem = columnsFor<Schema<'ScorecardCostItem'>>();
+const breakdownColumns = [
+  rent.field('kategori', 'metin'),
+  rent.field('tutar', 'para'),
+  rent.field('yuzdeGelir', 'yuzde'),
 ];
 export const SCORECARD = defineReport({
   kod: 'arac-karne',
@@ -81,34 +81,34 @@ export const SCORECARD = defineReport({
           baslik: 'rapor.bolum.yillikPnl',
           satirlar: (s) => s.yillikPnl,
           sutunlar: [
-            yil.field('yil', 'metin'),
-            yil.field('gelir', 'para'),
-            yil.field('gider', 'para'),
-            yil.field('netKar', 'para'),
+            year.field('yil', 'metin'),
+            year.field('gelir', 'para'),
+            year.field('gider', 'para'),
+            year.field('netKar', 'para'),
           ],
         }),
         section({
           kod: 'gelir',
           baslik: 'rapor.bolum.gelirKirilim',
           satirlar: (s) => s.gelirKaynak,
-          sutunlar: kirilimSutunlari,
+          sutunlar: breakdownColumns,
         }),
         section({
           kod: 'gider',
           baslik: 'rapor.bolum.giderKirilim',
           satirlar: (s) => s.giderKategori,
-          sutunlar: kirilimSutunlari,
+          sutunlar: breakdownColumns,
         }),
         section({
           kod: 'olaylar',
           baslik: 'rapor.bolum.olaylar',
           satirlar: (s) => s.olaylar,
           sutunlar: [
-            olay.field('tarih', 'tarih'),
-            olay.field('tur', 'metin'),
-            olay.field('aciklama', 'metin'),
-            olay.field('tutar', 'para'),
-            olay.field('deftereYansir', 'bayrak'),
+            evt.field('tarih', 'tarih'),
+            evt.field('tur', 'metin'),
+            evt.field('aciklama', 'metin'),
+            evt.field('tutar', 'para'),
+            evt.field('deftereYansir', 'bayrak'),
           ],
         }),
         section({
@@ -136,7 +136,7 @@ export const SCORECARD = defineReport({
         section({
           kod: 'tutsat',
           baslik: 'rapor.bolum.tutSat',
-          satirlar: (s) => s.tutSat.gerekceler.map((gerekce) => ({ gerekce })),
+          satirlar: (s) => s.tutSat.gerekceler.map((reason) => ({ gerekce: reason })),
           sutunlar: [columnsFor<{ gerekce: string }>().field('gerekce', 'metin')],
         }),
       ],

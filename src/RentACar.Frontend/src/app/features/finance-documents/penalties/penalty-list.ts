@@ -14,30 +14,27 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
 import { PendingMoneyAttempts } from '@core/form/money-attempts';
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { ParaPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, DatePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { penaltyColumns } from '../document-columns';
 import {
@@ -49,7 +46,7 @@ import {
 import { PENALTIES, PenaltyStore, recordPath } from '../document.store';
 import { PenaltyCreateForm } from './penalty-create-form';
 import { PenaltyPaymentForm, penaltyPaymentScope } from './penalty-payment-form';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type PenaltyStatus = (typeof PENALTY_STATUSES)[number];
@@ -66,36 +63,36 @@ type PaymentStatus = (typeof PENALTY_PAYMENT_STATUSES)[number];
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PlateChipComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    Ikon,
-    MetinGirdisi,
-    ParaPipe,
+    Icon,
+    TextInput,
+    MoneyPipe,
     PenaltyCreateForm,
     PenaltyPaymentForm,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihPipe,
-    TarihSecici,
+    Selection,
+    Table,
+    TableCell,
+    DatePipe,
+    DatePicker,
   ],
   providers: [FetchPolicy, PenaltyStore, PendingMoneyAttempts],
   templateUrl: './penalty-list.html',
   styleUrl: '../finance-documents.scss',
 })
-export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
+export class PenaltyList implements UnsavedChangesOwner {
   protected readonly store = inject(PenaltyStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly confirm = inject(OnayServisi);
+  private readonly session = inject(SessionService);
+  private readonly confirm = inject(ConfirmService);
   protected readonly pending = inject(PendingMoneyAttempts);
-  private readonly toast = inject(ToastServisi);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(PENALTY_LIST);
+  protected readonly query = listQueryUrlSync(PENALTY_LIST);
   protected readonly columns = penaltyColumns(this.t);
   protected readonly rowId = (r: PenaltyRow) => r.id;
   protected readonly num = toNumber;
@@ -138,10 +135,10 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -162,10 +159,10 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
     effect(() => {
       if (this.canCreate() && this.createOpen()) untracked(() => this.store.types.yukle());
     });
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.dirtyForms.size > 0 || this.pending.count() > 0;
   }
 
@@ -225,7 +222,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
   protected async closeDetail(): Promise<void> {
     if (this.pending.inFlight() || !(await this.releasePayment())) return;
     this.selectedId.set(null);
-    this.store.detail.sifirla();
+    this.store.detail.reset();
   }
 
   /**
@@ -238,7 +235,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
       this.dirtyForms.has('odeme') ||
       (id !== null && this.pending.get(penaltyPaymentScope(id)) !== undefined);
     if (risky) {
-      const yes = await this.confirm.sor({
+      const yes = await this.confirm.ask({
         baslik: this.t('finansBelge.ayrilBaslik'),
         mesaj: this.t('finansBelge.ayrilMesaj'),
       });
@@ -290,7 +287,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
     danger: boolean,
   ): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t(title),
       mesaj: this.t(message, { no: r.no }),
       tehlikeli: danger,
@@ -311,7 +308,7 @@ export class PenaltyList implements KaydedilmemisDegisiklikSahibi {
           this.refresh(r.id);
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.refresh(r.id);
         },

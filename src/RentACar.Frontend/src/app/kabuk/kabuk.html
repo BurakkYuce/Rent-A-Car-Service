@@ -1,26 +1,28 @@
-<a class="atla" href="#icerik" (click)="icerigeGec($event)">{{ 'kabuk.icerigeGec' | transloco }}</a>
-<div class="kabuk" [class.kabuk--cekmece-acik]="cekmeceAcik()" [class.kabuk--dar]="darEtkin()">
+<a class="atla" href="#icerik" (click)="skipToContent($event)">{{
+  'kabuk.icerigeGec' | transloco
+}}</a>
+<div class="kabuk" [class.kabuk--cekmece-acik]="drawerOpen()" [class.kabuk--dar]="narrowEnabled()">
   <nav
     #yanMenu
     id="rc-yan-menu"
     class="yan"
     [attr.aria-label]="'kabuk.anaMenu' | transloco"
-    [attr.inert]="mobil() && !cekmeceAcik() ? '' : null"
+    [attr.inert]="mobile() && !drawerOpen() ? '' : null"
   >
     <div class="yan__ust">
       <span class="logo" aria-hidden="true">RA</span>
       <span class="yan__marka">
         <span class="yan__ad">{{ 'uygulama.ad' | transloco }}</span>
-        @if (kimlik(); as k) {
+        @if (identity(); as k) {
           <span class="yan__firma">{{ k.firma }}</span>
         }
       </span>
-      @if (mobil()) {
+      @if (mobile()) {
         <button
           type="button"
           class="yan__ikon-dugme"
           [attr.aria-label]="'kabuk.menuyuKapat' | transloco"
-          (click)="cekmeceyiKapat(true)"
+          (click)="closeDrawer(true)"
         >
           <rc-ikon ad="x" [boyut]="16" />
         </button>
@@ -29,16 +31,16 @@
     <rc-yan-menu
       class="yan__menu"
       [model]="model()"
-      [durum]="menuDurumu()"
-      [guncellenemedi]="guncellenemedi()"
-      [etkin]="etkin()"
+      [durum]="menuState()"
+      [guncellenemedi]="updateFailed()"
+      [etkin]="active()"
       [gorunum]="gorunum()"
-      [dar]="darEtkin()"
-      (sec)="ogeAc($event)"
-      (yenile)="menuyuYenile()"
-      (genislet)="menuyuGenislet()"
+      [dar]="narrowEnabled()"
+      (sec)="openItem($event)"
+      (yenile)="refreshMenu()"
+      (genislet)="expandMenu()"
     />
-    @if (kimlik(); as k) {
+    @if (identity(); as k) {
       <div class="yan__alt">
         <div class="sube" [title]="'kabuk.sube.ipucu' | transloco">
           <rc-ikon ad="building" [boyut]="16" />
@@ -60,7 +62,7 @@
             class="yan__ikon-dugme"
             [attr.aria-label]="'oturum.cikis' | transloco"
             [title]="'oturum.cikis' | transloco"
-            (click)="cikisYap()"
+            (click)="logout()"
           >
             <rc-ikon ad="logout" [boyut]="16" />
           </button>
@@ -68,27 +70,27 @@
       </div>
     }
   </nav>
-  @if (cekmeceAcik()) {
-    <div class="perde" aria-hidden="true" (click)="cekmeceyiKapat(true)"></div>
+  @if (drawerOpen()) {
+    <div class="perde" aria-hidden="true" (click)="closeDrawer(true)"></div>
   }
-  <div class="ana" [attr.inert]="cekmeceAcik() ? '' : null">
+  <div class="ana" [attr.inert]="drawerOpen() ? '' : null">
     <rc-ust-cubuk
-      [cekmeceAcik]="cekmeceAcik()"
-      [dar]="darEtkin()"
+      [cekmeceAcik]="drawerOpen()"
+      [dar]="narrowEnabled()"
       [bildirimSayisi]="bildirim()?.sayi ?? null"
       [bildirimVar]="bildirim() !== null"
-      (menuAc)="cekmeceyiAc()"
-      (daralt)="menuyuDaralt()"
-      (paletAc)="paletiAc()"
-      (bildirimAc)="bildirimleriAc()"
+      (menuAc)="openDrawer()"
+      (daralt)="collapseMenu()"
+      (paletAc)="openPalette()"
+      (bildirimAc)="openNotifications()"
     />
     <rc-sekme-cubugu />
     <main #icerik id="icerik" class="icerik" tabindex="-1">
       <router-outlet
-        (activate)="bilesenEtkin($event)"
-        (attach)="bilesenEtkin($event)"
-        (deactivate)="bilesenEtkin(null)"
-        (detach)="bilesenEtkin(null)"
+        (activate)="isComponentActive($event)"
+        (attach)="isComponentActive($event)"
+        (deactivate)="isComponentActive(null)"
+        (detach)="isComponentActive(null)"
       />
     </main>
   </div>

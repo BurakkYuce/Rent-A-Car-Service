@@ -1,15 +1,15 @@
 import {
-  SECIM_SUTUNU,
-  SECIM_SUTUNU_GENISLIGI,
-  TABLO_SINIRLARI,
-  VARSAYILAN_EN_AZ_GENISLIK,
-  VARSAYILAN_SUTUN_GENISLIGI,
+  SELECTION_COLUMN,
+  SELECTION_COLUMN_WIDTH,
+  TABLE_LIMITS,
+  DEFAULT_MIN_WIDTH,
+  DEFAULT_COLUMN_WIDTH,
   type TabloDuzeni,
   type TabloSiralamaDuzeni,
   type TabloSutunDuzeni,
   type TabloSutunu,
 } from './tablo-modeli';
-import { siralamaAlani } from './tablo-siralama';
+import { sortField } from './tablo-siralama';
 
 /**
  * Sütun düzeni (saf). Kullanıcının kayıtlı düzeni tanımlarla HER ZAMAN uzlaştırılır: sunucudaki
@@ -18,32 +18,32 @@ import { siralamaAlani } from './tablo-siralama';
  * bayat bir kayıt ekranı asla kıramaz.
  */
 
-type Sutunlar = readonly TabloSutunu<never>[];
+type Columns = readonly TabloSutunu<never>[];
 
 /** Sabit ve gizlenemez sütunlar kullanıcı tarafından gizlenemez. */
-export function gizlenebilirMi(sutun: TabloSutunu<never>): boolean {
-  return !sutun.sabit && !sutun.gizlenemez;
+export function isHideable(column: TabloSutunu<never>): boolean {
+  return !column.sabit && !column.gizlenemez;
 }
 
-export function enAzGenislik(sutun: TabloSutunu<never>): number {
-  return Math.max(TABLO_SINIRLARI.enAzGenislik, sutun.enAzGenislik ?? VARSAYILAN_EN_AZ_GENISLIK);
+export function minWidth(column: TabloSutunu<never>): number {
+  return Math.max(TABLE_LIMITS.enAzGenislik, column.enAzGenislik ?? DEFAULT_MIN_WIDTH);
 }
 
 /** Genişliği sütunun alt sınırı ile sunucu üst sınırı arasına kırpar (tamsayı px). */
-export function genislikKirp(sutun: TabloSutunu<never>, px: number): number {
-  const enAz = enAzGenislik(sutun);
-  if (!Number.isFinite(px)) return Math.max(enAz, sutun.genislik ?? VARSAYILAN_SUTUN_GENISLIGI);
-  return Math.min(TABLO_SINIRLARI.enFazlaGenislik, Math.max(enAz, Math.round(px)));
+export function clampWidth(column: TabloSutunu<never>, px: number): number {
+  const enAz = minWidth(column);
+  if (!Number.isFinite(px)) return Math.max(enAz, column.genislik ?? DEFAULT_COLUMN_WIDTH);
+  return Math.min(TABLE_LIMITS.enFazlaGenislik, Math.max(enAz, Math.round(px)));
 }
 
 /** Tanımdan varsayılan düzen: tanım sırası, `gizli` olanlar kapalı, genişlik tanımdan. */
-export function varsayilanDuzen(sutunlar: Sutunlar): TabloDuzeni {
-  const sabitler = sutunlar.filter((s) => s.sabit);
-  const digerleri = sutunlar.filter((s) => !s.sabit);
+export function defaultLayout(columns: Columns): TabloDuzeni {
+  const pinned = columns.filter((s) => s.sabit);
+  const others = columns.filter((s) => !s.sabit);
   return {
-    sutunlar: [...sabitler, ...digerleri].map((s) => ({
+    sutunlar: [...pinned, ...others].map((s) => ({
       kod: s.kod,
-      gorunur: !gizlenebilirMi(s) || !s.gizli,
+      gorunur: !isHideable(s) || !s.gizli,
       genislik: null,
     })),
     siralama: [],
@@ -56,156 +56,154 @@ export function varsayilanDuzen(sutunlar: Sutunlar): TabloDuzeni {
  * kayıtta olmayan yeni sütun tanımdaki önceli (kayıtta varsa) hemen ardına, yoksa sabitlerin ardına
  * girer ve tanımdaki `gizli` değerini alır; genişlik kırpılır; sıralama yalnız sıralanabilir sütunda.
  */
-export function duzeniBirlestir(sutunlar: Sutunlar, kayitli: TabloDuzeni | null): TabloDuzeni {
-  const varsayilan = varsayilanDuzen(sutunlar);
-  if (kayitli === null || !Array.isArray(kayitli.sutunlar)) return varsayilan;
+export function mergeLayout(columns: Columns, saved: TabloDuzeni | null): TabloDuzeni {
+  const defaultValue = defaultLayout(columns);
+  if (saved === null || !Array.isArray(saved.sutunlar)) return defaultValue;
 
-  const tanim = new Map(sutunlar.map((s) => [s.kod, s] as const));
-  const gorulen = new Set<string>();
-  const kayittan: TabloSutunDuzeni[] = [];
-  for (const k of kayitli.sutunlar) {
-    const s = tanim.get(k?.kod);
-    if (s === undefined || s.sabit || gorulen.has(s.kod)) continue;
-    gorulen.add(s.kod);
-    kayittan.push({
+  const definition = new Map(columns.map((s) => [s.kod, s] as const));
+  const seen = new Set<string>();
+  const fromRecord: TabloSutunDuzeni[] = [];
+  for (const k of saved.sutunlar) {
+    const s = definition.get(k?.kod);
+    if (s === undefined || s.sabit || seen.has(s.kod)) continue;
+    seen.add(s.kod);
+    fromRecord.push({
       kod: s.kod,
-      gorunur: !gizlenebilirMi(s) || k.gorunur !== false,
+      gorunur: !isHideable(s) || k.gorunur !== false,
       genislik:
         typeof k.genislik === 'number' && Number.isFinite(k.genislik)
-          ? genislikKirp(s, k.genislik)
+          ? clampWidth(s, k.genislik)
           : null,
     });
   }
 
   // Kayıtta olmayan (yeni eklenmiş) sabit olmayan sütunlar tanımdaki yerlerine.
-  const sabitsiz = sutunlar.filter((s) => !s.sabit);
-  sabitsiz.forEach((s, i) => {
-    if (gorulen.has(s.kod)) return;
-    const onceki = sabitsiz
+  const unpinned = columns.filter((s) => !s.sabit);
+  unpinned.forEach((s, i) => {
+    if (seen.has(s.kod)) return;
+    const previous = unpinned
       .slice(0, i)
       .reverse()
-      .find((o) => gorulen.has(o.kod));
-    const yer = onceki === undefined ? 0 : kayittan.findIndex((k) => k.kod === onceki.kod) + 1;
-    kayittan.splice(yer, 0, {
+      .find((o) => seen.has(o.kod));
+    const place =
+      previous === undefined ? 0 : fromRecord.findIndex((k) => k.kod === previous.kod) + 1;
+    fromRecord.splice(place, 0, {
       kod: s.kod,
-      gorunur: !gizlenebilirMi(s) || !s.gizli,
+      gorunur: !isHideable(s) || !s.gizli,
       genislik: null,
     });
-    gorulen.add(s.kod);
+    seen.add(s.kod);
   });
 
-  const sabitler = varsayilan.sutunlar.filter((d) => tanim.get(d.kod)?.sabit);
-  const sabitGenislik = new Map(
-    (kayitli.sutunlar ?? [])
-      .filter((k) => tanim.get(k?.kod)?.sabit && typeof k.genislik === 'number')
+  const pinned = defaultValue.sutunlar.filter((d) => definition.get(d.kod)?.sabit);
+  const fixedWidth = new Map(
+    (saved.sutunlar ?? [])
+      .filter((k) => definition.get(k?.kod)?.sabit && typeof k.genislik === 'number')
       .map((k) => [k.kod, k.genislik] as const),
   );
-  const sabitDuzen = sabitler.map((d) => {
-    const px = sabitGenislik.get(d.kod);
-    const s = tanim.get(d.kod);
+  const fixedLayout = pinned.map((d) => {
+    const px = fixedWidth.get(d.kod);
+    const s = definition.get(d.kod);
     return {
       ...d,
-      genislik: px === undefined || px === null || s === undefined ? null : genislikKirp(s, px),
+      genislik: px === undefined || px === null || s === undefined ? null : clampWidth(s, px),
     };
   });
 
-  const sonuc = [...sabitDuzen, ...kayittan];
+  const result = [...fixedLayout, ...fromRecord];
   // En az bir görünür sütun (tümü gizlenmiş bir kayıt boş tablo çizmesin).
-  if (!sonuc.some((d) => d.gorunur) && sonuc.length > 0) {
-    sonuc[0] = { ...sonuc[0], gorunur: true };
+  if (!result.some((d) => d.gorunur) && result.length > 0) {
+    result[0] = { ...result[0], gorunur: true };
   }
-  return { sutunlar: sonuc, siralama: siralamaSuz(sutunlar, kayitli.siralama) };
+  return { sutunlar: result, siralama: filterSort(columns, saved.siralama) };
 }
 
-function siralamaSuz(sutunlar: Sutunlar, siralama: unknown): TabloSiralamaDuzeni[] {
-  if (!Array.isArray(siralama)) return [];
-  const sonuc: TabloSiralamaDuzeni[] = [];
-  for (const oge of siralama as readonly Partial<TabloSiralamaDuzeni>[]) {
-    const s = sutunlar.find((x) => x.kod === oge?.kod);
-    if (s === undefined || siralamaAlani(s) === null || sonuc.some((x) => x.kod === s.kod)) {
+function filterSort(columns: Columns, sort: unknown): TabloSiralamaDuzeni[] {
+  if (!Array.isArray(sort)) return [];
+  const result: TabloSiralamaDuzeni[] = [];
+  for (const oge of sort as readonly Partial<TabloSiralamaDuzeni>[]) {
+    const s = columns.find((x) => x.kod === oge?.kod);
+    if (s === undefined || sortField(s) === null || result.some((x) => x.kod === s.kod)) {
       continue;
     }
-    sonuc.push({ kod: s.kod, azalan: oge.azalan === true });
-    if (sonuc.length === TABLO_SINIRLARI.enFazlaSiralama) break;
+    result.push({ kod: s.kod, azalan: oge.azalan === true });
+    if (result.length === TABLE_LIMITS.enFazlaSiralama) break;
   }
-  return sonuc;
+  return result;
 }
 
 /** Eşitlik anahtarı: aynı anahtar = sunucuya yeniden yazmaya gerek yok. */
-export function duzenAnahtari(duzen: TabloDuzeni): string {
-  return JSON.stringify(duzen);
+export function layoutKey(layout: TabloDuzeni): string {
+  return JSON.stringify(layout);
 }
 
-export function gorunurlukAyarla(
-  sutunlar: Sutunlar,
-  duzen: TabloDuzeni,
-  kod: string,
-  gorunur: boolean,
+export function setVisibility(
+  columns: Columns,
+  layout: TabloDuzeni,
+  code: string,
+  visible: boolean,
 ): TabloDuzeni {
-  const s = sutunlar.find((x) => x.kod === kod);
-  if (s === undefined || (!gorunur && !gizlenebilirMi(s))) return duzen;
-  const yeni = duzen.sutunlar.map((d) => (d.kod === kod ? { ...d, gorunur } : d));
-  if (!yeni.some((d) => d.gorunur)) return duzen; // son görünür sütun gizlenemez
-  return { ...duzen, sutunlar: yeni };
+  const s = columns.find((x) => x.kod === code);
+  if (s === undefined || (!visible && !isHideable(s))) return layout;
+  const newItem = layout.sutunlar.map((d) => (d.kod === code ? { ...d, gorunur: visible } : d));
+  if (!newItem.some((d) => d.gorunur)) return layout; // son görünür sütun gizlenemez
+  return { ...layout, sutunlar: newItem };
 }
 
-export function genislikAyarla(
-  sutunlar: Sutunlar,
-  duzen: TabloDuzeni,
-  kod: string,
+export function setWidth(
+  columns: Columns,
+  layout: TabloDuzeni,
+  code: string,
   px: number,
 ): TabloDuzeni {
-  const s = sutunlar.find((x) => x.kod === kod);
-  if (s === undefined) return duzen;
-  const genislik = genislikKirp(s, px);
+  const s = columns.find((x) => x.kod === code);
+  if (s === undefined) return layout;
+  const width = clampWidth(s, px);
   return {
-    ...duzen,
-    sutunlar: duzen.sutunlar.map((d) => (d.kod === kod ? { ...d, genislik } : d)),
+    ...layout,
+    sutunlar: layout.sutunlar.map((d) => (d.kod === code ? { ...d, genislik: width } : d)),
   };
 }
 
 /** Sabit olmayan sütunu bir adım sola/sağa taşır (sabitlerin önüne geçemez). */
-export function sutunuKaydir(
-  sutunlar: Sutunlar,
-  duzen: TabloDuzeni,
-  kod: string,
+export function scrollColumn(
+  columns: Columns,
+  layout: TabloDuzeni,
+  code: string,
   yon: -1 | 1,
 ): TabloDuzeni {
-  const sabit = new Set(sutunlar.filter((s) => s.sabit).map((s) => s.kod));
-  const liste = [...duzen.sutunlar];
-  const i = liste.findIndex((d) => d.kod === kod);
+  const fixedValue = new Set(columns.filter((s) => s.sabit).map((s) => s.kod));
+  const list = [...layout.sutunlar];
+  const i = list.findIndex((d) => d.kod === code);
   const j = i + yon;
-  if (i < 0 || sabit.has(kod) || j < 0 || j >= liste.length || sabit.has(liste[j].kod)) {
-    return duzen;
+  if (i < 0 || fixedValue.has(code) || j < 0 || j >= list.length || fixedValue.has(list[j].kod)) {
+    return layout;
   }
-  [liste[i], liste[j]] = [liste[j], liste[i]];
-  return { ...duzen, sutunlar: liste };
+  [list[i], list[j]] = [list[j], list[i]];
+  return { ...layout, sutunlar: list };
 }
 
 /** Sürükle-bırak: `kod`'u `hedef`'in önüne ya da ardına koyar (ikisi de sabit olmamalı). */
-export function sutunuYerlestir(
-  sutunlar: Sutunlar,
-  duzen: TabloDuzeni,
-  kod: string,
-  hedef: string,
-  konum: 'once' | 'sonra',
+export function placeColumn(
+  columns: Columns,
+  layout: TabloDuzeni,
+  code: string,
+  target: string,
+  location: 'once' | 'sonra',
 ): TabloDuzeni {
-  const sabit = new Set(sutunlar.filter((s) => s.sabit).map((s) => s.kod));
-  if (kod === hedef || sabit.has(kod) || sabit.has(hedef)) return duzen;
-  const tasinan = duzen.sutunlar.find((d) => d.kod === kod);
-  if (tasinan === undefined) return duzen;
-  const liste = duzen.sutunlar.filter((d) => d.kod !== kod);
-  const h = liste.findIndex((d) => d.kod === hedef);
-  if (h < 0) return duzen;
-  liste.splice(konum === 'once' ? h : h + 1, 0, tasinan);
-  return { ...duzen, sutunlar: liste };
+  const fixedValue = new Set(columns.filter((s) => s.sabit).map((s) => s.kod));
+  if (code === target || fixedValue.has(code) || fixedValue.has(target)) return layout;
+  const moved = layout.sutunlar.find((d) => d.kod === code);
+  if (moved === undefined) return layout;
+  const list = layout.sutunlar.filter((d) => d.kod !== code);
+  const h = list.findIndex((d) => d.kod === target);
+  if (h < 0) return layout;
+  list.splice(location === 'once' ? h : h + 1, 0, moved);
+  return { ...layout, sutunlar: list };
 }
 
-export function siralamaAyarla(
-  duzen: TabloDuzeni,
-  siralama: TabloSiralamaDuzeni | null,
-): TabloDuzeni {
-  return { ...duzen, siralama: siralama === null ? [] : [siralama] };
+export function setSort(layout: TabloDuzeni, sort: TabloSiralamaDuzeni | null): TabloDuzeni {
+  return { ...layout, siralama: sort === null ? [] : [sort] };
 }
 
 /** TanStack durumu (sütun sırası/görünürlük/genişlik/sabitleme). Seçim sütunu en solda sabit. */
@@ -216,28 +214,28 @@ export interface TanstackSutunDurumu {
   readonly columnPinning: { left: string[]; right: string[] };
 }
 
-export function tanstackDurumu(
-  sutunlar: Sutunlar,
-  duzen: TabloDuzeni,
-  secilebilir: boolean,
+export function tanstackState(
+  columns: Columns,
+  layout: TabloDuzeni,
+  selectable: boolean,
 ): TanstackSutunDurumu {
-  const tanim = new Map(sutunlar.map((s) => [s.kod, s] as const));
+  const definition = new Map(columns.map((s) => [s.kod, s] as const));
   const columnVisibility: Record<string, boolean> = {};
   const columnSizing: Record<string, number> = {};
-  for (const d of duzen.sutunlar) {
-    const s = tanim.get(d.kod);
+  for (const d of layout.sutunlar) {
+    const s = definition.get(d.kod);
     if (s === undefined) continue;
     columnVisibility[d.kod] = d.gorunur;
-    columnSizing[d.kod] = d.genislik ?? genislikKirp(s, s.genislik ?? VARSAYILAN_SUTUN_GENISLIGI);
+    columnSizing[d.kod] = d.genislik ?? clampWidth(s, s.genislik ?? DEFAULT_COLUMN_WIDTH);
   }
-  const secim = secilebilir ? [SECIM_SUTUNU] : [];
-  if (secilebilir) columnSizing[SECIM_SUTUNU] = SECIM_SUTUNU_GENISLIGI;
+  const selection = selectable ? [SELECTION_COLUMN] : [];
+  if (selectable) columnSizing[SELECTION_COLUMN] = SELECTION_COLUMN_WIDTH;
   return {
-    columnOrder: [...secim, ...duzen.sutunlar.map((d) => d.kod)],
+    columnOrder: [...selection, ...layout.sutunlar.map((d) => d.kod)],
     columnVisibility,
     columnSizing,
     columnPinning: {
-      left: [...secim, ...sutunlar.filter((s) => s.sabit).map((s) => s.kod)],
+      left: [...selection, ...columns.filter((s) => s.sabit).map((s) => s.kod)],
       right: [],
     },
   };

@@ -1,42 +1,42 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import {
-  paraBicimle,
+  formatMoney,
   sayiBicimle,
   tarihBicimle,
-  tarihSaatBicimle,
-  type TarihGirdisi,
+  formatDateTime,
+  type DateInput,
 } from '@core/bicim/bicim';
 
 /** `{{ tutar | para }}` → `1.234,56 ₺`; `{{ tutar | para: 'USD' }}` → `1.234,56 $`. */
 @Pipe({ name: 'para' })
-export class ParaPipe implements PipeTransform {
-  transform(tutar: number | null | undefined, paraBirimi = 'TRY'): string {
-    return paraBicimle(tutar, paraBirimi);
+export class MoneyPipe implements PipeTransform {
+  transform(amount: number | null | undefined, currency = 'TRY'): string {
+    return formatMoney(amount, currency);
   }
 }
 
 /** `{{ adet | sayi }}` → `1.234,5`. */
 @Pipe({ name: 'sayi' })
-export class SayiPipe implements PipeTransform {
-  transform(deger: number | null | undefined, haneler = '1.0-2'): string {
-    return sayiBicimle(deger, haneler);
+export class NumberPipe implements PipeTransform {
+  transform(value: number | null | undefined, digits = '1.0-2'): string {
+    return sayiBicimle(value, digits);
   }
 }
 
 /** `{{ tarih | tarih }}` → `26.08.2026`. */
 @Pipe({ name: 'tarih' })
-export class TarihPipe implements PipeTransform {
-  transform(deger: TarihGirdisi): string {
-    return tarihBicimle(deger);
+export class DatePipe implements PipeTransform {
+  transform(value: DateInput): string {
+    return tarihBicimle(value);
   }
 }
 
 /** `{{ an | tarihSaat }}` → `26.08.2026 14:05` (İstanbul). */
 @Pipe({ name: 'tarihSaat' })
-export class TarihSaatPipe implements PipeTransform {
-  transform(deger: TarihGirdisi): string {
-    return tarihSaatBicimle(deger);
+export class DateTimePipe implements PipeTransform {
+  transform(value: DateInput): string {
+    return formatDateTime(value);
   }
 }
 
-export const BICIM_PIPELARI = [ParaPipe, SayiPipe, TarihPipe, TarihSaatPipe] as const;
+export const FORMAT_PIPES = [MoneyPipe, NumberPipe, DatePipe, DateTimePipe] as const;

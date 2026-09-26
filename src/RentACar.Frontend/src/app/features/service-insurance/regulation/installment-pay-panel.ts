@@ -11,20 +11,20 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { FinansHesapOgesi } from '@core/api/ui-tipleri';
-import { paraBicimle } from '@core/bicim/bicim';
+import type { FinanceAccountItem } from '@core/api/ui-tipleri';
+import { formatMoney } from '@core/bicim/bicim';
 import { moneySubmission } from '@core/form/money-submission';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { anDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import {
   type AccountKind,
@@ -51,11 +51,11 @@ export type InstallmentKind = 'mtv' | 'muayene';
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    MetinGirdisi,
+    TextInput,
     MoneySubmitBar,
-    ParaGirdisi,
-    Secim,
-    TarihSecici,
+    MoneyInput,
+    Selection,
+    DatePicker,
   ],
   templateUrl: './installment-pay-panel.html',
 })
@@ -64,21 +64,21 @@ export class InstallmentPayPanel implements OnInit {
   readonly recordId = input.required<string>();
   /** Sunucunun kalanı (ekranın gördüğü). */
   readonly remaining = input.required<number>();
-  readonly accounts = input<readonly FinansHesapOgesi[]>([]);
+  readonly accounts = input<readonly FinanceAccountItem[]>([]);
   /** Kayıt yenileniyor: düğme pasif (bayat kalanla gönderim olmasın). */
   readonly refreshing = input(false);
   /** 2xx ya da kesin 409: kayıt yeniden okunmalı. */
   readonly settled = output<void>();
 
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   protected readonly form = new FormGroup({
     hesap: new FormControl<AccountKind | null>('Kasa', Validators.required),
     hesapId: new FormControl<string | null>(null),
     tutar: new FormControl<string | null>(null),
     ceza: new FormControl<string | null>(null),
-    odemeTarihi: new FormControl<GunMetni | null>(null),
+    odemeTarihi: new FormControl<DayText | null>(null),
     evrakNo: new FormControl<string | null>(null, Validators.maxLength(64)),
     islemYapan: new FormControl<string | null>(null, Validators.maxLength(128)),
     kasaKodu: new FormControl<string | null>(null, Validators.maxLength(64)),
@@ -108,7 +108,7 @@ export class InstallmentPayPanel implements OnInit {
       .filter((h) => h.tur !== null && h.tur === this.accountKind())
       .map((h) => ({ deger: h.id, etiket: h.etiket })),
   );
-  protected readonly remainingText = computed(() => paraBicimle(this.remaining(), 'TRY'));
+  protected readonly remainingText = computed(() => formatMoney(this.remaining(), 'TRY'));
 
   constructor() {
     this.form.controls.hesap.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
@@ -151,13 +151,13 @@ export class InstallmentPayPanel implements OnInit {
             hesapId: v.hesapId,
             tutar: v.tutar,
             ceza: this.kind() === 'muayene' ? v.ceza : null,
-            odemeTarihi: anDegeri(v.odemeTarihi, null),
+            odemeTarihi: momentValue(v.odemeTarihi, null),
             beklenenKalan: this.remaining(),
-            evrakNo: metinDegeri(v.evrakNo),
-            islemYapan: metinDegeri(v.islemYapan),
-            kasaKodu: metinDegeri(v.kasaKodu),
-            hesapNo: metinDegeri(v.hesapNo),
-            aciklama: metinDegeri(v.aciklama),
+            evrakNo: textValue(v.evrakNo),
+            islemYapan: textValue(v.islemYapan),
+            kasaKodu: textValue(v.kasaKodu),
+            hesapNo: textValue(v.hesapNo),
+            aciklama: textValue(v.aciklama),
           },
           content: { tutar: v.tutar ?? this.remaining(), doviz: 'TRY' },
         };
@@ -166,8 +166,8 @@ export class InstallmentPayPanel implements OnInit {
         this.toast.basari(
           this.t('servisSigorta.odeme.odendi', {
             sira: r.sira,
-            tutar: paraBicimle(num(r.tutar), 'TRY'),
-            kalan: paraBicimle(num(r.kalan), 'TRY'),
+            tutar: formatMoney(num(r.tutar), 'TRY'),
+            kalan: formatMoney(num(r.kalan), 'TRY'),
           }),
         );
         this.resetKeepingAccount();
@@ -184,7 +184,7 @@ export class InstallmentPayPanel implements OnInit {
   }
 
   private resetKeepingAccount(): void {
-    const { hesap, hesapId } = this.form.getRawValue();
-    this.form.reset({ hesap: hesap ?? 'Kasa', hesapId });
+    const { hesap: account, hesapId: accountId } = this.form.getRawValue();
+    this.form.reset({ hesap: account ?? 'Kasa', hesapId: accountId });
   }
 }

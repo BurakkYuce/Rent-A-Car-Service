@@ -1,25 +1,25 @@
 import { inject } from '@angular/core';
 import { type CanMatchFn, Router } from '@angular/router';
 
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import type { Izin } from '@core/oturum/oturum-tipleri';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import type { Permission } from '@core/oturum/oturum-tipleri';
 
 /**
  * İzinlerden BİRİ yeter (canMatch). Çekirdek `izinGuard` HEPSİNİ ister; araç okuma uçları ise
  * `RequireAnyPermission(OperationsWrite, ViewReports)` — Muhasebe (yalnız ViewReports) de listeyi görür.
  * Oturum kabuk rotasının `oturumGuard`'ında zaten doğrulandı; burada yalnız izin.
  */
-export function anyPermissionGuard(...permissions: readonly Izin[]): CanMatchFn {
+export function anyPermissionGuard(...permissions: readonly Permission[]): CanMatchFn {
   return async () => {
-    const session = inject(OturumServisi);
+    const session = inject(SessionService);
     const router = inject(Router);
-    const banner = inject(UyariBandiServisi);
-    const t = ceviriFonksiyonu();
-    await session.ilkYukleme();
+    const banner = inject(WarningBannerService);
+    const t = translationFunction();
+    await session.initialLoad();
     if (permissions.some((p) => session.izinVar(p))) return true;
-    banner.goster({ tur: 'uyari', mesaj: t('oturum.yetkisizSayfa'), kod: 'yetki_yok' });
+    banner.show({ tur: 'uyari', mesaj: t('oturum.yetkisizSayfa'), kod: 'yetki_yok' });
     return router.createUrlTree(['/']);
   };
 }

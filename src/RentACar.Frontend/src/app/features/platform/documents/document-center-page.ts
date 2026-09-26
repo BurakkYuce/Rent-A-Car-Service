@@ -10,20 +10,20 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { firstValueFrom, type Observable } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
-import { TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { Ikon } from '@shared/ikon/ikon';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { Icon } from '@shared/ikon/icon';
 
 import {
   documentStatus,
@@ -34,7 +34,7 @@ import {
   type PlatformTenantOption,
   toNumber,
 } from '../platform-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlatformSessionService } from '../platform-session';
 
 /** Max PDF size (server `PdfValidation.MaxBayt`, 3 MB) — shown as a hint; the server decides. */
@@ -53,22 +53,22 @@ const MAX_MB = 3;
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    OnayKutusu,
-    SayfaBandi,
-    TarihSaatPipe,
+    FormErrors,
+    Icon,
+    TextInput,
+    Checkbox,
+    PageBand,
+    DateTimePipe,
   ],
   templateUrl: './document-center-page.html',
   styleUrls: ['../platform-page.scss', './document-center-page.scss'],
 })
 export class DocumentCenterPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly session = inject(PlatformSessionService);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly maxMb = MAX_MB;
   protected readonly docs = new TemelStore(
@@ -77,7 +77,7 @@ export class DocumentCenterPage {
   );
   protected readonly tenants = new TemelStore(() =>
     this.api.get<readonly PlatformTenantOption[]>(`${PLATFORM_API}/kiracilar/secim`, {
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
   protected readonly rows = computed(() => this.docs.veri() ?? []);
@@ -88,7 +88,7 @@ export class DocumentCenterPage {
     aciklama: new FormControl<string | null>(null, Validators.maxLength(1000)),
     yalnizYoneticiler: new FormControl<boolean>(false, { nonNullable: true }),
   });
-  protected readonly upload = formGonderimi();
+  protected readonly upload = formSubmission();
   protected readonly file = signal<File | null>(null);
   protected readonly fileError = signal<string | null>(null);
   protected readonly targets = signal<ReadonlySet<string>>(new Set());
@@ -170,9 +170,11 @@ export class DocumentCenterPage {
     );
   }
 
-  protected setStatus(doc: PlatformDocument, durum: 'Yayinda' | 'Arsiv'): void {
+  protected setStatus(doc: PlatformDocument, status: 'Yayinda' | 'Arsiv'): void {
     void this.mutate(doc, () =>
-      this.api.post(`${PLATFORM_API}/belgeler/${encodeURIComponent(doc.id)}/durum`, { durum }),
+      this.api.post(`${PLATFORM_API}/belgeler/${encodeURIComponent(doc.id)}/durum`, {
+        durum: status,
+      }),
     );
   }
 
@@ -204,7 +206,7 @@ export class DocumentCenterPage {
   }
 
   protected async remove(doc: PlatformDocument): Promise<void> {
-    const ok = await this.confirm.sor({
+    const ok = await this.confirm.ask({
       baslik: this.t('platform.belgeler.silBaslik'),
       mesaj: this.t('platform.belgeler.silMesaj', { baslik: doc.baslik }),
       tehlikeli: true,
@@ -225,7 +227,7 @@ export class DocumentCenterPage {
       return true;
     } catch (e: unknown) {
       if (!this.session.handleSessionLoss(e)) {
-        const error = apiHatasinaCevir(e);
+        const error = toApiError(e);
         if (error.kod === 'dogrulama' || error.kod === 'bilinmeyen') this.toast.hata(error.detay);
       }
       return false;

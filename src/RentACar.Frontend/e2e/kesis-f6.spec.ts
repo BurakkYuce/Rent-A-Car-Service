@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-import { BEN, oturumAc, problem } from './ortak';
+import { BEN, logIn, problem } from './ortak';
 import { financeEndpoints } from './vehicle-finance-fakes';
 import { VEHICLE_1, vehicleEndpoints } from './vehicle-fakes';
 
@@ -27,7 +27,7 @@ async function remainingEndpoints(page: Page): Promise<void> {
 
 async function fakes(page: Page): Promise<void> {
   await remainingEndpoints(page);
-  await oturumAc(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
   await financeEndpoints(page);
   await vehicleEndpoints(page);
 }

@@ -13,17 +13,17 @@ export const POLICY_1 = '33333333-0000-4000-8000-000000000001';
 export const SERVICE_1 = '44444444-0000-4000-8000-000000000001';
 export const RATE_1 = '55555555-0000-4000-8000-000000000001';
 export const OFFER_1 = '66666666-0000-4000-8000-000000000001';
-const CARI_1 = 'c0c0c0c0-0000-4000-8000-000000000001';
+const ACCOUNT_1 = 'c0c0c0c0-0000-4000-8000-000000000001';
 
-export const page1 = (kayitlar: unknown[]) => ({
-  kayitlar,
-  toplam: kayitlar.length,
+export const page1 = (records: unknown[]) => ({
+  kayitlar: records,
+  toplam: records.length,
   sayfaNo: 1,
   boyut: 50,
   toplamSayfa: 1,
 });
 
-export function mtvDetail(kalan = 1000): Record<string, unknown> {
+export function mtvDetail(remaining = 1000): Record<string, unknown> {
   return {
     mtv: {
       id: MTV_1,
@@ -31,9 +31,9 @@ export function mtvDetail(kalan = 1000): Record<string, unknown> {
       plaka: '34ABC123',
       donem: '2026-1',
       tutar: 1500,
-      kalan,
+      kalan: remaining,
       vade: '2026-10-30T21:00:00Z',
-      odendi: kalan === 0,
+      odendi: remaining === 0,
       aciklama: null,
     },
     odemeler: [
@@ -53,7 +53,7 @@ export function mtvDetail(kalan = 1000): Record<string, unknown> {
         aciklama: null,
       },
     ],
-    yetkiler: { odeyebilir: kalan > 0, duzenleyebilir: true },
+    yetkiler: { odeyebilir: remaining > 0, duzenleyebilir: true },
   };
 }
 
@@ -77,7 +77,7 @@ export function inspectionDetail(): Record<string, unknown> {
   };
 }
 
-export function policyRow(odendi = false): Record<string, unknown> {
+export function policyRow(paid = false): Record<string, unknown> {
   return {
     id: POLICY_1,
     vehicleId: VEHICLE_1,
@@ -94,14 +94,14 @@ export function policyRow(odendi = false): Record<string, unknown> {
     aracDegeri: 900000,
     immDegeri: null,
     aksesuarDegeri: null,
-    kalan: odendi ? 0 : 12000,
-    odendi,
+    kalan: paid ? 0 : 12000,
+    odendi: paid,
   };
 }
 
-export function policyDetail(odendi = false): Record<string, unknown> {
+export function policyDetail(paid = false): Record<string, unknown> {
   return {
-    police: policyRow(odendi),
+    police: policyRow(paid),
     zeyiller: [
       {
         id: 'z1',
@@ -117,7 +117,7 @@ export function policyDetail(odendi = false): Record<string, unknown> {
         neden: 'Sürücü değişikliği',
       },
     ],
-    odeme: odendi
+    odeme: paid
       ? {
           tarih: '2026-09-20T09:00:00Z',
           tutar: 12000,
@@ -128,7 +128,7 @@ export function policyDetail(odendi = false): Record<string, unknown> {
           hesapId: null,
         }
       : null,
-    yetkiler: { odeyebilir: !odendi, duzenleyebilir: true },
+    yetkiler: { odeyebilir: !paid, duzenleyebilir: true },
   };
 }
 
@@ -190,7 +190,7 @@ export function endorsementRow(): Record<string, unknown> {
   };
 }
 
-export function serviceDetail(surum = 'sv-1', lines = 1): Record<string, unknown> {
+export function serviceDetail(version = 'sv-1', lines = 1): Record<string, unknown> {
   const info = Object.fromEntries(
     [
       'aciklama',
@@ -246,11 +246,11 @@ export function serviceDetail(surum = 'sv-1', lines = 1): Record<string, unknown
       yansitabilir: false,
       yansitilacakTutar: null,
     },
-    surum,
+    surum: version,
   };
 }
 
-export function rateCard(surum: string | null = null, extra: Record<string, unknown> = {}) {
+export function rateCard(version: string | null = null, extra: Record<string, unknown> = {}) {
   return {
     id: RATE_1,
     kod: 'B-STD',
@@ -269,7 +269,7 @@ export function rateCard(surum: string | null = null, extra: Record<string, unkn
     gosterme: false,
     tarifeGrubuId: null,
     aktif: true,
-    surum,
+    surum: version,
     ...extra,
   };
 }
@@ -348,7 +348,7 @@ export async function serviceInsuranceEndpoints(
     (r) => {
       const p = new URL(r.request().url()).pathname;
       if (p.startsWith('/api/ui/v1/secim/musteri'))
-        return json(r, [{ id: CARI_1, etiket: 'Ayşe Yılmaz' }]);
+        return json(r, [{ id: ACCOUNT_1, etiket: 'Ayşe Yılmaz' }]);
       if (p === '/api/ui/v1/secim/arac')
         return json(r, [{ id: VEHICLE_1, etiket: '34ABC123', plaka: '34ABC123' }]);
       if (p === '/api/ui/v1/secim/arac-grubu')
@@ -496,4 +496,4 @@ export async function serviceInsuranceEndpoints(
   return written;
 }
 
-export { CARI_1 };
+export { ACCOUNT_1 as CARI_1 };

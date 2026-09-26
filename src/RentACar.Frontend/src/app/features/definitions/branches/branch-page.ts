@@ -14,36 +14,36 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { type Observable, forkJoin, map, of } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { trAramaAnahtari } from '@core/metin/tr-normalize';
+import { toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { trSearchKey } from '@core/metin/tr-normalize';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { Secim } from '@shared/form/kontroller/secim';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { Selection } from '@shared/form/kontroller/selection';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
-import { restTanimKaynagi } from '@shared/form/tanim-crud/tanim-kaynagi';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
+import { restDefinitionSource } from '@shared/form/tanim-crud/definition-source';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { branchFields } from '../definition-catalog';
 
-type BranchService = Sema<'BranchServiceDto'>;
-type MergePreview = Sema<'BranchMergePreviewDto'>;
-type MergeResult = Sema<'BranchMergeResultDto'>;
+type BranchService = Schema<'BranchServiceDto'>;
+type MergePreview = Schema<'BranchMergePreviewDto'>;
+type MergeResult = Schema<'BranchMergeResultDto'>;
 interface ServiceRow extends BranchService {
   readonly subeId: string;
   readonly subeAd: string;
 }
 
-const ROOT: ApiYolu = '/api/ui/v1/subeler';
+const ROOT: ApiPath = '/api/ui/v1/subeler';
 
 /**
  * F11.2a şubeler (Blazor `BranchList`, ManageUsers): genel tanım CRUD'u (panel yerleşim, 29 alan + Durum) + şubeye özel
@@ -55,31 +55,31 @@ const ROOT: ApiYolu = '/api/ui/v1/subeler';
   imports: [
     ReactiveFormsModule,
     TranslocoPipe,
-    TanimCrud,
+    DefinitionCrud,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    OnayKutusu,
-    Secim,
-    SayfaBandi,
+    FormErrors,
+    TextInput,
+    Checkbox,
+    Selection,
+    PageBand,
   ],
   styleUrl: '../definitions.scss',
   templateUrl: './branch-page.html',
 })
 export class BranchPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
-  private readonly crud = viewChild(TanimCrud);
+  private readonly t = translationFunction();
+  private readonly crud = viewChild(DefinitionCrud);
 
   protected readonly branches = computed(() => this.crud()?.rows() ?? []);
   protected readonly fields = branchFields(this.t, {
     il: (q) => of(this.distinct('il', q)),
     ilce: (q) => of(this.distinct('ilce', q)),
   });
-  protected readonly source = restTanimKaynagi(ROOT);
+  protected readonly source = restDefinitionSource(ROOT);
 
   protected readonly branchOptions = computed<readonly SecenekOgesi<string>[]>(() =>
     this.branches().map((b) => ({ deger: b.id, etiket: String(b['ad'] ?? '') })),
@@ -101,7 +101,7 @@ export class BranchPage {
     ]),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly serviceSubmit = formGonderimi();
+  protected readonly serviceSubmit = formSubmission();
   protected readonly serviceBusy = signal(false);
 
   // ---- birleştirme
@@ -112,11 +112,11 @@ export class BranchPage {
   protected readonly confirmMerge = new FormControl<boolean>(false, { nonNullable: true });
   protected readonly confirmed = toSignal(this.confirmMerge.valueChanges, { initialValue: false });
   protected readonly preview = signal<MergePreview | null>(null);
-  protected readonly previewSubmit = formGonderimi();
-  protected readonly mergeSubmit = formGonderimi();
+  protected readonly previewSubmit = formSubmission();
+  protected readonly mergeSubmit = formSubmission();
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     // Şube listesi (kimlikler) değişince hizmetler yeniden yüklenir (şube sayısı azdır; Blazor da hepsini okur).
     effect(() => {
       const ids = this.branches().map((b) => b.id);
@@ -129,8 +129,8 @@ export class BranchPage {
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return (this.crud()?.kaydedilmemisDegisiklikVar() ?? false) || this.serviceForm.dirty;
+  hasUnsavedChanges(): boolean {
+    return (this.crud()?.hasUnsavedChanges() ?? false) || this.serviceForm.dirty;
   }
 
   protected addService(): void {
@@ -155,7 +155,7 @@ export class BranchPage {
 
   protected async removeService(row: ServiceRow): Promise<void> {
     if (this.serviceBusy()) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('tanimlar.branch.hizmet.silBaslik'),
       mesaj: this.t('tanimlar.branch.hizmet.silMesaj', { ad: row.hizmetAdi }),
       onayEtiketi: this.t('tanimlar.branch.hizmet.sil'),
@@ -174,7 +174,7 @@ export class BranchPage {
         },
         error: (e: unknown) => {
           this.serviceBusy.set(false);
-          this.servicesError.set(apiHatasinaCevir(e).detay);
+          this.servicesError.set(toApiError(e).detay);
         },
       });
   }
@@ -195,7 +195,7 @@ export class BranchPage {
     const p = this.preview();
     const v = this.mergeForm.getRawValue();
     if (p === null || !this.confirmMerge.value) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('tanimlar.branch.birlestir.onayBaslik'),
       mesaj: this.t('tanimlar.branch.birlestir.onayMesaj', {
         kaynak: p.kaynakAd,
@@ -226,12 +226,12 @@ export class BranchPage {
   }
 
   private distinct(field: 'il' | 'ilce', q: string): readonly string[] {
-    const key = trAramaAnahtari(q);
+    const key = trSearchKey(q);
     const seen = new Set<string>();
     const out: string[] = [];
     for (const b of this.branches()) {
       const v = typeof b[field] === 'string' ? (b[field] as string).trim() : '';
-      const k = trAramaAnahtari(v);
+      const k = trSearchKey(v);
       if (v === '' || seen.has(k) || (key !== '' && !k.includes(key))) continue;
       seen.add(k);
       out.push(v);
@@ -253,7 +253,7 @@ export class BranchPage {
         next: (lists) => this.services.set(lists.flat()),
         error: (e: unknown) =>
           this.servicesError.set(
-            `${this.t('tanimlar.branch.hizmet.yuklenemedi')} ${apiHatasinaCevir(e).detay}`,
+            `${this.t('tanimlar.branch.hizmet.yuklenemedi')} ${toApiError(e).detay}`,
           ),
       });
   }

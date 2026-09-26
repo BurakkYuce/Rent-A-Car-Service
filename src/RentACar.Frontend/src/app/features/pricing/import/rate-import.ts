@@ -16,34 +16,34 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
+import { toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import type { Sema } from '@core/api/ui-tipleri';
-import { yeniIslemAnahtari } from '@core/form/gonderim-kilidi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { newOperationKey } from '@core/form/submit-lock';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { type StoreDurumu, TemelStore } from '@core/veri/temel-store';
-import { metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { listDefinition } from '@core/veri/liste-sorgusu';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { type StoreState, TemelStore } from '@core/veri/temel-store';
+import { textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
+import { Selection } from '@shared/form/kontroller/selection';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
 import { APPROVAL_STATES } from '../catalog/catalog-configs';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type ImportResult = Sema<'RateImportResult'>;
-type MatrixRow = Sema<'RateMatrixDto'>;
+type ImportResult = Schema<'RateImportResult'>;
+type MatrixRow = Schema<'RateMatrixDto'>;
 
 /** Ekran yanıtı: sayfa çekirdek `Sayfa<T>` biçiminde okunur (tablo motoru sözleşmesi). */
 interface ImportView {
@@ -55,7 +55,7 @@ interface ImportView {
 
 const ROOT = '/api/ui/v1/tarife-aktar';
 
-export const IMPORT_LIST = listeTanimi({
+export const IMPORT_LIST = listDefinition({
   filtreler: {
     kanal: { tur: 'metin', enFazla: 64 },
     sube: { tur: 'metin', enFazla: 64 },
@@ -94,15 +94,15 @@ export function channelDeleteVisible(f: {
   selector: 'rc-rate-import',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    Ikon,
-    MetinGirdisi,
-    Secim,
-    Tablo,
+    Icon,
+    TextInput,
+    Selection,
+    Table,
   ],
   providers: [FetchPolicy],
   templateUrl: './rate-import.html',
@@ -110,18 +110,18 @@ export function channelDeleteVisible(f: {
 })
 export class RateImport {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly confirm = inject(OnayServisi);
+  private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
 
-  protected readonly query = listeSorgusuUrlSenkronu(IMPORT_LIST);
+  protected readonly query = listQueryUrlSync(IMPORT_LIST);
   protected readonly store = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<ImportView>(ROOT, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<ImportView>(ROOT, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
-  protected readonly rows = computed<StoreDurumu<Sayfa<MatrixRow>>>(() => {
+  protected readonly rows = computed<StoreState<Sayfa<MatrixRow>>>(() => {
     const d = this.store.durum();
     switch (d.tur) {
       case 'hazir':
@@ -166,10 +166,10 @@ export class RateImport {
   });
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.yukle(p),
-      sifirla: () => this.store.sifirla(),
+      sifirla: () => this.store.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -196,7 +196,7 @@ export class RateImport {
     if (!f || this.uploading()) return;
     const body = new FormData();
     body.append('dosya', f, f.name);
-    this.uploadKey ??= yeniIslemAnahtari();
+    this.uploadKey ??= newOperationKey();
     this.uploading.set(true);
     this.uploadError.set(null);
     this.api
@@ -216,7 +216,7 @@ export class RateImport {
           this.store.yenile();
         },
         error: (raw: unknown) => {
-          const e = apiHatasinaCevir(raw);
+          const e = toApiError(raw);
           const messages = e.alanlar ? Object.values(e.alanlar).flat() : [];
           if (messages.length > 0) this.uploadError.set(messages.join(' '));
           else if (!genelGosterilir(e)) this.uploadError.set(e.detay);
@@ -229,8 +229,8 @@ export class RateImport {
     void this.query.degistir({
       sayfa: 1,
       filtreler: {
-        kanal: metinDegeri(v.kanal) ?? undefined,
-        sube: metinDegeri(v.sube) ?? undefined,
+        kanal: textValue(v.kanal) ?? undefined,
+        sube: textValue(v.sube) ?? undefined,
         durum: (v.durum as (typeof APPROVAL_STATES)[number] | null) ?? undefined,
       },
     });
@@ -245,30 +245,32 @@ export class RateImport {
   }
 
   protected async deleteChannel(): Promise<void> {
-    const kanal = this.channel();
+    const channel = this.channel();
     const count = this.toDelete();
-    if (!kanal || this.deleting() || !this.deleteReady() || count === 0) return;
-    const yes = await this.confirm.sor({
+    if (!channel || this.deleting() || !this.deleteReady() || count === 0) return;
+    const yes = await this.confirm.ask({
       baslik: this.t('fiyatTarife.aktar.silBaslik'),
-      mesaj: this.t('fiyatTarife.aktar.silMesaj', { kanal, adet: count }),
+      mesaj: this.t('fiyatTarife.aktar.silMesaj', { kanal: channel, adet: count }),
       onayEtiketi: this.t('fiyatTarife.sil'),
       tehlikeli: true,
     });
-    if (!yes || this.deleting() || !this.deleteReady() || this.channel() !== kanal) return;
+    if (!yes || this.deleting() || !this.deleteReady() || this.channel() !== channel) return;
     this.deleting.set(true);
     this.api
-      .post<{ silinen: number }>(`${ROOT}/kanal-sil`, { kanal })
+      .post<{ silinen: number }>(`${ROOT}/kanal-sil`, { kanal: channel })
       .pipe(
         finalize(() => this.deleting.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: (r) => {
-          this.toast.basari(this.t('fiyatTarife.aktar.silindi', { adet: r.silinen, kanal }));
+          this.toast.basari(
+            this.t('fiyatTarife.aktar.silindi', { adet: r.silinen, kanal: channel }),
+          );
           this.store.yenile();
         },
         error: (raw: unknown) => {
-          const e = apiHatasinaCevir(raw);
+          const e = toApiError(raw);
           if (!genelGosterilir(e)) this.toast.hata(e.detay);
           this.store.yenile();
         },

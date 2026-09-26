@@ -4,13 +4,13 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 import { TemelStore } from '@core/veri/temel-store';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type SearchHit = Sema<'SearchHitDto'>;
+type SearchHit = Schema<'SearchHitDto'>;
 
 const SEARCH_MAX_LENGTH = 100;
 
@@ -83,7 +83,7 @@ export function hitRoute(url: string): string | null {
 @Component({
   selector: 'rc-search-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, ReactiveFormsModule, RouterLink, TranslocoPipe, Alan, MetinGirdisi],
+  imports: [PageBand, ReactiveFormsModule, RouterLink, TranslocoPipe, Alan, TextInput],
   styleUrl: '../system.scss',
   templateUrl: './search-page.html',
 })

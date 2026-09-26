@@ -4,59 +4,60 @@ import { ErrorHandler, inject, Injectable, Injector } from '@angular/core';
 
 import { ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { IstemciHataIstegi } from '@core/api/ui-tipleri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { ParcaHatasiServisi, parcaYuklemeHatasiMi } from '@core/surum/parca-hatasi';
-import { SurumServisi } from '@core/surum/surum-servisi';
+import type { ClientErrorRequest } from '@core/api/ui-tipleri';
+import { requestContext } from '@core/oturum/request-context';
+import { SessionService } from '@core/oturum/session-service';
+import { ChunkErrorService, isChunkLoadError } from '@core/surum/parca-hatasi';
+import { VersionService } from '@core/surum/version-service';
 
 /** `POST /api/ui/v1/istemci-hata` gövdesi (sunucu sınırları: gövde ≤ 4 KB, alanlar kırpılır). */
-export type IstemciHataRaporu = IstemciHataIstegi;
+export type ClientErrorReport = ClientErrorRequest;
 
-export const RAPOR_SINIRLARI = { mesaj: 500, yigin: 2500, url: 300, surum: 64 } as const;
+export const REPORT_LIMITS = { mesaj: 500, yigin: 2500, url: 300, surum: 64 } as const;
 /** Sayfa ömrü boyunca en çok bu kadar rapor (hata döngüsü sunucuyu doldurmasın). */
-export const EN_FAZLA_RAPOR = 10;
+export const MAX_REPORTS = 10;
 
-function kirp(metin: string, sinir: number): string {
-  return metin.length > sinir ? metin.slice(0, sinir) : metin;
+function clamp(text: string, limit: number): string {
+  return text.length > limit ? text.slice(0, limit) : text;
 }
 
 /**
  * Yakalanmamış istemci hatasını sunucuya raporlar (backend WARNING loglar; firma/kullanıcıyla).
- * Yalnız oturum açıkken (uç kimlik ister), sayfa başına {@link EN_FAZLA_RAPOR}, aynı mesaj bir kez.
+ * Yalnız oturum açıkken (uç kimlik ister), sayfa başına {@link MAX_REPORTS}, aynı mesaj bir kez.
  * URL'den yalnız YOL gider — sorgu dizesi (arama metni, müşteri adı) KVKK gereği gönderilmez.
  * HTTP hataları raporlanmaz (sunucu zaten loglar).
  */
 @Injectable({ providedIn: 'root' })
-export class IstemciHataRaporlayici {
+export class ClientErrorReporter {
   private readonly api = inject(ApiIstemcisi);
-  private readonly oturum = inject(OturumServisi);
-  private readonly surum = inject(SurumServisi);
-  private readonly konum = inject(DOCUMENT).location;
-  private readonly gorulen = new Set<string>();
+  private readonly oturum = inject(SessionService);
+  private readonly surum = inject(VersionService);
+  private readonly location = inject(DOCUMENT).location;
+  private readonly seen = new Set<string>();
 
-  raporla(hata: unknown): boolean {
-    if (hata instanceof HttpErrorResponse || hata instanceof ApiHatasi) return false;
-    if (!this.oturum.girisYapildi() || this.gorulen.size >= EN_FAZLA_RAPOR) return false;
+  report(error: unknown): boolean {
+    if (error instanceof HttpErrorResponse || error instanceof ApiHatasi) return false;
+    if (!this.oturum.loggedIn() || this.seen.size >= MAX_REPORTS) return false;
 
-    const mesaj = kirp(
-      (hata instanceof Error ? `${hata.name}: ${hata.message}` : String(hata)) || 'Bilinmeyen hata',
-      RAPOR_SINIRLARI.mesaj,
+    const message = clamp(
+      (error instanceof Error ? `${error.name}: ${error.message}` : String(error)) ||
+        'Bilinmeyen hata',
+      REPORT_LIMITS.mesaj,
     );
-    if (this.gorulen.has(mesaj)) return false;
-    this.gorulen.add(mesaj);
+    if (this.seen.has(message)) return false;
+    this.seen.add(message);
 
-    const yigin =
-      hata instanceof Error && hata.stack ? kirp(hata.stack, RAPOR_SINIRLARI.yigin) : undefined;
-    const rapor: IstemciHataRaporu = {
-      mesaj,
-      yigin: yigin ?? null,
-      url: kirp(this.konum.pathname, RAPOR_SINIRLARI.url),
-      surum: kirp(this.surum.mevcut ?? 'gelistirme', RAPOR_SINIRLARI.surum),
+    const stack =
+      error instanceof Error && error.stack ? clamp(error.stack, REPORT_LIMITS.yigin) : undefined;
+    const report: ClientErrorReport = {
+      mesaj: message,
+      yigin: stack ?? null,
+      url: clamp(this.location.pathname, REPORT_LIMITS.url),
+      surum: clamp(this.surum.mevcut ?? 'gelistirme', REPORT_LIMITS.surum),
     };
     this.api
-      .post<unknown>('/api/ui/v1/istemci-hata', rapor, {
-        context: istekBaglami({ sessiz: true, yenidenGirisYok: true }),
+      .post<unknown>('/api/ui/v1/istemci-hata', report, {
+        context: requestContext({ sessiz: true, yenidenGirisYok: true }),
       })
       .subscribe({ error: () => undefined });
     return true;
@@ -68,17 +69,17 @@ export class IstemciHataRaporlayici {
  * sunucuya rapor. Servisler ilk hatada çözülür (ErrorHandler açılışta çok erken kurulur).
  */
 @Injectable()
-export class RcHataIsleyici implements ErrorHandler {
-  private readonly enjektor = inject(Injector);
+export class RcErrorHandler implements ErrorHandler {
+  private readonly injector = inject(Injector);
 
-  handleError(hata: unknown): void {
-    console.error(hata);
+  handleError(error: unknown): void {
+    console.error(error);
     try {
-      if (parcaYuklemeHatasiMi(hata)) {
-        this.enjektor.get(ParcaHatasiServisi).isle();
+      if (isChunkLoadError(error)) {
+        this.injector.get(ChunkErrorService).isle();
         return;
       }
-      this.enjektor.get(IstemciHataRaporlayici).raporla(hata);
+      this.injector.get(ClientErrorReporter).report(error);
     } catch (ic: unknown) {
       console.error(ic);
     }

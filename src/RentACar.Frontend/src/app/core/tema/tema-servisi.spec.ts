@@ -1,59 +1,59 @@
 import { TestBed } from '@angular/core/testing';
-import { GECIS_YOK, TEMA_ANAHTARI, TemaServisi } from './tema-servisi';
+import { NO_TRANSITION, THEME_KEY, TemaServisi } from './tema-servisi';
 
 describe('TemaServisi', () => {
-  const kok = document.documentElement;
+  const root = document.documentElement;
 
   beforeEach(() => {
     localStorage.clear();
-    kok.removeAttribute('data-theme');
-    kok.removeAttribute('style');
+    root.removeAttribute('data-theme');
+    root.removeAttribute('style');
     TestBed.resetTestingModule();
   });
 
   it('varsayılan sistem: data-theme yok, etkin tema işletim sistemine göre', () => {
-    const tema = TestBed.inject(TemaServisi);
-    expect(tema.mod()).toBe('sistem');
-    expect(kok.hasAttribute('data-theme')).toBe(false);
-    expect(tema.etkinTema()).toBe('acik'); // jsdom matchMedia yok → açık
+    const theme = TestBed.inject(TemaServisi);
+    expect(theme.mod()).toBe('sistem');
+    expect(root.hasAttribute('data-theme')).toBe(false);
+    expect(theme.activeTheme()).toBe('acik'); // jsdom matchMedia yok → açık
   });
 
   it('koyu/açık seçimi data-theme yazar ve tercihi saklar; sistem kaldırır', () => {
-    const tema = TestBed.inject(TemaServisi);
+    const theme = TestBed.inject(TemaServisi);
 
-    tema.modAyarla('koyu');
-    expect(kok.getAttribute('data-theme')).toBe('dark');
-    expect(tema.etkinTema()).toBe('koyu');
-    expect(localStorage.getItem(TEMA_ANAHTARI)).toBe('koyu');
+    theme.setMode('koyu');
+    expect(root.getAttribute('data-theme')).toBe('dark');
+    expect(theme.activeTheme()).toBe('koyu');
+    expect(localStorage.getItem(THEME_KEY)).toBe('koyu');
 
-    tema.modAyarla('acik');
-    expect(kok.getAttribute('data-theme')).toBe('light');
-    expect(tema.etkinTema()).toBe('acik');
+    theme.setMode('acik');
+    expect(root.getAttribute('data-theme')).toBe('light');
+    expect(theme.activeTheme()).toBe('acik');
 
-    tema.modAyarla('sistem');
-    expect(kok.hasAttribute('data-theme')).toBe(false);
-    expect(localStorage.getItem(TEMA_ANAHTARI)).toBe('sistem');
+    theme.setMode('sistem');
+    expect(root.hasAttribute('data-theme')).toBe(false);
+    expect(localStorage.getItem(THEME_KEY)).toBe('sistem');
   });
 
   it('tema değişirken CSS geçişleri kısa süre bastırılır (ara karede kontrast düşmesin)', async () => {
-    const tema = TestBed.inject(TemaServisi);
-    await new Promise((bitti) => setTimeout(bitti, 5));
-    tema.modAyarla('koyu');
-    expect(kok.classList.contains(GECIS_YOK)).toBe(true);
-    await new Promise((bitti) => setTimeout(bitti, 5));
-    expect(kok.classList.contains(GECIS_YOK)).toBe(false);
+    const theme = TestBed.inject(TemaServisi);
+    await new Promise((done) => setTimeout(done, 5));
+    theme.setMode('koyu');
+    expect(root.classList.contains(NO_TRANSITION)).toBe(true);
+    await new Promise((done) => setTimeout(done, 5));
+    expect(root.classList.contains(NO_TRANSITION)).toBe(false);
   });
 
   it('saklı tercih açılışta uygulanır; bozuk değer sistem sayılır', () => {
-    localStorage.setItem(TEMA_ANAHTARI, 'koyu');
+    localStorage.setItem(THEME_KEY, 'koyu');
     expect(TestBed.inject(TemaServisi).mod()).toBe('koyu');
-    expect(kok.getAttribute('data-theme')).toBe('dark');
+    expect(root.getAttribute('data-theme')).toBe('dark');
 
     TestBed.resetTestingModule();
-    kok.removeAttribute('data-theme');
-    localStorage.setItem(TEMA_ANAHTARI, '<script>');
+    root.removeAttribute('data-theme');
+    localStorage.setItem(THEME_KEY, '<script>');
     expect(TestBed.inject(TemaServisi).mod()).toBe('sistem');
-    expect(kok.hasAttribute('data-theme')).toBe(false);
+    expect(root.hasAttribute('data-theme')).toBe(false);
   });
 
   it('sistem modunda işletim sistemi koyuysa etkin tema koyu', () => {
@@ -62,31 +62,31 @@ describe('TemaServisi', () => {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     }));
-    const pencere = document.defaultView as Window;
-    const onceki = Object.getOwnPropertyDescriptor(pencere, 'matchMedia');
-    Object.defineProperty(pencere, 'matchMedia', { value: matchMedia, configurable: true });
+    const window = document.defaultView as Window;
+    const previous = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+    Object.defineProperty(window, 'matchMedia', { value: matchMedia, configurable: true });
     try {
-      expect(TestBed.inject(TemaServisi).etkinTema()).toBe('koyu');
+      expect(TestBed.inject(TemaServisi).activeTheme()).toBe('koyu');
       expect(matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
     } finally {
-      if (onceki) Object.defineProperty(pencere, 'matchMedia', onceki);
-      else Reflect.deleteProperty(pencere, 'matchMedia');
+      if (previous) Object.defineProperty(window, 'matchMedia', previous);
+      else Reflect.deleteProperty(window, 'matchMedia');
     }
   });
 
   it('kiracı vurgusu --rc-kiraci-* değişkenlerine yazılır; null ve geçersiz renk temizler', () => {
-    const tema = TestBed.inject(TemaServisi);
+    const theme = TestBed.inject(TemaServisi);
 
-    tema.kiraciVurgusuUygula('#D97706');
-    expect(kok.style.getPropertyValue('--rc-kiraci-vurgu')).toBe('#d97706');
-    expect(kok.style.getPropertyValue('--rc-kiraci-vurgu-uzeri')).toBe('#000000');
+    theme.applyTenantAccent('#D97706');
+    expect(root.style.getPropertyValue('--rc-kiraci-vurgu')).toBe('#d97706');
+    expect(root.style.getPropertyValue('--rc-kiraci-vurgu-uzeri')).toBe('#000000');
 
-    tema.kiraciVurgusuUygula(null);
-    expect(kok.style.getPropertyValue('--rc-kiraci-vurgu')).toBe('');
+    theme.applyTenantAccent(null);
+    expect(root.style.getPropertyValue('--rc-kiraci-vurgu')).toBe('');
 
-    tema.kiraciVurgusuUygula('#1d4ed8');
-    tema.kiraciVurgusuUygula('geçersiz');
-    expect(kok.style.getPropertyValue('--rc-kiraci-vurgu')).toBe('');
-    expect(kok.style.getPropertyValue('--rc-kiraci-vurgu-metin-koyu')).toBe('');
+    theme.applyTenantAccent('#1d4ed8');
+    theme.applyTenantAccent('geçersiz');
+    expect(root.style.getPropertyValue('--rc-kiraci-vurgu')).toBe('');
+    expect(root.style.getPropertyValue('--rc-kiraci-vurgu-metin-koyu')).toBe('');
   });
 });

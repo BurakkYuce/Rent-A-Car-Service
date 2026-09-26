@@ -7,10 +7,10 @@
       : ('kiraFormu.baslik' | transloco: { no: k?.sozlesmeNo ?? '' })
   "
   [pill]="k ? ('kiraFormu.durum.' + k.durum | transloco) : null"
-  [altMetin]="bantAltMetni()"
+  [altMetin]="bannerSubtext()"
 >
   <ng-container eylemler>
-    @if (pdfAdresi(); as pdf) {
+    @if (pdfUrl(); as pdf) {
       <a class="rc-dugme rc-yazdirma-gizle" [href]="pdf" target="_blank" rel="noopener">
         <rc-ikon ad="file-text" [boyut]="14" />
         {{ 'kiraFormu.baglanti.pdf' | transloco }}
@@ -40,15 +40,15 @@
 </rc-sayfa-bandi>
 
 <div class="rc-sayfa">
-  @if (!d.yeni && d.detay.tur() === 'hata' && !d.gorunenDetay()) {
+  @if (!d.yeni && d.detay.tur() === 'hata' && !d.visibleDetail()) {
     <div class="rc-bolum" role="alert">
       <p>
-        {{ (bulunamadi() ? 'kiraFormu.bulunamadi' : 'kiraFormu.yuklenemedi') | transloco }}
-        @if (!bulunamadi()) {
+        {{ (notFound() ? 'kiraFormu.bulunamadi' : 'kiraFormu.yuklenemedi') | transloco }}
+        @if (!notFound()) {
           {{ d.detay.hata()?.detay }}
         }
       </p>
-      @if (!bulunamadi()) {
+      @if (!notFound()) {
         <button type="button" class="rc-dugme" (click)="d.yenile()">
           {{ 'kiraFormu.yenidenDene' | transloco }}
         </button>
@@ -74,11 +74,11 @@
         <strong>{{ 'kiraFormu.uyari' | transloco }}</strong> {{ uyari }}
       </p>
     }
-    @if (d.gorunenDetay()?.doviz; as dv) {
+    @if (d.visibleDetail()?.doviz; as dv) {
       <p class="kf-not">
         {{ dv.kod }} ·
         @if (dv.genelToplamTl !== null) {
-          {{ 'kiraFormu.dovizNotu' | transloco: { tutar: para(dv.genelToplamTl, 'TRY') } }}
+          {{ 'kiraFormu.dovizNotu' | transloco: { tutar: money(dv.genelToplamTl, 'TRY') } }}
         } @else {
           {{ 'kiraFormu.kurYok' | transloco }}
         }
@@ -95,7 +95,7 @@
       role="form"
       [attr.aria-label]="(d.yeni ? 'kiraFormu.yeniBaslik' : 'kiraFormu.formEtiketi') | transloco"
     >
-      <rc-sekmeli-form [sekmeler]="sekmeler" [etiket]="'kiraFormu.bolumler' | transloco">
+      <rc-sekmeli-form [sekmeler]="tabs" [etiket]="'kiraFormu.bolumler' | transloco">
         <section rcSekmePaneli="hizli" [baslik]="'kiraFormu.sekme.hizli' | transloco">
           <rc-kf-hizli-giris />
         </section>
@@ -103,7 +103,7 @@
           <rc-kf-kira-bilgisi />
         </section>
         <section rcSekmePaneli="musteri" [baslik]="'kiraFormu.sekme.musteri' | transloco">
-          <rc-kf-musteri (yeniMusteriye)="yeniMusteriyeGit()" />
+          <rc-kf-musteri (yeniMusteriye)="goToNewCustomer()" />
         </section>
         <section rcSekmePaneli="arac" [baslik]="'kiraFormu.sekme.arac' | transloco">
           <rc-kf-arac />
@@ -137,15 +137,15 @@
                 </div>
                 <div class="kf-satirlar__vurgu">
                   <dt>{{ 'kiraFormu.hesap.genelToplam' | transloco }}</dt>
-                  <dd>{{ para(k.genelToplam, k.doviz) }}</dd>
+                  <dd>{{ money(k.genelToplam, k.doviz) }}</dd>
                 </div>
                 <div>
                   <dt>{{ 'kiraFormu.hesap.tahsilat' | transloco }}</dt>
-                  <dd>{{ para(k.tahsilat, k.doviz) }}</dd>
+                  <dd>{{ money(k.tahsilat, k.doviz) }}</dd>
                 </div>
                 <div class="kf-satirlar__vurgu">
                   <dt>{{ 'kiraFormu.hesap.bakiye' | transloco }}</dt>
-                  <dd>{{ para(k.bakiye, k.doviz) }}</dd>
+                  <dd>{{ money(k.bakiye, k.doviz) }}</dd>
                 </div>
               } @else if (h?.ok) {
                 <div>
@@ -154,7 +154,7 @@
                 </div>
                 <div class="kf-satirlar__vurgu">
                   <dt>{{ 'kiraFormu.hesap.genelToplam' | transloco }}</dt>
-                  <dd>{{ para(h?.genelToplam, h?.doviz) }}</dd>
+                  <dd>{{ money(h?.genelToplam, h?.doviz) }}</dd>
                 </div>
               }
             </dl>
@@ -163,7 +163,7 @@
               <button
                 type="button"
                 class="rc-dugme rc-dugme--birincil rc-dugme--buyuk"
-                [disabled]="!d.kaydedilebilir() || d.kayit.gonderiliyor()"
+                [disabled]="!d.canSave() || d.kayit.gonderiliyor()"
                 (click)="kaydet()"
               >
                 {{
@@ -175,9 +175,9 @@
                 <button
                   type="button"
                   class="rc-dugme rc-dugme--tehlike"
-                  [disabled]="!d.silme() || d.iptalKilidi.gonderiliyor()"
+                  [disabled]="!d.silme() || d.cancelLock.gonderiliyor()"
                   [attr.title]="d.silme() ? null : ('kiraFormu.iptal.yetkiYok' | transloco)"
-                  (click)="d.iptalEt()"
+                  (click)="d.cancelAction()"
                 >
                   {{ 'kiraFormu.eylem.iptal' | transloco }}
                 </button>
@@ -187,7 +187,7 @@
           <rc-kf-paylas-bari />
           <rc-kf-paylasim />
           <rc-kira-finans-yuvasi
-            [detay]="d.gorunenDetay() ?? null"
+            [detay]="d.visibleDetail() ?? null"
             [tazelemeHatasi]="d.tazelemeHatasi() !== null"
             (degisti)="d.yenile()"
           />
@@ -196,12 +196,12 @@
     </div>
 
     <datalist id="kf-dl-kaynak">
-      @for (o of d.kaynakOnerileri.veri() ?? []; track o.id) {
+      @for (o of d.sourceSuggestions.veri() ?? []; track o.id) {
         <option [value]="o.etiket"></option>
       }
     </datalist>
     <datalist id="kf-dl-ozelkod">
-      @for (o of d.ozelKodOnerileri.veri() ?? []; track o.id) {
+      @for (o of d.customCodeSuggestions.veri() ?? []; track o.id) {
         <option [value]="o.etiket"></option>
       }
     </datalist>

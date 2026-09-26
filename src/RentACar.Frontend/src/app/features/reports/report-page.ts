@@ -13,33 +13,36 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
 import type { GunAraligi } from '@core/form/tarih-girdisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { requestContext } from '@core/oturum/request-context';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import type { StoreDurumu } from '@core/veri/temel-store';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import type { StoreState } from '@core/veri/temel-store';
 import { TemelStore } from '@core/veri/temel-store';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 import { type SavedView, SavedViewChipsComponent } from '@shared/gorunum-cipleri/gorunum-cipleri';
-import { Ikon } from '@shared/ikon/ikon';
-import { type DisaAktarmaBicimi, disaAktarmaAdresi } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Icon } from '@shared/ikon/icon';
+import { type ExportFormat, exportUrl } from '@shared/tablo/disa-aktarma';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
-import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../kabuk/sayfa-bandi/page-band';
 
 import { findReport } from './report-catalog';
 import { ShiftEditor } from './shift-editor/shift-editor';
@@ -66,7 +69,7 @@ interface Envelope {
 
 interface Request {
   readonly yol: `/api/ui/v1/${string}`;
-  readonly p: SorguParametreleri;
+  readonly p: QueryParameters;
 }
 
 type FilterValue = string | number | boolean | GunAraligi | SecimSecenegi | null;
@@ -86,17 +89,17 @@ type FilterValue = string | number | boolean | GunAraligi | SecimSecenegi | null
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    Ikon,
-    MetinGirdisi,
-    OnayKutusu,
-    SayiGirdisi,
-    Secim,
-    TarihSecici,
-    Tablo,
-    TabloHucre,
+    SearchSelection,
+    Icon,
+    TextInput,
+    Checkbox,
+    NumberInput,
+    Selection,
+    DatePicker,
+    Table,
+    TableCell,
     ShiftEditor,
-    SayfaBandi,
+    PageBand,
     SavedViewChipsComponent,
   ],
   providers: [FetchPolicy],
@@ -105,14 +108,14 @@ type FilterValue = string | number | boolean | GunAraligi | SecimSecenegi | null
 })
 export class ReportPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
-  protected readonly t = ceviriFonksiyonu();
+  protected readonly t = translationFunction();
 
   protected readonly def = findReport(String(this.route.snapshot.data['rapor'] ?? ''));
   private readonly recordId = this.route.snapshot.paramMap.get('id');
-  protected readonly query = listeSorgusuUrlSenkronu(reportListDefinition(this.def));
+  protected readonly query = listQueryUrlSync(reportListDefinition(this.def));
   protected readonly view = computed(() =>
     activeView(this.def, this.query.sorgu().filtreler as Record<string, unknown>),
   );
@@ -134,7 +137,10 @@ export class ReportPage {
 
   protected readonly store = new TemelStore(
     (r: Request) =>
-      this.api.get<unknown>(r.yol, { parametreler: r.p, context: istekBaglami({ sessiz: true }) }),
+      this.api.get<unknown>(r.yol, {
+        parametreler: r.p,
+        context: requestContext({ sessiz: true }),
+      }),
     { oncekiVeriyiKoru: true },
   );
 
@@ -151,12 +157,12 @@ export class ReportPage {
   protected readonly exportLinks = computed(() =>
     this.view().zarfsiz ? null : exportFromLinks((this.response() as Envelope | undefined)?.export),
   );
-  protected readonly exportFormats = computed<readonly DisaAktarmaBicimi[]>(
+  protected readonly exportFormats = computed<readonly ExportFormat[]>(
     () => this.exportLinks()?.bicimler ?? [],
   );
 
   /** Satır tablosunun kaynağı: store durumu, veri `satirlar` sayfasına indirgenir. */
-  protected readonly rows = computed<StoreDurumu<Sayfa<unknown>>>(() => {
+  protected readonly rows = computed<StoreState<Sayfa<unknown>>>(() => {
     const d = this.store.durum();
     const page = (x: unknown) => (x as Envelope | undefined)?.satirlar;
     switch (d.tur) {
@@ -192,8 +198,8 @@ export class ReportPage {
   }
 
   protected shiftFirstDay(summary: unknown): string | null {
-    const bas = (summary as { bas?: unknown } | null)?.bas;
-    return typeof bas === 'string' ? bas : null;
+    const start = (summary as { bas?: unknown } | null)?.bas;
+    return typeof start === 'string' ? start : null;
   }
 
   // ── süzgeç formu ──
@@ -212,14 +218,14 @@ export class ReportPage {
   protected readonly searchSources = Object.fromEntries(
     this.allFilters
       .filter((f) => f.tur === 'arama')
-      .map((f) => [f.ad, sunucuSecimKaynagi(f.kaynak)]),
+      .map((f) => [f.ad, serverSelectionSource(f.kaynak)]),
   );
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.request,
       yukle: (r) => this.store.yukle(r),
-      sifirla: () => this.store.sifirla(),
+      sifirla: () => this.store.reset(),
       esit: (a, b) => a.yol === b.yol && JSON.stringify(a.p) === JSON.stringify(b.p),
     });
     effect(() => {
@@ -258,12 +264,12 @@ export class ReportPage {
     })),
   );
 
-  protected switchView(kod: string): void {
-    if (kod === this.view().kod) return;
+  protected switchView(code: string): void {
+    if (code === this.view().kod) return;
     void this.query.degistir({
       sayfa: 1,
       sirala: null,
-      filtreler: { ...this.query.sorgu().filtreler, [VIEW_KEY]: kod },
+      filtreler: { ...this.query.sorgu().filtreler, [VIEW_KEY]: code },
     });
   }
 
@@ -301,9 +307,9 @@ export class ReportPage {
     });
   }
 
-  protected exportHref(format: DisaAktarmaBicimi): string {
+  protected exportHref(format: ExportFormat): string {
     const e = this.exportLinks();
-    return e ? disaAktarmaAdresi(e, format) : '';
+    return e ? exportUrl(e, format) : '';
   }
 
   // ── özet içi tablolar / kartlar ──
@@ -384,9 +390,9 @@ export class ReportPage {
     for (const f of this.allFilters) {
       const name = controlName(f);
       if (f.tur === 'donem') {
-        const bas = values['bas'] as string | undefined;
+        const start = values['bas'] as string | undefined;
         const bit = values['bit'] as string | undefined;
-        patch[name] = bas && bit ? { baslangic: bas, bitis: bit } : null;
+        patch[name] = start && bit ? { baslangic: start, bitis: bit } : null;
       } else if (f.tur === 'arama') {
         const id = values[f.ad] as string | undefined;
         patch[name] = id
@@ -408,7 +414,7 @@ export class ReportPage {
 
   private loadOptionLists(): void {
     const sources = new Set(this.allFilters.flatMap((f) => (f.tur === 'liste' ? [f.kaynak] : [])));
-    const quiet = istekBaglami({ sessiz: true });
+    const quiet = requestContext({ sessiz: true });
     const set = (k: ListSource, items: readonly { id: string; etiket: string }[]) =>
       this.listOptions.update((o) => ({
         ...o,

@@ -11,22 +11,19 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { type Observable, finalize } from 'rxjs';
 
 import { ConfirmGate } from '@core/form/money-submission';
-import { apiHatasinaCevir, type ApiHatasi } from '@core/api/api-hatasi';
+import { toApiError, type ApiHatasi } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { paraBicimle } from '@core/bicim/bicim';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { formatMoney } from '@core/bicim/bicim';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { clearServerErrors, applyServerErrors } from '@core/form/sunucu-hatalari';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
 import {
@@ -58,13 +55,13 @@ import {
   templateUrl: './rates-page.html',
   styleUrl: '../finance.scss',
 })
-export class RatesPage implements KaydedilmemisDegisiklikSahibi {
+export class RatesPage implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
-  private readonly session = inject(OturumServisi);
+  private readonly t = translationFunction();
+  private readonly session = inject(SessionService);
   protected readonly canWrite = computed(() => this.session.izinVar('FinanceWrite'));
 
   protected readonly screen = new TemelStore(
@@ -78,8 +75,8 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
     this.codeOptions().filter((o) => o.deger !== 'TRY'),
   );
   protected readonly rateDate = computed(() => this.screen.veri()?.tcmb[0]?.tarih ?? null);
-  protected readonly fixedActive = (kod: string) =>
-    this.screen.veri()?.sabitler.find((s) => s.kod === kod && s.aktif) ?? null;
+  protected readonly fixedActive = (code: string) =>
+    this.screen.veri()?.sabitler.find((s) => s.kod === code && s.aktif) ?? null;
 
   protected readonly busy = signal(false);
   private readonly gate = new ConfirmGate();
@@ -104,17 +101,17 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const p = inject(FetchPolicy);
-    p.baglan({ parametre: computed(() => 0), yukle: () => this.screen.yukle() });
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    p.connect({ parametre: computed(() => 0), yukle: () => this.screen.yukle() });
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
   protected convert(): void {
     this.converter.markAllAsTouched();
-    sunucuHatalariniTemizle(this.converter);
+    clearServerErrors(this.converter);
     if (this.converter.invalid) return;
     const v = this.converter.getRawValue();
     this.api
@@ -125,11 +122,11 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
       .subscribe({
         next: (r) =>
           this.conversion.set(
-            `${paraBicimle(toAmount(r.tutar), r.kaynak)} = ${paraBicimle(toAmount(r.sonuc), r.hedef)}`,
+            `${formatMoney(toAmount(r.tutar), r.kaynak)} = ${formatMoney(toAmount(r.sonuc), r.hedef)}`,
           ),
         error: (raw: unknown) => {
           this.conversion.set(null);
-          this.showError(this.converter, apiHatasinaCevir(raw));
+          this.showError(this.converter, toApiError(raw));
         },
       });
   }
@@ -157,7 +154,7 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected save(): void {
-    sunucuHatalariniTemizle(this.form);
+    clearServerErrors(this.form);
     this.errors.set([]);
     this.form.markAllAsTouched();
     if (this.form.invalid || this.busy()) return;
@@ -189,7 +186,7 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
   protected async remove(row: FixedRate): Promise<void> {
     if (this.busy()) return;
     const yes = await this.gate.ask(() =>
-      this.confirm.sor({
+      this.confirm.ask({
         baslik: this.t('finans.kur.silBaslik'),
         mesaj: this.t('finans.kur.silMesaj', { kod: row.kod }),
         onayEtiketi: this.t('finans.kur.sil'),
@@ -215,7 +212,7 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
         const latest = s.sabitler.find((x) => x.id === id);
         if (!latest || this.editing()?.id !== id) return;
         const fresh = fixedRateToForm(latest);
-        sunucuDegerleriniBirlestir(
+        mergeServerValues(
           this.form,
           asRecord(fresh),
           asRecord(this.filledFrom ?? fresh),
@@ -240,7 +237,7 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
           this.screen.yenile();
         },
         error: (raw: unknown) => {
-          const e = apiHatasinaCevir(raw);
+          const e = toApiError(raw);
           this.showError(this.form, e);
           failed?.(e);
           if (e.kod !== 'cakisma') this.screen.yenile();
@@ -249,7 +246,7 @@ export class RatesPage implements KaydedilmemisDegisiklikSahibi {
   }
 
   private showError(form: FormGroup, e: ApiHatasi): void {
-    const rest = sunucuHatalariniUygula(form, e.alanlar);
+    const rest = applyServerErrors(form, e.alanlar);
     if (e.alanlar === undefined && !genelGosterilir(e)) this.errors.set([e.detay]);
     else if (rest.length > 0) this.errors.set(rest);
   }

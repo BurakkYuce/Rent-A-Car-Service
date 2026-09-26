@@ -1,4 +1,4 @@
-import { sorguyuCoz } from '@core/veri/liste-sorgusu';
+import { parseQuery } from '@core/veri/liste-sorgusu';
 
 import { findReport } from './report-catalog';
 import { defineReport, defineView } from './report-model';
@@ -15,8 +15,8 @@ const LABELS = { evet: 'Evet', hayir: 'Hayır' };
 
 function queryFor(code: string, url: Record<string, string>) {
   const def = findReport(code);
-  const tanim = reportListDefinition(def);
-  const query = sorguyuCoz(tanim, url);
+  const definition = reportListDefinition(def);
+  const query = parseQuery(definition, url);
   return { def, query, view: activeView(def, query.filtreler as Record<string, unknown>) };
 }
 

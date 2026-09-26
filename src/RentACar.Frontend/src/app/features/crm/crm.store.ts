@@ -1,12 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { forkJoin, map, of, type Observable } from 'rxjs';
 
-import { ApiIstemcisi, type ApiYolu, type SorguParametreleri } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type ApiPath, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import type { SecimUcuOgesi } from '@core/api/ui-tipleri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import type { SelectionEndpointItem } from '@core/api/ui-tipleri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
-import type { SecimKaynagi, SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { SelectionSource, SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
 import {
   ASSISTANCE,
@@ -37,8 +37,8 @@ export interface CountRule {
  */
 export function countRequests(
   api: ApiIstemcisi,
-  path: ApiYolu,
-  p: SorguParametreleri,
+  path: ApiPath,
+  p: QueryParameters,
   rules: Readonly<Record<string, CountRule>>,
 ): Observable<Readonly<Record<string, number>>> {
   const base: Record<string, unknown> = {};
@@ -53,20 +53,20 @@ export function countRequests(
         : api
             .get<Sayfa<unknown>>(path, {
               parametreler: {
-                ...(base as SorguParametreleri),
+                ...(base as QueryParameters),
                 [rule.key]: rule.value,
                 sayfa: 1,
                 boyut: 1,
               },
-              context: istekBaglami({ sessiz: true }),
+              context: requestContext({ sessiz: true }),
             })
             .pipe(map((s) => s.toplam));
   }
   return forkJoin(calls);
 }
 
-function pagedStore<T>(api: ApiIstemcisi, path: ApiYolu) {
-  return new TemelStore((p: SorguParametreleri) => api.get<Sayfa<T>>(path, { parametreler: p }), {
+function pagedStore<T>(api: ApiIstemcisi, path: ApiPath) {
+  return new TemelStore((p: QueryParameters) => api.get<Sayfa<T>>(path, { parametreler: p }), {
     oncekiVeriyiKoru: true,
   });
 }
@@ -76,7 +76,7 @@ export class SurveyStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = pagedStore<Survey>(this.api, SURVEYS);
   readonly counts = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       countRequests(this.api, SURVEYS, p, {
         yapildi: { key: 'durum', value: 'Yapildi' },
         yapilmadi: { key: 'durum', value: 'Yapilmadi' },
@@ -94,7 +94,7 @@ export class ComplaintStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = pagedStore<Complaint>(this.api, COMPLAINTS);
   readonly counts = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       countRequests(this.api, COMPLAINTS, p, { acik: { key: 'durum', value: 'Acik' } }),
     { oncekiVeriyiKoru: true },
   );
@@ -105,7 +105,7 @@ export class AssistanceStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = pagedStore<Assistance>(this.api, ASSISTANCE);
   readonly counts = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       countRequests(this.api, ASSISTANCE, p, {
         acik: { key: 'kapandi', value: false },
         hareketEdemiyor: { key: 'hareketEdemiyor', value: true },
@@ -119,7 +119,7 @@ export class LegalFileStore {
   private readonly api = inject(ApiIstemcisi);
   readonly list = pagedStore<LegalFile>(this.api, LEGAL_FILES);
   readonly counts = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       countRequests(this.api, LEGAL_FILES, p, { acik: { key: 'durum', value: 'Acik' } }),
     { oncekiVeriyiKoru: true },
   );
@@ -129,19 +129,19 @@ export class LegalFileStore {
 export class CrmAnalysisStore {
   private readonly api = inject(ApiIstemcisi);
   readonly analysis = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<CrmAnalysis>(CRM_ANALYSIS, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<CrmAnalysis>(CRM_ANALYSIS, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
   /** Seçenekler FİLTRESİZ kümeden (Blazor: süzülmüşten türetilseydi seçim sonrası diğerleri kaybolurdu). */
   readonly options = new TemelStore(() =>
     this.api.get<CrmFilterOptions>(`${CRM_ANALYSIS}/secenekler`, {
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
 }
 
 /** Kira sözleşmesi seçimi (`/crm/secim/kira`; şube kapsamına süzülü, TC/telefon YOK). Enjeksiyon bağlamında çağrılır. */
-export function rentalPickSource(): SecimKaynagi {
+export function rentalPickSource(): SelectionSource {
   const api = inject(ApiIstemcisi);
   return (q, limit) =>
     api
@@ -157,9 +157,9 @@ export function officeSuggestionFetch(
 ): (q: string) => Observable<readonly string[]> {
   return (q) =>
     api
-      .get<readonly SecimUcuOgesi<'lokasyon'>[]>('/api/ui/v1/secim/lokasyon', {
+      .get<readonly SelectionEndpointItem<'lokasyon'>[]>('/api/ui/v1/secim/lokasyon', {
         parametreler: { q: q === '' ? null : q, limit: 20 },
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       })
       .pipe(map((list) => list.map((x) => x.etiket)));
 }
@@ -167,6 +167,6 @@ export function officeSuggestionFetch(
 /** URL'deki müşteri kimliğinin etiketi (paylaşılan bağlantı / yenileme): `GET /secim/musteri/{id}`. */
 export function customerLabelFetch(api: ApiIstemcisi, id: string): Observable<SecimSecenegi> {
   return api.get<SecimSecenegi>(`/api/ui/v1/secim/musteri/${encodeURIComponent(id)}`, {
-    context: istekBaglami({ sessiz: true }),
+    context: requestContext({ sessiz: true }),
   });
 }

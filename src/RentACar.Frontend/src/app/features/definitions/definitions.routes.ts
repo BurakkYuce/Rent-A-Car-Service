@@ -1,8 +1,8 @@
 import type { Routes } from '@angular/router';
 
-import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriBloguyla } from '@core/i18n/ceviri-blogu';
-import { izinGuard } from '@core/oturum/oturum-guard';
+import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { permissionGuard } from '@core/oturum/session-guard';
 
 import { DEFINITION_PATHS, DEFINITION_PERMISSION, type DefinitionKind } from './definition-paths';
 
@@ -36,66 +36,66 @@ const TITLES: Readonly<Record<DefinitionKind, string>> = {
  * tanımlar, drop ve doluluk OperationsWrite; şubeler ManageUsers; dokümanlar, firma belgeleri ve takvim
  * aboneliği yalnız oturum (yükle/sil düğmeleri sayfada OperationsWrite'la gizlenir, uç ayrıca ister).
  */
-export const DEFINITION_ROUTES: Routes = ceviriBloguyla('tanimlar', [
+export const DEFINITION_ROUTES: Routes = withTranslationBlock('tanimlar', [
   ...(Object.keys(DEFINITION_PATHS) as DefinitionKind[]).map((definition) => ({
     path: DEFINITION_PATHS[definition],
     title: `${TITLES[definition]} — RentACar`,
     data: { definition },
-    canMatch: [izinGuard(DEFINITION_PERMISSION[definition] ?? 'OperationsWrite')],
+    canMatch: [permissionGuard(DEFINITION_PERMISSION[definition] ?? 'OperationsWrite')],
     loadComponent: () => import('./definition-page').then((m) => m.DefinitionPage),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   })),
   // F11.2c: tanım CRUD'u + ekrana özel işlem (eşleşmeyen grup ataması / oranları yansıt).
   {
     path: 'arac-gruplari',
     title: 'Araç Grupları — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
       import('./vehicle-groups/vehicle-group-page').then((m) => m.VehicleGroupPage),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'rezervasyon-kaynaklari',
     title: 'Rezervasyon Kaynakları — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
       import('./reservation-sources/reservation-source-page').then((m) => m.ReservationSourcePage),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   // F11.2d: KVKK ekranları — uçlar gibi yalnız ManageUsers.
   {
     path: 'personel',
     title: 'Personel — RentACar',
-    canMatch: [izinGuard('ManageUsers')],
+    canMatch: [permissionGuard('ManageUsers')],
     loadComponent: () => import('./personnel/personnel-page').then((m) => m.PersonnelPage),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'ice-aktar',
     title: 'Veri İçe Aktar — RentACar',
-    canMatch: [izinGuard('ManageUsers')],
+    canMatch: [permissionGuard('ManageUsers')],
     loadComponent: () => import('./import/import-page').then((m) => m.ImportPage),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'subeler',
     title: 'Şube Tanımları — RentACar',
-    canMatch: [izinGuard('ManageUsers')],
+    canMatch: [permissionGuard('ManageUsers')],
     loadComponent: () => import('./branches/branch-page').then((m) => m.BranchPage),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'doluluk-kurallari',
     title: 'Doluluk Fiyat Kuralları — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () => import('./occupancy/occupancy-page').then((m) => m.OccupancyPage),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'dokumanlar',
     title: 'Dokümanlar — RentACar',
     loadComponent: () => import('./documents/documents-page').then((m) => m.DocumentsPage),
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'firma-belgeleri',

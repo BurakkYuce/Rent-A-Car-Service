@@ -1,5 +1,5 @@
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { TanimAlani } from '@shared/form/tanim-crud/tanim-kaynagi';
+import type { TanimAlani } from '@shared/form/tanim-crud/definition-source';
 
 import { commonFields } from '../definition-catalog';
 
@@ -52,17 +52,27 @@ const INFO_FLAGS = [
 export function reservationSourceFields(t: Translate): readonly TanimAlani[] {
   const f = commonFields(t);
   const r = (k: string) => t(`tanimlar.reservationSource.alan.${k}` as CeviriAnahtari);
-  const rate = (ad: string, inList = false): TanimAlani => ({
-    ad,
-    etiket: r(ad),
+  const rate = (name: string, inList = false): TanimAlani => ({
+    ad: name,
+    etiket: r(name),
     tur: 'sayi',
     fraction: 2,
     inList,
   });
-  const amount = (ad: string): TanimAlani => ({ ad, etiket: r(ad), tur: 'para', inList: false });
-  const text = (ad: string, max: number, inList = false): TanimAlani =>
-    f.text(ad, r(ad), max, { inList });
-  const flag = (ad: string): TanimAlani => ({ ad, etiket: r(ad), tur: 'onay', inList: false });
+  const amount = (name: string): TanimAlani => ({
+    ad: name,
+    etiket: r(name),
+    tur: 'para',
+    inList: false,
+  });
+  const text = (name: string, max: number, inList = false): TanimAlani =>
+    f.text(name, r(name), max, { inList });
+  const flag = (name: string): TanimAlani => ({
+    ad: name,
+    etiket: r(name),
+    tur: 'onay',
+    inList: false,
+  });
   return [
     f.code(),
     f.name(),

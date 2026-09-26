@@ -3,21 +3,21 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
 import {
   type TanimAlani,
-  type TanimKaynagi,
-  type TanimSatiri,
-  restTanimKaynagi,
-} from '@shared/form/tanim-crud/tanim-kaynagi';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+  type DefinitionSource,
+  type DefinitionRow,
+  restDefinitionSource,
+} from '@shared/form/tanim-crud/definition-source';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type PageList = Sema<'SayfaOfPageRowDto'>;
+type PageList = Schema<'SayfaOfPageRowDto'>;
 
 const ROOT = '/api/ui/v1/site-icerik' as const;
 
@@ -92,7 +92,7 @@ export function faqFields(t: Translate): readonly TanimAlani[] {
 @Component({
   selector: 'rc-site-content-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, TranslocoPipe, TanimCrud],
+  imports: [PageBand, TranslocoPipe, DefinitionCrud],
   styleUrl: '../system.scss',
   template: `
     <rc-sayfa-bandi [baslik]="'sistem.icerik.baslik' | transloco" ikon="world" />
@@ -119,27 +119,27 @@ export function faqFields(t: Translate): readonly TanimAlani[] {
 })
 export class SiteContentPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly cruds = viewChildren(TanimCrud);
-  private readonly t = ceviriFonksiyonu();
+  private readonly session = inject(SessionService);
+  private readonly cruds = viewChildren(DefinitionCrud);
+  private readonly t = translationFunction();
 
   protected readonly module = computed(() => this.session.ben()?.moduller.webSitesi === true);
   protected readonly pages = pageFields(this.t);
   protected readonly faqs = faqFields(this.t);
-  protected readonly pageSource: TanimKaynagi = {
-    ...restTanimKaynagi(`${ROOT}/sayfalar`),
+  protected readonly pageSource: DefinitionSource = {
+    ...restDefinitionSource(`${ROOT}/sayfalar`),
     listele: () =>
       this.api
         .get<PageList>(`${ROOT}/sayfalar`, { parametreler: { boyut: 200, sirala: 'sira' } })
-        .pipe(map((p) => p.kayitlar as unknown as readonly TanimSatiri[])),
+        .pipe(map((p) => p.kayitlar as unknown as readonly DefinitionRow[])),
   };
-  protected readonly faqSource = restTanimKaynagi(`${ROOT}/sss`);
+  protected readonly faqSource = restDefinitionSource(`${ROOT}/sss`);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return this.cruds().some((c) => c.kaydedilmemisDegisiklikVar());
+  hasUnsavedChanges(): boolean {
+    return this.cruds().some((c) => c.hasUnsavedChanges());
   }
 }

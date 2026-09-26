@@ -1,23 +1,23 @@
 import { expect, test } from '@playwright/test';
 
 import { CATEGORY_1, RENTAL_1, documentEndpoints, incomingRow } from './finance-document-fakes';
-import { BEN, hatalariTopla, oturumAc, problem } from './ortak';
+import { BEN, collectErrors, logIn, problem } from './ortak';
 
 /**
  * #300 eksik uçların SPA bağları: fatura döviz toplamı (`/faturalar/ozet`), gider "Sözleşme" alanı + sütunu
  * (`/crm/secim/kira`), araç satışında satılabilir araç seçimi, gelen e-faturada aranabilir gider kategorisi ve toplu
  * faturalamada görünmeyen kiranın seçimden düşmesi (L5). Değerler elle kurulmuş sahte yanıtlardan.
  */
-const AG_HATASI = [/Failed to load resource: the server responded with a status of \d\d\d/];
+const NETWORK_ERROR = [/Failed to load resource: the server responded with a status of \d\d\d/];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, { ...BEN, izinler: [...BEN.izinler, 'FinanceReverse'] });
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'FinanceReverse'] });
 });
 
 test('fatura listesi: döviz bazında toplam satırı sunucudan; süzgeç özete de gider, sayfalama gitmez', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   const summaryUrls: string[] = [];
   page.on('request', (r) => {
     if (r.url().includes('/api/ui/v1/faturalar/ozet')) summaryUrls.push(r.url());
@@ -32,7 +32,7 @@ test('fatura listesi: döviz bazında toplam satırı sunucudan; süzgeç özete
   const url = new URL(summaryUrls.at(-1) ?? 'http://x');
   expect(url.searchParams.get('doviz')).toBe('USD');
   expect(url.searchParams.has('sayfa')).toBe(false);
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('gider: Sözleşme alanı kiraId gönderir, liste sütununda sözleşme no görünür', async ({

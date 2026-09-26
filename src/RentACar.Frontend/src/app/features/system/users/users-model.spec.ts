@@ -8,19 +8,19 @@ import {
 } from './users-model';
 
 /** Elle kurulmuş kullanıcılar (F11.1b M2 kuralının ekran yansıması). */
-const user = (id: string, rol: string, istisnalar: UserDto['istisnalar'] = []): UserDto => ({
+const user = (id: string, rol: string, exceptions: UserDto['istisnalar'] = []): UserDto => ({
   id,
   kullaniciAdi: id,
   gorunenAd: id,
   rol,
   aktif: true,
   atanmisSube: null,
-  istisnalar,
+  istisnalar: exceptions,
   etkinIzinler: [],
 });
-const ex = (izin: string, ver: boolean) => ({
-  izin,
-  ver,
+const ex = (permission: string, give: boolean) => ({
+  izin: permission,
+  ver: give,
   tanimlayan: 'x',
   tarihUtc: '2026-01-01T00:00:00Z',
 });

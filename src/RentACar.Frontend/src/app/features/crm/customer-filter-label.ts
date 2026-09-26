@@ -2,8 +2,8 @@ import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import { translationFunction } from '@core/i18n/ceviri';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
 import { customerLabelFetch } from './crm.store';
 
@@ -15,7 +15,7 @@ import { customerLabelFetch } from './crm.store';
 export class CustomerFilterLabel {
   private readonly api = inject(ApiIstemcisi);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly fallback = ceviriFonksiyonu()('crm.seciliMusteri');
+  private readonly fallback = translationFunction()('crm.seciliMusteri');
   private readonly labels = signal<ReadonlyMap<string, string>>(new Map());
   private readonly requested = new Set<string>();
 

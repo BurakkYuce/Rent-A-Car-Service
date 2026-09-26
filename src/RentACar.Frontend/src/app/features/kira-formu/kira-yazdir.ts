@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
-import { TAM_SAYFA_GEZINMESI } from '@core/form/kaydedilmemis-degisiklik';
+import { FULL_PAGE_NAVIGATION } from '@core/form/kaydedilmemis-degisiklik';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Kiranın sözleşme PDF adresi (sunucu ucu; SPA'ya yönlenmez). Geçersiz kimlikte `null`. */
-export function sozlesmePdfAdresi(id: string | null | undefined): string | null {
+export function contractPdfUrl(id: string | null | undefined): string | null {
   return id && UUID.test(id) ? `/kiralar/${id}/pdf` : null;
 }
 
@@ -31,10 +31,10 @@ export function sozlesmePdfAdresi(id: string | null | undefined): string | null 
     }
   `,
 })
-export class KiraYazdir {
-  protected readonly adres = sozlesmePdfAdresi(inject(ActivatedRoute).snapshot.paramMap.get('id'));
+export class RentalPrint {
+  protected readonly adres = contractPdfUrl(inject(ActivatedRoute).snapshot.paramMap.get('id'));
 
   constructor() {
-    if (this.adres) inject(TAM_SAYFA_GEZINMESI)(this.adres);
+    if (this.adres) inject(FULL_PAGE_NAVIGATION)(this.adres);
   }
 }

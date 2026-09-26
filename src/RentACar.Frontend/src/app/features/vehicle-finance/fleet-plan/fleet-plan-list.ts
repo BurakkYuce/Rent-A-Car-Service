@@ -15,33 +15,30 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { catchError, debounceTime, finalize, map, of, startWith, switchMap } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { SecimUcuOgesi } from '@core/api/ui-tipleri';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import type { SelectionEndpointItem } from '@core/api/ui-tipleri';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { requestContext } from '@core/oturum/request-context';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
 import { SUGGESTION_DELAY_MS } from '@features/vehicles/suggestions';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { SayiPipe } from '@shared/bicim/bicim-pipe';
+import { NumberPipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { fleetPlanColumns, signed } from '../finance-columns';
 import { FLEET_PLAN_LIST, type FleetPlan } from '../finance-model';
@@ -53,7 +50,7 @@ import {
   fleetPlanToForm,
   fleetPlanTotals,
 } from './fleet-plan-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id: string };
 
@@ -67,35 +64,35 @@ type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id
   selector: 'rc-fleet-plan-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    SayiGirdisi,
-    SayiPipe,
-    Tablo,
-    TabloHucre,
+    FormErrors,
+    TextInput,
+    NumberInput,
+    NumberPipe,
+    Table,
+    TableCell,
   ],
   providers: [FetchPolicy, FleetPlanStore],
   templateUrl: './fleet-plan-list.html',
   styleUrl: '../vehicle-finance.scss',
 })
-export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
+export class FleetPlanList implements UnsavedChangesOwner {
   protected readonly store = inject(FleetPlanStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
+  private readonly session = inject(SessionService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(FLEET_PLAN_LIST);
+  protected readonly query = listQueryUrlSync(FLEET_PLAN_LIST);
   protected readonly columns = fleetPlanColumns(this.t);
   protected readonly rowId = (r: FleetPlan) => r.id;
   protected readonly signed = signed;
@@ -122,7 +119,7 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
     ]),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   /** Grup önerileri: tanımlı araç gruplarının KODLARI (Blazor ComboBox). */
   protected readonly groupSuggestions = toSignal(
@@ -132,9 +129,9 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
       debounceTime(SUGGESTION_DELAY_MS),
       switchMap((q) =>
         this.api
-          .get<readonly SecimUcuOgesi<'arac-grubu'>[]>('/api/ui/v1/secim/arac-grubu', {
+          .get<readonly SelectionEndpointItem<'arac-grubu'>[]>('/api/ui/v1/secim/arac-grubu', {
             parametreler: { q: q === '' ? null : q, limit: 20 },
-            context: istekBaglami({ sessiz: true }),
+            context: requestContext({ sessiz: true }),
           })
           .pipe(
             map((l) => [...new Set(l.map((g) => g.kod ?? g.etiket).filter((k) => k !== ''))]),
@@ -147,17 +144,17 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     this.form.reset({ ...emptyFleetPlan() });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -234,7 +231,7 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
 
   protected async remove(row: FleetPlan): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('aracFinans.plan.silBaslik'),
       mesaj: this.t('aracFinans.plan.silMesaj'),
       onayEtiketi: this.t('aracFinans.sil'),
@@ -260,7 +257,7 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
   }
 
   private actionFailed(raw: unknown): void {
-    const error = apiHatasinaCevir(raw);
+    const error = toApiError(raw);
     if (!genelGosterilir(error)) this.toast.hata(error.detay);
     this.store.list.yenile();
   }
@@ -275,7 +272,7 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
           if (e.kind === 'record' && e.id === id) this.recordArrived(p);
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
         },
       });
@@ -292,14 +289,14 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
     if (!this.form.dirty) {
       this.form.reset({ ...fresh });
     } else {
-      const conflicts = sunucuDegerleriniBirlestir(
+      const conflicts = mergeServerValues(
         this.form,
         { ...fresh },
         { ...baseline },
         this.t('aracFinans.cakismaAlan'),
       );
       if (conflicts.length > 0)
-        this.banner.goster({
+        this.banner.show({
           tur: 'uyari',
           mesaj: this.t('aracFinans.cakismaBant', { sayi: conflicts.length }),
           kod: 'cakisma',
@@ -319,7 +316,7 @@ export class FleetPlanList implements KaydedilmemisDegisiklikSahibi {
 
   private async releaseForm(): Promise<boolean> {
     if (!this.form.dirty) return true;
-    return this.confirm.sor({
+    return this.confirm.ask({
       baslik: this.t('aracFinans.vazgecBaslik'),
       mesaj: this.t('aracFinans.vazgecMesaj'),
     });

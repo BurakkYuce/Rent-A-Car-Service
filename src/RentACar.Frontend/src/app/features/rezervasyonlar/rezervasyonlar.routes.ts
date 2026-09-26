@@ -1,57 +1,57 @@
 import type { Routes } from '@angular/router';
-import { kaydedilmemisDegisiklikGuard } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriBloguyla } from '@core/i18n/ceviri-blogu';
-import { izinGuard } from '@core/oturum/oturum-guard';
+import { unsavedChangesGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { withTranslationBlock } from '@core/i18n/ceviri-blogu';
+import { permissionGuard } from '@core/oturum/session-guard';
 
 /**
  * F5.2a rezervasyon ve teklif rotaları — `sayfalar.ts`'e tek satırla eklenir. Hepsi tembel parça; metinler
  * `rezervasyon` çeviri bloğunda (rota yükler). Uçların tamamı OperationsWrite ister (Blazor grubu + menü kaydı):
  * rota kapısı aynı izni ister, asıl kapı sunucuda. Sıra önemli: `…/yeni`, `…/:id`'den önce.
  */
-export const REZERVASYON_ROTALARI: Routes = ceviriBloguyla('rezervasyon', [
+export const RESERVATION_ROUTES: Routes = withTranslationBlock('rezervasyon', [
   {
     path: 'rezervasyonlar',
     title: 'Rezervasyonlar — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
-      import('./rezervasyon-listesi/rezervasyon-listesi').then((m) => m.RezervasyonListesi),
+      import('./rezervasyon-listesi/reservation-list').then((m) => m.ReservationList),
   },
   {
     path: 'rezervasyonlar/yeni',
     title: 'Yeni Rezervasyon — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canMatch: [permissionGuard('OperationsWrite')],
+    canDeactivate: [unsavedChangesGuard],
     loadComponent: () =>
-      import('./rezervasyon-formu/rezervasyon-formu').then((m) => m.RezervasyonFormuSayfasi),
+      import('./rezervasyon-formu/rezervasyon-formu').then((m) => m.ReservationFormPage),
   },
   {
     path: 'rezervasyonlar/:id',
     title: 'Rezervasyon — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canMatch: [permissionGuard('OperationsWrite')],
+    canDeactivate: [unsavedChangesGuard],
     loadComponent: () =>
-      import('./rezervasyon-formu/rezervasyon-formu').then((m) => m.RezervasyonFormuSayfasi),
+      import('./rezervasyon-formu/rezervasyon-formu').then((m) => m.ReservationFormPage),
   },
   {
     path: 'teklifler',
     title: 'Teklifler — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
-      import('../teklifler/teklif-listesi/teklif-listesi').then((m) => m.TeklifListesi),
+      import('../teklifler/teklif-listesi/quotation-list').then((m) => m.QuotationList),
   },
   {
     path: 'teklifler/yeni',
     title: 'Yeni Teklif — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
-    canDeactivate: [kaydedilmemisDegisiklikGuard],
+    canMatch: [permissionGuard('OperationsWrite')],
+    canDeactivate: [unsavedChangesGuard],
     loadComponent: () =>
-      import('../teklifler/teklif-formu/teklif-formu').then((m) => m.TeklifFormuSayfasi),
+      import('../teklifler/teklif-formu/teklif-formu').then((m) => m.QuotationFormPage),
   },
   {
     path: 'teklifler/:id',
     title: 'Teklif — RentACar',
-    canMatch: [izinGuard('OperationsWrite')],
+    canMatch: [permissionGuard('OperationsWrite')],
     loadComponent: () =>
-      import('../teklifler/teklif-detayi/teklif-detayi').then((m) => m.TeklifDetayi),
+      import('../teklifler/teklif-detayi/quotation-detail').then((m) => m.QuotationDetail),
   },
 ]);

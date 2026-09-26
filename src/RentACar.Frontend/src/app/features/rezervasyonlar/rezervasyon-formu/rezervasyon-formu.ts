@@ -10,42 +10,39 @@ import type { AbstractControl } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { requestContext } from '@core/oturum/request-context';
+import { tabContext } from '@core/sekme/tab-state';
 import { TemelStore } from '@core/veri/temel-store';
-import { sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
+import { serverSelectionSource } from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
 
-import { RF_ORTAK } from '../ortak';
-import { RezervasyonIslemleri } from '../rezervasyon-islemleri';
+import { RF_SHARED } from '../ortak';
+import { ReservationActions } from '../reservation-actions';
 import {
-  OTA_ALANLARI,
-  REZERVASYON_KOKU,
-  detaydanDegerler,
-  durumRozeti,
-  rezervasyonDurumuMu,
-  rezervasyonFormuOlustur,
-  rezervasyonGovdesi,
-  secenekListesi,
-  sayiya,
-  sunucuDegerleriniBirlestir,
-  varsayilanTarihler,
-  type RezervasyonAlani,
-  type RezervasyonDetayYaniti,
-  type RezervasyonFormDegeri,
-  type RezervasyonFormSecenekleri,
-  type RezervasyonOlusturYaniti,
+  OTA_FIELDS,
+  RESERVATION_ROOT,
+  valuesFromDetail,
+  statusBadge,
+  isReservationStatus,
+  createReservationForm,
+  reservationBody,
+  optionList,
+  toNumber,
+  mergeServerValues,
+  defaultDates,
+  type ReservationField,
+  type ReservationDetailResponse,
+  type ReservationFormValue,
+  type ReservationFormOptions,
+  type CreateReservationResponse,
 } from '../rezervasyon-modeli';
 
-const SESSIZ = istekBaglami({ sessiz: true });
+const SILENT = requestContext({ sessiz: true });
 
 /**
  * Rezervasyon formu — TEK bileşen iki rotada: `/app/rezervasyonlar/yeni` (oluştur) ve `/app/rezervasyonlar/:id`
@@ -61,84 +58,82 @@ const SESSIZ = istekBaglami({ sessiz: true });
 @Component({
   selector: 'rc-rezervasyon-formu',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...RF_ORTAK, RouterLink],
-  providers: [RezervasyonIslemleri],
+  imports: [...RF_SHARED, RouterLink],
+  providers: [ReservationActions],
   templateUrl: './rezervasyon-formu.html',
   styleUrl: './rezervasyon-formu.scss',
 })
-export class RezervasyonFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
+export class ReservationFormPage implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);
   private readonly router = inject(Router);
-  private readonly toast = inject(ToastServisi);
-  private readonly bant = inject(UyariBandiServisi);
-  private readonly sekme = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
-  protected readonly islemler = inject(RezervasyonIslemleri);
+  private readonly toast = inject(ToastService);
+  private readonly bant = inject(WarningBannerService);
+  private readonly sekme = tabContext();
+  private readonly t = translationFunction();
+  protected readonly islemler = inject(ReservationActions);
 
   /** Kayıtlı rezervasyonun kimliği; yenide `null`. Bileşen örneği boyunca değişmez (sekme = rota + id). */
   readonly id: string | null = inject(ActivatedRoute).snapshot.paramMap.get('id');
   protected readonly yeni = this.id === null;
 
-  readonly form = rezervasyonFormuOlustur();
-  protected readonly kayit = formGonderimi();
-  protected readonly otaAlanlari = OTA_ALANLARI;
+  readonly form = createReservationForm();
+  protected readonly record = formSubmission();
+  protected readonly otaFields = OTA_FIELDS;
 
   readonly detay = new TemelStore(
-    (id: string) => this.api.get<RezervasyonDetayYaniti>(`${REZERVASYON_KOKU}/${id}`),
+    (id: string) => this.api.get<ReservationDetailResponse>(`${RESERVATION_ROOT}/${id}`),
     { oncekiVeriyiKoru: true },
   );
-  private readonly secenekler = new TemelStore(() =>
-    this.api.get<RezervasyonFormSecenekleri>(`${REZERVASYON_KOKU}/form-secenekleri`, {
-      context: SESSIZ,
+  private readonly options = new TemelStore(() =>
+    this.api.get<ReservationFormOptions>(`${RESERVATION_ROOT}/form-secenekleri`, {
+      context: SILENT,
     }),
   );
 
-  protected readonly musteriKaynagi = sunucuSecimKaynagi('musteri');
-  protected readonly aracKaynagi = sunucuSecimKaynagi('arac');
-  protected readonly lokasyonKaynagi = sunucuSecimKaynagi('lokasyon');
-  protected readonly kaynakKaynagi = sunucuSecimKaynagi('rezervasyon-kaynagi');
+  protected readonly customerDataSource = serverSelectionSource('musteri');
+  protected readonly vehicleSource = serverSelectionSource('arac');
+  protected readonly locationDataSource = serverSelectionSource('lokasyon');
+  protected readonly sourceDataSource = serverSelectionSource('rezervasyon-kaynagi');
 
-  protected readonly rez = computed(() => this.detay.veri()?.rezervasyon ?? null);
+  protected readonly res = computed(() => this.detay.veri()?.rezervasyon ?? null);
   /** Sayfa bandı başlığı (sayfanın tek `<h1>`'i). */
   protected readonly baslik = computed(() =>
     this.yeni
       ? this.t('rezervasyon.yeniBaslik')
-      : this.t('rezervasyon.detayBaslik', { no: this.rez()?.no ?? '…' }),
+      : this.t('rezervasyon.detayBaslik', { no: this.res()?.no ?? '…' }),
   );
-  protected readonly yetkiler = computed(() => this.detay.veri()?.yetkiler ?? null);
-  protected readonly bulunamadi = computed(() => this.detay.hata()?.status === 404);
-  protected readonly duzenlenebilir = computed(
-    () => this.yeni || (this.yetkiler()?.duzenle ?? false),
-  );
+  protected readonly permissions = computed(() => this.detay.veri()?.yetkiler ?? null);
+  protected readonly notFound = computed(() => this.detay.hata()?.status === 404);
+  protected readonly editable = computed(() => this.yeni || (this.permissions()?.duzenle ?? false));
   /** İşlem/kayıt sonrası kayıt yeniden okunurken Kaydet PASİF (#261 N1): sürüm henüz tazelenmedi. */
-  protected readonly kaydedilebilir = computed(
-    () => this.duzenlenebilir() && (this.yeni || !this.detay.yukleniyor()),
+  protected readonly canSave = computed(
+    () => this.editable() && (this.yeni || !this.detay.isLoading()),
   );
-  protected readonly fiyatTurleri = computed(() =>
-    secenekListesi(this.secenekler.veri()?.fiyatTurleri, this.rez()?.fiyatTuru),
+  protected readonly priceTypes = computed(() =>
+    optionList(this.options.veri()?.fiyatTurleri, this.res()?.fiyatTuru),
   );
-  protected readonly talepTurleri = computed(() => this.secenekler.veri()?.talepTurleri ?? []);
+  protected readonly requestTypes = computed(() => this.options.veri()?.talepTurleri ?? []);
 
   /** Son okunan sunucu hâli: `surum` PUT'a gider; değerler birleştirmede "sunucu neyi değiştirdi" tabanı. */
   private surum: string | null = null;
-  private taban: RezervasyonFormDegeri | null = null;
+  private taban: ReservationFormValue | null = null;
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
-    this.secenekler.yukle();
-    if (this.id === null) this.yeniyiBaslat();
-    else this.duzenlemeyiBaslat(this.id);
+    pageLeaveGuard(() => this.hasUnsavedChanges());
+    this.options.yukle();
+    if (this.id === null) this.startNew();
+    else this.startEdit(this.id);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
-  private yeniyiBaslat(): void {
-    this.form.reset(varsayilanTarihler());
+  private startNew(): void {
+    this.form.reset(defaultDates());
     // Tenant "Varsayılan Fiyat Türü" (FAZ-82) YALNIZ yeni formun ön-seçimi — kullanıcı seçmediyse.
     effect(() => {
-      const v = this.secenekler.veri()?.varsayilanFiyatTuru ?? null;
+      const v = this.options.veri()?.varsayilanFiyatTuru ?? null;
       untracked(() => {
         const k = this.form.controls.fiyatTuru;
         if (v && k.value === null && k.pristine) k.setValue(v);
@@ -146,74 +141,74 @@ export class RezervasyonFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
     });
   }
 
-  private duzenlemeyiBaslat(id: string): void {
+  private startEdit(id: string): void {
     this.detay.yukle(id);
     effect(() => {
       const d = this.detay.veri();
-      if (d) untracked(() => this.detayGeldi(d));
+      if (d) untracked(() => this.detailLoaded(d));
     });
     // Sekmeye dönüşte kayıt yeniden okunur (başka oturum/işlem değiştirmiş olabilir); ilk görünüm sayılmaz.
-    let son: number | null = null;
+    let last: number | null = null;
     effect(() => {
       const n = this.sekme.onaGelme();
       untracked(() => {
-        if (son !== null && n !== son) this.detay.yenile();
-        son = n;
+        if (last !== null && n !== last) this.detay.yenile();
+        last = n;
       });
     });
   }
 
-  private detayGeldi(d: RezervasyonDetayYaniti): void {
+  private detailLoaded(d: ReservationDetailResponse): void {
     this.sekme.etiketAyarla(this.t('rezervasyon.sekmeEtiketi', { no: d.rezervasyon.no }));
     // Kilit birleştirmeden ÖNCE: `enable()` doğrulamayı yeniden koşar ve çakışma işaretlerini silerdi.
     if (!d.yetkiler.duzenle) this.form.disable({ emitEvent: false });
     else if (this.form.disabled) this.form.enable({ emitEvent: false });
-    const yeni = detaydanDegerler(d);
+    const newItem = valuesFromDetail(d);
     if (!this.form.dirty) {
-      this.form.reset(yeni);
+      this.form.reset(newItem);
     } else {
-      const cakisan = sunucuDegerleriniBirlestir(this.form, yeni, this.taban);
-      if (cakisan.length > 0) this.cakismaIsaretle(cakisan);
+      const conflicting = mergeServerValues(this.form, newItem, this.taban);
+      if (conflicting.length > 0) this.markConflict(conflicting);
     }
-    this.taban = yeni;
+    this.taban = newItem;
     this.surum = d.rezervasyon.surum;
   }
 
-  private cakismaIsaretle(alanlar: readonly RezervasyonAlani[]): void {
-    const mesaj = this.t('rezervasyon.cakisma.alan');
-    for (const ad of alanlar) {
-      const k = this.form.controls[ad] as AbstractControl<unknown>;
-      k.setErrors({ ...(k.errors ?? {}), [SUNUCU_HATASI]: [mesaj] });
+  private markConflict(fields: readonly ReservationField[]): void {
+    const message = this.t('rezervasyon.cakisma.alan');
+    for (const name of fields) {
+      const k = this.form.controls[name] as AbstractControl<unknown>;
+      k.setErrors({ ...(k.errors ?? {}), [SERVER_ERROR]: [message] });
       k.markAsTouched();
     }
-    this.bant.goster({
+    this.bant.show({
       tur: 'uyari',
-      mesaj: this.t('rezervasyon.cakisma.bant', { sayi: alanlar.length }),
+      mesaj: this.t('rezervasyon.cakisma.bant', { sayi: fields.length }),
       kod: 'cakisma',
     });
   }
 
   protected kaydet(): void {
     // Kilitli form (durum ya da tazeleme) `invalid` değildir — istemci doğrulaması onu durdurmaz.
-    if (!this.kaydedilebilir()) return;
+    if (!this.canSave()) return;
     if (this.id === null) {
-      this.kayit.gonder(
+      this.record.gonder(
         this.form,
         () =>
-          this.api.post<RezervasyonOlusturYaniti>(
-            REZERVASYON_KOKU,
-            rezervasyonGovdesi(this.form.getRawValue()),
+          this.api.post<CreateReservationResponse>(
+            RESERVATION_ROOT,
+            reservationBody(this.form.getRawValue()),
           ),
-        { basarili: (y) => this.olusturuldu(y) },
+        { basarili: (y) => this.created(y) },
       );
       return;
     }
     const id = this.id;
-    this.kayit.gonder(
+    this.record.gonder(
       this.form,
       () =>
-        this.api.put<RezervasyonDetayYaniti>(`${REZERVASYON_KOKU}/${id}`, {
-          ...rezervasyonGovdesi(this.form.getRawValue()),
+        this.api.put<ReservationDetailResponse>(`${RESERVATION_ROOT}/${id}`, {
+          ...reservationBody(this.form.getRawValue()),
           surum: this.surum ?? '',
         }),
       {
@@ -230,21 +225,21 @@ export class RezervasyonFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
     );
   }
 
-  private olusturuldu(y: RezervasyonOlusturYaniti): void {
+  private created(y: CreateReservationResponse): void {
     this.toast.basari(this.t('rezervasyon.bildirim.olusturuldu', { no: y.no }));
     // "Yeni rezervasyon" sekmesi yaşamaya devam eder: sonraki kayıt için temiz forma döner.
     this.form.reset({
-      ...varsayilanTarihler(),
-      fiyatTuru: this.secenekler.veri()?.varsayilanFiyatTuru ?? null,
+      ...defaultDates(),
+      fiyatTuru: this.options.veri()?.varsayilanFiyatTuru ?? null,
     });
-    this.kayit.kilit.yenile();
+    this.record.kilit.yenile();
     void this.router.navigate(['/rezervasyonlar', y.id]);
   }
 
   // ─── durum eylemleri (sunucu `yetkiler`'ine göre görünür) ─────────────────────────────────
 
   private hedef() {
-    const r = this.rez();
+    const r = this.res();
     return r ? { id: r.id, no: r.no } : null;
   }
 
@@ -258,22 +253,22 @@ export class RezervasyonFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
     if (h) void this.islemler.iptal(h, () => this.detay.yenile());
   }
 
-  protected kirayaCevir(): void {
+  protected convertToRental(): void {
     const h = this.hedef();
     if (h) void this.islemler.kirayaCevir(h, () => this.detay.yenile(), this.form.dirty);
   }
 
   // ─── gösterim ──────────────────────────────────────────────────────────────────────────
 
-  protected rozet(durum: string): string {
-    return durumRozeti(durum);
+  protected rozet(status: string): string {
+    return statusBadge(status);
   }
 
-  protected durumEtiketi(durum: string): string {
-    return rezervasyonDurumuMu(durum) ? this.t(`rezervasyon.durumlar.${durum}`) : durum;
+  protected statusLabel(status: string): string {
+    return isReservationStatus(status) ? this.t(`rezervasyon.durumlar.${status}`) : status;
   }
 
-  protected sayi(v: number | string | null | undefined): number | null {
-    return sayiya(v);
+  protected count(v: number | string | null | undefined): number | null {
+    return toNumber(v);
   }
 }

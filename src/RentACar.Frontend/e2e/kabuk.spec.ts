@@ -1,20 +1,20 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ciddiIhlaller, hatalariTopla, oturumAc } from './ortak';
+import { seriousViolations, collectErrors, logIn } from './ortak';
 
 /**
  * F3.2 kabuk: menü kayıttan (sahte `/api/ui/v1/menu`), etkin sayfa, Blazor öğesinin tam sayfa açılışı
  * (kirli formda önce soru), Ctrl+K komut paleti, 390 px çekmece, sekmeli çalışma alanı.
  */
-test.beforeEach(async ({ page }) => oturumAc(page));
+test.beforeEach(async ({ page }) => logIn(page));
 
 const FORM = '/app/vitrin/form';
 const menu = (page: Page) => page.getByRole('navigation', { name: 'Ana menü' });
-const sekmeler = (page: Page) => page.getByRole('navigation', { name: 'Açık sekmeler' });
+const tabs = (page: Page) => page.getByRole('navigation', { name: 'Açık sekmeler' });
 
 /** Blazor ekranı (SPA dışı, tam sayfa): statik e2e sunucusunda yok, sahte HTML döner. */
-async function blazorEkrani(page: Page, yol: string): Promise<void> {
-  await page.route(`**${yol}`, (route) =>
+async function blazorScreen(page: Page, path: string): Promise<void> {
+  await page.route(`**${path}`, (route) =>
     route.fulfill({
       contentType: 'text/html; charset=utf-8',
       body: '<!doctype html><html lang="tr"><title>Blazor</title><h1>Blazor ekranı</h1></html>',
@@ -25,11 +25,11 @@ async function blazorEkrani(page: Page, yol: string): Promise<void> {
 test('menü kayıttan: gruplar, hızlı bağlantı, rozet; etkin sayfa işaretli; iki temada axe temiz', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page);
+  const errors = collectErrors(page);
   await page.goto(FORM);
 
-  const etkin = menu(page).getByRole('link', { name: 'Form seti' });
-  await expect(etkin).toHaveAttribute('aria-current', 'page');
+  const active = menu(page).getByRole('link', { name: 'Form seti' });
+  await expect(active).toHaveAttribute('aria-current', 'page');
   await expect(menu(page).locator('[aria-current="page"]')).toHaveCount(1);
   await expect(menu(page).getByRole('button', { name: 'Vitrin' })).toHaveAttribute(
     'aria-expanded',
@@ -63,66 +63,66 @@ test('menü kayıttan: gruplar, hızlı bağlantı, rozet; etkin sayfa işaretli
     'aria-current',
     'page',
   );
-  await expect(etkin).not.toHaveAttribute('aria-current', 'page');
+  await expect(active).not.toHaveAttribute('aria-current', 'page');
 
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
   await page.getByRole('button', { name: 'Koyu tema' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  expect(await ciddiIhlaller(page)).toEqual([]);
-  expect(hatalar).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('Blazor öğesi tam sayfa açılır; kirli formda önce sorulur (beforeunload ikinci kez sormaz)', async ({
   page,
 }) => {
-  await blazorEkrani(page, '/is-emirleri');
-  const tarayiciDiyaloglari: string[] = [];
+  await blazorScreen(page, '/is-emirleri');
+  const browserDialogs: string[] = [];
   page.on('dialog', (d) => {
-    tarayiciDiyaloglari.push(d.type());
+    browserDialogs.push(d.type());
     void d.dismiss();
   });
   await page.goto(FORM);
   await page.getByRole('textbox', { name: 'Plaka', exact: true }).fill('34 KBK 32');
   await menu(page).getByRole('button', { name: 'Servis' }).click();
-  const baglanti = menu(page).getByRole('link', { name: 'İş Emirleri' });
+  const link = menu(page).getByRole('link', { name: 'İş Emirleri' });
 
-  await baglanti.click();
-  const soru = page.getByRole('alertdialog', { name: 'Sayfadan ayrılınsın mı?' });
-  await soru.getByRole('button', { name: 'Sayfada kal' }).click();
+  await link.click();
+  const question = page.getByRole('alertdialog', { name: 'Sayfadan ayrılınsın mı?' });
+  await question.getByRole('button', { name: 'Sayfada kal' }).click();
   await expect(page).toHaveURL(/\/app\/vitrin\/form$/);
   await expect(page.getByRole('textbox', { name: 'Plaka', exact: true })).toHaveValue('34 KBK 32');
 
-  await baglanti.click();
-  await soru.getByRole('button', { name: 'Sayfadan ayrıl' }).click();
+  await link.click();
+  await question.getByRole('button', { name: 'Sayfadan ayrıl' }).click();
   await expect(page).toHaveURL(/\/is-emirleri$/);
   await expect(page.getByRole('heading', { name: 'Blazor ekranı' })).toBeVisible();
-  expect(tarayiciDiyaloglari).toEqual([]);
+  expect(browserDialogs).toEqual([]);
 });
 
 test('Ctrl+K: palet açılır, Türkçe-gevşek arama, klavyeyle SPA sayfası açılır; Esc kapatır', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page);
+  const errors = collectErrors(page);
   await page.goto('/app/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
   await page.keyboard.press('Control+K');
   const palet = page.getByRole('dialog', { name: 'Komut paleti' });
   await expect(palet).toBeVisible();
-  const girdi = palet.getByRole('combobox', { name: 'Ekran adı' });
-  await expect(girdi).toBeFocused();
+  const input = palet.getByRole('combobox', { name: 'Ekran adı' });
+  await expect(input).toBeFocused();
 
-  await girdi.fill('is');
+  await input.fill('is');
   await expect(palet.getByRole('option').first()).toContainText('İş Emirleri');
-  await girdi.fill('İŞ EMİR');
+  await input.fill('İŞ EMİR');
   await expect(palet.getByRole('option')).toHaveCount(1);
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
 
   await page.keyboard.press('Escape');
   await expect(palet).toHaveCount(0);
 
   await page.keyboard.press('Control+K');
-  await girdi.fill('vitrin');
+  await input.fill('vitrin');
   await expect(palet.getByRole('option').first()).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowDown');
   await expect(palet.getByRole('option', { name: /Form seti/ })).toHaveAttribute(
@@ -136,7 +136,7 @@ test('Ctrl+K: palet açılır, Türkçe-gevşek arama, klavyeyle SPA sayfası a�
     'aria-current',
     'page',
   );
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('390 px: yan menü çekmece — odak içeride, Esc kapatır ve odağı geri verir; taşma yok, axe temiz', async ({
@@ -144,22 +144,22 @@ test('390 px: yan menü çekmece — odak içeride, Esc kapatır ve odağı geri
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/app/');
-  const dugme = page.getByRole('button', { name: 'Menüyü aç' });
+  const button = page.getByRole('button', { name: 'Menüyü aç' });
   await expect(menu(page)).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
 
-  await dugme.click();
+  await button.click();
   await expect(menu(page)).toBeVisible();
-  await expect(dugme).toHaveAttribute('aria-expanded', 'true');
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
   await expect(menu(page).getByRole('button', { name: 'Menüyü kapat' })).toBeFocused();
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
 
   await page.keyboard.press('Escape');
   await expect(menu(page)).toBeHidden();
-  await expect(dugme).toBeFocused();
+  await expect(button).toBeFocused();
 
-  await dugme.click();
+  await button.click();
   await menu(page).getByRole('button', { name: 'Vitrin' }).click();
   await menu(page).getByRole('link', { name: 'Geri bildirim' }).click();
   await expect(page).toHaveURL(/\/app\/vitrin\/geri-bildirim$/);
@@ -173,25 +173,25 @@ test('sekmeler: form durumu sekmeler arasında korunur; depoda yalnız rota + id
   await page.getByRole('textbox', { name: 'Plaka', exact: true }).fill('06 SKM 06');
   await menu(page).getByRole('link', { name: 'Geri bildirim' }).click();
   await expect(page).toHaveURL(/\/app\/vitrin\/geri-bildirim$/);
-  await expect(sekmeler(page).getByRole('link')).toHaveCount(2);
-  await expect(sekmeler(page).getByRole('link', { name: 'Geri bildirim vitrini' })).toHaveAttribute(
+  await expect(tabs(page).getByRole('link')).toHaveCount(2);
+  await expect(tabs(page).getByRole('link', { name: 'Geri bildirim vitrini' })).toHaveAttribute(
     'aria-current',
     'page',
   );
 
-  await sekmeler(page).getByRole('link', { name: 'Form vitrini' }).click();
+  await tabs(page).getByRole('link', { name: 'Form vitrini' }).click();
   await expect(page.getByRole('textbox', { name: 'Plaka', exact: true })).toHaveValue('06 SKM 06');
 
-  const depo = await page.evaluate(() => localStorage.getItem('rc.sekmeler'));
-  expect(JSON.parse(depo ?? 'null')).toEqual([
+  const store = await page.evaluate(() => localStorage.getItem('rc.sekmeler'));
+  expect(JSON.parse(store ?? 'null')).toEqual([
     { rota: '/vitrin/form', id: null },
     { rota: '/vitrin/geri-bildirim', id: null },
   ]);
-  expect(depo).not.toContain('06 SKM 06');
+  expect(store).not.toContain('06 SKM 06');
 
   page.on('dialog', (d) => void d.accept()); // kirli form: yenilemede beforeunload
   await page.reload();
-  await expect(sekmeler(page).getByRole('link')).toHaveCount(2);
-  await sekmeler(page).getByRole('link', { name: 'Geri bildirim vitrini' }).click();
+  await expect(tabs(page).getByRole('link')).toHaveCount(2);
+  await tabs(page).getByRole('link', { name: 'Geri bildirim vitrini' }).click();
   await expect(page).toHaveURL(/\/app\/vitrin\/geri-bildirim$/);
 });

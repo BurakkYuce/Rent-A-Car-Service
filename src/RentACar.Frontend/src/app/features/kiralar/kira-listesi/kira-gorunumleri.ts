@@ -1,10 +1,10 @@
-import type { KiraListeSatiri } from '@core/api/ui-tipleri';
-import { anParcala, gunEkle, type GunMetni } from '@core/form/tarih-girdisi';
-import type { Filtreler } from '@core/veri/liste-sorgusu';
+import type { RentalListRow } from '@core/api/ui-tipleri';
+import { parseMoment, addDays, type DayText } from '@core/form/tarih-girdisi';
+import type { Filters } from '@core/veri/liste-sorgusu';
 
-import { KIRA_LISTESI } from './kira-listesi.store';
+import { RENTAL_LIST } from './rental-list.store';
 
-export type KiraFiltreleri = Filtreler<typeof KIRA_LISTESI.filtreler>;
+export type RentalFilters = Filters<typeof RENTAL_LIST.filtreler>;
 
 /**
  * Kayıtlı görünümler (Yol v2 §5.1/§9): `kiralar?gorunum=…`. Kodlar kenar çubuğundaki bağlantılarla
@@ -12,7 +12,7 @@ export type KiraFiltreleri = Filtreler<typeof KIRA_LISTESI.filtreler>;
  * süzgeçlerine çevrilir (yeni uç/parametre yok). Tarih ön ayarları İstanbul gününe göre, gün hassasiyetinde
  * (`basMin/basMax` sunucuda gün aralığıdır).
  */
-export const KIRA_GORUNUM_KODLARI = [
+export const RENTAL_VIEW_CODES = [
   'kirada',
   'geciken',
   'bugun-cikan',
@@ -20,10 +20,10 @@ export const KIRA_GORUNUM_KODLARI = [
   'faturasiz',
   'kapali',
 ] as const;
-export type KiraGorunumKodu = (typeof KIRA_GORUNUM_KODLARI)[number];
+export type RentalViewCode = (typeof RENTAL_VIEW_CODES)[number];
 
-export function gorunumKoduMu(deger: string | null): deger is KiraGorunumKodu {
-  return deger !== null && (KIRA_GORUNUM_KODLARI as readonly string[]).includes(deger);
+export function isViewCode(value: string | null): value is RentalViewCode {
+  return value !== null && (RENTAL_VIEW_CODES as readonly string[]).includes(value);
 }
 
 /**
@@ -32,16 +32,16 @@ export function gorunumKoduMu(deger: string | null): deger is KiraGorunumKodu {
  *   süzgeci gün hassasiyetinde; saat ayrımı için ayrı parametre yok).
  * - bugün çıkan: başlangıç bugün (durum fark etmez); bugün dönecek: kirada + bitiş bugün.
  */
-export function gorunumFiltreleri(kod: KiraGorunumKodu, gun: GunMetni): KiraFiltreleri {
-  switch (kod) {
+export function viewFilters(code: RentalViewCode, day: DayText): RentalFilters {
+  switch (code) {
     case 'kirada':
       return { durum: 'Kirada' };
     case 'geciken':
-      return { durum: 'Kirada', tarihTuru: 'Bitis', basMax: gunEkle(gun, -1) };
+      return { durum: 'Kirada', tarihTuru: 'Bitis', basMax: addDays(day, -1) };
     case 'bugun-cikan':
-      return { tarihTuru: 'Baslangic', basMin: gun, basMax: gun };
+      return { tarihTuru: 'Baslangic', basMin: day, basMax: day };
     case 'bugun-donecek':
-      return { durum: 'Kirada', tarihTuru: 'Bitis', basMin: gun, basMax: gun };
+      return { durum: 'Kirada', tarihTuru: 'Bitis', basMin: day, basMax: day };
     case 'faturasiz':
       return { fatura: false };
     case 'kapali':
@@ -53,67 +53,67 @@ export function gorunumFiltreleri(kod: KiraGorunumKodu, gun: GunMetni): KiraFilt
  * `liste.degistir` süzgeçleri BİRLEŞTİRİR; ön ayar önceki süzgeçleri silmeli → katalogdaki her ad verilir
  * (verilmeyen `undefined` = URL'den kalkar).
  */
-export function tumSuzgecler(f: KiraFiltreleri): KiraFiltreleri {
-  const sonuc: Record<string, unknown> = {};
-  for (const ad of Object.keys(KIRA_LISTESI.filtreler)) {
-    sonuc[ad] = (f as Readonly<Record<string, unknown>>)[ad];
+export function allFilters(f: RentalFilters): RentalFilters {
+  const result: Record<string, unknown> = {};
+  for (const name of Object.keys(RENTAL_LIST.filtreler)) {
+    result[name] = (f as Readonly<Record<string, unknown>>)[name];
   }
-  return sonuc as KiraFiltreleri;
+  return result as RentalFilters;
 }
 
 /** Süzgeçler anlamca aynı mı (`undefined` alanlar yok sayılır). */
-export function suzgeclerAyni(a: KiraFiltreleri, b: KiraFiltreleri): boolean {
-  const anahtar = (f: KiraFiltreleri) =>
+export function filtersEqual(a: RentalFilters, b: RentalFilters): boolean {
+  const key = (f: RentalFilters) =>
     JSON.stringify(
       Object.entries(f)
         .filter(([, v]) => v !== undefined)
         .sort(([x], [y]) => x.localeCompare(y, 'en')),
     );
-  return anahtar(a) === anahtar(b);
+  return key(a) === key(b);
 }
 
 /**
  * Satırın ekran durumu (Yol v2 §1.2). YALNIZ GÖSTERİM: sunucu durumu (`durum`) değişmez; kirada ve bitişi geçmiş
  * gün → "n gün gecikti" (kırmızı), bitişi bugün → "Bugün dönüyor" (sarı + satır vurgusu).
  */
-export type SatirGorunumu =
+export type RowView =
   | { readonly tur: 'gecikmis'; readonly gun: number }
   | { readonly tur: 'bugunDonuyor' }
   | { readonly tur: 'durum'; readonly durum: string };
 
-const GUN_MS = 86_400_000;
-const gunMs = (gun: GunMetni) => Date.parse(`${gun}T00:00:00Z`);
+const DAY_MS = 86_400_000;
+const dayMs = (day: DayText) => Date.parse(`${day}T00:00:00Z`);
 
-export function satirGorunumu(satir: KiraListeSatiri, bugun: GunMetni): SatirGorunumu {
-  const bitis = anParcala(satir.bitTar)?.gun;
-  if (satir.durum === 'Kirada' && bitis) {
-    if (bitis === bugun) return { tur: 'bugunDonuyor' };
-    if (bitis < bugun)
-      return { tur: 'gecikmis', gun: Math.round((gunMs(bugun) - gunMs(bitis)) / GUN_MS) };
+export function rowView(row: RentalListRow, today: DayText): RowView {
+  const end = parseMoment(row.bitTar)?.gun;
+  if (row.durum === 'Kirada' && end) {
+    if (end === today) return { tur: 'bugunDonuyor' };
+    if (end < today)
+      return { tur: 'gecikmis', gun: Math.round((dayMs(today) - dayMs(end)) / DAY_MS) };
   }
-  return { tur: 'durum', durum: satir.durum };
+  return { tur: 'durum', durum: row.durum };
 }
 
 /** Bugünün işi (bugün çıkan ya da kirada olup bugün dönen) → `rc-satir-bugun` (krem satır vurgusu). */
-export function satirSinifi(satir: KiraListeSatiri, bugun: GunMetni): string | null {
-  const g = satirGorunumu(satir, bugun);
+export function rowClass(row: RentalListRow, today: DayText): string | null {
+  const g = rowView(row, today);
   if (g.tur === 'bugunDonuyor') return 'rc-satir-bugun';
-  return anParcala(satir.basTar)?.gun === bugun ? 'rc-satir-bugun' : null;
+  return parseMoment(row.basTar)?.gun === today ? 'rc-satir-bugun' : null;
 }
 
 /** Durum rozeti sınıfı (§1.2): kirada yeşil, gecikmiş kırmızı, bugün sarı, kapalı nötr, iptal kırmızı. */
-export function rozetSinifi(g: SatirGorunumu): string {
+export function badgeClass(g: RowView): string {
   switch (g.tur) {
     case 'gecikmis':
       return 'rc-rozet rc-rozet--hata';
     case 'bugunDonuyor':
       return 'rc-rozet rc-rozet--uyari';
     case 'durum':
-      return `rc-rozet ${DURUM_ROZETI[g.durum] ?? ''}`.trimEnd();
+      return `rc-rozet ${STATUS_BADGE[g.durum] ?? ''}`.trimEnd();
   }
 }
 
-const DURUM_ROZETI: Readonly<Record<string, string>> = {
+const STATUS_BADGE: Readonly<Record<string, string>> = {
   Kirada: 'rc-rozet--basari',
   Tamamlandi: 'rc-rozet--notr',
   Iptal: 'rc-rozet--hata',

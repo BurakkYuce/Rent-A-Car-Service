@@ -12,7 +12,7 @@ export const VEHICLE_1 = 'b1b1b1b1-0000-4000-8000-000000000001';
 export const RENTAL_1 = 'c1c1c1c1-0000-4000-8000-000000000001';
 export const CUSTOMER_1 = 'd1d1d1d1-0000-4000-8000-000000000001';
 
-const period = (bas: string | null = null, bit: string | null = null) => ({ bas, bit });
+const period = (start: string | null = null, bit: string | null = null) => ({ bas: start, bit });
 const links = (report: string, q = '') => ({
   excel: `/raporlar/export/${report}?format=excel${q}`,
   csv: `/raporlar/export/${report}?format=csv${q}`,
@@ -77,9 +77,9 @@ export const CASH_BANK = {
   export: links('kasa-banka', '&hesap=Kasa'),
 };
 
-const balance = (ad: string, bakiye: number) => ({
-  cariId: CUSTOMER_1.replace(/1$/, String(ad.length % 9)),
-  ad,
+const balance = (name: string, bakiye: number) => ({
+  cariId: CUSTOMER_1.replace(/1$/, String(name.length % 9)),
+  ad: name,
   bakiye,
   toplamBorc: Math.max(bakiye, 0),
   toplamAlacak: Math.max(-bakiye, 0),
@@ -247,9 +247,9 @@ export async function reportEndpoints(page: Page, o: ReportFakeOptions = {}): Pr
   return requests;
 }
 
-const page1 = <T>(kayitlar: T[]) => ({
-  kayitlar,
-  toplam: kayitlar.length,
+const page1 = <T>(records: T[]) => ({
+  kayitlar: records,
+  toplam: records.length,
   sayfaNo: 1,
   boyut: 50,
   toplamSayfa: 1,

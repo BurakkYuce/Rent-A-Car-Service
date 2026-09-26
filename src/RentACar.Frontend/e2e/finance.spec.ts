@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { CARI_1, CARI_2, fixedRate, financeHubEndpoints } from './finance-fakes';
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { ACCOUNT_1, ACCOUNT_2, fixedRate, financeHubEndpoints } from './finance-fakes';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F8.2a finans ekranları (PARA): kasa hub, nakit işlem, bakiye düzeltme, cari virman, tek cari / çok cari toplu,
@@ -11,106 +11,109 @@ import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
  * gövdeyle tek işlem, çift tıklama tek istek, toplu işlemde kayıp yanıt sonrası tekrar tek kayıt, mükerrer metni) +
  * axe iki tema + 320/390/768/1440 taşma.
  */
-const AG_HATASI = [
+const NETWORK_ERROR = [
   /Failed to load resource: the server responded with a status of 4\d\d/,
   /Failed to load resource: net::ERR_FAILED/,
 ];
-const BEN_TERS = { ...BEN, izinler: [...BEN.izinler, 'FinanceReverse'] };
+const ME_REVERSE = { ...BEN, izinler: [...BEN.izinler, 'FinanceReverse'] };
 
 const page_ = (
-  ad: string,
-  yol: string,
-  baslik: string,
-  hazir?: (p: Page) => Promise<void>,
+  name: string,
+  path: string,
+  title: string,
+  ready?: (p: Page) => Promise<void>,
 ): VitrinSayfasi => ({
-  ad,
-  yol,
-  baslik,
-  ...(hazir ? { hazir } : {}),
+  ad: name,
+  yol: path,
+  baslik: title,
+  ...(ready ? { hazir: ready } : {}),
 });
 
 const KASA = page_('kasa', '/app/kasa', 'Kasa / Banka', (p) =>
   expect(p.getByRole('cell', { name: '2026220905001' })).toBeVisible(),
 );
-const NAKIT = page_(
+const CASH_ACCOUNT = page_(
   'nakit-islem',
-  `/app/finans/nakit-islem?cariId=${CARI_1}`,
+  `/app/finans/nakit-islem?cariId=${ACCOUNT_1}`,
   'Nakit İşlem (Tahsilat / Ödeme)',
   (p) => expect(p.getByRole('heading', { name: 'Ayşe Yılmaz' })).toBeVisible(),
 );
-const DUZELTME = page_(
+const ADJUSTMENT = page_(
   'bakiye-duzeltme',
-  `/app/finans/bakiye-duzeltme?cariId=${CARI_1}`,
+  `/app/finans/bakiye-duzeltme?cariId=${ACCOUNT_1}`,
   'Bakiye Düzeltme',
   (p) => expect(p.getByRole('heading', { name: 'Ayşe Yılmaz' })).toBeVisible(),
 );
-const CARI_VIRMAN = page_('cari-virman', '/app/cari-virman', 'Cari ↔ Cari Virman', (p) =>
+const ACCOUNT_TRANSFER = page_('cari-virman', '/app/cari-virman', 'Cari ↔ Cari Virman', (p) =>
   expect(p.getByRole('cell', { name: 'Bora Kaya' })).toBeVisible(),
 );
-const TEK_CARI = page_(
+const SINGLE_ACCOUNT = page_(
   'tek-cari-toplu',
-  `/app/tek-cari-toplu?cariId=${CARI_1}`,
+  `/app/tek-cari-toplu?cariId=${ACCOUNT_1}`,
   'Tek Cari — Toplu Kapatma',
   (p) => expect(p.getByRole('cell', { name: 'HGS' })).toBeVisible(),
 );
-const TOPLU_TAHSILAT = page_('toplu-tahsilat', '/app/toplu-tahsilat', 'Toplu Tahsilat');
-const TOPLU_GIDER = page_('toplu-gider', '/app/toplu-gider', 'Toplu Gider');
-const DEPOZITO = page_('depozito', '/app/depozito', 'Depozito (Emanet) İşlemleri', (p) =>
+const BULK_COLLECTION = page_('toplu-tahsilat', '/app/toplu-tahsilat', 'Toplu Tahsilat');
+const BULK_EXPENSE = page_('toplu-gider', '/app/toplu-gider', 'Toplu Gider');
+const DEPOSIT = page_('depozito', '/app/depozito', 'Depozito (Emanet) İşlemleri', (p) =>
   expect(p.getByRole('link', { name: 'Ayşe Yılmaz' })).toBeVisible(),
 );
-const EKSTRE = page_('cari-ekstre', `/app/cariler/${CARI_1}/ekstre`, 'Ekstre — Ayşe Yılmaz', (p) =>
-  expect(p.getByRole('cell', { name: 'Kira faturası' })).toBeVisible(),
+const STATEMENT = page_(
+  'cari-ekstre',
+  `/app/cariler/${ACCOUNT_1}/ekstre`,
+  'Ekstre — Ayşe Yılmaz',
+  (p) => expect(p.getByRole('cell', { name: 'Kira faturası' })).toBeVisible(),
 );
-const OTOMATIK = page_(
+const AUTO = page_(
   'otomatik-tahsilat',
   '/app/otomatik-tahsilat',
   'Otomatik Tahsilat — Elle Çalıştır',
   (p) => expect(p.getByRole('cell', { name: '2026010901001', exact: true })).toBeVisible(),
 );
-const DONEM = page_('donem-kapanis', '/app/donem-kapanis', 'Dönem Kapanışı', (p) =>
+const PERIOD = page_('donem-kapanis', '/app/donem-kapanis', 'Dönem Kapanışı', (p) =>
   expect(p.getByText('30.06.2026')).toBeVisible(),
 );
-const KURLAR = page_('kurlar', '/app/kurlar', 'Döviz Kurları (TCMB)', (p) =>
+const EXCHANGE_RATES = page_('kurlar', '/app/kurlar', 'Döviz Kurları (TCMB)', (p) =>
   expect(p.getByRole('cell', { name: 'Euro' })).toBeVisible(),
 );
 const PAGES = [
   KASA,
-  NAKIT,
-  DUZELTME,
-  CARI_VIRMAN,
-  TEK_CARI,
-  TOPLU_TAHSILAT,
-  TOPLU_GIDER,
-  DEPOZITO,
-  EKSTRE,
-  OTOMATIK,
-  DONEM,
-  KURLAR,
+  CASH_ACCOUNT,
+  ADJUSTMENT,
+  ACCOUNT_TRANSFER,
+  SINGLE_ACCOUNT,
+  BULK_COLLECTION,
+  BULK_EXPENSE,
+  DEPOSIT,
+  STATEMENT,
+  AUTO,
+  PERIOD,
+  EXCHANGE_RATES,
 ];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, BEN_TERS);
+  await logIn(page, ME_REVERSE);
 });
 
 // Sayfa başına ayrı test: tek testte 12 sayfa × 2 tema axe taraması CI'da 30 sn sınırını aşıyordu (~38 sn).
 for (const s of PAGES) {
   test(`${s.ad}: içerik + axe iki tema, konsol hatası yok`, async ({ page }) => {
-    const hatalar = hatalariTopla(page, AG_HATASI);
+    const errors = collectErrors(page, NETWORK_ERROR);
     await financeHubEndpoints(page);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
+    await waitReady(page, s);
+    expect(await seriousViolations(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
-    expect(hatalar).toEqual([]);
+    expect(await seriousViolations(page), `${s.ad} koyu`).toEqual([]);
+    expect(errors).toEqual([]);
   });
 }
 
 test('kasa: özet kartlar sunucudan (negatif banka), virman kayıp yanıt → AYNI anahtar + gövde → sunucu aynı kimlik', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let n = 0;
   const written = await financeHubEndpoints(page, {
     write: async (r, path) => {
@@ -122,7 +125,7 @@ test('kasa: özet kartlar sunucudan (negatif banka), virman kayıp yanıt → AY
     },
   });
   await page.goto(KASA.yol);
-  await hazirBekle(page, KASA);
+  await waitReady(page, KASA);
   await expect(page.getByText('-2.000,25 ₺')).toBeVisible();
   const form = page.getByRole('region', { name: 'Virman (Kasa ↔ Banka, hesaplar arası)' });
   await form.getByRole('textbox', { name: 'Tutar' }).fill('1.500,75');
@@ -154,7 +157,7 @@ test('kasa: özet kartlar sunucudan (negatif banka), virman kayıp yanıt → AY
     sube: null,
     aciklama: null,
   });
-  expect(hatalar.filter((h) => !/Failed to load resource/.test(h))).toEqual([]);
+  expect(errors.filter((h) => !/Failed to load resource/.test(h))).toEqual([]);
 });
 
 test('nakit işlem: çift tıklamada tek tahsilat; sonraki işlem YENİ anahtar; tutar bakiye kadar önerilir', async ({
@@ -171,8 +174,8 @@ test('nakit işlem: çift tıklamada tek tahsilat; sonraki işlem YENİ anahtar;
       return true;
     },
   });
-  await page.goto(NAKIT.yol);
-  await hazirBekle(page, NAKIT);
+  await page.goto(CASH_ACCOUNT.yol);
+  await waitReady(page, CASH_ACCOUNT);
   const form = page.getByRole('region', { name: 'Tahsilat', exact: true });
   const amount = form.getByRole('textbox', { name: 'Tutar' });
   await expect(amount).toHaveValue('1.250,50');
@@ -180,7 +183,7 @@ test('nakit işlem: çift tıklamada tek tahsilat; sonraki işlem YENİ anahtar;
   await expect(page.getByText('Tahsilat kaydedildi.')).toBeVisible();
   expect(written).toHaveLength(1);
   expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({
-    cariId: CARI_1,
+    cariId: ACCOUNT_1,
     tutar: '1250.50',
     hesap: 'Kasa',
   });
@@ -195,8 +198,8 @@ test('nakit işlem: döviz değişince eski kur temizlenir; TRY kur göndermez (
   page,
 }) => {
   const written = await financeHubEndpoints(page);
-  await page.goto(NAKIT.yol);
-  await hazirBekle(page, NAKIT);
+  await page.goto(CASH_ACCOUNT.yol);
+  await waitReady(page, CASH_ACCOUNT);
   const form = page.getByRole('region', { name: 'Ödeme (tediye)' });
   await form.getByRole('textbox', { name: 'Tutar' }).fill('50');
   await form.getByRole('combobox', { name: 'Döviz' }).selectOption('EUR');
@@ -213,7 +216,7 @@ test('nakit işlem: döviz değişince eski kur temizlenir; TRY kur göndermez (
 test('toplu tahsilat: kayıp yanıt → tekrar AYNI satırlarla → 409 mükerrer (aynı içerik) → ikinci parti yazılmaz', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let n = 0;
   const written = await financeHubEndpoints(page, {
     write: async (r, path) => {
@@ -232,8 +235,8 @@ test('toplu tahsilat: kayıp yanıt → tekrar AYNI satırlarla → 409 mükerre
       return true;
     },
   });
-  await page.goto(TOPLU_TAHSILAT.yol);
-  await hazirBekle(page, TOPLU_TAHSILAT);
+  await page.goto(BULK_COLLECTION.yol);
+  await waitReady(page, BULK_COLLECTION);
   const row1 = page.getByRole('group', { name: 'Satır 1' });
   await row1.getByRole('combobox', { name: 'Cari' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -259,20 +262,20 @@ test('toplu tahsilat: kayıp yanıt → tekrar AYNI satırlarla → 409 mükerre
   expect(written[1]?.govde).toBe(written[0]?.govde);
   expect(JSON.parse(written[0]?.govde ?? '{}')).toEqual({
     satirlar: [
-      { cariId: CARI_1, tutar: '1000.50', aciklama: null },
+      { cariId: ACCOUNT_1, tutar: '1000.50', aciklama: null },
       { cariId: 'c0c0c0c0-0000-4000-8000-000000000002', tutar: '500.00', aciklama: null },
     ],
     hesap: 'Kasa',
     hesapId: null,
     kanal: 'Masaüstü',
   });
-  expect(hatalar.filter((h) => !/Failed to load resource/.test(h))).toEqual([]);
+  expect(errors.filter((h) => !/Failed to load resource/.test(h))).toEqual([]);
 });
 
 test('bakiye düzeltme: dönem kilidi alan hatası → form KORUNUR, aynı anahtarla düzeltilip gönderilir; onaylı', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   let n = 0;
   const written = await financeHubEndpoints(page, {
     write: async (r, path) => {
@@ -285,8 +288,8 @@ test('bakiye düzeltme: dönem kilidi alan hatası → form KORUNUR, aynı anaht
       return true;
     },
   });
-  await page.goto(DUZELTME.yol);
-  await hazirBekle(page, DUZELTME);
+  await page.goto(ADJUSTMENT.yol);
+  await waitReady(page, ADJUSTMENT);
   await page
     .getByRole('combobox', { name: 'Yön' })
     .selectOption({ label: 'Borçlandır (borcu artır)' });
@@ -302,7 +305,7 @@ test('bakiye düzeltme: dönem kilidi alan hatası → form KORUNUR, aynı anaht
   await expect(page.getByText('bu tarihe kayıt atılamaz')).toBeVisible();
   await expect(amount).toHaveValue('12,40');
   expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({
-    cariId: CARI_1,
+    cariId: ACCOUNT_1,
     yon: 'Borclandir',
     tutar: '12.40',
     tarih: '2026-06-14T21:00:00.000Z',
@@ -312,7 +315,7 @@ test('bakiye düzeltme: dönem kilidi alan hatası → form KORUNUR, aynı anaht
   await page.getByRole('alertdialog').getByRole('button', { name: 'Onayla' }).click();
   await expect(page.getByText('Düzeltme kaydedildi.')).toBeVisible();
   expect(written[1]?.anahtar).toBe(written[0]?.anahtar); // ilk istek yazılmadı: aynı işlem
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('cari virman: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (aynı anahtar)', async ({
@@ -328,15 +331,15 @@ test('cari virman: oturum düşünce form kaybolmaz — yerinde giriş, AYNI ist
     },
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
-    return route.fulfill({ json: BEN_TERS });
+    await writeXsrf(page, 'yeni-belirtec');
+    return route.fulfill({ json: ME_REVERSE });
   });
-  await page.goto(CARI_VIRMAN.yol);
-  await hazirBekle(page, CARI_VIRMAN);
+  await page.goto(ACCOUNT_TRANSFER.yol);
+  await waitReady(page, ACCOUNT_TRANSFER);
   const form = page.getByRole('region', { name: 'Virman', exact: true });
   await form.getByRole('combobox', { name: 'Kaynak Cari (alacak)' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -356,7 +359,7 @@ test('cari virman: oturum düşünce form kaybolmaz — yerinde giriş, AYNI ist
   expect(written[1]?.govde).toBe(written[0]?.govde);
   expect(written[1]?.anahtar).toBe(written[0]?.anahtar);
   expect(JSON.parse(written[0]?.govde ?? '{}')).toMatchObject({
-    kaynakCariId: CARI_1,
+    kaynakCariId: ACCOUNT_1,
     hedefCariId: 'c0c0c0c0-0000-4000-8000-000000000002',
     tutar: '300.00',
   });
@@ -365,33 +368,33 @@ test('cari virman: oturum düşünce form kaybolmaz — yerinde giriş, AYNI ist
 test('kurlar: sabit kur PUT cakisma formu silmez — güncel kayıt birleşir, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
-  let surum = 'sk-1';
+  const errors = collectErrors(page, NETWORK_ERROR);
+  let version = 'sk-1';
   let bitTar: string | null = null;
   let put = 0;
   const written = await financeHubEndpoints(page, {
-    fixed: () => fixedRate({ surum, bitTar }),
+    fixed: () => fixedRate({ surum: version, bitTar }),
     write: async (r) => {
       if (r.request().method() !== 'PUT') return false;
       if (++put === 1) {
-        surum = 'sk-2';
+        version = 'sk-2';
         bitTar = '2026-12-31'; // başka oturum bitiş tarihi girdi
         await problem(r, 409, 'cakisma', 'Kayıt siz düzenlerken değişti; güncel hâli yükleyin.');
       } else await r.fulfill({ status: 204 });
       return true;
     },
   });
-  await page.goto(KURLAR.yol);
-  await hazirBekle(page, KURLAR);
+  await page.goto(EXCHANGE_RATES.yol);
+  await waitReady(page, EXCHANGE_RATES);
   await page.getByRole('button', { name: 'Düzenle' }).click();
-  const kur = page.getByRole('textbox', { name: 'Sabit Kur (TL / 1 birim)' });
+  const exchangeRate = page.getByRole('textbox', { name: 'Sabit Kur (TL / 1 birim)' });
   // Düzenle formu doldurur; değer DOM'a sonraki değişiklik algılamasında yazılır. Beklemeden `fill` yarışır: seçim
   // boş kutuda yapılır, sonra gelen "36,500000" imleci sona taşır ve "37,25" sona eklenir (CI'da "36,50000037,25").
-  await expect(kur).toHaveValue('36,500000');
-  await kur.fill('37,25');
+  await expect(exchangeRate).toHaveValue('36,500000');
+  await exchangeRate.fill('37,25');
   await page.getByRole('button', { name: 'Kaydet' }).click();
   await expect(page.locator('rc-uyari-bandi')).toContainText('Kayıt siz düzenlerken değişti');
-  await expect(kur).toHaveValue('37,250000'); // form SİLİNMEDİ
+  await expect(exchangeRate).toHaveValue('37,250000'); // form SİLİNMEDİ
   await expect(page.getByRole('textbox', { name: 'Bitiş (ops.)' })).toHaveValue('31.12.2026');
   expect(JSON.parse(written[0]?.govde ?? '{}')).toEqual({
     kur: 37.25,
@@ -409,7 +412,7 @@ test('kurlar: sabit kur PUT cakisma formu silmez — güncel kayıt birleşir, s
     aktif: true,
     surum: 'sk-2',
   });
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('dönem kapanışı: kilitle ve kilit kaldır ONAYLI; vazgeçilirse istek gitmez', async ({
@@ -421,8 +424,8 @@ test('dönem kapanışı: kilitle ve kilit kaldır ONAYLI; vazgeçilirse istek g
       return true;
     },
   });
-  await page.goto(DONEM.yol);
-  await hazirBekle(page, DONEM);
+  await page.goto(PERIOD.yol);
+  await waitReady(page, PERIOD);
   await page.getByRole('textbox', { name: 'Kapanış Tarihi' }).fill('31.08.2026');
   await page.getByRole('button', { name: 'Dönemi Kapat (fiş + kilit)' }).click();
   const dialog = page.getByRole('alertdialog');
@@ -455,8 +458,8 @@ test('r299 HIGH-1: kayıp yanıt → tekrar → mevcut SUZ 409: "daha önce kayd
       return true;
     },
   });
-  await page.goto(NAKIT.yol);
-  await hazirBekle(page, NAKIT);
+  await page.goto(CASH_ACCOUNT.yol);
+  await waitReady(page, CASH_ACCOUNT);
   const form = page.getByRole('region', { name: 'Tahsilat', exact: true });
   await form.getByRole('button', { name: 'Tahsilat Yap' }).click();
   await form.getByRole('button', { name: 'Aynı işlemi tekrar gönder' }).click();
@@ -476,8 +479,8 @@ test('r299 MEDIUM-2: TRY bakiye önerisi dövize geçince temizlenir; USD tutar�
   page,
 }) => {
   const written = await financeHubEndpoints(page);
-  await page.goto(NAKIT.yol);
-  await hazirBekle(page, NAKIT);
+  await page.goto(CASH_ACCOUNT.yol);
+  await waitReady(page, CASH_ACCOUNT);
   const form = page.getByRole('region', { name: 'Tahsilat', exact: true });
   const amount = form.getByRole('textbox', { name: 'Tutar' });
   await expect(amount).toHaveValue('1.250,50');
@@ -502,8 +505,8 @@ test('r299 MEDIUM-1: istek uçarken form ve satır ekle/sil kilitli; satır hata
       return true;
     },
   });
-  await page.goto(TOPLU_TAHSILAT.yol);
-  await hazirBekle(page, TOPLU_TAHSILAT);
+  await page.goto(BULK_COLLECTION.yol);
+  await waitReady(page, BULK_COLLECTION);
   const row = (i: number) => page.getByRole('group', { name: `Satır ${i}` });
   await row(1).getByRole('combobox', { name: 'Cari' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -530,8 +533,8 @@ test('r299 LOW-1: dönem kapanışı ve ekstre ters kayıt çift tık → tek on
       return true;
     },
   });
-  await page.goto(DONEM.yol);
-  await hazirBekle(page, DONEM);
+  await page.goto(PERIOD.yol);
+  await waitReady(page, PERIOD);
   await page.getByRole('textbox', { name: 'Kapanış Tarihi' }).fill('31.08.2026');
   await page.getByRole('button', { name: 'Dönemi Kapat (fiş + kilit)' }).dblclick();
   await expect(page.getByRole('alertdialog')).toHaveCount(1);
@@ -542,8 +545,8 @@ test('r299 LOW-1: dönem kapanışı ve ekstre ters kayıt çift tık → tek on
   await expect(page.getByText('Dönem kapatıldı.')).toBeVisible();
   expect(written).toHaveLength(1);
 
-  await page.goto(EKSTRE.yol);
-  await hazirBekle(page, EKSTRE);
+  await page.goto(STATEMENT.yol);
+  await waitReady(page, STATEMENT);
   await page.getByRole('button', { name: 'Ters Kayıt' }).first().dblclick();
   await expect(page.getByRole('alertdialog')).toHaveCount(1);
   await page.getByRole('alertdialog').getByRole('button', { name: 'Ters Kayıt' }).click();
@@ -553,12 +556,12 @@ test('r299 LOW-1: dönem kapanışı ve ekstre ters kayıt çift tık → tek on
 
 test('r299 LOW-3: aynı sekmede ?cariId= değişince sayfa yeni cariye geçer', async ({ page }) => {
   await financeHubEndpoints(page);
-  await page.goto(NAKIT.yol);
-  await hazirBekle(page, NAKIT);
+  await page.goto(CASH_ACCOUNT.yol);
+  await waitReady(page, CASH_ACCOUNT);
   await page.evaluate((url) => {
     history.pushState({}, '', url);
     dispatchEvent(new PopStateEvent('popstate', { state: {} }));
-  }, `/app/finans/nakit-islem?cariId=${CARI_2}`);
+  }, `/app/finans/nakit-islem?cariId=${ACCOUNT_2}`);
   await expect(page.getByRole('heading', { name: 'Bora Kaya' })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Cari', exact: true })).toHaveValue('Bora Kaya');
   await expect(
@@ -580,11 +583,11 @@ test('#299 L-new-1: kirli formda ?cariId= değişimi SORULUR; vazgeçilirse cari
   page,
 }) => {
   await financeHubEndpoints(page);
-  await page.goto(NAKIT.yol);
-  await hazirBekle(page, NAKIT);
+  await page.goto(CASH_ACCOUNT.yol);
+  await waitReady(page, CASH_ACCOUNT);
   const pay = page.getByRole('region', { name: 'Ödeme (tediye)' });
   await pay.getByRole('textbox', { name: 'Tutar' }).fill('75');
-  await goToCustomer(page, `/app/finans/nakit-islem?cariId=${CARI_2}`);
+  await goToCustomer(page, `/app/finans/nakit-islem?cariId=${ACCOUNT_2}`);
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('Ayşe Yılmaz');
   await dialog.getByRole('button', { name: 'Vazgeç' }).click();
@@ -596,11 +599,11 @@ test('#299 L-new-1: onaylanırsa form temizlenir ve yeni cariye geçilir (tutar 
   page,
 }) => {
   await financeHubEndpoints(page);
-  await page.goto(NAKIT.yol);
-  await hazirBekle(page, NAKIT);
+  await page.goto(CASH_ACCOUNT.yol);
+  await waitReady(page, CASH_ACCOUNT);
   const pay = page.getByRole('region', { name: 'Ödeme (tediye)' });
   await pay.getByRole('textbox', { name: 'Tutar' }).fill('75');
-  await goToCustomer(page, `/app/finans/nakit-islem?cariId=${CARI_2}`);
+  await goToCustomer(page, `/app/finans/nakit-islem?cariId=${ACCOUNT_2}`);
   await page
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Değişiklikleri sil ve geç' })
@@ -613,8 +616,8 @@ test('#299 L-new-1: bakiye düzeltme onayı HANGİ carinin düzeltileceğini sö
   page,
 }) => {
   const written = await financeHubEndpoints(page);
-  await page.goto(DUZELTME.yol);
-  await hazirBekle(page, DUZELTME);
+  await page.goto(ADJUSTMENT.yol);
+  await waitReady(page, ADJUSTMENT);
   await page.getByRole('textbox', { name: 'Tutar' }).fill('12,40');
   await page.getByRole('button', { name: 'Düzeltmeyi Kaydet' }).click();
   const dialog = page.getByRole('alertdialog');
@@ -636,13 +639,13 @@ test('r316 L2: gönderim uçarken gelen ?cariId= değişimi KAYBOLMAZ — yanıt
       return true;
     },
   });
-  await page.goto(NAKIT.yol);
-  await hazirBekle(page, NAKIT);
+  await page.goto(CASH_ACCOUNT.yol);
+  await waitReady(page, CASH_ACCOUNT);
   const pay = page.getByRole('region', { name: 'Ödeme (tediye)' });
   await pay.getByRole('textbox', { name: 'Tutar' }).fill('50');
   await pay.getByRole('button', { name: 'Ödeme Yap' }).click();
   await expect(pay.getByRole('button', { name: /Gönderiliyor/ })).toBeVisible();
-  await goToCustomer(page, `/app/finans/nakit-islem?cariId=${CARI_2}`);
+  await goToCustomer(page, `/app/finans/nakit-islem?cariId=${ACCOUNT_2}`);
   await expect(page.getByRole('heading', { name: 'Ayşe Yılmaz' })).toBeVisible();
   release();
   await expect(page.getByText('Ödeme kaydedildi.')).toBeVisible();
@@ -670,11 +673,11 @@ test('r316 M1: çıkış sırasında uçan virman yanıtı çıkıştan SONRA ge
   });
   await page.route('**/api/ui/v1/oturum/cikis', (route) => route.fulfill({ status: 204 }));
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim');
+    await writeXsrf(page, 'anonim');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni');
+    await writeXsrf(page, 'yeni');
     return route.fulfill({
       json: {
         ...BEN,
@@ -682,8 +685,8 @@ test('r316 M1: çıkış sırasında uçan virman yanıtı çıkıştan SONRA ge
       },
     });
   });
-  await page.goto(CARI_VIRMAN.yol);
-  await hazirBekle(page, CARI_VIRMAN);
+  await page.goto(ACCOUNT_TRANSFER.yol);
+  await waitReady(page, ACCOUNT_TRANSFER);
   const form = page.getByRole('region', { name: 'Virman', exact: true });
   await form.getByRole('combobox', { name: 'Kaynak Cari (alacak)' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -705,8 +708,8 @@ test('r316 M1: çıkış sırasında uçan virman yanıtı çıkıştan SONRA ge
   await page.getByLabel('Kullanıcı adı').fill('baska');
   await page.getByLabel('Parola').fill('rastgele-e2e-parolasi');
   await page.getByRole('button', { name: 'Giriş yap' }).click();
-  await page.goto(CARI_VIRMAN.yol);
-  await hazirBekle(page, CARI_VIRMAN);
+  await page.goto(ACCOUNT_TRANSFER.yol);
+  await waitReady(page, ACCOUNT_TRANSFER);
   const f2 = page.getByRole('region', { name: 'Virman', exact: true });
   await expect(f2.getByRole('textbox', { name: 'Tutar' })).toHaveValue('');
   await expect(f2.getByRole('textbox', { name: 'Tutar' })).toBeEnabled();
@@ -758,19 +761,19 @@ for (const noChannel of [false, true]) {
         return route.fulfill({ status: 204 });
       });
       await p.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-        await xsrfYaz(p, 'anonim');
+        await writeXsrf(p, 'anonim');
         return route.fulfill({ status: 204 });
       });
       await p.route('**/api/ui/v1/oturum/giris', async (route) => {
-        await xsrfYaz(p, 'yeni');
+        await writeXsrf(p, 'yeni');
         cookieOwner = other;
         return route.fulfill({ json: other });
       });
     }
-    await p1.goto(NAKIT.yol);
-    await hazirBekle(p1, NAKIT);
-    await p2.goto(CARI_VIRMAN.yol);
-    await hazirBekle(p2, CARI_VIRMAN);
+    await p1.goto(CASH_ACCOUNT.yol);
+    await waitReady(p1, CASH_ACCOUNT);
+    await p2.goto(ACCOUNT_TRANSFER.yol);
+    await waitReady(p2, ACCOUNT_TRANSFER);
     const form = p2.getByRole('region', { name: 'Virman', exact: true });
     await form.getByRole('combobox', { name: 'Kaynak Cari (alacak)' }).fill('Ay');
     await p2.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -803,10 +806,10 @@ for (const noChannel of [false, true]) {
 // ------------------------------------------- 2026-09-25: tekrar öncesi 401 → yeniden giriş, aynı kimlikte aynı anahtar
 
 /** Donmuş virman kurar (ilk yazım kayıp yanıt), sonra oturumu "düşürür": `GET oturum/ben` 401 döner. */
-async function frozenVirmanWithExpiredSession(page: Page, loginAs: object) {
+async function frozenTransferWithExpiredSession(page: Page, loginAs: object) {
   let expired = false;
   /** Sunucudaki oturum: girişten sonra `loginAs` (şube kapsamı farklı olabilir). */
-  let current: object = BEN_TERS;
+  let current: object = ME_REVERSE;
   const written = await financeHubEndpoints(page, {
     write: async (r, path) => {
       if (path !== '/api/ui/v1/finans/cari-virman') return false;
@@ -821,17 +824,17 @@ async function frozenVirmanWithExpiredSession(page: Page, loginAs: object) {
       : route.fulfill({ json: current }),
   );
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim');
+    await writeXsrf(page, 'anonim');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni');
+    await writeXsrf(page, 'yeni');
     expired = false;
     current = loginAs;
     return route.fulfill({ json: loginAs });
   });
-  await page.goto(CARI_VIRMAN.yol);
-  await hazirBekle(page, CARI_VIRMAN);
+  await page.goto(ACCOUNT_TRANSFER.yol);
+  await waitReady(page, ACCOUNT_TRANSFER);
   const form = page.getByRole('region', { name: 'Virman', exact: true });
   await form.getByRole('combobox', { name: 'Kaynak Cari (alacak)' }).fill('Ay');
   await page.getByRole('option', { name: 'Ayşe Yılmaz' }).click();
@@ -848,7 +851,7 @@ async function frozenVirmanWithExpiredSession(page: Page, loginAs: object) {
 test('tekrar öncesi oturum düşmüş (401): deneme bırakılmaz — yeniden giriş, AYNI kullanıcı → AYNI anahtar + gövdeyle tek işlem', async ({
   page,
 }) => {
-  const { retry, written } = await frozenVirmanWithExpiredSession(page, BEN_TERS);
+  const { retry, written } = await frozenTransferWithExpiredSession(page, ME_REVERSE);
   await retry.click();
   const dialog = page.getByRole('dialog', { name: 'Oturumunuz sona erdi' });
   await expect(dialog).toBeVisible();
@@ -868,10 +871,10 @@ test('#320 M1: 401 → aynı kullanıcı ŞUBESİ değişmiş girer → tek tekr
   page,
 }) => {
   const branched = {
-    ...BEN_TERS,
+    ...ME_REVERSE,
     subeKapsami: { tumSubeler: false, subeId: 's-9', subeAd: 'Merkez' },
   };
-  const { form, retry, written } = await frozenVirmanWithExpiredSession(page, branched);
+  const { form, retry, written } = await frozenTransferWithExpiredSession(page, branched);
   await retry.click();
   const dialog = page.getByRole('dialog', { name: 'Oturumunuz sona erdi' });
   await expect(dialog).toBeVisible();
@@ -890,7 +893,7 @@ test('#320 M1: 401 → aynı kullanıcı ŞUBESİ değişmiş girer → tek tekr
 test('tekrar öncesi 401 + yeniden girişten vazgeçildi: gönderilmez, işlem ve anahtarı korunur', async ({
   page,
 }) => {
-  const { form, retry, written } = await frozenVirmanWithExpiredSession(page, BEN_TERS);
+  const { form, retry, written } = await frozenTransferWithExpiredSession(page, ME_REVERSE);
   await retry.click();
   const dialog = page.getByRole('dialog', { name: 'Oturumunuz sona erdi' });
   await expect(dialog).toBeVisible();
@@ -904,10 +907,10 @@ test('tekrar öncesi 401 + yeniden girişten vazgeçildi: gönderilmez, işlem v
 
 test('tekrar öncesi 401 + BAŞKA kullanıcıyla giriş: eski deneme GÖNDERİLMEZ', async ({ page }) => {
   const other = {
-    ...BEN_TERS,
-    kullanici: { ...BEN_TERS.kullanici, id: 'baska-kullanici', kullaniciAdi: 'baska' },
+    ...ME_REVERSE,
+    kullanici: { ...ME_REVERSE.kullanici, id: 'baska-kullanici', kullaniciAdi: 'baska' },
   };
-  const { retry, written } = await frozenVirmanWithExpiredSession(page, other);
+  const { retry, written } = await frozenTransferWithExpiredSession(page, other);
   await retry.click();
   const dialog = page.getByRole('dialog', { name: 'Oturumunuz sona erdi' });
   await expect(dialog).toBeVisible();
@@ -926,8 +929,8 @@ for (const s of PAGES) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -935,7 +938,7 @@ for (const s of PAGES) {
     await financeHubEndpoints(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

@@ -4,21 +4,21 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
-import { type GunMetni, bugun } from '@core/form/tarih-girdisi';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
-import { ParaPipe } from '@shared/bicim/bicim-pipe';
+import type { Schema } from '@core/api/ui-tipleri';
+import { clearServerErrors, applyServerErrors } from '@core/form/sunucu-hatalari';
+import { type DayText, bugun } from '@core/form/tarih-girdisi';
+import { requestContext } from '@core/oturum/request-context';
+import { textValue } from '@features/planlama-ortak/form-yardimcilari';
+import { MoneyPipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
-type RateMatrixPrice = Sema<'RateMatrixPriceDto'>;
+type RateMatrixPrice = Schema<'RateMatrixPriceDto'>;
 
 const toNum = (v: number | string): number => (typeof v === 'number' ? v : Number(v));
 
@@ -34,11 +34,11 @@ const toNum = (v: number | string): number => (typeof v === 'number' ? v : Numbe
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    ParaPipe,
-    SayiGirdisi,
-    TarihSecici,
+    FormErrors,
+    TextInput,
+    MoneyPipe,
+    NumberInput,
+    DatePicker,
   ],
   template: `
     <details class="rc-bolum acilir">
@@ -108,7 +108,7 @@ export class RatePriceQuery {
     sube: new FormControl<string | null>(null),
     aracGrupKod: new FormControl<string | null>(null),
     paraBirimi: new FormControl<string | null>(null),
-    tarih: new FormControl<GunMetni | null>(bugun(), Validators.required),
+    tarih: new FormControl<DayText | null>(bugun(), Validators.required),
     gun: new FormControl<number | null>(1, [
       Validators.required,
       Validators.min(1),
@@ -118,7 +118,7 @@ export class RatePriceQuery {
 
   protected run(): void {
     if (this.busy()) return;
-    sunucuHatalariniTemizle(this.form);
+    clearServerErrors(this.form);
     this.errors.set([]);
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
@@ -129,14 +129,14 @@ export class RatePriceQuery {
     this.api
       .get<RateMatrixPrice>('/api/ui/v1/tarife-matris/fiyat', {
         parametreler: {
-          kanal: metinDegeri(v.kanal),
-          sube: metinDegeri(v.sube),
-          aracGrupKod: metinDegeri(v.aracGrupKod),
-          paraBirimi: metinDegeri(v.paraBirimi),
+          kanal: textValue(v.kanal),
+          sube: textValue(v.sube),
+          aracGrupKod: textValue(v.aracGrupKod),
+          paraBirimi: textValue(v.paraBirimi),
           tarih: v.tarih,
           gun: v.gun,
         },
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       })
       .pipe(
         finalize(() => this.busy.set(false)),
@@ -145,12 +145,12 @@ export class RatePriceQuery {
       .subscribe({
         next: (r) => this.result.set(r),
         error: (raw: unknown) => {
-          const e = apiHatasinaCevir(raw);
+          const e = toApiError(raw);
           if (e.status === 404) {
             this.notFound.set(true);
             return;
           }
-          const unmatched = sunucuHatalariniUygula(this.form, e.alanlar);
+          const unmatched = applyServerErrors(this.form, e.alanlar);
           this.errors.set(unmatched.length > 0 ? unmatched : e.alanlar ? [] : [e.detay]);
         },
       });

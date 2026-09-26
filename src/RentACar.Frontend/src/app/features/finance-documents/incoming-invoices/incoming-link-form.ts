@@ -12,21 +12,24 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 
 import {
   EXPENSE_TYPES,
@@ -50,26 +53,34 @@ import { INCOMING, recordPath } from '../document.store';
 @Component({
   selector: 'rc-incoming-link-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, Alan, AramaSecim, FormHatalari, ParaGirdisi, Secim],
+  imports: [
+    ReactiveFormsModule,
+    TranslocoPipe,
+    Alan,
+    SearchSelection,
+    FormErrors,
+    MoneyInput,
+    Selection,
+  ],
   templateUrl: './incoming-link-form.html',
   styleUrl: '../finance-documents.scss',
 })
 export class IncomingLinkForm implements OnInit {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   readonly invoiceId = input.required<string>();
   readonly saved = output<IncomingInvoiceLinkResult>();
   readonly closed = output<void>();
   readonly dirtyChange = output<boolean>();
 
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly vehicles = serverSelectionSource('arac');
+  protected readonly customers = serverSelectionSource('musteri');
   /** Aktif gider kategorileri (`/secim/gider-kategorisi`: OperationsWrite VEYA FinanceWrite; #300). */
-  protected readonly categories = sunucuSecimKaynagi('gider-kategorisi');
+  protected readonly categories = serverSelectionSource('gider-kategorisi');
   protected readonly typeOptions: readonly SecenekOgesi<ExpenseType>[] = EXPENSE_TYPES.map((x) => ({
     deger: x,
     etiket: this.t(`finansBelge.gider.turler.${x}`),
@@ -90,7 +101,7 @@ export class IncomingLinkForm implements OnInit {
     cari: new FormControl<SecimSecenegi | null>(null),
     giderTipi: new FormControl<ExpenseType | null>(null),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   constructor() {
     this.form.valueChanges
@@ -138,7 +149,7 @@ export class IncomingLinkForm implements OnInit {
       .subscribe({
         next: (d) => this.arrived(d),
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
         },
       });
@@ -151,14 +162,14 @@ export class IncomingLinkForm implements OnInit {
     if (previous === null || !this.form.dirty) {
       this.form.reset({ ...fresh });
     } else {
-      const conflicts = sunucuDegerleriniBirlestir(
+      const conflicts = mergeServerValues(
         this.form,
         { ...fresh },
         { ...incomingToLinkForm(previous.fatura) },
         this.t('finansBelge.cakismaAlan'),
       );
       if (conflicts.length > 0)
-        this.banner.goster({
+        this.banner.show({
           tur: 'uyari',
           mesaj: this.t('finansBelge.cakismaBant', { sayi: conflicts.length }),
           kod: 'cakisma',

@@ -230,7 +230,7 @@
             {{ 'finansBelge.kapat' | transloco }}
           </button>
         </div>
-      } @else if (store.detail.yukleniyor()) {
+      } @else if (store.detail.isLoading()) {
         <p class="not" id="rc-fatura-detay" aria-busy="true">
           {{ 'finansBelge.yukleniyor' | transloco }}
         </p>
@@ -254,7 +254,7 @@
         {{ (batchOpen() ? 'finansBelge.gizle' : 'finansBelge.fatura.topluGoster') | transloco }}
       </button>
       @if (batchOpen()) {
-        @if (candidates().length === 0 && !store.unbilled.yukleniyor()) {
+        @if (candidates().length === 0 && !store.unbilled.isLoading()) {
           <p class="not">{{ 'finansBelge.fatura.faturalanacakYok' | transloco }}</p>
         } @else {
           <div class="rc-tablo-kap">

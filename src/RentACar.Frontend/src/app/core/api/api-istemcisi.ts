@@ -11,31 +11,31 @@ import {
 import { EnvironmentProviders, Injectable, inject } from '@angular/core';
 import { Observable, catchError, throwError } from 'rxjs';
 
-import { apiHatasinaCevir } from './api-hatasi';
+import { toApiError } from './api-hatasi';
 
 /** Tüm yeni arayüz uçlarının kökü. Göreli (kök-göreli) — mutlak URL lint'le yasak. */
-export const API_KOKU = '/api/ui/v1';
+export const API_ROOT = '/api/ui/v1';
 
 /**
  * Uç yolu TİP düzeyinde kök-göreli: `/api/ui/v1/...`. OpenAPI anlık görüntüsündeki (`docs/api/ui-v1.json`)
  * `paths` anahtarlarıyla birebir aynı biçim — grep ve tip üretimi için.
  */
-export type ApiYolu = `${typeof API_KOKU}/${string}`;
+export type ApiPath = `${typeof API_ROOT}/${string}`;
 
 /** Backend sözleşmesi (`UiApiExtensions.XsrfCerezi` / `XsrfBasligi`). */
-export const XSRF_CEREZI = 'XSRF-TOKEN';
-export const XSRF_BASLIGI = 'X-XSRF-TOKEN';
-export const IDEMPOTENCY_BASLIGI = 'Idempotency-Key';
+export const XSRF_COOKIE = 'XSRF-TOKEN';
+export const XSRF_HEADER = 'X-XSRF-TOKEN';
+export const IDEMPOTENCY_HEADER = 'Idempotency-Key';
 
-type SorguDegeri = string | number | boolean;
+type QueryValue = string | number | boolean;
 
 /** Sorgu parametreleri; `null`/`undefined` değerler gönderilmez. */
-export type SorguParametreleri = Readonly<
-  Record<string, SorguDegeri | readonly SorguDegeri[] | null | undefined>
+export type QueryParameters = Readonly<
+  Record<string, QueryValue | readonly QueryValue[] | null | undefined>
 >;
 
 export interface IstekSecenekleri {
-  readonly parametreler?: SorguParametreleri;
+  readonly parametreler?: QueryParameters;
   /**
    * `Idempotency-Key` başlığı (16–128 görünür ASCII). Sunucu bunu UUIDv5(kiracı|kullanıcı|başlık)'a
    * çevirir; deterministik sunucu anahtarı (ör. `TahsilatAnahtar`) varsa o önceliklidir. Anahtarın
@@ -62,48 +62,48 @@ export interface IstekSecenekleri {
 export class ApiIstemcisi {
   private readonly http = inject(HttpClient);
 
-  get<T>(yol: ApiYolu, secenek?: IstekSecenekleri): Observable<T> {
-    return this.istek<T>('GET', yol, undefined, secenek);
+  get<T>(path: ApiPath, option?: IstekSecenekleri): Observable<T> {
+    return this.istek<T>('GET', path, undefined, option);
   }
 
-  post<T>(yol: ApiYolu, govde: unknown, secenek?: IstekSecenekleri): Observable<T> {
-    return this.istek<T>('POST', yol, govde, secenek);
+  post<T>(path: ApiPath, body: unknown, option?: IstekSecenekleri): Observable<T> {
+    return this.istek<T>('POST', path, body, option);
   }
 
-  put<T>(yol: ApiYolu, govde: unknown, secenek?: IstekSecenekleri): Observable<T> {
-    return this.istek<T>('PUT', yol, govde, secenek);
+  put<T>(path: ApiPath, body: unknown, option?: IstekSecenekleri): Observable<T> {
+    return this.istek<T>('PUT', path, body, option);
   }
 
-  patch<T>(yol: ApiYolu, govde: unknown, secenek?: IstekSecenekleri): Observable<T> {
-    return this.istek<T>('PATCH', yol, govde, secenek);
+  patch<T>(path: ApiPath, body: unknown, option?: IstekSecenekleri): Observable<T> {
+    return this.istek<T>('PATCH', path, body, option);
   }
 
-  delete<T>(yol: ApiYolu, secenek?: IstekSecenekleri): Observable<T> {
-    return this.istek<T>('DELETE', yol, undefined, secenek);
+  delete<T>(path: ApiPath, option?: IstekSecenekleri): Observable<T> {
+    return this.istek<T>('DELETE', path, undefined, option);
   }
 
   private istek<T>(
-    yontem: string,
-    yol: ApiYolu,
-    govde: unknown,
-    secenek: IstekSecenekleri | undefined,
+    method: string,
+    path: ApiPath,
+    body: unknown,
+    option: IstekSecenekleri | undefined,
   ): Observable<T> {
-    yoluDenetle(yol);
-    let basliklar = new HttpHeaders();
-    if (secenek?.islemAnahtari !== undefined) {
-      basliklar = basliklar.set(IDEMPOTENCY_BASLIGI, secenek.islemAnahtari);
+    checkPath(path);
+    let headers = new HttpHeaders();
+    if (option?.islemAnahtari !== undefined) {
+      headers = headers.set(IDEMPOTENCY_HEADER, option.islemAnahtari);
     }
     return this.http
-      .request<T>(yontem, yol, {
-        body: govde,
-        params: httpParametreleri(secenek?.parametreler),
-        headers: basliklar,
-        context: secenek?.context,
+      .request<T>(method, path, {
+        body: body,
+        params: httpParams(option?.parametreler),
+        headers: headers,
+        context: option?.context,
         withCredentials: true,
         observe: 'body',
         responseType: 'json',
       })
-      .pipe(catchError((hata: unknown) => throwError(() => apiHatasinaCevir(hata))));
+      .pipe(catchError((error: unknown) => throwError(() => toApiError(error))));
   }
 }
 
@@ -111,40 +111,40 @@ export class ApiIstemcisi {
  * Uygulama sağlayıcısı: `HttpClient` + XSRF yapılandırması (backend çerez/başlık adları). F3.3 kendi
  * interceptor'larını (kod'a göre diyalog/bant/toast) buraya parametre olarak verir.
  */
-export function provideApiIstemcisi(...interceptorlar: HttpInterceptorFn[]): EnvironmentProviders {
+export function provideApiClient(...interceptors: HttpInterceptorFn[]): EnvironmentProviders {
   return provideHttpClient(
-    withXsrfConfiguration({ cookieName: XSRF_CEREZI, headerName: XSRF_BASLIGI }),
-    withInterceptors(interceptorlar),
+    withXsrfConfiguration({ cookieName: XSRF_COOKIE, headerName: XSRF_HEADER }),
+    withInterceptors(interceptors),
   );
 }
 
 /** Programlama hatası → yüksek sesle (eşzamanlı) fırlatır; `TemelStore` bunu yine `hata` durumuna çevirir. */
-function yoluDenetle(yol: string): void {
-  const gecerli =
-    yol.startsWith(`${API_KOKU}/`) &&
-    !yol.includes('?') &&
-    !yol.includes('#') &&
-    !yol.includes('\\') &&
-    !yol
-      .slice(API_KOKU.length + 1)
+function checkPath(path: string): void {
+  const valid =
+    path.startsWith(`${API_ROOT}/`) &&
+    !path.includes('?') &&
+    !path.includes('#') &&
+    !path.includes('\\') &&
+    !path
+      .slice(API_ROOT.length + 1)
       .split('/')
       .some((segment) => segment === '' || segment === '.' || segment === '..');
-  if (!gecerli) {
+  if (!valid) {
     throw new TypeError(
-      `Geçersiz API yolu: "${yol}". Yol "${API_KOKU}/" ile başlamalı; sorgu "parametreler" ile verilir.`,
+      `Geçersiz API yolu: "${path}". Yol "${API_ROOT}/" ile başlamalı; sorgu "parametreler" ile verilir.`,
     );
   }
 }
 
-function httpParametreleri(parametreler: SorguParametreleri | undefined): HttpParams {
-  let sonuc = new HttpParams();
-  if (parametreler === undefined) return sonuc;
-  for (const [ad, deger] of Object.entries(parametreler)) {
-    if (deger === null || deger === undefined) continue;
-    const degerler: readonly SorguDegeri[] = Array.isArray(deger)
-      ? (deger as readonly SorguDegeri[])
-      : [deger as SorguDegeri];
-    for (const tek of degerler) sonuc = sonuc.append(ad, String(tek));
+function httpParams(parameters: QueryParameters | undefined): HttpParams {
+  let result = new HttpParams();
+  if (parameters === undefined) return result;
+  for (const [name, value] of Object.entries(parameters)) {
+    if (value === null || value === undefined) continue;
+    const values: readonly QueryValue[] = Array.isArray(value)
+      ? (value as readonly QueryValue[])
+      : [value as QueryValue];
+    for (const tek of values) result = result.append(name, String(tek));
   }
-  return sonuc;
+  return result;
 }

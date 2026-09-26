@@ -7,18 +7,18 @@ import {
   Validators,
 } from '@angular/forms';
 import type { Subscription } from 'rxjs';
-import type { SorguParametreleri } from '@core/api/api-istemcisi';
-import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
-import { type GunMetni, anBirlestir, anParcala, gunCoz } from '@core/form/tarih-girdisi';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { QueryParameters } from '@core/api/api-istemcisi';
+import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
+import { type DayText, mergeMoment, parseMoment, parseDay } from '@core/form/tarih-girdisi';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 import type {
   AracSecenegi,
-  KiraAraci,
-  KiraDetayYaniti,
-  KiraGuncelleIstegi,
-  KiraOlusturIstegi,
-  MusaitArac,
-  SunucuSayisi,
+  RentalVehicle,
+  RentalDetailResponse,
+  UpdateRentalRequest,
+  CreateRentalRequest,
+  AvailableVehicle,
+  ServerNumber,
 } from './kira-tipleri';
 
 /*
@@ -31,7 +31,7 @@ import type {
 // ─── Sekmeler + derin bağlantı ────────────────────────────────────────────────────────────────
 
 /** Ana sekmeler — kimlikler Blazor mega-formuyla AYNI (`#sekme=donus` bağlantıları geçerli kalır). */
-export const SEKMELER = [
+export const TABS = [
   'hizli',
   'kira',
   'musteri',
@@ -41,10 +41,10 @@ export const SEKMELER = [
   'ayrintilar',
   'donus',
 ] as const;
-export type SekmeKimligi = (typeof SEKMELER)[number];
+export type TabId = (typeof TABS)[number];
 
 /** Ayrıntılar alt sekmeleri (`#sekme=ayrintilar&alt=aksesuar`). */
-export const ALT_SEKMELER = [
+export const SUB_TABS = [
   'aciklama',
   'finans',
   'suruculer',
@@ -54,43 +54,43 @@ export const ALT_SEKMELER = [
   'aksesuar',
   'ekkosullar',
 ] as const;
-export type AltSekmeKimligi = (typeof ALT_SEKMELER)[number];
+export type SubTabId = (typeof SUB_TABS)[number];
 
 /** `#sekme=x&alt=y` → `{ sekme: 'x', alt: 'y' }` (bilinmeyen anahtarlar da döner; doğrulama çağıranda). */
-export function hashParcala(hash: string): Readonly<Record<string, string>> {
-  const sonuc: Record<string, string> = {};
-  for (const parca of hash.replace(/^#/, '').split('&')) {
-    const i = parca.indexOf('=');
+export function parseHash(hash: string): Readonly<Record<string, string>> {
+  const result: Record<string, string> = {};
+  for (const part of hash.replace(/^#/, '').split('&')) {
+    const i = part.indexOf('=');
     if (i <= 0) continue;
     try {
-      sonuc[parca.slice(0, i)] = decodeURIComponent(parca.slice(i + 1));
+      result[part.slice(0, i)] = decodeURIComponent(part.slice(i + 1));
     } catch {
       // bozuk yüzde kodlaması: parça yok sayılır
     }
   }
-  return sonuc;
+  return result;
 }
 
-export function sekmeMi(deger: string | undefined): deger is SekmeKimligi {
-  return (SEKMELER as readonly string[]).includes(deger ?? '');
+export function isTab(value: string | undefined): value is TabId {
+  return (TABS as readonly string[]).includes(value ?? '');
 }
 
-export function altSekmeMi(deger: string | undefined): deger is AltSekmeKimligi {
-  return (ALT_SEKMELER as readonly string[]).includes(deger ?? '');
+export function isSubTab(value: string | undefined): value is SubTabId {
+  return (SUB_TABS as readonly string[]).includes(value ?? '');
 }
 
 /**
  * Alt sekme adresi: TAM yol (`pathname + search + '#…'`). Çıplak `#` `<base href="/app/">` altında
  * köke çözülür (Blazor dersi) — yol ve sorgu açıkça korunur.
  */
-export function altSekmeAdresi(pathname: string, search: string, alt: AltSekmeKimligi): string {
-  return `${pathname}${search}#sekme=ayrintilar&alt=${encodeURIComponent(alt)}`;
+export function subTabUrl(pathname: string, search: string, sub: SubTabId): string {
+  return `${pathname}${search}#sekme=ayrintilar&alt=${encodeURIComponent(sub)}`;
 }
 
 // ─── Sorgu sözleşmesi (?varac, ?vfrom, ?vto, ?vgrup, ?musteriId) ─────────────────────────────
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const GUN = /^\d{4}-\d{2}-\d{2}$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Blazor'da kalan müsaitlik (`MusaitlikArama` "Kirala") ve araç durumu (`FleetStatus` "Kirala") bu
@@ -98,41 +98,41 @@ const GUN = /^\d{4}-\d{2}-\d{2}$/;
  */
 export interface KiraSorgusu {
   readonly varac: string | null;
-  readonly vfrom: GunMetni | null;
-  readonly vto: GunMetni | null;
+  readonly vfrom: DayText | null;
+  readonly vto: DayText | null;
   readonly vgrup: string | null;
   readonly musteriId: string | null;
 }
 
-export function kiraSorgusuCoz(oku: (ad: string) => string | null): KiraSorgusu {
-  const kimlik = (ad: string): string | null => {
-    const d = oku(ad)?.trim() ?? '';
+export function resolveRentalQuery(read: (name: string) => string | null): KiraSorgusu {
+  const identity = (name: string): string | null => {
+    const d = read(name)?.trim() ?? '';
     return UUID.test(d) ? d : null;
   };
-  const gun = (ad: string): GunMetni | null => {
-    const d = oku(ad)?.trim() ?? '';
-    if (!GUN.test(d)) return null;
-    const cozum = gunCoz(`${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}`);
-    return cozum === d ? d : null;
+  const day = (name: string): DayText | null => {
+    const d = read(name)?.trim() ?? '';
+    if (!DAY.test(d)) return null;
+    const resolution = parseDay(`${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}`);
+    return resolution === d ? d : null;
   };
-  const grup = oku('vgrup')?.trim() ?? '';
+  const group = read('vgrup')?.trim() ?? '';
   return {
-    varac: kimlik('varac'),
-    vfrom: gun('vfrom'),
-    vto: gun('vto'),
-    vgrup: grup === '' ? null : grup.slice(0, 64),
-    musteriId: kimlik('musteriId'),
+    varac: identity('varac'),
+    vfrom: day('vfrom'),
+    vto: day('vto'),
+    vgrup: group === '' ? null : group.slice(0, 64),
+    musteriId: identity('musteriId'),
   };
 }
 
 export interface MusaitPencere {
-  readonly vfrom: GunMetni;
-  readonly vto: GunMetni;
+  readonly vfrom: DayText;
+  readonly vto: DayText;
   readonly vgrup: string | null;
 }
 
 /** Geçerli müsaitlik penceresi (bitiş > başlangıç) — Blazor `MusaitMod` koşulu. */
-export function musaitPencere(
+export function availabilityWindow(
   s: Pick<KiraSorgusu, 'vfrom' | 'vto' | 'vgrup'>,
 ): MusaitPencere | null {
   return s.vfrom && s.vto && s.vto > s.vfrom
@@ -141,19 +141,19 @@ export function musaitPencere(
 }
 
 /** Pencere günlerinden kira tarihleri: İstanbul saatiyle 09:00 (Blazor `BasTarPrefill` ile aynı saat). */
-export const VARSAYILAN_SAAT = '09:00';
+export const DEFAULT_HOUR = '09:00';
 
-export function penceredenTarihler(p: MusaitPencere): { basTar: string; bitTar: string } {
+export function datesFromWindow(p: MusaitPencere): { basTar: string; bitTar: string } {
   return {
-    basTar: anBirlestir(p.vfrom, VARSAYILAN_SAAT),
-    bitTar: anBirlestir(p.vto, VARSAYILAN_SAAT),
+    basTar: mergeMoment(p.vfrom, DEFAULT_HOUR),
+    bitTar: mergeMoment(p.vto, DEFAULT_HOUR),
   };
 }
 
 // ─── Form yapısı ──────────────────────────────────────────────────────────────────────────────
 
 type K<T> = FormControl<T | null>;
-type Para = string | number;
+type Money = string | number;
 
 export interface EkHizmetSatiri {
   tanim: K<SecimSecenegi>;
@@ -161,7 +161,7 @@ export interface EkHizmetSatiri {
 }
 
 /** Hızlı Giriş ve Ayrıntılar'daki AYNA kontroller (kanonik alanın ikinci görünümü; gövdeye girmez). */
-export const AYNALI_ALANLAR = [
+export const MIRRORED_FIELDS = [
   'musteri',
   'basTar',
   'bitTar',
@@ -179,7 +179,7 @@ export const AYNALI_ALANLAR = [
   'manuelFindexPuan',
   'kefilBilgisi',
 ] as const;
-export type AynaliAlan = (typeof AYNALI_ALANLAR)[number];
+export type MirroredField = (typeof MIRRORED_FIELDS)[number];
 
 export interface KiraFormKontrolleri {
   // Yalnız yeni kira (düzenlemede pasif — tarih = Uzat, fiyat = fark faturası)
@@ -188,7 +188,7 @@ export interface KiraFormKontrolleri {
   basTar: K<string>;
   bitTar: K<string>;
   fiyatTuru: K<string>;
-  gunlukUcret: K<Para>;
+  gunlukUcret: K<Money>;
   doviz: K<string>;
   kampanyaKodu: K<string>;
   riskOnay: K<boolean>;
@@ -207,24 +207,24 @@ export interface KiraFormKontrolleri {
   kiralamaTuru: K<string>;
   donemselFaturalama: K<boolean>;
   faturalamaTipi: K<string>;
-  provizyon: K<Para>;
-  depozito: K<Para>;
+  provizyon: K<Money>;
+  depozito: K<Money>;
   komisyonOran: K<number>;
-  komisyonTutar: K<Para>;
-  dropUcreti: K<Para>;
+  komisyonTutar: K<Money>;
+  dropUcreti: K<Money>;
   sonraOdeOran: K<number>;
   uyariAciklama: K<string>;
   ozelFaturaAciklama: K<string>;
   faturaListesindeGizle: K<boolean>;
   ucusNo: K<string>;
   provizyonNo: K<string>;
-  provizyonTarih: K<GunMetni>;
+  provizyonTarih: K<DayText>;
   onayKodu: K<string>;
   firmaKodu: K<string>;
   projeAdi: K<string>;
   ozelKod: K<string>;
   ozelKdvOran: K<number>;
-  damgaVergisi: K<Para>;
+  damgaVergisi: K<Money>;
   talepTuru: K<string>;
   geldigiBirim: K<string>;
   kefilBilgisi: K<string>;
@@ -233,7 +233,7 @@ export interface KiraFormKontrolleri {
   ekKosullar: K<string>;
   belgeSablonId: K<string>;
   manuelFindexPuan: K<number>;
-  opsiyonNet: K<Para>;
+  opsiyonNet: K<Money>;
   opsiyonGun: K<number>;
   kabisCikis: K<boolean>;
   kabisDonus: K<boolean>;
@@ -245,22 +245,22 @@ export interface KiraFormKontrolleri {
   aksLastikCikis: K<string>;
   // Yalnız düzenleme (Blazor create ucu bunları BAĞLAMIYOR — yeni kirada sessizce kaybolmasın diye pasif)
   kmLimit: K<number>;
-  fazlaKmUcret: K<Para>;
-  yakitBirimUcret: K<Para>;
+  fazlaKmUcret: K<Money>;
+  yakitBirimUcret: K<Money>;
   teslimEdenPersonel: K<SecimSecenegi>;
   aksYedekAnahtarDonus: K<boolean>;
   aksStepneDonus: K<boolean>;
   aksZincirDonus: K<boolean>;
   aksIlkYardimDonus: K<boolean>;
   aksLastikDonus: K<string>;
-  ayna: FormGroup<{ [A in AynaliAlan]: KiraFormKontrolleri[A] }>;
+  ayna: FormGroup<{ [A in MirroredField]: KiraFormKontrolleri[A] }>;
 }
 
-export type KiraFormu = FormGroup<KiraFormKontrolleri>;
-export type KiraFormDegeri = ReturnType<KiraFormu['getRawValue']>;
+export type RentalForm = FormGroup<KiraFormKontrolleri>;
+export type RentalFormValue = ReturnType<RentalForm['getRawValue']>;
 
 /** Yalnız yeni kirada düzenlenir (PUT whitelist'inde yok). */
-export const YALNIZ_YENI: readonly (keyof KiraFormKontrolleri)[] = [
+export const NEW_ONLY: readonly (keyof KiraFormKontrolleri)[] = [
   'musteri',
   'arac',
   'basTar',
@@ -274,7 +274,7 @@ export const YALNIZ_YENI: readonly (keyof KiraFormKontrolleri)[] = [
 ];
 
 /** Yalnız kayıtlı kirada düzenlenir (oluşturma gövdesinde yok). */
-export const YALNIZ_DUZENLEME: readonly (keyof KiraFormKontrolleri)[] = [
+export const EDIT_ONLY: readonly (keyof KiraFormKontrolleri)[] = [
   'kmLimit',
   'fazlaKmUcret',
   'yakitBirimUcret',
@@ -287,7 +287,7 @@ export const YALNIZ_DUZENLEME: readonly (keyof KiraFormKontrolleri)[] = [
 ];
 
 /** Tamamlanmış kirada sunucunun reddettiği değişiklikler (aşım parametreleri, 2. sürücü, ofisler, drop). */
-export const TAMAMLANMISTA_DONUK: readonly (keyof KiraFormKontrolleri)[] = [
+export const FROZEN_WHEN_COMPLETED: readonly (keyof KiraFormKontrolleri)[] = [
   'kmLimit',
   'fazlaKmUcret',
   'yakitBirimUcret',
@@ -302,74 +302,74 @@ export const TAMAMLANMISTA_DONUK: readonly (keyof KiraFormKontrolleri)[] = [
 ];
 
 /** Sunucu alan adı → form yolu (adı farklı olanlar; gerisi büyük/küçük harf duyarsız aynı ad). */
-export const SUNUCU_ALAN_ESLEMESI: Readonly<Record<string, string>> = {
+export const SERVER_FIELD_MAPPING: Readonly<Record<string, string>> = {
   musteriId: 'musteri',
   vehicleId: 'arac',
   ikinciSurucuId: 'ikinciSurucu',
   teslimEdenPersonelId: 'teslimEdenPersonel',
 };
 
-export type KiraFormModu = 'yeni' | 'duzenle';
+export type RentalFormMode = 'yeni' | 'duzenle';
 
-export function kiraFormuOlustur(mod: KiraFormModu): KiraFormu {
-  const yeni = mod === 'yeni';
-  const k = <T>(deger: T | null = null, ...dogrulayicilar: ValidatorFn[]): K<T> =>
-    new FormControl<T | null>(deger, dogrulayicilar);
-  const metin = (azami: number): K<string> => k<string>(null, Validators.maxLength(azami));
-  const zorunluYeni = yeni ? [Validators.required] : [];
-  const zorunluDuzenle = yeni ? [] : [Validators.required];
+export function createRentalForm(mod: RentalFormMode): RentalForm {
+  const newItem = mod === 'yeni';
+  const k = <T>(value: T | null = null, ...validators: ValidatorFn[]): K<T> =>
+    new FormControl<T | null>(value, validators);
+  const text = (maximum: number): K<string> => k<string>(null, Validators.maxLength(maximum));
+  const requiredNew = newItem ? [Validators.required] : [];
+  const requiredEdit = newItem ? [] : [Validators.required];
 
-  const kanonik = {
-    musteri: k<SecimSecenegi>(null, ...zorunluYeni),
-    arac: k<AracSecenegi>(null, ...zorunluYeni),
-    basTar: k<string>(null, ...zorunluYeni),
-    bitTar: k<string>(null, ...zorunluYeni),
+  const canonical = {
+    musteri: k<SecimSecenegi>(null, ...requiredNew),
+    arac: k<AracSecenegi>(null, ...requiredNew),
+    basTar: k<string>(null, ...requiredNew),
+    bitTar: k<string>(null, ...requiredNew),
     fiyatTuru: k<string>(),
-    gunlukUcret: k<Para>(),
+    gunlukUcret: k<Money>(),
     doviz: k<string>(),
-    kampanyaKodu: metin(64),
+    kampanyaKodu: text(64),
     riskOnay: k<boolean>(false),
     ekHizmetler: new FormArray<FormGroup<EkHizmetSatiri>>([]),
     cikisOfisi: k<SecimSecenegi>(),
     donusOfisi: k<SecimSecenegi>(),
     ikinciSurucu: k<SecimSecenegi>(),
-    ikinciSurucuSerbestAd: metin(64),
-    ikinciSurucuSerbestSoyad: metin(64),
-    ikinciSurucuSerbestTel: metin(32),
-    ikinciSurucuSerbestEhliyetSinifi: metin(16),
-    odemeSekli: metin(64),
-    aciklama: metin(1024),
-    kaynak: metin(64),
+    ikinciSurucuSerbestAd: text(64),
+    ikinciSurucuSerbestSoyad: text(64),
+    ikinciSurucuSerbestTel: text(32),
+    ikinciSurucuSerbestEhliyetSinifi: text(16),
+    odemeSekli: text(64),
+    aciklama: text(1024),
+    kaynak: text(64),
     kiralamaTuru: k<string>(),
     donemselFaturalama: k<boolean>(false),
     faturalamaTipi: k<string>(),
-    provizyon: k<Para>(),
-    depozito: k<Para>(),
+    provizyon: k<Money>(),
+    depozito: k<Money>(),
     komisyonOran: k<number>(null, Validators.min(0), Validators.max(100)),
-    komisyonTutar: k<Para>(),
-    dropUcreti: k<Para>(),
+    komisyonTutar: k<Money>(),
+    dropUcreti: k<Money>(),
     sonraOdeOran: k<number>(null, Validators.min(0), Validators.max(100)),
-    uyariAciklama: metin(512),
-    ozelFaturaAciklama: metin(512),
+    uyariAciklama: text(512),
+    ozelFaturaAciklama: text(512),
     faturaListesindeGizle: k<boolean>(false),
-    ucusNo: metin(32),
-    provizyonNo: metin(64),
-    provizyonTarih: k<GunMetni>(),
-    onayKodu: metin(64),
-    firmaKodu: metin(64),
-    projeAdi: metin(128),
-    ozelKod: metin(64),
+    ucusNo: text(32),
+    provizyonNo: text(64),
+    provizyonTarih: k<DayText>(),
+    onayKodu: text(64),
+    firmaKodu: text(64),
+    projeAdi: text(128),
+    ozelKod: text(64),
     ozelKdvOran: k<number>(null, Validators.min(0), Validators.max(1)),
-    damgaVergisi: k<Para>(),
-    talepTuru: metin(64),
-    geldigiBirim: metin(64),
-    kefilBilgisi: metin(512),
-    assistFirma: metin(128),
-    ozelSoforBilgisi: metin(512),
-    ekKosullar: metin(2048),
+    damgaVergisi: k<Money>(),
+    talepTuru: text(64),
+    geldigiBirim: text(64),
+    kefilBilgisi: text(512),
+    assistFirma: text(128),
+    ozelSoforBilgisi: text(512),
+    ekKosullar: text(2048),
     belgeSablonId: k<string>(),
     manuelFindexPuan: k<number>(null, Validators.min(0)),
-    opsiyonNet: k<Para>(),
+    opsiyonNet: k<Money>(),
     opsiyonGun: k<number>(null, Validators.min(0)),
     kabisCikis: k<boolean>(false),
     kabisDonus: k<boolean>(false),
@@ -378,38 +378,38 @@ export function kiraFormuOlustur(mod: KiraFormModu): KiraFormu {
     aksStepneCikis: k<boolean>(false),
     aksZincirCikis: k<boolean>(false),
     aksIlkYardimCikis: k<boolean>(false),
-    aksLastikCikis: metin(64),
-    kmLimit: k<number>(null, ...zorunluDuzenle, Validators.min(0)),
-    fazlaKmUcret: k<Para>(null, ...zorunluDuzenle),
-    yakitBirimUcret: k<Para>(null, ...zorunluDuzenle),
+    aksLastikCikis: text(64),
+    kmLimit: k<number>(null, ...requiredEdit, Validators.min(0)),
+    fazlaKmUcret: k<Money>(null, ...requiredEdit),
+    yakitBirimUcret: k<Money>(null, ...requiredEdit),
     teslimEdenPersonel: k<SecimSecenegi>(),
     aksYedekAnahtarDonus: k<boolean>(false),
     aksStepneDonus: k<boolean>(false),
     aksZincirDonus: k<boolean>(false),
     aksIlkYardimDonus: k<boolean>(false),
-    aksLastikDonus: metin(64),
+    aksLastikDonus: text(64),
   };
 
   // Ayna aynı doğrulayıcıları taşır: Hızlı Giriş'te de "zorunlu" işareti ve hata görünür.
-  const ayna = <A extends AynaliAlan>(ad: A): KiraFormKontrolleri[A] =>
-    new FormControl(null, kanonik[ad].validator) as KiraFormKontrolleri[A];
-  const aynalar = Object.fromEntries(AYNALI_ALANLAR.map((ad) => [ad, ayna(ad)])) as {
-    [A in AynaliAlan]: KiraFormKontrolleri[A];
+  const mirror = <A extends MirroredField>(name: A): KiraFormKontrolleri[A] =>
+    new FormControl(null, canonical[name].validator) as KiraFormKontrolleri[A];
+  const mirrors = Object.fromEntries(MIRRORED_FIELDS.map((name) => [name, mirror(name)])) as {
+    [A in MirroredField]: KiraFormKontrolleri[A];
   };
 
-  const form: KiraFormu = new FormGroup<KiraFormKontrolleri>({
-    ...kanonik,
-    ayna: new FormGroup(aynalar),
+  const form: RentalForm = new FormGroup<KiraFormKontrolleri>({
+    ...canonical,
+    ayna: new FormGroup(mirrors),
   });
-  for (const ad of yeni ? YALNIZ_DUZENLEME : YALNIZ_YENI) form.controls[ad].disable();
-  aynaDurumlariniEsitle(form);
+  for (const name of newItem ? EDIT_ONLY : NEW_ONLY) form.controls[name].disable();
+  syncMirrorStates(form);
   return form;
 }
 
-export function ekHizmetSatiri(tanim: SecimSecenegi, miktar = 1): FormGroup<EkHizmetSatiri> {
+export function addOnRow(definition: SecimSecenegi, quantity = 1): FormGroup<EkHizmetSatiri> {
   return new FormGroup<EkHizmetSatiri>({
-    tanim: new FormControl<SecimSecenegi | null>(tanim, Validators.required),
-    miktar: new FormControl<number | null>(miktar, [Validators.required, Validators.min(0.01)]),
+    tanim: new FormControl<SecimSecenegi | null>(definition, Validators.required),
+    miktar: new FormControl<number | null>(quantity, [Validators.required, Validators.min(0.01)]),
   });
 }
 
@@ -420,18 +420,18 @@ export function ekHizmetSatiri(tanim: SecimSecenegi, miktar = 1): FormGroup<EkHi
  * (görünümden gelen değer öbür erişimciye yazılmaz); ayrı kontrol + `emitEvent: false` döngüsüz eşitler.
  * Gövdeye YALNIZ kanonik girer.
  */
-export function aynalariBagla(form: KiraFormu): Subscription[] {
-  return AYNALI_ALANLAR.flatMap((ad) => {
-    const kanonik = form.controls[ad] as AbstractControl<unknown>;
-    const ayna = form.controls.ayna.controls[ad] as AbstractControl<unknown>;
+export function bindMirrors(form: RentalForm): Subscription[] {
+  return MIRRORED_FIELDS.flatMap((name) => {
+    const canonical = form.controls[name] as AbstractControl<unknown>;
+    const mirror = form.controls.ayna.controls[name] as AbstractControl<unknown>;
     return [
-      kanonik.valueChanges.subscribe((v) => {
-        if (!Object.is(ayna.value, v)) ayna.setValue(v, { emitEvent: false });
+      canonical.valueChanges.subscribe((v) => {
+        if (!Object.is(mirror.value, v)) mirror.setValue(v, { emitEvent: false });
       }),
-      ayna.valueChanges.subscribe((v) => {
-        if (!Object.is(kanonik.value, v)) {
-          kanonik.setValue(v);
-          kanonik.markAsDirty();
+      mirror.valueChanges.subscribe((v) => {
+        if (!Object.is(canonical.value, v)) {
+          canonical.setValue(v);
+          canonical.markAsDirty();
         }
       }),
     ];
@@ -439,64 +439,64 @@ export function aynalariBagla(form: KiraFormu): Subscription[] {
 }
 
 /** Aynaların değer + etkinlik durumunu kanoniğe eşitler (ön doldurma, mod/durum değişimi sonrası). */
-export function aynaDurumlariniEsitle(form: KiraFormu): void {
-  for (const ad of AYNALI_ALANLAR) {
-    const kanonik = form.controls[ad] as AbstractControl<unknown>;
-    const ayna = form.controls.ayna.controls[ad] as AbstractControl<unknown>;
-    ayna.setValue(kanonik.value, { emitEvent: false });
-    if (kanonik.disabled && ayna.enabled) ayna.disable({ emitEvent: false });
-    if (kanonik.enabled && ayna.disabled) ayna.enable({ emitEvent: false });
+export function syncMirrorStates(form: RentalForm): void {
+  for (const name of MIRRORED_FIELDS) {
+    const canonical = form.controls[name] as AbstractControl<unknown>;
+    const mirror = form.controls.ayna.controls[name] as AbstractControl<unknown>;
+    mirror.setValue(canonical.value, { emitEvent: false });
+    if (canonical.disabled && mirror.enabled) mirror.disable({ emitEvent: false });
+    if (canonical.enabled && mirror.disabled) mirror.enable({ emitEvent: false });
   }
 }
 
 /** Sunucu alan hatası kanoniğe yazıldıktan sonra aynasına da (Hızlı Giriş'te de görünsün). */
-export function aynalaraHataKopyala(form: KiraFormu): void {
-  for (const ad of AYNALI_ALANLAR) {
-    const mesajlar: unknown = form.controls[ad].errors?.[SUNUCU_HATASI];
-    if (mesajlar === undefined) continue;
-    const ayna = form.controls.ayna.controls[ad] as AbstractControl<unknown>;
-    ayna.setErrors({ ...(ayna.errors ?? {}), [SUNUCU_HATASI]: mesajlar });
-    ayna.markAsTouched();
+export function copyErrorToMirrors(form: RentalForm): void {
+  for (const name of MIRRORED_FIELDS) {
+    const messages: unknown = form.controls[name].errors?.[SERVER_ERROR];
+    if (messages === undefined) continue;
+    const mirror = form.controls.ayna.controls[name] as AbstractControl<unknown>;
+    mirror.setErrors({ ...(mirror.errors ?? {}), [SERVER_ERROR]: messages });
+    mirror.markAsTouched();
   }
 }
 
 // ─── Ön doldurma ──────────────────────────────────────────────────────────────────────────────
 
 /** Sunucu sayısı → sayı (yalnız gösterim/tam sayı alanları; para alanı olduğu gibi kalır). */
-export function sayiya(v: SunucuSayisi): number | null {
+export function toNumber(v: ServerNumber): number | null {
   if (v === null || v === undefined || v === '') return null;
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : null;
 }
 
 /** Ofis adı (Location.Ad — sözleşmede METİN saklanır) → seçim öğesi. */
-export function ofisSecenegi(ad: string | null | undefined): SecimSecenegi | null {
-  const d = ad?.trim() ?? '';
+export function officeOption(name: string | null | undefined): SecimSecenegi | null {
+  const d = name?.trim() ?? '';
   return d === '' ? null : { id: `ofis:${d}`, etiket: d };
 }
 
-export function aracSecenegi(a: KiraAraci | MusaitArac): AracSecenegi {
-  const ek = [a.marka, a.tip].filter((x) => x?.trim()).join(' ');
-  return { ...a, etiket: ek === '' ? a.plaka : `${a.plaka} — ${ek}` };
+export function vehicleOption(a: RentalVehicle | AvailableVehicle): AracSecenegi {
+  const extra = [a.marka, a.tip].filter((x) => x?.trim()).join(' ');
+  return { ...a, etiket: extra === '' ? a.plaka : `${a.plaka} — ${extra}` };
 }
 
 /**
  * An → İSTANBUL takvim günü (kullanıcının gördüğü gün). Sunucunun yazdığı an (ör. provizyon al: 22:30Z =
  * İstanbul 01:30, ertesi gün) UTC gününe indirilseydi bir gün geri görünürdü (F4.3 adversarial F6).
  */
-export function istanbulGunu(an: string | null | undefined): GunMetni | null {
-  return anParcala(an)?.gun ?? null;
+export function istanbulDay(an: string | null | undefined): DayText | null {
+  return parseMoment(an)?.gun ?? null;
 }
 
 /**
  * Kullanıcının SEÇTİĞİ takvim günü → UTC gece yarısı anı (Blazor date alanının saklama biçimi; İstanbul günü
  * olarak geri okunduğunda aynı gün: 00:00Z = 03:00 +03 → kaydet → aç → kaydet kayma yok).
  */
-export function gunAnina(gun: GunMetni | null | undefined): string | null {
-  return gun ? `${gun}T00:00:00Z` : null;
+export function toDayMoment(day: DayText | null | undefined): string | null {
+  return day ? `${day}T00:00:00Z` : null;
 }
 
-export type KiraSunucuDegerleri = Omit<KiraFormDegeri, 'ayna' | 'ekHizmetler'>;
+export type RentalServerValues = Omit<RentalFormValue, 'ayna' | 'ekHizmetler'>;
 
 /**
  * Kayıtlı sözleşmeden form değerleri (düzenleme). `ayna` ve `ekHizmetler` ayrı ele alınır.
@@ -504,11 +504,11 @@ export type KiraSunucuDegerleri = Omit<KiraFormDegeri, 'ayna' | 'ekHizmetler'>;
  * korunur (`kayitYokEtiketi`) — aksi hâlde PUT kimliği null gönderip ek sürücü ücret satırını düşürürdü
  * (F4.3 adversarial F4).
  */
-export function detaydanDegerler(d: KiraDetayYaniti, kayitYokEtiketi = '—'): KiraSunucuDegerleri {
+export function valuesFromDetail(d: RentalDetailResponse, noRecordLabel = '—'): RentalServerValues {
   const k = d.kira;
   return {
     musteri: { id: k.musteriId, etiket: d.musteri.ad },
-    arac: d.arac ? aracSecenegi(d.arac) : { id: k.vehicleId, etiket: '—' },
+    arac: d.arac ? vehicleOption(d.arac) : { id: k.vehicleId, etiket: '—' },
     basTar: k.basTar,
     bitTar: k.bitTar,
     fiyatTuru: k.fiyatTuru,
@@ -516,10 +516,10 @@ export function detaydanDegerler(d: KiraDetayYaniti, kayitYokEtiketi = '—'): K
     doviz: k.doviz,
     kampanyaKodu: k.kampanyaKodu,
     riskOnay: k.riskOnay,
-    cikisOfisi: ofisSecenegi(k.cikisOfisi),
-    donusOfisi: ofisSecenegi(k.donusOfisi),
+    cikisOfisi: officeOption(k.cikisOfisi),
+    donusOfisi: officeOption(k.donusOfisi),
     ikinciSurucu: k.ikinciSurucuId
-      ? { id: k.ikinciSurucuId, etiket: d.ikinciSurucu?.ad ?? kayitYokEtiketi }
+      ? { id: k.ikinciSurucuId, etiket: d.ikinciSurucu?.ad ?? noRecordLabel }
       : null,
     ikinciSurucuSerbestAd: k.ikinciSurucuSerbestAd,
     ikinciSurucuSerbestSoyad: k.ikinciSurucuSerbestSoyad,
@@ -533,21 +533,21 @@ export function detaydanDegerler(d: KiraDetayYaniti, kayitYokEtiketi = '—'): K
     faturalamaTipi: k.faturalamaTipi,
     provizyon: k.provizyon ?? null,
     depozito: k.depozito ?? null,
-    komisyonOran: sayiya(k.komisyonOran),
+    komisyonOran: toNumber(k.komisyonOran),
     komisyonTutar: k.komisyonTutar ?? null,
     dropUcreti: k.dropUcreti ?? null,
-    sonraOdeOran: sayiya(k.sonraOdeOran),
+    sonraOdeOran: toNumber(k.sonraOdeOran),
     uyariAciklama: k.uyariAciklama,
     ozelFaturaAciklama: k.ozelFaturaAciklama,
     faturaListesindeGizle: k.faturaListesindeGizle ?? false,
     ucusNo: k.ucusNo,
     provizyonNo: k.provizyonNo,
-    provizyonTarih: istanbulGunu(k.provizyonTarih),
+    provizyonTarih: istanbulDay(k.provizyonTarih),
     onayKodu: k.onayKodu,
     firmaKodu: k.firmaKodu,
     projeAdi: k.projeAdi,
     ozelKod: k.ozelKod,
-    ozelKdvOran: sayiya(k.ozelKdvOran),
+    ozelKdvOran: toNumber(k.ozelKdvOran),
     damgaVergisi: k.damgaVergisi ?? null,
     talepTuru: k.talepTuru,
     geldigiBirim: k.geldigiBirim,
@@ -556,9 +556,9 @@ export function detaydanDegerler(d: KiraDetayYaniti, kayitYokEtiketi = '—'): K
     ozelSoforBilgisi: k.ozelSoforBilgisi,
     ekKosullar: k.ekKosullar,
     belgeSablonId: k.belgeSablonId,
-    manuelFindexPuan: sayiya(k.manuelFindexPuan),
+    manuelFindexPuan: toNumber(k.manuelFindexPuan),
     opsiyonNet: k.opsiyonNet ?? null,
-    opsiyonGun: sayiya(k.opsiyonGun),
+    opsiyonGun: toNumber(k.opsiyonGun),
     kabisCikis: k.kabisCikis ?? false,
     kabisDonus: k.kabisDonus ?? false,
     otomatikUzat: k.otomatikUzat ?? false,
@@ -567,11 +567,11 @@ export function detaydanDegerler(d: KiraDetayYaniti, kayitYokEtiketi = '—'): K
     aksZincirCikis: k.aksZincirCikis ?? false,
     aksIlkYardimCikis: k.aksIlkYardimCikis ?? false,
     aksLastikCikis: k.aksLastikCikis,
-    kmLimit: sayiya(k.kmLimit),
+    kmLimit: toNumber(k.kmLimit),
     fazlaKmUcret: k.fazlaKmUcret,
     yakitBirimUcret: k.yakitBirimUcret,
     teslimEdenPersonel: k.teslimEdenPersonelId
-      ? { id: k.teslimEdenPersonelId, etiket: d.teslimEdenPersonelAd ?? kayitYokEtiketi }
+      ? { id: k.teslimEdenPersonelId, etiket: d.teslimEdenPersonelAd ?? noRecordLabel }
       : null,
     aksYedekAnahtarDonus: k.aksYedekAnahtarDonus ?? false,
     aksStepneDonus: k.aksStepneDonus ?? false,
@@ -586,21 +586,21 @@ export function detaydanDegerler(d: KiraDetayYaniti, kayitYokEtiketi = '—'): K
  * değer verilmeyen alt grubu (`ayna`) null'a çeker ve bağlı aynalar bu null'u kanoniğe yazardı —
  * düzenlemede çıkış/dönüş ofisi, kaynak, 2. sürücü… PUT'ta sessizce silinirdi (e2e ile yakalandı).
  */
-export function formuSifirla(
-  form: KiraFormu,
-  degerler: Partial<Omit<KiraFormDegeri, 'ayna' | 'ekHizmetler'>>,
+export function resetForm(
+  form: RentalForm,
+  values: Partial<Omit<RentalFormValue, 'ayna' | 'ekHizmetler'>>,
 ): void {
-  const aynalar: Record<string, unknown> = {};
-  for (const ad of AYNALI_ALANLAR) aynalar[ad] = degerler[ad] ?? null;
+  const mirrors: Record<string, unknown> = {};
+  for (const name of MIRRORED_FIELDS) mirrors[name] = values[name] ?? null;
   form.controls.ekHizmetler.clear({ emitEvent: false });
-  form.reset({ ...degerler, ayna: aynalar } as Parameters<KiraFormu['reset']>[0]);
-  aynaDurumlariniEsitle(form);
+  form.reset({ ...values, ayna: mirrors } as Parameters<RentalForm['reset']>[0]);
+  syncMirrorStates(form);
   form.markAsPristine();
   form.markAsUntouched();
 }
 
 /** Karşılaştırma anahtarı: seçim öğesi kimliğiyle, gerisi değeriyle (boş = null). */
-function degerAnahtari(v: unknown): string {
+function valueKey(v: unknown): string {
   if (v === undefined || v === null || v === '') return 'null';
   if (typeof v === 'object' && 'id' in v) return `id:${String((v as { id: unknown }).id)}`;
   return JSON.stringify(v);
@@ -612,27 +612,27 @@ function degerAnahtari(v: unknown): string {
  * değer bayat gövdeyle geri alınmasın); dokunduğu alanlar KORUNUR. Dönüş: kullanıcının da dokunduğu ve
  * sunucuda ÖNCEKİ okumadan bu yana değişmiş alanlar (çakışma — çağıran işaretler).
  */
-export function sunucuDegerleriniBirlestir(
-  form: KiraFormu,
-  yeni: KiraSunucuDegerleri,
-  onceki: KiraSunucuDegerleri | null,
-): (keyof KiraSunucuDegerleri)[] {
-  const cakisan: (keyof KiraSunucuDegerleri)[] = [];
-  for (const ad of Object.keys(yeni) as (keyof KiraSunucuDegerleri)[]) {
-    const kontrol = form.controls[ad] as AbstractControl<unknown>;
-    if (kontrol.dirty) {
-      if (onceki && degerAnahtari(yeni[ad]) !== degerAnahtari(onceki[ad])) cakisan.push(ad);
-    } else if (degerAnahtari(yeni[ad]) !== degerAnahtari(kontrol.value)) {
-      kontrol.setValue(yeni[ad]);
+export function mergeServerValues(
+  form: RentalForm,
+  newItem: RentalServerValues,
+  previous: RentalServerValues | null,
+): (keyof RentalServerValues)[] {
+  const conflicting: (keyof RentalServerValues)[] = [];
+  for (const name of Object.keys(newItem) as (keyof RentalServerValues)[]) {
+    const check = form.controls[name] as AbstractControl<unknown>;
+    if (check.dirty) {
+      if (previous && valueKey(newItem[name]) !== valueKey(previous[name])) conflicting.push(name);
+    } else if (valueKey(newItem[name]) !== valueKey(check.value)) {
+      check.setValue(newItem[name]);
     }
   }
-  aynaDurumlariniEsitle(form);
-  return cakisan;
+  syncMirrorStates(form);
+  return conflicting;
 }
 
 // ─── Gövdeler ─────────────────────────────────────────────────────────────────────────────────
 
-const bos = (v: string | null | undefined): string | null => {
+const empty = (v: string | null | undefined): string | null => {
   const d = v?.trim() ?? '';
   return d === '' ? null : d;
 };
@@ -646,14 +646,14 @@ function zorunlu<T>(v: T | null | undefined, alan: string): T {
 }
 
 /** Ek hizmet seçimi: miktar sunucuya olduğu gibi (≤ 0 → sunucu 1 sayar). */
-function ekSecimleri(d: KiraFormDegeri): { tanimId: string; miktar: number | null }[] {
+function extraSelections(d: RentalFormValue): { tanimId: string; miktar: number | null }[] {
   return d.ekHizmetler
     .filter((s): s is { tanim: SecimSecenegi; miktar: number | null } => s.tanim !== null)
     .map((s) => ({ tanimId: s.tanim.id, miktar: s.miktar }));
 }
 
 /** `POST /kiralar` gövdesi (Blazor `/kiralar/create` whitelist'i; müşteri önce `POST /kiralar/musteri`). */
-export function olusturGovdesi(d: KiraFormDegeri): KiraOlusturIstegi {
+export function createBody(d: RentalFormValue): CreateRentalRequest {
   return {
     musteriId: zorunlu(d.musteri, 'musteri').id,
     vehicleId: zorunlu(d.arac, 'arac').id,
@@ -663,38 +663,38 @@ export function olusturGovdesi(d: KiraFormDegeri): KiraOlusturIstegi {
     ikinciSurucuId: d.ikinciSurucu?.id ?? null,
     cikisOfisi: d.cikisOfisi?.etiket ?? null,
     donusOfisi: d.donusOfisi?.etiket ?? null,
-    aciklama: bos(d.aciklama),
+    aciklama: empty(d.aciklama),
     provizyon: d.provizyon,
     depozito: d.depozito,
     komisyonOran: d.komisyonOran,
     komisyonTutar: d.komisyonTutar,
     dropUcreti: d.dropUcreti,
     sonraOdeOran: d.sonraOdeOran,
-    kiralamaTuru: bos(d.kiralamaTuru),
+    kiralamaTuru: empty(d.kiralamaTuru),
     donemselFaturalama: d.donemselFaturalama ?? false,
-    faturalamaTipi: bos(d.faturalamaTipi),
-    fiyatTuru: bos(d.fiyatTuru),
-    doviz: bos(d.doviz),
-    kaynak: bos(d.kaynak),
-    kampanyaKodu: bos(d.kampanyaKodu),
-    uyariAciklama: bos(d.uyariAciklama),
-    ozelFaturaAciklama: bos(d.ozelFaturaAciklama),
+    faturalamaTipi: empty(d.faturalamaTipi),
+    fiyatTuru: empty(d.fiyatTuru),
+    doviz: empty(d.doviz),
+    kaynak: empty(d.kaynak),
+    kampanyaKodu: empty(d.kampanyaKodu),
+    uyariAciklama: empty(d.uyariAciklama),
+    ozelFaturaAciklama: empty(d.ozelFaturaAciklama),
     faturaListesindeGizle: d.faturaListesindeGizle ?? false,
-    ucusNo: bos(d.ucusNo),
-    provizyonNo: bos(d.provizyonNo),
-    provizyonTarih: gunAnina(d.provizyonTarih),
-    onayKodu: bos(d.onayKodu),
-    firmaKodu: bos(d.firmaKodu),
-    projeAdi: bos(d.projeAdi),
-    ozelKod: bos(d.ozelKod),
+    ucusNo: empty(d.ucusNo),
+    provizyonNo: empty(d.provizyonNo),
+    provizyonTarih: toDayMoment(d.provizyonTarih),
+    onayKodu: empty(d.onayKodu),
+    firmaKodu: empty(d.firmaKodu),
+    projeAdi: empty(d.projeAdi),
+    ozelKod: empty(d.ozelKod),
     ozelKdvOran: d.ozelKdvOran,
     damgaVergisi: d.damgaVergisi,
-    talepTuru: bos(d.talepTuru),
-    geldigiBirim: bos(d.geldigiBirim),
-    kefilBilgisi: bos(d.kefilBilgisi),
-    assistFirma: bos(d.assistFirma),
-    ozelSoforBilgisi: bos(d.ozelSoforBilgisi),
-    ekKosullar: bos(d.ekKosullar),
+    talepTuru: empty(d.talepTuru),
+    geldigiBirim: empty(d.geldigiBirim),
+    kefilBilgisi: empty(d.kefilBilgisi),
+    assistFirma: empty(d.assistFirma),
+    ozelSoforBilgisi: empty(d.ozelSoforBilgisi),
+    ekKosullar: empty(d.ekKosullar),
     belgeSablonId: d.belgeSablonId,
     manuelFindexPuan: d.manuelFindexPuan,
     opsiyonNet: d.opsiyonNet,
@@ -707,13 +707,13 @@ export function olusturGovdesi(d: KiraFormDegeri): KiraOlusturIstegi {
     aksStepneCikis: d.aksStepneCikis ?? false,
     aksZincirCikis: d.aksZincirCikis ?? false,
     aksIlkYardimCikis: d.aksIlkYardimCikis ?? false,
-    aksLastikCikis: bos(d.aksLastikCikis),
-    odemeSekli: bos(d.odemeSekli),
-    ikinciSurucuSerbestAd: bos(d.ikinciSurucuSerbestAd),
-    ikinciSurucuSerbestSoyad: bos(d.ikinciSurucuSerbestSoyad),
-    ikinciSurucuSerbestTel: bos(d.ikinciSurucuSerbestTel),
-    ikinciSurucuSerbestEhliyetSinifi: bos(d.ikinciSurucuSerbestEhliyetSinifi),
-    ekHizmetler: ekSecimleri(d),
+    aksLastikCikis: empty(d.aksLastikCikis),
+    odemeSekli: empty(d.odemeSekli),
+    ikinciSurucuSerbestAd: empty(d.ikinciSurucuSerbestAd),
+    ikinciSurucuSerbestSoyad: empty(d.ikinciSurucuSerbestSoyad),
+    ikinciSurucuSerbestTel: empty(d.ikinciSurucuSerbestTel),
+    ikinciSurucuSerbestEhliyetSinifi: empty(d.ikinciSurucuSerbestEhliyetSinifi),
+    ekHizmetler: extraSelections(d),
   };
 }
 
@@ -730,23 +730,23 @@ export interface GuncelleBaglami {
  * alan 400, bayat sürüm 409 `cakisma`). Tip `KiraGuncelleIstegi` fazla/eksik anahtara izin vermez. Pasif
  * (donuk) alanlar da kayıtlı değeriyle gider (`getRawValue`), sunucu değişmediğini doğrular.
  */
-export function guncelleGovdesi(d: KiraFormDegeri, baglam: GuncelleBaglami): KiraGuncelleIstegi {
+export function updateBody(d: RentalFormValue, context: GuncelleBaglami): UpdateRentalRequest {
   return {
-    surum: baglam.surum,
+    surum: context.surum,
     cikisOfisi: d.cikisOfisi?.etiket ?? null,
     donusOfisi: d.donusOfisi?.etiket ?? null,
     ikinciSurucuId: d.ikinciSurucu?.id ?? null,
     teslimEdenPersonelId: d.teslimEdenPersonel?.id ?? null,
-    odemeSekli: bos(d.odemeSekli),
-    ikinciSurucuSerbestAd: bos(d.ikinciSurucuSerbestAd),
-    ikinciSurucuSerbestSoyad: bos(d.ikinciSurucuSerbestSoyad),
-    ikinciSurucuSerbestTel: bos(d.ikinciSurucuSerbestTel),
-    ikinciSurucuSerbestEhliyetSinifi: bos(d.ikinciSurucuSerbestEhliyetSinifi),
-    aciklama: bos(d.aciklama),
-    kaynak: bos(d.kaynak),
-    kiralamaTuru: bos(d.kiralamaTuru),
+    odemeSekli: empty(d.odemeSekli),
+    ikinciSurucuSerbestAd: empty(d.ikinciSurucuSerbestAd),
+    ikinciSurucuSerbestSoyad: empty(d.ikinciSurucuSerbestSoyad),
+    ikinciSurucuSerbestTel: empty(d.ikinciSurucuSerbestTel),
+    ikinciSurucuSerbestEhliyetSinifi: empty(d.ikinciSurucuSerbestEhliyetSinifi),
+    aciklama: empty(d.aciklama),
+    kaynak: empty(d.kaynak),
+    kiralamaTuru: empty(d.kiralamaTuru),
     donemselFaturalama: d.donemselFaturalama ?? false,
-    faturalamaTipi: bos(d.faturalamaTipi),
+    faturalamaTipi: empty(d.faturalamaTipi),
     kmLimit: zorunlu(d.kmLimit, 'kmLimit'),
     fazlaKmUcret: zorunlu(d.fazlaKmUcret, 'fazlaKmUcret'),
     yakitBirimUcret: zorunlu(d.yakitBirimUcret, 'yakitBirimUcret'),
@@ -756,26 +756,26 @@ export function guncelleGovdesi(d: KiraFormDegeri, baglam: GuncelleBaglami): Kir
     komisyonTutar: d.komisyonTutar,
     dropUcreti: d.dropUcreti,
     sonraOdeOran: d.sonraOdeOran,
-    uyariAciklama: bos(d.uyariAciklama),
-    ozelFaturaAciklama: bos(d.ozelFaturaAciklama),
+    uyariAciklama: empty(d.uyariAciklama),
+    ozelFaturaAciklama: empty(d.ozelFaturaAciklama),
     faturaListesindeGizle: d.faturaListesindeGizle ?? false,
-    ucusNo: bos(d.ucusNo),
-    provizyonNo: bos(d.provizyonNo),
-    provizyonTarih: baglam.provizyonTarihDegisti
-      ? gunAnina(d.provizyonTarih)
-      : baglam.provizyonTarihAni,
-    onayKodu: bos(d.onayKodu),
-    firmaKodu: bos(d.firmaKodu),
-    projeAdi: bos(d.projeAdi),
-    ozelKod: bos(d.ozelKod),
+    ucusNo: empty(d.ucusNo),
+    provizyonNo: empty(d.provizyonNo),
+    provizyonTarih: context.provizyonTarihDegisti
+      ? toDayMoment(d.provizyonTarih)
+      : context.provizyonTarihAni,
+    onayKodu: empty(d.onayKodu),
+    firmaKodu: empty(d.firmaKodu),
+    projeAdi: empty(d.projeAdi),
+    ozelKod: empty(d.ozelKod),
     ozelKdvOran: d.ozelKdvOran,
     damgaVergisi: d.damgaVergisi,
-    talepTuru: bos(d.talepTuru),
-    geldigiBirim: bos(d.geldigiBirim),
-    kefilBilgisi: bos(d.kefilBilgisi),
-    assistFirma: bos(d.assistFirma),
-    ozelSoforBilgisi: bos(d.ozelSoforBilgisi),
-    ekKosullar: bos(d.ekKosullar),
+    talepTuru: empty(d.talepTuru),
+    geldigiBirim: empty(d.geldigiBirim),
+    kefilBilgisi: empty(d.kefilBilgisi),
+    assistFirma: empty(d.assistFirma),
+    ozelSoforBilgisi: empty(d.ozelSoforBilgisi),
+    ekKosullar: empty(d.ekKosullar),
     belgeSablonId: d.belgeSablonId,
     manuelFindexPuan: d.manuelFindexPuan,
     opsiyonNet: d.opsiyonNet,
@@ -791,13 +791,13 @@ export function guncelleGovdesi(d: KiraFormDegeri, baglam: GuncelleBaglami): Kir
     aksZincirDonus: d.aksZincirDonus ?? false,
     aksIlkYardimCikis: d.aksIlkYardimCikis ?? false,
     aksIlkYardimDonus: d.aksIlkYardimDonus ?? false,
-    aksLastikCikis: bos(d.aksLastikCikis),
-    aksLastikDonus: bos(d.aksLastikDonus),
+    aksLastikCikis: empty(d.aksLastikCikis),
+    aksLastikDonus: empty(d.aksLastikDonus),
   };
 }
 
 /** Para/sayı sorgu parametresi: invariant metin (sayı `String` ile — JSON sayısını birebir verir). */
-function paramDeger(v: Para | null | undefined): string | null {
+function paramValue(v: Money | null | undefined): string | null {
   if (v === null || v === undefined) return null;
   const d = String(v).trim();
   return d === '' ? null : d;
@@ -807,27 +807,27 @@ function paramDeger(v: Para | null | undefined): string | null {
  * Canlı hesap (`GET /kiralar/hesapla`) parametreleri — Blazor `rc-kira-fiyat.js` ile aynı alan kümesi;
  * boş değer gönderilmez. Tarih yoksa `null` (istek atılmaz). `ek` = `tanimId:miktar,…` (nokta ondalık).
  */
-export function hesaplaParametreleri(
-  d: KiraFormDegeri,
+export function calculateParams(
+  d: RentalFormValue,
   rentalId: string | null = null,
-): SorguParametreleri | null {
+): QueryParameters | null {
   if (!d.basTar || !d.bitTar) return null;
-  const ek = ekSecimleri(d)
-    .map((s) => `${s.tanimId}:${paramDeger(s.miktar) ?? '1'}`)
+  const extra = extraSelections(d)
+    .map((s) => `${s.tanimId}:${paramValue(s.miktar) ?? '1'}`)
     .join(',');
   return {
     basTar: d.basTar,
     bitTar: d.bitTar,
     vehicleId: d.arac?.id ?? null,
-    gunlukUcret: paramDeger(d.gunlukUcret),
-    fiyatTuru: bos(d.fiyatTuru),
-    doviz: bos(d.doviz),
+    gunlukUcret: paramValue(d.gunlukUcret),
+    fiyatTuru: empty(d.fiyatTuru),
+    doviz: empty(d.doviz),
     cikisOfisi: d.cikisOfisi?.etiket ?? null,
     donusOfisi: d.donusOfisi?.etiket ?? null,
-    dropUcreti: paramDeger(d.dropUcreti),
-    ek: ek === '' ? null : ek,
+    dropUcreti: paramValue(d.dropUcreti),
+    ek: extra === '' ? null : extra,
     musteriId: d.musteri?.id ?? null,
-    kampanyaKodu: bos(d.kampanyaKodu),
+    kampanyaKodu: empty(d.kampanyaKodu),
     ikinciSurucuId: d.ikinciSurucu?.id ?? null,
     rentalId,
   };
@@ -836,8 +836,8 @@ export function hesaplaParametreleri(
 // ─── Gösterim yardımcıları ────────────────────────────────────────────────────────────────────
 
 /** Kira dövizi (`TL`/`EURO`/`USD`, sunucu `TRY`/`EUR`) → ISO kodu (yalnız simge gösterimi). */
-export function isoParaBirimi(doviz: string | null | undefined): string {
-  switch ((doviz ?? '').trim()) {
+export function isoCurrency(currency: string | null | undefined): string {
+  switch ((currency ?? '').trim()) {
     case 'EURO':
     case 'EUR':
       return 'EUR';
@@ -849,17 +849,17 @@ export function isoParaBirimi(doviz: string | null | undefined): string {
 }
 
 /** Sabit liste + kayıtlı değer: listede olmayan eski değer kaybolmasın diye seçeneklere eklenir. */
-export function secenekListesi(
-  liste: readonly string[] | undefined,
-  mevcut: string | null | undefined,
+export function optionList(
+  list: readonly string[] | undefined,
+  existing: string | null | undefined,
 ): { deger: string; etiket: string }[] {
-  const sonuc = (liste ?? []).map((x) => ({ deger: x, etiket: x }));
-  const m = mevcut?.trim();
-  if (m && !sonuc.some((s) => s.deger === m)) sonuc.push({ deger: m, etiket: m });
-  return sonuc;
+  const result = (list ?? []).map((x) => ({ deger: x, etiket: x }));
+  const m = existing?.trim();
+  if (m && !result.some((s) => s.deger === m)) result.push({ deger: m, etiket: m });
+  return result;
 }
 
 /** Sistem ücret kalemi (SYS-*) manuel seçilemez — sunucu da reddeder. */
-export function sistemKalemiMi(kod: string | null | undefined): boolean {
-  return /^sys-/i.test(kod?.trim() ?? '');
+export function isSystemItem(code: string | null | undefined): boolean {
+  return /^sys-/i.test(code?.trim() ?? '');
 }

@@ -104,7 +104,7 @@
       </button>
     </div>
   } @else {
-    <div class="rc-tablo-kap" [attr.aria-busy]="list.yukleniyor()">
+    <div class="rc-tablo-kap" [attr.aria-busy]="list.isLoading()">
       <table class="rc-duz-tablo" data-testid="platform-firma-tablosu">
         <caption class="rc-gorunmez">
           {{

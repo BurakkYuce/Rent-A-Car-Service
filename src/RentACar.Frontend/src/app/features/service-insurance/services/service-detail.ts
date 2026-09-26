@@ -14,37 +14,37 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { paraBicimle } from '@core/bicim/bicim';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { sunucuHatalariniUygula } from '@core/form/sunucu-hatalari';
+import { formatMoney } from '@core/bicim/bicim';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { applyServerErrors } from '@core/form/sunucu-hatalari';
 import { moneySubmission } from '@core/form/money-submission';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
-import { ParaPipe, SayiPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
+import { MoneyPipe, NumberPipe, DatePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import { planText } from '../service-insurance-columns';
 import { lineNetAmount } from '../money-math';
@@ -70,7 +70,7 @@ import {
   infoToForm,
   lineRequest,
 } from './service-form-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type Transition = 'servise-al' | 'baslat' | 'tamamla' | 'iptal';
@@ -87,45 +87,45 @@ type Transition = 'servise-al' | 'baslat' | 'tamamla' | 'iptal';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PlateChipComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    MetinGirdisi,
-    ParaGirdisi,
-    ParaPipe,
-    SayiGirdisi,
-    SayiPipe,
+    SearchSelection,
+    FormErrors,
+    TextInput,
+    MoneyInput,
+    MoneyPipe,
+    NumberInput,
+    NumberPipe,
     MoneySubmitBar,
-    Secim,
-    TarihPipe,
-    TarihSecici,
+    Selection,
+    DatePipe,
+    DatePicker,
   ],
   providers: [FetchPolicy, ServiceDetailStore],
   templateUrl: './service-detail.html',
   styleUrl: '../service-insurance.scss',
 })
-export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
+export class ServiceDetail implements UnsavedChangesOwner {
   protected readonly store = inject(ServiceDetailStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
-  private readonly confirm = inject(OnayServisi);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
+  private readonly confirm = inject(ConfirmService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
 
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
   protected readonly num = num;
   protected readonly planText = planText;
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly declarationTypes = DECLARATION_TYPES;
   protected readonly busy = signal<Transition | null>(null);
   protected readonly detail = computed(() => this.store.detail.veri());
-  protected readonly refreshing = computed(() => this.store.detail.yukleniyor());
+  protected readonly refreshing = computed(() => this.store.detail.isLoading());
 
   protected readonly paymentOptions: readonly SecenekOgesi<PaymentMethod>[] = PAYMENT_METHODS.map(
     (x) => ({
@@ -176,15 +176,15 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
       Object.entries(emptyInfoForm()).map(([k, v]) => [k, new FormControl<unknown>(v)]),
     ) as Record<keyof ServiceInfoForm, FormControl<unknown>>,
   );
-  protected readonly infoSubmission = formGonderimi();
+  protected readonly infoSubmission = formSubmission();
   /** Formun doldurulduğu kayıt (birleştirme tabanı + `surum`). */
   private base: ServiceRecordDetail | null = null;
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: signal(this.id).asReadonly(),
       yukle: (id) => this.store.detail.yukle(id),
-      sifirla: () => this.store.detail.sifirla(),
+      sifirla: () => this.store.detail.reset(),
     });
     effect(() => {
       const d = this.store.detail.veri();
@@ -197,17 +197,17 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
     // Sonucu bilinmeyen kalem/yansıtma denemesi (sekme kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ gelir.
     this.line.restore(this.lineForm);
     this.reflect.restore(this.reflectForm);
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return (
       this.infoForm.dirty || this.lineForm.dirty || this.reflectForm.dirty || this.hasPendingMoney()
     );
   }
 
   /** Uçuştaki / sonucu bilinmeyen para işlemi varken özel terk metni (inceleme L2). */
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.hasPendingMoney() ? this.t('servisSigorta.para.terkMesaji') : null;
   }
 
@@ -252,7 +252,7 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
       body = { cikisKm: f.cikisKm, sonrakiBakimKm: f.sonrakiBakimKm };
     }
     if (kind === 'iptal') {
-      const yes = await this.confirm.sor({
+      const yes = await this.confirm.ask({
         baslik: this.t('servisSigorta.servis.iptalBaslik'),
         mesaj: this.t('servisSigorta.servis.iptalMesaj', { no: d.kayit.no }),
         onayEtiketi: this.t('servisSigorta.servis.iptal'),
@@ -279,8 +279,8 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
           this.reload();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
-          const unmatched = sunucuHatalariniUygula(this.flowForm, error.alanlar);
+          const error = toApiError(raw);
+          const unmatched = applyServerErrors(this.flowForm, error.alanlar);
           if (unmatched.length > 0) this.toast.hata(unmatched.join(' '));
           else if (error.alanlar === undefined && !genelGosterilir(error))
             this.toast.hata(error.detay);
@@ -325,18 +325,18 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
       form: this.reflectForm,
       fieldMap: () => ({ cariId: 'cari' }),
       build: () => {
-        const cari = this.reflectForm.getRawValue().cari;
+        const account = this.reflectForm.getRawValue().cari;
         return {
           path: recordPath(SERVICES, d.kayit.id, '/yansit'),
           target: `yansit:${d.kayit.id}`,
-          body: { cariId: cari?.id ?? null },
+          body: { cariId: account?.id ?? null },
           content: { tutar: num(d.yetkiler.yansitilacakTutar), doviz: 'TRY' },
         };
       },
       success: (fresh) => {
         this.toast.basari(
           this.t('servisSigorta.servis.yansitildiBildirim', {
-            tutar: paraBicimle(num(fresh.yansitma?.tutar ?? null), 'TRY'),
+            tutar: formatMoney(num(fresh.yansitma?.tutar ?? null), 'TRY'),
           }),
         );
         this.reflectForm.reset();
@@ -386,14 +386,14 @@ export class ServiceDetail implements KaydedilmemisDegisiklikSahibi {
     if (!this.infoForm.dirty) {
       this.infoForm.reset({ ...fresh });
     } else {
-      const conflicts = sunucuDegerleriniBirlestir(
+      const conflicts = mergeServerValues(
         this.infoForm,
         { ...fresh },
         { ...baseline },
         this.t('servisSigorta.cakismaAlan'),
       );
       if (conflicts.length > 0)
-        this.banner.goster({
+        this.banner.show({
           tur: 'uyari',
           mesaj: this.t('servisSigorta.cakismaBant', { sayi: conflicts.length }),
           kod: 'cakisma',

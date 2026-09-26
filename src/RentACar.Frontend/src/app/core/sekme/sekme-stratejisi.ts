@@ -5,15 +5,17 @@ import type {
   RouteReuseStrategy,
 } from '@angular/router';
 
-import { sekmeAnahtari } from './sekme-anahtari';
+import { tabKey } from './tab-key';
 
 /** Angular'ın `DetachedRouteHandle`'ı opak; içinde bileşen referansı taşır. */
 interface AyrikTutucu {
   readonly componentRef?: ComponentRef<unknown>;
 }
 
-function bilesenRef(tutucu: DetachedRouteHandle | undefined): ComponentRef<unknown> | undefined {
-  return (tutucu as AyrikTutucu | undefined)?.componentRef;
+function componentRefValue(
+  handle: DetachedRouteHandle | undefined,
+): ComponentRef<unknown> | undefined {
+  return (handle as AyrikTutucu | undefined)?.componentRef;
 }
 
 /**
@@ -29,67 +31,67 @@ function bilesenRef(tutucu: DetachedRouteHandle | undefined): ComponentRef<unkno
  * - İlk pakettedir (router sağlayıcısı); sekme listesi, depo ve arayüz kabuğun tembel parçasında.
  */
 @Injectable({ providedIn: 'root' })
-export class SekmeRotaStratejisi implements RouteReuseStrategy {
+export class TabRouteStrategy implements RouteReuseStrategy {
   private acik = new Set<string>();
-  private readonly tutucular = new Map<string, DetachedRouteHandle>();
+  private readonly handles = new Map<string, DetachedRouteHandle>();
 
   /** Açık sekme anahtarları; artık açık olmayan ayrık bileşenler yok edilir. */
-  acikAnahtarlariAyarla(anahtarlar: Iterable<string>): void {
-    this.acik = new Set(anahtarlar);
-    for (const [anahtar, tutucu] of [...this.tutucular]) {
-      if (!this.acik.has(anahtar)) {
-        this.tutucular.delete(anahtar);
-        bilesenRef(tutucu)?.destroy();
+  setOpenKeys(keys: Iterable<string>): void {
+    this.acik = new Set(keys);
+    for (const [key, handle] of [...this.handles]) {
+      if (!this.acik.has(key)) {
+        this.handles.delete(key);
+        componentRefValue(handle)?.destroy();
       }
     }
   }
 
   /** Bu rotadan çıkılınca sayfası arka planda tutulacak mı (açık sekmesi var mı)? */
-  saklanacakMi(rota: ActivatedRouteSnapshot): boolean {
-    const anahtar = sekmeAnahtari(rota);
-    return anahtar !== null && this.acik.has(anahtar);
+  shouldStore(route: ActivatedRouteSnapshot): boolean {
+    const key = tabKey(route);
+    return key !== null && this.acik.has(key);
   }
 
   /** Arka plandaki (ayrık) sekmenin bileşeni; yoksa `null`. */
-  ayrikBilesen(anahtar: string): unknown {
-    return bilesenRef(this.tutucular.get(anahtar))?.instance ?? null;
+  detachedComponent(key: string): unknown {
+    return componentRefValue(this.handles.get(key))?.instance ?? null;
   }
 
   /** Çıkış: tüm ayrık bileşenler yok edilir, açık küme boşalır. */
-  temizle(): void {
-    this.acikAnahtarlariAyarla([]);
+  clear(): void {
+    this.setOpenKeys([]);
   }
 
-  shouldDetach(rota: ActivatedRouteSnapshot): boolean {
-    return this.saklanacakMi(rota);
+  shouldDetach(route: ActivatedRouteSnapshot): boolean {
+    return this.shouldStore(route);
   }
 
-  store(rota: ActivatedRouteSnapshot, tutucu: DetachedRouteHandle | null): void {
-    const anahtar = sekmeAnahtari(rota);
-    if (anahtar === null) return;
-    if (tutucu === null) {
-      this.tutucular.delete(anahtar); // yeniden takıldı: artık ayrık değil
+  store(route: ActivatedRouteSnapshot, handle: DetachedRouteHandle | null): void {
+    const key = tabKey(route);
+    if (key === null) return;
+    if (handle === null) {
+      this.handles.delete(key); // yeniden takıldı: artık ayrık değil
       return;
     }
-    const eski = this.tutucular.get(anahtar);
-    if (eski && eski !== tutucu) bilesenRef(eski)?.destroy();
-    if (this.acik.has(anahtar)) this.tutucular.set(anahtar, tutucu);
-    else bilesenRef(tutucu)?.destroy();
+    const old = this.handles.get(key);
+    if (old && old !== handle) componentRefValue(old)?.destroy();
+    if (this.acik.has(key)) this.handles.set(key, handle);
+    else componentRefValue(handle)?.destroy();
   }
 
-  shouldAttach(rota: ActivatedRouteSnapshot): boolean {
-    const anahtar = sekmeAnahtari(rota);
-    return anahtar !== null && this.acik.has(anahtar) && this.tutucular.has(anahtar);
+  shouldAttach(route: ActivatedRouteSnapshot): boolean {
+    const key = tabKey(route);
+    return key !== null && this.acik.has(key) && this.handles.has(key);
   }
 
-  retrieve(rota: ActivatedRouteSnapshot): DetachedRouteHandle | null {
-    const anahtar = sekmeAnahtari(rota);
-    return anahtar === null ? null : (this.tutucular.get(anahtar) ?? null);
+  retrieve(route: ActivatedRouteSnapshot): DetachedRouteHandle | null {
+    const key = tabKey(route);
+    return key === null ? null : (this.handles.get(key) ?? null);
   }
 
-  shouldReuseRoute(gelecek: ActivatedRouteSnapshot, simdiki: ActivatedRouteSnapshot): boolean {
-    if (gelecek.routeConfig !== simdiki.routeConfig) return false;
-    const anahtar = sekmeAnahtari(gelecek);
-    return anahtar === null || anahtar === sekmeAnahtari(simdiki);
+  shouldReuseRoute(future: ActivatedRouteSnapshot, current: ActivatedRouteSnapshot): boolean {
+    if (future.routeConfig !== current.routeConfig) return false;
+    const key = tabKey(future);
+    return key === null || key === tabKey(current);
   }
 }

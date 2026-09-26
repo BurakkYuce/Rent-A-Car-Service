@@ -110,7 +110,7 @@
       } @else if (rows().length === 0) {
         <p class="muted" aria-busy="true">{{ 'platform.yukleniyor' | transloco }}</p>
       } @else {
-        <div class="rc-tablo-kap" [attr.aria-busy]="docs.yukleniyor()">
+        <div class="rc-tablo-kap" [attr.aria-busy]="docs.isLoading()">
           <table class="rc-duz-tablo" data-testid="platform-belge-tablosu">
             <caption class="rc-gorunmez">
               {{

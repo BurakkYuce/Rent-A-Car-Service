@@ -42,7 +42,7 @@
           <p class="bos">{{ 'sistem.denetim.bos' | transloco }}</p>
         } @else {
           <div class="rc-tablo-kap">
-            <table class="rc-duz-tablo" [attr.aria-busy]="list.yukleniyor()">
+            <table class="rc-duz-tablo" [attr.aria-busy]="list.isLoading()">
               <thead>
                 <tr>
                   <th scope="col">{{ 'sistem.denetim.zaman' | transloco }}</th>
@@ -81,7 +81,7 @@
             <button
               type="button"
               class="rc-dugme rc-dugme--kucuk"
-              [disabled]="page() <= 1 || list.yukleniyor()"
+              [disabled]="page() <= 1 || list.isLoading()"
               (click)="go(-1)"
             >
               {{ 'sistem.ortak.onceki' | transloco }}
@@ -95,7 +95,7 @@
             <button
               type="button"
               class="rc-dugme rc-dugme--kucuk"
-              [disabled]="page() >= pages() || list.yukleniyor()"
+              [disabled]="page() >= pages() || list.isLoading()"
               (click)="go(1)"
             >
               {{ 'sistem.ortak.sonraki' | transloco }}

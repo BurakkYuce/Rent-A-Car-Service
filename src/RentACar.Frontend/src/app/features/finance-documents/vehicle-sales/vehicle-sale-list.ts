@@ -10,35 +10,35 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { PendingMoneyAttempts } from '@core/form/money-attempts';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { CustomerLabels } from '@features/vehicle-finance/labels';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { saleColumns } from '../document-columns';
 import { SALE_LIST, SALE_STATUSES, type VehicleSaleRow } from '../document-model';
 import { BranchNames, SaleStore } from '../document.store';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
 
 import { SaleCreateForm } from './sale-create-form';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type SaleStatus = (typeof SALE_STATUSES)[number];
@@ -53,36 +53,36 @@ type SaleStatus = (typeof SALE_STATUSES)[number];
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PlateChipComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    Ikon,
-    MetinGirdisi,
+    SearchSelection,
+    Icon,
+    TextInput,
     SaleCreateForm,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, SaleStore, BranchNames, CustomerLabels, PendingMoneyAttempts],
   templateUrl: './vehicle-sale-list.html',
   styleUrl: '../finance-documents.scss',
 })
-export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
+export class VehicleSaleList implements UnsavedChangesOwner {
   protected readonly store = inject(SaleStore);
   protected readonly branches = inject(BranchNames);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly labels = inject(CustomerLabels);
   protected readonly pending = inject(PendingMoneyAttempts);
-  private readonly confirm = inject(OnayServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly confirm = inject(ConfirmService);
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(SALE_LIST);
+  protected readonly query = listQueryUrlSync(SALE_LIST);
   protected readonly columns = saleColumns(this.t);
   protected readonly rowId = (r: VehicleSaleRow) => r.id;
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly canWrite = computed(() => this.session.izinVar('FinanceWrite'));
   private readonly createToggle = signal<boolean | null>(null);
   protected readonly createOpen = computed(
@@ -118,19 +118,19 @@ export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
       const f = this.query.sorgu().filtreler;
-      const alici = this.labels.label(f.aliciCariId);
+      const recipient = this.labels.label(f.aliciCariId);
       untracked(() =>
         this.filterForm.reset({
           plaka: f.plaka ?? null,
-          alici,
+          alici: recipient,
           durum: f.durum ?? null,
           satisiVerildi: f.satisiVerildi ?? null,
           ofis: f.ofis ?? null,
@@ -142,10 +142,10 @@ export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
     effect(() => {
       if (this.canWrite() && this.createOpen()) untracked(() => this.branches.list.yukle());
     });
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.formDirty || this.pending.count() > 0;
   }
 
@@ -184,7 +184,7 @@ export class VehicleSaleList implements KaydedilmemisDegisiklikSahibi {
   protected async toggleCreate(): Promise<void> {
     if (this.pending.inFlight()) return;
     if (this.createOpen() && (this.formDirty || this.pending.get('yeni-satis') !== undefined)) {
-      const yes = await this.confirm.sor({
+      const yes = await this.confirm.ask({
         baslik: this.t('finansBelge.ayrilBaslik'),
         mesaj: this.t('finansBelge.ayrilMesaj'),
       });

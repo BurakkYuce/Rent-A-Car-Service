@@ -15,32 +15,32 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
 import { PendingMoneyAttempts } from '@core/form/money-attempts';
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { CustomerLabels } from '@features/vehicle-finance/labels';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { ParaPipe, SayiPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, NumberPipe, DatePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { Ikon } from '@shared/ikon/ikon';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { Icon } from '@shared/ikon/icon';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
 
 import { invoiceColumns } from '../document-columns';
@@ -57,7 +57,7 @@ import {
 import { INVOICES, InvoiceStore, recordPath, summaryParameters } from '../document.store';
 import { pruneSelection } from './batch-selection';
 import { ManualInvoiceForm } from './manual-invoice-form';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
@@ -70,42 +70,42 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PlateChipComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    Ikon,
+    SearchSelection,
+    Icon,
     ManualInvoiceForm,
-    MetinGirdisi,
-    ParaPipe,
-    SayiPipe,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihPipe,
-    TarihSecici,
+    TextInput,
+    MoneyPipe,
+    NumberPipe,
+    Selection,
+    Table,
+    TableCell,
+    DatePipe,
+    DatePicker,
   ],
   providers: [FetchPolicy, InvoiceStore, CustomerLabels, PendingMoneyAttempts],
   templateUrl: './invoice-list.html',
   styleUrl: '../finance-documents.scss',
 })
-export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
+export class InvoiceList implements UnsavedChangesOwner {
   protected readonly store = inject(InvoiceStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly session = inject(SessionService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly labels = inject(CustomerLabels);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(INVOICE_LIST);
+  protected readonly query = listQueryUrlSync(INVOICE_LIST);
   protected readonly columns = invoiceColumns(this.t);
   protected readonly rowId = (r: InvoiceRow) => r.id;
   protected readonly num = toNumber;
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly canWrite = computed(() => this.session.izinVar('FinanceWrite'));
   /** Manuel fatura kiracı genelidir: şubeye bağlı kullanıcı kesemez (sunucu 403; r300 L3). */
   protected readonly canManual = computed(
@@ -159,15 +159,15 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => {
         this.store.list.yukle(p);
         this.store.summary.yukle(summaryParameters(p));
       },
       sifirla: () => {
-        this.store.list.sifirla();
-        this.store.summary.sifirla();
+        this.store.list.reset();
+        this.store.summary.reset();
       },
       sekmeyeDonunce: 'yenile',
     });
@@ -184,11 +184,11 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
     });
     effect(() => {
       const f = this.query.sorgu().filtreler;
-      const cari = this.labels.label(f.cariId);
+      const account = this.labels.label(f.cariId);
       untracked(() =>
         this.filterForm.reset({
           q: f.q ?? null,
-          cari,
+          cari: account,
           iptal: f.iptal ?? null,
           doviz: f.doviz ?? null,
           ofis: f.ofis ?? null,
@@ -197,10 +197,10 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
         }),
       );
     });
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.manualDirty || this.batchSelection().size > 0 || this.pending.count() > 0;
   }
 
@@ -242,13 +242,13 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
 
   protected closeDetail(): void {
     this.selectedId.set(null);
-    this.store.detail.sifirla();
+    this.store.detail.reset();
   }
 
   protected async refund(): Promise<void> {
     const d = this.store.detail.veri();
     if (!d || this.busy() || !this.canRefund()) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('finansBelge.fatura.iadeBaslik'),
       mesaj: this.t('finansBelge.fatura.iadeMesaj', { no: d.no }),
       onayEtiketi: this.t('finansBelge.fatura.iade'),
@@ -307,7 +307,7 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
       ),
     ];
     if (ids.length === 0 || this.busy() || !this.canWrite()) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('finansBelge.fatura.topluBaslik'),
       mesaj: this.t('finansBelge.fatura.topluOnay', { adet: ids.length }),
       onayEtiketi: this.t('finansBelge.fatura.topluKes'),
@@ -338,7 +338,7 @@ export class InvoiceList implements KaydedilmemisDegisiklikSahibi {
   }
 
   private failed(raw: unknown, reload: () => void): void {
-    const error = apiHatasinaCevir(raw);
+    const error = toApiError(raw);
     if (!genelGosterilir(error)) this.toast.hata(error.detay);
     reload();
     this.reloadList();

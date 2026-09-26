@@ -11,21 +11,21 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { EN_FAZLA_BOYUT, type Sayfa } from '@core/api/sayfa';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { MAX_SIZE, type Sayfa } from '@core/api/sayfa';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { TemelStore } from '@core/veri/temel-store';
-import { SayiPipe, TarihPipe, TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { NumberPipe, DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { Ikon } from '@shared/ikon/ikon';
+import { Selection } from '@shared/form/kontroller/selection';
+import { Icon } from '@shared/ikon/icon';
 
 import {
   PLATFORM_API,
@@ -38,7 +38,7 @@ import {
   toggleTarget,
   toNumber,
 } from '../platform-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlatformSessionService } from '../platform-session';
 
 interface ListQuery {
@@ -60,14 +60,14 @@ interface ListQuery {
     RouterLink,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    Secim,
-    SayfaBandi,
-    SayiPipe,
-    TarihPipe,
-    TarihSaatPipe,
+    FormErrors,
+    Icon,
+    TextInput,
+    Selection,
+    PageBand,
+    NumberPipe,
+    DatePipe,
+    DateTimePipe,
   ],
   templateUrl: './tenant-list-page.html',
   styleUrls: ['../platform-page.scss'],
@@ -75,15 +75,15 @@ interface ListQuery {
 export class TenantListPage {
   private readonly api = inject(ApiIstemcisi);
   private readonly router = inject(Router);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly session = inject(PlatformSessionService);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly list = new TemelStore(
     (p: ListQuery) =>
       this.api.get<Sayfa<PlatformTenantRow>>(`${PLATFORM_API}/kiracilar`, {
-        parametreler: { q: p.q, durum: p.durum, boyut: EN_FAZLA_BOYUT, sirala: 'kod' },
+        parametreler: { q: p.q, durum: p.durum, boyut: MAX_SIZE, sirala: 'kod' },
       }),
     { oncekiVeriyiKoru: true },
   );
@@ -112,7 +112,7 @@ export class TenantListPage {
       Validators.minLength(6),
     ]),
   });
-  protected readonly create = formGonderimi();
+  protected readonly create = formSubmission();
   /** Row being toggled (double-click guard per row). */
   protected readonly busyId = signal<string | null>(null);
 
@@ -178,7 +178,7 @@ export class TenantListPage {
   protected async toggleStatus(row: PlatformTenantRow): Promise<void> {
     const target = toggleTarget(tenantStatus(row.durum));
     if (target === null || this.busyId() !== null) return;
-    const ok = await this.confirm.sor({
+    const ok = await this.confirm.ask({
       baslik: this.t(
         target === 'Pasif'
           ? 'platform.durumDegisimi.pasifBaslik'
@@ -205,7 +205,7 @@ export class TenantListPage {
       this.list.yenile();
     } catch (e: unknown) {
       if (!this.session.handleSessionLoss(e)) {
-        const error = apiHatasinaCevir(e);
+        const error = toApiError(e);
         if (error.kod === 'dogrulama' || error.kod === 'bilinmeyen') this.toast.hata(error.detay);
       }
     } finally {

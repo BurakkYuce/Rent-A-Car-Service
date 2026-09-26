@@ -11,19 +11,16 @@ import {
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { ParaPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
+import { translationFunction } from '@core/i18n/ceviri';
+import { MoneyPipe, DatePipe } from '@shared/bicim/bicim-pipe';
 
 import { num } from '../service-insurance-model';
 import { InstallmentRecordStore } from '../service-insurance.store';
 import { type InstallmentKind, InstallmentPayPanel } from './installment-pay-panel';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 /**
  * MTV / muayene kaydı (`/app/regulasyon/mtv/:id`, `/app/regulasyon/muayeneler/:id`) — Blazor `/regulasyon` MTV ve
@@ -33,16 +30,16 @@ import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
 @Component({
   selector: 'rc-installment-record',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, RouterLink, TranslocoPipe, InstallmentPayPanel, ParaPipe, TarihPipe],
+  imports: [PageBand, RouterLink, TranslocoPipe, InstallmentPayPanel, MoneyPipe, DatePipe],
   providers: [FetchPolicy, InstallmentRecordStore],
   templateUrl: './installment-record.html',
   styleUrl: '../service-insurance.scss',
 })
-export class InstallmentRecord implements KaydedilmemisDegisiklikSahibi {
+export class InstallmentRecord implements UnsavedChangesOwner {
   protected readonly store = inject(InstallmentRecordStore);
   private readonly route = inject(ActivatedRoute);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
   protected readonly kind: InstallmentKind =
     (this.route.snapshot.data['kind'] as InstallmentKind | undefined) ?? 'mtv';
   protected readonly id = this.route.snapshot.paramMap.get('id') ?? '';
@@ -51,7 +48,7 @@ export class InstallmentRecord implements KaydedilmemisDegisiklikSahibi {
 
   private readonly source = this.kind === 'mtv' ? this.store.mtv : this.store.inspection;
   protected readonly state = computed(() => this.source.durum());
-  protected readonly refreshing = computed(() => this.source.yukleniyor());
+  protected readonly refreshing = computed(() => this.source.isLoading());
 
   /** Ortak görünüm: MTV'de tutar/dönem/vade, muayenede ücret/ceza/muayene tarihi/bitiş. */
   protected readonly view = computed(() => {
@@ -93,10 +90,10 @@ export class InstallmentRecord implements KaydedilmemisDegisiklikSahibi {
   });
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: signal(this.id).asReadonly(),
       yukle: (id) => this.source.yukle(id),
-      sifirla: () => this.source.sifirla(),
+      sifirla: () => this.source.reset(),
     });
     effect(() => {
       const v = this.view();
@@ -106,15 +103,15 @@ export class InstallmentRecord implements KaydedilmemisDegisiklikSahibi {
         if (v.canPay && this.store.accounts.tur() === 'bos') this.store.accounts.yukle();
       });
     });
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.panel()?.hasPendingWork() ?? false;
   }
 
   /** Uçuştaki / sonucu bilinmeyen ödeme varken özel terk metni (inceleme L2). */
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.panel()?.hasPendingPayment() ? this.t('servisSigorta.para.terkMesaji') : null;
   }
 

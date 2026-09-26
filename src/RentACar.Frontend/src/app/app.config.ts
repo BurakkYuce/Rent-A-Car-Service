@@ -8,18 +8,18 @@ import {
 } from '@angular/core';
 import { provideRouter, RouteReuseStrategy, withNavigationErrorHandler } from '@angular/router';
 
-import { provideApiIstemcisi } from '@core/api/api-istemcisi';
-import { ONAY_ISTEMI } from '@core/form/kaydedilmemis-degisiklik';
-import { cdkOnayIstemi } from '@core/geri-bildirim/onay-servisi';
-import { RcHataIsleyici } from '@core/hata/istemci-hata';
-import { provideCeviri } from '@core/i18n/ceviri';
-import { OTURUM_BAGLAMI } from '@core/oturum/oturum-baglami';
-import { oturumInterceptor } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { ParcaHatasiServisi, parcaYuklemeHatasiMi } from '@core/surum/parca-hatasi';
-import { SekmeRotaStratejisi } from '@core/sekme/sekme-stratejisi';
-import { provideTema } from '@core/tema/tema';
-import { provideTurkceYerel } from '@core/yerel/tr-yerel';
+import { provideApiClient } from '@core/api/api-istemcisi';
+import { CONFIRM_PROMPT } from '@core/form/kaydedilmemis-degisiklik';
+import { cdkConfirmPrompt } from '@core/geri-bildirim/confirm-service';
+import { RcErrorHandler } from '@core/hata/istemci-hata';
+import { provideTranslation } from '@core/i18n/ceviri';
+import { SESSION_CONTEXT } from '@core/oturum/oturum-baglami';
+import { sessionInterceptor } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
+import { ChunkErrorService, isChunkLoadError } from '@core/surum/parca-hatasi';
+import { TabRouteStrategy } from '@core/sekme/sekme-stratejisi';
+import { provideTheme } from '@core/tema/tema';
+import { provideTurkishLocale } from '@core/yerel/tr-yerel';
 
 import { routes } from './app.routes';
 
@@ -30,22 +30,22 @@ export const appConfig: ApplicationConfig = {
     provideRouter(
       routes,
       // Tembel sayfa parçası yüklenemedi (yayından sonra): hedef adrese kontrollü TEK yenileme.
-      withNavigationErrorHandler((hata) => {
-        if (parcaYuklemeHatasiMi(hata.error)) {
-          inject(ParcaHatasiServisi).isle(inject(LocationStrategy).prepareExternalUrl(hata.url));
+      withNavigationErrorHandler((error) => {
+        if (isChunkLoadError(error.error)) {
+          inject(ChunkErrorService).isle(inject(LocationStrategy).prepareExternalUrl(error.url));
         }
       }),
     ),
     // Sekmeli çalışma alanı (F3.2): açık sekmenin sayfası başka sekmeye geçince yaşamaya devam eder.
-    { provide: RouteReuseStrategy, useExisting: SekmeRotaStratejisi },
-    provideTurkceYerel(),
-    ...provideCeviri(),
-    provideTema(),
+    { provide: RouteReuseStrategy, useExisting: TabRouteStrategy },
+    provideTurkishLocale(),
+    ...provideTranslation(),
+    provideTheme(),
     // HttpClient + XSRF (XSRF-TOKEN çerezi → X-XSRF-TOKEN başlığı) + kod bazlı oturum/geri bildirim (F3.3).
-    provideApiIstemcisi(oturumInterceptor),
-    { provide: OTURUM_BAGLAMI, useFactory: () => inject(OturumServisi).baglam },
-    { provide: ErrorHandler, useClass: RcHataIsleyici },
+    provideApiClient(sessionInterceptor),
+    { provide: SESSION_CONTEXT, useFactory: () => inject(SessionService).context },
+    { provide: ErrorHandler, useClass: RcErrorHandler },
     // Kaydedilmemiş değişiklik sorusu (F3.6 guard'ı) tarayıcı confirm'ü yerine CDK onay diyaloğuyla.
-    { provide: ONAY_ISTEMI, useFactory: cdkOnayIstemi },
+    { provide: CONFIRM_PROMPT, useFactory: cdkConfirmPrompt },
   ],
 };

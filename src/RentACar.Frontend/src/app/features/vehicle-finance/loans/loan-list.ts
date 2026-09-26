@@ -14,36 +14,36 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { ParaPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, DatePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { loanColumns } from '../finance-columns';
 import {
@@ -58,7 +58,7 @@ import {
 import { LOANS, LoanListStore } from '../finance.store';
 import { CustomerLabels } from '../labels';
 import { activeSelection, emptyLoanForm, loanRequest, type LoanFormValue } from './loan-form-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -75,45 +75,45 @@ type LoanStatus = (typeof LOAN_STATUSES)[number];
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    ParaGirdisi,
-    ParaPipe,
-    SayiGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihPipe,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    Icon,
+    TextInput,
+    MoneyInput,
+    MoneyPipe,
+    NumberInput,
+    Selection,
+    Table,
+    TableCell,
+    DatePipe,
+    DatePicker,
   ],
   providers: [FetchPolicy, LoanListStore, CustomerLabels],
   templateUrl: './loan-list.html',
   styleUrl: '../vehicle-finance.scss',
 })
-export class LoanList implements KaydedilmemisDegisiklikSahibi {
+export class LoanList implements UnsavedChangesOwner {
   protected readonly store = inject(LoanListStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly labels = inject(CustomerLabels);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(LOAN_LIST);
+  protected readonly query = listQueryUrlSync(LOAN_LIST);
   protected readonly columns = loanColumns(this.t);
   protected readonly rowId = (r: LoanRow) => r.id;
   protected readonly num = toNumber;
-  protected readonly customers = sunucuSecimKaynagi('musteri');
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
+  protected readonly customers = serverSelectionSource('musteri');
+  protected readonly vehicles = serverSelectionSource('arac');
 
   protected readonly canCreate = computed(() => this.session.izinVar('OperationsWrite'));
   protected readonly canCancel = computed(() => this.session.izinVar('OperationsDelete'));
@@ -156,7 +156,7 @@ export class LoanList implements KaydedilmemisDegisiklikSahibi {
     baslangic: new FormControl<string | null>(null),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   protected readonly export = computed<DisaAktarma>(() => ({
     yol: '/listeler/export/arac-kredileri',
@@ -166,15 +166,15 @@ export class LoanList implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => {
         this.store.list.yukle(p);
         this.store.board.yukle(p);
       },
       sifirla: () => {
-        this.store.list.sifirla();
-        this.store.board.sifirla();
+        this.store.list.reset();
+        this.store.board.reset();
       },
       sekmeyeDonunce: 'yenile',
     });
@@ -193,10 +193,10 @@ export class LoanList implements KaydedilmemisDegisiklikSahibi {
       );
     });
     this.form.reset({ ...emptyLoanForm() });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.createOpen() && this.form.dirty;
   }
 
@@ -266,7 +266,7 @@ export class LoanList implements KaydedilmemisDegisiklikSahibi {
       this.toast.uyari(this.t('aracFinans.kredi.seciliYok'));
       return;
     }
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('aracFinans.kredi.topluIptalBaslik'),
       mesaj: this.t('aracFinans.kredi.topluIptalMesaj', { sayi: ids.length }),
       onayEtiketi: this.t('aracFinans.kredi.topluIptal'),
@@ -287,7 +287,7 @@ export class LoanList implements KaydedilmemisDegisiklikSahibi {
           this.refresh();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.refresh();
         },

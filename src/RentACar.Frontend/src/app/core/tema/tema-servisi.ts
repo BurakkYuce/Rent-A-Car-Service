@@ -1,19 +1,19 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
-import { BEYAZ, hexNormalize, karistir, okunurTon, SIYAH, uzerindekiMetin } from './renk';
+import { WHITE, hexNormalize, mix, readableTone, BLACK, textOn } from './renk';
 
 /** Kullanıcının seçtiği tema. `sistem` işletim sistemi tercihini izler. */
-export type TemaModu = 'sistem' | 'acik' | 'koyu';
-export type EtkinTema = 'acik' | 'koyu';
+export type ThemeMode = 'sistem' | 'acik' | 'koyu';
+export type ActiveTheme = 'acik' | 'koyu';
 
 /** Tercih yalnız tema modunu tutar (kişisel veri değil). */
-export const TEMA_ANAHTARI = 'rc.tema';
+export const THEME_KEY = 'rc.tema';
 
 /**
  * `_tokenlar.scss`'teki zemin renklerinin kopyası: kiracı vurgusunun metin tonu bunlara karşı
  * okunur yapılır. Eşleşmeyi `scripts/kontrast-denetimi.mjs` denetler (lint kapısı).
  */
-export const TEMA_ZEMINLERI: Readonly<Record<EtkinTema, readonly string[]>> = {
+export const TEMA_ZEMINLERI: Readonly<Record<ActiveTheme, readonly string[]>> = {
   acik: ['#f4f2ec', '#ffffff', '#ece9e1', '#e2ded3', '#e4e9f7'],
   koyu: ['#141310', '#1c1b17', '#24221d', '#2d2b25', '#1b2a55'],
 };
@@ -27,32 +27,32 @@ export interface KiraciVurgusu {
   '--rc-kiraci-vurgu-metin-koyu': string;
 }
 
-const METIN_ESIGI = 4.5;
+const TEXT_THRESHOLD = 4.5;
 
 /** Tema değişirken tüm CSS geçişlerini bastıran sınıf (`_taban.scss`). */
-export const GECIS_YOK = 'rc-gecis-yok';
+export const NO_TRANSITION = 'rc-gecis-yok';
 
 /**
  * Kiracı rengi → dolgu, üzerinde-durma tonu, üstündeki metin ve iki tema için okunur metin tonu.
  * Geçersiz renkte `null`. Saf: DOM'a dokunmaz, test edilir.
  */
-export function kiraciVurgusuTuret(renk: string | null | undefined): KiraciVurgusu | null {
-  const vurgu = hexNormalize(renk);
-  if (!vurgu) return null;
+export function deriveTenantAccent(renk: string | null | undefined): KiraciVurgusu | null {
+  const accent = hexNormalize(renk);
+  if (!accent) return null;
 
   // Önce metin rengi; üzerinde-durma tonu metinden UZAKLAŞAN yönde, böylece kontrast yalnız artar.
-  const uzeri = uzerindekiMetin(vurgu);
-  const hover = karistir(vurgu, uzeri === BEYAZ ? SIYAH : BEYAZ, 0.15);
+  const over = textOn(accent);
+  const hover = mix(accent, over === WHITE ? BLACK : WHITE, 0.15);
   return {
-    '--rc-kiraci-vurgu': vurgu,
+    '--rc-kiraci-vurgu': accent,
     '--rc-kiraci-vurgu-hover': hover,
-    '--rc-kiraci-vurgu-uzeri': uzeri,
-    '--rc-kiraci-vurgu-metin-acik': okunurTon(vurgu, TEMA_ZEMINLERI.acik, METIN_ESIGI),
-    '--rc-kiraci-vurgu-metin-koyu': okunurTon(vurgu, TEMA_ZEMINLERI.koyu, METIN_ESIGI),
+    '--rc-kiraci-vurgu-uzeri': over,
+    '--rc-kiraci-vurgu-metin-acik': readableTone(accent, TEMA_ZEMINLERI.acik, TEXT_THRESHOLD),
+    '--rc-kiraci-vurgu-metin-koyu': readableTone(accent, TEMA_ZEMINLERI.koyu, TEXT_THRESHOLD),
   };
 }
 
-const KIRACI_DEGISKENLERI: readonly (keyof KiraciVurgusu)[] = [
+const TENANT_VARIABLES: readonly (keyof KiraciVurgusu)[] = [
   '--rc-kiraci-vurgu',
   '--rc-kiraci-vurgu-hover',
   '--rc-kiraci-vurgu-uzeri',
@@ -65,7 +65,7 @@ const KIRACI_DEGISKENLERI: readonly (keyof KiraciVurgusu)[] = [
  * `--rc-kiraci-renk-<ad>` değişkenine yazılır; tablo satır renklendirmesi (F4+) bunu
  * `var(--rc-kiraci-renk-gecikenler, <varsayılan>)` ile okur. Listede olmayan ad yok sayılır.
  */
-export const KIRACI_DURUM_RENKLERI = [
+export const TENANT_STATUS_COLORS = [
   'gecikenler',
   'bugun-donecekler',
   'bugun-cikacaklar',
@@ -76,10 +76,10 @@ export const KIRACI_DURUM_RENKLERI = [
   'kiralanmayan',
 ] as const;
 
-export type KiraciDurumRengi = (typeof KIRACI_DURUM_RENKLERI)[number];
+export type TenantStatusColor = (typeof TENANT_STATUS_COLORS)[number];
 
-function temaModuMu(deger: unknown): deger is TemaModu {
-  return deger === 'sistem' || deger === 'acik' || deger === 'koyu';
+function isThemeMode(value: unknown): value is ThemeMode {
+  return value === 'sistem' || value === 'acik' || value === 'koyu';
 }
 
 /**
@@ -91,43 +91,43 @@ function temaModuMu(deger: unknown): deger is TemaModu {
 @Injectable({ providedIn: 'root' })
 export class TemaServisi {
   private readonly belge = inject(DOCUMENT);
-  private readonly kok = this.belge.documentElement;
-  private readonly sistemKoyu = signal(false);
+  private readonly root = this.belge.documentElement;
+  private readonly systemDark = signal(false);
 
-  readonly mod = signal<TemaModu>('sistem');
-  readonly etkinTema = computed<EtkinTema>(() => {
+  readonly mod = signal<ThemeMode>('sistem');
+  readonly activeTheme = computed<ActiveTheme>(() => {
     const mod = this.mod();
     if (mod !== 'sistem') return mod;
-    return this.sistemKoyu() ? 'koyu' : 'acik';
+    return this.systemDark() ? 'koyu' : 'acik';
   });
 
   constructor() {
-    const pencere = this.belge.defaultView;
-    const sorgu = pencere?.matchMedia?.('(prefers-color-scheme: dark)');
-    if (sorgu) {
-      this.sistemKoyu.set(sorgu.matches);
-      const dinle = (olay: MediaQueryListEvent) =>
-        this.gecissiz(() => this.sistemKoyu.set(olay.matches));
-      sorgu.addEventListener('change', dinle);
-      inject(DestroyRef).onDestroy(() => sorgu.removeEventListener('change', dinle));
+    const window = this.belge.defaultView;
+    const query = window?.matchMedia?.('(prefers-color-scheme: dark)');
+    if (query) {
+      this.systemDark.set(query.matches);
+      const listen = (evt: MediaQueryListEvent) =>
+        this.withoutTransition(() => this.systemDark.set(evt.matches));
+      query.addEventListener('change', listen);
+      inject(DestroyRef).onDestroy(() => query.removeEventListener('change', listen));
     }
-    this.uygula(this.sakliModuOku());
+    this.apply(this.readStoredMode());
   }
 
-  modAyarla(mod: TemaModu): void {
-    this.uygula(mod);
+  setMode(mod: ThemeMode): void {
+    this.apply(mod);
     try {
-      this.belge.defaultView?.localStorage.setItem(TEMA_ANAHTARI, mod);
+      this.belge.defaultView?.localStorage.setItem(THEME_KEY, mod);
     } catch {
       // Gizli pencere / engelli depolama: tercih yalnız bu oturumda geçerli kalır.
     }
   }
 
-  kiraciVurgusuUygula(renk: string | null | undefined): void {
-    const vurgu = kiraciVurgusuTuret(renk);
-    for (const degisken of KIRACI_DEGISKENLERI) {
-      if (vurgu) this.kok.style.setProperty(degisken, vurgu[degisken]);
-      else this.kok.style.removeProperty(degisken);
+  applyTenantAccent(renk: string | null | undefined): void {
+    const accent = deriveTenantAccent(renk);
+    for (const variable of TENANT_VARIABLES) {
+      if (accent) this.root.style.setProperty(variable, accent[variable]);
+      else this.root.style.removeProperty(variable);
     }
   }
 
@@ -135,20 +135,20 @@ export class TemaServisi {
    * Firma durum renklerini uygular; geçerli `#rrggbb` olmayan ya da bilinmeyen ad atlanır, verilmeyen
    * renk kaldırılır (varsayılana döner). `null` → hepsi kaldırılır (çıkış/firma değişimi).
    */
-  kiraciRenkleriUygula(renkler: Readonly<Record<string, string>> | null): void {
-    for (const ad of KIRACI_DURUM_RENKLERI) {
-      const renk = hexNormalize(renkler?.[ad]);
-      const degisken = `--rc-kiraci-renk-${ad}`;
-      if (renk) this.kok.style.setProperty(degisken, renk);
-      else this.kok.style.removeProperty(degisken);
+  applyTenantColors(colors: Readonly<Record<string, string>> | null): void {
+    for (const name of TENANT_STATUS_COLORS) {
+      const renk = hexNormalize(colors?.[name]);
+      const variable = `--rc-kiraci-renk-${name}`;
+      if (renk) this.root.style.setProperty(variable, renk);
+      else this.root.style.removeProperty(variable);
     }
   }
 
-  private uygula(mod: TemaModu): void {
+  private apply(mod: ThemeMode): void {
     this.mod.set(mod);
-    this.gecissiz(() => {
-      if (mod === 'sistem') this.kok.removeAttribute('data-theme');
-      else this.kok.setAttribute('data-theme', mod === 'koyu' ? 'dark' : 'light');
+    this.withoutTransition(() => {
+      if (mod === 'sistem') this.root.removeAttribute('data-theme');
+      else this.root.setAttribute('data-theme', mod === 'koyu' ? 'dark' : 'light');
     });
   }
 
@@ -157,22 +157,22 @@ export class TemaServisi {
    * canlanırken metin anında döner ve ara karelerde kontrast düşer (e2e axe bunu yakaladı).
    * Sistem teması değişiminde de çağrılır; o an süren geçişler iptal olur, son renge atlar.
    */
-  private gecissiz(degistir: () => void): void {
-    const pencere = this.belge.defaultView;
-    this.kok.classList.add(GECIS_YOK);
-    degistir();
-    if (!pencere) {
-      this.kok.classList.remove(GECIS_YOK);
+  private withoutTransition(change: () => void): void {
+    const window = this.belge.defaultView;
+    this.root.classList.add(NO_TRANSITION);
+    change();
+    if (!window) {
+      this.root.classList.remove(NO_TRANSITION);
       return;
     }
-    void pencere.getComputedStyle(this.kok).backgroundColor; // yeni stili geçişsiz hesaplat
-    pencere.setTimeout(() => this.kok.classList.remove(GECIS_YOK), 1);
+    void window.getComputedStyle(this.root).backgroundColor; // yeni stili geçişsiz hesaplat
+    window.setTimeout(() => this.root.classList.remove(NO_TRANSITION), 1);
   }
 
-  private sakliModuOku(): TemaModu {
+  private readStoredMode(): ThemeMode {
     try {
-      const deger = this.belge.defaultView?.localStorage.getItem(TEMA_ANAHTARI);
-      return temaModuMu(deger) ? deger : 'sistem';
+      const value = this.belge.defaultView?.localStorage.getItem(THEME_KEY);
+      return isThemeMode(value) ? value : 'sistem';
     } catch {
       return 'sistem';
     }

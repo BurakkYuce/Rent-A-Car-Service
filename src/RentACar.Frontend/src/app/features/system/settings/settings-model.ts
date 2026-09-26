@@ -1,9 +1,9 @@
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 
-export type SettingsDto = Sema<'SettingsDto'>;
-export type SettingsRequest = Sema<'SettingsRequest'>;
-export type DomainDto = Sema<'DomainDto'>;
-export type SendTestResult = Sema<'SendTestResult'>;
+export type SettingsDto = Schema<'SettingsDto'>;
+export type SettingsRequest = Schema<'SettingsRequest'>;
+export type DomainDto = Schema<'DomainDto'>;
+export type SendTestResult = Schema<'SendTestResult'>;
 
 /**
  * Yalnız YAZILABİLİR sır alanları: hiçbir yanıtta dönmez (yalnız `*Tanimli`), formda boş = sunucudaki değer korunur

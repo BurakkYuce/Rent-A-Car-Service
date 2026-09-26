@@ -26,9 +26,9 @@ const rentalLink = (id: string) => ['/kiralar', id];
 
 // ── Cari bakiye (+ yaşlandırma) ─────────────────────────────────────────────────────────────
 const cb = cardsFor<SummaryOf<`${typeof R}/cari-bakiye`>>();
-const cbSatir = columnsFor<RowOf<`${typeof R}/cari-bakiye`>>();
+const cbRow = columnsFor<RowOf<`${typeof R}/cari-bakiye`>>();
 const ya = cardsFor<SummaryOf<`${typeof R}/cari-bakiye/yaslandirma`>>();
-const yaSatir = columnsFor<RowOf<`${typeof R}/cari-bakiye/yaslandirma`>>();
+const yaRow = columnsFor<RowOf<`${typeof R}/cari-bakiye/yaslandirma`>>();
 export const CUSTOMER_BALANCE = defineReport({
   kod: 'cari-bakiye',
   baslik: 'rapor.baslik.cariBakiye',
@@ -81,18 +81,18 @@ export const CUSTOMER_BALANCE = defineReport({
         siralanabilir: ['ad', 'bakiye', 'toplamBorc', 'toplamAlacak', 'doviz', 'sinif'],
         satirKimligi: (r) => r.cariId,
         sutunlar: [
-          cbSatir.field('ad', 'metin', { sirala: true, sabit: true, baslik: 'rapor.alan.cari' }),
-          cbSatir.field('bakiye', 'para', { sirala: true }),
-          cbSatir.field('toplamBorc', 'para', { sirala: true }),
-          cbSatir.field('toplamAlacak', 'para', { sirala: true }),
-          cbSatir.field('doviz', 'metin', { sirala: true }),
-          cbSatir.field('telefon', 'metin'),
-          cbSatir.field('email', 'metin'),
-          cbSatir.field('banka', 'metin', { gizli: true }),
-          cbSatir.field('ozelKod', 'metin'),
-          cbSatir.field('sinif', 'metin', { sirala: true }),
-          cbSatir.field('kurumsal', 'bayrak'),
-          cbSatir.field('pasif', 'bayrak', { gizli: true }),
+          cbRow.field('ad', 'metin', { sirala: true, sabit: true, baslik: 'rapor.alan.cari' }),
+          cbRow.field('bakiye', 'para', { sirala: true }),
+          cbRow.field('toplamBorc', 'para', { sirala: true }),
+          cbRow.field('toplamAlacak', 'para', { sirala: true }),
+          cbRow.field('doviz', 'metin', { sirala: true }),
+          cbRow.field('telefon', 'metin'),
+          cbRow.field('email', 'metin'),
+          cbRow.field('banka', 'metin', { gizli: true }),
+          cbRow.field('ozelKod', 'metin'),
+          cbRow.field('sinif', 'metin', { sirala: true }),
+          cbRow.field('kurumsal', 'bayrak'),
+          cbRow.field('pasif', 'bayrak', { gizli: true }),
         ],
       },
     }),
@@ -119,12 +119,12 @@ export const CUSTOMER_BALANCE = defineReport({
         siralanabilir: ['ad', 'toplam', 'b0_30', 'b31_60', 'b61_90', 'b90Plus'],
         satirKimligi: (r) => r.cariId,
         sutunlar: [
-          yaSatir.field('ad', 'metin', { sirala: true, sabit: true, baslik: 'rapor.alan.cari' }),
-          yaSatir.field('b0_30', 'para', { sirala: true }),
-          yaSatir.field('b31_60', 'para', { sirala: true }),
-          yaSatir.field('b61_90', 'para', { sirala: true }),
-          yaSatir.field('b90Plus', 'para', { sirala: true }),
-          yaSatir.field('toplam', 'para', { sirala: true }),
+          yaRow.field('ad', 'metin', { sirala: true, sabit: true, baslik: 'rapor.alan.cari' }),
+          yaRow.field('b0_30', 'para', { sirala: true }),
+          yaRow.field('b31_60', 'para', { sirala: true }),
+          yaRow.field('b61_90', 'para', { sirala: true }),
+          yaRow.field('b90Plus', 'para', { sirala: true }),
+          yaRow.field('toplam', 'para', { sirala: true }),
         ],
       },
     }),
@@ -133,7 +133,7 @@ export const CUSTOMER_BALANCE = defineReport({
 
 // ── Ekstre özeti ────────────────────────────────────────────────────────────────────────────
 const ex = cardsFor<SummaryOf<`${typeof R}/extre-ozeti`>>();
-const exSatir = columnsFor<RowOf<`${typeof R}/extre-ozeti`>>();
+const exRow = columnsFor<RowOf<`${typeof R}/extre-ozeti`>>();
 export const STATEMENT = defineReport({
   kod: 'extre-ozeti',
   baslik: 'rapor.baslik.extreOzeti',
@@ -155,17 +155,17 @@ export const STATEMENT = defineReport({
         siralanabilir: ['tarih', 'vadeTarihi', 'faturaNo', 'cariAd', 'tutar'],
         satirKimligi: (r) => r.faturaId,
         sutunlar: [
-          exSatir.field('faturaNo', 'metin', { sirala: true, sabit: true }),
-          exSatir.field('tarih', 'tarih', { sirala: true }),
-          exSatir.field('vadeTarihi', 'tarih', { sirala: true }),
-          exSatir.field('cariAd', 'metin', { sirala: true, baslik: 'rapor.alan.cari' }),
-          exSatir.field('plaka', 'metin'),
-          exSatir.field('sozlesmeNo', 'metin'),
-          exSatir.field('cikisOfisi', 'metin'),
-          exSatir.field('tutar', 'para', { sirala: true, paraBirimi: (r) => r.doviz }),
-          exSatir.field('kur', 'sayi', { gizli: true }),
-          exSatir.field('iadeMi', 'bayrak'),
-          exSatir.field('isaretliTutarTl', 'para'),
+          exRow.field('faturaNo', 'metin', { sirala: true, sabit: true }),
+          exRow.field('tarih', 'tarih', { sirala: true }),
+          exRow.field('vadeTarihi', 'tarih', { sirala: true }),
+          exRow.field('cariAd', 'metin', { sirala: true, baslik: 'rapor.alan.cari' }),
+          exRow.field('plaka', 'metin'),
+          exRow.field('sozlesmeNo', 'metin'),
+          exRow.field('cikisOfisi', 'metin'),
+          exRow.field('tutar', 'para', { sirala: true, paraBirimi: (r) => r.doviz }),
+          exRow.field('kur', 'sayi', { gizli: true }),
+          exRow.field('iadeMi', 'bayrak'),
+          exRow.field('isaretliTutarTl', 'para'),
         ],
       },
     }),
@@ -175,7 +175,7 @@ export const STATEMENT = defineReport({
 // ── Tahsilat–fatura (+ kira bazlı mutabakat) ────────────────────────────────────────────────
 const tf = cardsFor<SummaryOf<`${typeof R}/tahsilat-fatura`>>();
 const mu = cardsFor<SummaryOf<`${typeof R}/tahsilat-fatura/mutabakat`>>();
-const muSatir = columnsFor<RowOf<`${typeof R}/tahsilat-fatura/mutabakat`>>();
+const muRow = columnsFor<RowOf<`${typeof R}/tahsilat-fatura/mutabakat`>>();
 export const COLLECTION_INVOICE = defineReport({
   kod: 'tahsilat-fatura',
   baslik: 'rapor.baslik.tahsilatFatura',
@@ -231,26 +231,26 @@ export const COLLECTION_INVOICE = defineReport({
         ],
         satirKimligi: (r) => r.rentalId,
         sutunlar: [
-          muSatir.field('sozlesmeNo', 'metin', {
+          muRow.field('sozlesmeNo', 'metin', {
             sirala: true,
             sabit: true,
             bag: (r) => rentalLink(r.rentalId),
           }),
-          muSatir.field('plaka', 'metin'),
-          muSatir.field('musteriAd', 'metin', { sirala: true, baslik: 'rapor.alan.musteri' }),
-          muSatir.field('basTar', 'tarih', { sirala: true }),
-          muSatir.field('durum', 'metin'),
-          muSatir.field('matrah', 'para', { paraBirimi: (r) => r.doviz, gizli: true }),
-          muSatir.field('damgaVergisi', 'para', { paraBirimi: (r) => r.doviz, gizli: true }),
-          muSatir.field('genelToplam', 'para', { sirala: true, paraBirimi: (r) => r.doviz }),
-          muSatir.field('tahsilat', 'para', { paraBirimi: (r) => r.doviz }),
-          muSatir.field('defterTahsilat', 'para', { gizli: true }),
-          muSatir.field('faturalanan', 'para', { paraBirimi: (r) => r.doviz }),
-          muSatir.field('musteriBakiye', 'para', { gizli: true }),
-          muSatir.field('bakiye', 'para', { sirala: true, paraBirimi: (r) => r.doviz }),
-          muSatir.field('faturaFarki', 'para', { sirala: true, paraBirimi: (r) => r.doviz }),
-          muSatir.field('tahsilatAyrimi', 'para', { gizli: true }),
-          muSatir.field('tutarsiz', 'bayrak'),
+          muRow.field('plaka', 'metin'),
+          muRow.field('musteriAd', 'metin', { sirala: true, baslik: 'rapor.alan.musteri' }),
+          muRow.field('basTar', 'tarih', { sirala: true }),
+          muRow.field('durum', 'metin'),
+          muRow.field('matrah', 'para', { paraBirimi: (r) => r.doviz, gizli: true }),
+          muRow.field('damgaVergisi', 'para', { paraBirimi: (r) => r.doviz, gizli: true }),
+          muRow.field('genelToplam', 'para', { sirala: true, paraBirimi: (r) => r.doviz }),
+          muRow.field('tahsilat', 'para', { paraBirimi: (r) => r.doviz }),
+          muRow.field('defterTahsilat', 'para', { gizli: true }),
+          muRow.field('faturalanan', 'para', { paraBirimi: (r) => r.doviz }),
+          muRow.field('musteriBakiye', 'para', { gizli: true }),
+          muRow.field('bakiye', 'para', { sirala: true, paraBirimi: (r) => r.doviz }),
+          muRow.field('faturaFarki', 'para', { sirala: true, paraBirimi: (r) => r.doviz }),
+          muRow.field('tahsilatAyrimi', 'para', { gizli: true }),
+          muRow.field('tutarsiz', 'bayrak'),
         ],
       },
     }),
@@ -259,9 +259,9 @@ export const COLLECTION_INVOICE = defineReport({
 
 // ── Fatura dönem (+ kira fatura durumu) ─────────────────────────────────────────────────────
 const fd = cardsFor<SummaryOf<`${typeof R}/fatura-donem`>>();
-const fdSatir = columnsFor<RowOf<`${typeof R}/fatura-donem`>>();
+const fdRow = columnsFor<RowOf<`${typeof R}/fatura-donem`>>();
 const kd = cardsFor<SummaryOf<`${typeof R}/fatura-donem/kira-durum`>>();
-const kdSatir = columnsFor<RowOf<`${typeof R}/fatura-donem/kira-durum`>>();
+const kdRow = columnsFor<RowOf<`${typeof R}/fatura-donem/kira-durum`>>();
 export const INVOICE_PERIOD = defineReport({
   kod: 'fatura-donem',
   baslik: 'rapor.baslik.faturaDonem',
@@ -279,14 +279,14 @@ export const INVOICE_PERIOD = defineReport({
         siralanabilir: ['tarih', 'vadeTarihi', 'no', 'cari', 'genelToplam'],
         satirKimligi: (r) => r.invoiceId,
         sutunlar: [
-          fdSatir.field('no', 'metin', { sirala: true, sabit: true }),
-          fdSatir.field('tarih', 'tarih', { sirala: true }),
-          fdSatir.field('vadeTarihi', 'tarih', { sirala: true }),
-          fdSatir.field('cari', 'metin', { sirala: true }),
-          fdSatir.field('genelToplam', 'para', { sirala: true, paraBirimi: (r) => r.currency }),
-          fdSatir.field('kur', 'sayi', { gizli: true }),
-          fdSatir.field('durum', 'metin'),
-          fdSatir.field('iadeMi', 'bayrak'),
+          fdRow.field('no', 'metin', { sirala: true, sabit: true }),
+          fdRow.field('tarih', 'tarih', { sirala: true }),
+          fdRow.field('vadeTarihi', 'tarih', { sirala: true }),
+          fdRow.field('cari', 'metin', { sirala: true }),
+          fdRow.field('genelToplam', 'para', { sirala: true, paraBirimi: (r) => r.currency }),
+          fdRow.field('kur', 'sayi', { gizli: true }),
+          fdRow.field('durum', 'metin'),
+          fdRow.field('iadeMi', 'bayrak'),
         ],
       },
     }),
@@ -316,20 +316,20 @@ export const INVOICE_PERIOD = defineReport({
         siralanabilir: ['basTar', 'sozlesmeNo', 'cari', 'plaka', 'faturalananTutar'],
         satirKimligi: (r) => r.rentalId,
         sutunlar: [
-          kdSatir.field('sozlesmeNo', 'metin', {
+          kdRow.field('sozlesmeNo', 'metin', {
             sirala: true,
             sabit: true,
             bag: (r) => rentalLink(r.rentalId),
           }),
-          kdSatir.field('plaka', 'metin', { sirala: true }),
-          kdSatir.field('cari', 'metin', { sirala: true }),
-          kdSatir.field('basTar', 'tarih', { sirala: true }),
-          kdSatir.field('bitTar', 'tarih'),
-          kdSatir.field('durum', 'metin'),
-          kdSatir.field('faturalanan', 'bayrak'),
-          kdSatir.field('faturaAdet', 'tamsayi'),
-          kdSatir.field('faturalananTutar', 'para', { sirala: true }),
-          kdSatir.field('ofis', 'metin'),
+          kdRow.field('plaka', 'metin', { sirala: true }),
+          kdRow.field('cari', 'metin', { sirala: true }),
+          kdRow.field('basTar', 'tarih', { sirala: true }),
+          kdRow.field('bitTar', 'tarih'),
+          kdRow.field('durum', 'metin'),
+          kdRow.field('faturalanan', 'bayrak'),
+          kdRow.field('faturaAdet', 'tamsayi'),
+          kdRow.field('faturalananTutar', 'para', { sirala: true }),
+          kdRow.field('ofis', 'metin'),
         ],
       },
     }),

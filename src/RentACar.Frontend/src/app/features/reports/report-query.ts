@@ -1,13 +1,13 @@
-import type { SorguParametreleri } from '@core/api/api-istemcisi';
-import { paraBicimle, sayiBicimle, tarihBicimle, tarihSaatBicimle } from '@core/bicim/bicim';
+import type { QueryParameters } from '@core/api/api-istemcisi';
+import { formatMoney, sayiBicimle, tarihBicimle, formatDateTime } from '@core/bicim/bicim';
 import {
-  type FiltreKatalogu,
-  type FiltreTanimi,
+  type FilterCatalog,
+  type FilterDefinition,
   type ListeSorgusu,
   type ListeTanimi,
-  listeTanimi,
+  listDefinition,
 } from '@core/veri/liste-sorgusu';
-import type { DisaAktarma, DisaAktarmaBicimi, DisaAktarmaYolu } from '@shared/tablo/disa-aktarma';
+import type { DisaAktarma, ExportFormat, ExportPath } from '@shared/tablo/disa-aktarma';
 
 import type { ReportDefinition, ReportFilter, ReportView, ValueKind } from './report-model';
 
@@ -27,7 +27,7 @@ export function filterKeys(f: ReportFilter<unknown>): readonly string[] {
   return f.tur === 'donem' ? ['bas', 'bit'] : [f.ad];
 }
 
-function catalogEntry(f: ReportFilter<unknown>): FiltreTanimi {
+function catalogEntry(f: ReportFilter<unknown>): FilterDefinition {
   switch (f.tur) {
     case 'donem':
     case 'gun':
@@ -49,8 +49,8 @@ function catalogEntry(f: ReportFilter<unknown>): FiltreTanimi {
 }
 
 /** Raporun URL kataloğu (tüm görünümler). Aynı URL anahtarı iki farklı türle tanımlanamaz. */
-export function reportListDefinition(def: ReportDefinition): ListeTanimi<FiltreKatalogu> {
-  const filters: Record<string, FiltreTanimi> = {};
+export function reportListDefinition(def: ReportDefinition): ListeTanimi<FilterCatalog> {
+  const filters: Record<string, FilterDefinition> = {};
   const sortable = new Set<string>();
   for (const view of def.gorunumler) {
     for (const f of view.filtreler) {
@@ -68,7 +68,7 @@ export function reportListDefinition(def: ReportDefinition): ListeTanimi<FiltreK
   if (def.gorunumler.length > 1) {
     filters[VIEW_KEY] = { tur: 'secim', degerler: def.gorunumler.map((v) => v.kod) };
   }
-  return listeTanimi({
+  return listDefinition({
     filtreler: filters,
     siralanabilir: [...sortable],
     varsayilanSirala: null,
@@ -97,9 +97,9 @@ export function viewUrl(view: ReportView, id: string | null): `/api/ui/v1/${stri
  */
 export function viewParams(
   view: ReportView,
-  query: ListeSorgusu<FiltreKatalogu>,
+  query: ListeSorgusu<FilterCatalog>,
   scopedBranch: boolean,
-): SorguParametreleri {
+): QueryParameters {
   const values = query.filtreler as Readonly<Record<string, unknown>>;
   const out: Record<string, string | number | boolean | null> = { ...view.sabit };
   for (const f of view.filtreler) {
@@ -143,15 +143,15 @@ export function exportFromLinks(
   };
   const excel = parse(links.excel);
   if (!/^\/raporlar\/export\/[a-z0-9-]+$/.test(excel.path)) return null;
-  const parametreler: Record<string, string | readonly string[]> = {};
+  const parameters: Record<string, string | readonly string[]> = {};
   for (const key of new Set(excel.params.keys())) {
     if (key === 'format') continue;
     const all = excel.params.getAll(key);
-    parametreler[key] = all.length === 1 ? all[0]! : all;
+    parameters[key] = all.length === 1 ? all[0]! : all;
   }
-  const bicimler: DisaAktarmaBicimi[] = ['excel', 'csv'];
-  if (links.pdf) bicimler.push('pdf');
-  return { yol: excel.path as DisaAktarmaYolu, parametreler, bicimler };
+  const formats: ExportFormat[] = ['excel', 'csv'];
+  if (links.pdf) formats.push('pdf');
+  return { yol: excel.path as ExportPath, parametreler: parameters, bicimler: formats };
 }
 
 /** `number | string` (decimal JSON) → sayı; biçimsiz → `null`. */
@@ -174,7 +174,7 @@ export function formatValue(
   if (value === null || value === undefined || value === '') return '—';
   switch (kind) {
     case 'para':
-      return paraBicimle(asNumber(value), currency || 'TRY') || '—';
+      return formatMoney(asNumber(value), currency || 'TRY') || '—';
     case 'sayi':
       return sayiBicimle(asNumber(value)) || '—';
     case 'tamsayi':
@@ -186,7 +186,7 @@ export function formatValue(
     case 'tarih':
       return tarihBicimle(value as string) || '—';
     case 'tarihSaat':
-      return tarihSaatBicimle(value as string) || '—';
+      return formatDateTime(value as string) || '—';
     case 'bayrak':
       return value === true ? labels.evet : labels.hayir;
     case 'metin':

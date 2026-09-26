@@ -13,14 +13,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { type Observable, finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import type { StoreDurumu } from '@core/veri/temel-store';
-import { Ikon } from '@shared/ikon/ikon';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import type { StoreState } from '@core/veri/temel-store';
+import { Icon } from '@shared/ikon/icon';
 
 import type { VehiclePhoto } from '../vehicle-model';
 
@@ -37,7 +37,7 @@ export const PHOTO_TYPES = 'image/png,image/jpeg,image/webp';
 @Component({
   selector: 'rc-vehicle-photos',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, Ikon],
+  imports: [TranslocoPipe, Icon],
   styles: `
     :host {
       display: flex;
@@ -173,16 +173,16 @@ export const PHOTO_TYPES = 'image/png,image/jpeg,image/webp';
 export class VehiclePhotos {
   readonly aracId = input.required<string>();
   readonly plaka = input('');
-  readonly kaynak = input.required<StoreDurumu<readonly VehiclePhoto[]>>();
+  readonly kaynak = input.required<StoreState<readonly VehiclePhoto[]>>();
   readonly yazabilir = input(false);
   /** Her işlemden sonra (listeyi yeniden yükleme sayfanın store'unda). */
   readonly yenile = input.required<() => void>();
 
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
 
   protected readonly max = MAX_PHOTOS;
@@ -243,7 +243,7 @@ export class VehiclePhotos {
 
   protected async remove(p: VehiclePhoto): Promise<void> {
     if (this.busy()) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('arac.foto.silBaslik'),
       mesaj: this.t('arac.foto.silMesaj', { plaka: this.plaka() }),
       onayEtiketi: this.t('arac.sil'),
@@ -275,7 +275,7 @@ export class VehiclePhotos {
           this.yenile()();
         },
         error: (raw: unknown) => {
-          const e = apiHatasinaCevir(raw);
+          const e = toApiError(raw);
           if (!genelGosterilir(e)) this.error.set(e.alanlar?.['foto']?.[0] ?? e.detay);
           this.yenile()();
         },

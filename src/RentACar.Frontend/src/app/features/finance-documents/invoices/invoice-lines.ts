@@ -10,19 +10,22 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { CustomerLabels } from '@features/vehicle-finance/labels';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
+import { Table } from '@shared/tablo/table';
 
 import { invoiceLineColumns } from '../document-columns';
 import {
@@ -31,9 +34,9 @@ import {
   invoiceLineExportParameters,
 } from '../document-model';
 import { InvoiceLineStore } from '../document.store';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlateChipComponent } from '@shared/plaka/plaka';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { TableCell } from '@shared/tablo/table-cell';
 
 /**
  * Fatura detay listesi (`/app/faturalar/detay-listesi`) — Blazor `InvoiceLineList.razor` paritesi: fatura SATIRI
@@ -44,19 +47,19 @@ import { TabloHucre } from '@shared/tablo/tablo-hucre';
   selector: 'rc-invoice-lines',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    TabloHucre,
+    TableCell,
     PlateChipComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    Ikon,
-    MetinGirdisi,
-    OnayKutusu,
-    Tablo,
-    TarihSecici,
+    SearchSelection,
+    Icon,
+    TextInput,
+    Checkbox,
+    Table,
+    DatePicker,
   ],
   providers: [FetchPolicy, InvoiceLineStore, CustomerLabels],
   templateUrl: './invoice-lines.html',
@@ -65,9 +68,9 @@ import { TabloHucre } from '@shared/tablo/tablo-hucre';
 export class InvoiceLines {
   protected readonly store = inject(InvoiceLineStore);
   private readonly labels = inject(CustomerLabels);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(INVOICE_LINE_LIST);
+  protected readonly query = listQueryUrlSync(INVOICE_LINE_LIST);
   protected readonly columns = invoiceLineColumns(this.t);
   /** Satırın sunucu kimliği yok (aynı faturada birebir aynı iki kalem olabilir): nesne başına yerel sıra no. */
   private readonly rowIds = new WeakMap<InvoiceLineRow, string>();
@@ -80,7 +83,7 @@ export class InvoiceLines {
     }
     return id;
   };
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
 
   protected readonly filterForm = new FormGroup({
     q: new FormControl<string | null>(null, Validators.maxLength(128)),
@@ -100,18 +103,18 @@ export class InvoiceLines {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
     });
     effect(() => {
       const f = this.query.sorgu().filtreler;
-      const cari = this.labels.label(f.cariId);
+      const account = this.labels.label(f.cariId);
       untracked(() =>
         this.filterForm.reset({
           q: f.q ?? null,
-          cari,
+          cari: account,
           plaka: f.plaka ?? null,
           ofis: f.ofis ?? null,
           bas: f.bas ?? null,

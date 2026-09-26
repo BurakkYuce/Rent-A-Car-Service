@@ -8,17 +8,17 @@ import {
 } from '@angular/core';
 
 /** Uygulamanın tek yerel ayarı. Sayı/tarih biçimi, çoğul kuralları ve ay adları bundan gelir. */
-export const YEREL = 'tr';
+export const LOCALE = 'tr';
 
 /** Türkiye 2016'dan beri sabit UTC+3 (yaz saati yok). Anlık zamanlar İstanbul saatiyle gösterilir. */
-export const ISTANBUL_OFSETI = '+0300';
+export const ISTANBUL_OFFSET = '+0300';
 
-registerLocaleData(localeTr, YEREL);
+registerLocaleData(localeTr, LOCALE);
 
 /** `LOCALE_ID = 'tr'` ve varsayılan para birimi TRY. `app.config.ts` bunu kullanır. */
-export function provideTurkceYerel(): EnvironmentProviders {
+export function provideTurkishLocale(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: LOCALE_ID, useValue: YEREL },
+    { provide: LOCALE_ID, useValue: LOCALE },
     { provide: DEFAULT_CURRENCY_CODE, useValue: 'TRY' },
   ]);
 }

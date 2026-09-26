@@ -1,6 +1,6 @@
 import { FormControl, FormGroup } from '@angular/forms';
 
-import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
+import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
 
 import { mergeServerValues, pickValues } from './version-merge';
 
@@ -30,7 +30,7 @@ describe('mergeServerValues (409 cakisma birleştirmesi)', () => {
     expect(f.controls.telefon.value).toBe('222');
     expect(f.controls.telefon.errors).toBeNull();
     expect(f.controls.adres.value).toBe('Benim adresim');
-    expect(f.controls.adres.errors?.[SUNUCU_HATASI]).toEqual(['değişti']);
+    expect(f.controls.adres.errors?.[SERVER_ERROR]).toEqual(['değişti']);
     expect(flagged).toEqual(['adres']);
   });
 

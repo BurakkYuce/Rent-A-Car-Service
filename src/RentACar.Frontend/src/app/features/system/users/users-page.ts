@@ -12,20 +12,20 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { TemelStore } from '@core/veri/temel-store';
-import { TarihPipe } from '@shared/bicim/bicim-pipe';
+import { DatePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { Secim } from '@shared/form/kontroller/secim';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Selection } from '@shared/form/kontroller/selection';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
 import {
@@ -37,7 +37,7 @@ import {
   exceptionTargets,
   grantablePermissions,
 } from './users-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 const ROOT = '/api/ui/v1/kullanicilar' as const;
 const PASSWORD_MAX = 128;
@@ -51,26 +51,26 @@ const PASSWORD_MAX = 128;
   selector: 'rc-users-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
-    TarihPipe,
+    DatePipe,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    Secim,
+    FormErrors,
+    TextInput,
+    Selection,
   ],
   styleUrl: '../system.scss',
   templateUrl: './users-page.html',
 })
 export class UsersPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly session = inject(OturumServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly session = inject(SessionService);
+  private readonly t = translationFunction();
 
   protected readonly actorId = computed(() => this.session.ben()?.kullanici.id ?? null);
   protected readonly actorRole = computed(() => this.session.ben()?.rol ?? null);
@@ -113,7 +113,7 @@ export class UsersPage {
       Validators.maxLength(PASSWORD_MAX),
     ]),
   });
-  protected readonly createSubmit = formGonderimi();
+  protected readonly createSubmit = formSubmission();
 
   /** Parola sıfırlanan kullanıcı (satır altında açılan form). */
   protected readonly resetting = signal<UserDto | null>(null);
@@ -123,21 +123,21 @@ export class UsersPage {
       Validators.maxLength(PASSWORD_MAX),
     ]),
   });
-  protected readonly resetSubmit = formGonderimi();
+  protected readonly resetSubmit = formSubmission();
 
   protected readonly exceptionForm = new FormGroup({
     kullaniciId: new FormControl<string | null>(null, Validators.required),
     izin: new FormControl<string | null>(null, Validators.required),
     ver: new FormControl<boolean | null>(true, Validators.required),
   });
-  protected readonly exceptionSubmit = formGonderimi();
+  protected readonly exceptionSubmit = formSubmission();
 
   protected readonly busy = signal<string | null>(null);
   protected readonly rowError = signal<string | null>(null);
   protected readonly canManage = (u: UserDto) => canManageAccount(this.actorRole(), u);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     this.list.yukle();
     this.api
       .get<readonly { ad?: unknown; aktif?: unknown }[]>('/api/ui/v1/subeler')
@@ -152,7 +152,7 @@ export class UsersPage {
       .subscribe({ next: (l) => this.branches.set(l), error: () => this.branches.set([]) });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.createForm.dirty || this.resetForm.dirty || this.exceptionForm.dirty;
   }
 
@@ -178,7 +178,7 @@ export class UsersPage {
 
   protected async toggleActive(u: UserDto): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t(
         u.aktif ? 'sistem.kullanici.pasiflestirBaslik' : 'sistem.kullanici.aktiflestirBaslik',
         {
@@ -207,7 +207,7 @@ export class UsersPage {
         },
         error: (e: unknown) => {
           this.busy.set(null);
-          this.rowError.set(apiHatasinaCevir(e).detay);
+          this.rowError.set(toApiError(e).detay);
         },
       });
   }
@@ -258,7 +258,7 @@ export class UsersPage {
 
   protected async removeException(x: ExceptionRow): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('sistem.kullanici.istisna.kaldirBaslik'),
       mesaj: this.t('sistem.kullanici.istisna.kaldirMesaj', { ad: x.kullaniciAdi, izin: x.izin }),
       onayEtiketi: this.t('sistem.kullanici.istisna.kaldir'),
@@ -280,7 +280,7 @@ export class UsersPage {
         },
         error: (e: unknown) => {
           this.busy.set(null);
-          this.rowError.set(apiHatasinaCevir(e).detay);
+          this.rowError.set(toApiError(e).detay);
         },
       });
   }

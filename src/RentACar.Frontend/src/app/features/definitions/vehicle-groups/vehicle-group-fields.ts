@@ -1,5 +1,5 @@
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { TanimAlani } from '@shared/form/tanim-crud/tanim-kaynagi';
+import type { TanimAlani } from '@shared/form/tanim-crud/definition-source';
 
 import { type SuggestionSource, commonFields } from '../definition-catalog';
 
@@ -20,28 +20,28 @@ export function vehicleGroupFields(
 ): readonly TanimAlani[] {
   const f = commonFields(t);
   const g = (k: string) => t(`tanimlar.vehicleGroup.alan.${k}` as CeviriAnahtari);
-  const text = (ad: string, max: number, inList = false): TanimAlani =>
-    f.text(ad, g(ad), max, { inList });
-  const int = (ad: string, inList = false): TanimAlani => ({
-    ad,
-    etiket: g(ad),
+  const text = (name: string, max: number, inList = false): TanimAlani =>
+    f.text(name, g(name), max, { inList });
+  const int = (name: string, inList = false): TanimAlani => ({
+    ad: name,
+    etiket: g(name),
     tur: 'sayi',
     inList,
   });
-  const amount = (ad: string, inList = false): TanimAlani => ({
-    ad,
-    etiket: g(ad),
+  const amount = (name: string, inList = false): TanimAlani => ({
+    ad: name,
+    etiket: g(name),
     tur: 'para',
     inList,
   });
-  const enumChoice = (ad: string, values: readonly string[]): TanimAlani => ({
-    ad,
-    etiket: g(ad),
+  const enumChoice = (name: string, values: readonly string[]): TanimAlani => ({
+    ad: name,
+    etiket: g(name),
     tur: 'secim',
     inList: false,
     secenekler: [
       { deger: null, etiket: '—' },
-      ...values.map((v) => ({ deger: v, etiket: g(`${ad}${v}`) })),
+      ...values.map((v) => ({ deger: v, etiket: g(`${name}${v}`) })),
     ],
   });
   return [

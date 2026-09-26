@@ -152,7 +152,7 @@
   </datalist>
 
   @if (grouped()) {
-    <section class="model-gruplari" [attr.aria-busy]="store.modelGroups.yukleniyor()">
+    <section class="model-gruplari" [attr.aria-busy]="store.modelGroups.isLoading()">
       @switch (store.modelGroups.tur()) {
         @case ('hata') {
           <div class="rc-form-mesaji rc-form-mesaji--hata" role="alert">

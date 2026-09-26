@@ -1,13 +1,13 @@
 <rc-sayfa-bandi
   ikon="key"
   [baslik]="'kiraListesi.baslik' | transloco"
-  [pill]="bantPill()"
-  [altMetin]="bantAltMetni()"
+  [pill]="bannerPill()"
+  [altMetin]="bannerSubtext()"
 >
   <ng-container eylemler>
-    @if (disaAktarma(); as d) {
+    @if (exportItem(); as d) {
       @for (bicim of d.bicimler ?? []; track bicim) {
-        <a class="rc-dugme" [href]="disaAktarmaAdresi(d, bicim)">
+        <a class="rc-dugme" [href]="exportUrl(d, bicim)">
           @if ($first) {
             <rc-ikon ad="download" [boyut]="14" />
           }
@@ -15,14 +15,14 @@
         </a>
       }
     }
-    @if (ornekSozlesmeIzni()) {
+    @if (sampleContractPermission()) {
       <a class="rc-dugme" href="/kiralar/ornek-sozlesme/pdf" target="_blank" rel="noopener">
         <rc-ikon ad="external-link" [boyut]="14" />
         {{ 'kiraListesi.ornekSozlesme' | transloco }}
       </a>
     }
   </ng-container>
-  @if (yeniKiraIzni()) {
+  @if (newRentalPermission()) {
     <a birincil class="rc-dugme rc-dugme--birincil" routerLink="/kiralar/yeni">
       <rc-ikon ad="plus" [boyut]="14" />
       {{ 'kiraListesi.yeniKira' | transloco }}
@@ -31,15 +31,15 @@
 </rc-sayfa-bandi>
 
 <div class="rc-sayfa">
-  <rc-gorunum-cipleri [gorunumler]="gorunumler()" />
+  <rc-gorunum-cipleri [gorunumler]="views()" />
 
   <rc-filtre-paneli
     depoAnahtari="rc.filtre.kiralar"
-    [formGroup]="filtreFormu"
+    [formGroup]="filterForm"
     [baslik]="'kiraListesi.filtre.baslik' | transloco"
     [etkinSayisi]="liste.etkinFiltreSayisi()"
-    (filtrele)="filtrele()"
-    (temizle)="temizle()"
+    (filtrele)="filter()"
+    (temizle)="clear()"
   >
     <rc-alan [etiket]="'kiraListesi.filtre.ara' | transloco">
       <rc-metin-girdisi
@@ -52,21 +52,21 @@
     <rc-alan [etiket]="'kiraListesi.filtre.durum' | transloco">
       <rc-secim
         formControlName="durum"
-        [secenekler]="durumSecenekleri"
+        [secenekler]="statusOptions"
         [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
       />
     </rc-alan>
     <rc-alan [etiket]="'kiraListesi.filtre.fatura' | transloco">
       <rc-secim
         formControlName="fatura"
-        [secenekler]="faturaSecenekleri"
+        [secenekler]="invoiceOptions"
         [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
       />
     </rc-alan>
     <rc-alan [etiket]="'kiraListesi.filtre.tarihTuru' | transloco">
       <rc-secim
         formControlName="tarihTuru"
-        [secenekler]="tarihTuruSecenekleri"
+        [secenekler]="dateTypeOptions"
         [bosEtiket]="'kiraListesi.tarihTurleri.Baslangic' | transloco"
       />
     </rc-alan>
@@ -76,7 +76,7 @@
     <rc-alan [etiket]="'kiraListesi.filtre.basMax' | transloco">
       <rc-tarih-secici formControlName="basMax" />
     </rc-alan>
-    @if (lokasyonSecimIzni()) {
+    @if (locationSelectionPermission()) {
       <rc-alan [etiket]="'kiraListesi.filtre.ofis' | transloco">
         <rc-arama-secim formControlName="ofis" [kaynak]="lokasyonlar" />
       </rc-alan>
@@ -84,42 +84,42 @@
     <rc-alan [etiket]="'kiraListesi.filtre.ofisDurum' | transloco">
       <rc-secim
         formControlName="ofisDurum"
-        [secenekler]="ofisDurumSecenekleri"
+        [secenekler]="officeStatusOptions"
         [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
       />
     </rc-alan>
     <rc-alan [etiket]="'kiraListesi.filtre.sahip' | transloco">
       <rc-secim
         formControlName="sahip"
-        [secenekler]="sahipSecenekleri()"
+        [secenekler]="ownerOptions()"
         [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
       />
     </rc-alan>
     <rc-alan [etiket]="'kiraListesi.filtre.grup' | transloco">
       <rc-secim
         formControlName="grup"
-        [secenekler]="grupSecenekleri()"
+        [secenekler]="groupOptions()"
         [bosEtiket]="'kiraListesi.filtre.tumu' | transloco"
       />
     </rc-alan>
-    @if (kaynakSecimIzni()) {
+    @if (sourceSelectionPermission()) {
       <rc-alan [etiket]="'kiraListesi.filtre.kaynak' | transloco">
-        <rc-arama-secim formControlName="kaynak" [kaynak]="kaynaklar" />
+        <rc-arama-secim formControlName="kaynak" [kaynak]="sources" />
       </rc-alan>
     }
-    @if (personelSecimIzni()) {
+    @if (staffSelectionPermission()) {
       <rc-alan [etiket]="'kiraListesi.filtre.personel' | transloco">
-        <rc-arama-secim formControlName="personel" [kaynak]="personeller" />
+        <rc-arama-secim formControlName="personel" [kaynak]="staff" />
       </rc-alan>
     }
   </rc-filtre-paneli>
 
-  @if (tahsilSatiri(); as satir) {
+  @if (collectRow(); as satir) {
     <rc-kira-tahsil-paneli
       [satir]="satir"
-      (kapat)="tahsilKapat()"
-      (sonuclandi)="tahsilSonuclandi()"
-      (anahtarTazele)="tahsilAnahtariniTazele()"
+      (kapat)="closeCollect()"
+      (sonuclandi)="collectSettled()"
+      (anahtarTazele)="refreshCollectKey()"
     />
   }
 
@@ -127,39 +127,39 @@
     class="kira-izgarasi"
     tabloKodu="kiralar.liste"
     [etiket]="'kiraListesi.tabloEtiketi' | transloco"
-    [sutunlar]="sutunlar"
+    [sutunlar]="columns"
     [kaynak]="store.liste.durum()"
-    [satirKimligi]="kimlik"
-    [satirSinifi]="satirSinifi()"
+    [satirKimligi]="identity"
+    [satirSinifi]="rowClass()"
     [sirala]="liste.sorgu().sirala"
-    [varsayilanSirala]="varsayilanSirala"
+    [varsayilanSirala]="defaultSort"
     (siralaDegisti)="liste.degistir({ sirala: $event })"
     (sayfaDegisti)="liste.degistir({ sayfa: $event })"
     (boyutDegisti)="liste.degistir({ boyut: $event })"
     (yenidenDene)="store.liste.yenile()"
-    (satirAc)="satiriAc($event)"
+    (satirAc)="openRow($event)"
   >
     <p rcTabloAraclari class="ozet" aria-live="polite">{{ ozet() }}</p>
 
-    <ng-template rcTabloHucre="sozlesmeNo" [rcTabloHucreSutunlar]="sutunlar" let-satir>
+    <ng-template rcTabloHucre="sozlesmeNo" [rcTabloHucreSutunlar]="columns" let-satir>
       <a class="bag" [routerLink]="['/kiralar', satir.id]">{{ satir.sozlesmeNo }}</a>
     </ng-template>
 
-    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="sutunlar" let-satir>
+    <ng-template rcTabloHucre="plaka" [rcTabloHucreSutunlar]="columns" let-satir>
       <rc-plaka boyut="sm" [plaka]="satir.plaka" />
     </ng-template>
 
-    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="sutunlar" let-satir>
-      @let g = durumGorunumu(satir);
-      <span [class]="rozet(g)">{{ durumEtiketi(g) }}</span>
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      @let g = statusView(satir);
+      <span [class]="rozet(g)">{{ statusLabel(g) }}</span>
     </ng-template>
 
-    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="sutunlar" let-satir>
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
       <span class="satir-eylemleri">
-        @if (pdfIzni()) {
+        @if (pdfPermission()) {
           <a
             class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
-            [href]="pdfAdresi(satir)"
+            [href]="pdfUrl(satir)"
             target="_blank"
             rel="noopener"
           >
@@ -174,20 +174,20 @@
           <button
             type="button"
             class="rc-dugme rc-dugme--kucuk"
-            [attr.aria-pressed]="tahsilSatiri()?.id === satir.id"
-            [disabled]="tahsilSuruyor()"
-            (click)="tahsilAc(satir)"
+            [attr.aria-pressed]="collectRow()?.id === satir.id"
+            [disabled]="isCollectInProgress()"
+            (click)="openCollect(satir)"
           >
             <rc-ikon ad="cash" [boyut]="14" />
             {{ 'kiraListesi.tahsil.dugme' | transloco }}
             <span class="rc-gorunmez">{{ satir.sozlesmeNo }}</span>
           </button>
         }
-        @if (iptalIzni() && satir.durum === 'Kirada') {
+        @if (cancelPermission() && satir.durum === 'Kirada') {
           <button
             type="button"
             class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
-            [disabled]="iptalEdilen() !== null"
+            [disabled]="cancelled() !== null"
             (click)="iptal(satir)"
           >
             <rc-ikon ad="x" [boyut]="14" />

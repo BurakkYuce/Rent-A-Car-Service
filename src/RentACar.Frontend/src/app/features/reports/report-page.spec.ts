@@ -6,10 +6,10 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideApiIstemcisi } from '@core/api/api-istemcisi';
-import { provideCeviri } from '@core/i18n/ceviri';
-import { oturumInterceptor } from '@core/oturum/oturum-interceptor';
-import { YenidenGirisServisi } from '@core/oturum/yeniden-giris-servisi';
+import { provideApiClient } from '@core/api/api-istemcisi';
+import { provideTranslation } from '@core/i18n/ceviri';
+import { sessionInterceptor } from '@core/oturum/session-interceptor';
+import { ReloginService } from '@core/oturum/relogin-service';
 
 import { ReportPage } from './report-page';
 
@@ -46,14 +46,14 @@ describe('ReportPage', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [
-        ...provideCeviri(),
+        ...provideTranslation(),
         provideRouter([
           { path: 'raporlar/gelir-gider', component: ReportPage, data: { rapor: 'gelir-gider' } },
         ]),
-        provideApiIstemcisi(oturumInterceptor),
+        provideApiClient(sessionInterceptor),
         provideHttpClientTesting(),
         { provide: HttpXsrfTokenExtractor, useClass: FakeXsrf },
-        { provide: YenidenGirisServisi, useValue: { iste: () => Promise.resolve(false) } },
+        { provide: ReloginService, useValue: { request: () => Promise.resolve(false) } },
       ],
     });
     await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));

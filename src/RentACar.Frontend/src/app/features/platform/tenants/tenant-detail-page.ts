@@ -11,19 +11,19 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { firstValueFrom, type Observable } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 import { TemelStore } from '@core/veri/temel-store';
-import { ParaPipe, SayiPipe, TarihPipe, TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, NumberPipe, DatePipe, DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinAlani } from '@shared/form/kontroller/metin-alani';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextArea } from '@shared/form/kontroller/text-area';
+import { TextInput } from '@shared/form/kontroller/text-input';
 
 import {
   infoFromDetail,
@@ -39,7 +39,7 @@ import {
   toNumber,
   updateBody,
 } from '../platform-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlatformSessionService } from '../platform-session';
 
 type InfoKey = keyof TenantInfoValue;
@@ -60,24 +60,24 @@ const INFO_KEYS: readonly InfoKey[] = ['ad', 'yetkiliAd', 'eposta', 'telefon', '
     RouterLink,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    MetinAlani,
-    MetinGirdisi,
-    ParaPipe,
-    SayfaBandi,
-    SayiPipe,
-    TarihPipe,
-    TarihSaatPipe,
+    FormErrors,
+    TextArea,
+    TextInput,
+    MoneyPipe,
+    PageBand,
+    NumberPipe,
+    DatePipe,
+    DateTimePipe,
   ],
   templateUrl: './tenant-detail-page.html',
   styleUrls: ['../platform-page.scss'],
 })
 export class TenantDetailPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly session = inject(PlatformSessionService);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
   private readonly root = `${PLATFORM_API}/kiracilar/${encodeURIComponent(this.id)}` as const;
@@ -108,12 +108,12 @@ export class TenantDetailPage {
     plan: new FormControl<string | null>(null, Validators.maxLength(64)),
     notlar: new FormControl<string | null>(null, Validators.maxLength(2000)),
   });
-  protected readonly infoSubmit = formGonderimi();
+  protected readonly infoSubmit = formSubmission();
 
   protected readonly closeForm = new FormGroup({
     onayKod: new FormControl<string | null>(null, Validators.required),
   });
-  protected readonly closeSubmit = formGonderimi();
+  protected readonly closeSubmit = formSubmission();
 
   /** One mutation at a time (switches, logo, status). */
   protected readonly busy = signal(false);
@@ -269,7 +269,7 @@ export class TenantDetailPage {
       this.store.yenile();
     } catch (e: unknown) {
       if (!this.session.handleSessionLoss(e)) {
-        const error = apiHatasinaCevir(e);
+        const error = toApiError(e);
         if (error.kod === 'dogrulama' || error.kod === 'bilinmeyen') {
           this.logoError.set(error.alanlar?.['logo']?.[0] ?? error.detay);
         }
@@ -286,7 +286,7 @@ export class TenantDetailPage {
   ): Promise<boolean> {
     const d = this.detail();
     if (!d || this.busy()) return false;
-    const ok = await this.confirm.sor({
+    const ok = await this.confirm.ask({
       baslik: this.t(question.baslik),
       mesaj: this.t(question.mesaj, { kod: d.kod }),
       tehlikeli: question.tehlikeli ?? false,
@@ -300,7 +300,7 @@ export class TenantDetailPage {
       return true;
     } catch (e: unknown) {
       if (!this.session.handleSessionLoss(e)) {
-        const error = apiHatasinaCevir(e);
+        const error = toApiError(e);
         if (error.kod === 'dogrulama' || error.kod === 'bilinmeyen') this.toast.hata(error.detay);
       }
       return false;

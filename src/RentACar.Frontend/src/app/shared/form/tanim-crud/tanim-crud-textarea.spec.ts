@@ -1,16 +1,21 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { provideCeviri } from '@core/i18n/ceviri';
-import { TanimCrud } from './tanim-crud';
-import type { TanimAlani, TanimDegeri, TanimKaynagi, TanimSatiri } from './tanim-kaynagi';
+import { provideTranslation } from '@core/i18n/ceviri';
+import { DefinitionCrud } from './definition-crud';
+import type {
+  TanimAlani,
+  DefinitionValue,
+  DefinitionSource,
+  DefinitionRow,
+} from './definition-source';
 
 /** F11.2b çekirdek eki: `textarea` alan tipi (çok satırlı düz metin; listede 80 karakterde kısaltılır). */
 const LONG = 'Birinci paragraf. '.repeat(10).trim();
-let rows: TanimSatiri[];
-let sent: TanimDegeri[];
+let rows: DefinitionRow[];
+let sent: DefinitionValue[];
 
-const source: TanimKaynagi = {
+const source: DefinitionSource = {
   listele: () => of([...rows]),
   olustur: (d) => {
     sent.push(d);
@@ -26,7 +31,7 @@ const source: TanimKaynagi = {
 @Component({
   selector: 'rc-textarea-host',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TanimCrud],
+  imports: [DefinitionCrud],
   template: `<rc-tanim-crud baslik="SSS" [alanlar]="fields" [kaynak]="source" layout="panel" />`,
 })
 class TextareaHost {
@@ -40,7 +45,7 @@ class TextareaHost {
 async function setup() {
   rows = [{ id: '1', soru: 'Depozito?', cevap: LONG, surum: 's1' }];
   sent = [];
-  TestBed.configureTestingModule({ providers: [...provideCeviri()] });
+  TestBed.configureTestingModule({ providers: [...provideTranslation()] });
   const fixture = TestBed.createComponent(TextareaHost);
   await fixture.whenStable();
   return { fixture, root: fixture.nativeElement as HTMLElement };

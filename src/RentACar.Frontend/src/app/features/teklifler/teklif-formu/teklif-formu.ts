@@ -11,32 +11,29 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
-import { sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
+import { serverSelectionSource } from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
 
-import { RF_ORTAK } from '../../rezervasyonlar/ortak';
+import { RF_SHARED } from '../../rezervasyonlar/ortak';
 import {
-  REZERVASYON_KOKU,
-  secenekListesi,
-  varsayilanTarihler,
-  type RezervasyonFormSecenekleri,
+  RESERVATION_ROOT,
+  optionList,
+  defaultDates,
+  type ReservationFormOptions,
 } from '../../rezervasyonlar/rezervasyon-modeli';
-import type { GunMetni } from '@core/form/tarih-girdisi';
+import type { DayText } from '@core/form/tarih-girdisi';
 import {
-  TEKLIF_KOKU,
-  gecerlilikDogrulayici,
-  gecerlilikEnErken,
-  teklifFormuOlustur,
-  teklifGovdesi,
-  type TeklifOlusturYaniti,
+  QUOTATION_ROOT,
+  validityValidator,
+  validityEarliest,
+  createQuotationForm,
+  quotationBody,
+  type CreateQuotationResponse,
 } from '../teklif-modeli';
 
 /**
@@ -48,75 +45,79 @@ import {
 @Component({
   selector: 'rc-teklif-formu',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...RF_ORTAK, RouterLink],
+  imports: [...RF_SHARED, RouterLink],
   templateUrl: './teklif-formu.html',
   styleUrl: '../../rezervasyonlar/rezervasyon-formu/rezervasyon-formu.scss',
 })
-export class TeklifFormuSayfasi implements KaydedilmemisDegisiklikSahibi {
+export class QuotationFormPage implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);
   private readonly router = inject(Router);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
-  readonly form = teklifFormuOlustur();
-  protected readonly kayit = formGonderimi();
+  readonly form = createQuotationForm();
+  protected readonly record = formSubmission();
 
-  private readonly secenekler = new TemelStore(() =>
-    this.api.get<RezervasyonFormSecenekleri>(`${REZERVASYON_KOKU}/form-secenekleri`, {
-      context: istekBaglami({ sessiz: true }),
+  private readonly options = new TemelStore(() =>
+    this.api.get<ReservationFormOptions>(`${RESERVATION_ROOT}/form-secenekleri`, {
+      context: requestContext({ sessiz: true }),
     }),
   );
-  protected readonly fiyatTurleri = computed(() =>
-    secenekListesi(this.secenekler.veri()?.fiyatTurleri, null),
+  protected readonly priceTypes = computed(() =>
+    optionList(this.options.veri()?.fiyatTurleri, null),
   );
 
-  protected readonly musteriKaynagi = sunucuSecimKaynagi('musteri');
-  protected readonly aracKaynagi = sunucuSecimKaynagi('arac');
-  protected readonly lokasyonKaynagi = sunucuSecimKaynagi('lokasyon');
+  protected readonly customerDataSource = serverSelectionSource('musteri');
+  protected readonly vehicleSource = serverSelectionSource('arac');
+  protected readonly locationDataSource = serverSelectionSource('lokasyon');
 
   /** Takvimde seçilebilecek en erken geçerlilik günü (başlangıca göre; sunucu kuralıyla aynı). */
-  protected readonly gecerlilikEnAz = signal<GunMetni | null>(null);
+  protected readonly validityMin = signal<DayText | null>(null);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.form.dirty);
-    const { basTar, gecerlilik } = this.form.controls;
-    gecerlilik.addValidators(
-      gecerlilikDogrulayici((enErken) => this.t('teklif.alan.gecerlilikErken', { enErken })),
+    pageLeaveGuard(() => this.form.dirty);
+    const { basTar: startDate, gecerlilik: validity } = this.form.controls;
+    validity.addValidators(
+      validityValidator((earliest) => this.t('teklif.alan.gecerlilikErken', { enErken: earliest })),
     );
     // Başlangıç değişince geçerlilik yeniden doğrulanır ve takvimin alt sınırı güncellenir.
-    basTar.valueChanges.pipe(takeUntilDestroyed()).subscribe((b) => {
-      this.gecerlilikEnAz.set(gecerlilikEnErken(b));
-      gecerlilik.updateValueAndValidity({ emitEvent: false });
+    startDate.valueChanges.pipe(takeUntilDestroyed()).subscribe((b) => {
+      this.validityMin.set(validityEarliest(b));
+      validity.updateValueAndValidity({ emitEvent: false });
     });
-    this.form.reset(varsayilanTarihler());
-    this.secenekler.yukle();
+    this.form.reset(defaultDates());
+    this.options.yukle();
     effect(() => {
-      const s = this.secenekler.veri();
+      const s = this.options.veri();
       untracked(() => {
         const k = this.form.controls.fiyatTuru;
-        const ilk = s?.varsayilanFiyatTuru ?? s?.fiyatTurleri[0] ?? null;
-        if (ilk && k.value === null && k.pristine) k.setValue(ilk);
+        const first = s?.varsayilanFiyatTuru ?? s?.fiyatTurleri[0] ?? null;
+        if (first && k.value === null && k.pristine) k.setValue(first);
       });
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
   protected kaydet(): void {
-    this.kayit.gonder(
+    this.record.gonder(
       this.form,
-      () => this.api.post<TeklifOlusturYaniti>(TEKLIF_KOKU, teklifGovdesi(this.form.getRawValue())),
+      () =>
+        this.api.post<CreateQuotationResponse>(
+          QUOTATION_ROOT,
+          quotationBody(this.form.getRawValue()),
+        ),
       {
         basarili: (y) => {
           this.toast.basari(this.t('teklif.bildirim.olusturuldu', { no: y.no }));
-          const s = this.secenekler.veri();
+          const s = this.options.veri();
           this.form.reset({
-            ...varsayilanTarihler(),
+            ...defaultDates(),
             fiyatTuru: s?.varsayilanFiyatTuru ?? s?.fiyatTurleri[0] ?? null,
           });
-          this.kayit.kilit.yenile();
+          this.record.kilit.yenile();
           void this.router.navigate(['/teklifler', y.id]);
         },
       },

@@ -1,11 +1,11 @@
 <rc-sayfa-bandi [baslik]="baslik()" ikon="calendar-event">
   <ng-container eylemler>
-    @if (yetkiler(); as y) {
+    @if (permissions(); as y) {
       @if (y.onayla) {
         <button
           type="button"
           class="rc-dugme"
-          [disabled]="islemler.suruyor() !== null"
+          [disabled]="islemler.inProgress() !== null"
           (click)="onayla()"
         >
           <rc-ikon ad="check" [boyut]="14" />
@@ -16,8 +16,8 @@
         <button
           type="button"
           class="rc-dugme"
-          [disabled]="islemler.suruyor() !== null"
-          (click)="kirayaCevir()"
+          [disabled]="islemler.inProgress() !== null"
+          (click)="convertToRental()"
         >
           <rc-ikon ad="car" [boyut]="14" />
           {{ 'rezervasyon.eylem.kirayaCevir' | transloco }}
@@ -27,7 +27,7 @@
         <button
           type="button"
           class="rc-dugme rc-dugme--tehlike"
-          [disabled]="islemler.suruyor() !== null"
+          [disabled]="islemler.inProgress() !== null"
           (click)="iptal()"
         >
           <rc-ikon ad="x" [boyut]="14" />
@@ -36,16 +36,16 @@
       }
     }
   </ng-container>
-  @if (duzenlenebilir()) {
+  @if (editable()) {
     <button
       birincil
       type="button"
       class="rc-dugme rc-dugme--birincil"
-      [disabled]="kayit.gonderiliyor() || !kaydedilebilir()"
+      [disabled]="record.gonderiliyor() || !canSave()"
       (click)="kaydet()"
     >
       {{
-        (kayit.gonderiliyor() ? 'rezervasyon.eylem.kaydediliyor' : 'rezervasyon.eylem.kaydet')
+        (record.gonderiliyor() ? 'rezervasyon.eylem.kaydediliyor' : 'rezervasyon.eylem.kaydet')
           | transloco
       }}
     </button>
@@ -57,66 +57,66 @@
     <a routerLink="/rezervasyonlar">{{ 'rezervasyon.listeyeDon' | transloco }}</a>
   </nav>
 
-  @if (bulunamadi()) {
+  @if (notFound()) {
     <p class="rc-form-mesaji rc-form-mesaji--hata" role="alert">
       {{ 'rezervasyon.bulunamadi' | transloco }}
     </p>
   } @else {
-    <rc-form-hatalari [hatalar]="kayit.genelHatalar()" />
+    <rc-form-hatalari [hatalar]="record.genelHatalar()" />
 
-    @if (rez(); as r) {
+    @if (res(); as r) {
       <section class="rc-bolum ozet" [attr.aria-label]="'rezervasyon.bolum.ozet' | transloco">
         <dl class="ozet__liste" data-testid="rez-ozet">
           <div>
             <dt>{{ 'rezervasyon.sutun.durum' | transloco }}</dt>
             <dd>
               <span [class]="rozet(r.durum)" data-testid="rez-durum">{{
-                durumEtiketi(r.durum)
+                statusLabel(r.durum)
               }}</span>
             </dd>
           </div>
           <div>
             <dt>{{ 'rezervasyon.ozet.gun' | transloco }}</dt>
-            <dd>{{ sayi(r.gun) | sayi: '1.0-0' }}</dd>
+            <dd>{{ count(r.gun) | sayi: '1.0-0' }}</dd>
           </div>
           <div>
             <dt>{{ 'rezervasyon.ozet.gunlukUcret' | transloco }}</dt>
-            <dd>{{ sayi(r.gunlukUcret) | para }}</dd>
+            <dd>{{ count(r.gunlukUcret) | para }}</dd>
           </div>
           <div>
             <dt>{{ 'rezervasyon.ozet.tutar' | transloco }}</dt>
             <dd>
-              <strong>{{ sayi(r.tutar) | para }}</strong>
+              <strong>{{ count(r.tutar) | para }}</strong>
             </dd>
           </div>
-          @if (sayi(r.hediyeGun); as hg) {
+          @if (count(r.hediyeGun); as hg) {
             <div>
               <dt>{{ 'rezervasyon.ozet.hediyeGun' | transloco }}</dt>
               <dd>{{ hg | sayi: '1.0-0' }}</dd>
             </div>
           }
-          @if (sayi(r.faturalananGun) !== null) {
+          @if (count(r.faturalananGun) !== null) {
             <div>
               <dt>{{ 'rezervasyon.ozet.faturalananGun' | transloco }}</dt>
-              <dd>{{ sayi(r.faturalananGun) | sayi: '1.0-0' }}</dd>
+              <dd>{{ count(r.faturalananGun) | sayi: '1.0-0' }}</dd>
             </div>
           }
-          @if (sayi(r.iskontoTutar) !== null) {
+          @if (count(r.iskontoTutar) !== null) {
             <div>
               <dt>{{ 'rezervasyon.ozet.iskonto' | transloco }}</dt>
-              <dd>{{ sayi(r.iskontoTutar) | para }}</dd>
+              <dd>{{ count(r.iskontoTutar) | para }}</dd>
             </div>
           }
-          @if (sayi(r.haftaSonuFark) !== null) {
+          @if (count(r.haftaSonuFark) !== null) {
             <div>
               <dt>{{ 'rezervasyon.ozet.haftaSonuFark' | transloco }}</dt>
-              <dd>{{ sayi(r.haftaSonuFark) | para }}</dd>
+              <dd>{{ count(r.haftaSonuFark) | para }}</dd>
             </div>
           }
-          @if (sayi(r.kdvOranSnapshot) !== null) {
+          @if (count(r.kdvOranSnapshot) !== null) {
             <div>
               <dt>{{ 'rezervasyon.ozet.kdv' | transloco }}</dt>
-              <dd>{{ sayi(r.kdvOranSnapshot) | percent: '1.0-2' }}</dd>
+              <dd>{{ count(r.kdvOranSnapshot) | percent: '1.0-2' }}</dd>
             </div>
           }
           <div>
@@ -134,9 +134,9 @@
             </div>
           }
         </dl>
-        @if (!duzenlenebilir()) {
+        @if (!editable()) {
           <p class="not">
-            {{ 'rezervasyon.saltOkunur' | transloco: { durum: durumEtiketi(r.durum) } }}
+            {{ 'rezervasyon.saltOkunur' | transloco: { durum: statusLabel(r.durum) } }}
           </p>
         }
       </section>
@@ -151,14 +151,14 @@
           <rc-alan [etiket]="'rezervasyon.alan.musteri' | transloco" class="rc-form-izgara__genis">
             <rc-arama-secim
               formControlName="musteri"
-              [kaynak]="musteriKaynagi"
+              [kaynak]="customerDataSource"
               [yerTutucu]="'rezervasyon.alan.musteriAra' | transloco"
             />
           </rc-alan>
           <rc-alan [etiket]="'rezervasyon.alan.arac' | transloco" class="rc-form-izgara__genis">
             <rc-arama-secim
               formControlName="arac"
-              [kaynak]="aracKaynagi"
+              [kaynak]="vehicleSource"
               [yerTutucu]="'rezervasyon.alan.plakaAra' | transloco"
             />
           </rc-alan>
@@ -175,7 +175,7 @@
         <h2>{{ 'rezervasyon.bolum.fiyat' | transloco }}</h2>
         <div class="rc-form-izgara">
           <rc-alan [etiket]="'rezervasyon.alan.fiyatTuru' | transloco">
-            <rc-secim formControlName="fiyatTuru" [secenekler]="fiyatTurleri()" bosEtiket="—" />
+            <rc-secim formControlName="fiyatTuru" [secenekler]="priceTypes()" bosEtiket="—" />
           </rc-alan>
           <rc-alan [etiket]="'rezervasyon.alan.gunlukUcret' | transloco">
             <rc-para-girdisi
@@ -190,13 +190,13 @@
             <rc-metin-girdisi formControlName="kampanyaKodu" [azamiUzunluk]="64" />
           </rc-alan>
           <rc-alan [etiket]="'rezervasyon.alan.kaynak' | transloco">
-            <rc-arama-secim formControlName="kaynak" [kaynak]="kaynakKaynagi" />
+            <rc-arama-secim formControlName="kaynak" [kaynak]="sourceDataSource" />
           </rc-alan>
           <rc-alan [etiket]="'rezervasyon.alan.cikisOfisi' | transloco">
-            <rc-arama-secim formControlName="cikisOfisi" [kaynak]="lokasyonKaynagi" />
+            <rc-arama-secim formControlName="cikisOfisi" [kaynak]="locationDataSource" />
           </rc-alan>
           <rc-alan [etiket]="'rezervasyon.alan.donusOfisi' | transloco">
-            <rc-arama-secim formControlName="donusOfisi" [kaynak]="lokasyonKaynagi" />
+            <rc-arama-secim formControlName="donusOfisi" [kaynak]="locationDataSource" />
           </rc-alan>
         </div>
       </section>
@@ -222,7 +222,7 @@
           </rc-alan>
         </div>
         <datalist id="rez-dl-talep">
-          @for (tur of talepTurleri(); track tur) {
+          @for (tur of requestTypes(); track tur) {
             <option [value]="tur"></option>
           }
         </datalist>
@@ -270,7 +270,7 @@
       <section class="rc-bolum">
         <h2>{{ 'rezervasyon.bolum.broker' | transloco }}</h2>
         <div class="rc-form-izgara">
-          @for (ad of otaAlanlari; track ad) {
+          @for (ad of otaFields; track ad) {
             <rc-alan [etiket]="'rezervasyon.alan.' + ad | transloco">
               <rc-para-girdisi [formControlName]="ad" />
             </rc-alan>

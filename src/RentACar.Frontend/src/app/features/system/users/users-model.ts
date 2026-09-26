@@ -1,8 +1,8 @@
-import type { Sema } from '@core/api/ui-tipleri';
-import { IZINLER, type Izin } from '@core/oturum/oturum-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
+import { PERMISSIONS, type Permission } from '@core/oturum/oturum-tipleri';
 
-export type UserDto = Sema<'UserDto'>;
-export type PermissionExceptionDto = Sema<'PermissionExceptionDto'>;
+export type UserDto = Schema<'UserDto'>;
+export type PermissionExceptionDto = Schema<'PermissionExceptionDto'>;
 
 /** Backend `UserRole` (ad sırası enum sırası). */
 export const ROLES = ['Admin', 'Yonetici', 'Operator', 'Muhasebe'] as const;
@@ -23,8 +23,8 @@ export function creatableRoles(actorRole: string | null | undefined): readonly R
 }
 
 /** İstisnası verilebilecek izinler: ManageUsers'ı vermek/kaldırmak yalnız Admin'e (M2). */
-export function grantablePermissions(actorRole: string | null | undefined): readonly Izin[] {
-  return actorRole === 'Admin' ? IZINLER : IZINLER.filter((p) => p !== 'ManageUsers');
+export function grantablePermissions(actorRole: string | null | undefined): readonly Permission[] {
+  return actorRole === 'Admin' ? PERMISSIONS : PERMISSIONS.filter((p) => p !== 'ManageUsers');
 }
 
 /**

@@ -32,10 +32,10 @@ export interface GezinmeTusu {
 }
 
 /** Konumu ızgaraya sığdırır (satır/sütun sayısı değişince aktif hücre dışarıda kalmasın). */
-export function konumKirp(konum: HucreKonumu, boyut: IzgaraBoyutu): HucreKonumu {
+export function clampPosition(location: HucreKonumu, size: IzgaraBoyutu): HucreKonumu {
   return {
-    satir: Math.min(Math.max(0, konum.satir), Math.max(0, boyut.satirSayisi - 1)),
-    sutun: Math.min(Math.max(0, konum.sutun), Math.max(0, boyut.sutunSayisi - 1)),
+    satir: Math.min(Math.max(0, location.satir), Math.max(0, size.satirSayisi - 1)),
+    sutun: Math.min(Math.max(0, location.sutun), Math.max(0, size.sutunSayisi - 1)),
   };
 }
 
@@ -43,34 +43,34 @@ export function konumKirp(konum: HucreKonumu, boyut: IzgaraBoyutu): HucreKonumu 
  * Yeni konum; tuş gezinme tuşu değilse (ya da Alt/Shift ile — sütun taşıma/boyutlama kısayolları)
  * `null`. Konum değişmese bile (kenar) konum döner → çağıran olayı tüketir, sayfa kaymaz.
  */
-export function hucreGezin(
-  konum: HucreKonumu,
+export function navigateCell(
+  location: HucreKonumu,
   tus: GezinmeTusu,
-  boyut: IzgaraBoyutu,
+  size: IzgaraBoyutu,
 ): HucreKonumu | null {
-  if (tus.altKey || tus.shiftKey || boyut.sutunSayisi === 0) return null;
-  const k = konumKirp(konum, boyut);
-  const sonSatir = boyut.satirSayisi - 1;
-  const sonSutun = boyut.sutunSayisi - 1;
-  const kontrol = tus.ctrlKey === true || tus.metaKey === true;
-  const adim = Math.max(1, boyut.sayfaAdimi);
+  if (tus.altKey || tus.shiftKey || size.sutunSayisi === 0) return null;
+  const k = clampPosition(location, size);
+  const lastRow = size.satirSayisi - 1;
+  const lastColumn = size.sutunSayisi - 1;
+  const check = tus.ctrlKey === true || tus.metaKey === true;
+  const step = Math.max(1, size.sayfaAdimi);
   switch (tus.key) {
     case 'ArrowRight':
-      return { ...k, sutun: Math.min(sonSutun, k.sutun + 1) };
+      return { ...k, sutun: Math.min(lastColumn, k.sutun + 1) };
     case 'ArrowLeft':
       return { ...k, sutun: Math.max(0, k.sutun - 1) };
     case 'ArrowDown':
-      return { ...k, satir: Math.min(sonSatir, k.satir + 1) };
+      return { ...k, satir: Math.min(lastRow, k.satir + 1) };
     case 'ArrowUp':
       return { ...k, satir: Math.max(0, k.satir - 1) };
     case 'Home':
-      return kontrol ? { satir: 0, sutun: 0 } : { ...k, sutun: 0 };
+      return check ? { satir: 0, sutun: 0 } : { ...k, sutun: 0 };
     case 'End':
-      return kontrol ? { satir: sonSatir, sutun: sonSutun } : { ...k, sutun: sonSutun };
+      return check ? { satir: lastRow, sutun: lastColumn } : { ...k, sutun: lastColumn };
     case 'PageDown':
-      return { ...k, satir: Math.min(sonSatir, k.satir + adim) };
+      return { ...k, satir: Math.min(lastRow, k.satir + step) };
     case 'PageUp':
-      return { ...k, satir: k.satir === 0 ? 0 : Math.max(1, k.satir - adim) };
+      return { ...k, satir: k.satir === 0 ? 0 : Math.max(1, k.satir - step) };
     default:
       return null;
   }

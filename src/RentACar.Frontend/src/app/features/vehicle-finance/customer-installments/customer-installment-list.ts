@@ -17,37 +17,37 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { ParaPipe, SayiPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, NumberPipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { customerInstallmentColumns } from '../finance-columns';
 import {
@@ -67,7 +67,7 @@ import {
   installmentToForm,
   planRequest,
 } from './installment-form-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -85,48 +85,48 @@ type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    MetinGirdisi,
-    OnayKutusu,
-    ParaGirdisi,
-    ParaPipe,
-    SayiGirdisi,
-    SayiPipe,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    TextInput,
+    Checkbox,
+    MoneyInput,
+    MoneyPipe,
+    NumberInput,
+    NumberPipe,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, CustomerInstallmentStore, CustomerLabels, VehicleLabels],
   templateUrl: './customer-installment-list.html',
   styleUrl: '../vehicle-finance.scss',
 })
-export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
+export class CustomerInstallmentList implements UnsavedChangesOwner {
   protected readonly store = inject(CustomerInstallmentStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
+  private readonly session = inject(SessionService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
   private readonly customerLabels = inject(CustomerLabels);
   private readonly vehicleLabels = inject(VehicleLabels);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(CUSTOMER_INSTALLMENT_LIST);
+  protected readonly query = listQueryUrlSync(CUSTOMER_INSTALLMENT_LIST);
   protected readonly columns = customerInstallmentColumns(this.t);
   protected readonly rowId = (r: CustomerInstallment) => r.id;
   protected readonly num = toNumber;
-  protected readonly customers = sunucuSecimKaynagi('musteri');
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
+  protected readonly customers = serverSelectionSource('musteri');
+  protected readonly vehicles = serverSelectionSource('arac');
   protected readonly canWrite = computed(() => this.session.izinVar('FinanceWrite'));
   protected readonly busy = signal<string | null>(null);
 
@@ -161,7 +161,7 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
     odemeTarihi: new FormControl<string | null>(null),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
   protected readonly formCurrency = toSignal(this.form.controls.doviz.valueChanges, {
     initialValue: this.form.controls.doviz.value,
   });
@@ -181,33 +181,33 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
     kur: new FormControl<number | null>(null),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly planSubmission = formGonderimi();
+  protected readonly planSubmission = formSubmission();
   protected readonly planCurrency = toSignal(this.planForm.controls.doviz.valueChanges, {
     initialValue: this.planForm.controls.doviz.value,
   });
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => {
         this.store.list.yukle(p);
         this.store.summary.yukle(p);
       },
       sifirla: () => {
-        this.store.list.sifirla();
-        this.store.summary.sifirla();
+        this.store.list.reset();
+        this.store.summary.reset();
       },
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
       const f = this.query.sorgu().filtreler;
-      const cari = this.customerLabels.label(f.cariId);
-      const arac = this.vehicleLabels.label(f.vehicleId);
+      const account = this.customerLabels.label(f.cariId);
+      const vehicle = this.vehicleLabels.label(f.vehicleId);
       untracked(() =>
         this.filterForm.reset({
-          cari,
-          arac,
+          cari: account,
+          arac: vehicle,
           durum: f.durum ?? null,
           vadeMin: f.vadeMin ?? null,
           vadeMax: f.vadeMax ?? null,
@@ -224,10 +224,10 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
     });
     this.form.reset({ ...emptyInstallment() });
     this.planForm.reset({ ...emptyPlan() });
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty || this.planForm.dirty;
   }
 
@@ -360,7 +360,7 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
 
   protected async remove(row: CustomerInstallment): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('aracFinans.taksit.silBaslik'),
       mesaj: this.t('aracFinans.taksit.silMesaj', { sira: row.sira, musteri: row.cariAd }),
       onayEtiketi: this.t('aracFinans.sil'),
@@ -412,7 +412,7 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
   }
 
   private actionFailed(raw: unknown): void {
-    const error = apiHatasinaCevir(raw);
+    const error = toApiError(raw);
     if (!genelGosterilir(error)) this.toast.hata(error.detay);
     this.refresh();
   }
@@ -429,7 +429,7 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
           if (e.kind === 'record' && e.id === id) this.recordArrived(r);
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
         },
       });
@@ -448,14 +448,14 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
     if (!this.form.dirty) {
       this.form.reset({ ...fresh });
     } else {
-      const conflicts = sunucuDegerleriniBirlestir(
+      const conflicts = mergeServerValues(
         this.form,
         { ...fresh },
         { ...baseline },
         this.t('aracFinans.cakismaAlan'),
       );
       if (conflicts.length > 0)
-        this.banner.goster({
+        this.banner.show({
           tur: 'uyari',
           mesaj: this.t('aracFinans.cakismaBant', { sayi: conflicts.length }),
           kod: 'cakisma',
@@ -474,7 +474,7 @@ export class CustomerInstallmentList implements KaydedilmemisDegisiklikSahibi {
 
   private async releaseForm(): Promise<boolean> {
     if (!this.form.dirty) return true;
-    return this.confirm.sor({
+    return this.confirm.ask({
       baslik: this.t('aracFinans.vazgecBaslik'),
       mesaj: this.t('aracFinans.vazgecMesaj'),
     });

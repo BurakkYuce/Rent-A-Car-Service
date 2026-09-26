@@ -1,10 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { type Observable, map } from 'rxjs';
 
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import type { SecimUcuOgesi } from '@core/api/ui-tipleri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import type { SelectionEndpointItem } from '@core/api/ui-tipleri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
 
 import type {
@@ -27,7 +27,7 @@ export class VehicleListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<Sayfa<VehicleListRow>>('/api/ui/v1/araclar', { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
@@ -35,7 +35,7 @@ export class VehicleListStore {
   readonly summary = new TemelStore(() => this.api.get<VehicleSummary>('/api/ui/v1/araclar/ozet'));
 
   readonly modelGroups = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<VehicleModelGroups>('/api/ui/v1/araclar/model-gruplari', { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
@@ -47,7 +47,7 @@ export class DetailedListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<Sayfa<DetailedRow>>('/api/ui/v1/araclar/detayli', { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
@@ -59,7 +59,7 @@ export class StatusBoardStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly board = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<StatusBoardResponse>('/api/ui/v1/araclar/durum', { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
@@ -77,7 +77,7 @@ export class VehicleCardStore {
   /** Son 3 KM kaydı (salt okunur özet) — detay ucundan; hata sessiz (form çalışmaya devam eder). */
   readonly detail = new TemelStore((id: string) =>
     this.api.get<VehicleDetail>(`${vehiclePath(id)}/detay`, {
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
 
@@ -88,15 +88,15 @@ export class VehicleCardStore {
 
   readonly defaultGroup = new TemelStore(() =>
     this.api.get<{ readonly ad: string | null }>('/api/ui/v1/araclar/secim/varsayilan-grup', {
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
 
   /** Kartın grubu tanımlı gruplarda var mı (Blazor "— tanımsız" işareti). */
   readonly groupMatches = new TemelStore((name: string) =>
-    this.api.get<readonly SecimUcuOgesi<'arac-grubu'>[]>('/api/ui/v1/secim/arac-grubu', {
+    this.api.get<readonly SelectionEndpointItem<'arac-grubu'>[]>('/api/ui/v1/secim/arac-grubu', {
       parametreler: { q: name, limit: 20 },
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
 }
@@ -118,26 +118,26 @@ export type SuggestionFetch = (q: string) => Observable<readonly string[]>;
 export function vehicleSuggestionFetch(
   api: ApiIstemcisi,
   kind: 'marka' | 'tip' | 'renk' | 'segment' | 'sahip',
-  extra: () => SorguParametreleri = () => ({}),
+  extra: () => QueryParameters = () => ({}),
 ): SuggestionFetch {
   return (q) =>
     api
       .get<readonly SuggestionValue[]>(`/api/ui/v1/araclar/secim/${kind}`, {
         parametreler: { ...extra(), q: q === '' ? null : q, limit: 20 },
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       })
       .pipe(map((list) => list.map((x) => x.deger)));
 }
 
-export function secimSuggestionFetch(
+export function selectionSuggestionFetch(
   api: ApiIstemcisi,
   endpoint: 'sube' | 'arac-grubu',
 ): SuggestionFetch {
   return (q) =>
     api
-      .get<readonly SecimUcuOgesi<'sube'>[]>(`/api/ui/v1/secim/${endpoint}`, {
+      .get<readonly SelectionEndpointItem<'sube'>[]>(`/api/ui/v1/secim/${endpoint}`, {
         parametreler: { q: q === '' ? null : q, limit: 20 },
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       })
       .pipe(map((list) => list.map((x) => x.etiket)));
 }

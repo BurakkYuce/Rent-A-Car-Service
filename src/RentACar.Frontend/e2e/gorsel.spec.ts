@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import { oturumAc } from './ortak';
+import { logIn } from './ortak';
 import { ORTAM } from './ortam';
-import { hazirBekle, VITRIN_SAYFALARI } from './vitrin-sayfalari';
+import { waitReady, SHOWCASE_PAGES } from './vitrin-sayfalari';
 
 /**
  * F3.7 görsel regresyon: her vitrin sayfası açık/koyu × 320/390/768/1440 px, tam sayfa. Tabanlar
@@ -17,25 +17,25 @@ test.skip(
   'Görsel tabanlar Linux imajında üretilir: npm run e2e:gorsel (Docker) kullanın.',
 );
 
-const GENISLIKLER = [
+const WIDTHS = [
   { genislik: 320, yukseklik: 640 },
   { genislik: 390, yukseklik: 844 },
   { genislik: 768, yukseklik: 1024 },
   { genislik: 1440, yukseklik: 900 },
 ] as const;
 
-test.beforeEach(async ({ page }) => oturumAc(page));
+test.beforeEach(async ({ page }) => logIn(page));
 
-for (const sayfa of VITRIN_SAYFALARI) {
-  for (const tema of ['light', 'dark'] as const) {
-    test(`${sayfa.ad} (${tema === 'light' ? 'açık' : 'koyu'})`, async ({ page }) => {
-      await sayfa.hazirla?.(page);
-      await page.emulateMedia({ colorScheme: tema, reducedMotion: 'reduce' });
-      for (const { genislik, yukseklik } of GENISLIKLER) {
-        await page.setViewportSize({ width: genislik, height: yukseklik });
-        await page.goto(sayfa.yol);
-        await hazirBekle(page, sayfa);
-        await expect(page).toHaveScreenshot(`${sayfa.ad}-${tema}-${genislik}.png`, {
+for (const pageRef of SHOWCASE_PAGES) {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`${pageRef.ad} (${theme === 'light' ? 'açık' : 'koyu'})`, async ({ page }) => {
+      await pageRef.hazirla?.(page);
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+      for (const { genislik: width, yukseklik: height } of WIDTHS) {
+        await page.setViewportSize({ width: width, height: height });
+        await page.goto(pageRef.yol);
+        await waitReady(page, pageRef);
+        await expect(page).toHaveScreenshot(`${pageRef.ad}-${theme}-${width}.png`, {
           fullPage: true,
         });
       }

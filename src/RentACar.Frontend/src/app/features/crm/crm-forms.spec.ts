@@ -1,7 +1,7 @@
 import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 
-import type { ApiIstemcisi, SorguParametreleri } from '@core/api/api-istemcisi';
+import type { ApiIstemcisi, QueryParameters } from '@core/api/api-istemcisi';
 import { balanceSide, rowBadges, type CustomerRow } from '@features/customers/customer-model';
 import { currencyCode } from '@features/customers/customer-detail/customer-detail';
 
@@ -138,9 +138,9 @@ describe('assistans durum görünümü', () => {
 
 describe('özet sayaçları (sunucu sayar)', () => {
   it('her kalem aynı süzgeç + ek koşulla boyut=1 isteğinin toplamı; çelişen süzgeçte istek yok, 0', () => {
-    const calls: SorguParametreleri[] = [];
+    const calls: QueryParameters[] = [];
     const api = {
-      get: (_path: string, o: { parametreler: SorguParametreleri }) => {
+      get: (_path: string, o: { parametreler: QueryParameters }) => {
         calls.push(o.parametreler);
         return of({ kayitlar: [], toplam: o.parametreler['durum'] === 'Yapildi' ? 12 : 99 });
       },

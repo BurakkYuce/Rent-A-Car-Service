@@ -1,4 +1,4 @@
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 
 import {
   VIEW_REPORTS,
@@ -22,9 +22,9 @@ import {
 
 const R = '/api/ui/v1/raporlar';
 
-type Kalem = Sema<'GelirGiderKalemDto'>;
-const kalem = columnsFor<Kalem>();
-const kalemSutunlari: readonly ReportColumn<Kalem>[] = [
+type Item = Schema<'GelirGiderKalemDto'>;
+const kalem = columnsFor<Item>();
+const itemColumns: readonly ReportColumn<Item>[] = [
   kalem.field('sourceType', 'metin', { baslik: 'rapor.alan.kaynak' }),
   kalem.field('tutar', 'para'),
 ];
@@ -53,13 +53,13 @@ export const INCOME_EXPENSE = defineReport({
           kod: 'gelir',
           baslik: 'rapor.bolum.gelirKirilim',
           satirlar: (s) => s.gelirKirilim,
-          sutunlar: kalemSutunlari,
+          sutunlar: itemColumns,
         }),
         section({
           kod: 'gider',
           baslik: 'rapor.bolum.giderKirilim',
           satirlar: (s) => s.giderKirilim,
-          sutunlar: kalemSutunlari,
+          sutunlar: itemColumns,
         }),
       ],
     }),
@@ -68,8 +68,8 @@ export const INCOME_EXPENSE = defineReport({
 
 // ── Kasa / Banka defteri ────────────────────────────────────────────────────────────────────
 const kb = cardsFor<SummaryOf<`${typeof R}/kasa-banka`>>();
-const kbSatir = columnsFor<RowOf<`${typeof R}/kasa-banka`>>();
-const hesapOzet = columnsFor<Sema<'ReportAccountSummaryRow'>>();
+const cbRow = columnsFor<RowOf<`${typeof R}/kasa-banka`>>();
+const accountSummary = columnsFor<Schema<'ReportAccountSummaryRow'>>();
 export const CASH_BANK = defineReport({
   kod: 'kasa-banka',
   baslik: 'rapor.baslik.kasaBanka',
@@ -127,11 +127,11 @@ export const CASH_BANK = defineReport({
           baslik: 'rapor.bolum.hesapBazli',
           satirlar: (s) => s.hesaplar,
           sutunlar: [
-            hesapOzet.field('tur', 'metin', { baslik: 'rapor.alan.hesapTuru' }),
-            hesapOzet.field('hesapAd', 'metin', { baslik: 'rapor.alan.hesap' }),
-            hesapOzet.field('giris', 'para'),
-            hesapOzet.field('cikis', 'para'),
-            hesapOzet.field('bakiye', 'para'),
+            accountSummary.field('tur', 'metin', { baslik: 'rapor.alan.hesapTuru' }),
+            accountSummary.field('hesapAd', 'metin', { baslik: 'rapor.alan.hesap' }),
+            accountSummary.field('giris', 'para'),
+            accountSummary.field('cikis', 'para'),
+            accountSummary.field('bakiye', 'para'),
           ],
         }),
       ],
@@ -139,21 +139,21 @@ export const CASH_BANK = defineReport({
         siralanabilir: [],
         satirKimligi: objectKey,
         sutunlar: [
-          kbSatir.field('tarih', 'tarihSaat', { sabit: true }),
-          kbSatir.field('sourceType', 'metin', { baslik: 'rapor.alan.islemTuru' }),
-          kbSatir.field('aciklama', 'metin'),
-          kbSatir.field('cariAd', 'metin', { baslik: 'rapor.alan.cari' }),
-          kbSatir.field('belgeNo', 'metin'),
-          kbSatir.field('sube', 'metin'),
-          kbSatir.field('kanal', 'metin', { gizli: true }),
-          kbSatir.field('native', 'para', {
+          cbRow.field('tarih', 'tarihSaat', { sabit: true }),
+          cbRow.field('sourceType', 'metin', { baslik: 'rapor.alan.islemTuru' }),
+          cbRow.field('aciklama', 'metin'),
+          cbRow.field('cariAd', 'metin', { baslik: 'rapor.alan.cari' }),
+          cbRow.field('belgeNo', 'metin'),
+          cbRow.field('sube', 'metin'),
+          cbRow.field('kanal', 'metin', { gizli: true }),
+          cbRow.field('native', 'para', {
             baslik: 'rapor.alan.dovizTutar',
             paraBirimi: (r) => r.doviz,
           }),
-          kbSatir.field('borc', 'para'),
-          kbSatir.field('alacak', 'para'),
-          kbSatir.field('yuruyenBakiye', 'para'),
-          kbSatir.field('devirMi', 'bayrak', { gizli: true }),
+          cbRow.field('borc', 'para'),
+          cbRow.field('alacak', 'para'),
+          cbRow.field('yuruyenBakiye', 'para'),
+          cbRow.field('devirMi', 'bayrak', { gizli: true }),
         ],
       },
     }),
@@ -162,8 +162,8 @@ export const CASH_BANK = defineReport({
 
 // ── Finans analiz panosu ────────────────────────────────────────────────────────────────────
 const fa = cardsFor<SummaryOf<`${typeof R}/finans-analiz`>>();
-const trend = columnsFor<Sema<'AylikGelirGiderNokta'>>();
-const son30 = columnsFor<Sema<'AracDurumTakipRow'>>();
+const trend = columnsFor<Schema<'AylikGelirGiderNokta'>>();
+const last30 = columnsFor<Schema<'AracDurumTakipRow'>>();
 export const FINANCE_ANALYSIS = defineReport({
   kod: 'finans-analiz',
   baslik: 'rapor.baslik.finansAnaliz',
@@ -199,27 +199,27 @@ export const FINANCE_ANALYSIS = defineReport({
           kod: 'gelir',
           baslik: 'rapor.bolum.gelirKirilim',
           satirlar: (s) => s.gelirKirilim,
-          sutunlar: kalemSutunlari,
+          sutunlar: itemColumns,
         }),
         section({
           kod: 'gider',
           baslik: 'rapor.bolum.giderKirilim',
           satirlar: (s) => s.giderKirilim,
-          sutunlar: kalemSutunlari,
+          sutunlar: itemColumns,
         }),
         section({
           kod: 'son30',
           baslik: 'rapor.bolum.son30Gun',
           satirlar: (s) => s.son30Gun,
           sutunlar: [
-            son30.field('gun', 'tarih'),
-            son30.field('toplamArac', 'tamsayi'),
-            son30.field('dolu', 'tamsayi'),
-            son30.field('bakim', 'tamsayi'),
-            son30.field('bos', 'tamsayi'),
-            son30.field('toplamBaf', 'tamsayi'),
+            last30.field('gun', 'tarih'),
+            last30.field('toplamArac', 'tamsayi'),
+            last30.field('dolu', 'tamsayi'),
+            last30.field('bakim', 'tamsayi'),
+            last30.field('bos', 'tamsayi'),
+            last30.field('toplamBaf', 'tamsayi'),
             // Blazor'daki gibi yüzde SPA'da: Dolu ÷ ToplamArac (uç yorumu).
-            son30.computed(
+            last30.computed(
               'doluluk',
               'yuzde',
               (r) =>
@@ -235,7 +235,7 @@ export const FINANCE_ANALYSIS = defineReport({
 
 // ── Virman geçmişi ──────────────────────────────────────────────────────────────────────────
 const vg = columnsFor<RowOf<`${typeof R}/virman-gecmisi`>>();
-const dovizToplam = columnsFor<Sema<'ReportCurrencyTotal'>>();
+const currencyTotal = columnsFor<Schema<'ReportCurrencyTotal'>>();
 export const TRANSFER_HISTORY = defineReport({
   kod: 'virman-gecmisi',
   baslik: 'rapor.baslik.virmanGecmisi',
@@ -256,8 +256,8 @@ export const TRANSFER_HISTORY = defineReport({
           baslik: 'rapor.bolum.dovizToplam',
           satirlar: (s) => s,
           sutunlar: [
-            dovizToplam.field('doviz', 'metin'),
-            dovizToplam.field('toplam', 'para', { paraBirimi: (r) => r.doviz }),
+            currencyTotal.field('doviz', 'metin'),
+            currencyTotal.field('toplam', 'para', { paraBirimi: (r) => r.doviz }),
           ],
         }),
       ],
@@ -285,10 +285,10 @@ export const TRANSFER_HISTORY = defineReport({
 });
 
 // ── KDV listesi (oran özeti + belge bazlı geniş) ────────────────────────────────────────────
-const kdv = cardsFor<SummaryOf<`${typeof R}/kdv-listesi`>>();
-const kdvOran = columnsFor<Sema<'KdvListesiRowDto'>>();
+const vat = cardsFor<SummaryOf<`${typeof R}/kdv-listesi`>>();
+const vatRate = columnsFor<Schema<'KdvListesiRowDto'>>();
 const kdvg = cardsFor<SummaryOf<`${typeof R}/kdv-listesi/genis`>>();
-const kdvgSatir = columnsFor<RowOf<`${typeof R}/kdv-listesi/genis`>>();
+const vatgRow = columnsFor<RowOf<`${typeof R}/kdv-listesi/genis`>>();
 export const VAT_LIST = defineReport({
   kod: 'kdv-listesi',
   baslik: 'rapor.baslik.kdvListesi',
@@ -302,10 +302,10 @@ export const VAT_LIST = defineReport({
       baslik: 'rapor.gorunum.oranOzeti',
       filtreler: [{ tur: 'donem' }],
       kartlar: [
-        kdv.field('toplamNet', 'para'),
-        kdv.field('toplamKdv', 'para'),
-        kdv.field('toplamBrut', 'para'),
-        kdv.field('faturaAdet', 'tamsayi'),
+        vat.field('toplamNet', 'para'),
+        vat.field('toplamKdv', 'para'),
+        vat.field('toplamBrut', 'para'),
+        vat.field('faturaAdet', 'tamsayi'),
       ],
       bolumler: [
         section({
@@ -313,13 +313,13 @@ export const VAT_LIST = defineReport({
           baslik: 'rapor.bolum.oranlar',
           satirlar: (s) => s.satirlar,
           sutunlar: [
-            kdvOran.computed('oran', 'yuzde', (r) => fractionToPercent(r.oran), {
+            vatRate.computed('oran', 'yuzde', (r) => fractionToPercent(r.oran), {
               baslik: 'rapor.alan.kdvOrani',
             }),
-            kdvOran.field('net', 'para'),
-            kdvOran.field('kdv', 'para'),
-            kdvOran.field('brut', 'para'),
-            kdvOran.field('faturaAdet', 'tamsayi'),
+            vatRate.field('net', 'para'),
+            vatRate.field('kdv', 'para'),
+            vatRate.field('brut', 'para'),
+            vatRate.field('faturaAdet', 'tamsayi'),
           ],
         }),
       ],
@@ -348,23 +348,23 @@ export const VAT_LIST = defineReport({
         siralanabilir: ['tarih', 'no', 'tur', 'cari', 'toplamNet', 'toplamKdv'],
         satirKimligi: (r) => r.belgeId,
         sutunlar: [
-          kdvgSatir.field('tarih', 'tarih', { sirala: true }),
-          kdvgSatir.field('no', 'metin', { sirala: true, sabit: true }),
-          kdvgSatir.field('tur', 'metin', { sirala: true }),
-          kdvgSatir.field('cari', 'metin', { sirala: true }),
-          kdvgSatir.field('durum', 'metin'),
-          kdvgSatir.field('net20', 'para'),
-          kdvgSatir.field('kdv20', 'para'),
-          kdvgSatir.field('net10', 'para'),
-          kdvgSatir.field('kdv10', 'para'),
-          kdvgSatir.field('net1', 'para'),
-          kdvgSatir.field('kdv1', 'para'),
-          kdvgSatir.field('net0', 'para'),
-          kdvgSatir.field('digerNet', 'para', { gizli: true }),
-          kdvgSatir.field('digerKdv', 'para', { gizli: true }),
-          kdvgSatir.field('toplamNet', 'para', { sirala: true }),
-          kdvgSatir.field('toplamKdv', 'para', { sirala: true }),
-          kdvgSatir.field('toplamBrut', 'para'),
+          vatgRow.field('tarih', 'tarih', { sirala: true }),
+          vatgRow.field('no', 'metin', { sirala: true, sabit: true }),
+          vatgRow.field('tur', 'metin', { sirala: true }),
+          vatgRow.field('cari', 'metin', { sirala: true }),
+          vatgRow.field('durum', 'metin'),
+          vatgRow.field('net20', 'para'),
+          vatgRow.field('kdv20', 'para'),
+          vatgRow.field('net10', 'para'),
+          vatgRow.field('kdv10', 'para'),
+          vatgRow.field('net1', 'para'),
+          vatgRow.field('kdv1', 'para'),
+          vatgRow.field('net0', 'para'),
+          vatgRow.field('digerNet', 'para', { gizli: true }),
+          vatgRow.field('digerKdv', 'para', { gizli: true }),
+          vatgRow.field('toplamNet', 'para', { sirala: true }),
+          vatgRow.field('toplamKdv', 'para', { sirala: true }),
+          vatgRow.field('toplamBrut', 'para'),
         ],
       },
     }),

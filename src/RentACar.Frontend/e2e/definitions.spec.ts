@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
 import { BRANCH_2, brand, branchEndpoints, definitionEndpoints } from './definition-fakes';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F11.2a tanım ekranları: genel tanım CRUD'u (markalar temsili), sürüm 409 formu silmez, kullanımda silme 400
  * mesajı, şube birleştirme önizleme + onay, üç zorunlu senaryo + axe iki tema + 320/390/768/1440 taşma.
  */
-const AG_HATASI = [/Failed to load resource: the server responded with a status of 4\d\d/];
+const NETWORK_ERROR = [/Failed to load resource: the server responded with a status of 4\d\d/];
 
 const BRANDS: VitrinSayfasi = {
   ad: 'markalar',
@@ -28,24 +28,24 @@ const BRANCHES: VitrinSayfasi = {
 };
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, { ...BEN, izinler: [...BEN.izinler, 'ManageUsers'] });
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'ManageUsers'] });
 });
 
 test('markalar: oluştur (aktif varsayılan), düzenle (surum ile PUT), axe iki tema', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
+  const errors = collectErrors(page);
   const writes = await definitionEndpoints(page, 'markalar', { rows: () => [brand()] });
   await page.goto(BRANDS.yol);
-  await hazirBekle(page, BRANDS);
-  expect(await ciddiIhlaller(page), 'açık').toEqual([]);
+  await waitReady(page, BRANDS);
+  expect(await seriousViolations(page), 'açık').toEqual([]);
   await page.emulateMedia({ colorScheme: 'dark' });
-  expect(await ciddiIhlaller(page), 'koyu').toEqual([]);
+  expect(await seriousViolations(page), 'koyu').toEqual([]);
 
   await page.getByRole('button', { name: 'Yeni kayıt' }).click();
   await page.getByRole('textbox', { name: 'Kod' }).fill('RNLT');
   await page.getByRole('textbox', { name: 'Ad' }).fill('Renault');
-  expect(await ciddiIhlaller(page), 'form').toEqual([]);
+  expect(await seriousViolations(page), 'form').toEqual([]);
   await page.getByRole('button', { name: 'Kaydet' }).click();
   await expect.poll(() => writes.length).toBe(1);
   expect(writes[0]?.method).toBe('POST');
@@ -66,7 +66,7 @@ test('markalar: oluştur (aktif varsayılan), düzenle (surum ile PUT), axe iki 
 });
 
 test('markalar: kullanımdaki kayıt silinemez — sunucu mesajı görünür', async ({ page }) => {
-  hatalariTopla(page, AG_HATASI);
+  collectErrors(page, NETWORK_ERROR);
   const message =
     "'Fiat' markası 3 araç/tip/grup/sipariş kaydında kullanılıyor; silmek yerine pasife alın.";
   await definitionEndpoints(page, 'markalar', {
@@ -74,7 +74,7 @@ test('markalar: kullanımdaki kayıt silinemez — sunucu mesajı görünür', a
     write: (r) => problem(r, 400, 'dogrulama', message),
   });
   await page.goto(BRANDS.yol);
-  await hazirBekle(page, BRANDS);
+  await waitReady(page, BRANDS);
   await page.getByRole('button', { name: 'Sil' }).click();
   await page.getByRole('button', { name: 'Evet, sil' }).click();
   await expect(page.getByRole('alert').filter({ hasText: message })).toBeVisible();
@@ -84,7 +84,7 @@ test('markalar: kullanımdaki kayıt silinemez — sunucu mesajı görünür', a
 test('markalar: doğrulama hatasında form korunur (alan hatası alanın altında)', async ({
   page,
 }) => {
-  hatalariTopla(page, AG_HATASI);
+  collectErrors(page, NETWORK_ERROR);
   await definitionEndpoints(page, 'markalar', {
     rows: () => [brand()],
     write: (r) =>
@@ -93,7 +93,7 @@ test('markalar: doğrulama hatasında form korunur (alan hatası alanın altınd
       }),
   });
   await page.goto(BRANDS.yol);
-  await hazirBekle(page, BRANDS);
+  await waitReady(page, BRANDS);
   await page.getByRole('button', { name: 'Yeni kayıt' }).click();
   await page.getByRole('textbox', { name: 'Kod' }).fill('FIAT');
   await page.getByRole('textbox', { name: 'Ad' }).fill('Fiat 2');
@@ -105,7 +105,7 @@ test('markalar: doğrulama hatasında form korunur (alan hatası alanın altınd
 test('markalar: oturum düşünce form kaybolmaz — yeniden girişte aynı istek aynı anahtarla', async ({
   page,
 }) => {
-  hatalariTopla(page, [...AG_HATASI, /401/]);
+  collectErrors(page, [...NETWORK_ERROR, /401/]);
   let n = 0;
   const writes = await definitionEndpoints(page, 'markalar', {
     rows: () => [brand()],
@@ -115,15 +115,15 @@ test('markalar: oturum düşünce form kaybolmaz — yeniden girişte aynı iste
         : r.fulfill({ json: brand() }),
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
+    await writeXsrf(page, 'yeni-belirtec');
     return route.fulfill({ json: BEN });
   });
   await page.goto(BRANDS.yol);
-  await hazirBekle(page, BRANDS);
+  await waitReady(page, BRANDS);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   await page.getByRole('textbox', { name: 'Ad' }).fill('Fiat Otomobil');
   await page.getByRole('button', { name: 'Kaydet' }).click();
@@ -142,7 +142,7 @@ test('markalar: oturum düşünce form kaybolmaz — yeniden girişte aynı iste
 test('markalar: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  hatalariTopla(page, [...AG_HATASI, /409/]);
+  collectErrors(page, [...NETWORK_ERROR, /409/]);
   let current = brand();
   let n = 0;
   const writes = await definitionEndpoints(page, 'markalar', {
@@ -157,7 +157,7 @@ test('markalar: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT y
     },
   });
   await page.goto(BRANDS.yol);
-  await hazirBekle(page, BRANDS);
+  await waitReady(page, BRANDS);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   await page.getByRole('textbox', { name: 'Ad' }).fill('Fiat Benim');
   await page.getByRole('button', { name: 'Kaydet' }).click();
@@ -178,16 +178,16 @@ test('markalar: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT y
 test('şubeler: panel formu gizli hesabı korur; birleştirme önizleme → onay kutusu → onaylı birleştir', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
+  const errors = collectErrors(page);
   const { merges, writes } = await branchEndpoints(page);
   await page.goto(BRANCHES.yol);
-  await hazirBekle(page, BRANCHES);
-  expect(await ciddiIhlaller(page), 'açık').toEqual([]);
+  await waitReady(page, BRANCHES);
+  expect(await seriousViolations(page), 'açık').toEqual([]);
 
   // Panel düzenleme: formda olmayan bağlı kasa hesabı tam PUT'ta aynen geri gider.
   await page.getByRole('button', { name: 'Düzenle' }).first().click();
   await page.getByRole('textbox', { name: 'Yetkili' }).fill('Veli');
-  expect(await ciddiIhlaller(page), 'panel').toEqual([]);
+  expect(await seriousViolations(page), 'panel').toEqual([]);
   await page.getByRole('button', { name: 'Kaydet' }).click();
   await expect.poll(() => writes.length).toBe(1);
   const put = JSON.parse(writes[0]?.govde ?? '{}') as Record<string, unknown>;
@@ -206,7 +206,7 @@ test('şubeler: panel formu gizli hesabı korur; birleştirme önizleme → onay
   const mergeButton = page.getByRole('button', { name: 'Birleştir', exact: true });
   await expect(mergeButton).toBeDisabled();
   await page.getByRole('checkbox', { name: 'Etkiyi gördüm, birleştir' }).check();
-  expect(await ciddiIhlaller(page), 'önizleme').toEqual([]);
+  expect(await seriousViolations(page), 'önizleme').toEqual([]);
   await mergeButton.click();
   const dialog = page.getByRole('alertdialog', { name: 'Şubeler birleştirilsin mi?' });
   await expect(dialog).toBeVisible();
@@ -230,8 +230,8 @@ for (const s of [BRANDS, BRANCHES]) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -240,7 +240,7 @@ for (const s of [BRANDS, BRANCHES]) {
     await branchEndpoints(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

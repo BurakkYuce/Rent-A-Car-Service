@@ -20,59 +20,60 @@ export interface OndalikSecenekleri {
   readonly azamiTamHane?: number;
 }
 
-export type OndalikCozumu =
+export type DecimalParseResult =
   { readonly gecerli: true; readonly deger: string | null } | { readonly gecerli: false };
 
-const GECERSIZ: OndalikCozumu = { gecerli: false };
-const BOS: OndalikCozumu = { gecerli: true, deger: null };
+const INVALID: DecimalParseResult = { gecerli: false };
+const EMPTY: DecimalParseResult = { gecerli: true, deger: null };
 
 /** Türkçe binlik gruplu tam kısım: `1.234`, `12.345.678`. Baştaki grup sıfırla başlamaz. */
-const TR_BINLIK = /^[1-9]\d{0,2}(\.\d{3})+$/;
-const RAKAM = /^\d+$/;
+const TR_THOUSANDS = /^[1-9]\d{0,2}(\.\d{3})+$/;
+const DIGIT = /^\d+$/;
 const INVARIANT = /^(-?)(\d+)(?:\.(\d+))?$/;
 
 /** Kullanıcı metni → invariant ondalık metin. Boş → `null`; biçimsiz → `gecerli: false`. */
-export function ondalikCoz(metin: string, secenek: OndalikSecenekleri): OndalikCozumu {
+export function parseDecimal(text: string, option: OndalikSecenekleri): DecimalParseResult {
   // `\s` bölünmez boşlukları (U+00A0, U+202F) da kapsar.
-  let s = metin.replace(/[\s₺]/g, '');
-  if (s === '') return BOS;
+  let s = text.replace(/[\s₺]/g, '');
+  if (s === '') return EMPTY;
 
-  let negatif = false;
+  let negative = false;
   if (s.startsWith('-') || s.startsWith('−')) {
-    negatif = true;
+    negative = true;
     s = s.slice(1);
   } else if (s.startsWith('+')) {
     s = s.slice(1);
   }
 
-  let tam: string;
-  let kesir: string;
+  let full: string;
+  let fraction: string;
   if (s.includes(',')) {
-    const parcalar = s.split(',');
-    if (parcalar.length !== 2) return GECERSIZ;
-    [tam = '', kesir = ''] = parcalar;
-    if (tam.includes('.')) {
-      if (!TR_BINLIK.test(tam)) return GECERSIZ;
-      tam = tam.replace(/\./g, '');
+    const parts = s.split(',');
+    if (parts.length !== 2) return INVALID;
+    [full = '', fraction = ''] = parts;
+    if (full.includes('.')) {
+      if (!TR_THOUSANDS.test(full)) return INVALID;
+      full = full.replace(/\./g, '');
     }
   } else if (s.includes('.')) {
-    if (TR_BINLIK.test(s)) {
-      tam = s.replace(/\./g, '');
-      kesir = '';
+    if (TR_THOUSANDS.test(s)) {
+      full = s.replace(/\./g, '');
+      fraction = '';
     } else {
-      const parcalar = s.split('.');
-      if (parcalar.length !== 2) return GECERSIZ;
-      [tam = '', kesir = ''] = parcalar;
+      const parts = s.split('.');
+      if (parts.length !== 2) return INVALID;
+      [full = '', fraction = ''] = parts;
     }
   } else {
-    tam = s;
-    kesir = '';
+    full = s;
+    fraction = '';
   }
 
-  if (tam === '' && kesir === '') return GECERSIZ;
-  if ((tam !== '' && !RAKAM.test(tam)) || (kesir !== '' && !RAKAM.test(kesir))) return GECERSIZ;
+  if (full === '' && fraction === '') return INVALID;
+  if ((full !== '' && !DIGIT.test(full)) || (fraction !== '' && !DIGIT.test(fraction)))
+    return INVALID;
 
-  return normalize(negatif, tam === '' ? '0' : tam, kesir, secenek);
+  return normalize(negative, full === '' ? '0' : full, fraction, option);
 }
 
 /**
@@ -80,89 +81,93 @@ export function ondalikCoz(metin: string, secenek: OndalikSecenekleri): OndalikC
  * Kullanıcı metni DEĞİLDİR: `"1.234"` burada bir virgül bin iki yüz otuz dört binde birdir, 1234 değil.
  * Biçimsiz girdi `null` döner (sessiz sıfır değil).
  */
-export function invariantOndalik(
-  deger: number | string | null | undefined,
-  secenek: OndalikSecenekleri,
+export function invariantDecimal(
+  value: number | string | null | undefined,
+  option: OndalikSecenekleri,
 ): string | null {
-  if (deger === null || deger === undefined || deger === '') return null;
-  let metin: string;
-  if (typeof deger === 'number') {
-    if (!Number.isFinite(deger)) return null;
+  if (value === null || value === undefined || value === '') return null;
+  let text: string;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null;
     // Kısa gösterim (`String`) 15 anlamlı haneye kadar JSON metnini birebir geri verir; üslü gösterim
     // yalnız çok küçük/büyük sayılarda çıkar, onlar sabit gösterime çevrilir.
-    metin = /e/i.test(String(deger)) ? deger.toFixed(20) : String(deger);
+    text = /e/i.test(String(value)) ? value.toFixed(20) : String(value);
   } else {
-    metin = deger.trim();
+    text = value.trim();
   }
-  const eslesme = INVARIANT.exec(metin);
-  if (!eslesme) return null;
-  const sonuc = normalize(eslesme[1] === '-', eslesme[2] ?? '0', eslesme[3] ?? '', {
-    ...secenek,
+  const match = INVARIANT.exec(text);
+  if (!match) return null;
+  const result = normalize(match[1] === '-', match[2] ?? '0', match[3] ?? '', {
+    ...option,
     negatif: true,
     fazlaHane: 'yuvarla',
     azamiTamHane: Number.MAX_SAFE_INTEGER,
   });
-  return sonuc.gecerli ? sonuc.deger : null;
+  return result.gecerli ? result.deger : null;
 }
 
 /** Invariant metin → Türkçe yazım (`"1234.5"` → `"1.234,50"`). Değer yoksa boş metin. */
-export function ondalikBicimle(deger: string | null | undefined, kesir: number): string {
-  if (deger === null || deger === undefined || deger === '') return '';
-  const eslesme = INVARIANT.exec(deger);
-  if (!eslesme) return '';
-  const [, isaret = '', tam = '0', kesirMetni = ''] = eslesme;
-  const gruplu = tam.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  const k = kesirMetni.padEnd(kesir, '0').slice(0, kesir);
-  return `${isaret}${gruplu}${kesir > 0 ? `,${k}` : ''}`;
+export function formatDecimal(value: string | null | undefined, fraction: number): string {
+  if (value === null || value === undefined || value === '') return '';
+  const match = INVARIANT.exec(value);
+  if (!match) return '';
+  const [, sign = '', full = '0', fractionText = ''] = match;
+  const grouped = full.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const k = fractionText.padEnd(fraction, '0').slice(0, fraction);
+  return `${sign}${grouped}${fraction > 0 ? `,${k}` : ''}`;
 }
 
 /** Düzenleme sırasında gösterilen yazım: gruplamasız (`"1234,56"`), imleç kaymasın diye. */
-export function ondalikDuzenlemeMetni(deger: string | null | undefined, kesir: number): string {
-  return ondalikBicimle(deger, kesir).replace(/\./g, '');
+export function decimalEditText(value: string | null | undefined, fraction: number): string {
+  return formatDecimal(value, fraction).replace(/\./g, '');
 }
 
 function normalize(
-  negatif: boolean,
-  tam: string,
-  kesir: string,
-  secenek: OndalikSecenekleri,
-): OndalikCozumu {
-  const hane = secenek.kesir;
-  let tamRakam = tam.replace(/^0+(?=\d)/, '');
-  let kesirRakam = kesir;
+  negative: boolean,
+  full: string,
+  fraction: string,
+  option: OndalikSecenekleri,
+): DecimalParseResult {
+  const digit = option.kesir;
+  let integerDigits = full.replace(/^0+(?=\d)/, '');
+  let fractionDigits = fraction;
 
-  if (kesirRakam.length > hane) {
-    const atilan = kesirRakam.slice(hane);
-    if ((secenek.fazlaHane ?? 'yuvarla') === 'reddet' && /[1-9]/.test(atilan)) return GECERSIZ;
-    kesirRakam = kesirRakam.slice(0, hane);
+  if (fractionDigits.length > digit) {
+    const dropped = fractionDigits.slice(digit);
+    if ((option.fazlaHane ?? 'yuvarla') === 'reddet' && /[1-9]/.test(dropped)) return INVALID;
+    fractionDigits = fractionDigits.slice(0, digit);
     // Büyüklük üstünde yukarı yuvarlamak = sıfırdan uzağa (işaret sonra eklenir).
-    if ((atilan[0] ?? '0') >= '5') [tamRakam, kesirRakam] = birEkle(tamRakam, kesirRakam);
+    if ((dropped[0] ?? '0') >= '5')
+      [integerDigits, fractionDigits] = addOne(integerDigits, fractionDigits);
   }
-  kesirRakam = kesirRakam.padEnd(hane, '0');
+  fractionDigits = fractionDigits.padEnd(digit, '0');
 
-  if (tamRakam.length > (secenek.azamiTamHane ?? 15)) return GECERSIZ;
-  const sifir = /^0+$/.test(tamRakam + kesirRakam);
-  if (negatif && !sifir && !secenek.negatif) return GECERSIZ;
+  if (integerDigits.length > (option.azamiTamHane ?? 15)) return INVALID;
+  const zero = /^0+$/.test(integerDigits + fractionDigits);
+  if (negative && !zero && !option.negatif) return INVALID;
 
-  const isaret = negatif && !sifir ? '-' : '';
-  return { gecerli: true, deger: `${isaret}${tamRakam}${hane > 0 ? `.${kesirRakam}` : ''}` };
+  const sign = negative && !zero ? '-' : '';
+  return {
+    gecerli: true,
+    deger: `${sign}${integerDigits}${digit > 0 ? `.${fractionDigits}` : ''}`,
+  };
 }
 
 /** `tam.kesir` rakam dizisine son haneden 1 ekler (taşma tam kısma geçer). */
-function birEkle(tam: string, kesir: string): [string, string] {
-  const rakamlar = (tam + kesir).split('').map(Number);
-  let i = rakamlar.length - 1;
+function addOne(full: string, fraction: string): [string, string] {
+  const digits = (full + fraction).split('').map(Number);
+  let i = digits.length - 1;
   while (i >= 0) {
-    const r = (rakamlar[i] ?? 0) + 1;
+    const r = (digits[i] ?? 0) + 1;
     if (r < 10) {
-      rakamlar[i] = r;
+      digits[i] = r;
       break;
     }
-    rakamlar[i] = 0;
+    digits[i] = 0;
     i--;
   }
-  let birlesik = rakamlar.join('');
-  if (i < 0) birlesik = `1${birlesik}`;
-  const tamUzunluk = birlesik.length - kesir.length;
-  return [birlesik.slice(0, tamUzunluk), birlesik.slice(tamUzunluk)];
+  let merged = digits.join('');
+  if (i < 0) merged = `1${merged}`;
+  const fullLength = merged.length - fraction.length;
+  return [merged.slice(0, fullLength), merged.slice(fullLength)];
 }

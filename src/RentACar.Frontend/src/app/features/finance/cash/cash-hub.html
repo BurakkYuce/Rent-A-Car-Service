@@ -189,7 +189,7 @@
       @if (l.kesildi) {
         <p class="not">{{ 'finans.kasa.kesildi' | transloco }}</p>
       }
-      <div class="rc-tablo-kap" [attr.aria-busy]="transactions.yukleniyor()">
+      <div class="rc-tablo-kap" [attr.aria-busy]="transactions.isLoading()">
         <table class="rc-duz-tablo">
           <thead>
             <tr>
@@ -228,7 +228,7 @@
                 <td>{{ x.cariKod ?? '—' }}</td>
                 <td class="rc-num">{{ x.tutar | fpara: x.doviz }}</td>
                 <td>{{ x.aciklama }}</td>
-                <td><a [href]="makbuzUrl(x.id)" target="_blank" rel="noopener">PDF</a></td>
+                <td><a [href]="receiptUrl(x.id)" target="_blank" rel="noopener">PDF</a></td>
               </tr>
             } @empty {
               <tr>

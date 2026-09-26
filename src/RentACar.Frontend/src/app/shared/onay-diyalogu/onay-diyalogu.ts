@@ -2,14 +2,14 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { OnaySecenekleri } from '@core/geri-bildirim/onay-servisi';
-import { Ikon } from '@shared/ikon/ikon';
+import type { OnaySecenekleri } from '@core/geri-bildirim/confirm-service';
+import { Icon } from '@shared/ikon/icon';
 
 /** `OnayServisi.sor` içeriği. Esc/perde → `undefined` (vazgeç), "Onayla" → `true`. */
 @Component({
   selector: 'rc-onay-diyalogu',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, Ikon],
+  imports: [TranslocoPipe, Icon],
   template: `
     <div class="rc-diyalog">
       <header class="rc-diyalog__ust">

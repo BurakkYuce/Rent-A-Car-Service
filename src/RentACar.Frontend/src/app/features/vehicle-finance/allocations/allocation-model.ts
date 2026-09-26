@@ -1,7 +1,7 @@
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { DayText } from '@core/form/tarih-girdisi';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
-import { anDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 
 import type {
   AllocationPurpose,
@@ -22,7 +22,7 @@ export function timeValue(s: string | null | undefined): string | null {
 export interface AllocationFormValue {
   readonly personel: SecimSecenegi | null;
   readonly arac: SecimSecenegi | null;
-  readonly cikisTarihi: GunMetni | null;
+  readonly cikisTarihi: DayText | null;
   readonly cikisSaat: string | null;
   readonly cikisKm: number | null;
   readonly cikisYakit: number | null;
@@ -53,15 +53,15 @@ export function allocationRequest(v: AllocationFormValue): AllocationRequest {
   return {
     personelId: v.personel?.id ?? '',
     vehicleId: v.arac?.id ?? '',
-    cikisTarihi: anDegeri(v.cikisTarihi, null),
+    cikisTarihi: momentValue(v.cikisTarihi, null),
     cikisSaat: timeValue(v.cikisSaat),
     cikisKm: v.cikisKm ?? 0,
     cikisYakit: v.cikisYakit,
-    sube: metinDegeri(v.sube),
+    sube: textValue(v.sube),
     kullanimAmaci: v.kullanimAmaci,
     onaylayan: v.onaylayan?.id ?? null,
     kirayaVer: v.kirayaVer ?? false,
-    aciklama: metinDegeri(v.aciklama),
+    aciklama: textValue(v.aciklama),
   };
 }
 
@@ -80,7 +80,7 @@ export function allocationReturnRequest(v: AllocationReturnValue): AllocationRet
     donusKm: v.donusKm ?? 0,
     donusYakit: v.donusYakit,
     donusTarihi: v.donusTarihi,
-    donusSube: metinDegeri(v.donusSube),
+    donusSube: textValue(v.donusSube),
     donusSaat: timeValue(v.donusSaat),
   };
 }

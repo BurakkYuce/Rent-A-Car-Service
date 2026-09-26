@@ -4,9 +4,9 @@ import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { TemelStore } from '@core/veri/temel-store';
-import { SayiPipe } from '@shared/bicim/bicim-pipe';
+import { NumberPipe } from '@shared/bicim/bicim-pipe';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PLATFORM_API, type PlatformSummary, toNumber } from '../platform-model';
 import { PlatformSessionService } from '../platform-session';
 
@@ -17,7 +17,7 @@ import { PlatformSessionService } from '../platform-session';
 @Component({
   selector: 'rc-platform-summary-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslocoPipe, SayiPipe, SayfaBandi],
+  imports: [RouterLink, TranslocoPipe, NumberPipe, PageBand],
   styleUrls: ['../platform-page.scss'],
   template: `
     <rc-sayfa-bandi [baslik]="'platform.ozet.baslik' | transloco" ikon="chart-bar">

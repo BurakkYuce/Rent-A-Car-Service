@@ -13,11 +13,11 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgControl, Validators } from '@angular/forms';
 import { TranslocoService } from '@jsverse/transloco';
-import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
+import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { Ikon } from '../../ikon/ikon';
-import { ALAN_BAGLAMI, type AlanBaglami, tekilKimlik } from './alan-baglami';
-import { hataMesajlari } from './hata-mesajlari';
+import { Icon } from '../../ikon/icon';
+import { FIELD_CONTEXT, type AlanBaglami, uniqueId } from './alan-baglami';
+import { errorMessages } from './error-messages';
 
 /**
  * Form alanı: etiket + zorunlu işareti + kontrol + ipucu + hata yuvası. İçindeki CVA kontrolünü
@@ -36,35 +36,35 @@ import { hataMesajlari } from './hata-mesajlari';
 @Component({
   selector: 'rc-alan',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Ikon],
-  providers: [{ provide: ALAN_BAGLAMI, useFactory: () => inject(Alan).baglam }],
-  host: { class: 'rc-alan', '[class.rc-alan--hatali]': 'hataGoster()' },
+  imports: [Icon],
+  providers: [{ provide: FIELD_CONTEXT, useFactory: () => inject(Alan).context }],
+  host: { class: 'rc-alan', '[class.rc-alan--hatali]': 'showError()' },
   template: `
     @if (grup()) {
-      <span class="rc-alan__etiket" [id]="baglam.etiketKimligi" [class.rc-gorunmez]="etiketGizli()"
+      <span class="rc-alan__etiket" [id]="context.etiketKimligi" [class.rc-gorunmez]="etiketGizli()"
         >{{ etiket() }}
-        @if (zorunluMu()) {
+        @if (isRequired()) {
           <span class="rc-alan__zorunlu" aria-hidden="true">*</span>
         }
       </span>
     } @else {
       <label
         class="rc-alan__etiket"
-        [id]="baglam.etiketKimligi"
-        [attr.for]="baglam.kimlik"
+        [id]="context.etiketKimligi"
+        [attr.for]="context.kimlik"
         [class.rc-gorunmez]="etiketGizli()"
         >{{ etiket() }}
-        @if (zorunluMu()) {
+        @if (isRequired()) {
           <span class="rc-alan__zorunlu" aria-hidden="true">*</span>
         }
       </label>
     }
     <ng-content />
     @if (ipucu()) {
-      <p class="rc-alan__ipucu" [id]="ipucuKimligi">{{ ipucu() }}</p>
+      <p class="rc-alan__ipucu" [id]="hintId">{{ ipucu() }}</p>
     }
-    <div class="rc-alan__hata" [id]="hataKimligi" aria-live="polite">
-      @for (mesaj of mesajlar(); track $index) {
+    <div class="rc-alan__hata" [id]="errorId" aria-live="polite">
+      @for (mesaj of messages(); track $index) {
         <p><rc-ikon ad="alert-circle" [boyut]="14" />{{ mesaj }}</p>
       }
     </div>
@@ -84,55 +84,55 @@ export class Alan implements AfterContentInit {
   /** Kontrol durumu (değer/durum/dokunma) her değiştiğinde artar; computed'lar bunu okur. */
   private readonly surum = signal(0);
 
-  private readonly kimlik = tekilKimlik();
-  protected readonly ipucuKimligi = `${this.kimlik}-ipucu`;
-  protected readonly hataKimligi = `${this.kimlik}-hata`;
+  private readonly identity = uniqueId();
+  protected readonly hintId = `${this.identity}-ipucu`;
+  protected readonly errorId = `${this.identity}-hata`;
 
-  protected readonly zorunluMu = computed(() => {
-    const zorla = this.zorunlu();
-    if (zorla !== undefined) return zorla;
+  protected readonly isRequired = computed(() => {
+    const force = this.zorunlu();
+    if (force !== undefined) return force;
     this.surum();
-    const kontrol = this.ngKontrol()?.control;
+    const check = this.ngKontrol()?.control;
     return (
-      !!kontrol &&
-      (kontrol.hasValidator(Validators.required) || kontrol.hasValidator(Validators.requiredTrue))
+      !!check &&
+      (check.hasValidator(Validators.required) || check.hasValidator(Validators.requiredTrue))
     );
   });
 
   private readonly hatalar = computed(() => {
     this.surum();
-    const kontrol = this.ngKontrol()?.control;
-    if (!kontrol || !kontrol.invalid || kontrol.disabled) return null;
-    const sunucu = kontrol.errors?.[SUNUCU_HATASI] !== undefined;
-    return sunucu || kontrol.touched ? kontrol.errors : null;
+    const check = this.ngKontrol()?.control;
+    if (!check || !check.invalid || check.disabled) return null;
+    const server = check.errors?.[SERVER_ERROR] !== undefined;
+    return server || check.touched ? check.errors : null;
   });
 
-  protected readonly hataGoster = computed(() => this.hatalar() !== null);
+  protected readonly showError = computed(() => this.hatalar() !== null);
 
-  protected readonly mesajlar = computed(() =>
-    hataMesajlari(this.hatalar(), (anahtar: CeviriAnahtari, p?: Record<string, unknown>) =>
-      this.transloco.translate(anahtar, p),
+  protected readonly messages = computed(() =>
+    errorMessages(this.hatalar(), (key: CeviriAnahtari, p?: Record<string, unknown>) =>
+      this.transloco.translate(key, p),
     ),
   );
 
-  readonly baglam: AlanBaglami = {
-    kimlik: `${this.kimlik}-kontrol`,
-    etiketKimligi: `${this.kimlik}-etiket`,
-    gecersiz: this.hataGoster,
-    zorunlu: this.zorunluMu,
+  readonly context: AlanBaglami = {
+    kimlik: `${this.identity}-kontrol`,
+    etiketKimligi: `${this.identity}-etiket`,
+    gecersiz: this.showError,
+    zorunlu: this.isRequired,
     aciklayanlar: computed(() => {
-      const kimlikler = [
-        this.ipucu() ? this.ipucuKimligi : null,
-        this.hataGoster() ? this.hataKimligi : null,
+      const identities = [
+        this.ipucu() ? this.hintId : null,
+        this.showError() ? this.errorId : null,
       ].filter((k): k is string => k !== null);
-      return kimlikler.length > 0 ? kimlikler.join(' ') : null;
+      return identities.length > 0 ? identities.join(' ') : null;
     }),
   };
 
   ngAfterContentInit(): void {
-    const kontrol = this.ngKontrol()?.control;
-    if (!kontrol) return;
-    kontrol.events
+    const check = this.ngKontrol()?.control;
+    if (!check) return;
+    check.events
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.surum.update((s) => s + 1));
     this.surum.update((s) => s + 1);

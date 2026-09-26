@@ -5,11 +5,11 @@ import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiHatasi } from '@core/api/api-hatasi';
-import { provideApiIstemcisi } from '@core/api/api-istemcisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { provideCeviri } from '@core/i18n/ceviri';
-import { oturumInterceptor } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { provideApiClient } from '@core/api/api-istemcisi';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { provideTranslation } from '@core/i18n/ceviri';
+import { sessionInterceptor } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 
 import {
   loginErrorMessage,
@@ -20,9 +20,9 @@ import {
 
 const BEN = '/api/ui/v1/platform/oturum/ben';
 
-function problem(status: number, kod: string) {
+function problem(status: number, code: string) {
   return {
-    body: { status, kod, detail: 'x' },
+    body: { status, kod: code, detail: 'x' },
     opts: { status, statusText: 'x', headers: { 'content-type': 'application/problem+json' } },
   };
 }
@@ -34,9 +34,9 @@ describe('PlatformSessionService', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [
-        ...provideCeviri(),
+        ...provideTranslation(),
         provideRouter([]),
-        provideApiIstemcisi(oturumInterceptor),
+        provideApiClient(sessionInterceptor),
         provideHttpClientTesting(),
       ],
     });
@@ -60,7 +60,7 @@ describe('PlatformSessionService', () => {
     );
     expect(session.signedIn()).toBe(false);
     // Session probe is silent: a tenant user must not see a "no permission" band just for opening the URL.
-    expect(TestBed.inject(UyariBandiServisi).bant()).toBeNull();
+    expect(TestBed.inject(WarningBannerService).bant()).toBeNull();
   });
 
   it('anonymous (401) → platform login; signed-in operator → guard passes, login page redirects home', async () => {
@@ -85,7 +85,7 @@ describe('PlatformSessionService', () => {
   });
 
   it('login wipes tenant state held in memory (the cookie was replaced)', async () => {
-    const wipe = vi.spyOn(TestBed.inject(OturumServisi), 'temizle');
+    const wipe = vi.spyOn(TestBed.inject(SessionService), 'clear');
     const login = session.signIn('admin', 'p');
     http.expectOne('/api/ui/v1/oturum/xsrf').flush(null, { status: 204, statusText: 'No Content' });
     (await vi.waitFor(() => http.expectOne('/api/ui/v1/platform/oturum/giris'))).flush({
@@ -109,8 +109,8 @@ describe('PlatformSessionService', () => {
   });
 
   it('login error message is generic for validation (which field was wrong is not disclosed)', () => {
-    const e = (kod: 'dogrulama' | 'cok_istek') =>
-      new ApiHatasi({ kod, status: 400, detay: 'Kullanıcı adı yanlış' });
+    const e = (code: 'dogrulama' | 'cok_istek') =>
+      new ApiHatasi({ kod: code, status: 400, detay: 'Kullanıcı adı yanlış' });
     expect(loginErrorMessage(e('dogrulama'))).toBe('platform.giris.hata.hatali');
     expect(loginErrorMessage(e('cok_istek'))).toBe('platform.giris.hata.cokIstek');
     expect(loginErrorMessage(new Error('x'))).toBe('platform.giris.hata.genel');

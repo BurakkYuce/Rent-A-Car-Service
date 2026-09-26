@@ -11,31 +11,31 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { Observable } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { IZINLER } from '@core/oturum/oturum-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { PERMISSIONS } from '@core/oturum/oturum-tipleri';
 import { TemelStore } from '@core/veri/temel-store';
-import { TarihSaatPipe } from '@shared/bicim/bicim-pipe';
+import { DateTimePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { Secim } from '@shared/form/kontroller/secim';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { Selection } from '@shared/form/kontroller/selection';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { ROLES } from '../users/users-model';
 
-type ScreenPermission = Sema<'ScreenPermissionDto'>;
-type PermissionGroup = Sema<'PermissionGroupDto'>;
-type RolePermissions = Sema<'RolePermissionsDto'>;
-type CountResult = Sema<'CountResult'>;
+type ScreenPermission = Schema<'ScreenPermissionDto'>;
+type PermissionGroup = Schema<'PermissionGroupDto'>;
+type RolePermissions = Schema<'RolePermissionsDto'>;
+type CountResult = Schema<'CountResult'>;
 
 const ROOT = '/api/ui/v1/yetki' as const;
 
@@ -48,28 +48,28 @@ const ROOT = '/api/ui/v1/yetki' as const;
   selector: 'rc-permissions-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
-    TarihSaatPipe,
+    DateTimePipe,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    OnayKutusu,
-    Secim,
+    FormErrors,
+    TextInput,
+    Checkbox,
+    Selection,
   ],
   styleUrl: '../system.scss',
   templateUrl: './permissions-page.html',
 })
 export class PermissionsPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly roles = ROLES;
-  protected readonly permissions = IZINLER;
+  protected readonly permissions = PERMISSIONS;
   protected readonly screens = new TemelStore<readonly ScreenPermission[]>(() =>
     this.api.get<readonly ScreenPermission[]>(`${ROOT}/ekranlar`),
   );
@@ -95,18 +95,18 @@ export class PermissionsPage {
     Operator: new FormControl<boolean | null>(false),
     Muhasebe: new FormControl<boolean | null>(false),
   });
-  protected readonly overrideSubmit = formGonderimi();
+  protected readonly overrideSubmit = formSubmission();
 
   protected readonly copyForm = new FormGroup({
     kaynak: new FormControl<string | null>(null, Validators.required),
     hedef: new FormControl<string | null>(null, Validators.required),
   });
-  protected readonly copySubmit = formGonderimi();
+  protected readonly copySubmit = formSubmission();
 
   protected readonly groupForm = new FormGroup({
     ad: new FormControl<string | null>(null, [Validators.required, Validators.maxLength(128)]),
   });
-  protected readonly groupSubmit = formGonderimi();
+  protected readonly groupSubmit = formSubmission();
 
   protected readonly busy = signal(false);
   protected readonly actionError = signal<string | null>(null);
@@ -114,13 +114,13 @@ export class PermissionsPage {
   protected readonly screenRows = computed(() => this.screens.veri() ?? []);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     this.screens.yukle();
     this.groups.yukle();
     this.matrix.yukle();
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.overrideForm.dirty || this.copyForm.dirty || this.groupForm.dirty;
   }
 
@@ -240,7 +240,7 @@ export class PermissionsPage {
       | 'sistem.yetki.grupSilMesaj',
     params: Record<string, string>,
   ): Promise<boolean> {
-    return this.confirm.sor({
+    return this.confirm.ask({
       baslik: this.t(title, params),
       mesaj: this.t(message, params),
       onayEtiketi: this.t('sistem.yetki.onayla'),
@@ -260,7 +260,7 @@ export class PermissionsPage {
       },
       error: (e: unknown) => {
         this.busy.set(false);
-        this.actionError.set(apiHatasinaCevir(e).detay);
+        this.actionError.set(toApiError(e).detay);
       },
     });
   }

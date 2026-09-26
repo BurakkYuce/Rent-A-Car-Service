@@ -1,35 +1,40 @@
-import type { Sema } from '@core/api/ui-tipleri';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { Schema } from '@core/api/ui-tipleri';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
-import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { momentValue, dayValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 
-export type FiloListeSatiri = Sema<'FiloListeSatiri'>;
-export type FiloKiralama = Sema<'FiloKiralamaDto'>;
-export type FiloKiralamaIstegi = Sema<'FiloKiralamaIstegi'>;
-export type FiloKunyeIstegi = Sema<'FiloKunyeIstegi'>;
-export type FiloOlusturYaniti = Sema<'FiloOlusturYaniti'>;
-export type FiloTaksit = Sema<'FiloTaksitDto'>;
+export type FleetListRow = Schema<'FiloListeSatiri'>;
+export type FleetRental = Schema<'FiloKiralamaDto'>;
+export type FleetRentalRequest = Schema<'FiloKiralamaIstegi'>;
+export type FleetIdentityRequest = Schema<'FiloKunyeIstegi'>;
+export type CreateFleetResponse = Schema<'FiloOlusturYaniti'>;
+export type FleetInstallment = Schema<'FiloTaksitDto'>;
 
 /** Sunucu enum ADLARI (`FiloKiraDurum`); tanımsız ad 400. */
-export const FILO_DURUMLARI = ['Aktif', 'Tamamlandi', 'Iptal'] as const;
-export type FiloDurumu = (typeof FILO_DURUMLARI)[number];
+export const FLEET_STATUSES = ['Aktif', 'Tamamlandi', 'Iptal'] as const;
+export type FleetStatus = (typeof FLEET_STATUSES)[number];
 
 /** Blazor datalist önerileri (serbest metin de kabul). */
-export const FATURA_TURU_ONERILERI = ['Dönem', 'Kırık'] as const;
-export const FIYAT_TURU_ONERILERI = ['Aylık', '30 Gün Aylık', 'KDV Dahil', '30 Gün Dahil'] as const;
+export const INVOICE_TYPE_SUGGESTIONS = ['Dönem', 'Kırık'] as const;
+export const PRICE_TYPE_SUGGESTIONS = [
+  'Aylık',
+  '30 Gün Aylık',
+  'KDV Dahil',
+  '30 Gün Dahil',
+] as const;
 
 /**
  * Filo kiralama listesi URL ↔ API sözleşmesi (`GET /api/ui/v1/filo-kiralama`): Blazor FAZ-21 arama
  * paneli (müşteri, plaka, serbest arama, durum, başlangıç günü aralığı) + sunucu sayfalama/sıralama.
  */
-export const FILO_LISTESI = listeTanimi({
+export const FLEET_LIST = listDefinition({
   filtreler: {
     musteriId: { tur: 'kimlik' },
     plaka: { tur: 'metin', enFazla: 32 },
     ara: { tur: 'metin', enFazla: 100 },
-    durum: { tur: 'secim', degerler: FILO_DURUMLARI },
+    durum: { tur: 'secim', degerler: FLEET_STATUSES },
     bas: { tur: 'tarih' },
     bit: { tur: 'tarih' },
   },
@@ -47,8 +52,8 @@ export const FILO_LISTESI = listeTanimi({
   varsayilanBoyut: 50,
 });
 
-export function filoDurumu(deger: string): FiloDurumu | null {
-  return (FILO_DURUMLARI as readonly string[]).includes(deger) ? (deger as FiloDurumu) : null;
+export function fleetStatus(value: string): FleetStatus | null {
+  return (FLEET_STATUSES as readonly string[]).includes(value) ? (value as FleetStatus) : null;
 }
 
 /** KÜNYE alanları (para/süre YOK — taksit planı bu yoldan değişemez). */
@@ -56,8 +61,8 @@ export interface FiloKunyeDegeri {
   readonly sozlesmeNo: string | null;
   readonly makbuzNo: string | null;
   readonly dosyaNo: string | null;
-  readonly sozlesmeTarihi: GunMetni | null;
-  readonly imzaTarih: GunMetni | null;
+  readonly sozlesmeTarihi: DayText | null;
+  readonly imzaTarih: DayText | null;
   readonly satisTemsilcisi: string | null;
   readonly faturaTuru: string | null;
   readonly fiyatTuru: string | null;
@@ -73,7 +78,7 @@ export interface FiloKunyeDegeri {
 export interface FiloYeniDegeri extends FiloKunyeDegeri {
   readonly musteri: SecimSecenegi | null;
   readonly arac: SecimSecenegi | null;
-  readonly basTar: GunMetni | null;
+  readonly basTar: DayText | null;
   readonly sureAy: number | null;
   readonly aylikUcret: string | null;
   /** Kesir (0,20 = %20) — Blazor formuyla aynı. */
@@ -81,30 +86,30 @@ export interface FiloYeniDegeri extends FiloKunyeDegeri {
   readonly damgaVergisi: string | null;
 }
 
-const sayiDegeri = (d: number | string | null | undefined): number | null =>
+const numberValue = (d: number | string | null | undefined): number | null =>
   d === null || d === undefined || d === '' ? null : Number(d);
 
 /** Kayıt → künye form değeri. */
-export function kunyeDegerleri(k: FiloKiralama): FiloKunyeDegeri {
+export function profileValues(k: FleetRental): FiloKunyeDegeri {
   return {
     sozlesmeNo: k.sozlesmeNo,
     makbuzNo: k.makbuzNo,
     dosyaNo: k.dosyaNo,
-    sozlesmeTarihi: gunDegeri(k.sozlesmeTarihi),
-    imzaTarih: gunDegeri(k.imzaTarih),
+    sozlesmeTarihi: dayValue(k.sozlesmeTarihi),
+    imzaTarih: dayValue(k.imzaTarih),
     satisTemsilcisi: k.satisTemsilcisi,
     faturaTuru: k.faturaTuru,
     fiyatTuru: k.fiyatTuru,
     kaynak: k.kaynak,
-    vadeGun: sayiDegeri(k.vadeGun),
-    toplamKmLimiti: sayiDegeri(k.toplamKmLimiti),
-    cikisKm: sayiDegeri(k.cikisKm),
-    toplamKm: sayiDegeri(k.toplamKm),
+    vadeGun: numberValue(k.vadeGun),
+    toplamKmLimiti: numberValue(k.toplamKmLimiti),
+    cikisKm: numberValue(k.cikisKm),
+    toplamKm: numberValue(k.toplamKm),
     aciklama: k.aciklama,
   };
 }
 
-export const BOS_KUNYE: FiloKunyeDegeri = {
+export const EMPTY_IDENTITY: FiloKunyeDegeri = {
   sozlesmeNo: null,
   makbuzNo: null,
   dosyaNo: null,
@@ -121,9 +126,9 @@ export const BOS_KUNYE: FiloKunyeDegeri = {
   aciklama: null,
 };
 
-export function yeniDegerler(): FiloYeniDegeri {
+export function newValues(): FiloYeniDegeri {
   return {
-    ...BOS_KUNYE,
+    ...EMPTY_IDENTITY,
     musteri: null,
     arac: null,
     basTar: null,
@@ -139,47 +144,47 @@ export function yeniDegerler(): FiloYeniDegeri {
  * sunucunun anıyla AYNEN gider: belge tarihi sınırı yalnız DEĞİŞEN tarihe uygulanır (#271 Low-1), gün
  * yuvarlaması eski sözleşmenin tarihini kaydırıp sınıra takmaz.
  */
-export function kunyeGovdesi(v: FiloKunyeDegeri, taban: FiloKiralama): FiloKunyeIstegi {
+export function profileBody(v: FiloKunyeDegeri, floor: FleetRental): FleetIdentityRequest {
   return {
-    surum: taban.surum ?? null,
-    sozlesmeNo: metinDegeri(v.sozlesmeNo),
-    makbuzNo: metinDegeri(v.makbuzNo),
-    dosyaNo: metinDegeri(v.dosyaNo),
-    sozlesmeTarihi: anDegeri(v.sozlesmeTarihi, taban.sozlesmeTarihi),
-    imzaTarih: anDegeri(v.imzaTarih, taban.imzaTarih),
-    satisTemsilcisi: metinDegeri(v.satisTemsilcisi),
-    faturaTuru: metinDegeri(v.faturaTuru),
-    fiyatTuru: metinDegeri(v.fiyatTuru),
-    kaynak: metinDegeri(v.kaynak),
+    surum: floor.surum ?? null,
+    sozlesmeNo: textValue(v.sozlesmeNo),
+    makbuzNo: textValue(v.makbuzNo),
+    dosyaNo: textValue(v.dosyaNo),
+    sozlesmeTarihi: momentValue(v.sozlesmeTarihi, floor.sozlesmeTarihi),
+    imzaTarih: momentValue(v.imzaTarih, floor.imzaTarih),
+    satisTemsilcisi: textValue(v.satisTemsilcisi),
+    faturaTuru: textValue(v.faturaTuru),
+    fiyatTuru: textValue(v.fiyatTuru),
+    kaynak: textValue(v.kaynak),
     vadeGun: v.vadeGun,
     toplamKmLimiti: v.toplamKmLimiti,
     cikisKm: v.cikisKm,
     toplamKm: v.toplamKm,
-    aciklama: metinDegeri(v.aciklama),
+    aciklama: textValue(v.aciklama),
   };
 }
 
 /** Yeni sözleşme → `POST /filo-kiralama` gövdesi. Döviz/kur formda yok (Blazor gibi TRY, kur 1). */
-export function olusturGovdesi(v: FiloYeniDegeri): FiloKiralamaIstegi {
+export function createBody(v: FiloYeniDegeri): FleetRentalRequest {
   return {
     musteriId: v.musteri?.id ?? '',
     vehicleId: v.arac?.id ?? '',
-    basTar: anDegeri(v.basTar, null),
+    basTar: momentValue(v.basTar, null),
     sureAy: v.sureAy,
     aylikUcret: v.aylikUcret,
     kdvOrani: v.kdvOrani,
     damgaVergisi: v.damgaVergisi,
     toplamKmLimiti: v.toplamKmLimiti,
-    aciklama: metinDegeri(v.aciklama),
-    sozlesmeNo: metinDegeri(v.sozlesmeNo),
-    makbuzNo: metinDegeri(v.makbuzNo),
-    dosyaNo: metinDegeri(v.dosyaNo),
-    sozlesmeTarihi: anDegeri(v.sozlesmeTarihi, null),
-    imzaTarih: anDegeri(v.imzaTarih, null),
-    satisTemsilcisi: metinDegeri(v.satisTemsilcisi),
-    faturaTuru: metinDegeri(v.faturaTuru),
-    fiyatTuru: metinDegeri(v.fiyatTuru),
-    kaynak: metinDegeri(v.kaynak),
+    aciklama: textValue(v.aciklama),
+    sozlesmeNo: textValue(v.sozlesmeNo),
+    makbuzNo: textValue(v.makbuzNo),
+    dosyaNo: textValue(v.dosyaNo),
+    sozlesmeTarihi: momentValue(v.sozlesmeTarihi, null),
+    imzaTarih: momentValue(v.imzaTarih, null),
+    satisTemsilcisi: textValue(v.satisTemsilcisi),
+    faturaTuru: textValue(v.faturaTuru),
+    fiyatTuru: textValue(v.fiyatTuru),
+    kaynak: textValue(v.kaynak),
     vadeGun: v.vadeGun,
     cikisKm: v.cikisKm,
     toplamKm: v.toplamKm,
@@ -187,10 +192,10 @@ export function olusturGovdesi(v: FiloYeniDegeri): FiloKiralamaIstegi {
 }
 
 /** JSON sayısı (`number | string`) → gösterim sayısı. YALNIZ gösterim. */
-export function sayi(deger: number | string | null | undefined): number | null {
-  if (typeof deger === 'number') return Number.isFinite(deger) ? deger : null;
-  if (typeof deger === 'string' && deger.trim() !== '') {
-    const n = Number(deger);
+export function count(value: number | string | null | undefined): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value);
     return Number.isFinite(n) ? n : null;
   }
   return null;

@@ -14,30 +14,27 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { incomingColumns } from '../document-columns';
 import {
@@ -55,7 +52,7 @@ import {
 import { BranchNames, INCOMING, IncomingInvoiceStore, recordPath } from '../document.store';
 import { IncomingExpenseForm } from './incoming-expense-form';
 import { IncomingLinkForm } from './incoming-link-form';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
 type IncomingStatus = (typeof INCOMING_STATUSES)[number];
@@ -74,37 +71,37 @@ type Panel =
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PlateChipComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    Ikon,
+    FormErrors,
+    Icon,
     IncomingExpenseForm,
     IncomingLinkForm,
-    MetinGirdisi,
-    ParaGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    TextInput,
+    MoneyInput,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, IncomingInvoiceStore, BranchNames],
   templateUrl: './incoming-invoice-list.html',
   styleUrl: '../finance-documents.scss',
 })
-export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
+export class IncomingInvoiceList implements UnsavedChangesOwner {
   protected readonly store = inject(IncomingInvoiceStore);
   protected readonly branches = inject(BranchNames);
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly session = inject(OturumServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly session = inject(SessionService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(INCOMING_LIST);
+  protected readonly query = listQueryUrlSync(INCOMING_LIST);
   protected readonly columns = incomingColumns(this.t);
   protected readonly rowId = (r: IncomingInvoiceRow) => r.id;
   protected readonly busy = signal<string | null>(null);
@@ -162,13 +159,13 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
     doviz: new FormControl<string | null>('TRY'),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly createSubmission = formGonderimi();
+  protected readonly createSubmission = formSubmission();
 
   protected readonly syncForm = new FormGroup({
     bas: new FormControl<string | null>(null, Validators.required),
     bit: new FormControl<string | null>(null, Validators.required),
   });
-  protected readonly syncSubmission = formGonderimi();
+  protected readonly syncSubmission = formSubmission();
 
   protected readonly rejectForm = new FormGroup({
     neden: new FormControl<string | null>(null, Validators.maxLength(512)),
@@ -178,10 +175,10 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -199,10 +196,10 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
         }),
       );
     });
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.createForm.dirty || this.dirtyForms.size > 0;
   }
 
@@ -293,7 +290,7 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
    */
   private async releasePanel(): Promise<boolean> {
     if (this.dirtyForms.has('panel') || this.rejectForm.dirty) {
-      const yes = await this.confirm.sor({
+      const yes = await this.confirm.ask({
         baslik: this.t('finansBelge.ayrilBaslik'),
         mesaj: this.t('finansBelge.gelen.panelAyrilMesaj'),
       });
@@ -317,7 +314,7 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
   }
 
   protected async process(row: IncomingInvoiceRow): Promise<void> {
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('finansBelge.gelen.isle'),
       mesaj: this.t('finansBelge.gelen.isleOnay', { ettn: row.ettn }),
     });
@@ -328,8 +325,8 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
     const p = this.panel();
     const row = this.panelRow();
     if (p?.kind !== 'reject' || row === null) return;
-    const neden = this.rejectForm.getRawValue().neden?.trim() || null;
-    this.transition(row, '/reddet', { neden }, () => this.panel.set(null));
+    const reason = this.rejectForm.getRawValue().neden?.trim() || null;
+    this.transition(row, '/reddet', { neden: reason }, () => this.panel.set(null));
   }
 
   private transition(
@@ -358,7 +355,7 @@ export class IncomingInvoiceList implements KaydedilmemisDegisiklikSahibi {
           this.store.list.yenile();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.store.list.yenile();
         },

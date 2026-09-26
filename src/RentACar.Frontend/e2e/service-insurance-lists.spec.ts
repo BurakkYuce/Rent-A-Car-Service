@@ -1,22 +1,22 @@
 import { expect, test } from '@playwright/test';
 
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn } from './ortak';
 import { POLICY_1, serviceInsuranceEndpoints } from './service-insurance-fakes';
 
 /**
  * #301 eksik uçların SPA bağları: servis listesinde durum sekmesi sayaçları (`/servisler/sayaclar`) ve satır KDV / genel
  * toplam / fatura no; tüm poliçelerin zeyilleri (`/app/regulasyon/zeyiller`). Değerler elle kurulmuş sahtelerden.
  */
-const AG_HATASI = [/Failed to load resource: the server responded with a status of \d\d\d/];
+const NETWORK_ERROR = [/Failed to load resource: the server responded with a status of \d\d\d/];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, BEN);
+  await logIn(page, BEN);
 });
 
 test('servis listesi: sekme sayaçları sunucudan (durum süzgeci sayaca gitmez), satırda KDV / genel toplam / fatura no', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   const countUrls: string[] = [];
   page.on('request', (r) => {
     if (r.url().includes('/api/ui/v1/servisler/sayaclar')) countUrls.push(r.url());
@@ -35,13 +35,13 @@ test('servis listesi: sekme sayaçları sunucudan (durum süzgeci sayaca gitmez)
   const url = new URL(countUrls.at(-1) ?? 'http://x');
   expect(url.searchParams.get('tip')).toBe('Periyodik');
   expect(url.searchParams.has('durum')).toBe(false);
-  expect(hatalar).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('zeyiller: tüm poliçelerin zeyilleri tek listede, poliçe bağlantısı + süzgeç; axe temiz', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   const listUrls: string[] = [];
   page.on('request', (r) => {
     if (r.url().includes('/api/ui/v1/regulasyon/zeyiller')) listUrls.push(r.url());
@@ -58,6 +58,6 @@ test('zeyiller: tüm poliçelerin zeyilleri tek listede, poliçe bağlantısı +
   await expect
     .poll(() => new URL(listUrls.at(-1) ?? 'http://x').searchParams.get('tipi'))
     .toBe('Zam');
-  expect(await ciddiIhlaller(page)).toEqual([]);
-  expect(hatalar).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
 });

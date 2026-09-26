@@ -1,0 +1,96 @@
+<div class="rc-girdi-kutusu" cdkOverlayOrigin #koken="cdkOverlayOrigin" #kutu>
+  <input
+    #girdi
+    class="rc-girdi"
+    type="text"
+    role="combobox"
+    autocomplete="off"
+    aria-autocomplete="list"
+    [id]="itemId()"
+    [value]="metin()"
+    [disabled]="pasif()"
+    [attr.placeholder]="yerTutucu() || ('form.secim.ara' | transloco)"
+    [attr.aria-expanded]="acik()"
+    [attr.aria-controls]="acik() ? listId : null"
+    [attr.aria-activedescendant]="activeId()"
+    [attr.aria-label]="ariaEtiketi() ?? null"
+    [attr.aria-invalid]="ariaInvalid()"
+    [attr.aria-describedby]="ariaDescribedBy()"
+    [attr.aria-required]="ariaRequired()"
+    (input)="written($event)"
+    (keydown)="tus($event)"
+    (click)="openItem()"
+    (blur)="released()"
+  />
+  @if (deger() !== null && !pasif()) {
+    <button
+      type="button"
+      class="rc-girdi-eki"
+      [attr.aria-label]="'form.secim.temizle' | transloco"
+      (mousedown)="$event.preventDefault()"
+      (click)="clear()"
+    >
+      <rc-ikon ad="x" [boyut]="14" />
+    </button>
+  }
+  <span class="rc-girdi-eki" aria-hidden="true"><rc-ikon ad="chevron-down" [boyut]="14" /></span>
+</div>
+
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="koken"
+  [cdkConnectedOverlayOpen]="acik()"
+  [cdkConnectedOverlayWidth]="panelWidth()"
+  (overlayOutsideClick)="outsideClick($event)"
+  (detach)="kapat()"
+>
+  <div class="rc-acilir-panel panel">
+    @switch (durum()) {
+      @case ('yukleniyor') {
+        <p class="bilgi" role="status">{{ 'form.secim.yukleniyor' | transloco }}</p>
+      }
+      @case ('hata') {
+        <p class="bilgi bilgi--hata" role="alert">{{ 'form.secim.hata' | transloco }}</p>
+      }
+      @case ('kisa') {
+        <p class="bilgi" role="status">
+          {{ 'form.secim.enAzHarf' | transloco: { sayi: enAzHarf() } }}
+        </p>
+      }
+      @case ('hazir') {
+        @if (results().length === 0) {
+          <p class="bilgi" role="status">{{ 'form.secim.sonucYok' | transloco }}</p>
+        } @else {
+          <ul
+            cdkListbox
+            class="liste"
+            [tabindex]="-1"
+            [id]="listId"
+            [attr.aria-label]="'form.secim.liste' | transloco"
+            (cdkListboxValueChange)="selectedFromList($event)"
+          >
+            @for (oge of results(); track oge.id; let i = $index) {
+              <li
+                class="secenek"
+                [cdkOption]="oge"
+                [id]="optionId(i)"
+                [class.secenek--aktif]="i === activeIndex()"
+                [class.secenek--secili]="secili(oge)"
+                (mousedown)="$event.preventDefault()"
+                (mouseenter)="activeIndex.set(i)"
+              >
+                <span class="etiket">{{ oge.etiket }}</span>
+                @if (kodu(oge); as kod) {
+                  <span class="kod">{{ kod }}</span>
+                }
+                @if (secili(oge)) {
+                  <rc-ikon ad="check" [boyut]="14" />
+                }
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+  </div>
+</ng-template>

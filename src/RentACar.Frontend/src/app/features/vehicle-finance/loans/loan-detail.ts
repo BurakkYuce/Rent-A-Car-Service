@@ -14,25 +14,22 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { ParaPipe, SayiPipe, TarihPipe } from '@shared/bicim/bicim-pipe';
+import { MoneyPipe, NumberPipe, DatePipe } from '@shared/bicim/bicim-pipe';
 
 import { LOANS, LoanDetailStore, recordPath } from '../finance.store';
 import { InstallmentPaymentPanel } from './installment-payment-panel';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
 /**
@@ -45,27 +42,27 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PlateChipComponent,
-    SayfaBandi,
+    PageBand,
     RouterLink,
     TranslocoPipe,
     InstallmentPaymentPanel,
-    ParaPipe,
-    SayiPipe,
-    TarihPipe,
+    MoneyPipe,
+    NumberPipe,
+    DatePipe,
   ],
   providers: [FetchPolicy, LoanDetailStore],
   templateUrl: './loan-detail.html',
   styleUrl: '../vehicle-finance.scss',
 })
-export class LoanDetail implements KaydedilmemisDegisiklikSahibi {
+export class LoanDetail implements UnsavedChangesOwner {
   protected readonly store = inject(LoanDetailStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly session = inject(SessionService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
 
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
   protected readonly num = toNumber;
@@ -76,12 +73,12 @@ export class LoanDetail implements KaydedilmemisDegisiklikSahibi {
   constructor() {
     // Sonucu bilinmeyen ödeme varken sayfadan/sekmeden ayrılış sorulur (inceleme L1): donmuş kopya kaybolursa
     // kullanıcı aynı anahtarla tekrar şansını kaybeder.
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: signal(this.id).asReadonly(),
       yukle: (id) => this.store.detail.yukle(id),
-      sifirla: () => this.store.detail.sifirla(),
+      sifirla: () => this.store.detail.reset(),
     });
     effect(() => {
       const d = this.store.detail.veri();
@@ -94,11 +91,11 @@ export class LoanDetail implements KaydedilmemisDegisiklikSahibi {
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.paymentPanel()?.hasPendingPayment() ?? false;
   }
 
-  protected faizYuzde(v: number | string): number | null {
+  protected interestPercent(v: number | string): number | null {
     const n = toNumber(v);
     return n === null ? null : n * 100;
   }
@@ -110,7 +107,7 @@ export class LoanDetail implements KaydedilmemisDegisiklikSahibi {
   protected async cancel(): Promise<void> {
     const d = this.store.detail.veri();
     if (!d || this.cancelling()) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('aracFinans.kredi.iptalBaslik'),
       mesaj: this.t('aracFinans.kredi.iptalMesaj', { no: d.no }),
       onayEtiketi: this.t('aracFinans.kredi.iptal'),
@@ -130,7 +127,7 @@ export class LoanDetail implements KaydedilmemisDegisiklikSahibi {
           this.reload();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.reload();
         },

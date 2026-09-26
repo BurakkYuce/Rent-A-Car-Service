@@ -10,7 +10,7 @@ export const EXPENSE_1 = 'f8f8f8f8-0000-4000-8000-000000000003';
 export const INCOMING_1 = 'f8f8f8f8-0000-4000-8000-000000000004';
 export const SALE_1 = 'f8f8f8f8-0000-4000-8000-000000000005';
 export const RENTAL_1 = 'f8f8f8f8-0000-4000-8000-000000000006';
-export const CARI_1 = 'c0c0c0c0-0000-4000-8000-000000000001';
+export const ACCOUNT_1 = 'c0c0c0c0-0000-4000-8000-000000000001';
 export const VEHICLE_1 = 'a1a1a1a1-0000-4000-8000-000000000001';
 
 export function invoiceRow(): Record<string, unknown> {
@@ -22,7 +22,7 @@ export function invoiceRow(): Record<string, unknown> {
     durum: 'Kesildi',
     iadeMi: false,
     manuelMi: false,
-    cariId: CARI_1,
+    cariId: ACCOUNT_1,
     cariAd: 'Ayşe Yılmaz',
     kiraId: RENTAL_1,
     sozlesmeNo: '2026010901001',
@@ -86,7 +86,7 @@ export function penaltyRow(extra: Record<string, unknown> = {}): Record<string, 
     sebep: null,
     aracId: VEHICLE_1,
     plaka: '34ABC123',
-    cariId: CARI_1,
+    cariId: ACCOUNT_1,
     cariAd: 'Ayşe Yılmaz',
     kiraId: null,
     sozlesmeNo: null,
@@ -119,7 +119,7 @@ export function expenseRow(): Record<string, unknown> {
     tarih: '2026-09-03T00:00:00Z',
     aracId: VEHICLE_1,
     plaka: '34ABC123',
-    cariId: CARI_1,
+    cariId: ACCOUNT_1,
     cariAd: 'Lastikçi Ltd.',
     sube: 'Merkez',
     evrakNo: null,
@@ -212,7 +212,7 @@ export function saleRow(): Record<string, unknown> {
     tarih: '2026-09-05T00:00:00Z',
     aracId: VEHICLE_1,
     plaka: '34XYZ987',
-    aliciCariId: CARI_1,
+    aliciCariId: ACCOUNT_1,
     aliciAd: 'Ayşe Yılmaz',
     satisNet: 400000,
     kdvOrani: 0.2,
@@ -232,11 +232,11 @@ export function saleRow(): Record<string, unknown> {
   };
 }
 
-const page1 = (kayitlar: unknown[], boyut = 50) => ({
-  kayitlar,
-  toplam: kayitlar.length,
+const page1 = (records: unknown[], size = 50) => ({
+  kayitlar: records,
+  toplam: records.length,
   sayfaNo: 1,
-  boyut,
+  boyut: size,
 });
 
 export interface DocumentEndpoints {
@@ -270,7 +270,7 @@ export async function documentEndpoints(
         sozlesmeNo: '2026010901001',
         plaka: '34ABC123',
         musteriAd: 'Ayşe Yılmaz',
-        musteriId: CARI_1,
+        musteriId: ACCOUNT_1,
         cikisOfisi: 'Merkez',
         basTar: '2026-09-01T09:00:00Z',
       },
@@ -281,7 +281,7 @@ export async function documentEndpoints(
     (r) => {
       const p = new URL(r.request().url()).pathname;
       if (p.startsWith('/api/ui/v1/secim/musteri'))
-        return json(r, [{ id: CARI_1, etiket: 'Ayşe Yılmaz' }]);
+        return json(r, [{ id: ACCOUNT_1, etiket: 'Ayşe Yılmaz' }]);
       if (p.startsWith('/api/ui/v1/secim/arac') || p === '/api/ui/v1/secim/satilabilir-arac')
         return json(r, [{ id: VEHICLE_1, etiket: '34ABC123', plaka: '34ABC123' }]);
       if (p === '/api/ui/v1/secim/gider-kategorisi')

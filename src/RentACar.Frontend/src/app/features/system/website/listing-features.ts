@@ -13,27 +13,27 @@ import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } fr
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
 
 import { PlateChipComponent } from '@shared/plaka/plaka';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { LISTINGS_ROOT } from './website-hub';
 
-type ListingDetail = Sema<'ListingDetailDto'>;
-type ListingFeature = Sema<'ListingFeatureDto'>;
-type ListingPhoto = Sema<'ListingPhotoDto'>;
-type FeaturesResult = Sema<'ListingFeaturesResultDto'>;
+type ListingDetail = Schema<'ListingDetailDto'>;
+type ListingFeature = Schema<'ListingFeatureDto'>;
+type ListingPhoto = Schema<'ListingPhotoDto'>;
+type FeaturesResult = Schema<'ListingFeaturesResultDto'>;
 
 /** Sunucu sınırı (`VehiclePhotoService`): 2 MB; asıl kural sunucuda. */
 export const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
@@ -64,25 +64,25 @@ function featureRow(f?: ListingFeature): FeatureRow {
   selector: 'rc-listing-features',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     PlateChipComponent,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
-    FormHatalari,
-    MetinGirdisi,
-    OnayKutusu,
+    FormErrors,
+    TextInput,
+    Checkbox,
   ],
   styleUrl: '../system.scss',
   templateUrl: './listing-features.html',
 })
 export class ListingFeatures {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly session = inject(OturumServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly session = inject(SessionService);
+  private readonly t = translationFunction();
   private readonly photoInput = viewChild<ElementRef<HTMLInputElement>>('photoInput');
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
 
@@ -91,7 +91,7 @@ export class ListingFeatures {
   protected readonly loadError = signal<string | null>(null);
   protected readonly rows = new FormArray<FeatureRow>([]);
   protected readonly form = new FormGroup({ satirlar: this.rows });
-  protected readonly submit = formGonderimi();
+  protected readonly submit = formSubmission();
   /** 409 sonrası: sunucudaki güncel satırlar (kullanıcı isterse forma yükler). */
   protected readonly serverRows = signal<readonly ListingFeature[] | null>(null);
   protected readonly photoError = signal<string | null>(null);
@@ -99,11 +99,11 @@ export class ListingFeatures {
   protected readonly maxRows = MAX_FEATURE_ROWS;
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     if (this.module()) this.load();
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -115,7 +115,7 @@ export class ListingFeatures {
     this.loadError.set(null);
     this.fetch().subscribe({
       next: (d) => this.apply(d),
-      error: (e: unknown) => this.loadError.set(apiHatasinaCevir(e).detay),
+      error: (e: unknown) => this.loadError.set(toApiError(e).detay),
     });
   }
 
@@ -212,7 +212,7 @@ export class ListingFeatures {
   }
 
   protected async removePhoto(p: ListingPhoto): Promise<void> {
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('sistem.web.ozellik.fotoSilBaslik', { plaka: p.plaka }),
       mesaj: this.t('sistem.web.ozellik.fotoSilMesaj'),
       onayEtiketi: this.t('sistem.ortak.sil'),
@@ -236,7 +236,7 @@ export class ListingFeatures {
 
   private photoFailed(e: unknown): void {
     this.photoBusy.set(false);
-    const h = apiHatasinaCevir(e);
+    const h = toApiError(e);
     this.photoError.set(h.alanlar?.['foto']?.[0] ?? h.detay);
   }
 

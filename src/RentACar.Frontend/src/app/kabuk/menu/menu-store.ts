@@ -1,8 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { MenuYaniti } from '@core/api/ui-tipleri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import type { MenuResponse } from '@core/api/ui-tipleri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
 
 /**
@@ -14,10 +14,10 @@ import { TemelStore } from '@core/veri/temel-store';
 export class MenuStore {
   private readonly api = inject(ApiIstemcisi);
 
-  readonly menu = new TemelStore<MenuYaniti, number>(
+  readonly menu = new TemelStore<MenuResponse, number>(
     () =>
-      this.api.get<MenuYaniti>('/api/ui/v1/menu', {
-        context: istekBaglami({ sessiz: true, yenidenGirisYok: true }),
+      this.api.get<MenuResponse>('/api/ui/v1/menu', {
+        context: requestContext({ sessiz: true, yenidenGirisYok: true }),
       }),
     { oncekiVeriyiKoru: true },
   );

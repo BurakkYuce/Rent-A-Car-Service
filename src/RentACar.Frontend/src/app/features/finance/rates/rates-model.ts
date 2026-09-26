@@ -16,10 +16,10 @@ export function asRecord(v: FixedRateFormValue): Readonly<Record<string, unknown
 
 /** Sunucu kaydı → form değeri (birleştirme tabanı da budur). */
 export function fixedRateToForm(r: FixedRate): FixedRateFormValue {
-  const kur = typeof r.kur === 'number' ? r.kur : Number(r.kur);
+  const exchangeRate = typeof r.kur === 'number' ? r.kur : Number(r.kur);
   return {
     kod: r.kod,
-    kur: Number.isFinite(kur) ? kur : null,
+    kur: Number.isFinite(exchangeRate) ? exchangeRate : null,
     basTar: r.basTar,
     bitTar: r.bitTar,
     aktif: r.aktif,
@@ -29,13 +29,13 @@ export function fixedRateToForm(r: FixedRate): FixedRateFormValue {
 /** Tam değiştirme gövdesi: kod DEĞİŞMEZ (gövdede yok), `surum` zorunlu (bayatsa 409 `cakisma`). */
 export function fixedRateUpdateBody(
   v: FixedRateFormValue,
-  surum: string | null,
+  version: string | null,
 ): FixedRateUpdateRequest {
   return {
     kur: v.kur ?? '',
     basTar: v.basTar,
     bitTar: v.bitTar,
     aktif: v.aktif === true,
-    surum,
+    surum: version,
   };
 }

@@ -1,6 +1,6 @@
-import { anBirlestir, anParcala, gunMu } from '@core/form/tarih-girdisi';
+import { mergeMoment, parseMoment, isDay } from '@core/form/tarih-girdisi';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { TanimAlani, TanimSatiri } from '@shared/form/tanim-crud/tanim-kaynagi';
+import type { TanimAlani, DefinitionRow } from '@shared/form/tanim-crud/definition-source';
 
 import { type SuggestionSource, commonFields } from '../definition-catalog';
 
@@ -23,11 +23,11 @@ export function personnelFields(
 ): readonly TanimAlani[] {
   const f = commonFields(t);
   const p = (k: string) => t(`tanimlar.personnel.alan.${k}` as CeviriAnahtari);
-  const text = (ad: string, max: number, inList = false): TanimAlani =>
-    f.text(ad, p(ad), max, { inList });
-  const date = (ad: string, inList = false): TanimAlani => ({
-    ad,
-    etiket: p(ad),
+  const text = (name: string, max: number, inList = false): TanimAlani =>
+    f.text(name, p(name), max, { inList });
+  const date = (name: string, inList = false): TanimAlani => ({
+    ad: name,
+    etiket: p(name),
     tur: 'date',
     inList,
   });
@@ -73,24 +73,24 @@ export function personnelFields(
 }
 
 /** API satırı → form satırı: an → İstanbul günü; TC alanı daima boş (sunucu zaten göndermez). */
-export function personnelToRow(raw: Raw): TanimSatiri {
+export function personnelToRow(raw: Raw): DefinitionRow {
   const row: Record<string, unknown> = { ...raw, tcKimlik: null, tcTemizle: false };
-  for (const k of DATE_FIELDS) row[k] = anParcala(raw[k])?.gun ?? null;
-  return row as TanimSatiri;
+  for (const k of DATE_FIELDS) row[k] = parseMoment(raw[k])?.gun ?? null;
+  return row as DefinitionRow;
 }
 
 /** Form değeri → POST/PUT gövdesi (yazma-yalnız TC ve maaş silme kuralı). */
 export function personnelToBody(value: Raw): Raw {
-  const { tcTemizle, tcKimlik, ...rest } = value;
+  const { tcTemizle: cleanNationalId, tcKimlik: nationalId, ...rest } = value;
   const body: Record<string, unknown> = { ...rest };
   for (const k of DATE_FIELDS) {
     const day = value[k];
-    body[k] = gunMu(day) ? anBirlestir(day, '00:00') : null;
+    body[k] = isDay(day) ? mergeMoment(day, '00:00') : null;
   }
-  const tc = typeof tcKimlik === 'string' ? tcKimlik.trim() : '';
+  const nationalIdValue = typeof nationalId === 'string' ? nationalId.trim() : '';
   // Dolu değer "sil"e üstün gelir (sunucu kuralıyla aynı); ikisi de yoksa alan HİÇ gönderilmez (koru).
-  if (tc !== '') body['tcKimlik'] = tc;
-  else if (tcTemizle === true) body['tcKimlik'] = '';
+  if (nationalIdValue !== '') body['tcKimlik'] = nationalIdValue;
+  else if (cleanNationalId === true) body['tcKimlik'] = '';
   body['maasTemizle'] =
     value['maas'] === null || value['maas'] === undefined || value['maas'] === '';
   return body;

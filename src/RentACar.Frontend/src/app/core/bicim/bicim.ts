@@ -1,5 +1,5 @@
 import { formatDate, formatNumber, getCurrencySymbol } from '@angular/common';
-import { ISTANBUL_OFSETI, YEREL } from '../yerel/tr-yerel';
+import { ISTANBUL_OFFSET, LOCALE } from '../yerel/tr-yerel';
 
 /**
  * Türkçe biçimler (saf). Tek kural kaynağı: pipe'lar ve bileşenler bunları çağırır.
@@ -9,27 +9,27 @@ import { ISTANBUL_OFSETI, YEREL } from '../yerel/tr-yerel';
  * -0,005 → -0,01; 1,005 → 1,01; ikili kayan nokta kayması yok). Backend'in `decimal`
  * `ToString("N2")` davranışıyla aynı. Sıfıra yuvarlanan negatif "-0,00" değil "0,00" olur.
  */
-export function paraBicimle(tutar: number | null | undefined, paraBirimi = 'TRY'): string {
-  if (tutar === null || tutar === undefined || !Number.isFinite(tutar)) return '';
-  const sayi = formatNumber(tutar, YEREL, '1.2-2');
-  return `${sayi} ${getCurrencySymbol(paraBirimi, 'narrow', YEREL)}`;
+export function formatMoney(amount: number | null | undefined, currency = 'TRY'): string {
+  if (amount === null || amount === undefined || !Number.isFinite(amount)) return '';
+  const count = formatNumber(amount, LOCALE, '1.2-2');
+  return `${count} ${getCurrencySymbol(currency, 'narrow', LOCALE)}`;
 }
 
 /** Sayı: `1.234,5` (kuruşsuz alanlar için; hane sayısı Angular `digitsInfo` ile). */
-export function sayiBicimle(deger: number | null | undefined, haneler = '1.0-2'): string {
-  if (deger === null || deger === undefined || !Number.isFinite(deger)) return '';
-  return formatNumber(deger, YEREL, haneler);
+export function sayiBicimle(value: number | null | undefined, digits = '1.0-2'): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '';
+  return formatNumber(value, LOCALE, digits);
 }
 
-export type TarihGirdisi = Date | string | number | null | undefined;
+export type DateInput = Date | string | number | null | undefined;
 
 /** `2026-08-26` biçimli takvim günü (DateOnly): saat dilimi dönüşümüne SOKULMAZ. */
-const TAKVIM_GUNU = /^(\d{4})-(\d{2})-(\d{2})$/;
+const CALENDAR_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-function guvenliBicimle(deger: TarihGirdisi, desen: string): string {
-  if (deger === null || deger === undefined || deger === '') return '';
+function safeFormat(value: DateInput, pattern: string): string {
+  if (value === null || value === undefined || value === '') return '';
   try {
-    return formatDate(deger, desen, YEREL, ISTANBUL_OFSETI);
+    return formatDate(value, pattern, LOCALE, ISTANBUL_OFFSET);
   } catch {
     return '';
   }
@@ -39,15 +39,15 @@ function guvenliBicimle(deger: TarihGirdisi, desen: string): string {
  * Tarih: `dd.MM.yyyy`. Takvim günü (`2026-08-26`) olduğu gibi yazılır; anlık zaman (ISO, Date,
  * epoch ms) İstanbul gününe çevrilir — tarayıcının saat dilimi sonucu değiştirmez.
  */
-export function tarihBicimle(deger: TarihGirdisi): string {
-  if (typeof deger === 'string') {
-    const gun = TAKVIM_GUNU.exec(deger.trim());
-    if (gun) return `${gun[3]}.${gun[2]}.${gun[1]}`;
+export function tarihBicimle(value: DateInput): string {
+  if (typeof value === 'string') {
+    const day = CALENDAR_DAY.exec(value.trim());
+    if (day) return `${day[3]}.${day[2]}.${day[1]}`;
   }
-  return guvenliBicimle(deger, 'dd.MM.yyyy');
+  return safeFormat(value, 'dd.MM.yyyy');
 }
 
 /** Tarih-saat: `dd.MM.yyyy HH:mm`, İstanbul saatiyle. */
-export function tarihSaatBicimle(deger: TarihGirdisi): string {
-  return guvenliBicimle(deger, 'dd.MM.yyyy HH:mm');
+export function formatDateTime(value: DateInput): string {
+  return safeFormat(value, 'dd.MM.yyyy HH:mm');
 }

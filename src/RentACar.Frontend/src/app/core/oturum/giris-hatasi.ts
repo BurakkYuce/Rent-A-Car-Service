@@ -1,12 +1,12 @@
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
 
 /**
  * Giriş hatası → kullanıcı mesajı. `dogrulama` HER ZAMAN genel metin: hangi alanın yanlış olduğu
  * söylenmez (firma/kullanıcı keşfi olmasın), sunucu ayrıntısı gösterilmez.
  */
-export function girisHataMesaji(hata: unknown): CeviriAnahtari {
-  switch (apiHatasinaCevir(hata).kod) {
+export function loginErrorMessage(error: unknown): CeviriAnahtari {
+  switch (toApiError(error).kod) {
     case 'dogrulama':
       return 'oturum.giris.hata.hatali';
     case 'cok_istek':
@@ -26,40 +26,41 @@ export function girisHataMesaji(hata: unknown): CeviriAnahtari {
  * `/app/...` biçimi (Blazor'dan gelen tam yol) router yoluna çevrilir. Aksi halde `/`.
  * Gezinme `router.navigateByUrl` ile yapılır — dış adrese zaten gidemez; bu ikinci savunma.
  */
-export function guvenliDonusAdresi(deger: unknown): string {
-  if (typeof deger !== 'string') return '/';
-  let adres = deger.trim();
-  if (adres === '/app' || adres.startsWith('/app/') || adres.startsWith('/app?')) {
-    adres = adres.slice('/app'.length) || '/';
-    if (!adres.startsWith('/')) adres = `/${adres}`;
+export function safeReturnUrl(value: unknown): string {
+  if (typeof value !== 'string') return '/';
+  let address = value.trim();
+  if (address === '/app' || address.startsWith('/app/') || address.startsWith('/app?')) {
+    address = address.slice('/app'.length) || '/';
+    if (!address.startsWith('/')) address = `/${address}`;
   }
-  if (!adres.startsWith('/') || adres.startsWith('//') || adres.includes('\\')) return '/';
-  for (let i = 0; i < adres.length; i++) {
-    const kod = adres.charCodeAt(i);
-    if (kod < 0x20 || kod === 0x7f) return '/';
+  if (!address.startsWith('/') || address.startsWith('//') || address.includes('\\')) return '/';
+  for (let i = 0; i < address.length; i++) {
+    const code = address.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) return '/';
   }
   // Giriş sayfasına dönüş döngü olur.
-  if (adres === '/giris' || adres.startsWith('/giris?') || adres.startsWith('/giris/')) return '/';
-  return adres;
+  if (address === '/giris' || address.startsWith('/giris?') || address.startsWith('/giris/'))
+    return '/';
+  return address;
 }
 
 /** Girişten sonraki hedef: SPA rotası (router, `/app` önekisiz) ya da sunucu adresi (tam sayfa geçiş). */
-export type GirisHedefi =
+export type LoginTarget =
   | { readonly tur: 'spa'; readonly yol: string }
   | { readonly tur: 'sunucu'; readonly adres: string };
 
-const SPA_ONEKI = '/app';
+const SPA_PREFIX = '/app';
 /** Pilot kiracının varsayılan inişi (SPA Panel). */
-export const PILOT_INIS = '/panel';
+export const PILOT_LANDING = '/panel';
 /** Blazor giriş kapısı: GİRİŞLİ kullanıcıyı `ReturnUrl`'e (sunucunun açık yönlendirme çitinden geçirerek) gönderir. */
-const SUNUCU_GIRIS = '/login';
+const SERVER_LOGIN = '/login';
 
-function spaAdresiMi(adres: string): boolean {
+function isSpaUrl(address: string): boolean {
   return (
-    adres === SPA_ONEKI ||
-    adres.startsWith(`${SPA_ONEKI}/`) ||
-    adres.startsWith(`${SPA_ONEKI}?`) ||
-    adres.startsWith(`${SPA_ONEKI}#`)
+    address === SPA_PREFIX ||
+    address.startsWith(`${SPA_PREFIX}/`) ||
+    address.startsWith(`${SPA_PREFIX}?`) ||
+    address.startsWith(`${SPA_PREFIX}#`)
   );
 }
 
@@ -73,16 +74,16 @@ function spaAdresiMi(adres: string): boolean {
  *   `YetkiYonlendirme.GuvenliDonus` çitinden geçirir, pilotsa haritadaki SPA karşılığına çevirir. Açık
  *   yönlendirme kararı TEK yerde (sunucuda) kalır; istemci Blazor adresini kendisi açmaz.
  */
-export function girisSonrasiHedef(pilot: boolean, donus: unknown): GirisHedefi {
-  const ham = typeof donus === 'string' ? donus.trim() : '';
-  if (ham && ham !== '/' && !spaAdresiMi(ham)) {
-    if (ham.startsWith('/') && !ham.startsWith('//') && !ham.includes('\\')) {
-      return { tur: 'sunucu', adres: `${SUNUCU_GIRIS}?ReturnUrl=${encodeURIComponent(ham)}` };
+export function postLoginTarget(pilot: boolean, returnInfo: unknown): LoginTarget {
+  const raw = typeof returnInfo === 'string' ? returnInfo.trim() : '';
+  if (raw && raw !== '/' && !isSpaUrl(raw)) {
+    if (raw.startsWith('/') && !raw.startsWith('//') && !raw.includes('\\')) {
+      return { tur: 'sunucu', adres: `${SERVER_LOGIN}?ReturnUrl=${encodeURIComponent(raw)}` };
     }
     // Kök-göreli olmayan (dış adres, şema) dönüş hiç taşınmaz.
-    return pilot ? { tur: 'spa', yol: PILOT_INIS } : { tur: 'sunucu', adres: '/' };
+    return pilot ? { tur: 'spa', yol: PILOT_LANDING } : { tur: 'sunucu', adres: '/' };
   }
   if (!pilot) return { tur: 'sunucu', adres: '/' };
-  const yol = spaAdresiMi(ham) ? guvenliDonusAdresi(ham) : '/';
-  return { tur: 'spa', yol: yol === '/' ? PILOT_INIS : yol };
+  const path = isSpaUrl(raw) ? safeReturnUrl(raw) : '/';
+  return { tur: 'spa', yol: path === '/' ? PILOT_LANDING : path };
 }

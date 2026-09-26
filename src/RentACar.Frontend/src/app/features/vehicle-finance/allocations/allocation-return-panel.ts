@@ -19,15 +19,15 @@ import {
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { toNumber } from '@features/vehicles/vehicle-model';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { TarihSaatSecici } from '@shared/form/tarih/tarih-saat-secici';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { DateTimePicker } from '@shared/form/tarih/date-time-picker';
 
 import type { Allocation } from '../finance-model';
 import { ALLOCATIONS, recordPath } from '../finance.store';
@@ -49,10 +49,10 @@ import {
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    SayiGirdisi,
-    TarihSaatSecici,
+    FormErrors,
+    TextInput,
+    NumberInput,
+    DateTimePicker,
   ],
   template: `
     <section class="rc-bolum" [attr.aria-labelledby]="headingId">
@@ -117,13 +117,13 @@ export class AllocationReturnPanel {
   readonly returned = output<void>();
 
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly toast = inject(ToastService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   private static seq = 0;
   protected readonly headingId = `rc-baf-teslim-${++AllocationReturnPanel.seq}`;
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
   protected readonly kmHint = computed(() =>
     this.t('aracFinans.baf.donusKmIpucu', { km: toNumber(this.row().cikisKm) ?? 0 }),
   );

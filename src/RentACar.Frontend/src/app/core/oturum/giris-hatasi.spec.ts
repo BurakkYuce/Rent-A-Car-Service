@@ -1,23 +1,23 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-import { girisHataMesaji, girisSonrasiHedef, guvenliDonusAdresi } from './giris-hatasi';
+import { loginErrorMessage, postLoginTarget, safeReturnUrl } from './giris-hatasi';
 
-const hata = (status: number, kod?: string, detail = 'Sunucu ayrıntısı') =>
-  new HttpErrorResponse({ status, error: kod ? { status, kod, detail } : null });
+const hata = (status: number, code?: string, detail = 'Sunucu ayrıntısı') =>
+  new HttpErrorResponse({ status, error: code ? { status, kod: code, detail } : null });
 
 describe('girisHataMesaji', () => {
   it('dogrulama her zaman genel metin (hangi alanın yanlış olduğu söylenmez)', () => {
-    expect(girisHataMesaji(hata(400, 'dogrulama', 'Kullanıcı bulunamadı'))).toBe(
+    expect(loginErrorMessage(hata(400, 'dogrulama', 'Kullanıcı bulunamadı'))).toBe(
       'oturum.giris.hata.hatali',
     );
   });
 
   it('cok_istek, kiraci_kapali, ağ ve diğerleri', () => {
-    expect(girisHataMesaji(hata(429, 'cok_istek'))).toBe('oturum.giris.hata.cokIstek');
-    expect(girisHataMesaji(hata(401, 'kiraci_kapali'))).toBe('oturum.giris.hata.kiraciKapali');
-    expect(girisHataMesaji(hata(0))).toBe('oturum.giris.hata.ag');
-    expect(girisHataMesaji(hata(500))).toBe('oturum.giris.hata.genel');
-    expect(girisHataMesaji(new Error('x'))).toBe('oturum.giris.hata.genel');
+    expect(loginErrorMessage(hata(429, 'cok_istek'))).toBe('oturum.giris.hata.cokIstek');
+    expect(loginErrorMessage(hata(401, 'kiraci_kapali'))).toBe('oturum.giris.hata.kiraciKapali');
+    expect(loginErrorMessage(hata(0))).toBe('oturum.giris.hata.ag');
+    expect(loginErrorMessage(hata(500))).toBe('oturum.giris.hata.genel');
+    expect(loginErrorMessage(new Error('x'))).toBe('oturum.giris.hata.genel');
   });
 });
 
@@ -29,7 +29,7 @@ describe('guvenliDonusAdresi (yalnız uygulama içi yol)', () => {
     ['/app/', '/'],
     ['/app?bilgi=x', '/?bilgi=x'],
     ['/', '/'],
-  ])('%s → %s', (girdi, beklenen) => expect(guvenliDonusAdresi(girdi)).toBe(beklenen));
+  ])('%s → %s', (input, expected) => expect(safeReturnUrl(input)).toBe(expected));
 
   it.each([
     ['//kotu.example/yol'],
@@ -41,17 +41,17 @@ describe('guvenliDonusAdresi (yalnız uygulama içi yol)', () => {
     ['/giris'],
     ['/giris?returnUrl=%2Fgiris'],
     [''],
-  ])('%s reddedilir → /', (girdi) => expect(guvenliDonusAdresi(girdi)).toBe('/'));
+  ])('%s reddedilir → /', (input) => expect(safeReturnUrl(input)).toBe('/'));
 
   it('metin olmayan değer → /', () => {
-    expect(guvenliDonusAdresi(null)).toBe('/');
-    expect(guvenliDonusAdresi(['/kiralar'])).toBe('/');
+    expect(safeReturnUrl(null)).toBe('/');
+    expect(safeReturnUrl(['/kiralar'])).toBe('/');
   });
 });
 
 describe('girisSonrasiHedef (F4.6 tek giriş)', () => {
-  const spa = (yol: string) => ({ tur: 'spa', yol });
-  const sunucu = (adres: string) => ({ tur: 'sunucu', adres });
+  const spa = (path: string) => ({ tur: 'spa', yol: path });
+  const server = (address: string) => ({ tur: 'sunucu', adres: address });
 
   it.each([
     // pilot: /app dönüşü SPA içinde; dönüş yok / kök / dış adres / giriş döngüsü → Panel
@@ -63,14 +63,14 @@ describe('girisSonrasiHedef (F4.6 tek giriş)', () => {
     [true, '//kotu.example', spa('/panel')],
     [true, 'javascript:alert(1)', spa('/panel')],
     // pilot: Blazor dönüşü sunucu kapısından (harita/GuvenliDonus sunucuda)
-    [true, '/kiralar/yeni?varac=5', sunucu('/login?ReturnUrl=%2Fkiralar%2Fyeni%3Fvarac%3D5')],
-    [true, '/vehicles', sunucu('/login?ReturnUrl=%2Fvehicles')],
+    [true, '/kiralar/yeni?varac=5', server('/login?ReturnUrl=%2Fkiralar%2Fyeni%3Fvarac%3D5')],
+    [true, '/vehicles', server('/login?ReturnUrl=%2Fvehicles')],
     // pilot değil: yeni arayüz kapalı → Blazor
-    [false, null, sunucu('/')],
-    [false, '/app/kiralar', sunucu('/')],
-    [false, '//kotu.example', sunucu('/')],
-    [false, '/vehicles?x=1', sunucu('/login?ReturnUrl=%2Fvehicles%3Fx%3D1')],
-  ])('pilot=%s, dönüş=%s', (pilot, donus, beklenen) =>
-    expect(girisSonrasiHedef(pilot, donus)).toEqual(beklenen),
+    [false, null, server('/')],
+    [false, '/app/kiralar', server('/')],
+    [false, '//kotu.example', server('/')],
+    [false, '/vehicles?x=1', server('/login?ReturnUrl=%2Fvehicles%3Fx%3D1')],
+  ])('pilot=%s, dönüş=%s', (pilot, returnInfo, expected) =>
+    expect(postLoginTarget(pilot, returnInfo)).toEqual(expected),
   );
 });

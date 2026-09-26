@@ -1,0 +1,191 @@
+<rc-sayfa-bandi [baslik]="'rezSartlari.baslik' | transloco" ikon="file-text">
+  <button birincil type="button" class="rc-dugme rc-dugme--birincil" (click)="yeni()">
+    <rc-ikon ad="plus" [boyut]="14" />
+    {{ 'rezSartlari.yeni' | transloco }}
+  </button>
+</rc-sayfa-bandi>
+
+<div class="rc-sayfa">
+  <p class="sayfa-notu">{{ 'rezSartlari.aciklama' | transloco }}</p>
+
+  @if (editing(); as d) {
+    <section class="rc-bolum duzenleyici" aria-labelledby="rez-sart-duzenleyici">
+      <h2 id="rez-sart-duzenleyici" tabindex="-1">
+        {{
+          (d.tur === 'yeni' ? 'rezSartlari.yeniBaslik' : 'rezSartlari.duzenleBaslik') | transloco
+        }}
+      </h2>
+      <form class="duzenleyici__form" novalidate [formGroup]="form" (ngSubmit)="kaydet()">
+        <rc-form-hatalari [hatalar]="submission.genelHatalar()" />
+        <div class="rc-form-izgara">
+          <rc-alan [etiket]="'rezSartlari.alan.musteri' | transloco">
+            <rc-arama-secim formControlName="musteri" [kaynak]="customers" />
+          </rc-alan>
+          <rc-alan class="rc-form-izgara__genis" [etiket]="'rezSartlari.alan.sart' | transloco">
+            <rc-metin-girdisi
+              formControlName="sart"
+              [azamiUzunluk]="512"
+              [yerTutucu]="'rezSartlari.alan.sartYerTutucu' | transloco"
+            />
+          </rc-alan>
+          <rc-alan
+            [etiket]="'rezSartlari.alan.grup' | transloco"
+            [ipucu]="'rezSartlari.alan.grupIpucu' | transloco"
+          >
+            <rc-metin-girdisi formControlName="grup" liste="dl-rez-sart-grup" [azamiUzunluk]="64" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezSartlari.alan.basTar' | transloco">
+            <rc-tarih-secici formControlName="basTar" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezSartlari.alan.bitTar' | transloco">
+            <rc-tarih-secici formControlName="bitTar" />
+          </rc-alan>
+          <rc-alan [etiket]="'rezSartlari.alan.talepTarihi' | transloco">
+            <rc-tarih-secici formControlName="talepTarihi" />
+          </rc-alan>
+          @if (d.tur === 'kayit') {
+            <rc-alan [etiket]="'rezSartlari.alan.karsilamaTarihi' | transloco">
+              <rc-tarih-secici formControlName="karsilamaTarihi" />
+            </rc-alan>
+          }
+          <rc-alan [etiket]="'rezSartlari.alan.teslimEden' | transloco">
+            <rc-metin-girdisi formControlName="teslimEden" [azamiUzunluk]="128" />
+          </rc-alan>
+        </div>
+        <datalist id="dl-rez-sart-grup">
+          @for (g of groupSuggestions(); track g) {
+            <option [value]="g"></option>
+          }
+        </datalist>
+        <div class="duzenleyici__eylemler">
+          <button
+            type="submit"
+            class="rc-dugme rc-dugme--birincil rc-dugme--kucuk"
+            [disabled]="submission.gonderiliyor() || detailLoading()"
+          >
+            {{
+              (submission.gonderiliyor() ? 'rezSartlari.kaydediliyor' : 'rezSartlari.kaydet')
+                | transloco
+            }}
+          </button>
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk"
+            (click)="cancel()"
+          >
+            {{ 'rezSartlari.vazgec' | transloco }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <form
+    class="rc-kart filtre"
+    [formGroup]="filterForm"
+    [attr.aria-label]="'rezSartlari.filtre.baslik' | transloco"
+    (ngSubmit)="filter()"
+  >
+    <div class="rc-form-izgara">
+      <rc-alan [etiket]="'rezSartlari.filtre.musteri' | transloco">
+        <rc-arama-secim formControlName="musteri" [kaynak]="customers" />
+      </rc-alan>
+      <rc-alan [etiket]="'rezSartlari.filtre.durum' | transloco">
+        <rc-secim
+          formControlName="durum"
+          [secenekler]="statusOptions"
+          [bosEtiket]="'rezSartlari.filtre.tumu' | transloco"
+        />
+      </rc-alan>
+      <rc-alan [etiket]="'rezSartlari.filtre.bas' | transloco">
+        <rc-tarih-secici formControlName="bas" />
+      </rc-alan>
+      <rc-alan [etiket]="'rezSartlari.filtre.bit' | transloco">
+        <rc-tarih-secici formControlName="bit" />
+      </rc-alan>
+    </div>
+    <div class="filtre__eylemler">
+      <button type="submit" class="rc-dugme rc-dugme--kucuk">
+        <rc-ikon ad="filter" [boyut]="14" />
+        {{ 'rezSartlari.filtre.filtrele' | transloco }}
+      </button>
+      @if (liste.etkinFiltreSayisi() > 0) {
+        <button type="button" class="rc-dugme rc-dugme--hayalet rc-dugme--kucuk" (click)="clear()">
+          {{ 'rezSartlari.filtre.temizle' | transloco }}
+        </button>
+      }
+    </div>
+  </form>
+
+  <p class="ozet" aria-live="polite">{{ ozet() }}</p>
+
+  <rc-tablo
+    class="liste-tablosu"
+    tabloKodu="rez-sartlari.liste"
+    [etiket]="'rezSartlari.tabloEtiketi' | transloco"
+    [sutunlar]="columns"
+    [kaynak]="store.liste.durum()"
+    [satirKimligi]="identity"
+    [sirala]="liste.sorgu().sirala"
+    (siralaDegisti)="liste.degistir({ sirala: $event })"
+    (sayfaDegisti)="liste.degistir({ sayfa: $event })"
+    (boyutDegisti)="liste.degistir({ boyut: $event })"
+    (yenidenDene)="store.liste.yenile()"
+  >
+    <ng-template rcTabloHucre="durum" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span
+        class="rc-rozet"
+        [class.rc-rozet--basari]="satir.karsilandi"
+        [class.rc-rozet--uyari]="!satir.karsilandi"
+      >
+        {{ statusText(satir) }}
+      </span>
+    </ng-template>
+
+    <ng-template rcTabloHucre="islemler" [rcTabloHucreSutunlar]="columns" let-satir>
+      <span class="satir-islemleri">
+        @if (satir.karsilandi) {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
+            [disabled]="busy() !== null"
+            (click)="undo(satir)"
+          >
+            {{ 'rezSartlari.geriAl' | transloco }}
+            <span class="rc-gorunmez">{{ satir.sart }}</span>
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="rc-dugme rc-dugme--kucuk"
+            [disabled]="busy() !== null"
+            (click)="karsilandi(satir)"
+          >
+            <rc-ikon ad="check" [boyut]="14" />
+            {{ 'rezSartlari.karsilandi' | transloco }}
+            <span class="rc-gorunmez">{{ satir.sart }}</span>
+          </button>
+        }
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
+          (click)="edit(satir)"
+        >
+          <rc-ikon ad="edit" [boyut]="14" />
+          {{ 'rezSartlari.duzenle' | transloco }}
+          <span class="rc-gorunmez">{{ satir.sart }}</span>
+        </button>
+        <button
+          type="button"
+          class="rc-dugme rc-dugme--kucuk rc-dugme--hayalet"
+          [disabled]="busy() !== null"
+          (click)="remove(satir)"
+        >
+          <rc-ikon ad="trash" [boyut]="14" />
+          {{ 'rezSartlari.sil' | transloco }}
+          <span class="rc-gorunmez">{{ satir.sart }}</span>
+        </button>
+      </span>
+    </ng-template>
+  </rc-tablo>
+</div>

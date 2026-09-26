@@ -1,7 +1,7 @@
 import { Observable, delay, of, throwError } from 'rxjs';
 
 import { ApiHatasi } from '@core/api/api-hatasi';
-import type { SorguParametreleri } from '@core/api/api-istemcisi';
+import type { QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
 import type { TabloSutunu } from '@shared/tablo/tablo-modeli';
 
@@ -24,7 +24,7 @@ export interface AracSatiri {
   readonly segment: string;
   readonly sube: string;
   readonly ofis: string;
-  readonly durum: AracDurumu;
+  readonly durum: VehicleStatus;
   readonly km: number;
   readonly sonBakimKm: number;
   readonly sonrakiBakimKm: number;
@@ -64,16 +64,16 @@ export interface AracSatiri {
   readonly aciklama: string;
 }
 
-export const ARAC_DURUMLARI = ['Müsait', 'Kirada', 'Serviste', 'Rezerve'] as const;
-export type AracDurumu = (typeof ARAC_DURUMLARI)[number];
+export const VEHICLE_STATUSES = ['Müsait', 'Kirada', 'Serviste', 'Rezerve'] as const;
+export type VehicleStatus = (typeof VEHICLE_STATUSES)[number];
 
-export const SENARYOLAR = ['normal', 'bos', 'hata', 'yavas'] as const;
-export type Senaryo = (typeof SENARYOLAR)[number];
+export const SCENARIOS = ['normal', 'bos', 'hata', 'yavas'] as const;
+export type Scenario = (typeof SCENARIOS)[number];
 
-const TOPLAM = 5000;
+const TOTAL = 5000;
 
 /** 49 sütun. Plaka sabit (solda), para sütunları sağa yaslı + tr biçimli. */
-export const ARAC_SUTUNLARI: readonly TabloSutunu<AracSatiri>[] = [
+export const VEHICLE_COLUMNS: readonly TabloSutunu<AracSatiri>[] = [
   s('plaka', 'Plaka', (a) => a.plaka, { sabit: true, genislik: 110, sirala: true }),
   s('marka', 'Marka', (a) => a.marka, { sirala: true }),
   s('model', 'Model', (a) => a.model, { sirala: true }),
@@ -176,19 +176,19 @@ export const ARAC_SUTUNLARI: readonly TabloSutunu<AracSatiri>[] = [
 ];
 
 function s(
-  kod: string,
-  baslik: string,
-  deger: (a: AracSatiri) => unknown,
-  ek: Omit<TabloSutunu<AracSatiri>, 'kod' | 'baslik' | 'deger'> = {},
+  code: string,
+  title: string,
+  value: (a: AracSatiri) => unknown,
+  extra: Omit<TabloSutunu<AracSatiri>, 'kod' | 'baslik' | 'deger'> = {},
 ): TabloSutunu<AracSatiri> {
-  return { kod, baslik, deger, ...ek };
+  return { kod: code, baslik: title, deger: value, ...extra };
 }
 
 // ------------------------------------------------------------------ üretim
 
 /** Mulberry32: küçük, hızlı, tohumlu. */
-function uretec(tohum: number): () => number {
-  let t = tohum >>> 0;
+function generator(seed: number): () => number {
+  let t = seed >>> 0;
   return () => {
     t = (t + 0x6d2b79f5) >>> 0;
     let r = Math.imul(t ^ (t >>> 15), 1 | t);
@@ -197,7 +197,7 @@ function uretec(tohum: number): () => number {
   };
 }
 
-const MARKALAR: readonly (readonly [string, readonly string[]])[] = [
+const BRANDS: readonly (readonly [string, readonly string[]])[] = [
   ['Renault', ['Clio', 'Megane', 'Taliant', 'Captur']],
   ['Fiat', ['Egea', 'Doblo', '500']],
   ['Toyota', ['Corolla', 'C-HR', 'Yaris']],
@@ -207,99 +207,99 @@ const MARKALAR: readonly (readonly [string, readonly string[]])[] = [
   ['Škoda', ['Octavia', 'Superb', 'Kamiq']],
   ['Dacia', ['Duster', 'Sandero']],
 ];
-const RENKLER = ['Beyaz', 'Siyah', 'Gri', 'Kırmızı', 'Lacivert', 'Gümüş', 'İnci beyazı'];
-const YAKITLAR = ['Benzin', 'Dizel', 'Hibrit', 'Elektrik', 'LPG'];
-const VITESLER = ['Manuel', 'Otomatik', 'Yarı otomatik'];
-const KASALAR = ['Sedan', 'Hatchback', 'SUV', 'Station', 'Panelvan'];
-const SEGMENTLER = ['A', 'B', 'C', 'D', 'E', 'SUV'];
-const SUBELER = ['İstanbul Anadolu', 'İstanbul Avrupa', 'Ankara', 'İzmir', 'Antalya', 'Muğla'];
+const COLORS = ['Beyaz', 'Siyah', 'Gri', 'Kırmızı', 'Lacivert', 'Gümüş', 'İnci beyazı'];
+const FUELS = ['Benzin', 'Dizel', 'Hibrit', 'Elektrik', 'LPG'];
+const TRANSMISSIONS = ['Manuel', 'Otomatik', 'Yarı otomatik'];
+const BODY_TYPES = ['Sedan', 'Hatchback', 'SUV', 'Station', 'Panelvan'];
+const SEGMENTS = ['A', 'B', 'C', 'D', 'E', 'SUV'];
+const BRANCHES = ['İstanbul Anadolu', 'İstanbul Avrupa', 'Ankara', 'İzmir', 'Antalya', 'Muğla'];
 const ILLER = ['34', '06', '35', '07', '48', '16'];
-const LASTIKLER = ['195/65 R15', '205/55 R16', '215/60 R17', '225/45 R18'];
-const SAHIPLER = ['Firma', 'Ortak – Çağrı Öztürk', 'Leasing – İş Finans', 'Ortak – Şule Işık'];
-const TEDARIKCILER = ['Oyak Renault', 'Toyota Plaza Işıklar', 'Doğuş Oto', 'Borusan Oto'];
-const HARFLER = 'ABCDEFGHJKLMNPRSTUVYZ';
+const TIRES = ['195/65 R15', '205/55 R16', '215/60 R17', '225/45 R18'];
+const OWNERS = ['Firma', 'Ortak – Çağrı Öztürk', 'Leasing – İş Finans', 'Ortak – Şule Işık'];
+const SUPPLIERS = ['Oyak Renault', 'Toyota Plaza Işıklar', 'Doğuş Oto', 'Borusan Oto'];
+const LETTERS = 'ABCDEFGHJKLMNPRSTUVYZ';
 
-function sec<T>(r: () => number, liste: readonly T[]): T {
-  return liste[Math.floor(r() * liste.length)];
+function select<T>(r: () => number, list: readonly T[]): T {
+  return list[Math.floor(r() * list.length)];
 }
 
-function yuvarla(tutar: number): number {
-  return Math.round(tutar * 100) / 100;
+function round(amount: number): number {
+  return Math.round(amount * 100) / 100;
 }
 
-function gun(r: () => number, bas: number, aralik: number): string {
-  const tarih = new Date(Date.UTC(2020, 0, 1) + Math.floor(bas + r() * aralik) * 86_400_000);
-  return tarih.toISOString().slice(0, 10);
+function day(r: () => number, start: number, range: number): string {
+  const date = new Date(Date.UTC(2020, 0, 1) + Math.floor(start + r() * range) * 86_400_000);
+  return date.toISOString().slice(0, 10);
 }
 
-function an(r: () => number, bas: number, aralik: number): string {
+function an(r: () => number, start: number, range: number): string {
   return new Date(
-    Date.UTC(2026, 0, 1) + Math.floor((bas + r() * aralik) * 3_600_000),
+    Date.UTC(2026, 0, 1) + Math.floor((start + r() * range) * 3_600_000),
   ).toISOString();
 }
 
-let onbellek: readonly AracSatiri[] | null = null;
+let cache: readonly AracSatiri[] | null = null;
 
 export function araclar(): readonly AracSatiri[] {
-  if (onbellek !== null) return onbellek;
-  const r = uretec(20260826);
-  const liste: AracSatiri[] = [];
-  for (let i = 0; i < TOPLAM; i++) {
-    const [marka, modeller] = sec(r, MARKALAR);
-    const gunluk = yuvarla(650 + r() * 3350);
+  if (cache !== null) return cache;
+  const r = generator(20260826);
+  const list: AracSatiri[] = [];
+  for (let i = 0; i < TOTAL; i++) {
+    const [brand, modeller] = select(r, BRANDS);
+    const daily = round(650 + r() * 3350);
     const km = Math.floor(r() * 180_000);
-    const gelir = yuvarla(20_000 + r() * 900_000);
-    const gider = yuvarla(5_000 + r() * 300_000);
-    const sube = Math.floor(r() * SUBELER.length);
-    const harf = Array.from({ length: 1 + Math.floor(r() * 3) }, () => sec(r, [...HARFLER])).join(
-      '',
-    );
-    liste.push({
+    const revenue = round(20_000 + r() * 900_000);
+    const expense = round(5_000 + r() * 300_000);
+    const branch = Math.floor(r() * BRANCHES.length);
+    const letter = Array.from({ length: 1 + Math.floor(r() * 3) }, () =>
+      select(r, [...LETTERS]),
+    ).join('');
+    list.push({
       id: `ARC-${String(i + 1).padStart(5, '0')}`,
-      plaka: `${ILLER[sube]} ${harf} ${100 + Math.floor(r() * 9899)}`,
-      marka,
-      model: sec(r, modeller),
+      plaka: `${ILLER[branch]} ${letter} ${100 + Math.floor(r() * 9899)}`,
+      marka: brand,
+      model: select(r, modeller),
       modelYili: 2019 + Math.floor(r() * 8),
-      renk: sec(r, RENKLER),
-      yakit: sec(r, YAKITLAR),
-      vites: sec(r, VITESLER),
-      kasaTipi: sec(r, KASALAR),
-      segment: sec(r, SEGMENTLER),
-      sube: SUBELER[sube],
-      ofis: `${SUBELER[sube]} ${1 + Math.floor(r() * 3)}. ofis`,
-      durum: sec(r, ARAC_DURUMLARI),
+      renk: select(r, COLORS),
+      yakit: select(r, FUELS),
+      vites: select(r, TRANSMISSIONS),
+      kasaTipi: select(r, BODY_TYPES),
+      segment: select(r, SEGMENTS),
+      sube: BRANCHES[branch],
+      ofis: `${BRANCHES[branch]} ${1 + Math.floor(r() * 3)}. ofis`,
+      durum: select(r, VEHICLE_STATUSES),
       km,
       sonBakimKm: Math.max(0, km - Math.floor(r() * 15_000)),
       sonrakiBakimKm: km + Math.floor(r() * 15_000),
-      gunlukFiyat: gunluk,
-      haftalikFiyat: yuvarla(gunluk * 6.3),
-      aylikFiyat: yuvarla(gunluk * 24.5),
-      depozito: yuvarla(Math.round((gunluk * 3) / 500) * 500),
-      alisBedeli: yuvarla(r() < 0.2 ? 18_000 + r() * 40_000 : 650_000 + r() * 2_400_000),
+      gunlukFiyat: daily,
+      haftalikFiyat: round(daily * 6.3),
+      aylikFiyat: round(daily * 24.5),
+      depozito: round(Math.round((daily * 3) / 500) * 500),
+      alisBedeli: round(r() < 0.2 ? 18_000 + r() * 40_000 : 650_000 + r() * 2_400_000),
       alisParaBirimi: r() < 0.2 ? 'EUR' : 'TRY',
-      alisTarihi: gun(r, 0, 2400),
-      kaskoBitis: gun(r, 2200, 800),
-      trafikBitis: gun(r, 2200, 800),
-      muayeneBitis: gun(r, 2200, 900),
-      mtv: yuvarla(1_800 + r() * 14_000),
-      hgsBakiye: yuvarla(r() * 1_500 - 150),
-      sasiNo: `VF1${Array.from({ length: 14 }, () => sec(r, [...'0123456789ABCDEFGHJKLMNPRSTUVWXYZ'])).join('')}`,
+      alisTarihi: day(r, 0, 2400),
+      kaskoBitis: day(r, 2200, 800),
+      trafikBitis: day(r, 2200, 800),
+      muayeneBitis: day(r, 2200, 900),
+      mtv: round(1_800 + r() * 14_000),
+      hgsBakiye: round(r() * 1_500 - 150),
+      sasiNo: `VF1${Array.from({ length: 14 }, () => select(r, [...'0123456789ABCDEFGHJKLMNPRSTUVWXYZ'])).join('')}`,
       motorNo: `M${Math.floor(r() * 1e9)}`,
-      ruhsatSeriNo: `${sec(r, ['EA', 'EB', 'FA'])} ${100000 + Math.floor(r() * 899_999)}`,
-      koltuk: sec(r, [2, 5, 5, 5, 7, 9]),
-      kapi: sec(r, [2, 3, 4, 5]),
-      motorHacmi: sec(r, [999, 1197, 1332, 1461, 1498, 1598, 1968]),
-      motorGucu: sec(r, [75, 90, 100, 115, 130, 150, 190]),
+      ruhsatSeriNo: `${select(r, ['EA', 'EB', 'FA'])} ${100000 + Math.floor(r() * 899_999)}`,
+      koltuk: select(r, [2, 5, 5, 5, 7, 9]),
+      kapi: select(r, [2, 3, 4, 5]),
+      motorHacmi: select(r, [999, 1197, 1332, 1461, 1498, 1598, 1968]),
+      motorGucu: select(r, [75, 90, 100, 115, 130, 150, 190]),
       bagaj: 250 + Math.floor(r() * 400),
-      lastikEbati: sec(r, LASTIKLER),
-      lastikTuru: sec(r, ['Yaz', 'Kış', 'Dört mevsim']),
-      aracSahibi: sec(r, SAHIPLER),
-      tedarikci: sec(r, TEDARIKCILER),
+      lastikEbati: select(r, TIRES),
+      lastikTuru: select(r, ['Yaz', 'Kış', 'Dört mevsim']),
+      aracSahibi: select(r, OWNERS),
+      tedarikci: select(r, SUPPLIERS),
       kiraSayisi: Math.floor(r() * 180),
       doluluk: Math.round(r() * 1000) / 10,
-      toplamGelir: gelir,
-      toplamGider: gider,
-      netKar: yuvarla(gelir - gider),
+      toplamGelir: revenue,
+      toplamGider: expense,
+      netKar: round(revenue - expense),
       sonKira: an(r, -4000, 4000),
       sonrakiRezervasyon: an(r, 0, 2000),
       gps: r() < 0.8 ? `Arvento ${1000 + Math.floor(r() * 9000)}` : '',
@@ -308,23 +308,23 @@ export function araclar(): readonly AracSatiri[] {
         r() < 0.3 ? 'Ön tampon çizik; iç temizlik gerekli. İlk kirada kontrol edilecek.' : '',
     });
   }
-  onbellek = liste;
-  return liste;
+  cache = list;
+  return list;
 }
 
 // ------------------------------------------------------------------ sahte uç
 
-const karsilastirici = new Intl.Collator('tr', { numeric: true, sensitivity: 'base' });
+const comparer = new Intl.Collator('tr', { numeric: true, sensitivity: 'base' });
 
 /**
  * `GET /api/ui/v1/...` taklidi: `sayfa`, `boyut`, `sirala` (`alan` / `-alan`) ve `senaryo`.
  * Sunucu gibi bilinmeyen sıralama alanını reddeder (400 `dogrulama`).
  */
-export function sahteAracUcu(parametreler: SorguParametreleri): Observable<Sayfa<AracSatiri>> {
-  const senaryo = (parametreler['senaryo'] as Senaryo | undefined) ?? 'normal';
-  const sayfa = Number(parametreler['sayfa'] ?? 1);
-  const boyut = Number(parametreler['boyut'] ?? 100);
-  if (senaryo === 'hata') {
+export function fakeVehicleEndpoint(parameters: QueryParameters): Observable<Sayfa<AracSatiri>> {
+  const scenario = (parameters['senaryo'] as Scenario | undefined) ?? 'normal';
+  const page = Number(parameters['sayfa'] ?? 1);
+  const size = Number(parameters['boyut'] ?? 100);
+  if (scenario === 'hata') {
     return throwError(
       () =>
         new ApiHatasi({
@@ -334,31 +334,34 @@ export function sahteAracUcu(parametreler: SorguParametreleri): Observable<Sayfa
         }),
     ).pipe(delay(200));
   }
-  let liste = senaryo === 'bos' ? [] : [...araclar()];
-  const sirala = typeof parametreler['sirala'] === 'string' ? parametreler['sirala'] : null;
-  if (sirala !== null) {
-    const azalan = sirala.startsWith('-');
-    const alan = azalan ? sirala.slice(1) : sirala;
-    const sutun = ARAC_SUTUNLARI.find((x) => x.kod === alan && x.sirala);
-    if (sutun === undefined) {
+  let list = scenario === 'bos' ? [] : [...araclar()];
+  const sort = typeof parameters['sirala'] === 'string' ? parameters['sirala'] : null;
+  if (sort !== null) {
+    const descending = sort.startsWith('-');
+    const alan = descending ? sort.slice(1) : sort;
+    const column = VEHICLE_COLUMNS.find((x) => x.kod === alan && x.sirala);
+    if (column === undefined) {
       return throwError(
         () =>
           new ApiHatasi({ status: 400, kod: 'dogrulama', detay: `Bilinmeyen sıralama: ${alan}` }),
       );
     }
-    const yon = azalan ? -1 : 1;
-    liste = liste
-      .map((satir, i) => ({ satir, i, d: sutun.deger(satir) }))
-      .sort((a, b) => yon * karsilastir(a.d, b.d) || a.i - b.i)
+    const yon = descending ? -1 : 1;
+    list = list
+      .map((row, i) => ({ satir: row, i, d: column.deger(row) }))
+      .sort((a, b) => yon * compare(a.d, b.d) || a.i - b.i)
       .map((x) => x.satir);
   }
-  const kayitlar = liste.slice((sayfa - 1) * boyut, sayfa * boyut);
-  return of<Sayfa<AracSatiri>>({ kayitlar, toplam: liste.length, sayfaNo: sayfa, boyut }).pipe(
-    delay(senaryo === 'yavas' ? 2000 : 150),
-  );
+  const records = list.slice((page - 1) * size, page * size);
+  return of<Sayfa<AracSatiri>>({
+    kayitlar: records,
+    toplam: list.length,
+    sayfaNo: page,
+    boyut: size,
+  }).pipe(delay(scenario === 'yavas' ? 2000 : 150));
 }
 
-function karsilastir(a: unknown, b: unknown): number {
+function compare(a: unknown, b: unknown): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b;
-  return karsilastirici.compare(String(a ?? ''), String(b ?? ''));
+  return comparer.compare(String(a ?? ''), String(b ?? ''));
 }

@@ -13,12 +13,12 @@ export interface AlanBaglami {
   readonly zorunlu: Signal<boolean>;
 }
 
-export const ALAN_BAGLAMI = new InjectionToken<AlanBaglami>('ALAN_BAGLAMI');
+export const FIELD_CONTEXT = new InjectionToken<AlanBaglami>('ALAN_BAGLAMI');
 
 let sayac = 0;
 
 /** Sayfa içinde tekil kimlik (`rc-a-12`). SSR yok; sayaç yeterli. */
-export function tekilKimlik(onek = 'rc-a'): string {
+export function uniqueId(prefix = 'rc-a'): string {
   sayac += 1;
-  return `${onek}-${sayac}`;
+  return `${prefix}-${sayac}`;
 }

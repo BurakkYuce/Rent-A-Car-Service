@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, viewChild } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { translationFunction } from '@core/i18n/ceviri';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { selectionSuggestions } from '../definition-catalog';
 import { pagedDefinitionSource } from '../paged-source';
 import { personnelFields, personnelToBody, personnelToRow } from './personnel-model';
@@ -17,7 +17,7 @@ import { personnelFields, personnelToBody, personnelToRow } from './personnel-mo
 @Component({
   selector: 'rc-personnel-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, TanimCrud, SayfaBandi],
+  imports: [TranslocoPipe, DefinitionCrud, PageBand],
   styleUrl: '../definitions.scss',
   template: `
     <rc-sayfa-bandi [baslik]="'tanimlar.personnel.baslik' | transloco" ikon="users" />
@@ -33,9 +33,9 @@ import { personnelFields, personnelToBody, personnelToRow } from './personnel-mo
   `,
 })
 export class PersonnelPage {
-  private readonly crud = viewChild(TanimCrud);
+  private readonly crud = viewChild(DefinitionCrud);
 
-  protected readonly fields = personnelFields(ceviriFonksiyonu(), {
+  protected readonly fields = personnelFields(translationFunction(), {
     branch: selectionSuggestions('/api/ui/v1/secim/sube'),
   });
   protected readonly source = pagedDefinitionSource('/api/ui/v1/personel', 'kod', {
@@ -44,10 +44,10 @@ export class PersonnelPage {
   });
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return this.crud()?.kaydedilmemisDegisiklikVar() ?? false;
+  hasUnsavedChanges(): boolean {
+    return this.crud()?.hasUnsavedChanges() ?? false;
   }
 }

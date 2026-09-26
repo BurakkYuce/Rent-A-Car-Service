@@ -14,27 +14,27 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { type Observable, map } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
 import {
   type TanimAlani,
-  type TanimKaynagi,
-  type TanimSatiri,
-  restTanimKaynagi,
-} from '@shared/form/tanim-crud/tanim-kaynagi';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+  type DefinitionSource,
+  type DefinitionRow,
+  restDefinitionSource,
+} from '@shared/form/tanim-crud/definition-source';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type BlogList = Sema<'SayfaOfBlogRowDto'>;
+type BlogList = Schema<'SayfaOfBlogRowDto'>;
 
 export const BLOG_ROOT = '/api/ui/v1/blog-yonetim' as const;
 /** Sunucu sınırı: 2 MB (asıl kural serviste, içerikten tür tespiti). */
@@ -45,9 +45,9 @@ type Translate = (key: CeviriAnahtari) => string;
 /** Blog yazısı alanları (`BlogRequest` sınırları). İçerik düz metin: boş satır paragraf, `##`/`###` ara başlık. */
 export function blogFields(t: Translate): readonly TanimAlani[] {
   const l = (k: string) => t(`sistem.blog.alan.${k}` as CeviriAnahtari);
-  const text = (ad: string, max: number, extra: Partial<TanimAlani> = {}): TanimAlani => ({
-    ad,
-    etiket: l(ad),
+  const text = (name: string, max: number, extra: Partial<TanimAlani> = {}): TanimAlani => ({
+    ad: name,
+    etiket: l(name),
     tur: 'metin',
     azamiUzunluk: max,
     inList: false,
@@ -86,26 +86,34 @@ export function blogFields(t: Translate): readonly TanimAlani[] {
 @Component({
   selector: 'rc-blog-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, ReactiveFormsModule, RouterLink, TranslocoPipe, TanimCrud, Alan, Secim],
+  imports: [
+    PageBand,
+    ReactiveFormsModule,
+    RouterLink,
+    TranslocoPipe,
+    DefinitionCrud,
+    Alan,
+    Selection,
+  ],
   styleUrl: '../system.scss',
   templateUrl: './blog-page.html',
 })
 export class BlogPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
-  private readonly crud = viewChild(TanimCrud);
+  private readonly t = translationFunction();
+  private readonly crud = viewChild(DefinitionCrud);
   private readonly coverInput = viewChild<ElementRef<HTMLInputElement>>('coverInput');
 
   protected readonly fields = blogFields(this.t);
-  protected readonly source: TanimKaynagi = {
-    ...restTanimKaynagi(BLOG_ROOT),
+  protected readonly source: DefinitionSource = {
+    ...restDefinitionSource(BLOG_ROOT),
     listele: () =>
       this.api
         .get<BlogList>(BLOG_ROOT, { parametreler: { boyut: 200, sirala: 'baslik' } })
-        .pipe(map((p) => p.kayitlar as unknown as readonly TanimSatiri[])),
+        .pipe(map((p) => p.kayitlar as unknown as readonly DefinitionRow[])),
   };
   protected readonly posts = computed(() => this.crud()?.rows() ?? []);
   protected readonly postOptions = computed<readonly SecenekOgesi<string>[]>(() =>
@@ -122,7 +130,7 @@ export class BlogPage {
   protected readonly coverError = signal<string | null>(null);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     this.selectedId.valueChanges.pipe(takeUntilDestroyed()).subscribe((id) => {
       // Yazı değişince seçili dosya da düşer (@if örneği korunur: eski yazının dosyası yenisine gitmesin).
       const el = this.coverInput()?.nativeElement;
@@ -132,8 +140,8 @@ export class BlogPage {
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return this.crud()?.kaydedilmemisDegisiklikVar() ?? false;
+  hasUnsavedChanges(): boolean {
+    return this.crud()?.hasUnsavedChanges() ?? false;
   }
 
   protected coverSrc(id: string): string {
@@ -160,7 +168,7 @@ export class BlogPage {
   }
 
   protected async removeCover(id: string): Promise<void> {
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('sistem.blog.kapak.kaldirBaslik'),
       mesaj: this.t('sistem.blog.kapak.kaldirMesaj'),
       onayEtiketi: this.t('sistem.blog.kapak.kaldir'),
@@ -182,7 +190,7 @@ export class BlogPage {
       },
       error: (e: unknown) => {
         this.coverBusy.set(false);
-        const h = apiHatasinaCevir(e);
+        const h = toApiError(e);
         this.coverError.set(h.alanlar?.['kapak']?.[0] ?? h.detay);
       },
     });

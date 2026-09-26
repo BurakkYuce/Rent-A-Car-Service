@@ -12,32 +12,32 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { ToastService } from '@core/geri-bildirim/toast-service';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { anDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { serviceColumns } from '../service-insurance-columns';
 import {
@@ -55,7 +55,7 @@ import {
 } from '../service-insurance-model';
 import { ServiceListStore } from '../service-insurance.store';
 import { emptyInfoForm, infoRequest } from './service-form-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -70,42 +70,42 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    OnayKutusu,
-    SayiGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    Icon,
+    TextInput,
+    Checkbox,
+    NumberInput,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, ServiceListStore],
   templateUrl: './service-list.html',
   styleUrl: '../service-insurance.scss',
 })
-export class ServiceList implements KaydedilmemisDegisiklikSahibi {
+export class ServiceList implements UnsavedChangesOwner {
   protected readonly store = inject(ServiceListStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
-  private readonly session = inject(OturumServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly session = inject(SessionService);
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(SERVICE_LIST);
+  protected readonly query = listQueryUrlSync(SERVICE_LIST);
   protected readonly columns = serviceColumns(
     this.t,
     (s) => this.statusLabel(s),
     (s) => this.typeLabel(s),
   );
   protected readonly rowId = (r: ServiceRecordRow) => r.id;
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
+  protected readonly vehicles = serverSelectionSource('arac');
   protected readonly statuses = SERVICE_STATUSES;
   protected readonly activeStatus = computed(() => this.query.sorgu().filtreler.durum ?? null);
   protected readonly canWrite = computed(() => this.session.izinVar('OperationsWrite'));
@@ -128,35 +128,35 @@ export class ServiceList implements KaydedilmemisDegisiklikSahibi {
   protected readonly filterForm = new FormGroup({
     plaka: new FormControl<string | null>(null),
     tip: new FormControl<ServiceType | null>(null),
-    bas: new FormControl<GunMetni | null>(null),
-    bit: new FormControl<GunMetni | null>(null),
+    bas: new FormControl<DayText | null>(null),
+    bit: new FormControl<DayText | null>(null),
   });
 
   protected readonly form = new FormGroup({
     arac: new FormControl<SecimSecenegi | null>(null, Validators.required),
     tip: new FormControl<ServiceType | null>('Periyodik', Validators.required),
     girisKm: new FormControl<number | null>(0, [Validators.min(0)]),
-    girisTarihi: new FormControl<GunMetni | null>(null),
+    girisTarihi: new FormControl<DayText | null>(null),
     hasarSorumlu: new FormControl<DamageParty | null>('Yok'),
     kusurOrani: new FormControl<number | null>(null, [Validators.min(0), Validators.max(1)]),
     atolyeAdi: new FormControl<string | null>(null, Validators.maxLength(128)),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(1024)),
     rezervasyon: new FormControl<boolean | null>(false),
-    planBasTarihi: new FormControl<GunMetni | null>(null),
-    planBitTarihi: new FormControl<GunMetni | null>(null),
+    planBasTarihi: new FormControl<DayText | null>(null),
+    planBitTarihi: new FormControl<DayText | null>(null),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => {
         this.store.list.yukle(p);
         this.store.counts.yukle(p);
       },
       sifirla: () => {
-        this.store.list.sifirla();
-        this.store.counts.sifirla();
+        this.store.list.reset();
+        this.store.counts.reset();
       },
       sekmeyeDonunce: 'yenile',
     });
@@ -171,10 +171,10 @@ export class ServiceList implements KaydedilmemisDegisiklikSahibi {
         }),
       );
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -214,7 +214,7 @@ export class ServiceList implements KaydedilmemisDegisiklikSahibi {
       sayfa: 1,
       filtreler: {
         durum: this.activeStatus() ?? undefined,
-        plaka: metinDegeri(v.plaka) ?? undefined,
+        plaka: textValue(v.plaka) ?? undefined,
         tip: v.tip ?? undefined,
         bas: v.bas ?? undefined,
         bit: v.bit ?? undefined,
@@ -236,7 +236,7 @@ export class ServiceList implements KaydedilmemisDegisiklikSahibi {
       vehicleId: v.arac?.id ?? null,
       tip: v.tip,
       girisKm: v.girisKm,
-      girisTarihi: anDegeri(v.girisTarihi, null),
+      girisTarihi: momentValue(v.girisTarihi, null),
       hasarSorumlu: v.hasarSorumlu,
       kusurOrani: v.kusurOrani,
       rezervasyon: v.rezervasyon === true,

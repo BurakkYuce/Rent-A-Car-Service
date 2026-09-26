@@ -1,7 +1,7 @@
-import type { ApiYolu } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { listeTanimi } from '@core/veri/liste-sorgusu';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
+import type { ApiPath } from '@core/api/api-istemcisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { listDefinition } from '@core/veri/liste-sorgusu';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
 
 // ---- Uçlar (`/api/ui/v1/...`; CRM OperationsWrite, analiz ViewReports)
 export const SURVEYS = '/api/ui/v1/anketler';
@@ -11,27 +11,27 @@ export const LEGAL_FILES = '/api/ui/v1/hukuk-dosyalari';
 export const CRM_ANALYSIS = '/api/ui/v1/crm/analiz';
 export const RENTAL_PICK = '/api/ui/v1/crm/secim/kira';
 
-export function recordPath(base: ApiYolu, id: string): ApiYolu {
-  return `${base}/${encodeURIComponent(id)}` as ApiYolu;
+export function recordPath(base: ApiPath, id: string): ApiPath {
+  return `${base}/${encodeURIComponent(id)}` as ApiPath;
 }
 
-export type Survey = Sema<'SurveyRow'>;
-export type SurveyCard = Sema<'SurveyCardDto'>;
-export type SurveyAnswer = Sema<'SurveyAnswerDto'>;
-export type SurveyRequest = Sema<'SurveyUpdateRequest'>;
-export type Complaint = Sema<'ComplaintRow'>;
-export type ComplaintCard = Sema<'ComplaintCardDto'>;
-export type ComplaintRequest = Sema<'ComplaintUpdateRequest'>;
-export type Assistance = Sema<'AssistanceRow'>;
-export type AssistanceCard = Sema<'AssistanceCardDto'>;
-export type AssistanceRequest = Sema<'AssistanceUpdateRequest'>;
-export type LegalFile = Sema<'LegalFileRow'>;
-export type LegalFileCard = Sema<'LegalFileCardDto'>;
-export type LegalFileRequest = Sema<'LegalFileUpdateRequest'>;
-export type CrmAnalysis = Sema<'CrmAnalysisDto'>;
-export type CrmSegmentRow = Sema<'CrmSegmentRow'>;
-export type CrmFilterOptions = Sema<'CrmFilterOptions'>;
-export type RentalPickItem = Sema<'RentalPickItem'>;
+export type Survey = Schema<'SurveyRow'>;
+export type SurveyCard = Schema<'SurveyCardDto'>;
+export type SurveyAnswer = Schema<'SurveyAnswerDto'>;
+export type SurveyRequest = Schema<'SurveyUpdateRequest'>;
+export type Complaint = Schema<'ComplaintRow'>;
+export type ComplaintCard = Schema<'ComplaintCardDto'>;
+export type ComplaintRequest = Schema<'ComplaintUpdateRequest'>;
+export type Assistance = Schema<'AssistanceRow'>;
+export type AssistanceCard = Schema<'AssistanceCardDto'>;
+export type AssistanceRequest = Schema<'AssistanceUpdateRequest'>;
+export type LegalFile = Schema<'LegalFileRow'>;
+export type LegalFileCard = Schema<'LegalFileCardDto'>;
+export type LegalFileRequest = Schema<'LegalFileUpdateRequest'>;
+export type CrmAnalysis = Schema<'CrmAnalysisDto'>;
+export type CrmSegmentRow = Schema<'CrmSegmentRow'>;
+export type CrmFilterOptions = Schema<'CrmFilterOptions'>;
+export type RentalPickItem = Schema<'RentalPickItem'>;
 
 /** Sunucu enum ADLARI (tanımsız ad 400). */
 export const SURVEY_TYPES = ['Cikis', 'Donus'] as const;
@@ -43,7 +43,7 @@ export const LEGAL_STATUSES = ['Acik', 'Beklemede', 'Kapali'] as const;
 /** Blazor şikayet kanalı önerileri (serbest metin de kabul). */
 export const COMPLAINT_CHANNELS = ['Telefon', 'Web', 'Yüz Yüze', 'E-posta'];
 
-export const SURVEY_LIST = listeTanimi({
+export const SURVEY_LIST = listDefinition({
   filtreler: {
     cariId: { tur: 'kimlik' },
     anketTuru: { tur: 'secim', degerler: SURVEY_TYPES },
@@ -57,7 +57,7 @@ export const SURVEY_LIST = listeTanimi({
   varsayilanBoyut: 50,
 });
 
-export const COMPLAINT_LIST = listeTanimi({
+export const COMPLAINT_LIST = listDefinition({
   filtreler: {
     cariId: { tur: 'kimlik' },
     ofis: { tur: 'metin', enFazla: 128 },
@@ -80,7 +80,7 @@ export const COMPLAINT_LIST = listeTanimi({
   varsayilanBoyut: 50,
 });
 
-export const ASSISTANCE_LIST = listeTanimi({
+export const ASSISTANCE_LIST = listDefinition({
   filtreler: {
     plaka: { tur: 'metin', enFazla: 20 },
     tarihBas: { tur: 'tarih' },
@@ -95,7 +95,7 @@ export const ASSISTANCE_LIST = listeTanimi({
   varsayilanBoyut: 50,
 });
 
-export const LEGAL_LIST = listeTanimi({
+export const LEGAL_LIST = listDefinition({
   filtreler: {
     cariId: { tur: 'kimlik' },
     tarihBas: { tur: 'tarih' },
@@ -111,7 +111,7 @@ export const LEGAL_LIST = listeTanimi({
   varsayilanBoyut: 50,
 });
 
-export const CRM_LIST = listeTanimi({
+export const CRM_LIST = listDefinition({
   filtreler: {
     tarihBas: { tur: 'tarih' },
     tarihBit: { tur: 'tarih' },

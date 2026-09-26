@@ -1,13 +1,13 @@
-import { type BenYaniti, izinVar, subeEtiketi } from '@core/api/ui-tipleri';
+import { type MeResponse, izinVar, branchLabel } from '@core/api/ui-tipleri';
 
 /** Elle kurulmuş örnek yanıt: alan adı/tipi API'de değişirse bu dosya da derlenmez. */
-function ornekBen(subeKapsami: BenYaniti['subeKapsami']): BenYaniti {
+function sampleMe(branchScope: MeResponse['subeKapsami']): MeResponse {
   return {
     kullanici: { id: '00000000-0000-0000-0000-000000000001', kullaniciAdi: 'umit', adSoyad: null },
     kiraci: { id: '00000000-0000-0000-0000-000000000002', kod: 'demo', ad: 'Demo' },
     rol: 'Operator',
     izinler: ['OperationsWrite'],
-    subeKapsami,
+    subeKapsami: branchScope,
     moduller: { webSitesi: false },
     renkler: {},
     pilot: false,
@@ -15,26 +15,26 @@ function ornekBen(subeKapsami: BenYaniti['subeKapsami']): BenYaniti {
 }
 
 describe('ui-tipleri', () => {
-  const tumu: BenYaniti['subeKapsami'] = { tumSubeler: true, subeId: null, subeAd: null };
+  const all: MeResponse['subeKapsami'] = { tumSubeler: true, subeId: null, subeAd: null };
 
   it('izin listesinde birebir eşleşme arar', () => {
-    const ben = ornekBen(tumu);
+    const ben = sampleMe(all);
     expect(izinVar(ben, 'OperationsWrite')).toBe(true);
     expect(izinVar(ben, 'FinanceWrite')).toBe(false);
   });
 
   it('şube etiketi kapsamdan türetilir', () => {
-    expect(subeEtiketi(ornekBen(tumu))).toBe('Tüm şubeler');
+    expect(branchLabel(sampleMe(all))).toBe('Tüm şubeler');
     expect(
-      subeEtiketi(
-        ornekBen({
+      branchLabel(
+        sampleMe({
           tumSubeler: false,
           subeId: '00000000-0000-0000-0000-000000000003',
           subeAd: 'Merkez',
         }),
       ),
     ).toBe('Merkez');
-    expect(subeEtiketi(ornekBen({ tumSubeler: false, subeId: null, subeAd: null }))).toBe(
+    expect(branchLabel(sampleMe({ tumSubeler: false, subeId: null, subeAd: null }))).toBe(
       'Şube atanmamış',
     );
   });

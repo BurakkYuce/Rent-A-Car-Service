@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { KiraFormuDurumu } from '../kira-formu-durumu';
-import { aracSecenegi, sayiya } from '../kira-formu-modeli';
-import { AracKarti } from './arac-karti';
+import { RentalFormState } from '../rental-form-state';
+import { vehicleOption, toNumber } from '../kira-formu-modeli';
+import { VehicleCard } from './vehicle-card';
 import { PlateChipComponent } from '@shared/plaka/plaka';
-import { KF_ORTAK } from './ortak';
+import { KF_SHARED } from './ortak';
 
 /**
  * ARAÇ — kanonik araç seçimi + müsaitlik penceresi (`GET /kiralar/musait-arac`; sayfa YENİLENMEZ,
@@ -12,12 +12,12 @@ import { KF_ORTAK } from './ortak';
 @Component({
   selector: 'rc-kf-arac',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK, AracKarti, PlateChipComponent],
+  imports: [...KF_SHARED, VehicleCard, PlateChipComponent],
   template: `
     @if (d.yeni) {
       <section class="rc-bolum kf-kart">
         <h3 class="kf-kart__baslik">{{ 'kiraFormu.bolum.musaitlik' | transloco }}</h3>
-        <div class="rc-form-izgara" [formGroup]="d.musaitFormu">
+        <div class="rc-form-izgara" [formGroup]="d.availabilityForm">
           <rc-alan [etiket]="'kiraFormu.alan.vfrom' | transloco">
             <rc-tarih-secici formControlName="vfrom" [hazirlar]="false" />
           </rc-alan>
@@ -31,13 +31,13 @@ import { KF_ORTAK } from './ortak';
             <button
               type="button"
               class="rc-dugme"
-              [disabled]="d.musait.yukleniyor() || !d.operasyon()"
-              (click)="d.musaitGetir()"
+              [disabled]="d.musait.isLoading() || !d.operasyon()"
+              (click)="d.getAvailable()"
             >
               {{ 'kiraFormu.eylem.musaitGetir' | transloco }}
             </button>
             @if (d.musait.veri()) {
-              <button type="button" class="rc-dugme rc-dugme--hayalet" (click)="d.musaitTemizle()">
+              <button type="button" class="rc-dugme rc-dugme--hayalet" (click)="d.clearAvailable()">
                 {{ 'kiraFormu.eylem.tumAraclar' | transloco }}
               </button>
             }
@@ -46,7 +46,7 @@ import { KF_ORTAK } from './ortak';
         @if (d.musait.tur() === 'hata') {
           <p class="kf-not kf-not--uyari" role="alert">{{ d.musait.hata()?.detay }}</p>
         }
-        @if (d.musaitNotu(); as not) {
+        @if (d.availabilityNote(); as not) {
           <p class="kf-not" role="status" data-testid="musait-notu">{{ not }}</p>
         }
         @if (d.musait.veri(); as liste) {
@@ -75,7 +75,7 @@ import { KF_ORTAK } from './ortak';
                 </thead>
                 <tbody>
                   @for (a of liste; track a.id) {
-                    <tr [class.rc-satir-secili]="d.secilenArac()?.id === a.id">
+                    <tr [class.rc-satir-secili]="d.selectedVehicle()?.id === a.id">
                       <td><rc-plaka boyut="sm" [plaka]="a.plaka" /></td>
                       <td>{{ a.marka }} {{ a.tip }}</td>
                       <td>{{ a.grup || '—' }}</td>
@@ -85,10 +85,10 @@ import { KF_ORTAK } from './ortak';
                         <button
                           type="button"
                           class="rc-dugme rc-dugme--kucuk"
-                          [attr.aria-pressed]="d.secilenArac()?.id === a.id"
+                          [attr.aria-pressed]="d.selectedVehicle()?.id === a.id"
                           [attr.aria-label]="('kiraFormu.eylem.sec' | transloco) + ' ' + etiket(a)"
                           [disabled]="!d.operasyon()"
-                          (click)="d.aracSec(a)"
+                          (click)="d.selectVehicle(a)"
                         >
                           {{ 'kiraFormu.eylem.sec' | transloco }}
                         </button>
@@ -113,7 +113,7 @@ import { KF_ORTAK } from './ortak';
         >
           <rc-arama-secim
             formControlName="arac"
-            [kaynak]="d.aracKaynagi"
+            [kaynak]="d.vehicleSource"
             [yerTutucu]="'kiraFormu.alan.plakaAra' | transloco"
           />
         </rc-alan>
@@ -136,11 +136,11 @@ import { KF_ORTAK } from './ortak';
     </section>
   `,
 })
-export class Arac {
-  protected readonly d = inject(KiraFormuDurumu);
-  protected readonly km = sayiya;
+export class Vehicle {
+  protected readonly d = inject(RentalFormState);
+  protected readonly km = toNumber;
 
-  protected etiket(a: Parameters<typeof aracSecenegi>[0]): string {
-    return aracSecenegi(a).etiket;
+  protected etiket(a: Parameters<typeof vehicleOption>[0]): string {
+    return vehicleOption(a).etiket;
   }
 }

@@ -1,8 +1,8 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-import { CARI_1, customerCrmEndpoints } from './customers-crm-fakes';
-import { KIRA_ID, MUSTERI_ID, sahteKiraApi } from './kira-sahte';
-import { BEN, oturumAc, problem } from './ortak';
+import { ACCOUNT_1, customerCrmEndpoints } from './customers-crm-fakes';
+import { RENTAL_ID, MUSTERI_ID, fakeRentalApi } from './kira-sahte';
+import { BEN, logIn, problem } from './ortak';
 
 /**
  * F7.3 cari/CRM kesişi (sahte `/api/ui/v1`, üretim derlemesi + CSP). Harness yalnız statik SPA sunar; Blazor
@@ -27,16 +27,20 @@ async function remainingEndpoints(page: Page): Promise<void> {
 
 async function fakes(page: Page): Promise<void> {
   await remainingEndpoints(page);
-  await oturumAc(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
   await customerCrmEndpoints(page);
 }
 
 const PAGES = [
   { blazor: '/cariler', spa: '/app/cariler', heading: 'Cariler' },
-  { blazor: `/cariler/${CARI_1}`, spa: `/app/cariler/${CARI_1}`, heading: 'Cari: Ayşe Yılmaz' },
   {
-    blazor: `/cariler/${CARI_1}/detay`,
-    spa: `/app/cariler/${CARI_1}/detay`,
+    blazor: `/cariler/${ACCOUNT_1}`,
+    spa: `/app/cariler/${ACCOUNT_1}`,
+    heading: 'Cari: Ayşe Yılmaz',
+  },
+  {
+    blazor: `/cariler/${ACCOUNT_1}/detay`,
+    spa: `/app/cariler/${ACCOUNT_1}/detay`,
     heading: 'Ayşe Yılmaz',
   },
   { blazor: '/anketler', spa: '/app/anketler', heading: 'Müşteri Anketleri' },
@@ -96,10 +100,10 @@ test('pilot: F7 ekranlarının sayfa içeriğindeki hiçbir bağlantı Blazor ca
     page.getByRole('link', { name: 'Personel Çalışma (Vardiya) raporuna bakın.' }),
   ).toHaveAttribute('href', '/app/raporlar/personel-calisma');
   // Detayın ekstre sekmesindeki "Tam ekstre" bağlantısı SPA ekstre rotasına gider.
-  await page.goto(`/app/cariler/${CARI_1}/detay#sekme=ekstre`);
+  await page.goto(`/app/cariler/${ACCOUNT_1}/detay#sekme=ekstre`);
   await expect(
     page.getByRole('link', { name: 'Tam ekstre (yazdır / dışa aktar)' }),
-  ).toHaveAttribute('href', `/app/cariler/${CARI_1}/ekstre`);
+  ).toHaveAttribute('href', `/app/cariler/${ACCOUNT_1}/ekstre`);
 });
 
 /** Tam sayfa yüklemesi olursa pencere nesnesi yenilenir ve işaret kaybolur. */
@@ -117,9 +121,9 @@ test('kira formu: cari kartı ve ekstre bağlantıları SPA rotasına router ile
   page,
 }) => {
   await remainingEndpoints(page);
-  await oturumAc(page);
-  await sahteKiraApi(page);
-  await page.goto(`/app/kiralar/${KIRA_ID}#sekme=musteri`);
+  await logIn(page);
+  await fakeRentalApi(page);
+  await page.goto(`/app/kiralar/${RENTAL_ID}#sekme=musteri`);
   const panel = page.getByRole('tabpanel', { name: 'Müşteri' });
   await expect(panel.getByTestId('musteri-ozeti')).toBeVisible();
 
@@ -150,9 +154,9 @@ test('#295 M1: FinanceWrite/ViewReports yoksa kira formunda ekstre bağlantısı
   page,
 }) => {
   await remainingEndpoints(page);
-  await oturumAc(page, { ...BEN, izinler: ['OperationsWrite'] });
-  await sahteKiraApi(page);
-  await page.goto(`/app/kiralar/${KIRA_ID}#sekme=musteri`);
+  await logIn(page, { ...BEN, izinler: ['OperationsWrite'] });
+  await fakeRentalApi(page);
+  await page.goto(`/app/kiralar/${RENTAL_ID}#sekme=musteri`);
   const panel = page.getByRole('tabpanel', { name: 'Müşteri' });
   await expect(panel.getByRole('link', { name: 'Cari kartını aç' })).toHaveAttribute(
     'href',

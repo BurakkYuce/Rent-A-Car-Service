@@ -1,15 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn } from './ortak';
 import { VEHICLE_1, reportEndpoints } from './report-fakes';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F10.2 rapor ekranları: TEK ortak rapor ekranı + rapor tanımları. Ortak akış (dönem süzgeci → istek, görünüm
  * değişimi, sıralama, export bağlantısı yalnız sunucu verdiyse), temsili raporlar, 403 mesajı, axe iki tema,
  * 320/390/768/1440 taşma. Sahte API; tutarlar elle kurulmuş (ekran hesap yapmaz).
  */
-const AG_HATASI = [
+const NETWORK_ERROR = [
   /Failed to load resource: the server responded with a status of 4\d\d/,
   /Failed to load resource: net::ERR_FAILED/,
 ];
@@ -81,19 +81,19 @@ const SHIFTS: VitrinSayfasi = {
 const PAGES = [INCOME, CASH, BALANCE, PROFIT, SCORECARD, TRACKING, COMPARE, SHIFTS];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page);
+  await logIn(page);
 });
 
 test('temsili raporlar: içerik + axe iki tema, konsol hatası yok', async ({ page }) => {
-  const errors = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   await reportEndpoints(page);
   for (const s of PAGES) {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
+    await waitReady(page, s);
+    expect(await seriousViolations(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
+    expect(await seriousViolations(page), `${s.ad} koyu`).toEqual([]);
   }
   expect(errors).toEqual([]);
 });
@@ -103,7 +103,7 @@ test('özet raporu: kartlar, kırılım tabloları, export bağlantısı sunucun
 }) => {
   await reportEndpoints(page);
   await page.goto(INCOME.yol);
-  await hazirBekle(page, INCOME);
+  await waitReady(page, INCOME);
   const summary = page.getByRole('definition');
   await expect(summary.filter({ hasText: '12.500,00 ₺' })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Gelir kırılımı' })).toBeVisible();
@@ -119,7 +119,7 @@ test('dönem süzgeci: İstanbul günleri bas/bit olarak gider, URL ve export ta
 }) => {
   const requests = await reportEndpoints(page);
   await page.goto(CASH.yol);
-  await hazirBekle(page, CASH);
+  await waitReady(page, CASH);
   await page.getByRole('textbox', { name: 'Dönem' }).fill('01.09.2026 – 30.09.2026');
   await page.getByRole('checkbox', { name: 'Devir satırı' }).check();
   await page.getByRole('button', { name: 'Raporla' }).click();
@@ -139,7 +139,7 @@ test('görünüm değişimi ve sıralama: doğru uç, sayfa 1, sirala yalnız g�
 }) => {
   const requests = await reportEndpoints(page);
   await page.goto(BALANCE.yol);
-  await hazirBekle(page, BALANCE);
+  await waitReady(page, BALANCE);
   await page.locator('th[data-kod="bakiye"] button').first().click();
   await expect(page).toHaveURL(/sirala=bakiye/);
   await expect.poll(() => requests.at(-1)?.searchParams.get('sirala')).toMatch(/^-?bakiye$/);
@@ -157,7 +157,7 @@ test('görünüm değişimi ve sıralama: doğru uç, sayfa 1, sirala yalnız g�
 test('kârlılık: plaka araç karnesine bağlanır', async ({ page }) => {
   await reportEndpoints(page);
   await page.goto(PROFIT.yol);
-  await hazirBekle(page, PROFIT);
+  await waitReady(page, PROFIT);
   await expect(page.getByRole('link', { name: '34 ABC 123' })).toHaveAttribute(
     'href',
     `/app/raporlar/arac-karne/${VEHICLE_1}`,
@@ -168,7 +168,7 @@ test('kârlılık: plaka araç karnesine bağlanır', async ({ page }) => {
 test('şube kapsamlı kullanıcı: firma geneli rapor 403 → açık mesaj, tablo/özet yok', async ({
   page,
 }) => {
-  await oturumAc(page, {
+  await logIn(page, {
     ...BEN,
     subeKapsami: {
       tumSubeler: false,
@@ -186,7 +186,7 @@ test('şube kapsamlı kullanıcı: firma geneli rapor 403 → açık mesaj, tabl
 });
 
 test('izinsiz kullanıcı rapor rotasına giremez', async ({ page }) => {
-  await oturumAc(page, { ...BEN, izinler: ['OperationsWrite'] });
+  await logIn(page, { ...BEN, izinler: ['OperationsWrite'] });
   await reportEndpoints(page);
   await page.goto(INCOME.yol);
   await expect(page).toHaveURL(/\/app\/?$/);
@@ -197,7 +197,7 @@ test('araç karnesi: kimlikli uç, özet + bölümler, export aracın bağlantı
 }) => {
   const requests = await reportEndpoints(page);
   await page.goto(SCORECARD.yol);
-  await hazirBekle(page, SCORECARD);
+  await waitReady(page, SCORECARD);
   expect(requests.at(-1)?.pathname).toBe(`/api/ui/v1/raporlar/arac-karne/${VEHICLE_1}`);
   await expect(page.getByRole('definition').filter({ hasText: '-1.000,00 ₺' })).toHaveClass(/eksi/);
   await expect(page.getByRole('cell', { name: 'Sözleşme 1' })).toBeVisible();
@@ -210,7 +210,7 @@ test('araç karnesi: kimlikli uç, özet + bölümler, export aracın bağlantı
 test('şube kapsamlı operatör: şube süzgeci sabit ve gönderilmez; araç görünümü gorunum=arac', async ({
   page,
 }) => {
-  await oturumAc(page, {
+  await logIn(page, {
     ...BEN,
     rol: 'Operator',
     izinler: ['OperationsWrite'],
@@ -222,7 +222,7 @@ test('şube kapsamlı operatör: şube süzgeci sabit ve gönderilmez; araç gö
   });
   const requests = await reportEndpoints(page);
   await page.goto(TRACKING.yol);
-  await hazirBekle(page, TRACKING);
+  await waitReady(page, TRACKING);
   const branch = page.getByRole('combobox', { name: 'Şube' });
   await expect(branch).toBeDisabled();
   await expect(branch).toHaveValue('Merkez');
@@ -239,11 +239,11 @@ test('dinamik sütunlar: karşılaştırmalı ay başlıkları + toplam satırı
 }) => {
   await reportEndpoints(page);
   await page.goto(COMPARE.yol);
-  await hazirBekle(page, COMPARE);
+  await waitReady(page, COMPARE);
   await expect(page.locator('tfoot')).toContainText('Toplam');
   await expect(page.locator('tfoot')).toContainText('8');
   await page.goto(SHIFTS.yol);
-  await hazirBekle(page, SHIFTS);
+  await waitReady(page, SHIFTS);
   await expect(page.getByText('Tarih aralığı 92 günü aştığı için kırpıldı.')).toBeVisible();
   await expect(page.getByRole('columnheader', { name: '21.09.2026' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Excel' })).toHaveCount(0);
@@ -257,8 +257,8 @@ for (const s of PAGES) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -266,7 +266,7 @@ for (const s of PAGES) {
     await reportEndpoints(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

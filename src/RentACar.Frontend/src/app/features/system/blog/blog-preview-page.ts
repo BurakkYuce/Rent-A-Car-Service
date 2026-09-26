@@ -3,13 +3,13 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 import { TemelStore } from '@core/veri/temel-store';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { BLOG_ROOT } from './blog-page';
 
-type BlogPreview = Sema<'BlogPreviewDto'>;
+type BlogPreview = Schema<'BlogPreviewDto'>;
 
 /**
  * F11.2b blog önizleme (Blazor `BlogOnizleme`): sitedeki ayrıştırma kuralıyla üretilmiş bloklar (Paragraf / Baslik2 /
@@ -18,7 +18,7 @@ type BlogPreview = Sema<'BlogPreviewDto'>;
 @Component({
   selector: 'rc-blog-preview-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, RouterLink, TranslocoPipe],
+  imports: [PageBand, RouterLink, TranslocoPipe],
   styleUrl: '../system.scss',
   templateUrl: './blog-preview-page.html',
 })

@@ -14,31 +14,31 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize, map, startWith } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
+import { toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { SayiPipe } from '@shared/bicim/bicim-pipe';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { NumberPipe } from '@shared/bicim/bicim-pipe';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { Alan } from '@shared/form/alan/alan';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 import { SavedViewChipsComponent, type SavedView } from '@shared/gorunum-cipleri/gorunum-cipleri';
-import { Ikon } from '@shared/ikon/ikon';
+import { Icon } from '@shared/ikon/icon';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 import { StatusSignCardComponent } from '@shared/tabela-karti/tabela-karti';
 import type { DisaAktarma } from '@shared/tablo/disa-aktarma';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { suggestionList } from '../suggestions';
 import { SCORECARD_ROLES } from '../vehicle-guards';
 import {
@@ -52,7 +52,11 @@ import {
   type VehicleListRow,
   type VehicleStatus,
 } from '../vehicle-model';
-import { VehicleListStore, secimSuggestionFetch, vehicleSuggestionFetch } from '../vehicle.store';
+import {
+  VehicleListStore,
+  selectionSuggestionFetch,
+  vehicleSuggestionFetch,
+} from '../vehicle.store';
 import { vehicleColumns } from './vehicle-columns';
 
 /** "Sahibi girilmemiş" seçeneğinin değeri (gerçek bir sahip adıyla çakışmaz). */
@@ -85,17 +89,17 @@ interface FilterValue {
     TranslocoPipe,
     Alan,
     FilterPanelComponent,
-    Ikon,
-    MetinGirdisi,
+    Icon,
+    TextInput,
     PlateChipComponent,
     SavedViewChipsComponent,
-    SayfaBandi,
-    SayiPipe,
-    Secim,
+    PageBand,
+    NumberPipe,
+    Selection,
     StatusSignCardComponent,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, VehicleListStore],
   templateUrl: './vehicle-list.html',
@@ -104,14 +108,14 @@ interface FilterValue {
 export class VehicleList {
   protected readonly store = inject(VehicleListStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(VEHICLE_LIST);
+  protected readonly query = listQueryUrlSync(VEHICLE_LIST);
   protected readonly columns = vehicleColumns(this.t);
   protected readonly rowId = (r: VehicleListRow) => r.id;
   protected readonly num = toNumber;
@@ -148,12 +152,12 @@ export class VehicleList {
 
   protected readonly groupSuggestions = suggestionList(
     this.filterForm.controls.grup,
-    secimSuggestionFetch(this.api, 'arac-grubu'),
+    selectionSuggestionFetch(this.api, 'arac-grubu'),
     () => this.canWrite() && !this.sippMode(),
   );
   protected readonly branchSuggestions = suggestionList(
     this.filterForm.controls.sube,
-    secimSuggestionFetch(this.api, 'sube'),
+    selectionSuggestionFetch(this.api, 'sube'),
     () => this.canWrite(),
   );
   private readonly owners = signal<readonly string[]>([]);
@@ -217,7 +221,7 @@ export class VehicleList {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => {
         if (this.grouped()) {
@@ -227,15 +231,15 @@ export class VehicleList {
         }
       },
       sifirla: () => {
-        this.store.list.sifirla();
-        this.store.modelGroups.sifirla();
+        this.store.list.reset();
+        this.store.modelGroups.reset();
       },
       sekmeyeDonunce: 'yenile',
     });
-    policy.baglan({
+    policy.connect({
       parametre: signal(null).asReadonly(),
       yukle: () => this.store.summary.yukle(),
-      sifirla: () => this.store.summary.sifirla(),
+      sifirla: () => this.store.summary.reset(),
       sekmeyeDonunce: 'yenile',
     });
     vehicleSuggestionFetch(
@@ -341,7 +345,7 @@ export class VehicleList {
 
   protected async remove(row: VehicleListRow): Promise<void> {
     if (this.deleting() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('arac.silBaslik'),
       mesaj: this.t('arac.silMesaj', { plaka: row.plaka }),
       onayEtiketi: this.t('arac.sil'),
@@ -362,14 +366,14 @@ export class VehicleList {
           this.store.summary.yenile();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
         },
       });
   }
 
   /** `gorunum` yalnız ekran içindir; API'ye gitmez. */
-  private withoutView(p: SorguParametreleri): SorguParametreleri {
+  private withoutView(p: QueryParameters): QueryParameters {
     return Object.fromEntries(Object.entries(p).filter(([name]) => name !== 'gorunum'));
   }
 }

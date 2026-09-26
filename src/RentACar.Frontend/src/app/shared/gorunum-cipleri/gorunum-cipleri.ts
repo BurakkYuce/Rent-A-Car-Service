@@ -64,7 +64,7 @@ export interface SavedView {
 
     <ng-template #icerik let-g>
       <span>{{ g.ad }}</span>
-      @if (sayacMetni(g); as s) {
+      @if (counterText(g); as s) {
         <span class="sayac" [class.sayac--hata]="g.tur === 'hata'">{{ s }}</span>
       }
     </ng-template>
@@ -152,7 +152,7 @@ export class SavedViewChipsComponent {
   readonly etiket = input('');
   readonly secildi = output<SavedView>();
 
-  protected sayacMetni(g: SavedView): string | null {
+  protected counterText(g: SavedView): string | null {
     return g.sayac === null || g.sayac === undefined ? null : sayiBicimle(g.sayac, '1.0-0');
   }
 }

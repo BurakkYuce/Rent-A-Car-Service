@@ -1,17 +1,17 @@
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 
 /**
  * F12.2 platform console — contract types (generated from OpenAPI) and PURE rules shared by the pages.
  * No tenant data beyond META (counts, status, contact fields, flags): the API never sends customer PII.
  */
-export type PlatformSession = Sema<'PlatformSessionResponse'>;
-export type PlatformSummary = Sema<'PlatformSummary'>;
-export type PlatformTenantRow = Sema<'PlatformTenantRowDto'>;
-export type PlatformTenantOption = Sema<'PlatformTenantOptionDto'>;
-export type PlatformTenantDetail = Sema<'PlatformTenantDetailDto'>;
-export type PlatformLogo = Sema<'PlatformLogoDto'>;
-export type PlatformDocument = Sema<'PlatformConsoleDocumentDto'>;
-export type PlatformTenantUpdateBody = Sema<'PlatformTenantUpdateRequest'>;
+export type PlatformSession = Schema<'PlatformSessionResponse'>;
+export type PlatformSummary = Schema<'PlatformSummary'>;
+export type PlatformTenantRow = Schema<'PlatformTenantRowDto'>;
+export type PlatformTenantOption = Schema<'PlatformTenantOptionDto'>;
+export type PlatformTenantDetail = Schema<'PlatformTenantDetailDto'>;
+export type PlatformLogo = Schema<'PlatformLogoDto'>;
+export type PlatformDocument = Schema<'PlatformConsoleDocumentDto'>;
+export type PlatformTenantUpdateBody = Schema<'PlatformTenantUpdateRequest'>;
 
 export const PLATFORM_API = '/api/ui/v1/platform';
 
@@ -105,7 +105,7 @@ const trimOrNull = (v: string | null): string | null => {
 };
 
 /** Full-replace PUT body: all six fields + the concurrency token (`surum` is mandatory). */
-export function updateBody(value: TenantInfoValue, surum: string): PlatformTenantUpdateBody {
+export function updateBody(value: TenantInfoValue, version: string): PlatformTenantUpdateBody {
   return {
     ad: trimOrNull(value.ad),
     yetkiliAd: trimOrNull(value.yetkiliAd),
@@ -113,7 +113,7 @@ export function updateBody(value: TenantInfoValue, surum: string): PlatformTenan
     telefon: trimOrNull(value.telefon),
     plan: trimOrNull(value.plan),
     notlar: trimOrNull(value.notlar),
-    surum,
+    surum: version,
   };
 }
 

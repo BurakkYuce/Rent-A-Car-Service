@@ -12,10 +12,10 @@ import {
 
 /** Beklenen değerler elle yazıldı (bağımsız oracle): sınıf ve metin anahtarı senaryodan, koddan türetilmez. */
 const conflict = (
-  mevcut?: { belgeNo: string; tutar: number | string; doviz: string; ayniIcerik: boolean },
-  detay = 'Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).',
+  existing?: { belgeNo: string; tutar: number | string; doviz: string; ayniIcerik: boolean },
+  detail = 'Bu işlem zaten kaydedilmiş (çift gönderim / mükerrer).',
 ): Pick<ApiHatasi, 'mevcut' | 'detay'> =>
-  ({ detay, ...(mevcut ? { mevcut: { id: 'x', ...mevcut } } : {}) }) as Pick<
+  ({ detay: detail, ...(existing ? { mevcut: { id: 'x', ...existing } } : {}) }) as Pick<
     ApiHatasi,
     'mevcut' | 'detay'
   >;

@@ -1,17 +1,17 @@
 import { inject } from '@angular/core';
 import { type Observable, map } from 'rxjs';
 
-import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
-import type { SecimOgesi } from '@core/api/ui-tipleri';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
+import type { SelectionItem } from '@core/api/ui-tipleri';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import type { TanimAlani } from '@shared/form/tanim-crud/tanim-kaynagi';
+import type { TanimAlani } from '@shared/form/tanim-crud/definition-source';
 
 import { DEFINITION_PATHS, type DefinitionKind } from './definition-paths';
 
 export type { DefinitionKind } from './definition-paths';
 
 export interface DefinitionConfig {
-  readonly root: ApiYolu;
+  readonly root: ApiPath;
   /** Çok alanlı tanım: form tablo üstünde ızgara (`panel`). */
   readonly layout: 'row' | 'panel';
   readonly fields: readonly TanimAlani[];
@@ -29,30 +29,30 @@ export type SuggestionSource = (q: string) => Observable<readonly string[]>;
 
 /** Enjeksiyon bağlamında: seçim ucundan öneri metinleri (`etiket` ya da `kod`). */
 export function selectionSuggestions(
-  path: ApiYolu,
-  pick: (o: SecimOgesi) => string | null = (o) => o.etiket,
+  path: ApiPath,
+  pick: (o: SelectionItem) => string | null = (o) => o.etiket,
 ): SuggestionSource {
   const api = inject(ApiIstemcisi);
   return (q) =>
     api
-      .get<readonly SecimOgesi[]>(path, { parametreler: { q, limit: 20 } })
+      .get<readonly SelectionItem[]>(path, { parametreler: { q, limit: 20 } })
       .pipe(map((list) => list.map(pick).filter((s): s is string => !!s)));
 }
 
 /** Ortak alan yapıcıları (etiketler `tanimlar.alan.*`). */
 export function commonFields(t: Translate) {
   const l = (k: string) => t(`tanimlar.alan.${k}` as CeviriAnahtari);
-  const text = (ad: string, etiket: string, max: number, extra: Partial<TanimAlani> = {}) =>
-    ({ ad, etiket, tur: 'metin', azamiUzunluk: max, ...extra }) as TanimAlani;
+  const text = (name: string, label: string, max: number, extra: Partial<TanimAlani> = {}) =>
+    ({ ad: name, etiket: label, tur: 'metin', azamiUzunluk: max, ...extra }) as TanimAlani;
   return {
     l,
     text,
     code: (max = 32): TanimAlani => text('kod', l('kod'), max, { zorunlu: true }),
     name: (): TanimAlani => text('ad', l('ad'), 128, { zorunlu: true }),
     /** Aktif/Pasif (Blazor "Durum"): tam PUT'ta zorunlu, yeni kayıtta Aktif. */
-    active: (etiket = l('durum')): TanimAlani => ({
+    active: (label = l('durum')): TanimAlani => ({
       ad: 'aktif',
-      etiket,
+      etiket: label,
       tur: 'secim',
       zorunlu: true,
       defaultValue: true,
@@ -61,9 +61,9 @@ export function commonFields(t: Translate) {
         { deger: false, etiket: l('pasif') },
       ],
     }),
-    yesNo: (ad: string, etiket: string): TanimAlani => ({
-      ad,
-      etiket,
+    yesNo: (name: string, label: string): TanimAlani => ({
+      ad: name,
+      etiket: label,
       tur: 'secim',
       zorunlu: true,
       defaultValue: false,
@@ -85,11 +85,11 @@ export function branchFields(
 ): readonly TanimAlani[] {
   const f = commonFields(t);
   const b = (k: string) => t(`tanimlar.branch.alan.${k}` as CeviriAnahtari);
-  const text = (ad: string, max: number, extra: Partial<TanimAlani> = {}) =>
-    f.text(ad, b(ad), max, { inList: false, ...extra });
-  const num = (ad: string, extra: Partial<TanimAlani> = {}): TanimAlani => ({
-    ad,
-    etiket: b(ad),
+  const text = (name: string, max: number, extra: Partial<TanimAlani> = {}) =>
+    f.text(name, b(name), max, { inList: false, ...extra });
+  const num = (name: string, extra: Partial<TanimAlani> = {}): TanimAlani => ({
+    ad: name,
+    etiket: b(name),
     tur: 'sayi',
     inList: false,
     ...extra,
@@ -179,7 +179,7 @@ export function definitionConfig(
 ): DefinitionConfig {
   const f = commonFields(t);
   const { l, text } = f;
-  const root = `/api/ui/v1/${DEFINITION_PATHS[kind]}` as ApiYolu;
+  const root = `/api/ui/v1/${DEFINITION_PATHS[kind]}` as ApiPath;
   const master = { root, layout: 'row' as const, fields: [f.code(), f.name(), f.active()] };
   switch (kind) {
     case 'brand':
@@ -354,12 +354,12 @@ export function definitionConfig(
  * da yalnız metin bağlaması — innerHTML yok). Sınırlar servis `Validate` ile aynı: ad 128, başlık 256, metinler
  * 4000, alt bilgi 512. Belge türü zorunlu (Blazor'daki sessiz "kira sözleşmesi" varsayılanı yok).
  */
-function documentTemplateConfig(root: ApiYolu, t: Translate): DefinitionConfig {
+function documentTemplateConfig(root: ApiPath, t: Translate): DefinitionConfig {
   const f = commonFields(t);
   const d = (k: string) => t(`tanimlar.documentTemplate.alan.${k}` as CeviriAnahtari);
-  const area = (ad: string): TanimAlani => ({
-    ad,
-    etiket: d(ad),
+  const area = (name: string): TanimAlani => ({
+    ad: name,
+    etiket: d(name),
     tur: 'textarea',
     azamiUzunluk: 4000,
     inList: false,

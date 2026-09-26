@@ -10,32 +10,29 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSaatSecici } from '@shared/form/tarih/tarih-saat-secici';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DateTimePicker } from '@shared/form/tarih/date-time-picker';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { assistanceColumns } from '../crm-columns';
 import {
   assistanceHiddenContact,
@@ -98,32 +95,32 @@ export function viewOf(f: {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     PlateChipComponent,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    MetinGirdisi,
-    OnayKutusu,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSaatSecici,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    TextInput,
+    Checkbox,
+    Selection,
+    Table,
+    TableCell,
+    DateTimePicker,
+    DatePicker,
   ],
   providers: [FetchPolicy, AssistanceStore],
   templateUrl: './assistance-list.html',
   styleUrl: '../crm.scss',
 })
-export class AssistanceList implements KaydedilmemisDegisiklikSahibi {
+export class AssistanceList implements UnsavedChangesOwner {
   protected readonly store = inject(AssistanceStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(ASSISTANCE_LIST);
+  protected readonly query = listQueryUrlSync(ASSISTANCE_LIST);
   protected readonly columns = assistanceColumns(this.t);
   protected readonly rowId = (r: Assistance) => r.id;
   protected readonly rentals = rentalPickSource();
@@ -134,8 +131,8 @@ export class AssistanceList implements KaydedilmemisDegisiklikSahibi {
 
   protected readonly filterForm = new FormGroup({
     plaka: new FormControl<string | null>(null),
-    tarihBas: new FormControl<GunMetni | null>(null),
-    tarihBit: new FormControl<GunMetni | null>(null),
+    tarihBas: new FormControl<DayText | null>(null),
+    tarihBit: new FormControl<DayText | null>(null),
     ara: new FormControl<string | null>(null),
     gorunum: new FormControl<AssistanceView | null>(null),
   });
@@ -155,7 +152,7 @@ export class AssistanceList implements KaydedilmemisDegisiklikSahibi {
     clearName: new FormControl<boolean>(false, { nonNullable: true }),
     clearPhone: new FormControl<boolean>(false, { nonNullable: true }),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
   /** Düzenlenen kayıtta KVKK ile gizlenen ad/telefon ("Temizle" kutusu yalnız bunlarda). */
   protected readonly hiddenContact = computed(() =>
     assistanceHiddenContact(this.editor.base()?.talep ?? null),
@@ -174,15 +171,15 @@ export class AssistanceList implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => {
         this.store.list.yukle(p);
         this.store.counts.yukle(p);
       },
       sifirla: () => {
-        this.store.list.sifirla();
-        this.store.counts.sifirla();
+        this.store.list.reset();
+        this.store.counts.reset();
       },
       sekmeyeDonunce: 'yenile',
     });
@@ -191,17 +188,17 @@ export class AssistanceList implements KaydedilmemisDegisiklikSahibi {
       untracked(() =>
         this.filterForm.reset({
           plaka: f.plaka ?? null,
-          tarihBas: (f.tarihBas as GunMetni | undefined) ?? null,
-          tarihBit: (f.tarihBit as GunMetni | undefined) ?? null,
+          tarihBas: (f.tarihBas as DayText | undefined) ?? null,
+          tarihBit: (f.tarihBit as DayText | undefined) ?? null,
           ara: f.ara ?? null,
           gorunum: viewOf(f),
         }),
       );
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 

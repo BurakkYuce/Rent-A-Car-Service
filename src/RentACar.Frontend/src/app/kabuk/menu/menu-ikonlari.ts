@@ -1,13 +1,13 @@
-import { trAramaAnahtari } from '@core/metin/tr-normalize';
+import { trSearchKey } from '@core/metin/tr-normalize';
 import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
 
-import type { MenuHedefi, MenuKaydi } from './menu-modeli';
+import type { MenuTarget, MenuKaydi } from './menu-modeli';
 
 /**
  * Menü grubu → ikon (Yol v2 §5.1). Grup adları sunucu kaydından (`MenuKaydi.cs`) gelir; eşleşme Türkçe-gevşek
  * anahtarla (büyük/küçük harf, İ/ı farkı yok). Bilinmeyen grup genel ikonla çizilir — menü bozulmaz.
  */
-const GRUP_IKONLARI: ReadonlyMap<string, IkonAdi> = new Map<string, IkonAdi>(
+const GROUP_ICONS: ReadonlyMap<string, IkonAdi> = new Map<string, IkonAdi>(
   (
     [
       ['Araçlar', 'car'],
@@ -23,26 +23,26 @@ const GRUP_IKONLARI: ReadonlyMap<string, IkonAdi> = new Map<string, IkonAdi>(
       ['Tanımlar', 'adjustments-horizontal'],
       ['Sistem', 'shield'],
     ] as const
-  ).map(([ad, ikon]) => [trAramaAnahtari(ad), ikon]),
+  ).map(([name, icon]) => [trSearchKey(name), icon]),
 );
 
 /** Grupsuz öğeler: rota (sonu) → ikon. */
-const OGE_IKONLARI: ReadonlyMap<string, IkonAdi> = new Map<string, IkonAdi>([
+const ITEM_ICONS: ReadonlyMap<string, IkonAdi> = new Map<string, IkonAdi>([
   ['/', 'home'],
   ['/panel', 'home'],
   ['/bildirimler', 'bell'],
 ]);
 
-const VARSAYILAN: IkonAdi = 'file-text';
+const DEFAULT: IkonAdi = 'file-text';
 
-export function grupIkonu(grup: string): IkonAdi {
-  return GRUP_IKONLARI.get(trAramaAnahtari(grup)) ?? VARSAYILAN;
+export function groupIcon(group: string): IkonAdi {
+  return GROUP_ICONS.get(trSearchKey(group)) ?? DEFAULT;
 }
 
-export function ogeIkonu(kayit: Pick<MenuKaydi, 'hedef'>): IkonAdi {
-  return OGE_IKONLARI.get(hedefYolu(kayit.hedef)) ?? VARSAYILAN;
+export function itemIcon(record: Pick<MenuKaydi, 'hedef'>): IkonAdi {
+  return ITEM_ICONS.get(targetPath(record.hedef)) ?? DEFAULT;
 }
 
-function hedefYolu(hedef: MenuHedefi): string {
-  return hedef.tur === 'spa' ? hedef.yol : hedef.adres;
+function targetPath(target: MenuTarget): string {
+  return target.tur === 'spa' ? target.yol : target.adres;
 }

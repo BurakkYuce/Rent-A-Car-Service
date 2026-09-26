@@ -1,20 +1,20 @@
 import {
-  TAZELEME_SURESI_MS,
+  REFRESH_DURATION_MS,
   type TazelemeDurumu,
-  cikisEtkinSekme,
-  donusEtkinSekme,
-  kovaSatirlari,
-  sayi,
-  sekmeCoz,
-  tahsilatGovdesi,
-  tazelemeZamaniMi,
-  yazilabilirAlanMi,
-  yuzde,
+  pickupActiveTab,
+  returnActiveTab,
+  bucketRows,
+  count,
+  resolveTab,
+  collectionBody,
+  isRefreshDue,
+  isWritableField,
+  percent,
 } from './panel-modeli';
 
-const kova = (gecikmis: number, varsayilanSekme: string) => ({
-  gecikmis: Array.from({ length: gecikmis }, (_, i) => i),
-  varsayilanSekme,
+const bucket = (overdue: number, defaultTab: string) => ({
+  gecikmis: Array.from({ length: overdue }, (_, i) => i),
+  varsayilanSekme: defaultTab,
 });
 
 describe('panel sekme kuralı (Blazor PanelSekme)', () => {
@@ -26,36 +26,36 @@ describe('panel sekme kuralı (Blazor PanelSekme)', () => {
     ['dun', null],
     [null, null],
     [3, null],
-  ])('sekmeCoz(%j) → %j', (ham, beklenen) => expect(sekmeCoz(ham)).toBe(beklenen));
+  ])('sekmeCoz(%j) → %j', (raw, expected) => expect(resolveTab(raw)).toBe(expected));
 
   it('dönüşler: seçim yokken gecikmiş varsa GECİKMİŞ açılır (sunucunun varsayılanı)', () => {
-    expect(donusEtkinSekme(null, kova(2, 'gec'))).toBe('gec');
+    expect(returnActiveTab(null, bucket(2, 'gec'))).toBe('gec');
   });
 
   it('dönüşler: seçim yok, gecikmiş yok → Bugün', () => {
-    expect(donusEtkinSekme(null, kova(0, 'bugun'))).toBe('bugun');
+    expect(returnActiveTab(null, bucket(0, 'bugun'))).toBe('bugun');
   });
 
   it('dönüşler: sunucu tanınmayan varsayılan gönderirse kural istemcide işler', () => {
-    expect(donusEtkinSekme(null, kova(1, '???'))).toBe('gec');
-    expect(donusEtkinSekme(null, kova(0, ''))).toBe('bugun');
+    expect(returnActiveTab(null, bucket(1, '???'))).toBe('gec');
+    expect(returnActiveTab(null, bucket(0, ''))).toBe('bugun');
   });
 
   it('dönüşler: açık seçim varsayılanı ezer (gecikmiş olsa da)', () => {
-    expect(donusEtkinSekme('yarin', kova(5, 'gec'))).toBe('yarin');
-    expect(donusEtkinSekme('bugun', kova(5, 'gec'))).toBe('bugun');
+    expect(returnActiveTab('yarin', bucket(5, 'gec'))).toBe('yarin');
+    expect(returnActiveTab('bugun', bucket(5, 'gec'))).toBe('bugun');
   });
 
   it('çıkışlar: seçim yokken DAİMA Bugün (gecikmiş çıkış bayat no-show)', () => {
-    expect(cikisEtkinSekme(null)).toBe('bugun');
-    expect(cikisEtkinSekme('gec')).toBe('gec');
+    expect(pickupActiveTab(null)).toBe('bugun');
+    expect(pickupActiveTab('gec')).toBe('gec');
   });
 
   it('kovaSatirlari sekmeye göre kovayı seçer', () => {
     const k = { gecikmis: ['a'], bugun: ['b', 'c'], yarin: [] as string[] };
-    expect(kovaSatirlari(k, 'gec')).toEqual(['a']);
-    expect(kovaSatirlari(k, 'bugun')).toEqual(['b', 'c']);
-    expect(kovaSatirlari(k, 'yarin')).toEqual([]);
+    expect(bucketRows(k, 'gec')).toEqual(['a']);
+    expect(bucketRows(k, 'bugun')).toEqual(['b', 'c']);
+    expect(bucketRows(k, 'yarin')).toEqual([]);
   });
 });
 
@@ -67,19 +67,19 @@ describe('sayı yardımcıları', () => {
     [null, null],
     [undefined, null],
     ['abc', null],
-  ])('sayi(%j) → %j', (girdi, beklenen) => expect(sayi(girdi)).toBe(beklenen));
+  ])('sayi(%j) → %j', (input, expected) => expect(count(input)).toBe(expected));
 
   it('yüzde: 3/12 → 25, toplam 0 → 0, yuvarlama', () => {
-    expect(yuzde(3, 12)).toBe(25);
-    expect(yuzde(5, 0)).toBe(0);
-    expect(yuzde(1, 3)).toBe(33);
-    expect(yuzde('2', '3')).toBe(67);
+    expect(percent(3, 12)).toBe(25);
+    expect(percent(5, 0)).toBe(0);
+    expect(percent(1, 3)).toBe(33);
+    expect(percent('2', '3')).toBe(67);
   });
 });
 
 describe('otomatik tazeleme kararı', () => {
-  const uygun: TazelemeDurumu = {
-    gecen: TAZELEME_SURESI_MS,
+  const eligible: TazelemeDurumu = {
+    gecen: REFRESH_DURATION_MS,
     belgeGorunur: true,
     sekmeAktif: true,
     yaziyor: false,
@@ -87,38 +87,38 @@ describe('otomatik tazeleme kararı', () => {
   };
 
   it('120 sn dolunca ve her şey uygunsa tazeler', () => {
-    expect(tazelemeZamaniMi(uygun)).toBe(true);
+    expect(isRefreshDue(eligible)).toBe(true);
   });
 
   it.each<[string, Partial<TazelemeDurumu>]>([
-    ['süre dolmadı', { gecen: TAZELEME_SURESI_MS - 1 }],
+    ['süre dolmadı', { gecen: REFRESH_DURATION_MS - 1 }],
     ['kullanıcı yazıyor / tahsilat formu açık', { yaziyor: true }],
     ['tarayıcı sekmesi gizli', { belgeGorunur: false }],
     ['uygulama sekmesi arkada', { sekmeAktif: false }],
     ['yükleme sürüyor', { mesgul: true }],
-  ])('%s → ertelenir', (_, fark) => {
-    expect(tazelemeZamaniMi({ ...uygun, ...fark })).toBe(false);
+  ])('%s → ertelenir', (_, difference) => {
+    expect(isRefreshDue({ ...eligible, ...difference })).toBe(false);
   });
 
   it('yazılabilir alan: metin/sayı girdisi, metin alanı, seçim; düğme/onay kutusu değil', () => {
-    const el = (etiket: string, tur?: string) => {
-      const e = document.createElement(etiket);
-      if (tur) e.setAttribute('type', tur);
+    const el = (label: string, type?: string) => {
+      const e = document.createElement(label);
+      if (type) e.setAttribute('type', type);
       return e;
     };
-    expect(yazilabilirAlanMi(el('input'))).toBe(true);
-    expect(yazilabilirAlanMi(el('input', 'number'))).toBe(true);
-    expect(yazilabilirAlanMi(el('textarea'))).toBe(true);
-    expect(yazilabilirAlanMi(el('select'))).toBe(true);
-    expect(yazilabilirAlanMi(el('input', 'checkbox'))).toBe(false);
-    expect(yazilabilirAlanMi(el('button'))).toBe(false);
-    expect(yazilabilirAlanMi(el('div'))).toBe(false);
-    expect(yazilabilirAlanMi(null)).toBe(false);
+    expect(isWritableField(el('input'))).toBe(true);
+    expect(isWritableField(el('input', 'number'))).toBe(true);
+    expect(isWritableField(el('textarea'))).toBe(true);
+    expect(isWritableField(el('select'))).toBe(true);
+    expect(isWritableField(el('input', 'checkbox'))).toBe(false);
+    expect(isWritableField(el('button'))).toBe(false);
+    expect(isWritableField(el('div'))).toBe(false);
+    expect(isWritableField(null)).toBe(false);
   });
 });
 
 describe('tahsilat gövdesi (para kuralı)', () => {
-  const bilgi = {
+  const info = {
     anahtar: '11111111-2222-4333-8444-555555555555',
     cariId: 'cari-1',
     rentalId: 'kira-1',
@@ -127,12 +127,12 @@ describe('tahsilat gövdesi (para kuralı)', () => {
   };
 
   it('sunucunun anahtarını AYNEN, cari/kira/dövizi yanıttan taşır; kur göndermez', () => {
-    const govde = tahsilatGovdesi(
-      bilgi,
+    const body = collectionBody(
+      info,
       { tutar: '1000.00', hesap: 'Banka', hesapId: null },
       'Hızlı tahsilat (pano) — 34 ABC 123',
     );
-    expect(govde).toEqual({
+    expect(body).toEqual({
       cariId: 'cari-1',
       kiraId: 'kira-1',
       tutar: '1000.00',
@@ -143,6 +143,6 @@ describe('tahsilat gövdesi (para kuralı)', () => {
       aciklama: 'Hızlı tahsilat (pano) — 34 ABC 123',
       tahsilatAnahtar: '11111111-2222-4333-8444-555555555555',
     });
-    expect('kur' in govde).toBe(false);
+    expect('kur' in body).toBe(false);
   });
 });

@@ -2,8 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 import { appConfig } from '../../app.config';
-import { BosDurum } from '../../shared/bos-durum/bos-durum';
-import { ceviriFonksiyonu } from './ceviri';
+import { EmptyState } from '../../shared/bos-durum/empty-state';
+import { translationFunction } from './ceviri';
 
 describe('i18n (Transloco, yalnız tr)', () => {
   beforeEach(async () => {
@@ -13,7 +13,7 @@ describe('i18n (Transloco, yalnız tr)', () => {
 
   it('etkin dil tr; tipli çeviri fonksiyonu tr.json metnini döner', () => {
     expect(TestBed.inject(TranslocoService).getActiveLang()).toBe('tr');
-    const t = TestBed.runInInjectionContext(() => ceviriFonksiyonu());
+    const t = TestBed.runInInjectionContext(() => translationFunction());
     expect(t('yerTutucu.baslik')).toBe('Yeni arayüz yapım aşamasında');
     expect(t('tema.koyu')).toBe('Koyu');
   });
@@ -23,10 +23,10 @@ describe('i18n (Transloco, yalnız tr)', () => {
   });
 
   it('boş durum bileşeni ortak Türkçe metni gösterir', async () => {
-    const fixture = TestBed.createComponent(BosDurum);
+    const fixture = TestBed.createComponent(EmptyState);
     await fixture.whenStable();
-    const metin = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(metin).toContain('Kayıt yok');
-    expect(metin).toContain('Gösterilecek kayıt bulunamadı.');
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Kayıt yok');
+    expect(text).toContain('Gösterilecek kayıt bulunamadı.');
   });
 });

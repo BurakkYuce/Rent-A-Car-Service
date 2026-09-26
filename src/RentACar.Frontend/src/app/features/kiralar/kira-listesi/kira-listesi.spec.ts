@@ -9,32 +9,32 @@ import { Router, provideRouter } from '@angular/router';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideApiIstemcisi } from '@core/api/api-istemcisi';
+import { provideApiClient } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import type { KiraListeSatiri } from '@core/api/ui-tipleri';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { provideCeviri } from '@core/i18n/ceviri';
-import { oturumInterceptor } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import type { RentalListRow } from '@core/api/ui-tipleri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { provideTranslation } from '@core/i18n/ceviri';
+import { sessionInterceptor } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import type { Ben } from '@core/oturum/oturum-tipleri';
-import { YenidenGirisServisi } from '@core/oturum/yeniden-giris-servisi';
-import { sorguyuCoz } from '@core/veri/liste-sorgusu';
-import { provideTurkceYerel } from '@core/yerel/tr-yerel';
-import { BellekTabloDuzeniDeposu, TabloDuzeniDeposu } from '@shared/tablo/tablo-duzeni-deposu';
+import { ReloginService } from '@core/oturum/relogin-service';
+import { parseQuery } from '@core/veri/liste-sorgusu';
+import { provideTurkishLocale } from '@core/yerel/tr-yerel';
+import { InMemoryTableLayoutStore, TableLayoutStore } from '@shared/tablo/table-layout-store';
 
-import { KiraListesi } from './kira-listesi';
-import { KIRA_LISTESI, ozetParametreleri } from './kira-listesi.store';
+import { RentalList } from './kira-listesi';
+import { RENTAL_LIST, summaryParameters } from './rental-list.store';
 
 const LISTE = '/api/ui/v1/kiralar';
-const OZET = '/api/ui/v1/kiralar/ozet';
-const SECENEK = '/api/ui/v1/kiralar/filtre-secenekleri';
+const SUMMARY = '/api/ui/v1/kiralar/ozet';
+const OPTION = '/api/ui/v1/kiralar/filtre-secenekleri';
 
-function ben(izinler: string[]): Ben {
+function ben(permissions: string[]): Ben {
   return {
     kullanici: { id: 'u-1', kullaniciAdi: 'ayse', adSoyad: 'Ayşe Yılmaz' },
     kiraci: { id: 't-1', kod: 'pilot', ad: 'Pilot Firma' },
     rol: 'Admin',
-    izinler,
+    izinler: permissions,
     subeKapsami: { tumSubeler: true, subeId: null, subeAd: null },
     moduller: { webSitesi: false },
     renkler: {},
@@ -42,7 +42,7 @@ function ben(izinler: string[]): Ben {
   };
 }
 
-function satir(no: string, ek: Partial<KiraListeSatiri> = {}): KiraListeSatiri {
+function satir(no: string, extra: Partial<RentalListRow> = {}): RentalListRow {
   const id = `${no.padStart(8, '0')}-0000-4000-8000-000000000000`;
   return {
     id,
@@ -73,26 +73,26 @@ function satir(no: string, ek: Partial<KiraListeSatiri> = {}): KiraListeSatiri {
     durum: 'Kirada',
     faturali: false,
     tahsilat: null,
-    ...ek,
+    ...extra,
   };
 }
 
-const tahsilat = (s: KiraListeSatiri, anahtar: string) => ({
-  anahtar,
+const tahsilat = (s: RentalListRow, key: string) => ({
+  anahtar: key,
   cariId: s.musteriId,
   rentalId: s.id,
   doviz: 'TRY',
   varsayilanTutar: 1200,
 });
 
-const sayfa = (kayitlar: KiraListeSatiri[]): Sayfa<KiraListeSatiri> => ({
-  kayitlar,
-  toplam: kayitlar.length,
+const sayfa = (records: RentalListRow[]): Sayfa<RentalListRow> => ({
+  kayitlar: records,
+  toplam: records.length,
   sayfaNo: 1,
   boyut: 50,
 });
 
-class SahteXsrf implements HttpXsrfTokenExtractor {
+class FakeXsrf implements HttpXsrfTokenExtractor {
   getToken(): string | null {
     return 'belirtec';
   }
@@ -100,7 +100,7 @@ class SahteXsrf implements HttpXsrfTokenExtractor {
 
 describe('KIRA_LISTESI sorgusu', () => {
   it('URL = API adları; bozuk durum/tarih/kimlik ve beyaz liste dışı sıralama düşer', () => {
-    const sorgu = sorguyuCoz(KIRA_LISTESI, {
+    const query = parseQuery(RENTAL_LIST, {
       q: '  34 ABC ',
       durum: 'Kiralik',
       fatura: 'false',
@@ -109,78 +109,82 @@ describe('KIRA_LISTESI sorgusu', () => {
       personelId: 'kimlik-degil',
       sirala: 'musteriAd',
     });
-    expect(sorgu.filtreler).toEqual({ q: '34 ABC', fatura: false, basMax: '2026-09-22' });
-    expect(sorgu.sirala).toBeNull();
-    expect(sorgu.boyut).toBe(50);
+    expect(query.filtreler).toEqual({ q: '34 ABC', fatura: false, basMax: '2026-09-22' });
+    expect(query.sirala).toBeNull();
+    expect(query.boyut).toBe(50);
   });
 
   it('özet parametreleri süzgeçleri taşır, sayfa/boyut/sıralamayı taşımaz', () => {
     expect(
-      ozetParametreleri({ sayfa: 3, boyut: 25, sirala: '-bakiye', durum: 'Kirada', q: 'x' }),
+      summaryParameters({ sayfa: 3, boyut: 25, sirala: '-bakiye', durum: 'Kirada', q: 'x' }),
     ).toEqual({ durum: 'Kirada', q: 'x' });
   });
 });
 
 describe('KiraListesi sayfası', () => {
   let http: HttpTestingController;
-  let toast: ToastServisi;
+  let toast: ToastService;
 
-  async function kur(izinler: string[]) {
+  async function exchangeRate(permissions: string[]) {
     TestBed.configureTestingModule({
       providers: [
-        provideTurkceYerel(),
-        ...provideCeviri(),
+        provideTurkishLocale(),
+        ...provideTranslation(),
         provideRouter([]),
-        provideApiIstemcisi(oturumInterceptor),
+        provideApiClient(sessionInterceptor),
         provideHttpClientTesting(),
-        { provide: HttpXsrfTokenExtractor, useClass: SahteXsrf },
-        { provide: YenidenGirisServisi, useValue: { iste: vi.fn() } },
-        { provide: TabloDuzeniDeposu, useValue: new BellekTabloDuzeniDeposu() },
+        { provide: HttpXsrfTokenExtractor, useClass: FakeXsrf },
+        { provide: ReloginService, useValue: { request: vi.fn() } },
+        { provide: TableLayoutStore, useValue: new InMemoryTableLayoutStore() },
       ],
     });
     await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));
     http = TestBed.inject(HttpTestingController);
-    toast = TestBed.inject(ToastServisi);
-    const yukleme = TestBed.inject(OturumServisi).yukle();
-    http.expectOne('/api/ui/v1/oturum/ben').flush(ben(izinler));
-    await yukleme;
+    toast = TestBed.inject(ToastService);
+    const loading = TestBed.inject(SessionService).yukle();
+    http.expectOne('/api/ui/v1/oturum/ben').flush(ben(permissions));
+    await loading;
 
-    const fixture = TestBed.createComponent(KiraListesi);
+    const fixture = TestBed.createComponent(RentalList);
     await fixture.whenStable();
-    const kok = fixture.nativeElement as HTMLElement;
-    const bekle = () => fixture.whenStable();
-    const listeIstegi = (): TestRequest => http.expectOne((r) => r.url === LISTE);
-    const yardimcilar = {
+    const root = fixture.nativeElement as HTMLElement;
+    const wait = () => fixture.whenStable();
+    const listRequest = (): TestRequest => http.expectOne((r) => r.url === LISTE);
+    const helpers = {
       fixture,
-      kok,
-      bekle,
-      listeIstegi,
+      kok: root,
+      bekle: wait,
+      listeIstegi: listRequest,
       /** Açılış: liste + özet + öneri listeleri. */
-      async ac(kayitlar: KiraListeSatiri[]) {
-        http.expectOne(SECENEK).flush({ sahipler: ['Filo A'], gruplar: ['Ekonomi'] });
-        http.expectOne((r) => r.url === OZET).flush({ toplam: 2, kirada: 2, faturasiz: 1 });
-        listeIstegi().flush(sayfa(kayitlar));
-        await bekle();
+      async ac(records: RentalListRow[]) {
+        http.expectOne(OPTION).flush({ sahipler: ['Filo A'], gruplar: ['Ekonomi'] });
+        http.expectOne((r) => r.url === SUMMARY).flush({ toplam: 2, kirada: 2, faturasiz: 1 });
+        listRequest().flush(sayfa(records));
+        await wait();
       },
-      dugme: (metin: RegExp) =>
-        [...kok.querySelectorAll<HTMLButtonElement>('button')].filter((b) =>
-          metin.test(b.textContent ?? ''),
+      dugme: (text: RegExp) =>
+        [...root.querySelectorAll<HTMLButtonElement>('button')].filter((b) =>
+          text.test(b.textContent ?? ''),
         ),
-      baglanti: (metin: RegExp) =>
-        [...kok.querySelectorAll<HTMLAnchorElement>('a')].filter((a) =>
-          metin.test(a.textContent ?? ''),
+      baglanti: (text: RegExp) =>
+        [...root.querySelectorAll<HTMLAnchorElement>('a')].filter((a) =>
+          text.test(a.textContent ?? ''),
         ),
     };
-    return yardimcilar;
+    return helpers;
   }
 
   afterEach(() => {
     http.verify();
-    toast.temizle();
+    toast.clear();
   });
 
   it('liste sunucudan sayfalı gelir; özet, PDF, dışa aktarma ve kira formu bağlantıları doğru yere gider', async () => {
-    const { ac, kok, baglanti } = await kur(['OperationsWrite', 'FinanceWrite', 'ViewReports']);
+    const { ac, kok, baglanti } = await exchangeRate([
+      'OperationsWrite',
+      'FinanceWrite',
+      'ViewReports',
+    ]);
     await ac([satir('2026220901001'), satir('2026220901002', { faturali: true })]);
 
     expect(kok.querySelector('h1')?.textContent).toContain('Kira listesi');
@@ -201,7 +205,7 @@ describe('KiraListesi sayfası', () => {
   });
 
   it('izinsiz düğmeler çizilmez: Tahsil Et yalnız sunucu tahsilat verdiyse; PDF OW, dışa aktarma ViewReports ister', async () => {
-    const { ac, dugme, baglanti } = await kur(['FinanceWrite']);
+    const { ac, dugme, baglanti: link } = await exchangeRate(['FinanceWrite']);
     const a = satir('2026220901001');
     await ac([
       { ...a, tahsilat: tahsilat(a, 'aaaaaaaa-0000-5000-8000-000000000001') },
@@ -209,17 +213,17 @@ describe('KiraListesi sayfası', () => {
     ]);
 
     expect(dugme(/Tahsil et/)).toHaveLength(1);
-    expect(baglanti(/Excel/)).toHaveLength(0);
-    expect(baglanti(/PDF/).filter((x) => x.getAttribute('href')?.endsWith('/pdf'))).toHaveLength(0);
-    expect(baglanti(/Yeni kira/)).toHaveLength(0);
+    expect(link(/Excel/)).toHaveLength(0);
+    expect(link(/PDF/).filter((x) => x.getAttribute('href')?.endsWith('/pdf'))).toHaveLength(0);
+    expect(link(/Yeni kira/)).toHaveLength(0);
     expect(dugme(/İptal/)).toHaveLength(0);
   });
 
   it('Tahsil Et 2xx → panel kapanır, liste ve özet YENİDEN yüklenir (yeni anahtar gelir)', async () => {
-    const { ac, dugme, bekle, kok, listeIstegi } = await kur(['FinanceWrite']);
+    const { ac, dugme, bekle, kok, listeIstegi } = await exchangeRate(['FinanceWrite']);
     const a = satir('2026220901001');
-    const anahtar = 'aaaaaaaa-0000-5000-8000-000000000001';
-    await ac([{ ...a, tahsilat: tahsilat(a, anahtar) }]);
+    const key = 'aaaaaaaa-0000-5000-8000-000000000001';
+    await ac([{ ...a, tahsilat: tahsilat(a, key) }]);
 
     dugme(/Tahsil et/)[0]?.click();
     await bekle();
@@ -231,79 +235,79 @@ describe('KiraListesi sayfası', () => {
       .querySelector('rc-kira-tahsil-paneli form')
       ?.dispatchEvent(new Event('submit', { cancelable: true }));
     await bekle();
-    const istek = http.expectOne('/api/ui/v1/finans/tahsilat');
-    expect(istek.request.body.tahsilatAnahtar).toBe(anahtar);
+    const request = http.expectOne('/api/ui/v1/finans/tahsilat');
+    expect(request.request.body.tahsilatAnahtar).toBe(key);
     // Uçarken satırın "Tahsil et" düğmesi de kilitli (başka satır açılıp istek iptal edilemez).
     expect(dugme(/Tahsil et/).every((d) => d.disabled)).toBe(true);
-    istek.flush({ id: 'x' });
+    request.flush({ id: 'x' });
     await bekle();
 
     expect(kok.querySelector('rc-kira-tahsil-paneli')).toBeNull();
-    http.expectOne((r) => r.url === OZET).flush({ toplam: 1, kirada: 1, faturasiz: 1 });
+    http.expectOne((r) => r.url === SUMMARY).flush({ toplam: 1, kirada: 1, faturasiz: 1 });
     listeIstegi().flush(sayfa([{ ...a, bakiye: 0 }]));
     await bekle();
     expect(dugme(/Tahsil et/)).toHaveLength(0);
   });
 
   it('açık panelin satırı yeni anahtarla gelirse panel kapanır (bayat anahtarla gönderim yok)', async () => {
-    const { ac, dugme, bekle, kok, listeIstegi } = await kur(['FinanceWrite']);
+    const { ac, dugme: button, bekle, kok, listeIstegi } = await exchangeRate(['FinanceWrite']);
     const a = satir('2026220901001');
     await ac([{ ...a, tahsilat: tahsilat(a, 'aaaaaaaa-0000-5000-8000-000000000001') }]);
-    dugme(/Tahsil et/)[0]?.click();
+    button(/Tahsil et/)[0]?.click();
     await bekle();
     http.expectOne('/api/ui/v1/finans/hesaplar').flush([]);
     await bekle();
 
     await TestBed.inject(Router).navigate([], { queryParams: { durum: 'Kirada' } });
     await bekle();
-    http.expectOne((r) => r.url === OZET).flush({ toplam: 1, kirada: 1, faturasiz: 1 });
-    const yeni = listeIstegi();
-    expect(yeni.request.params.get('durum')).toBe('Kirada');
-    yeni.flush(sayfa([{ ...a, tahsilat: tahsilat(a, 'bbbbbbbb-0000-5000-8000-000000000002') }]));
+    http.expectOne((r) => r.url === SUMMARY).flush({ toplam: 1, kirada: 1, faturasiz: 1 });
+    const newItem = listeIstegi();
+    expect(newItem.request.params.get('durum')).toBe('Kirada');
+    newItem.flush(sayfa([{ ...a, tahsilat: tahsilat(a, 'bbbbbbbb-0000-5000-8000-000000000002') }]));
     await bekle();
 
     expect(kok.querySelector('rc-kira-tahsil-paneli')).toBeNull();
-    expect(toast.toastlar()).toEqual([
+    expect(toast.toasts()).toEqual([
       expect.objectContaining({ durum: 'uyari', mesaj: expect.stringContaining('2026220901001') }),
     ]);
   });
 
   it('süzgeç formu URL’e yazar; API aynı adlarla (sayfa 1’e dönerek) çağrılır', async () => {
-    const { ac, bekle, kok, listeIstegi } = await kur(['OperationsWrite', 'FinanceWrite']);
+    const { ac, bekle, kok, listeIstegi } = await exchangeRate(['OperationsWrite', 'FinanceWrite']);
     await ac([satir('2026220901001')]);
 
-    const ara = kok.querySelector<HTMLInputElement>('rc-metin-girdisi input');
-    if (ara === null) throw new Error('arama kutusu yok');
-    ara.value = 'Yılmaz';
-    ara.dispatchEvent(new Event('input'));
+    const search = kok.querySelector<HTMLInputElement>('rc-metin-girdisi input');
+    if (search === null) throw new Error('arama kutusu yok');
+    search.value = 'Yılmaz';
+    search.dispatchEvent(new Event('input'));
     kok.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
     await bekle();
 
-    http.expectOne((r) => r.url === OZET).flush({ toplam: 1, kirada: 1, faturasiz: 1 });
-    const istek = listeIstegi();
-    expect(istek.request.params.get('q')).toBe('Yılmaz');
-    expect(istek.request.params.get('sayfa')).toBe('1');
-    expect(istek.request.params.has('sirala')).toBe(false);
-    istek.flush(sayfa([]));
+    http.expectOne((r) => r.url === SUMMARY).flush({ toplam: 1, kirada: 1, faturasiz: 1 });
+    const request = listeIstegi();
+    expect(request.request.params.get('q')).toBe('Yılmaz');
+    expect(request.request.params.get('sayfa')).toBe('1');
+    expect(request.request.params.has('sirala')).toBe(false);
+    request.flush(sayfa([]));
     await bekle();
     expect(TestBed.inject(Router).url).toContain('q=Y%C4%B1lmaz');
   });
   it('?gorunum= ön ayarı mevcut süzgeçlere çevrilir; süzgeç değişince görünüm URL’den düşer', async () => {
-    const { ac, bekle, kok, listeIstegi } = await kur(['OperationsWrite']);
-    await ac([satir('2026220901001')]);
+    const { ac: open, bekle, kok, listeIstegi } = await exchangeRate(['OperationsWrite']);
+    await open([satir('2026220901001')]);
     const router = TestBed.inject(Router);
 
     // Kenar çubuğu bağlantısı yalnız `gorunum` taşır → liste ön ayarı (durum=Kirada) uygular.
     await router.navigateByUrl('/?gorunum=kirada');
     await bekle();
-    http.expectOne((r) => r.url === OZET).flush({ toplam: 1, kirada: 1, faturasiz: 1 });
-    const istek = listeIstegi();
-    expect(istek.request.params.get('durum')).toBe('Kirada');
-    istek.flush(sayfa([satir('2026220901001')]));
+    http.expectOne((r) => r.url === SUMMARY).flush({ toplam: 1, kirada: 1, faturasiz: 1 });
+    const request = listeIstegi();
+    expect(request.request.params.get('durum')).toBe('Kirada');
+    request.flush(sayfa([satir('2026220901001')]));
     await bekle();
     expect(router.url).toBe('/?gorunum=kirada&durum=Kirada');
-    const aktif = kok.querySelector('rc-gorunum-cipleri [aria-current="page"]');
-    expect(aktif?.textContent).toContain('Kiradaki araçlar');
+    const active = kok.querySelector('rc-gorunum-cipleri [aria-current="page"]');
+    expect(active?.textContent).toContain('Kiradaki araçlar');
     // Bant pill'i etkin görünümü ve kayıt sayısını söyler.
     expect(kok.querySelector('rc-sayfa-bandi')?.textContent).toContain(
       'Kiradaki araçlar · 1 kayıt',
@@ -312,7 +316,7 @@ describe('KiraListesi sayfası', () => {
     // Kullanıcı süzgeci değiştirir → görünüm artık o değil: `gorunum` düşer, süzgeç kalır.
     await router.navigateByUrl('/?gorunum=kirada&durum=Tamamlandi');
     await bekle();
-    http.expectOne((r) => r.url === OZET).flush({ toplam: 0, kirada: 0, faturasiz: 0 });
+    http.expectOne((r) => r.url === SUMMARY).flush({ toplam: 0, kirada: 0, faturasiz: 0 });
     listeIstegi().flush(sayfa([]));
     await bekle();
     expect(router.url).toBe('/?durum=Tamamlandi');

@@ -15,13 +15,13 @@ import {
 } from './document-requests';
 
 /** Beklenen değerler elle yazıldı (bağımsız oracle); gövde kurucularının kendisinden türetilmez. */
-const CARI = { id: 'c0c0c0c0-0000-4000-8000-000000000001', etiket: 'Ayşe Yılmaz' };
-const ARAC = { id: 'a1a1a1a1-0000-4000-8000-000000000001', etiket: '34ABC123' };
+const ACCOUNT = { id: 'c0c0c0c0-0000-4000-8000-000000000001', etiket: 'Ayşe Yılmaz' };
+const VEHICLE = { id: 'a1a1a1a1-0000-4000-8000-000000000001', etiket: '34ABC123' };
 
 describe('finans belge gövdeleri', () => {
   it('manuel fatura: tutar invariant metin AYNEN, KDV istemcide hesaplanmaz, gün İstanbul gece yarısı', () => {
     const v: ManualInvoiceForm = {
-      cari: CARI,
+      cari: ACCOUNT,
       netTutar: '1500.50',
       kdvOrani: '0.20',
       tarih: '2026-09-01',
@@ -40,7 +40,7 @@ describe('finans belge gövdeleri', () => {
     };
     const body = manualInvoiceRequest(v);
     expect(body).toEqual({
-      cariId: CARI.id,
+      cariId: ACCOUNT.id,
       netTutar: '1500.50',
       kdvOrani: '0.20',
       aciklama: 'Hasar bedeli',
@@ -71,7 +71,7 @@ describe('finans belge gövdeleri', () => {
       cepTel: null,
       makbuzNo: null,
       islemSube: null,
-      arac: ARAC,
+      arac: VEHICLE,
       cari: null,
       sebep: null,
       kalemler: [
@@ -86,7 +86,7 @@ describe('finans belge gövdeleri', () => {
       { tutar: '900', sebep: 'Hız' },
       { tutar: '250.75', sebep: null },
     ]);
-    expect(body).toMatchObject({ cezaTuru: 'Hız', aracId: ARAC.id, cariId: null, kiraId: null });
+    expect(body).toMatchObject({ cezaTuru: 'Hız', aracId: VEHICLE.id, cariId: null, kiraId: null });
   });
 
   it('ceza ödemesi: boş tutar null gider (kalemin kalanı SUNUCUDA)', () => {
@@ -114,8 +114,8 @@ describe('finans belge gövdeleri', () => {
   it('gider: boş kur null (sunucu çözer), açık kur aynen', () => {
     const base: ExpenseForm = {
       tip: 'Arac',
-      arac: ARAC,
-      cari: CARI,
+      arac: VEHICLE,
+      cari: ACCOUNT,
       kira: null,
       netTutar: '1000',
       kdvOrani: '0.20',
@@ -138,16 +138,18 @@ describe('finans belge gövdeleri', () => {
       odemeYontemi: 'AcikHesap',
       doviz: 'EUR',
       kur: null,
-      aracId: ARAC.id,
-      cariId: CARI.id,
+      aracId: VEHICLE.id,
+      cariId: ACCOUNT.id,
       kiraId: null,
       sube: 'Merkez',
       vade: '2026-10-14T21:00:00.000Z',
     });
     expect(expenseRequest({ ...base, kur: '35.1234' }).kur).toBe('35.1234');
     // Sözleşme alanı (#300): seçilen kiranın kimliği gider; etiket gövdeye girmez.
-    const kira = { id: 'b2b2b2b2-0000-4000-8000-000000000001', etiket: 'K-100 — 34ABC123' };
-    expect(expenseRequest({ ...base, kira }).kiraId).toBe('b2b2b2b2-0000-4000-8000-000000000001');
+    const rental = { id: 'b2b2b2b2-0000-4000-8000-000000000001', etiket: 'K-100 — 34ABC123' };
+    expect(expenseRequest({ ...base, kira: rental }).kiraId).toBe(
+      'b2b2b2b2-0000-4000-8000-000000000001',
+    );
     expect(
       expensePaymentRequest({ tutar: null, tarih: null, makbuzNo: null, aciklama: null }),
     ).toEqual({ tutar: null, tarih: null, makbuzNo: null, aciklama: null });
@@ -177,8 +179,8 @@ describe('finans belge gövdeleri', () => {
       aracId: null,
       plaka: null,
       giderKategoriId: 'k0k0k0k0-0000-4000-8000-000000000001',
-      cariId: CARI.id,
-      cariAd: CARI.etiket,
+      cariId: ACCOUNT.id,
+      cariAd: ACCOUNT.etiket,
       giderTipi: null,
       giderlestirildi: false,
       giderlestirilmeTarihi: null,
@@ -200,7 +202,7 @@ describe('finans belge gövdeleri', () => {
       kdv0Matrah: null,
       aracId: null,
       giderKategoriId: null,
-      cariId: CARI.id,
+      cariId: ACCOUNT.id,
       giderTipi: null,
     });
   });

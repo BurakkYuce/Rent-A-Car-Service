@@ -16,8 +16,8 @@ export function identityOfSession(ben: Pick<Ben, 'kiraci' | 'kullanici'>): strin
  * tersine çevirirdi (denemeler düşmez ya da hiç okunmaz).
  */
 export function contextOfSession(ben: Pick<Ben, 'kiraci' | 'kullanici' | 'subeKapsami'>): string {
-  const sube = ben.subeKapsami.tumSubeler ? '*' : (ben.subeKapsami.subeId ?? '-');
-  return `${identityOfSession(ben)}|${sube}`;
+  const branch = ben.subeKapsami.tumSubeler ? '*' : (ben.subeKapsami.subeId ?? '-');
+  return `${identityOfSession(ben)}|${branch}`;
 }
 
 /** {@link contextOfSession} anahtarının kimlik kısmı (kiracı|kullanıcı; şube hariç). */
@@ -41,7 +41,7 @@ export interface OturumBaglami {
  * O zamana kadar sabit, boş olmayan bir bağlam: sayfalar yüklenir, yetki sunucuda denetlenir
  * (oturum yoksa `oturum_yok`).
  */
-export const OTURUM_BAGLAMI = new InjectionToken<Signal<OturumBaglami | null>>('OTURUM_BAGLAMI', {
+export const SESSION_CONTEXT = new InjectionToken<Signal<OturumBaglami | null>>('OTURUM_BAGLAMI', {
   providedIn: 'root',
   factory: () => signal<OturumBaglami | null>({ anahtar: 'yer-tutucu' }).asReadonly(),
 });

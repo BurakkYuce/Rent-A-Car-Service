@@ -3,19 +3,19 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   apiGet,
   apiPost,
-  birMusteri,
-  GERCEK_YOK,
-  gir,
-  gunEkle,
-  gunYaz,
-  isoAy,
-  KOK,
-  musaitArac,
-  rastgeleBaslangic,
-  sec,
-  trGun,
+  oneCustomer,
+  NO_ACTUAL,
+  login,
+  addDays,
+  writeDay,
+  isoMonth,
+  ROOT,
+  availableVehicle,
+  randomStart,
+  select,
+  trDay,
 } from './gercek';
-import { hatalariTopla } from './ortak';
+import { collectErrors } from './ortak';
 import { ORTAM } from './ortam';
 
 /**
@@ -24,7 +24,7 @@ import { ORTAM } from './ortam';
  * penceresi takvimde 4 güne (başlangıç + 2 ara gün + dönüş sabahı) değer; kira formu aynı aracı ve günleri taşır.
  * Koşum: `RACAR_E2E_KOK` + `RACAR_E2E_SIFRE` (bkz. `ortam.ts`); yoksa atlanır.
  */
-test.skip(GERCEK_YOK, 'gerçek backend ortamı yok (RACAR_E2E_KOK / RACAR_E2E_SIFRE)');
+test.skip(NO_ACTUAL, 'gerçek backend ortamı yok (RACAR_E2E_KOK / RACAR_E2E_SIFRE)');
 test.describe.configure({ mode: 'serial' });
 
 const AG = [/Failed to load resource: the server responded with a status of 4\d\d/];
@@ -42,98 +42,109 @@ async function rezervasyon(page: Page, id: string): Promise<RezOzeti> {
     .rezervasyon;
 }
 
-async function takvimHucreleri(page: Page, ay: string, plaka: string, tur: 'Rezervasyon' | 'Kira') {
-  await page.goto(`${KOK}/app/takvim?ay=${ay}&plaka=${encodeURIComponent(plaka)}`);
-  const izgara = page.locator('.izgara-kap');
-  await expect(izgara).toHaveAttribute('aria-busy', 'false');
-  await expect(page.getByRole('link', { name: new RegExp(`^${plaka}`) })).toBeVisible();
-  return page.getByTitle(`${plaka} — ${tur}`, { exact: true });
+async function calendarCells(
+  page: Page,
+  month: string,
+  plate: string,
+  type: 'Rezervasyon' | 'Kira',
+) {
+  await page.goto(`${ROOT}/app/takvim?ay=${month}&plaka=${encodeURIComponent(plate)}`);
+  const grid = page.locator('.izgara-kap');
+  await expect(grid).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('link', { name: new RegExp(`^${plate}`) })).toBeVisible();
+  return page.getByTitle(`${plate} — ${type}`, { exact: true });
 }
 
 test('rezervasyon: oluştur → onayla → takvimde R (4 gün) → kiraya çevir → SPA kira formu aynı araç ve günlerle', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG);
-  await gir(page, ORTAM.gercekAdmin);
-  const bas = rastgeleBaslangic();
-  const bit = gunEkle(bas, 3);
-  const arac = await musaitArac(page, bas);
-  const musteri = await birMusteri(page);
-  const proje = `E2E-F53-${Date.now()}`;
+  const errors = collectErrors(page, AG);
+  await login(page, ORTAM.gercekAdmin);
+  const start = randomStart();
+  const bit = addDays(start, 3);
+  const vehicle = await availableVehicle(page, start);
+  const customer = await oneCustomer(page);
+  const project = `E2E-F53-${Date.now()}`;
 
-  await page.goto(`${KOK}/app/rezervasyonlar/yeni`);
+  await page.goto(`${ROOT}/app/rezervasyonlar/yeni`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni Rezervasyon');
-  await sec(page, 'Müşteri', musteri.etiket.slice(0, 4), musteri.etiket);
-  await sec(page, 'Araç', arac.plaka, new RegExp(`^${arac.plaka}`));
-  await gunYaz(page, 'Başlangıç', bas);
-  await gunYaz(page, 'Bitiş', bit);
+  await select(page, 'Müşteri', customer.etiket.slice(0, 4), customer.etiket);
+  await select(page, 'Araç', vehicle.plaka, new RegExp(`^${vehicle.plaka}`));
+  await writeDay(page, 'Başlangıç', start);
+  await writeDay(page, 'Bitiş', bit);
   await page.getByLabel('Günlük ücret').fill('1000');
-  await page.getByLabel('Proje adı').fill(proje);
+  await page.getByLabel('Proje adı').fill(project);
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
 
   await expect(page).toHaveURL(/\/app\/rezervasyonlar\/[0-9a-f-]{36}$/);
-  const rezId = page.url().split('/').pop()!;
+  const resId = page.url().split('/').pop()!;
   await expect(page.getByTestId('rez-durum')).toHaveText('Rezerv');
-  const detay = await rezervasyon(page, rezId);
-  expect(detay).toMatchObject({ vehicleId: arac.id, musteriId: musteri.id });
-  expect(Number(detay.gun)).toBe(3); // 09:00 → +3 gün 09:00
+  const detail = await rezervasyon(page, resId);
+  expect(detail).toMatchObject({ vehicleId: vehicle.id, musteriId: customer.id });
+  expect(Number(detail.gun)).toBe(3); // 09:00 → +3 gün 09:00
 
   // Liste: Blazor ile aynı süzgeç (ara = proje adı değil; Rez No/müşteri/plaka) — plaka ile bulunur, durum Rezerv.
-  await page.goto(`${KOK}/app/rezervasyonlar?q=${arac.plaka}`);
-  await expect(page.getByRole('gridcell', { name: proje })).toBeVisible();
+  await page.goto(`${ROOT}/app/rezervasyonlar?q=${vehicle.plaka}`);
+  await expect(page.getByRole('gridcell', { name: project })).toBeVisible();
 
-  await page.goto(`${KOK}/app/rezervasyonlar/${rezId}`);
+  await page.goto(`${ROOT}/app/rezervasyonlar/${resId}`);
   await page.getByRole('button', { name: 'Onayla', exact: true }).click();
   await expect(page.getByTestId('rez-durum')).toHaveText('Onaylı');
 
   // Takvim: sunucu doluluğu — pencere 4 takvim gününe dokunur (bas 09:00 … bit 09:00, yarı açık gün kesişimi).
-  const rHucreleri = await takvimHucreleri(page, isoAy(bas), arac.plaka, 'Rezervasyon');
-  await expect(rHucreleri).toHaveCount(4);
+  const rCells = await calendarCells(page, isoMonth(start), vehicle.plaka, 'Rezervasyon');
+  await expect(rCells).toHaveCount(4);
   // Plaka bağlantısı → kira formu ?varac= (F4.3 sözleşmesi) ve form aracı dolu açar.
-  const plakaBag = page.getByRole('link', { name: new RegExp(`^${arac.plaka}`) });
-  await expect(plakaBag).toHaveAttribute('href', `/app/kiralar/yeni?varac=${arac.id}`);
-  await plakaBag.click();
-  await expect(page).toHaveURL(new RegExp(`/app/kiralar/yeni\\?varac=${arac.id}$`));
-  const hizli = page.locator('[data-rc-sekme="hizli"]');
-  await expect(hizli.getByLabel('Araç', { exact: true })).toHaveValue(new RegExp(`^${arac.plaka}`));
+  const plateLink = page.getByRole('link', { name: new RegExp(`^${vehicle.plaka}`) });
+  await expect(plateLink).toHaveAttribute('href', `/app/kiralar/yeni?varac=${vehicle.id}`);
+  await plateLink.click();
+  await expect(page).toHaveURL(new RegExp(`/app/kiralar/yeni\\?varac=${vehicle.id}$`));
+  const quick = page.locator('[data-rc-sekme="hizli"]');
+  await expect(quick.getByLabel('Araç', { exact: true })).toHaveValue(
+    new RegExp(`^${vehicle.plaka}`),
+  );
 
   // Kiraya çevir (onaylı) → SPA kira formu; kira aynı araç + aynı günler.
-  await page.goto(`${KOK}/app/rezervasyonlar/${rezId}`);
+  await page.goto(`${ROOT}/app/rezervasyonlar/${resId}`);
   await page.getByRole('button', { name: 'Kiraya çevir', exact: true }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Kiraya çevir' }).click();
   await expect(page).toHaveURL(/\/app\/kiralar\/[0-9a-f-]{36}$/);
-  const kiraId = page.url().split('/').pop()!;
-  await expect(hizli.getByLabel('Araç', { exact: true })).toHaveValue(new RegExp(`^${arac.plaka}`));
-  await expect(hizli.getByLabel('Başlangıç', { exact: true })).toHaveValue(trGun(bas));
-  await expect(hizli.getByLabel('Bitiş (beklenen)', { exact: true })).toHaveValue(trGun(bit));
+  const rentalId = page.url().split('/').pop()!;
+  await expect(quick.getByLabel('Araç', { exact: true })).toHaveValue(
+    new RegExp(`^${vehicle.plaka}`),
+  );
+  await expect(quick.getByLabel('Başlangıç', { exact: true })).toHaveValue(trDay(start));
+  await expect(quick.getByLabel('Bitiş (beklenen)', { exact: true })).toHaveValue(trDay(bit));
 
   // Rezervasyon kiraya bağlandı; takvimde artık R yok (kira teslim edilmeden K da yok — Kirada değil).
-  const rez = await rezervasyon(page, rezId);
-  expect(rez).toMatchObject({ durum: 'KirayaCevrildi', kiraId });
-  await expect(await takvimHucreleri(page, isoAy(bas), arac.plaka, 'Rezervasyon')).toHaveCount(0);
+  const res = await rezervasyon(page, resId);
+  expect(res).toMatchObject({ durum: 'KirayaCevrildi', kiraId: rentalId });
+  await expect(
+    await calendarCells(page, isoMonth(start), vehicle.plaka, 'Rezervasyon'),
+  ).toHaveCount(0);
 
   // Temizlik: kira iptal (silme yok).
-  const iptal = await apiPost(page, `/api/ui/v1/kiralar/${kiraId}/iptal`, {});
-  expect(iptal.ok(), `kira iptal: ${iptal.status()} ${await iptal.text()}`).toBe(true);
-  expect(hatalar).toEqual([]);
+  const cancel = await apiPost(page, `/api/ui/v1/kiralar/${rentalId}/iptal`, {});
+  expect(cancel.ok(), `kira iptal: ${cancel.status()} ${await cancel.text()}`).toBe(true);
+  expect(errors).toEqual([]);
 });
 
 test('teklif: oluştur → gönder → kabul → rezervasyon (aynı müşteri/araç/pencere), kabul sonrası eylem yok', async ({
   page,
 }) => {
-  const hatalar = hatalariTopla(page, AG);
-  await gir(page, ORTAM.gercekAdmin);
-  const bas = rastgeleBaslangic();
-  const bit = gunEkle(bas, 3);
-  const arac = await musaitArac(page, bas);
-  const musteri = await birMusteri(page);
+  const errors = collectErrors(page, AG);
+  await login(page, ORTAM.gercekAdmin);
+  const start = randomStart();
+  const bit = addDays(start, 3);
+  const vehicle = await availableVehicle(page, start);
+  const customer = await oneCustomer(page);
 
-  await page.goto(`${KOK}/app/teklifler/yeni`);
+  await page.goto(`${ROOT}/app/teklifler/yeni`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yeni Teklif');
-  await sec(page, 'Müşteri', musteri.etiket.slice(0, 4), musteri.etiket);
-  await sec(page, 'Araç', arac.plaka, new RegExp(`^${arac.plaka}`));
-  await gunYaz(page, 'Başlangıç', bas);
-  await gunYaz(page, 'Bitiş', bit);
+  await select(page, 'Müşteri', customer.etiket.slice(0, 4), customer.etiket);
+  await select(page, 'Araç', vehicle.plaka, new RegExp(`^${vehicle.plaka}`));
+  await writeDay(page, 'Başlangıç', start);
+  await writeDay(page, 'Bitiş', bit);
   await page.getByLabel('Günlük ücret').fill('900');
   await page.getByRole('button', { name: 'Teklif oluştur' }).click();
   await expect(page).toHaveURL(/\/app\/teklifler\/[0-9a-f-]{36}$/);
@@ -149,13 +160,13 @@ test('teklif: oluştur → gönder → kabul → rezervasyon (aynı müşteri/ar
 
   await page.getByRole('link', { name: 'Rezervasyonu aç' }).click();
   await expect(page).toHaveURL(/\/app\/rezervasyonlar\/[0-9a-f-]{36}$/);
-  const rezId = page.url().split('/').pop()!;
-  const rez = await rezervasyon(page, rezId);
-  expect(rez).toMatchObject({ vehicleId: arac.id, musteriId: musteri.id });
-  expect(Number(rez.gun)).toBe(3);
+  const resId = page.url().split('/').pop()!;
+  const res = await rezervasyon(page, resId);
+  expect(res).toMatchObject({ vehicleId: vehicle.id, musteriId: customer.id });
+  expect(Number(res.gun)).toBe(3);
 
   // Temizlik: rezervasyon iptal (OperationsDelete — Admin).
-  const iptal = await apiPost(page, `/api/ui/v1/rezervasyonlar/${rezId}/iptal`);
-  expect(iptal.ok(), `rez iptal: ${iptal.status()} ${await iptal.text()}`).toBe(true);
-  expect(hatalar).toEqual([]);
+  const cancel = await apiPost(page, `/api/ui/v1/rezervasyonlar/${resId}/iptal`);
+  expect(cancel.ok(), `rez iptal: ${cancel.status()} ${await cancel.text()}`).toBe(true);
+  expect(errors).toEqual([]);
 });

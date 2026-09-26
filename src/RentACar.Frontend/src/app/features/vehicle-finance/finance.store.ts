@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
 import type { Sayfa } from '@core/api/sayfa';
-import type { FinansHesapOgesi } from '@core/api/ui-tipleri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import type { FinanceAccountItem } from '@core/api/ui-tipleri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
 
 import type {
@@ -36,7 +36,7 @@ export function recordPath<B extends `/api/ui/v1/${string}`>(
 }
 
 /** Filtre parametrelerinden sayfalama/sıralama düşer (özet kartları aynı süzgeçle, sayfasız). */
-export function withoutPaging(p: SorguParametreleri): SorguParametreleri {
+export function withoutPaging(p: QueryParameters): QueryParameters {
   return Object.fromEntries(
     Object.entries(p).filter(([name]) => name !== 'sayfa' && name !== 'boyut' && name !== 'sirala'),
   );
@@ -47,13 +47,13 @@ export class LoanListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<LoanRow>>(LOANS, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<LoanRow>>(LOANS, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 
   /** Liste üstü 5 özet kart (filtreli küme; iptal hariç) — salt gösterge. */
   readonly board = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<LoanBoard>(`${LOANS}/ozet`, { parametreler: withoutPaging(p) }),
     { oncekiVeriyiKoru: true },
   );
@@ -72,8 +72,8 @@ export class LoanDetailStore {
 
   /** Aktif kasa/banka hesapları (seçim isteğe bağlı; hata sessiz — seçici görünmez, tür yine seçilir). */
   readonly accounts = new TemelStore(() =>
-    this.api.get<readonly FinansHesapOgesi[]>('/api/ui/v1/finans/hesaplar', {
-      context: istekBaglami({ sessiz: true }),
+    this.api.get<readonly FinanceAccountItem[]>('/api/ui/v1/finans/hesaplar', {
+      context: requestContext({ sessiz: true }),
     }),
   );
 }
@@ -83,13 +83,13 @@ export class CustomerInstallmentStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<Sayfa<CustomerInstallment>>(CUSTOMER_INSTALLMENTS, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 
   readonly summary = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<CustomerInstallmentSummary>(`${CUSTOMER_INSTALLMENTS}/ozet`, {
         parametreler: withoutPaging(p),
       }),
@@ -102,7 +102,7 @@ export class OrderListStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<OrderRow>>(ORDERS, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<OrderRow>>(ORDERS, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 
@@ -110,7 +110,7 @@ export class OrderListStore {
   readonly loans = new TemelStore(() =>
     this.api.get<Sayfa<LoanRow>>(LOANS, {
       parametreler: { boyut: 200 },
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
 }
@@ -129,7 +129,7 @@ export class OrderFormStore {
   readonly loans = new TemelStore(() =>
     this.api.get<Sayfa<LoanRow>>(LOANS, {
       parametreler: { boyut: 200 },
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
 
@@ -137,7 +137,7 @@ export class OrderFormStore {
   readonly suppliers = new TemelStore(() =>
     this.api.get<Sayfa<OrderRow>>(ORDERS, {
       parametreler: { boyut: 200 },
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
 }
@@ -147,7 +147,7 @@ export class AllocationStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<Allocation>>(ALLOCATIONS, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<Allocation>>(ALLOCATIONS, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 }
@@ -157,7 +157,7 @@ export class DamageFileStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<DamageFile>>(DAMAGE_FILES, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<DamageFile>>(DAMAGE_FILES, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 }
@@ -167,7 +167,7 @@ export class FleetPlanStore {
   private readonly api = inject(ApiIstemcisi);
 
   readonly list = new TemelStore(
-    (p: SorguParametreleri) => this.api.get<Sayfa<FleetPlan>>(FLEET_PLANS, { parametreler: p }),
+    (p: QueryParameters) => this.api.get<Sayfa<FleetPlan>>(FLEET_PLANS, { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
 }

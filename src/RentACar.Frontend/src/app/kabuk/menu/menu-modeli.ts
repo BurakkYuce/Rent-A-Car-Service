@@ -1,11 +1,11 @@
-import type { MenuYaniti } from '@core/api/ui-tipleri';
-import { trAramaAnahtari } from '@core/metin/tr-normalize';
+import type { MenuResponse } from '@core/api/ui-tipleri';
+import { trSearchKey } from '@core/metin/tr-normalize';
 
 /** `GET /api/ui/v1/menu` öğesi (sunucu izin ve modüle göre süzmüş olarak gönderir). */
-export type MenuOgesi = MenuYaniti['ogeler'][number];
+export type MenuItem = MenuResponse['ogeler'][number];
 
 /** SPA sayfası (router) ya da Blazor ekranı (tam sayfa, `/app` dışı). */
-export type MenuHedefi =
+export type MenuTarget =
   | { readonly tur: 'spa'; readonly yol: string }
   | { readonly tur: 'blazor'; readonly adres: string };
 
@@ -17,13 +17,13 @@ export interface MenuKaydi {
   readonly sira: number;
   readonly hizli: boolean;
   readonly rozetKodu: string | null;
-  readonly hedef: MenuHedefi;
+  readonly hedef: MenuTarget;
   /** `trAramaAnahtari(etiket)`. */
   readonly aramaEtiketi: string;
   readonly aramaGrubu: string;
 }
 
-export type MenuBlogu =
+export type MenuBlock =
   | { readonly tur: 'oge'; readonly kayit: MenuKaydi }
   | { readonly tur: 'grup'; readonly ad: string; readonly kayitlar: readonly MenuKaydi[] };
 
@@ -31,7 +31,7 @@ export interface MenuModeli {
   /** Hızlı bağlantılar (menünün üstünde). */
   readonly hizli: readonly MenuKaydi[];
   /** Gruplar ve grupsuz öğeler, `sira` düzeninde (grup ilk öğesinin sırasıyla yer alır). */
-  readonly bloklar: readonly MenuBlogu[];
+  readonly bloklar: readonly MenuBlock[];
   /** Tüm öğeler (palet araması), `sira` düzeninde. */
   readonly tumu: readonly MenuKaydi[];
   /** Rozet kodu → sayaç. */
@@ -39,68 +39,70 @@ export interface MenuModeli {
 }
 
 /** Menü kaydında `sahip` değerleri. Bilinmeyen sahip Blazor sayılır (tam sayfa — güvenli varsayılan). */
-export const SAHIP_SPA = 'spa';
+export const OWNER_SPA = 'spa';
 
 /** SPA'nın kök yolu; `spa` öğesinin rotası bu önekle de gelebilir. */
-const SPA_ONEKI = '/app';
+const SPA_PREFIX = '/app';
 
 /**
  * Öğenin hedefi. Rota yalnız kök-göreli yol olabilir (`/` ile başlar, `//` ya da `\` içermez — açık
  * yönlendirme kapısı kapalı); değilse öğe gösterilmez (`null`). `spa` rotası router yoludur (`/kiralar`,
  * `/app/kiralar` da kabul); Blazor rotası sunucudaki adresidir, olduğu gibi açılır.
  */
-export function menuHedefi(oge: Pick<MenuOgesi, 'rota' | 'sahip'>): MenuHedefi | null {
-  const rota = oge.rota.trim();
-  if (!rota.startsWith('/') || rota.startsWith('//') || rota.includes('\\')) return null;
-  if (oge.sahip !== SAHIP_SPA) return { tur: 'blazor', adres: rota };
-  const yol =
-    rota === SPA_ONEKI || rota.startsWith(`${SPA_ONEKI}/`) ? rota.slice(SPA_ONEKI.length) : rota;
-  return { tur: 'spa', yol: yol || '/' };
+export function menuTarget(oge: Pick<MenuItem, 'rota' | 'sahip'>): MenuTarget | null {
+  const route = oge.rota.trim();
+  if (!route.startsWith('/') || route.startsWith('//') || route.includes('\\')) return null;
+  if (oge.sahip !== OWNER_SPA) return { tur: 'blazor', adres: route };
+  const path =
+    route === SPA_PREFIX || route.startsWith(`${SPA_PREFIX}/`)
+      ? route.slice(SPA_PREFIX.length)
+      : route;
+  return { tur: 'spa', yol: path || '/' };
 }
 
 /** Sunucu yanıtından menü modeli. Süzme YAPMAZ: görünürlük (izin, modül) sunucunun kararıdır. */
-export function menuModeliKur(yanit: MenuYaniti): MenuModeli {
-  const tumu: MenuKaydi[] = [];
-  yanit.ogeler.forEach((oge, sira) => {
-    const hedef = menuHedefi(oge);
-    if (!hedef) return;
-    tumu.push({
-      kimlik: `m${sira}`,
+export function buildMenuModel(response: MenuResponse): MenuModeli {
+  const all: MenuKaydi[] = [];
+  response.ogeler.forEach((oge, order) => {
+    const target = menuTarget(oge);
+    if (!target) return;
+    all.push({
+      kimlik: `m${order}`,
       etiket: oge.etiket,
       grup: oge.grup,
       sira: Number(oge.sira),
       hizli: oge.hizliBaglanti,
       rozetKodu: oge.rozetKodu,
-      hedef,
-      aramaEtiketi: trAramaAnahtari(oge.etiket),
-      aramaGrubu: trAramaAnahtari(oge.grup),
+      hedef: target,
+      aramaEtiketi: trSearchKey(oge.etiket),
+      aramaGrubu: trSearchKey(oge.grup),
     });
   });
-  tumu.sort((a, b) => a.sira - b.sira);
+  all.sort((a, b) => a.sira - b.sira);
 
-  const bloklar: MenuBlogu[] = [];
-  const gruplar = new Map<string, MenuKaydi[]>();
-  for (const kayit of tumu) {
-    if (kayit.hizli) continue;
-    if (kayit.grup === '') {
-      bloklar.push({ tur: 'oge', kayit });
+  const blocks: MenuBlock[] = [];
+  const groups = new Map<string, MenuKaydi[]>();
+  for (const record of all) {
+    if (record.hizli) continue;
+    if (record.grup === '') {
+      blocks.push({ tur: 'oge', kayit: record });
       continue;
     }
-    let grup = gruplar.get(kayit.grup);
-    if (!grup) {
-      grup = [];
-      gruplar.set(kayit.grup, grup);
-      bloklar.push({ tur: 'grup', ad: kayit.grup, kayitlar: grup });
+    let group = groups.get(record.grup);
+    if (!group) {
+      group = [];
+      groups.set(record.grup, group);
+      blocks.push({ tur: 'grup', ad: record.grup, kayitlar: group });
     }
-    grup.push(kayit);
+    group.push(record);
   }
 
-  const rozetler = new Map<string, number>();
-  for (const [kod, sayi] of Object.entries(yanit.rozetler)) {
-    const deger = Number(sayi);
-    if (Number.isFinite(deger)) rozetler.set(kod, deger);
+  const badges = new Map<string, number>();
+  for (const [code, count] of Object.entries(response.rozetler)) {
+    const value = Number(count);
+    if (Number.isFinite(value)) badges.set(code, value);
   }
-  return { hizli: tumu.filter((k) => k.hizli), bloklar, tumu, rozetler };
+  return { hizli: all.filter((k) => k.hizli), bloklar: blocks, tumu: all, rozetler: badges };
 }
 
 /**
@@ -108,19 +110,20 @@ export function menuModeliKur(yanit: MenuYaniti): MenuModeli {
  * `/`-sınırlı önek (`/kiralar/5` → "Kiralar"). Ana sayfa (`/`) yalnız tam eşleşir. Hızlı bağlantı
  * yalnız başka eşleşme yoksa seçilir (aynı rota menüde de varsa işaret menüdekinde).
  */
-export function etkinKayit(model: MenuModeli, yol: string): MenuKaydi | null {
+export function activeEntry(model: MenuModeli, path: string): MenuKaydi | null {
   let enIyi: MenuKaydi | null = null;
-  let enIyiPuan = -1;
-  for (const kayit of model.tumu) {
-    if (kayit.hedef.tur !== 'spa') continue;
-    const rota = kayit.hedef.yol;
-    const eslesir =
-      yol === rota || (rota !== '/' && yol.startsWith(rota.endsWith('/') ? rota : `${rota}/`));
-    if (!eslesir) continue;
-    const puan = rota.length * 2 + (kayit.hizli ? 0 : 1);
-    if (puan > enIyiPuan) {
-      enIyi = kayit;
-      enIyiPuan = puan;
+  let bestScore = -1;
+  for (const record of model.tumu) {
+    if (record.hedef.tur !== 'spa') continue;
+    const route = record.hedef.yol;
+    const matches =
+      path === route ||
+      (route !== '/' && path.startsWith(route.endsWith('/') ? route : `${route}/`));
+    if (!matches) continue;
+    const score = route.length * 2 + (record.hizli ? 0 : 1);
+    if (score > bestScore) {
+      enIyi = record;
+      bestScore = score;
     }
   }
   return enIyi;
@@ -131,34 +134,38 @@ export function etkinKayit(model: MenuModeli, yol: string): MenuKaydi | null {
  * geçmeli. Sıra: etiket sorguyla başlıyor → etiketteki bir kelime başlıyor → etikette geçiyor →
  * yalnız grupta geçiyor; eşitlikte menü sırası. Aynı rota + etiket (iki grupta aynı ekran) tek sonuç.
  */
-export function menuAra(kayitlar: readonly MenuKaydi[], sorgu: string, enFazla = 50): MenuKaydi[] {
-  const anahtar = trAramaAnahtari(sorgu).replace(/\s+/g, ' ');
-  const kelimeler = anahtar.split(' ').filter(Boolean);
-  const gorulen = new Set<string>();
-  const puanli: { kayit: MenuKaydi; puan: number }[] = [];
-  for (const kayit of kayitlar) {
-    const tekil = `${hedefMetni(kayit.hedef)}|${kayit.aramaEtiketi}`;
-    if (gorulen.has(tekil)) continue;
-    const metin = `${kayit.aramaEtiketi} ${kayit.aramaGrubu}`;
-    if (!kelimeler.every((k) => metin.includes(k))) continue;
-    gorulen.add(tekil);
-    puanli.push({ kayit, puan: puan(kayit, anahtar) });
+export function searchMenu(
+  records: readonly MenuKaydi[],
+  query: string,
+  maximum = 50,
+): MenuKaydi[] {
+  const key = trSearchKey(query).replace(/\s+/g, ' ');
+  const words = key.split(' ').filter(Boolean);
+  const seen = new Set<string>();
+  const scored: { kayit: MenuKaydi; puan: number }[] = [];
+  for (const record of records) {
+    const unique = `${targetText(record.hedef)}|${record.aramaEtiketi}`;
+    if (seen.has(unique)) continue;
+    const text = `${record.aramaEtiketi} ${record.aramaGrubu}`;
+    if (!words.every((k) => text.includes(k))) continue;
+    seen.add(unique);
+    scored.push({ kayit: record, puan: score(record, key) });
   }
-  return puanli
+  return scored
     .sort((a, b) => a.puan - b.puan || a.kayit.sira - b.kayit.sira)
-    .slice(0, enFazla)
+    .slice(0, maximum)
     .map((p) => p.kayit);
 }
 
-function puan(kayit: MenuKaydi, anahtar: string): number {
-  if (!anahtar) return 0;
-  const etiket = kayit.aramaEtiketi;
-  if (etiket.startsWith(anahtar)) return 0;
-  if (etiket.includes(` ${anahtar}`) || etiket.includes(`-${anahtar}`)) return 1;
-  if (etiket.includes(anahtar)) return 2;
+function score(record: MenuKaydi, key: string): number {
+  if (!key) return 0;
+  const label = record.aramaEtiketi;
+  if (label.startsWith(key)) return 0;
+  if (label.includes(` ${key}`) || label.includes(`-${key}`)) return 1;
+  if (label.includes(key)) return 2;
   return 3;
 }
 
-function hedefMetni(hedef: MenuHedefi): string {
-  return hedef.tur === 'spa' ? `spa:${hedef.yol}` : `blazor:${hedef.adres}`;
+function targetText(target: MenuTarget): string {
+  return target.tur === 'spa' ? `spa:${target.yol}` : `blazor:${target.adres}`;
 }

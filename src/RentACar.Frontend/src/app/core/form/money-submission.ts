@@ -2,19 +2,19 @@ import { DestroyRef, type Signal, effect, inject, signal, untracked } from '@ang
 import type { AbstractControl, FormGroup } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 
-import { type ApiHatasi, apiHatasinaCevir } from '@core/api/api-hatasi';
-import { ApiIstemcisi, type ApiYolu } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { type ApiHatasi, toApiError } from '@core/api/api-hatasi';
+import { ApiIstemcisi, type ApiPath } from '@core/api/api-istemcisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import type { CeviriAnahtari } from '@core/i18n/ceviri-anahtarlari';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { requestContext } from '@core/oturum/request-context';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { SessionService } from '@core/oturum/session-service';
 import type { Ben } from '@core/oturum/oturum-tipleri';
-import { YenidenGirisServisi } from '@core/oturum/yeniden-giris-servisi';
+import { ReloginService } from '@core/oturum/relogin-service';
 
-import { yeniIslemAnahtari } from './gonderim-kilidi';
+import { newOperationKey } from './submit-lock';
 import {
   type MoneyAttempt,
   PendingMoneyAttempts,
@@ -31,12 +31,12 @@ import {
   customNotice,
   duplicateNotice,
 } from './money-notice';
-import { sunucuHatalariniTemizle, sunucuHatalariniUygula } from './sunucu-hatalari';
-import { sonucuBilinmeyenHata } from './tahsilat-denemesi';
+import { clearServerErrors, applyServerErrors } from './sunucu-hatalari';
+import { unknownOutcomeError } from './collection-attempt';
 
 /** Yeni bir para işleminin isteği (donmuş deneme YOKSA kurulur). */
 export interface MoneyRequest<TBody> {
-  readonly path: ApiYolu;
+  readonly path: ApiPath;
   readonly body: TBody;
   /** Anahtarın bağlı olduğu kayıt; başka kayda geçilince yeni anahtar. Varsayılan: kapsam. */
   readonly target?: string;
@@ -136,11 +136,11 @@ const RETRY_REJECTED_NOTICE = customNotice('paraIslemi.tekrarReddedildi');
 export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   private readonly api = inject(ApiIstemcisi);
   private readonly attempts = inject(PendingMoneyAttempts);
-  private readonly confirmService = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly session = inject(OturumServisi, { optional: true });
-  private readonly relogin = inject(YenidenGirisServisi, { optional: true });
-  private readonly t = ceviriFonksiyonu();
+  private readonly confirmService = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly session = inject(SessionService, { optional: true });
+  private readonly relogin = inject(ReloginService, { optional: true });
+  private readonly t = translationFunction();
   private readonly scope: () => string;
   private readonly restorable: boolean;
   private readonly newKey: () => string;
@@ -176,7 +176,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     const own = `money:${++instanceCounter}`;
     this.scope = config.scope ?? (() => own);
     this.restorable = config.scope !== undefined;
-    this.newKey = config.newKey ?? yeniIslemAnahtari;
+    this.newKey = config.newKey ?? newOperationKey;
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       // Geri getirilemeyen kapsam: kesinleşmemiş deneme kayıtta asılı kalmasın (uçuştaysa yanıt temizler).
@@ -221,7 +221,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
       this.send(frozen, o, true);
       return;
     }
-    sunucuHatalariniTemizle(o.form);
+    clearServerErrors(o.form);
     o.form.markAllAsTouched();
     if (o.form.invalid) {
       o.invalid?.();
@@ -283,7 +283,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
   /** Donmuş denemeden BİLİNÇLİ vazgeçiş (onaylı): kopya ve anahtar bırakılır, form açılır (`true`). */
   async abandon(): Promise<boolean> {
     if (this.sendingState() || this.frozenState() === null) return false;
-    const yes = await this.confirmService.sor({
+    const yes = await this.confirmService.ask({
       baslik: this.t('paraIslemi.vazgecBaslik'),
       mesaj: this.t('paraIslemi.vazgecMesaj'),
       tehlikeli: true,
@@ -320,7 +320,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     this.lock(o.form);
     const options = {
       islemAnahtari: attempt.key,
-      context: istekBaglami({ mukerrerCagiranGosterir: true }),
+      context: requestContext({ mukerrerCagiranGosterir: true }),
     };
     const request =
       attempt.method === 'put'
@@ -329,7 +329,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     // Bileşen yok edilse de istek İPTAL EDİLMEZ (takeUntilDestroyed yok): sonuç kaydı günceller.
     request.subscribe({
       next: (result) => this.succeeded(scope, attempt, result, o),
-      error: (raw: unknown) => this.failed(scope, attempt, apiHatasinaCevir(raw), o, retry),
+      error: (raw: unknown) => this.failed(scope, attempt, toApiError(raw), o, retry),
     });
   }
 
@@ -358,7 +358,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
     o: MoneyRunOptions<TBody, TResult>,
     retry: boolean,
   ): void {
-    const uncertain = sonucuBilinmeyenHata(error);
+    const uncertain = unknownOutcomeError(error);
     const duplicate = error.kod === 'mukerrer' ? classifyDuplicate(error) : null;
     const notice = duplicate
       ? duplicateNotice(error, attempt.content, this.config.recordedMessage)
@@ -402,7 +402,7 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
       o.settled?.('conflict'); // alansız cakisma bandı interceptor'da; form SİLİNMEZ
       return;
     }
-    const unmatched = sunucuHatalariniUygula(o.form, error.alanlar, o.fieldMap?.());
+    const unmatched = applyServerErrors(o.form, error.alanlar, o.fieldMap?.());
     if (error.alanlar === undefined && !genelGosterilir(error)) this.errorsState.set([error.detay]);
     else if (unmatched.length > 0) this.errorsState.set(unmatched);
     if (error.alanlar !== undefined) o.invalid?.();
@@ -473,11 +473,11 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
       try {
         ben = await firstValueFrom(
           this.api.get<Ben>('/api/ui/v1/oturum/ben', {
-            context: istekBaglami({ sessiz: true, yenidenGirisYok: true }),
+            context: requestContext({ sessiz: true, yenidenGirisYok: true }),
           }),
         );
       } catch (raw: unknown) {
-        if (apiHatasinaCevir(raw).kod === 'oturum_yok') return await this.reloginFor(attempt);
+        if (toApiError(raw).kod === 'oturum_yok') return await this.reloginFor(attempt);
         this.noticeState.set(SESSION_UNVERIFIED_NOTICE);
         return false;
       }
@@ -501,11 +501,11 @@ export class MoneySubmission<TBody = unknown> implements MoneySubmissionState {
    * bu yüzden sonuç diyalogun cevabına değil girişten sonraki `ben`'e göre verilir.
    */
   private async reloginFor(attempt: MoneyAttempt<TBody>): Promise<boolean> {
-    if (!this.relogin || !this.session?.girisYapildi()) {
+    if (!this.relogin || !this.session?.loggedIn()) {
       this.sessionMismatch(attempt);
       return false;
     }
-    const entered = await this.relogin.iste();
+    const entered = await this.relogin.request();
     // Diyalog açıkken kimlik değişip deneme zaten bırakıldıysa (başka kullanıcı/kiracı) gönderim yok. Yalnız şube
     // değiştiyse deneme durur ve aynı anahtarla gider (#320 M1).
     if (this.destroyed || this.frozenState()?.key !== attempt.key) return false;

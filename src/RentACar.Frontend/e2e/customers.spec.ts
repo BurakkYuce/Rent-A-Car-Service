@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { CARI_1, card, customerCrmEndpoints } from './customers-crm-fakes';
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { ACCOUNT_1, card, customerCrmEndpoints } from './customers-crm-fakes';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F7.2 cari ekranları: liste, kart (yeni / düzenle), 360° detay + ekstre. Üç zorunlu senaryo (doğrulama hatasında
@@ -10,7 +10,7 @@ import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
  * gizli alan `null` = korunur, tarayıcı deposuna PII yazılmaz, anonimleştirme kaldırma 403 mesajı) + axe iki tema +
  * 320/390/768/1440 taşma.
  */
-const AG_HATASI = [
+const NETWORK_ERROR = [
   /Failed to load resource: the server responded with a status of 4\d\d/,
   /Failed to load resource: net::ERR_FAILED/,
 ];
@@ -24,7 +24,7 @@ export const CUSTOMER_PAGES: readonly VitrinSayfasi[] = [
   },
   {
     ad: 'cari-kart',
-    yol: `/app/cariler/${CARI_1}`,
+    yol: `/app/cariler/${ACCOUNT_1}`,
     baslik: 'Cari: Ayşe Yılmaz',
     hazir: (page) =>
       expect(page.getByRole('textbox', { name: 'Ad', exact: true })).toHaveValue('Ayşe'),
@@ -32,7 +32,7 @@ export const CUSTOMER_PAGES: readonly VitrinSayfasi[] = [
   { ad: 'cari-yeni', yol: '/app/cariler/yeni', baslik: 'Yeni Cari' },
   {
     ad: 'cari-detay',
-    yol: `/app/cariler/${CARI_1}/detay`,
+    yol: `/app/cariler/${ACCOUNT_1}/detay`,
     baslik: 'Ayşe Yılmaz',
     hazir: (page) => expect(page.getByText('Pozitif = müşteri borçlu.')).toBeVisible(),
   },
@@ -46,19 +46,19 @@ const [LIST, CARD, NEW, DETAIL] = CUSTOMER_PAGES as [
 ];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'OperationsDelete'] });
 });
 
 test('cari sayfaları: içerik + axe iki tema, konsol hatası yok', async ({ page }) => {
-  const errors = hatalariTopla(page, AG_HATASI);
+  const errors = collectErrors(page, NETWORK_ERROR);
   await customerCrmEndpoints(page);
   for (const s of CUSTOMER_PAGES) {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await ciddiIhlaller(page), `${s.ad} açık`).toEqual([]);
+    await waitReady(page, s);
+    expect(await seriousViolations(page), `${s.ad} açık`).toEqual([]);
     await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await ciddiIhlaller(page), `${s.ad} koyu`).toEqual([]);
+    expect(await seriousViolations(page), `${s.ad} koyu`).toEqual([]);
   }
   expect(errors).toEqual([]);
 });
@@ -66,7 +66,7 @@ test('cari sayfaları: içerik + axe iki tema, konsol hatası yok', async ({ pag
 test('liste: TC sütunu yok, anonim müşteri etiketli, rozetler, silme onaylı', async ({ page }) => {
   const written = await customerCrmEndpoints(page);
   await page.goto(LIST.yol);
-  await hazirBekle(page, LIST);
+  await waitReady(page, LIST);
   await expect(page.getByRole('columnheader', { name: /TC/ })).toHaveCount(0);
   await expect(page.getByRole('gridcell', { name: /Anonim müşteri\s*KVKK anonim/ })).toBeVisible();
   await expect(page.getByText('Not', { exact: true })).toHaveAttribute('title', 'Ödeme gecikti');
@@ -81,7 +81,7 @@ test('liste: TC sütunu yok, anonim müşteri etiketli, rozetler, silme onaylı'
 
 async function openCard(page: Page) {
   await page.goto(CARD.yol);
-  await hazirBekle(page, CARD);
+  await waitReady(page, CARD);
 }
 
 test('KVKK: TC kartta boş (yalnız "kayıtlı"), ehliyet maskeli; PUT gidiş-dönüşünde gizli alanlar null (korunur)', async ({
@@ -90,8 +90,8 @@ test('KVKK: TC kartta boş (yalnız "kayıtlı"), ehliyet maskeli; PUT gidiş-d�
   const written = await customerCrmEndpoints(page);
   await openCard(page);
   await page.getByRole('tab', { name: 'Kimlik ve Belge' }).click();
-  const tc = page.getByRole('textbox', { name: 'TC Kimlik' });
-  await expect(tc).toHaveValue('');
+  const nationalId = page.getByRole('textbox', { name: 'TC Kimlik' });
+  await expect(nationalId).toHaveValue('');
   await expect(page.getByText('Kayıtlı (gizli). Boş bırakılırsa korunur.')).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Ehliyet No' })).toHaveValue('');
   await expect(page.getByText('Kayıtlı: ****5678. Boş bırakılırsa korunur.')).toBeVisible();
@@ -181,7 +181,7 @@ test('yeni cari: doğrulama hatasında form korunur, hata alana yazılır (gizli
     },
   });
   await page.goto(NEW.yol);
-  await hazirBekle(page, NEW);
+  await waitReady(page, NEW);
   await page.getByRole('textbox', { name: 'Ad', exact: true }).fill('Can');
   await page.getByRole('textbox', { name: 'Soyad' }).fill('Er');
   await page.getByRole('tab', { name: 'Kimlik ve Belge' }).click();
@@ -218,11 +218,11 @@ test('kart: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (ayn
     },
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
+    await writeXsrf(page, 'yeni-belirtec');
     return route.fulfill({ json: BEN });
   });
   await openCard(page);
@@ -244,14 +244,14 @@ test('kart: oturum düşünce form kaybolmaz — yerinde giriş, AYNI istek (ayn
 test('kart: cakisma formu silmez — güncel kart birleşir, sonraki PUT yeni sürümle', async ({
   page,
 }) => {
-  let surum = 'c-1';
+  let version = 'c-1';
   let il = 'İstanbul';
   let put = 0;
   const written = await customerCrmEndpoints(page, {
-    card: () => card({ surum, il }),
+    card: () => card({ surum: version, il }),
     write: async (r) => {
       if (++put === 1) {
-        surum = 'c-2';
+        version = 'c-2';
         il = 'Ankara'; // başka oturum ili değiştirdi
         await problem(r, 409, 'cakisma', 'Kayıt siz düzenlerken değişti; güncel hâli yükleyin.');
         return true;
@@ -298,14 +298,14 @@ test('detay: finans yetkisi yoksa bakiye/hareket yerine not; ekstre sekmesi sunu
 test('#295 M1: operatör (FinanceWrite/ViewReports yok) ekstre bağlantısı ve sekmesi görmez, ekstre istemez', async ({
   page,
 }) => {
-  await oturumAc(page, { ...BEN, rol: 'Operator', izinler: ['OperationsWrite'] });
+  await logIn(page, { ...BEN, rol: 'Operator', izinler: ['OperationsWrite'] });
   await customerCrmEndpoints(page, { finance: false });
   const statementCalls: string[] = [];
   page.on('request', (r) => {
     if (r.url().includes('/ekstre')) statementCalls.push(r.url());
   });
   await page.goto(LIST.yol);
-  await hazirBekle(page, LIST);
+  await waitReady(page, LIST);
   await expect(page.getByRole('link', { name: 'Detay' }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Ekstre' })).toHaveCount(0);
   await page.goto(`${DETAIL.yol}#sekme=ekstre`);
@@ -325,7 +325,7 @@ test('#295 M2: 11 haneli TC araması adres çubuğuna yazılmaz, istek yine gide
     if (u.pathname === '/api/ui/v1/cariler') searches.push(u.searchParams.get('q') ?? '');
   });
   await page.goto(LIST.yol);
-  await hazirBekle(page, LIST);
+  await waitReady(page, LIST);
   const box = page.getByRole('searchbox', { name: 'Ara' });
   await box.fill('10000000146');
   await page.getByRole('button', { name: 'Filtrele', exact: true }).click();
@@ -370,8 +370,8 @@ for (const s of CUSTOMER_PAGES) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -379,7 +379,7 @@ for (const s of CUSTOMER_PAGES) {
     await customerCrmEndpoints(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

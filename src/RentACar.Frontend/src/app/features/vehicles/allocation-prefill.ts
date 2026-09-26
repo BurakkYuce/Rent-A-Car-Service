@@ -22,6 +22,6 @@ export function readAllocationPrefill(state: unknown): AllocationPrefill | null 
   if (typeof p['plaka'] !== 'string') return null;
   const km =
     typeof p['km'] === 'number' && Number.isFinite(p['km']) && p['km'] >= 0 ? p['km'] : null;
-  const sube = typeof p['sube'] === 'string' && p['sube'].trim() !== '' ? p['sube'] : null;
-  return { vehicleId: p['vehicleId'], plaka: p['plaka'], km, sube };
+  const branch = typeof p['sube'] === 'string' && p['sube'].trim() !== '' ? p['sube'] : null;
+  return { vehicleId: p['vehicleId'], plaka: p['plaka'], km, sube: branch };
 }

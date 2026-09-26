@@ -1,15 +1,15 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { sayiya } from '../kira-formu-modeli';
-import { KF_ORTAK } from '../sekmeler/ortak';
-import { paraGoster } from './finans-modeli';
-import { KiraFinansDurumu } from './kira-finans-durumu';
+import { toNumber } from '../kira-formu-modeli';
+import { KF_SHARED } from '../sekmeler/ortak';
+import { displayMoney } from './finans-modeli';
+import { RentalFinanceState } from './rental-finance-state';
 
 /** Kur bilgileri (`GET secim/kur`, TCMB günün kurları — ulusal veri). Salt okunur. */
 @Component({
   selector: 'rc-kf-finans-kurlar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK],
+  imports: [...KF_SHARED],
   template: `
     @let s = f.kurlar;
     @if (s.tur() === 'hata') {
@@ -22,7 +22,7 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
         role="region"
         tabindex="0"
         [attr.aria-label]="'kiraFinans.kur.liste' | transloco"
-        [attr.aria-busy]="s.yukleniyor()"
+        [attr.aria-busy]="s.isLoading()"
       >
         <table class="rc-duz-tablo" [attr.aria-label]="'kiraFinans.kur.liste' | transloco">
           <thead>
@@ -38,12 +38,12 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
               <tr>
                 <td>
                   {{ x.etiket }}
-                  @if (sayiya(x.birim) !== 1) {
+                  @if (toNumber(x.birim) !== 1) {
                     ({{ x.birim }})
                   }
                 </td>
-                <td class="rc-num">{{ sayiya(x.dovizAlis) | sayi: '1.4-4' }}</td>
-                <td class="rc-num">{{ sayiya(x.dovizSatis) | sayi: '1.4-4' }}</td>
+                <td class="rc-num">{{ toNumber(x.dovizAlis) | sayi: '1.4-4' }}</td>
+                <td class="rc-num">{{ toNumber(x.dovizSatis) | sayi: '1.4-4' }}</td>
                 <td>{{ x.tarih | tarih }}</td>
               </tr>
             }
@@ -53,16 +53,16 @@ import { KiraFinansDurumu } from './kira-finans-durumu';
     }
   `,
 })
-export class FinansKurlar {
-  protected readonly f = inject(KiraFinansDurumu);
-  protected readonly sayiya = sayiya;
+export class FinanceRates {
+  protected readonly f = inject(RentalFinanceState);
+  protected readonly toNumber = toNumber;
 }
 
 /** Kiraya bağlı cezalar + kira dönemindeki HGS geçişleri (salt okunur; yansıtma Cezalar ekranında). */
 @Component({
   selector: 'rc-kf-finans-cezalar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...KF_ORTAK, RouterLink],
+  imports: [...KF_SHARED, RouterLink],
   template: `
     @let s = f.cezalar;
     @let v = s.veri();
@@ -74,7 +74,7 @@ export class FinansKurlar {
       role="region"
       tabindex="0"
       [attr.aria-label]="'kiraFinans.ceza.liste' | transloco"
-      [attr.aria-busy]="s.yukleniyor()"
+      [attr.aria-busy]="s.isLoading()"
     >
       <table class="rc-duz-tablo" [attr.aria-label]="'kiraFinans.ceza.liste' | transloco">
         <thead>
@@ -91,8 +91,8 @@ export class FinansKurlar {
             <tr>
               <td>{{ c.no }}</td>
               <td>{{ c.cezaTuru }}</td>
-              <td class="rc-num">{{ para(c.tutar, null) }}</td>
-              <td class="rc-num">{{ para(c.kalan, null) }}</td>
+              <td class="rc-num">{{ money(c.tutar, null) }}</td>
+              <td class="rc-num">{{ money(c.kalan, null) }}</td>
               <td>{{ c.durum }}</td>
             </tr>
           } @empty {
@@ -124,7 +124,7 @@ export class FinansKurlar {
             <tr>
               <td>{{ g.zaman | tarihSaat }}</td>
               <td>{{ g.gecis }}</td>
-              <td class="rc-num">{{ para(g.tutar, null) }}</td>
+              <td class="rc-num">{{ money(g.tutar, null) }}</td>
             </tr>
           } @empty {
             @if (s.tur() === 'hazir') {
@@ -142,7 +142,7 @@ export class FinansKurlar {
     </p>
   `,
 })
-export class FinansCezalar {
-  protected readonly f = inject(KiraFinansDurumu);
-  protected readonly para = paraGoster;
+export class FinancePenalties {
+  protected readonly f = inject(RentalFinanceState);
+  protected readonly money = displayMoney;
 }

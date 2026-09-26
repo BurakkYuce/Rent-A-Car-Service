@@ -11,15 +11,15 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import type { FinansHesapOgesi } from '@core/api/ui-tipleri';
-import { paraBicimle } from '@core/bicim/bicim';
+import type { FinanceAccountItem } from '@core/api/ui-tipleri';
+import { formatMoney } from '@core/bicim/bicim';
 import { moneySubmission } from '@core/form/money-submission';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
 
 import { round2 } from '../money-math';
@@ -41,7 +41,7 @@ import {
 @Component({
   selector: 'rc-policy-pay-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TranslocoPipe, Alan, MoneySubmitBar, ParaGirdisi, Secim],
+  imports: [ReactiveFormsModule, TranslocoPipe, Alan, MoneySubmitBar, MoneyInput, Selection],
   template: `
     <section class="rc-bolum" aria-labelledby="rc-police-ode-baslik">
       <h2 id="rc-police-ode-baslik">{{ 'servisSigorta.sigorta.ode' | transloco }}</h2>
@@ -92,12 +92,12 @@ import {
 })
 export class PolicyPayPanel implements OnInit {
   readonly policy = input.required<PolicyRow>();
-  readonly accounts = input<readonly FinansHesapOgesi[]>([]);
+  readonly accounts = input<readonly FinanceAccountItem[]>([]);
   readonly refreshing = input(false);
   readonly settled = output<void>();
 
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
   protected readonly form = new FormGroup({
     hesap: new FormControl<AccountKind | null>('Kasa', Validators.required),
@@ -127,7 +127,7 @@ export class PolicyPayPanel implements OnInit {
   );
   protected readonly foreign = computed(() => this.policy().doviz !== 'TRY');
   protected readonly premiumText = computed(() =>
-    paraBicimle(num(this.policy().prim), this.policy().doviz),
+    formatMoney(num(this.policy().prim), this.policy().doviz),
   );
 
   constructor() {
@@ -177,7 +177,7 @@ export class PolicyPayPanel implements OnInit {
       success: (d) => {
         this.toast.basari(
           this.t('servisSigorta.sigorta.odendiBildirim', {
-            tutar: paraBicimle(num(d.odeme?.tutar ?? null), d.odeme?.doviz ?? p.doviz),
+            tutar: formatMoney(num(d.odeme?.tutar ?? null), d.odeme?.doviz ?? p.doviz),
           }),
         );
         this.form.reset({ hesap: 'Kasa' });

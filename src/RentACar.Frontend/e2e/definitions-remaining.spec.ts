@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { BEN, ciddiIhlaller, hatalariTopla, oturumAc, problem, xsrfYaz } from './ortak';
+import { BEN, seriousViolations, collectErrors, logIn, problem, writeXsrf } from './ortak';
 import { definitionEndpoints } from './definition-fakes';
 import {
   GROUP_1,
@@ -14,13 +14,13 @@ import {
   vatRate,
   vehicleGroupEndpoints,
 } from './definition-remaining-fakes';
-import { hazirBekle, tasmaOlc, type VitrinSayfasi } from './vitrin-sayfalari';
+import { waitReady, measureOverflow, type VitrinSayfasi } from './vitrin-sayfalari';
 
 /**
  * F11.2c kalan tanım ekranları: sayfalı F11.1b uçları (satır sürümsüz → düzenlemede tekil okuma, PUT'a `surum`),
  * genel F11.1a uçları, rezervasyon kaynağı "Aşağıya Yansıt", araç grubu eşleme; üç zorunlu senaryo + axe + taşma.
  */
-const AG_HATASI = [/Failed to load resource: the server responded with a status of 4\d\d/];
+const NETWORK_ERROR = [/Failed to load resource: the server responded with a status of 4\d\d/];
 
 const SOURCES: VitrinSayfasi = {
   ad: 'rezervasyon-kaynaklari',
@@ -53,22 +53,22 @@ const sources = () => [
 ];
 
 test.beforeEach(async ({ page }) => {
-  await oturumAc(page, { ...BEN, izinler: [...BEN.izinler, 'ManageUsers'] });
+  await logIn(page, { ...BEN, izinler: [...BEN.izinler, 'ManageUsers'] });
 });
 
 test('kdv oranları: sayfalı liste, sürümsüz satır tekil okunur, PUT sürümle; axe iki tema', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
+  const errors = collectErrors(page);
   const { writes, pages } = await pagedEndpoints(page, 'kdv-oranlari', {
     rows: () => [vatRate()],
   });
   await page.goto('/app/kdv-oranlari');
   await expect(page.getByRole('cell', { name: 'Genel %20' })).toBeVisible();
   expect(pages[0]).toContain('boyut=200');
-  expect(await ciddiIhlaller(page), 'açık').toEqual([]);
+  expect(await seriousViolations(page), 'açık').toEqual([]);
   await page.emulateMedia({ colorScheme: 'dark' });
-  expect(await ciddiIhlaller(page), 'koyu').toEqual([]);
+  expect(await seriousViolations(page), 'koyu').toEqual([]);
 
   await page.getByRole('button', { name: 'Düzenle' }).click();
   await page.getByRole('textbox', { name: 'Oran (0,20 = %20)' }).fill('0,1');
@@ -87,7 +87,7 @@ test('kdv oranları: sayfalı liste, sürümsüz satır tekil okunur, PUT sürü
 test('ceza türleri: doğrulama hatasında form korunur (alan hatası alanın altında)', async ({
   page,
 }) => {
-  hatalariTopla(page, AG_HATASI);
+  collectErrors(page, NETWORK_ERROR);
   await pagedEndpoints(page, 'ceza-turleri', {
     rows: () => [
       { id: 'a', kod: 'HIZ', ad: 'Hız cezası', varsayilanTutar: 1500, aktif: true, surum: 'c-1' },
@@ -112,7 +112,7 @@ test('ceza türleri: doğrulama hatasında form korunur (alan hatası alanın al
 test('sigorta şirketleri: oturum düşünce form kaybolmaz — aynı istek aynı anahtar ve gövdeyle', async ({
   page,
 }) => {
-  hatalariTopla(page, [...AG_HATASI, /401/]);
+  collectErrors(page, [...NETWORK_ERROR, /401/]);
   let n = 0;
   const { writes } = await pagedEndpoints(page, 'sigorta-sirketleri', {
     rows: () => [insurer()],
@@ -122,11 +122,11 @@ test('sigorta şirketleri: oturum düşünce form kaybolmaz — aynı istek ayn�
         : r.fulfill({ json: insurer() }),
   });
   await page.route('**/api/ui/v1/oturum/xsrf', async (route) => {
-    await xsrfYaz(page, 'anonim-belirtec');
+    await writeXsrf(page, 'anonim-belirtec');
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/ui/v1/oturum/giris', async (route) => {
-    await xsrfYaz(page, 'yeni-belirtec');
+    await writeXsrf(page, 'yeni-belirtec');
     return route.fulfill({ json: BEN });
   });
   await page.goto('/app/sigorta-sirketleri');
@@ -153,7 +153,7 @@ test('sigorta şirketleri: oturum düşünce form kaybolmaz — aynı istek ayn�
 test('belge şablonları: cakisma formu silmez — güncel kayıt birleşir, sonraki PUT yeni sürümle; metin düz', async ({
   page,
 }) => {
-  hatalariTopla(page, [...AG_HATASI, /409/]);
+  collectErrors(page, [...NETWORK_ERROR, /409/]);
   let current = template();
   let n = 0;
   const { writes } = await pagedEndpoints(page, 'belge-sablonlari', {
@@ -168,7 +168,7 @@ test('belge şablonları: cakisma formu silmez — güncel kayıt birleşir, son
     },
   });
   await page.goto(TEMPLATES.yol);
-  await hazirBekle(page, TEMPLATES);
+  await waitReady(page, TEMPLATES);
   await page.getByRole('button', { name: 'Düzenle' }).click();
   const left = page.getByRole('textbox', { name: 'Hukuki Metin — Sol (yalnız kira sözleşmesi)' });
   await expect(left).toHaveValue('Sol metin <b>kalın değil</b>');
@@ -194,7 +194,7 @@ test('belge şablonları: cakisma formu silmez — güncel kayıt birleşir, son
 test('rezervasyon kaynakları: kural bayrağı ve oran gövdede; Aşağıya Yansıt onaylı', async ({
   page,
 }) => {
-  const errors = hatalariTopla(page);
+  const errors = collectErrors(page);
   const writes = await definitionEndpoints(page, 'rezervasyon-kaynaklari', {
     rows: sources,
     write: (r, w) =>
@@ -203,13 +203,13 @@ test('rezervasyon kaynakları: kural bayrağı ve oran gövdede; Aşağıya Yans
         : r.fulfill({ json: sources()[0] }),
   });
   await page.goto(SOURCES.yol);
-  await hazirBekle(page, SOURCES);
-  expect(await ciddiIhlaller(page), 'açık').toEqual([]);
+  await waitReady(page, SOURCES);
+  expect(await seriousViolations(page), 'açık').toEqual([]);
 
   await page.getByRole('button', { name: 'Düzenle' }).first().click();
   await page.getByRole('checkbox', { name: 'Kural: KM sınırsız' }).check();
   await page.getByRole('textbox', { name: 'Kural: En fazla gün' }).fill('30');
-  expect(await ciddiIhlaller(page), 'panel').toEqual([]);
+  expect(await seriousViolations(page), 'panel').toEqual([]);
   await page.getByRole('button', { name: 'Kaydet' }).click();
   await expect.poll(() => writes.length).toBe(1);
   const put = JSON.parse(writes[0]?.govde ?? '{}') as Record<string, unknown>;
@@ -236,12 +236,12 @@ test('rezervasyon kaynakları: kural bayrağı ve oran gövdede; Aşağıya Yans
 });
 
 test('araç grupları: eşleşmeyen boş grup değeri hedef gruba atanır', async ({ page }) => {
-  const errors = hatalariTopla(page);
+  const errors = collectErrors(page);
   const { assigns } = await vehicleGroupEndpoints(page);
   await page.goto(GROUPS.yol);
-  await hazirBekle(page, GROUPS);
+  await waitReady(page, GROUPS);
   await expect(page.getByText('Hiçbir gruba eşleşmeyen 2 araç grup değeri')).toBeVisible();
-  expect(await ciddiIhlaller(page), 'açık').toEqual([]);
+  expect(await seriousViolations(page), 'açık').toEqual([]);
   await page
     .getByRole('combobox', { name: 'Grup değeri' })
     .selectOption({ label: '(grubu boş araçlar)' });
@@ -258,7 +258,7 @@ test('araç grupları: eşleşmeyen boş grup değeri hedef gruba atanır', asyn
 });
 
 test('ödeme tipleri ve hesap kodları: genel uç, oluşturma gövdesi', async ({ page }) => {
-  const errors = hatalariTopla(page);
+  const errors = collectErrors(page);
   const payments = await definitionEndpoints(page, 'odeme-tipleri', {
     rows: () => [{ id: 'p1', kod: 'NAKIT', ad: 'Nakit', aktif: true, surum: 'p-1' }],
   });
@@ -282,7 +282,7 @@ test('ödeme tipleri ve hesap kodları: genel uç, oluşturma gövdesi', async (
 
   await page.goto('/app/hesap-kodlari');
   await expect(page.getByRole('cell', { name: 'Yurtiçi Satışlar' })).toBeVisible();
-  expect(await ciddiIhlaller(page)).toEqual([]);
+  expect(await seriousViolations(page)).toEqual([]);
   await page.getByRole('button', { name: 'Yeni kayıt' }).click();
   await page.getByRole('textbox', { name: 'Kod' }).fill('770');
   await page.getByRole('textbox', { name: 'Ad' }).fill('Genel Yönetim Giderleri');
@@ -310,8 +310,8 @@ for (const s of [SOURCES, GROUPS, TEMPLATES]) {
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(s.yol);
-        await hazirBekle(page, s);
-        expect(await tasmaOlc(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
+        await waitReady(page, s);
+        expect(await measureOverflow(page), `${width}px`).toEqual({ tasma: 0, suclular: [] });
       }
     });
   });
@@ -319,7 +319,7 @@ for (const s of [SOURCES, GROUPS, TEMPLATES]) {
     await fakes(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(s.yol);
-    await hazirBekle(page, s);
-    expect(await tasmaOlc(page)).toEqual({ tasma: 0, suclular: [] });
+    await waitReady(page, s);
+    expect(await measureOverflow(page)).toEqual({ tasma: 0, suclular: [] });
   });
 }

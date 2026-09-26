@@ -16,7 +16,7 @@ import {
 } from './finance-model';
 import { fixedRateToForm, fixedRateUpdateBody } from './rates/rates-model';
 
-const CARI = 'c0c0c0c0-0000-4000-8000-000000000001';
+const ACCOUNT = 'c0c0c0c0-0000-4000-8000-000000000001';
 
 // Beklenen değerler elle yazılmıştır (bağımsız oracle): İstanbul UTC+3 → 22.09.2026 00:00 = 21.09.2026 21:00Z.
 describe('finans gövdeleri', () => {
@@ -26,7 +26,7 @@ describe('finans gövdeleri', () => {
   });
 
   it('tahsilat: TRY iken kur GÖNDERİLMEZ; tutar 2 ondalık invariant; boş metin null', () => {
-    const b = collectionBody(CARI, {
+    const b = collectionBody(ACCOUNT, {
       tutar: '1500.5',
       doviz: 'TRY',
       kur: 1,
@@ -37,7 +37,7 @@ describe('finans gövdeleri', () => {
       aciklama: '  ',
     });
     expect(b).toEqual({
-      cariId: CARI,
+      cariId: ACCOUNT,
       tutar: '1500.50',
       hesap: 'Banka',
       hesapId: null,
@@ -58,8 +58,10 @@ describe('finans gövdeleri', () => {
       tarih: null,
       aciklama: null,
     };
-    expect('kur' in collectionBody(CARI, { ...base, doviz: 'EUR', kur: null })).toBe(false);
-    expect(collectionBody(CARI, { ...base, doviz: 'EUR', kur: 35.1234565 }).kur).toBe('35.123457');
+    expect('kur' in collectionBody(ACCOUNT, { ...base, doviz: 'EUR', kur: null })).toBe(false);
+    expect(collectionBody(ACCOUNT, { ...base, doviz: 'EUR', kur: 35.1234565 }).kur).toBe(
+      '35.123457',
+    );
   });
 
   it('kasa virmanı: künye alanları kırpılır, işlemi yapan gövdede YOK', () => {
@@ -91,7 +93,7 @@ describe('finans gövdeleri', () => {
 
   it('bakiye düzeltme ve cari virman: tarih/vade günleri UTC anına', () => {
     expect(
-      adjustmentBody(CARI, {
+      adjustmentBody(ACCOUNT, {
         yon: 'Borclandir',
         tutar: '10',
         doviz: 'TRY',
@@ -102,7 +104,7 @@ describe('finans gövdeleri', () => {
         aciklama: 'yuvarlama',
       }),
     ).toEqual({
-      cariId: CARI,
+      cariId: ACCOUNT,
       yon: 'Borclandir',
       tutar: '10.00',
       doviz: 'TRY',
@@ -188,20 +190,20 @@ describe('finans gövdeleri', () => {
 
   it('depozito: al/iade hesap taşır, mahsup/irat taşımaz', () => {
     const v = { tutar: '300', hesap: 'Banka' as const, hesapId: 'h1' };
-    expect(depositRequest('al', CARI, v)).toEqual({
-      cariId: CARI,
+    expect(depositRequest('al', ACCOUNT, v)).toEqual({
+      cariId: ACCOUNT,
       tutar: '300.00',
       hesap: 'Banka',
       hesapId: 'h1',
     });
-    expect(depositRequest('iade', CARI, v)).toEqual({
-      cariId: CARI,
+    expect(depositRequest('iade', ACCOUNT, v)).toEqual({
+      cariId: ACCOUNT,
       tutar: '300.00',
       hesap: 'Banka',
       hesapId: 'h1',
     });
-    expect(depositRequest('mahsup', CARI, v)).toEqual({ cariId: CARI, tutar: '300.00' });
-    expect(depositRequest('irat', CARI, v)).toEqual({ cariId: CARI, tutar: '300.00' });
+    expect(depositRequest('mahsup', ACCOUNT, v)).toEqual({ cariId: ACCOUNT, tutar: '300.00' });
+    expect(depositRequest('irat', ACCOUNT, v)).toEqual({ cariId: ACCOUNT, tutar: '300.00' });
   });
 
   it('sabit kur PUT: kod gövdede yok, surum zorunlu alan', () => {

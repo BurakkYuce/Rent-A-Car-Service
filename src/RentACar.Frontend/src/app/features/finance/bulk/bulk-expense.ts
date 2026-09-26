@@ -2,15 +2,15 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
 
 import { moneySubmission } from '@core/form/money-submission';
-import { paraBicimle } from '@core/bicim/bicim';
+import { formatMoney } from '@core/bicim/bicim';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { newOperationKey } from '@core/form/submit-lock';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { yeniIslemAnahtari } from '@core/form/gonderim-kilidi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
 import {
@@ -46,12 +46,12 @@ type ExpenseRow = FormGroup<{
   templateUrl: './bulk-expense.html',
   styleUrl: '../finance.scss',
 })
-export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+export class BulkExpense implements UnsavedChangesOwner {
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
   protected readonly accounts = inject(AccountList);
-  protected readonly customers = sunucuSecimKaynagi('musteri');
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
+  protected readonly customers = serverSelectionSource('musteri');
+  protected readonly vehicles = serverSelectionSource('arac');
   protected readonly action = moneySubmission<BulkExpenseRequest>({ scope: () => 'toplu-gider' });
   /** Gönderilen (donmuş) kopyadaki satırların kimlikleri, gövdedeki sırayla — sunucu satır hataları buna göre eşlenir. */
   private sentRowIds: readonly string[] = [];
@@ -81,7 +81,7 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
   });
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     this.accounts.load();
     // Sonucu bilinmeyen toplu işlem (sayfa kapanıp açıldıysa) AYNI satırlarla + anahtarla KİLİTLİ geri gelir.
     this.action.restore(this.form, (value) => {
@@ -95,11 +95,11 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.action.pending() || this.form.dirty;
   }
 
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.action.pending() ? this.t('finans.islem.terkMesaji') : null;
   }
 
@@ -151,7 +151,7 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
         this.toast.basari(
           this.t('finans.topluGider.kaydedildi', {
             adet: r.adet,
-            toplam: paraBicimle(toAmount(r.toplam)),
+            toplam: formatMoney(toAmount(r.toplam)),
           }),
         );
         this.resetForm();
@@ -162,7 +162,7 @@ export class BulkExpense implements KaydedilmemisDegisiklikSahibi {
 
   private newRow(): ExpenseRow {
     return new FormGroup({
-      id: new FormControl<string>(yeniIslemAnahtari(), { nonNullable: true }),
+      id: new FormControl<string>(newOperationKey(), { nonNullable: true }),
       netTutar: new FormControl<string | null>(null, Validators.required),
       aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
       arac: new FormControl<SecimSecenegi | null>(null),

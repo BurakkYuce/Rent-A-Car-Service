@@ -3,11 +3,11 @@ import { provideRouter, UrlTree, type CanMatchFn, type Route } from '@angular/ro
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
-import { provideCeviri } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import type { Izin } from '@core/oturum/oturum-tipleri';
+import { provideTranslation } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import type { Permission } from '@core/oturum/oturum-tipleri';
 
-import { SAYFALAR } from './sayfalar';
+import { PAGES } from './sayfalar';
 
 /**
  * F8.2b parite çiti — finans belge sayfalarının izni. Beklenen tablo ELLE yazıldı (uç izinleri, #286): fatura okuma
@@ -15,7 +15,7 @@ import { SAYFALAR } from './sayfalar';
  * ViewReports; gider okuma FinanceWrite ∨ ViewReports; gelen e-fatura FinanceWrite; satış okuma FinanceWrite ∨
  * ViewReports ∨ OperationsWrite. Rota tablosundan TÜRETİLMEZ.
  */
-const EXPECTED: readonly (readonly [string, readonly Izin[][], readonly Izin[][]])[] = [
+const EXPECTED: readonly (readonly [string, readonly Permission[][], readonly Permission[][]])[] = [
   ['faturalar', [['FinanceWrite'], ['ViewReports']], [['OperationsWrite', 'OperationsDelete']]],
   ['faturalar/detay-listesi', [['ViewReports']], [['FinanceWrite', 'OperationsWrite']]],
   ['faturalar/:id/yazdir', [['ViewReports']], [['FinanceWrite', 'OperationsWrite']]],
@@ -30,21 +30,21 @@ const EXPECTED: readonly (readonly [string, readonly Izin[][], readonly Izin[][]
 ];
 
 describe('F8.2b finans belge rotaları: uç izinleriyle aynı kapı', () => {
-  let permissions: readonly Izin[] = [];
+  let permissions: readonly Permission[] = [];
   const fakeSession = {
-    ilkYukleme: () => Promise.resolve(null),
-    girisYapildi: () => true,
+    initialLoad: () => Promise.resolve(null),
+    loggedIn: () => true,
     ben: () => ({ pilot: true }),
-    izinVar: (p: Izin) => permissions.includes(p),
+    izinVar: (p: Permission) => permissions.includes(p),
   };
 
   beforeEach(async () => {
     permissions = [];
     TestBed.configureTestingModule({
       providers: [
-        ...provideCeviri(),
+        ...provideTranslation(),
         provideRouter([]),
-        { provide: OturumServisi, useValue: fakeSession },
+        { provide: SessionService, useValue: fakeSession },
       ],
     });
     await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));
@@ -59,7 +59,7 @@ describe('F8.2b finans belge rotaları: uç izinleriyle aynı kapı', () => {
   }
 
   it.each(EXPECTED)('%s', async (path, allowed, denied) => {
-    const found = SAYFALAR.filter((r) => r.path === path);
+    const found = PAGES.filter((r) => r.path === path);
     expect(found, `rota tekil olmalı: ${path}`).toHaveLength(1);
     const r = found[0]!;
     expect(r.canMatch?.length ?? 0, `${path} canMatch guard'ı yok`).toBeGreaterThan(0);
@@ -80,7 +80,7 @@ describe('F8.2b finans belge rotaları: uç izinleriyle aynı kapı', () => {
   });
 
   it('faturalar/detay-listesi, faturalar/:id/yazdir’dan ÖNCE tanımlı', () => {
-    const order = SAYFALAR.map((r) => r.path);
+    const order = PAGES.map((r) => r.path);
     expect(order.indexOf('faturalar/detay-listesi')).toBeLessThan(
       order.indexOf('faturalar/:id/yazdir'),
     );

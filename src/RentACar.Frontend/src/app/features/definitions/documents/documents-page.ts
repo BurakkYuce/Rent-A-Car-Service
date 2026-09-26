@@ -13,24 +13,24 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { TemelStore } from '@core/veri/temel-store';
-import { TarihPipe } from '@shared/bicim/bicim-pipe';
+import { DatePipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
-type CompanyDocument = Sema<'CompanyDocumentDto'>;
+type CompanyDocument = Schema<'CompanyDocumentDto'>;
 
 /** Sunucu sınırları (`FirmaDokumanService.MaxBayt` / `MaxDokuman`); asıl dayatma serviste. */
 export const MAX_DOCUMENT_BYTES = 3 * 1024 * 1024;
@@ -52,24 +52,24 @@ export function kilobytes(size: number | string): number {
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
-    TarihPipe,
+    DatePipe,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    SayfaBandi,
+    FormErrors,
+    TextInput,
+    PageBand,
   ],
   styleUrl: '../definitions.scss',
   templateUrl: './documents-page.html',
 })
 export class DocumentsPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
 
-  private readonly session = inject(OturumServisi);
+  private readonly session = inject(SessionService);
   protected readonly canWrite = computed(() => this.session.izinVar('OperationsWrite'));
   protected readonly list = new TemelStore<readonly CompanyDocument[]>(() =>
     this.api.get<readonly CompanyDocument[]>('/api/ui/v1/dokumanlar'),
@@ -83,17 +83,17 @@ export class DocumentsPage {
   });
   protected readonly file = signal<File | null>(null);
   protected readonly fileError = signal<string | null>(null);
-  protected readonly upload = formGonderimi();
+  protected readonly upload = formSubmission();
   protected readonly deleting = signal<string | null>(null);
   protected readonly deleteError = signal<string | null>(null);
   protected readonly kilobytes = kilobytes;
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     this.list.yukle();
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty || this.file() !== null;
   }
 
@@ -140,7 +140,7 @@ export class DocumentsPage {
 
   protected async remove(d: CompanyDocument): Promise<void> {
     if (this.deleting() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('tanimlar.document.silBaslik'),
       mesaj: this.t('tanimlar.document.silMesaj', { baslik: d.baslik }),
       onayEtiketi: this.t('tanimlar.document.sil'),
@@ -160,7 +160,7 @@ export class DocumentsPage {
         },
         error: (e: unknown) => {
           this.deleting.set(null);
-          this.deleteError.set(apiHatasinaCevir(e).detay);
+          this.deleteError.set(toApiError(e).detay);
         },
       });
   }

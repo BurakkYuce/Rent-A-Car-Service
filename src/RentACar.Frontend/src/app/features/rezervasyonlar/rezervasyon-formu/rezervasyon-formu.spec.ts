@@ -5,14 +5,14 @@ import { TranslocoService } from '@jsverse/transloco';
 import { type Observable, Subject, firstValueFrom, of, throwError } from 'rxjs';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { provideCeviri } from '@core/i18n/ceviri';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { provideTranslation } from '@core/i18n/ceviri';
 
-import type { RezervasyonDetayYaniti } from '../rezervasyon-modeli';
-import { REZ_ID, rezervasyonDetayi } from '../rezervasyon-test-verisi';
-import { RezervasyonFormuSayfasi } from './rezervasyon-formu';
+import type { ReservationDetailResponse } from '../rezervasyon-modeli';
+import { RES_ID, reservationDetail } from '../rezervasyon-test-verisi';
+import { ReservationFormPage } from './rezervasyon-formu';
 
 /**
  * Kayıtlı rezervasyonun sürüm akışı: PUT detaydaki `surum`u taşır; 409 `cakisma` formu SİLMEZ — güncel kayıt
@@ -24,20 +24,20 @@ interface Istek {
   readonly govde: Record<string, unknown>;
 }
 
-const cakisma = () =>
+const conflict = () =>
   new HttpErrorResponse({
     status: 409,
     error: { status: 409, kod: 'cakisma', detail: 'Rezervasyon başka bir oturumda değişti.' },
   });
 
-async function kur(put: (n: number) => Observable<unknown>, id: string | null = REZ_ID) {
-  const detaylar = new Subject<RezervasyonDetayYaniti>();
-  const putlar: Istek[] = [];
-  const postlar: Istek[] = [];
+async function exchangeRate(put: (n: number) => Observable<unknown>, id: string | null = RES_ID) {
+  const details = new Subject<ReservationDetailResponse>();
+  const puts: Istek[] = [];
+  const posts: Istek[] = [];
   const api = {
-    get: (yol: string) => {
-      if (yol === `/api/ui/v1/rezervasyonlar/${REZ_ID}`) return detaylar.asObservable();
-      if (yol.endsWith('/form-secenekleri'))
+    get: (path: string) => {
+      if (path === `/api/ui/v1/rezervasyonlar/${RES_ID}`) return details.asObservable();
+      if (path.endsWith('/form-secenekleri'))
         return of({
           varsayilanFiyatTuru: 'Günlük',
           fiyatTurleri: ['Otomatik', 'Günlük'],
@@ -45,25 +45,25 @@ async function kur(put: (n: number) => Observable<unknown>, id: string | null = 
         });
       return of([]);
     },
-    put: (yol: string, govde: Record<string, unknown>) => {
-      putlar.push({ yol, govde });
-      return put(putlar.length);
+    put: (path: string, body: Record<string, unknown>) => {
+      puts.push({ yol: path, govde: body });
+      return put(puts.length);
     },
-    post: (yol: string, govde: Record<string, unknown>) => {
-      postlar.push({ yol, govde });
-      return of({ id: REZ_ID, no: 'RZ-000042' });
+    post: (path: string, body: Record<string, unknown>) => {
+      posts.push({ yol: path, govde: body });
+      return of({ id: RES_ID, no: 'RZ-000042' });
     },
   };
   const router = { navigate: vi.fn(async () => true) };
   TestBed.configureTestingModule({
     providers: [
-      ...provideCeviri(),
+      ...provideTranslation(),
       { provide: ApiIstemcisi, useValue: api },
       {
-        provide: ToastServisi,
+        provide: ToastService,
         useValue: { basari: vi.fn(), bilgi: vi.fn(), uyari: vi.fn(), hata: vi.fn() },
       },
-      { provide: OnayServisi, useValue: { sor: vi.fn(async () => true) } },
+      { provide: ConfirmService, useValue: { ask: vi.fn(async () => true) } },
       { provide: Router, useValue: router },
       {
         provide: ActivatedRoute,
@@ -79,28 +79,36 @@ async function kur(put: (n: number) => Observable<unknown>, id: string | null = 
       },
     ],
   });
-  TestBed.overrideComponent(RezervasyonFormuSayfasi, { set: { template: '', imports: [] } });
+  TestBed.overrideComponent(ReservationFormPage, { set: { template: '', imports: [] } });
   await firstValueFrom(TestBed.inject(TranslocoService).load('tr'));
-  const fixture = TestBed.createComponent(RezervasyonFormuSayfasi);
+  const fixture = TestBed.createComponent(ReservationFormPage);
   const s = fixture.componentInstance;
-  const kaydet = () => (s as unknown as { kaydet(): void }).kaydet();
-  const detayVer = (d: RezervasyonDetayYaniti) => {
-    detaylar.next(d);
+  const save = () => (s as unknown as { kaydet(): void }).kaydet();
+  const provideDetail = (d: ReservationDetailResponse) => {
+    details.next(d);
     TestBed.tick();
   };
   TestBed.tick();
-  return { s, kaydet, detayVer, putlar, postlar, router, bant: TestBed.inject(UyariBandiServisi) };
+  return {
+    s,
+    kaydet: save,
+    detayVer: provideDetail,
+    putlar: puts,
+    postlar: posts,
+    router,
+    bant: TestBed.inject(WarningBannerService),
+  };
 }
 
 describe('Rezervasyon formu sürüm akışı', () => {
   it('PUT tüm alanları + detaydaki sürümü taşır', async () => {
-    const { s, kaydet, detayVer, putlar } = await kur(() => of(rezervasyonDetayi()));
-    detayVer(rezervasyonDetayi());
+    const { s, kaydet, detayVer, putlar } = await exchangeRate(() => of(reservationDetail()));
+    detayVer(reservationDetail());
     s.form.controls.projeAdi.setValue('Kongre');
     s.form.controls.projeAdi.markAsDirty();
     kaydet();
     expect(putlar).toHaveLength(1);
-    expect(putlar[0]?.yol).toBe(`/api/ui/v1/rezervasyonlar/${REZ_ID}`);
+    expect(putlar[0]?.yol).toBe(`/api/ui/v1/rezervasyonlar/${RES_ID}`);
     expect(putlar[0]?.govde).toMatchObject({
       surum: '812',
       projeAdi: 'Kongre',
@@ -113,10 +121,16 @@ describe('Rezervasyon formu sürüm akışı', () => {
   });
 
   it('409 cakisma formu SİLMEZ: güncel kayıt birleşir, çakışan alan işaretlenir, yeniden kayıt YENİ sürümle', async () => {
-    const { s, kaydet, detayVer, putlar, bant } = await kur((n) =>
-      n === 1 ? throwError(cakisma) : of(rezervasyonDetayi({ surum: '900' })),
+    const {
+      s,
+      kaydet,
+      detayVer,
+      putlar,
+      bant: banner,
+    } = await exchangeRate((n) =>
+      n === 1 ? throwError(conflict) : of(reservationDetail({ surum: '900' })),
     );
-    detayVer(rezervasyonDetayi());
+    detayVer(reservationDetail());
     s.form.controls.projeAdi.setValue('Kongre');
     s.form.controls.projeAdi.markAsDirty();
     s.form.controls.gunlukUcret.setValue('1300.00');
@@ -128,14 +142,14 @@ describe('Rezervasyon formu sürüm akışı', () => {
     expect(s.form.dirty).toBe(true);
 
     // Başka oturum günlük ücreti ve onay kodunu değiştirmiş (sürüm 813).
-    detayVer(rezervasyonDetayi({ surum: '813', gunlukUcret: 1400, onayKodu: 'ONY-2' }));
+    detayVer(reservationDetail({ surum: '813', gunlukUcret: 1400, onayKodu: 'ONY-2' }));
     expect(s.form.controls.projeAdi.value).toBe('Kongre');
     expect(s.form.controls.gunlukUcret.value).toBe('1300.00');
     expect(s.form.controls.onayKodu.value).toBe('ONY-2');
     expect(s.form.controls.gunlukUcret.errors).toEqual({
       sunucu: ['Bu alan başka bir oturumda da değişti; kontrol edip yeniden kaydedin.'],
     });
-    expect(bant.bant()?.kod).toBe('cakisma');
+    expect(banner.bant()?.kod).toBe('cakisma');
 
     kaydet();
     expect(putlar).toHaveLength(2);
@@ -148,8 +162,8 @@ describe('Rezervasyon formu sürüm akışı', () => {
   });
 
   it('düzenlenemeyen kayıt (Kiraya çevrildi) form kilitli; kaydet istek göndermez', async () => {
-    const { s, kaydet, detayVer, putlar } = await kur(() => of(rezervasyonDetayi()));
-    const d = rezervasyonDetayi({
+    const { s, kaydet, detayVer, putlar } = await exchangeRate(() => of(reservationDetail()));
+    const d = reservationDetail({
       durum: 'KirayaCevrildi',
       kiraId: '0b0e7c1a-1111-4aaa-8bbb-000000000001',
     });
@@ -163,7 +177,7 @@ describe('Rezervasyon formu sürüm akışı', () => {
   });
 
   it('yeni: POST gövdesi, başarıda kayda gidilir ve sekme temiz forma döner', async () => {
-    const { s, kaydet, postlar, router } = await kur(() => of(null), null);
+    const { s, kaydet, postlar, router } = await exchangeRate(() => of(null), null);
     expect(s.form.controls.fiyatTuru.value).toBe('Günlük'); // tenant varsayılanı ön-seçim
     s.form.patchValue({
       musteri: { id: '0b0e7c1a-2222-4aaa-8bbb-000000000002', etiket: 'Ayşe' },
@@ -175,7 +189,7 @@ describe('Rezervasyon formu sürüm akışı', () => {
     expect(postlar).toHaveLength(1);
     expect(postlar[0]?.govde).toMatchObject({ talepTuru: 'Bireysel', fiyatTuru: 'Günlük' });
     expect(postlar[0]?.govde).not.toHaveProperty('surum');
-    expect(router.navigate).toHaveBeenCalledWith(['/rezervasyonlar', REZ_ID]);
+    expect(router.navigate).toHaveBeenCalledWith(['/rezervasyonlar', RES_ID]);
     expect(s.form.dirty).toBe(false);
     expect(s.form.controls.musteri.value).toBeNull();
   });

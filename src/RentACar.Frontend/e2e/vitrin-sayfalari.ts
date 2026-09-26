@@ -17,9 +17,9 @@ export interface VitrinSayfasi {
   readonly hazir?: (page: Page) => Promise<void>;
 }
 
-const DUZEN_UCU = '**/api/ui/v1/tablo-duzenleri/**';
+const LAYOUT_ENDPOINT = '**/api/ui/v1/tablo-duzenleri/**';
 
-export const VITRIN_SAYFALARI: readonly VitrinSayfasi[] = [
+export const SHOWCASE_PAGES: readonly VitrinSayfasi[] = [
   { ad: 'ana-sayfa', yol: '/app/', baslik: 'Yeni arayüz yapım aşamasında' },
   { ad: 'dizin', yol: '/app/vitrin', baslik: 'Vitrin' },
   { ad: 'tokenlar', yol: '/app/vitrin/tokenlar', baslik: 'Token’lar' },
@@ -36,15 +36,15 @@ export const VITRIN_SAYFALARI: readonly VitrinSayfasi[] = [
     yol: '/app/vitrin/tablo',
     baslik: 'Tablo vitrini',
     hazirla: (page) =>
-      page.route(DUZEN_UCU, (route) =>
+      page.route(LAYOUT_ENDPOINT, (route) =>
         route.fulfill({
           json: { tabloKodu: 'vitrin.araclar', duzen: null, guncellemeUtc: null },
         }),
       ),
     hazir: async (page) => {
-      const izgara = page.getByRole('grid', { name: 'Araç listesi' });
-      await expect(izgara).not.toHaveAttribute('aria-busy', 'true');
-      await expect(izgara.locator('[data-hucre="1:0"]')).toBeVisible();
+      const grid = page.getByRole('grid', { name: 'Araç listesi' });
+      await expect(grid).not.toHaveAttribute('aria-busy', 'true');
+      await expect(grid.locator('[data-hucre="1:0"]')).toBeVisible();
     },
   },
   { ad: 'geri-bildirim', yol: '/app/vitrin/geri-bildirim', baslik: 'Geri bildirim vitrini' },
@@ -52,9 +52,9 @@ export const VITRIN_SAYFALARI: readonly VitrinSayfasi[] = [
 ];
 
 /** Sayfa çizimi bitti: başlık, sayfa verisi, fontlar, (tembel) ikon kaydı; yükleniyor işareti yok. */
-export async function hazirBekle(page: Page, sayfa: VitrinSayfasi): Promise<void> {
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(sayfa.baslik);
-  await sayfa.hazir?.(page);
+export async function waitReady(page: Page, pageRef: VitrinSayfasi): Promise<void> {
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(pageRef.baslik);
+  await pageRef.hazir?.(page);
   await page.waitForFunction(
     () =>
       [...document.querySelectorAll('rc-ikon')].every((i) => i.querySelector('svg') !== null) &&
@@ -71,25 +71,25 @@ export async function hazirBekle(page: Page, sayfa: VitrinSayfasi): Promise<void
  * Yatay taşma (scripts/mobil-tasma.mjs'in SPA karşılığı): `scrollWidth > clientWidth`. Suçlu, SAĞ
  * KENARI viewport'u aşan en dıştaki elemanlar (genişliği değil konumu: dar eleman da taşırabilir).
  */
-export async function tasmaOlc(page: Page): Promise<{ tasma: number; suclular: string[] }> {
+export async function measureOverflow(page: Page): Promise<{ tasma: number; suclular: string[] }> {
   return page.evaluate(() => {
     const de = document.documentElement;
-    const genislik = de.clientWidth;
-    const tasma = de.scrollWidth - genislik;
-    if (tasma <= 0) return { tasma: 0, suclular: [] };
-    const kimlik = (e: Element) => {
-      const sinif =
+    const width = de.clientWidth;
+    const overflow = de.scrollWidth - width;
+    if (overflow <= 0) return { tasma: 0, suclular: [] };
+    const identity = (e: Element) => {
+      const cssClass =
         typeof e.className === 'string' && e.className.trim()
           ? '.' + e.className.trim().split(/\s+/).slice(0, 2).join('.')
           : '';
-      return e.tagName.toLocaleLowerCase('en') + sinif;
+      return e.tagName.toLocaleLowerCase('en') + cssClass;
     };
-    const suclular = [...document.querySelectorAll('body *')]
+    const culprits = [...document.querySelectorAll('body *')]
       .map((e) => ({ e, sag: Math.round(e.getBoundingClientRect().right) }))
-      .filter((x) => x.sag > genislik + 1)
+      .filter((x) => x.sag > width + 1)
       .sort((a, b) => b.sag - a.sag)
       .slice(0, 3)
-      .map((x) => `${kimlik(x.e)} (sağ kenar ${x.sag}px)`);
-    return { tasma, suclular };
+      .map((x) => `${identity(x.e)} (sağ kenar ${x.sag}px)`);
+    return { tasma: overflow, suclular: culprits };
   });
 }

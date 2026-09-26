@@ -3,16 +3,13 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
 import { moneySubmission } from '@core/form/money-submission';
-import { ApiIstemcisi, type SorguParametreleri } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ApiIstemcisi, type QueryParameters } from '@core/api/api-istemcisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
-import { dovizKodu } from '@features/kira-formu/finans-paneli/finans-modeli';
+import { currencyCode } from '@features/kira-formu/finans-paneli/finans-modeli';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
 import {
@@ -52,10 +49,10 @@ const PAGE_SIZE = 50;
   templateUrl: './cash-hub.html',
   styleUrl: '../finance.scss',
 })
-export class CashHub implements KaydedilmemisDegisiklikSahibi {
+export class CashHub implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
   protected readonly accounts = inject(AccountList);
 
   protected readonly summary = new TemelStore(() =>
@@ -67,7 +64,7 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
     }),
   );
   protected readonly transactions = new TemelStore(
-    (p: SorguParametreleri) =>
+    (p: QueryParameters) =>
       this.api.get<CashTransactionList>(financePath('/kasa/islemler'), { parametreler: p }),
     { oncekiVeriyiKoru: true },
   );
@@ -80,7 +77,7 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
     bas: new FormControl<string | null>(null),
     bit: new FormControl<string | null>(null),
   });
-  private readonly params = signal<SorguParametreleri>({ sayfa: 1, boyut: PAGE_SIZE });
+  private readonly params = signal<QueryParameters>({ sayfa: 1, boyut: PAGE_SIZE });
   protected readonly page = computed(() => Number(this.params()['sayfa'] ?? 1));
   protected readonly pageCount = computed(() => {
     const l = this.transactions.veri()?.liste;
@@ -120,10 +117,10 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
   });
   protected readonly sourceAccounts = computed(() => this.accounts.options(this.sourceKind()));
   protected readonly targetAccounts = computed(() => this.accounts.options(this.targetKind()));
-  protected readonly isForeign = computed(() => dovizKodu(this.currency()) !== 'TRY');
+  protected readonly isForeign = computed(() => currencyCode(this.currency()) !== 'TRY');
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
     this.action.restore(this.form);
     this.accounts.load();
@@ -139,15 +136,15 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
       this.form.controls.hedefHesapId,
     );
     const policy = inject(FetchPolicy);
-    policy.baglan({ parametre: signal(0).asReadonly(), yukle: () => this.reloadSummary() });
-    policy.baglan({ parametre: this.params, yukle: (p) => this.transactions.yukle(p) });
+    policy.connect({ parametre: signal(0).asReadonly(), yukle: () => this.reloadSummary() });
+    policy.connect({ parametre: this.params, yukle: (p) => this.transactions.yukle(p) });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.action.pending() || this.form.dirty;
   }
 
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.action.pending() ? this.t('finans.islem.terkMesaji') : null;
   }
 
@@ -185,7 +182,7 @@ export class CashHub implements KaydedilmemisDegisiklikSahibi {
     });
   }
 
-  protected makbuzUrl(id: string): string {
+  protected receiptUrl(id: string): string {
     return `/kasa/makbuz/${encodeURIComponent(id)}/pdf`;
   }
 

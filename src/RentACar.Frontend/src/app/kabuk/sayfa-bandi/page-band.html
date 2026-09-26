@@ -1,0 +1,34 @@
+<div class="bant">
+  <div class="bant__baslik">
+    @if (ikon(); as ad) {
+      <rc-ikon class="bant__ikon" [ad]="ad" [boyut]="18" />
+    }
+    <h1 class="bant__h1">{{ baslik() }}</h1>
+    @if (pill(); as p) {
+      <span class="bant__pill">{{ p }}</span>
+    }
+    @if (altMetin(); as m) {
+      <span class="bant__alt">{{ m }}</span>
+    }
+  </div>
+  <div class="bant__eylemler-sar">
+    @if (hasSecondary()) {
+      <button
+        #menuDugmesi
+        type="button"
+        class="bant__menu-dugmesi"
+        [attr.aria-expanded]="isMenuOpen()"
+        [attr.aria-controls]="menuId"
+        [attr.aria-label]="'kabuk.bant.digerEylemler' | transloco"
+        [title]="'kabuk.bant.digerEylemler' | transloco"
+        (click)="toggleMenu()"
+      >
+        <rc-ikon ad="dots" [boyut]="18" />
+      </button>
+    }
+    <div #eylemler class="bant__eylemler" [class.bant__eylemler--acik]="isMenuOpen()" [id]="menuId">
+      <ng-content select="[eylemler]" />
+    </div>
+    <ng-content select="[birincil]" />
+  </div>
+</div>

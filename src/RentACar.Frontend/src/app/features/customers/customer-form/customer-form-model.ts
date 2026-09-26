@@ -1,7 +1,7 @@
 import { FormArray, FormControl, FormGroup, Validators, type ValidatorFn } from '@angular/forms';
 
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { anDegeri, gunDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { momentValue, dayValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { toNumber } from '@features/vehicles/vehicle-model';
 
 import type {
@@ -132,7 +132,7 @@ export function cardToForm(card: CustomerCard): CustomerFormValue {
         value[spec.name] = raw === null || raw === undefined || raw === '' ? null : String(raw);
         break;
       case 'date':
-        value[spec.name] = gunDegeri(raw as string | null | undefined);
+        value[spec.name] = dayValue(raw as string | null | undefined);
         break;
       case 'tri':
         value[spec.name] = raw === true ? 'true' : raw === false ? 'false' : null;
@@ -225,8 +225,8 @@ export function formToRequest(
         body[spec.name] = decimalOrNull(raw);
         break;
       case 'date':
-        body[spec.name] = anDegeri(
-          (raw as GunMetni | null) ?? null,
+        body[spec.name] = momentValue(
+          (raw as DayText | null) ?? null,
           base ? (read(base, spec.name) as string | null | undefined) : null,
         );
         break;
@@ -234,7 +234,7 @@ export function formToRequest(
         body[spec.name] = raw === 'true' ? true : raw === 'false' ? false : null;
         break;
       default:
-        body[spec.name] = metinDegeri(typeof raw === 'string' ? raw : null);
+        body[spec.name] = textValue(typeof raw === 'string' ? raw : null);
     }
   }
   for (const flag of PRIVACY_FLAGS) body[flag] = v[flag] === true;
@@ -242,20 +242,20 @@ export function formToRequest(
   for (const name of SECRET_FIELDS) {
     body[name] = base
       ? secretValue(v[name], v[clearFlag(name)])
-      : metinDegeri(typeof v[name] === 'string' ? v[name] : null);
+      : textValue(typeof v[name] === 'string' ? v[name] : null);
   }
   body[TAX_NUMBER_FIELD] = taxNumberIsSecret(base)
     ? secretValue(v[TAX_NUMBER_FIELD], v[clearFlag('vergiNo')])
-    : metinDegeri(typeof v[TAX_NUMBER_FIELD] === 'string' ? v[TAX_NUMBER_FIELD] : null);
+    : textValue(typeof v[TAX_NUMBER_FIELD] === 'string' ? v[TAX_NUMBER_FIELD] : null);
   // Portal şifresi: boş = değiştirme (tek yönlü özet; asla geri okunmaz).
   body[PASSWORD_FIELD] =
     typeof v[PASSWORD_FIELD] === 'string' && v[PASSWORD_FIELD] !== '' ? v[PASSWORD_FIELD] : null;
   body[CONTACTS_FIELD] = contacts
     .map((c) => ({
-      adSoyad: metinDegeri(c.adSoyad),
-      telefon: metinDegeri(c.telefon),
-      mail: metinDegeri(c.mail),
-      gorev: metinDegeri(c.gorev),
+      adSoyad: textValue(c.adSoyad),
+      telefon: textValue(c.telefon),
+      mail: textValue(c.mail),
+      gorev: textValue(c.gorev),
     }))
     .filter((c) => c.adSoyad !== null);
   body['islemSubeId'] = base?.islemSubeId ?? null;

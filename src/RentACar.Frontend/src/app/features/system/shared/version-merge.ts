@@ -1,6 +1,6 @@
 import type { AbstractControl, FormGroup } from '@angular/forms';
 
-import { SUNUCU_HATASI } from '@core/form/sunucu-hatalari';
+import { SERVER_ERROR } from '@core/form/sunucu-hatalari';
 
 type Values = Readonly<Record<string, unknown>>;
 
@@ -32,7 +32,7 @@ export function mergeServerValues(
     if (control.pristine) {
       control.setValue(value, { emitEvent: false });
     } else if (!sameValue(value, reference[name]) && !sameValue(value, control.value)) {
-      control.setErrors({ ...(control.errors ?? {}), [SUNUCU_HATASI]: [message] });
+      control.setErrors({ ...(control.errors ?? {}), [SERVER_ERROR]: [message] });
       control.markAsTouched();
       flagged.push(name);
     }

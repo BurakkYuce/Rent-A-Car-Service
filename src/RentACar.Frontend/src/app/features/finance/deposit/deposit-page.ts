@@ -3,17 +3,17 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
 import { moneySubmission } from '@core/form/money-submission';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
 import { TemelStore } from '@core/veri/temel-store';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
 
 import {
   type AccountKind,
@@ -38,13 +38,13 @@ import { AccountList, FIN_COMMON, clearAccountOnKindChange, kindOptions } from '
   templateUrl: './deposit-page.html',
   styleUrl: '../finance.scss',
 })
-export class DepositPage implements KaydedilmemisDegisiklikSahibi {
+export class DepositPage implements UnsavedChangesOwner {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly t = translationFunction();
   protected readonly accounts = inject(AccountList);
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
   protected readonly kindOptions = kindOptions(this.t);
   protected readonly action = moneySubmission<object>({ scope: () => 'depozito' });
   protected readonly operations: readonly DepositOperation[] = ['al', 'iade', 'mahsup', 'irat'];
@@ -65,22 +65,22 @@ export class DepositPage implements KaydedilmemisDegisiklikSahibi {
   protected readonly accountOptions = computed(() => this.accounts.options(this.accountKind()));
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     // Sonucu bilinmeyen işlem (sayfa kapanıp açıldıysa) aynı gövde + anahtarla KİLİTLİ geri gelir.
     this.action.restore(this.form);
     this.accounts.load();
     clearAccountOnKindChange(this.accounts, this.form.controls.hesap, this.form.controls.hesapId);
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: computed(() => 0),
       yukle: () => this.balances.yukle(),
     });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.action.pending() || this.form.dirty;
   }
 
-  kaydedilmemisDegisiklikMesaji(): string | null {
+  unsavedChangesMessage(): string | null {
     return this.action.pending() ? this.t('finans.islem.terkMesaji') : null;
   }
 
@@ -106,7 +106,7 @@ export class DepositPage implements KaydedilmemisDegisiklikSahibi {
       confirm:
         op === 'irat'
           ? () =>
-              this.confirm.sor({
+              this.confirm.ask({
                 baslik: this.t('finans.depozito.iratBaslik'),
                 mesaj: this.t('finans.depozito.iratOnay'),
                 tehlikeli: true,

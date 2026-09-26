@@ -1,7 +1,11 @@
-import type { ApiYolu, SorguParametreleri } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { type GunMetni, anBirlestir } from '@core/form/tarih-girdisi';
-import { dovizKodu, kurAlani, paraMetni } from '@features/kira-formu/finans-paneli/finans-modeli';
+import type { ApiPath, QueryParameters } from '@core/api/api-istemcisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { type DayText, mergeMoment } from '@core/form/tarih-girdisi';
+import {
+  currencyCode,
+  exchangeRateField,
+  moneyText,
+} from '@features/kira-formu/finans-paneli/finans-modeli';
 
 /**
  * F8.2a finans ekranlarının SAF kuralları: tipler (üretilen şemaların takma adları), uç yolları ve istek gövdeleri.
@@ -10,54 +14,54 @@ import { dovizKodu, kurAlani, paraMetni } from '@features/kira-formu/finans-pane
  * dövizde boşsa gönderilmez (sunucu firma sabit kuru → TCMB ile çözer).
  */
 
-export type CashboxSummary = Sema<'CashboxSummary'>;
-export type CashTransactionList = Sema<'CashTransactionList'>;
-export type CashTransactionRow = Sema<'CashTransactionRow'>;
-export type CashTransferRow = Sema<'CashTransferRow'>;
-export type CashTransferRequest = Sema<'CashTransferRequest'>;
-export type CashOperationResult = Sema<'CashOperationResult'>;
-export type CustomerBalance = Sema<'CustomerBalance'>;
-export type BalanceAdjustmentRequest = Sema<'BalanceAdjustmentRequest'>;
-export type CustomerTransferRequest = Sema<'CustomerTransferRequest'>;
-export type CustomerTransferRow = Sema<'CustomerTransferRow'>;
-export type CustomerStatement = Sema<'CustomerStatement'>;
-export type CustomerStatementLine = Sema<'CustomerStatementLine'>;
-export type CustomerOpenItems = Sema<'CustomerOpenItems'>;
-export type CustomerOpenItem = Sema<'CustomerOpenItem'>;
-export type CloseItemsRequest = Sema<'CloseItemsRequest'>;
-export type CloseItemsResult = Sema<'CloseItemsResult'>;
-export type BulkCollectionRequest = Sema<'BulkCollectionRequest'>;
-export type BulkPostingResult = Sema<'BulkPostingResult'>;
-export type BulkExpenseRequest = Sema<'BulkExpenseRequest'>;
-export type DepositBalanceRow = Sema<'DepositBalanceRow'>;
-export type PeriodCloseState = Sema<'PeriodCloseState'>;
-export type AutoCollectionList = Sema<'AutoCollectionList'>;
-export type AutoCollectionCandidate = Sema<'AutoCollectionCandidate'>;
-export type AutoCollectionRequest = Sema<'AutoCollectionRequest'>;
-export type AutoCollectionResult = Sema<'AutoCollectionResult'>;
-export type RatesScreen = Sema<'RatesScreen'>;
-export type FixedRate = Sema<'FixedRate'>;
-export type FixedRateCreateRequest = Sema<'FixedRateCreateRequest'>;
-export type FixedRateUpdateRequest = Sema<'FixedRateUpdateRequest'>;
-export type RatesRefreshResult = Sema<'RatesRefreshResult'>;
-export type ConversionResult = Sema<'ConversionResult'>;
-export type CollectionRequest = Sema<'TahsilatIstegi'>;
-export type PaymentRequest = Sema<'OdemeIstegi'>;
-export type DepositTakeRequest = Sema<'DepozitoAlIstegi'>;
-export type DepositIncomeRequest = Sema<'DepozitoIratIstegi'>;
-export type DepositRefundRequest = Sema<'DepositRefundRequest'>;
-export type DepositOffsetRequest = Sema<'DepositOffsetRequest'>;
-export type AccountOption = Sema<'FinansHesapOgesi'>;
+export type CashboxSummary = Schema<'CashboxSummary'>;
+export type CashTransactionList = Schema<'CashTransactionList'>;
+export type CashTransactionRow = Schema<'CashTransactionRow'>;
+export type CashTransferRow = Schema<'CashTransferRow'>;
+export type CashTransferRequest = Schema<'CashTransferRequest'>;
+export type CashOperationResult = Schema<'CashOperationResult'>;
+export type CustomerBalance = Schema<'CustomerBalance'>;
+export type BalanceAdjustmentRequest = Schema<'BalanceAdjustmentRequest'>;
+export type CustomerTransferRequest = Schema<'CustomerTransferRequest'>;
+export type CustomerTransferRow = Schema<'CustomerTransferRow'>;
+export type CustomerStatement = Schema<'CustomerStatement'>;
+export type CustomerStatementLine = Schema<'CustomerStatementLine'>;
+export type CustomerOpenItems = Schema<'CustomerOpenItems'>;
+export type CustomerOpenItem = Schema<'CustomerOpenItem'>;
+export type CloseItemsRequest = Schema<'CloseItemsRequest'>;
+export type CloseItemsResult = Schema<'CloseItemsResult'>;
+export type BulkCollectionRequest = Schema<'BulkCollectionRequest'>;
+export type BulkPostingResult = Schema<'BulkPostingResult'>;
+export type BulkExpenseRequest = Schema<'BulkExpenseRequest'>;
+export type DepositBalanceRow = Schema<'DepositBalanceRow'>;
+export type PeriodCloseState = Schema<'PeriodCloseState'>;
+export type AutoCollectionList = Schema<'AutoCollectionList'>;
+export type AutoCollectionCandidate = Schema<'AutoCollectionCandidate'>;
+export type AutoCollectionRequest = Schema<'AutoCollectionRequest'>;
+export type AutoCollectionResult = Schema<'AutoCollectionResult'>;
+export type RatesScreen = Schema<'RatesScreen'>;
+export type FixedRate = Schema<'FixedRate'>;
+export type FixedRateCreateRequest = Schema<'FixedRateCreateRequest'>;
+export type FixedRateUpdateRequest = Schema<'FixedRateUpdateRequest'>;
+export type RatesRefreshResult = Schema<'RatesRefreshResult'>;
+export type ConversionResult = Schema<'ConversionResult'>;
+export type CollectionRequest = Schema<'TahsilatIstegi'>;
+export type PaymentRequest = Schema<'OdemeIstegi'>;
+export type DepositTakeRequest = Schema<'DepozitoAlIstegi'>;
+export type DepositIncomeRequest = Schema<'DepozitoIratIstegi'>;
+export type DepositRefundRequest = Schema<'DepositRefundRequest'>;
+export type DepositOffsetRequest = Schema<'DepositOffsetRequest'>;
+export type AccountOption = Schema<'FinansHesapOgesi'>;
 
 export const FINANCE = '/api/ui/v1/finans';
 
 /** Kimlikli alt yol (kimlik kaçışlanır). */
-export function financePath(suffix: string): ApiYolu {
-  return `${FINANCE}${suffix}` as ApiYolu;
+export function financePath(suffix: string): ApiPath {
+  return `${FINANCE}${suffix}` as ApiPath;
 }
 
-export function customerPath(cariId: string, suffix: string): ApiYolu {
-  return financePath(`/cariler/${encodeURIComponent(cariId)}${suffix}`);
+export function customerPath(customerId: string, suffix: string): ApiPath {
+  return financePath(`/cariler/${encodeURIComponent(customerId)}${suffix}`);
 }
 
 /** Kasa/banka hesap türü (`FinansApi.Hesap`: yalnız bu iki değer). */
@@ -90,18 +94,18 @@ export function textOrNull(v: string | null | undefined): string | null {
 }
 
 /** Takvim günü → o günün İstanbul gece yarısı (UTC anı). Boş → `null` (sunucu bugünü kullanır). */
-export function dayToInstant(day: GunMetni | null | undefined): string | null {
-  return day ? anBirlestir(day, '00:00') : null;
+export function dayToInstant(day: DayText | null | undefined): string | null {
+  return day ? mergeMoment(day, '00:00') : null;
 }
 
 /** Tutar (2 ondalık, invariant metin); boş → `''` (sunucu alan hatası verir, sessiz sıfır yok). */
 export function amountText(v: MoneyValue): string {
-  return paraMetni(v, 2) ?? '';
+  return moneyText(v, 2) ?? '';
 }
 
 /** Döviz + kur alanları birlikte (kur yalnız dövizde ve doluysa). */
-export function currencyFields(doviz: string | null | undefined, kur: MoneyValue) {
-  return { doviz: dovizKodu(doviz), ...kurAlani(doviz, kur) };
+export function currencyFields(currency: string | null | undefined, exchangeRate: MoneyValue) {
+  return { doviz: currencyCode(currency), ...exchangeRateField(currency, exchangeRate) };
 }
 
 /** Deneme kaydı içeriği (`TahsilatDenemeKaydi`; tutar + döviz + hesap türü — kişisel veri yok). */
@@ -118,14 +122,14 @@ export interface CashFormValue {
   readonly hesap: AccountKind | null;
   readonly hesapId: string | null;
   readonly kanal: string | null;
-  readonly tarih: GunMetni | null;
+  readonly tarih: DayText | null;
   readonly aciklama: string | null;
 }
 
 /** Nakit işlem / ekstre tahsilatı: kiraya bağlanmaz, deterministik anahtar YOK → `Idempotency-Key` başlığı. */
-export function collectionBody(cariId: string, v: CashFormValue): CollectionRequest {
+export function collectionBody(customerId: string, v: CashFormValue): CollectionRequest {
   return {
-    cariId,
+    cariId: customerId,
     tutar: amountText(v.tutar),
     hesap: v.hesap,
     hesapId: v.hesapId,
@@ -137,8 +141,8 @@ export function collectionBody(cariId: string, v: CashFormValue): CollectionRequ
 }
 
 /** Ödeme (tediye) gövdesi — tahsilatla aynı alanlar. */
-export function paymentBody(cariId: string, v: CashFormValue): PaymentRequest {
-  return collectionBody(cariId, v);
+export function paymentBody(customerId: string, v: CashFormValue): PaymentRequest {
+  return collectionBody(customerId, v);
 }
 
 export interface TransferFormValue {
@@ -174,16 +178,19 @@ export interface AdjustmentFormValue {
   readonly tutar: MoneyValue;
   readonly doviz: string | null;
   readonly kur: MoneyValue;
-  readonly tarih: GunMetni | null;
-  readonly vade: GunMetni | null;
+  readonly tarih: DayText | null;
+  readonly vade: DayText | null;
   readonly makbuzNo: string | null;
   readonly aciklama: string | null;
 }
 
 /** Bakiye düzeltme: Kasa/Banka'ya DOKUNMAZ (karşı bacak Muhasebe Düzeltmesi). */
-export function adjustmentBody(cariId: string, v: AdjustmentFormValue): BalanceAdjustmentRequest {
+export function adjustmentBody(
+  customerId: string,
+  v: AdjustmentFormValue,
+): BalanceAdjustmentRequest {
   return {
-    cariId,
+    cariId: customerId,
     yon: v.yon,
     tutar: amountText(v.tutar),
     ...currencyFields(v.doviz, v.kur),
@@ -200,8 +207,8 @@ export interface CustomerTransferFormValue {
   readonly tutar: MoneyValue;
   readonly doviz: string | null;
   readonly kur: MoneyValue;
-  readonly tarih: GunMetni | null;
-  readonly vade: GunMetni | null;
+  readonly tarih: DayText | null;
+  readonly vade: DayText | null;
   readonly makbuzNo: string | null;
   readonly sube: string | null;
   readonly aciklama: string | null;
@@ -233,12 +240,12 @@ export function closeItemsBody(
   v: {
     hesap: AccountKind | null;
     kanal: string | null;
-    tarih: GunMetni | null;
+    tarih: DayText | null;
     aciklama: string | null;
   },
 ): CloseItemsRequest {
   return {
-    secim: selection.map((s) => ({ kalemId: s.kalemId, tutar: paraMetni(s.tutar, 2) })),
+    secim: selection.map((s) => ({ kalemId: s.kalemId, tutar: moneyText(s.tutar, 2) })),
     hesap: v.hesap,
     kanal: textOrNull(v.kanal),
     tarih: dayToInstant(v.tarih),
@@ -281,7 +288,7 @@ export interface BulkExpenseFormValue {
   /** Kesir (0,20 = %20) — `rc-sayi-girdisi` sayısı. */
   readonly kdvOrani: number | null;
   readonly cariId: string | null;
-  readonly vade: GunMetni | null;
+  readonly vade: DayText | null;
   readonly finansalHesapId: string | null;
 }
 
@@ -314,10 +321,10 @@ export type DepositOperation = 'al' | 'iade' | 'mahsup' | 'irat';
  */
 export function depositRequest(
   op: DepositOperation,
-  cariId: string,
+  customerId: string,
   v: { tutar: MoneyValue; hesap: AccountKind | null; hesapId: string | null },
 ): { cariId: string; tutar: string; hesap?: AccountKind | null; hesapId?: string | null } {
-  const base = { cariId, tutar: amountText(v.tutar) };
+  const base = { cariId: customerId, tutar: amountText(v.tutar) };
   return op === 'al' || op === 'iade' ? { ...base, hesap: v.hesap, hesapId: v.hesapId } : base;
 }
 
@@ -352,8 +359,8 @@ export function candidateKey(c: {
 /** Sorgu parametreleri: boş değerler gönderilmez. */
 export function queryParams(
   v: Readonly<Record<string, string | boolean | null | undefined>>,
-): SorguParametreleri {
+): QueryParameters {
   return Object.fromEntries(
     Object.entries(v).filter(([, d]) => d !== null && d !== undefined && d !== '' && d !== false),
-  ) as SorguParametreleri;
+  ) as QueryParameters;
 }

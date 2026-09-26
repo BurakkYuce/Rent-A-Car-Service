@@ -69,7 +69,7 @@
           </div>
           <div>
             <dt>{{ 'aracFinans.kredi.faiz' | transloco }}</dt>
-            <dd>%{{ faizYuzde(d.faizOran) | sayi: '1.0-2' }}</dd>
+            <dd>%{{ interestPercent(d.faizOran) | sayi: '1.0-2' }}</dd>
           </div>
           <div>
             <dt>{{ 'aracFinans.kredi.odenenToplam' | transloco }}</dt>
@@ -111,7 +111,7 @@
           <rc-installment-payment-panel
             [loan]="d"
             [accounts]="accounts()"
-            [refreshing]="store.detail.yukleniyor()"
+            [refreshing]="store.detail.isLoading()"
             (settled)="reload()"
           />
         }

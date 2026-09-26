@@ -14,27 +14,27 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import { paraBicimle, sayiBicimle } from '@core/bicim/bicim';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { istekBaglami } from '@core/oturum/istek-baglami';
+import { formatMoney, sayiBicimle } from '@core/bicim/bicim';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { requestContext } from '@core/oturum/request-context';
 import { TemelStore } from '@core/veri/temel-store';
-import { DOVIZLER, KANALLAR } from '@features/kira-formu/finans-paneli/finans-modeli';
-import { BICIM_PIPELARI } from '@shared/bicim/bicim-pipe';
+import { CURRENCIES, CHANNELS } from '@features/kira-formu/finans-paneli/finans-modeli';
+import { FORMAT_PIPES } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import type { SecimSecenegi } from '@shared/form/arama-secim/secim-kaynagi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import type { SecimSecenegi } from '@shared/form/arama-secim/selection-source';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
+import { Selection } from '@shared/form/kontroller/selection';
 import { MoneyNoticeView } from '@shared/form/money-submit/money-notice';
 import { MoneySubmitBar } from '@shared/form/money-submit/money-submit-bar';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
 
 import {
   ACCOUNT_KINDS,
@@ -44,9 +44,9 @@ import {
   customerPath,
   financePath,
 } from './finance-model';
-import { SayfaBandi } from '../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../kabuk/sayfa-bandi/page-band';
 
-type Translate = ReturnType<typeof ceviriFonksiyonu>;
+type Translate = ReturnType<typeof translationFunction>;
 
 /** Aktif kasa/banka hesapları (seçim isteğe bağlı; hata sessiz — seçici boş kalır, tür yine seçilir). */
 @Injectable()
@@ -54,7 +54,7 @@ export class AccountList {
   private readonly api = inject(ApiIstemcisi);
   readonly store = new TemelStore(() =>
     this.api.get<readonly AccountOption[]>(financePath('/hesaplar'), {
-      context: istekBaglami({ sessiz: true }),
+      context: requestContext({ sessiz: true }),
     }),
   );
   private readonly all = computed(() => this.store.veri() ?? []);
@@ -107,7 +107,7 @@ export function clearAccountOnKindChange(
 export class CustomerBalanceSource {
   private readonly api = inject(ApiIstemcisi);
   readonly store = new TemelStore(
-    (cariId: string) => this.api.get<CustomerBalance>(customerPath(cariId, '/bakiye')),
+    (customerId: string) => this.api.get<CustomerBalance>(customerPath(customerId, '/bakiye')),
     { oncekiVeriyiKoru: true },
   );
 }
@@ -123,12 +123,12 @@ export function kindOptions(t: Translate): readonly SecenekOgesi<AccountKind>[] 
   return ACCOUNT_KINDS.map((k) => ({ deger: k, etiket: t(`finans.hesapTuru.${k}`) }));
 }
 
-export const CURRENCY_OPTIONS: readonly SecenekOgesi<string>[] = DOVIZLER.map((d) => ({
+export const CURRENCY_OPTIONS: readonly SecenekOgesi<string>[] = CURRENCIES.map((d) => ({
   deger: d,
   etiket: d,
 }));
 
-export const CHANNEL_OPTIONS: readonly SecenekOgesi<string>[] = KANALLAR.map((k) => ({
+export const CHANNEL_OPTIONS: readonly SecenekOgesi<string>[] = CHANNELS.map((k) => ({
   deger: k,
   etiket: k,
 }));
@@ -142,13 +142,13 @@ export const CHANNEL_OPTIONS: readonly SecenekOgesi<string>[] = KANALLAR.map((k)
  * sorulur; onaylarsa `discard` formu temizler ve geçilir, vazgeçerse ekrandaki cari kalır.
  */
 export function followCustomerQuery(
-  cariId: WritableSignal<string | null>,
+  customerId: WritableSignal<string | null>,
   customer: FormControl<SecimSecenegi | null>,
   busy: () => boolean,
   unsaved: { readonly dirty: () => boolean; readonly discard: () => void },
 ): void {
-  const confirm = inject(OnayServisi);
-  const t = ceviriFonksiyonu();
+  const confirm = inject(ConfirmService);
+  const t = translationFunction();
   /** URL'deki son `cariId` (meşgulken ya da onay açıkken gelen değişiklik kaybolmaz — r316 L2). */
   let latest: string | null = null;
   /** Kullanıcının bu sorgu için "Vazgeç" dediği cari: aynı değer için yeniden sorulmaz. */
@@ -158,7 +158,7 @@ export function followCustomerQuery(
   let deferred = false;
   const change = (id: string) => {
     customer.setValue(null, { emitEvent: false });
-    cariId.set(id);
+    customerId.set(id);
   };
   const evaluate = (): void => {
     if (busy() || asking) {
@@ -167,14 +167,14 @@ export function followCustomerQuery(
     }
     deferred = false;
     const id = latest;
-    if (!id || id === cariId() || id === declined) return;
+    if (!id || id === customerId() || id === declined) return;
     if (!unsaved.dirty()) {
       change(id);
       return;
     }
     asking = true;
     void confirm
-      .sor({
+      .ask({
         baslik: t('finans.cariDegisimi.baslik'),
         mesaj: t('finans.cariDegisimi.mesaj', { ad: customer.value?.etiket ?? '' }),
         onayEtiketi: t('finans.cariDegisimi.gec'),
@@ -184,7 +184,7 @@ export function followCustomerQuery(
         asking = false;
         if (!yes) declined = id;
         else if (busy()) deferred = true;
-        else if (id === latest && id !== cariId()) {
+        else if (id === latest && id !== customerId()) {
           unsaved.discard();
           change(id);
         }
@@ -229,7 +229,7 @@ export class FinanceMoneyPipe implements PipeTransform {
     v: number | string | null | undefined,
     currency: string | null | undefined = 'TRY',
   ): string {
-    return paraBicimle(toAmount(v), currency || 'TRY');
+    return formatMoney(toAmount(v), currency || 'TRY');
   }
 }
 
@@ -255,20 +255,20 @@ export const FIN_COMMON = [
   ReactiveFormsModule,
   RouterLink,
   TranslocoPipe,
-  ...BICIM_PIPELARI,
+  ...FORMAT_PIPES,
   Alan,
-  AramaSecim,
-  FormHatalari,
-  Ikon,
-  MetinGirdisi,
-  OnayKutusu,
-  ParaGirdisi,
-  SayiGirdisi,
-  Secim,
-  TarihSecici,
+  SearchSelection,
+  FormErrors,
+  Icon,
+  TextInput,
+  Checkbox,
+  MoneyInput,
+  NumberInput,
+  Selection,
+  DatePicker,
   MoneyNoticeView,
   MoneySubmitBar,
-  SayfaBandi,
+  PageBand,
   FinanceMoneyPipe,
   FinanceNumberPipe,
   NegativePipe,

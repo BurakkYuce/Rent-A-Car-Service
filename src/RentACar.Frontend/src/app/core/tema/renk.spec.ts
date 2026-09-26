@@ -1,9 +1,9 @@
-import { TEMA_ZEMINLERI, kiraciVurgusuTuret } from './tema-servisi';
-import { hexNormalize, kontrastOrani, okunurTon, uzerindekiMetin } from './renk';
+import { TEMA_ZEMINLERI, deriveTenantAccent } from './tema-servisi';
+import { hexNormalize, contrastRatio, readableTone, textOn } from './renk';
 
 describe('kontrastOrani (WCAG 2.x)', () => {
   // Oracle: WCAG referans değerleri (webaim.org kontrast denetleyicisiyle aynı).
-  const tablo: [string, string, number][] = [
+  const table: [string, string, number][] = [
     ['#000000', '#ffffff', 21],
     ['#ffffff', '#ffffff', 1],
     ['#767676', '#ffffff', 4.54], // AA sınırındaki en açık gri
@@ -13,9 +13,9 @@ describe('kontrastOrani (WCAG 2.x)', () => {
     ['#ffffff', '#1d4ed8', 6.7],
   ];
 
-  it.each(tablo)('%s / %s ≈ %s', (a, b, beklenen) => {
-    expect(kontrastOrani(a, b)).toBeCloseTo(beklenen, 2);
-    expect(kontrastOrani(b, a)).toBeCloseTo(beklenen, 2);
+  it.each(table)('%s / %s ≈ %s', (a, b, expected) => {
+    expect(contrastRatio(a, b)).toBeCloseTo(expected, 2);
+    expect(contrastRatio(b, a)).toBeCloseTo(expected, 2);
   });
 });
 
@@ -32,26 +32,26 @@ describe('hexNormalize', () => {
 
 describe('üstündeki metin ve okunur ton', () => {
   it('koyu dolguya beyaz, açık dolguya siyah', () => {
-    expect(uzerindekiMetin('#1d4ed8')).toBe('#ffffff');
-    expect(uzerindekiMetin('#0b3d91')).toBe('#ffffff');
-    expect(uzerindekiMetin('#facc15')).toBe('#000000');
+    expect(textOn('#1d4ed8')).toBe('#ffffff');
+    expect(textOn('#0b3d91')).toBe('#ffffff');
+    expect(textOn('#facc15')).toBe('#000000');
     // Amber: beyazla 3.19 (AA değil), siyahla 6.58.
-    expect(uzerindekiMetin('#d97706')).toBe('#000000');
+    expect(textOn('#d97706')).toBe('#000000');
   });
 
   it('yeterli renk aynen döner, yetersiz olan eşiğe kadar koyulaşır/açılır', () => {
-    expect(okunurTon('#1d4ed8', ['#ffffff'], 4.5)).toBe('#1d4ed8');
-    const sari = okunurTon('#facc15', ['#ffffff', '#f5f7fa'], 4.5);
-    expect(kontrastOrani(sari, '#ffffff')).toBeGreaterThanOrEqual(4.5);
-    expect(kontrastOrani(sari, '#f5f7fa')).toBeGreaterThanOrEqual(4.5);
-    const lacivert = okunurTon('#0b3d91', ['#151d29'], 4.5);
-    expect(kontrastOrani(lacivert, '#151d29')).toBeGreaterThanOrEqual(4.5);
+    expect(readableTone('#1d4ed8', ['#ffffff'], 4.5)).toBe('#1d4ed8');
+    const sari = readableTone('#facc15', ['#ffffff', '#f5f7fa'], 4.5);
+    expect(contrastRatio(sari, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(sari, '#f5f7fa')).toBeGreaterThanOrEqual(4.5);
+    const navy = readableTone('#0b3d91', ['#151d29'], 4.5);
+    expect(contrastRatio(navy, '#151d29')).toBeGreaterThanOrEqual(4.5);
   });
 });
 
 describe('kiracı vurgusu kontrast tablosu (iki tema)', () => {
   // Kiracının seçebileceği uç renkler: açık/koyu/orta ton, doygun ve gri.
-  const renkler = [
+  const colors = [
     '#d97706', // amber
     '#facc15', // sarı (çok açık)
     '#0b3d91', // lacivert (çok koyu)
@@ -63,26 +63,30 @@ describe('kiracı vurgusu kontrast tablosu (iki tema)', () => {
     '#ffffff',
   ];
 
-  it.each(renkler)('%s: düğme metni ≥ 4.5, metin tonu her zeminde ≥ 4.5', (renk) => {
-    const v = kiraciVurgusuTuret(renk);
+  it.each(colors)('%s: düğme metni ≥ 4.5, metin tonu her zeminde ≥ 4.5', (renk) => {
+    const v = deriveTenantAccent(renk);
     expect(v).not.toBeNull();
     if (!v) return;
     expect(
-      kontrastOrani(v['--rc-kiraci-vurgu-uzeri'], v['--rc-kiraci-vurgu']),
+      contrastRatio(v['--rc-kiraci-vurgu-uzeri'], v['--rc-kiraci-vurgu']),
     ).toBeGreaterThanOrEqual(4.5);
     expect(
-      kontrastOrani(v['--rc-kiraci-vurgu-uzeri'], v['--rc-kiraci-vurgu-hover']),
+      contrastRatio(v['--rc-kiraci-vurgu-uzeri'], v['--rc-kiraci-vurgu-hover']),
     ).toBeGreaterThanOrEqual(4.5);
-    for (const zemin of TEMA_ZEMINLERI.acik) {
-      expect(kontrastOrani(v['--rc-kiraci-vurgu-metin-acik'], zemin)).toBeGreaterThanOrEqual(4.5);
+    for (const background of TEMA_ZEMINLERI.acik) {
+      expect(contrastRatio(v['--rc-kiraci-vurgu-metin-acik'], background)).toBeGreaterThanOrEqual(
+        4.5,
+      );
     }
-    for (const zemin of TEMA_ZEMINLERI.koyu) {
-      expect(kontrastOrani(v['--rc-kiraci-vurgu-metin-koyu'], zemin)).toBeGreaterThanOrEqual(4.5);
+    for (const background of TEMA_ZEMINLERI.koyu) {
+      expect(contrastRatio(v['--rc-kiraci-vurgu-metin-koyu'], background)).toBeGreaterThanOrEqual(
+        4.5,
+      );
     }
   });
 
   it('geçersiz renkte türetme yok', () => {
-    expect(kiraciVurgusuTuret('mavi')).toBeNull();
-    expect(kiraciVurgusuTuret('')).toBeNull();
+    expect(deriveTenantAccent('mavi')).toBeNull();
+    expect(deriveTenantAccent('')).toBeNull();
   });
 });

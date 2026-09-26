@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 import { sayiBicimle } from '@core/bicim/bicim';
-import { Ikon } from '@shared/ikon/ikon';
+import { Icon } from '@shared/ikon/icon';
 import type { IkonAdi } from '@shared/ikon/ikon-kaydi';
 
 /** Filo durum sözlüğü (Yol v2 §1.2): tabela rengi durumdan gelir, başka renk yok. */
@@ -14,7 +14,7 @@ export type FleetStatus = 'kirada' | 'bosta' | 'serviste' | 'rezerve' | 'gecikmi
 @Component({
   selector: 'rc-tabela-karti',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Ikon],
+  imports: [Icon],
   host: {
     class: 'rc-tabela',
     '[attr.data-durum]': 'durum()',
@@ -26,7 +26,7 @@ export type FleetStatus = 'kirada' | 'bosta' | 'serviste' | 'rezerve' | 'gecikmi
       }
       <span class="etiket">{{ etiket() }}</span>
     </p>
-    <p class="deger">{{ degerMetni() }}</p>
+    <p class="deger">{{ valueText() }}</p>
     @if (yuzde() !== null) {
       <span
         class="cubuk"
@@ -116,7 +116,7 @@ export class StatusSignCardComponent {
   readonly altMetin = input('');
   readonly ikon = input<IkonAdi | null>(null);
 
-  protected readonly degerMetni = computed(() => {
+  protected readonly valueText = computed(() => {
     const d = this.deger();
     return d === null || !Number.isFinite(d) ? '—' : sayiBicimle(d, '1.0-0');
   });

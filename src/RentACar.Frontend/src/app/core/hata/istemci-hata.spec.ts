@@ -3,34 +3,29 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import { provideApiIstemcisi } from '@core/api/api-istemcisi';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { ParcaHatasiServisi } from '@core/surum/parca-hatasi';
-import { SurumServisi } from '@core/surum/surum-servisi';
+import { provideApiClient } from '@core/api/api-istemcisi';
+import { SessionService } from '@core/oturum/session-service';
+import { ChunkErrorService } from '@core/surum/parca-hatasi';
+import { VersionService } from '@core/surum/version-service';
 
-import {
-  EN_FAZLA_RAPOR,
-  IstemciHataRaporlayici,
-  RAPOR_SINIRLARI,
-  RcHataIsleyici,
-} from './istemci-hata';
+import { MAX_REPORTS, ClientErrorReporter, REPORT_LIMITS, RcErrorHandler } from './istemci-hata';
 
 describe('İstemci hata raporu', () => {
-  const girisli = signal(true);
-  const parca = { isle: vi.fn(() => true) };
+  const loggedIn = signal(true);
+  const part = { isle: vi.fn(() => true) };
   let http: HttpTestingController;
 
   beforeEach(() => {
-    girisli.set(true);
-    parca.isle.mockClear();
+    loggedIn.set(true);
+    part.isle.mockClear();
     TestBed.configureTestingModule({
       providers: [
-        provideApiIstemcisi(),
+        provideApiClient(),
         provideHttpClientTesting(),
-        { provide: OturumServisi, useValue: { girisYapildi: girisli.asReadonly() } },
-        { provide: SurumServisi, useValue: { mevcut: 'main-ABCD1234.js' } },
-        { provide: ParcaHatasiServisi, useValue: parca },
-        RcHataIsleyici,
+        { provide: SessionService, useValue: { loggedIn: loggedIn.asReadonly() } },
+        { provide: VersionService, useValue: { mevcut: 'main-ABCD1234.js' } },
+        { provide: ChunkErrorService, useValue: part },
+        RcErrorHandler,
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -43,46 +38,46 @@ describe('İstemci hata raporu', () => {
   });
 
   it('yakalanmamış hata: mesaj, yığın (kırpılmış), yalnız YOL (sorgu yok) ve sürüm gönderilir', () => {
-    const hata = new TypeError('x.y undefined');
-    hata.stack = 'TypeError: x.y undefined\n' + 'at a (chunk-1.js:1:1)\n'.repeat(500);
-    TestBed.inject(RcHataIsleyici).handleError(hata);
+    const error = new TypeError('x.y undefined');
+    error.stack = 'TypeError: x.y undefined\n' + 'at a (chunk-1.js:1:1)\n'.repeat(500);
+    TestBed.inject(RcErrorHandler).handleError(error);
 
-    const istek = http.expectOne('/api/ui/v1/istemci-hata');
-    expect(istek.request.method).toBe('POST');
-    const govde = istek.request.body as Record<string, string>;
-    expect(govde['mesaj']).toBe('TypeError: x.y undefined');
-    expect(govde['yigin']?.length).toBe(RAPOR_SINIRLARI.yigin);
-    expect(govde['url']).toBe(location.pathname);
-    expect(govde['url']).not.toContain('?');
-    expect(govde['surum']).toBe('main-ABCD1234.js');
-    istek.flush(null, { status: 204, statusText: 'No Content' });
+    const request = http.expectOne('/api/ui/v1/istemci-hata');
+    expect(request.request.method).toBe('POST');
+    const body = request.request.body as Record<string, string>;
+    expect(body['mesaj']).toBe('TypeError: x.y undefined');
+    expect(body['yigin']?.length).toBe(REPORT_LIMITS.yigin);
+    expect(body['url']).toBe(location.pathname);
+    expect(body['url']).not.toContain('?');
+    expect(body['surum']).toBe('main-ABCD1234.js');
+    request.flush(null, { status: 204, statusText: 'No Content' });
   });
 
   it('oturum yoksa, HTTP hatasında ve aynı mesajın tekrarında gönderilmez; sayfa başına sınır', () => {
-    const rapor = TestBed.inject(IstemciHataRaporlayici);
-    expect(rapor.raporla(new HttpErrorResponse({ status: 500 }))).toBe(false);
-    girisli.set(false);
-    expect(rapor.raporla(new Error('oturumsuz'))).toBe(false);
-    girisli.set(true);
+    const report = TestBed.inject(ClientErrorReporter);
+    expect(report.report(new HttpErrorResponse({ status: 500 }))).toBe(false);
+    loggedIn.set(false);
+    expect(report.report(new Error('oturumsuz'))).toBe(false);
+    loggedIn.set(true);
 
-    expect(rapor.raporla(new Error('tekrar'))).toBe(true);
-    expect(rapor.raporla(new Error('tekrar'))).toBe(false);
-    for (let i = 1; i < EN_FAZLA_RAPOR + 5; i++) rapor.raporla(new Error(`hata ${i}`));
-    const istekler = http.match('/api/ui/v1/istemci-hata');
-    expect(istekler).toHaveLength(EN_FAZLA_RAPOR);
-    for (const i of istekler) i.flush(null, { status: 204, statusText: 'No Content' });
+    expect(report.report(new Error('tekrar'))).toBe(true);
+    expect(report.report(new Error('tekrar'))).toBe(false);
+    for (let i = 1; i < MAX_REPORTS + 5; i++) report.report(new Error(`hata ${i}`));
+    const requests = http.match('/api/ui/v1/istemci-hata');
+    expect(requests).toHaveLength(MAX_REPORTS);
+    for (const i of requests) i.flush(null, { status: 204, statusText: 'No Content' });
   });
 
   it('ChunkLoadError raporlanmaz, kontrollü yenilemeye gider', () => {
-    TestBed.inject(RcHataIsleyici).handleError(
+    TestBed.inject(RcErrorHandler).handleError(
       new TypeError('Failed to fetch dynamically imported module: /app/chunk-X.js'),
     );
-    expect(parca.isle).toHaveBeenCalledTimes(1);
+    expect(part.isle).toHaveBeenCalledTimes(1);
     http.expectNone('/api/ui/v1/istemci-hata');
   });
 
   it('rapor isteği hata alırsa sessiz (döngü yok)', () => {
-    TestBed.inject(RcHataIsleyici).handleError(new Error('rapor edilecek'));
+    TestBed.inject(RcErrorHandler).handleError(new Error('rapor edilecek'));
     http
       .expectOne('/api/ui/v1/istemci-hata')
       .flush({ status: 429, kod: 'cok_istek' }, { status: 429, statusText: 'Too Many' });

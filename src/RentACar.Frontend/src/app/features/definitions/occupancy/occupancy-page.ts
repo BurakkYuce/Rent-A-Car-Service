@@ -5,24 +5,24 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { catchError, of } from 'rxjs';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TanimCrud } from '@shared/form/tanim-crud/tanim-crud';
-import { restTanimKaynagi } from '@shared/form/tanim-crud/tanim-kaynagi';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DefinitionCrud } from '@shared/form/tanim-crud/definition-crud';
+import { restDefinitionSource } from '@shared/form/tanim-crud/definition-source';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { occupancyFields, selectionSuggestions } from '../definition-catalog';
 
-type BulkResult = Sema<'OccupancyBulkResult'>;
+type BulkResult = Schema<'OccupancyBulkResult'>;
 
 /** Blazor toplu formu 10 kademe (FAZ-73). */
 export const LADDER_STEPS = 10;
@@ -58,23 +58,23 @@ export function ladderSteps(
   imports: [
     ReactiveFormsModule,
     TranslocoPipe,
-    TanimCrud,
+    DefinitionCrud,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    SayiGirdisi,
-    Secim,
-    TarihSecici,
-    SayfaBandi,
+    FormErrors,
+    TextInput,
+    NumberInput,
+    Selection,
+    DatePicker,
+    PageBand,
   ],
   styleUrl: '../definitions.scss',
   templateUrl: './occupancy-page.html',
 })
 export class OccupancyPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  protected readonly t = ceviriFonksiyonu();
-  private readonly crud = viewChild(TanimCrud);
+  private readonly toast = inject(ToastService);
+  protected readonly t = translationFunction();
+  private readonly crud = viewChild(DefinitionCrud);
 
   private readonly groupSuggest = selectionSuggestions('/api/ui/v1/secim/arac-grubu', (o) => o.kod);
   private readonly branchSuggest = selectionSuggestions('/api/ui/v1/secim/sube');
@@ -82,7 +82,7 @@ export class OccupancyPage {
     group: this.groupSuggest,
     branch: this.branchSuggest,
   });
-  protected readonly source = restTanimKaynagi('/api/ui/v1/doluluk-kurallari');
+  protected readonly source = restDefinitionSource('/api/ui/v1/doluluk-kurallari');
 
   /** Toplu formun öneri listeleri (tek seferlik, ≤ 20; alan serbest metin de kabul eder). */
   protected readonly groupOptions = toSignal(this.groupSuggest('').pipe(catchError(() => of([]))), {
@@ -118,16 +118,16 @@ export class OccupancyPage {
       ),
     ),
   });
-  protected readonly bulkSubmit = formGonderimi();
+  protected readonly bulkSubmit = formSubmission();
   protected readonly bulkError = signal<string | null>(null);
   protected readonly stepNumbers = Array.from({ length: LADDER_STEPS }, (_, i) => i);
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
-    return (this.crud()?.kaydedilmemisDegisiklikVar() ?? false) || this.bulkForm.dirty;
+  hasUnsavedChanges(): boolean {
+    return (this.crud()?.hasUnsavedChanges() ?? false) || this.bulkForm.dirty;
   }
 
   protected saveLadder(): void {

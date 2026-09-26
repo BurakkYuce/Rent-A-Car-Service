@@ -18,28 +18,31 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
 import { tarihBicimle } from '@core/bicim/bicim';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
-import { istekBaglami } from '@core/oturum/istek-baglami';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
+import { requestContext } from '@core/oturum/request-context';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import {
   SHIFTS,
@@ -70,11 +73,11 @@ type Editing = { readonly kind: 'new' } | { readonly kind: 'record'; readonly id
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    MetinGirdisi,
-    Secim,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    TextInput,
+    Selection,
+    DatePicker,
   ],
   templateUrl: './shift-editor.html',
   styleUrl: './shift-editor.scss',
@@ -83,20 +86,20 @@ export class ShiftEditor {
   /** Görüntülenen pencerenin vardiyaları (rapor yanıtının `liste`si). */
   readonly rows = input.required<readonly ShiftListRow[]>();
   /** Pencerenin ilk günü (yeni vardiyanın varsayılan tarihi). */
-  readonly firstDay = input<GunMetni | null>(null);
+  readonly firstDay = input<DayText | null>(null);
   readonly changed = output<void>();
 
   private readonly api = inject(ApiIstemcisi);
-  private readonly session = inject(OturumServisi);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
+  private readonly session = inject(SessionService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly staff = sunucuSecimKaynagi('personel');
+  protected readonly staff = serverSelectionSource('personel');
   protected readonly branches = signal<readonly SecenekOgesi<string>[]>([]);
   protected readonly editing = signal<Editing>({ kind: 'new' });
   protected readonly base = signal<Shift | null>(null);
@@ -121,7 +124,7 @@ export class ShiftEditor {
 
   protected readonly form = new FormGroup({
     personel: new FormControl<SecimSecenegi | null>(null, Validators.required),
-    tarih: new FormControl<GunMetni | null>(null, Validators.required),
+    tarih: new FormControl<DayText | null>(null, Validators.required),
     baslangicSaat: new FormControl<string | null>(null, [
       Validators.required,
       Validators.pattern(TIME_PATTERN),
@@ -133,7 +136,7 @@ export class ShiftEditor {
     sube: new FormControl<string | null>(null, Validators.maxLength(128)),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   constructor() {
     // Pencere değişince temiz yeni-kayıt formu varsayılan günü izler (kirli forma dokunulmaz).
@@ -145,7 +148,7 @@ export class ShiftEditor {
           this.form.reset(emptyShift(day, own));
       });
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
     this.loadBranches();
   }
 
@@ -210,7 +213,7 @@ export class ShiftEditor {
 
   protected async remove(row: ShiftListRow): Promise<void> {
     if (this.busy() !== null) return;
-    const yes = await this.confirm.sor({
+    const yes = await this.confirm.ask({
       baslik: this.t('rapor.vardiya.silBaslik'),
       mesaj: this.t('rapor.vardiya.silMesaj'),
       onayEtiketi: this.t('rapor.vardiya.sil'),
@@ -232,7 +235,7 @@ export class ShiftEditor {
           this.changed.emit();
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.changed.emit();
         },
@@ -249,7 +252,7 @@ export class ShiftEditor {
           if (e.kind === 'record' && e.id === id) this.recordArrived(s);
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
         },
       });
@@ -263,14 +266,14 @@ export class ShiftEditor {
     if (!this.form.dirty) {
       this.form.reset({ ...fresh });
     } else {
-      const conflicts = sunucuDegerleriniBirlestir(
+      const conflicts = mergeServerValues(
         this.form,
         { ...fresh },
         { ...baseline },
         this.t('rapor.vardiya.cakismaAlan'),
       );
       if (conflicts.length > 0)
-        this.banner.goster({
+        this.banner.show({
           tur: 'uyari',
           mesaj: this.t('rapor.vardiya.cakismaBant', { sayi: conflicts.length }),
           kod: 'cakisma',
@@ -289,7 +292,7 @@ export class ShiftEditor {
 
   private async releaseForm(): Promise<boolean> {
     if (!this.form.dirty) return true;
-    return this.confirm.sor({
+    return this.confirm.ask({
       baslik: this.t('rapor.vardiya.vazgecBaslik'),
       mesaj: this.t('rapor.vardiya.vazgecMesaj'),
     });
@@ -299,7 +302,7 @@ export class ShiftEditor {
     this.api
       .get<readonly { id: string; etiket: string }[]>('/api/ui/v1/secim/sube', {
         parametreler: { limit: 20 },
-        context: istekBaglami({ sessiz: true }),
+        context: requestContext({ sessiz: true }),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

@@ -16,7 +16,7 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe],
   template: `
-    <label class="rc-gorunmez" [for]="kimlik">{{
+    <label class="rc-gorunmez" [for]="identity">{{
       etiket() || ('ortak.plaka.aramaEtiketi' | transloco)
     }}</label>
     <span class="serit" aria-hidden="true"></span>
@@ -30,9 +30,9 @@ let nextId = 0;
       spellcheck="false"
       enterkeyhint="search"
       maxlength="16"
-      [id]="kimlik"
+      [id]="identity"
       [placeholder]="'ortak.plaka.aramaIpucu' | transloco"
-      (input)="buyut(girdi)"
+      (input)="expand(girdi)"
       (keydown.enter)="gonder($event, girdi)"
     />
   `,
@@ -98,9 +98,9 @@ export class PlateSearchComponent {
   /** Enter: normalize edilmiş plaka (geçersiz/boş da yayılır; `gecerli` ile ayırın). */
   readonly ara = output<NormalizedPlate>();
 
-  protected readonly kimlik = `rc-plaka-arama-${nextId++}`;
+  protected readonly identity = `rc-plaka-arama-${nextId++}`;
 
-  protected buyut(el: HTMLInputElement): void {
+  protected expand(el: HTMLInputElement): void {
     const upper = el.value.toLocaleUpperCase('en-US').replaceAll('İ', 'I');
     if (upper === el.value) return;
     const start = el.selectionStart;

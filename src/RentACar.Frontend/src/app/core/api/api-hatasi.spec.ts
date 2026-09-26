@@ -1,12 +1,12 @@
 import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 
-import { ApiHatasi, SUNUCU_HATA_KODLARI, apiHatasinaCevir, sunucuHataKoduMu } from './api-hatasi';
+import { ApiHatasi, SERVER_ERROR_CODES, toApiError, isServerErrorCode } from './api-hatasi';
 
 /** Backend'in ürettiği biçimde elle yazılmış ProblemDetails örnekleri (UiHata.cs kod tablosu). */
-function problem(status: number, govde: unknown): HttpErrorResponse {
+function problem(status: number, body: unknown): HttpErrorResponse {
   return new HttpErrorResponse({
     status,
-    error: govde,
+    error: body,
     url: '/api/ui/v1/deneme',
     headers: new HttpHeaders({ 'Content-Type': 'application/problem+json' }),
   });
@@ -14,7 +14,7 @@ function problem(status: number, govde: unknown): HttpErrorResponse {
 
 describe('apiHatasinaCevir', () => {
   it('dogrulama + errors → alanlar dahil tipli hata', () => {
-    const hata = apiHatasinaCevir(
+    const error = toApiError(
       problem(400, {
         title: 'Doğrulama hatası',
         status: 400,
@@ -24,24 +24,24 @@ describe('apiHatasinaCevir', () => {
       }),
     );
 
-    expect(hata).toBeInstanceOf(ApiHatasi);
-    expect(hata).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(ApiHatasi);
+    expect(error).toBeInstanceOf(Error);
     expect({
-      status: hata.status,
-      kod: hata.kod,
-      detay: hata.detay,
-      alanlar: hata.alanlar,
+      status: error.status,
+      kod: error.kod,
+      detay: error.detay,
+      alanlar: error.alanlar,
     }).toEqual({
       status: 400,
       kod: 'dogrulama',
       detay: 'Plaka zorunludur.',
       alanlar: { Plaka: ['Plaka zorunludur.'] },
     });
-    expect(hata.message).toBe('Plaka zorunludur.');
+    expect(error.message).toBe('Plaka zorunludur.');
   });
 
   it('409 mukerrer + mevcut (işlem zaten yazıldı) → tipli `mevcut`; biçimsiz mevcut yok sayılır', () => {
-    const hata = apiHatasinaCevir(
+    const error = toApiError(
       problem(409, {
         status: 409,
         detail: 'Bu tahsilat zaten kaydedildi (No T-1, 500,00 TRY); yeni tahsilat yazılmadı.',
@@ -49,7 +49,7 @@ describe('apiHatasinaCevir', () => {
         mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY', ayniIcerik: true },
       }),
     );
-    expect(hata.mevcut).toEqual({
+    expect(error.mevcut).toEqual({
       id: 'c1',
       belgeNo: 'T-1',
       tutar: 500,
@@ -57,7 +57,7 @@ describe('apiHatasinaCevir', () => {
       ayniIcerik: true,
     });
     // ayniIcerik yok/biçimsiz → güvenli taraf: false (form silinmez, "YAZILMADI" uyarısı).
-    const eksik = apiHatasinaCevir(
+    const missing = toApiError(
       problem(409, {
         status: 409,
         detail: 'x',
@@ -65,13 +65,13 @@ describe('apiHatasinaCevir', () => {
         mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY', ayniIcerik: 'evet' },
       }),
     );
-    expect(eksik.mevcut?.ayniIcerik).toBe(false);
-    const bozuk = apiHatasinaCevir(
+    expect(missing.mevcut?.ayniIcerik).toBe(false);
+    const corrupt = toApiError(
       problem(409, { status: 409, detail: 'x', kod: 'mukerrer', mevcut: { id: 1 } }),
     );
-    expect(bozuk.mevcut).toBeUndefined();
+    expect(corrupt.mevcut).toBeUndefined();
     // Başka kodda (ör. cakisma) mevcut okunmaz.
-    const baska = apiHatasinaCevir(
+    const other = toApiError(
       problem(409, {
         status: 409,
         detail: 'x',
@@ -79,11 +79,11 @@ describe('apiHatasinaCevir', () => {
         mevcut: { id: 'c1', belgeNo: 'T-1', tutar: 500, doviz: 'TRY' },
       }),
     );
-    expect(baska.mevcut).toBeUndefined();
+    expect(other.mevcut).toBeUndefined();
   });
 
   it('Idempotency-Key başlık hatası da alan olarak gelir', () => {
-    const hata = apiHatasinaCevir(
+    const error = toApiError(
       problem(400, {
         title: 'Doğrulama hatası',
         status: 400,
@@ -92,12 +92,12 @@ describe('apiHatasinaCevir', () => {
         errors: { 'Idempotency-Key': ['İşlem anahtarı 16–128 görünür ASCII karakter olmalı.'] },
       }),
     );
-    expect(hata.alanlar).toEqual({
+    expect(error.alanlar).toEqual({
       'Idempotency-Key': ['İşlem anahtarı 16–128 görünür ASCII karakter olmalı.'],
     });
   });
 
-  const kodTablosu: readonly [number, string, string][] = [
+  const codeTable: readonly [number, string, string][] = [
     [403, 'yetki_yok', 'Bu işlem için yetkiniz yok.'],
     [403, 'pilot_degil', 'Yeni arayüz bu firmada açık değil.'],
     [409, 'cakisma', 'Araç bu tarihlerde müsait değil.'],
@@ -112,16 +112,16 @@ describe('apiHatasinaCevir', () => {
     [400, 'xsrf_gecersiz', 'Güvenlik belirteci (X-XSRF-TOKEN) eksik.'],
   ];
 
-  it.each(kodTablosu)('%i %s → kod aynen, alanlar yok', (status, kod, detay) => {
-    const hata = apiHatasinaCevir(problem(status, { title: 'x', status, detail: detay, kod }));
-    expect(hata.status).toBe(status);
-    expect(hata.kod).toBe(kod);
-    expect(hata.detay).toBe(detay);
-    expect(hata.alanlar).toBeUndefined();
+  it.each(codeTable)('%i %s → kod aynen, alanlar yok', (status, code, detail) => {
+    const error = toApiError(problem(status, { title: 'x', status, detail: detail, kod: code }));
+    expect(error.status).toBe(status);
+    expect(error.kod).toBe(code);
+    expect(error.detay).toBe(detail);
+    expect(error.alanlar).toBeUndefined();
   });
 
   it('kod birliği backend kod tablosuyla birebir (dokuz kod)', () => {
-    expect([...SUNUCU_HATA_KODLARI].sort()).toEqual(
+    expect([...SERVER_ERROR_CODES].sort()).toEqual(
       [
         'cakisma',
         'cok_istek',
@@ -134,65 +134,65 @@ describe('apiHatasinaCevir', () => {
         'yetki_yok',
       ].sort(),
     );
-    expect(sunucuHataKoduMu('cakisma')).toBe(true);
-    expect(sunucuHataKoduMu('conflict')).toBe(false);
-    expect(sunucuHataKoduMu(409)).toBe(false);
+    expect(isServerErrorCode('cakisma')).toBe(true);
+    expect(isServerErrorCode('conflict')).toBe(false);
+    expect(isServerErrorCode(409)).toBe(false);
   });
 
   it('gövde JSON metni olarak gelse de ayrıştırılır', () => {
-    const hata = apiHatasinaCevir(
+    const error = toApiError(
       problem(
         409,
         '{"title":"Çakışma","status":409,"detail":"Plaka zaten kayıtlı.","kod":"cakisma"}',
       ),
     );
-    expect(hata.kod).toBe('cakisma');
-    expect(hata.detay).toBe('Plaka zaten kayıtlı.');
+    expect(error.kod).toBe('cakisma');
+    expect(error.detay).toBe('Plaka zaten kayıtlı.');
   });
 
   it('status 0 → ag (yanıt yok)', () => {
-    const hata = apiHatasinaCevir(
+    const error = toApiError(
       new HttpErrorResponse({ status: 0, error: new ProgressEvent('error') }),
     );
-    expect(hata.status).toBe(0);
-    expect(hata.kod).toBe('ag');
-    expect(hata.detay).toBe('Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.');
+    expect(error.status).toBe(0);
+    expect(error.kod).toBe('ag');
+    expect(error.detay).toBe('Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.');
   });
 
   it("kod'suz 500 → sunucu; detail varsa o", () => {
-    const hata = apiHatasinaCevir(
+    const error = toApiError(
       problem(500, { title: 'Sunucu hatası', status: 500, detail: 'Beklenmeyen bir hata oluştu.' }),
     );
-    expect(hata.kod).toBe('sunucu');
-    expect(hata.detay).toBe('Beklenmeyen bir hata oluştu.');
+    expect(error.kod).toBe('sunucu');
+    expect(error.detay).toBe('Beklenmeyen bir hata oluştu.');
   });
 
   it('gövdesiz 502 → sunucu + varsayılan metin', () => {
-    const hata = apiHatasinaCevir(problem(502, null));
-    expect(hata.kod).toBe('sunucu');
-    expect(hata.detay).toBe('Beklenmeyen bir sunucu hatası oluştu.');
+    const error = toApiError(problem(502, null));
+    expect(error.kod).toBe('sunucu');
+    expect(error.detay).toBe('Beklenmeyen bir sunucu hatası oluştu.');
   });
 
   it("kod'suz 404 → bilinmeyen, detail yoksa title", () => {
-    const hata = apiHatasinaCevir(problem(404, { title: 'Not Found', status: 404 }));
-    expect(hata.kod).toBe('bilinmeyen');
-    expect(hata.detay).toBe('Not Found');
+    const error = toApiError(problem(404, { title: 'Not Found', status: 404 }));
+    expect(error.kod).toBe('bilinmeyen');
+    expect(error.detay).toBe('Not Found');
   });
 
   it('tanınmayan kod → bilinmeyen (HTTP durumundan kod TAHMİN edilmez)', () => {
-    const hata = apiHatasinaCevir(problem(409, { status: 409, detail: 'x', kod: 'conflict' }));
-    expect(hata.kod).toBe('bilinmeyen');
-    expect(hata.status).toBe(409);
+    const error = toApiError(problem(409, { status: 409, detail: 'x', kod: 'conflict' }));
+    expect(error.kod).toBe('bilinmeyen');
+    expect(error.status).toBe(409);
   });
 
   it('HTML hata sayfası (JSON değil) → bilinmeyen + varsayılan metin', () => {
-    const hata = apiHatasinaCevir(problem(400, '<html><body>Bad Request</body></html>'));
-    expect(hata.kod).toBe('bilinmeyen');
-    expect(hata.detay).toBe('Beklenmeyen bir hata oluştu.');
+    const error = toApiError(problem(400, '<html><body>Bad Request</body></html>'));
+    expect(error.kod).toBe('bilinmeyen');
+    expect(error.detay).toBe('Beklenmeyen bir hata oluştu.');
   });
 
   it('biçimsiz errors girdileri atılır, geçerliler kalır', () => {
-    const hata = apiHatasinaCevir(
+    const error = toApiError(
       problem(400, {
         status: 400,
         detail: 'Hatalı alanlar var.',
@@ -205,7 +205,7 @@ describe('apiHatasinaCevir', () => {
         },
       }),
     );
-    expect(hata.alanlar).toEqual({
+    expect(error.alanlar).toEqual({
       Tutar: ['Tutar pozitif olmalı.'],
       Tarih: ['Tarih geçmişte olamaz.'],
     });
@@ -213,23 +213,23 @@ describe('apiHatasinaCevir', () => {
 
   it('errors dizi ya da tamamen geçersizse alanlar undefined', () => {
     expect(
-      apiHatasinaCevir(problem(400, { kod: 'dogrulama', detail: 'x', errors: ['a'] })).alanlar,
+      toApiError(problem(400, { kod: 'dogrulama', detail: 'x', errors: ['a'] })).alanlar,
     ).toBeUndefined();
     expect(
-      apiHatasinaCevir(problem(400, { kod: 'dogrulama', detail: 'x', errors: { A: [1] } })).alanlar,
+      toApiError(problem(400, { kod: 'dogrulama', detail: 'x', errors: { A: [1] } })).alanlar,
     ).toBeUndefined();
   });
 
   it('HTTP dışı istisna → bilinmeyen, neden cause olarak korunur', () => {
-    const neden = new TypeError('okunamadı');
-    const hata = apiHatasinaCevir(neden);
-    expect(hata.kod).toBe('bilinmeyen');
-    expect(hata.status).toBe(0);
-    expect(hata.cause).toBe(neden);
+    const reason = new TypeError('okunamadı');
+    const error = toApiError(reason);
+    expect(error.kod).toBe('bilinmeyen');
+    expect(error.status).toBe(0);
+    expect(error.cause).toBe(reason);
   });
 
   it('zaten ApiHatasi ise aynı nesne döner', () => {
-    const ilk = apiHatasinaCevir(problem(403, { kod: 'yetki_yok', detail: 'Yetki yok.' }));
-    expect(apiHatasinaCevir(ilk)).toBe(ilk);
+    const first = toApiError(problem(403, { kod: 'yetki_yok', detail: 'Yetki yok.' }));
+    expect(toApiError(first)).toBe(first);
   });
 });

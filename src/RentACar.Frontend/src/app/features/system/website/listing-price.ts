@@ -11,25 +11,25 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { mergeServerValues } from '../shared/version-merge';
 import { LISTINGS_ROOT } from './website-hub';
 
-type ListingDetail = Sema<'ListingDetailDto'>;
-type PriceResult = Sema<'ListingPriceResultDto'>;
+type ListingDetail = Schema<'ListingDetailDto'>;
+type PriceResult = Schema<'ListingPriceResultDto'>;
 
 function priceValues(d: ListingDetail): Record<string, unknown> {
   return {
@@ -49,14 +49,14 @@ function priceValues(d: ListingDetail): Record<string, unknown> {
   selector: 'rc-listing-price',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    OnayKutusu,
-    ParaGirdisi,
+    FormErrors,
+    Checkbox,
+    MoneyInput,
   ],
   styleUrl: '../system.scss',
   templateUrl: './listing-price.html',
@@ -64,10 +64,10 @@ function priceValues(d: ListingDetail): Record<string, unknown> {
 export class ListingPrice {
   private readonly api = inject(ApiIstemcisi);
   private readonly router = inject(Router);
-  private readonly toast = inject(ToastServisi);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly session = inject(OturumServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly session = inject(SessionService);
+  private readonly t = translationFunction();
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
 
   protected readonly module = computed(() => this.session.ben()?.moduller.webSitesi === true);
@@ -79,14 +79,14 @@ export class ListingPrice {
     aylikToplam: new FormControl<string | number | null>(null),
     kdvDahil: new FormControl<boolean | null>(true),
   });
-  protected readonly submit = formGonderimi();
+  protected readonly submit = formSubmission();
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     if (this.module()) this.load();
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -97,7 +97,7 @@ export class ListingPrice {
         this.form.reset(priceValues(d));
         this.detail.set(d);
       },
-      error: (e: unknown) => this.loadError.set(apiHatasinaCevir(e).detay),
+      error: (e: unknown) => this.loadError.set(toApiError(e).detay),
     });
   }
 

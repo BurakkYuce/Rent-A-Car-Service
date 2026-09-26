@@ -13,30 +13,30 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { OturumServisi } from '@core/oturum/oturum-servisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { SessionService } from '@core/oturum/session-service';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
-import { anDegeri, metinDegeri } from '@features/planlama-ortak/form-yardimcilari';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
+import { momentValue, textValue } from '@features/planlama-ortak/form-yardimcilari';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Ikon } from '@shared/ikon/ikon';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Icon } from '@shared/ikon/icon';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
 import { policyColumns } from '../service-insurance-columns';
 import {
@@ -50,7 +50,7 @@ import {
 } from '../service-insurance-model';
 import { PolicyListStore, RegulationOptionsStore } from '../service-insurance.store';
 import { RegulationTabs } from './regulation-tabs';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 
@@ -65,38 +65,38 @@ import { PlateChipComponent } from '@shared/plaka/plaka';
   imports: [
     PlateChipComponent,
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    Ikon,
-    MetinGirdisi,
-    ParaGirdisi,
+    SearchSelection,
+    FormErrors,
+    Icon,
+    TextInput,
+    MoneyInput,
     RegulationTabs,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, PolicyListStore, RegulationOptionsStore],
   templateUrl: './policy-list.html',
   styleUrl: '../service-insurance.scss',
 })
-export class PolicyList implements KaydedilmemisDegisiklikSahibi {
+export class PolicyList implements UnsavedChangesOwner {
   protected readonly store = inject(PolicyListStore);
   private readonly optionsStore = inject(RegulationOptionsStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly t = ceviriFonksiyonu();
+  private readonly toast = inject(ToastService);
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(POLICY_LIST);
+  protected readonly query = listQueryUrlSync(POLICY_LIST);
   protected readonly columns = policyColumns(this.t);
   protected readonly rowId = (r: { id: string }) => r.id;
-  protected readonly vehicles = sunucuSecimKaynagi('arac');
-  private readonly session = inject(OturumServisi);
+  protected readonly vehicles = serverSelectionSource('arac');
+  private readonly session = inject(SessionService);
   protected readonly canWrite = computed(() => this.session.izinVar('OperationsWrite'));
   private readonly createToggle = signal<boolean | null>(null);
   protected readonly createOpen = computed(
@@ -127,8 +127,8 @@ export class PolicyList implements KaydedilmemisDegisiklikSahibi {
   protected readonly form = new FormGroup({
     arac: new FormControl<SecimSecenegi | null>(null, Validators.required),
     tip: new FormControl<InsuranceType | null>('Trafik', Validators.required),
-    baslangic: new FormControl<GunMetni | null>(null, Validators.required),
-    bitis: new FormControl<GunMetni | null>(null, Validators.required),
+    baslangic: new FormControl<DayText | null>(null, Validators.required),
+    bitis: new FormControl<DayText | null>(null, Validators.required),
     prim: new FormControl<string | null>(null),
     doviz: new FormControl<string | null>('TRY'),
     policeNo: new FormControl<string | null>(null, Validators.maxLength(64)),
@@ -138,16 +138,16 @@ export class PolicyList implements KaydedilmemisDegisiklikSahibi {
     immDegeri: new FormControl<string | null>(null),
     aksesuarDegeri: new FormControl<string | null>(null),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
   protected readonly currency = toSignal(this.form.controls.doviz.valueChanges, {
     initialValue: this.form.controls.doviz.value,
   });
 
   constructor() {
-    inject(FetchPolicy).baglan({
+    inject(FetchPolicy).connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => this.store.list.yukle(p),
-      sifirla: () => this.store.list.sifirla(),
+      sifirla: () => this.store.list.reset(),
       sekmeyeDonunce: 'yenile',
     });
     effect(() => {
@@ -164,10 +164,10 @@ export class PolicyList implements KaydedilmemisDegisiklikSahibi {
       if (this.createOpen() && this.optionsStore.options.tur() === 'bos')
         untracked(() => this.optionsStore.options.yukle());
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -176,7 +176,7 @@ export class PolicyList implements KaydedilmemisDegisiklikSahibi {
     void this.query.degistir({
       sayfa: 1,
       filtreler: {
-        plaka: metinDegeri(v.plaka) ?? undefined,
+        plaka: textValue(v.plaka) ?? undefined,
         tip: v.tip ?? undefined,
         odendi: v.odendi ?? undefined,
       },
@@ -196,13 +196,13 @@ export class PolicyList implements KaydedilmemisDegisiklikSahibi {
     const body: PolicyRequest = {
       vehicleId: v.arac?.id ?? null,
       tip: v.tip,
-      baslangic: anDegeri(v.baslangic, null),
-      bitis: anDegeri(v.bitis, null),
+      baslangic: momentValue(v.baslangic, null),
+      bitis: momentValue(v.bitis, null),
       prim: v.prim,
       doviz: v.doviz,
-      policeNo: metinDegeri(v.policeNo),
-      firma: metinDegeri(v.firma),
-      acenta: metinDegeri(v.acenta),
+      policeNo: textValue(v.policeNo),
+      firma: textValue(v.firma),
+      acenta: textValue(v.acenta),
       aracDegeri: v.aracDegeri,
       immDegeri: v.immDegeri,
       aksesuarDegeri: v.aksesuarDegeri,

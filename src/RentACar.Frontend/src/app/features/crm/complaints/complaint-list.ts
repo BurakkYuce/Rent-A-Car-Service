@@ -3,32 +3,32 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { GunMetni } from '@core/form/tarih-girdisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { DayText } from '@core/form/tarih-girdisi';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { listeSorgusuUrlSenkronu } from '@core/veri/liste-sorgusu-url';
+import { listQueryUrlSync } from '@core/veri/liste-sorgusu-url';
 import { suggestionList } from '@features/vehicles/suggestions';
 import { FilterPanelComponent } from '@shared/filtre-paneli/filtre-paneli';
 import { PlateChipComponent } from '@shared/plaka/plaka';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
-import { Tablo } from '@shared/tablo/tablo';
-import { TabloHucre } from '@shared/tablo/tablo-hucre';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
+import { Table } from '@shared/tablo/table';
+import { TableCell } from '@shared/tablo/table-cell';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { complaintColumns } from '../crm-columns';
 import { complaintRequest, complaintToForm, emptyComplaint } from '../crm-forms';
 import {
@@ -59,36 +59,36 @@ type Place = (typeof COMPLAINT_PLACES)[number];
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FilterPanelComponent,
-    SayfaBandi,
+    PageBand,
     PlateChipComponent,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    MetinGirdisi,
-    SayiGirdisi,
-    Secim,
-    Tablo,
-    TabloHucre,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    TextInput,
+    NumberInput,
+    Selection,
+    Table,
+    TableCell,
+    DatePicker,
   ],
   providers: [FetchPolicy, ComplaintStore, CustomerFilterLabel],
   templateUrl: './complaint-list.html',
   styleUrl: '../crm.scss',
 })
-export class ComplaintList implements KaydedilmemisDegisiklikSahibi {
+export class ComplaintList implements UnsavedChangesOwner {
   protected readonly store = inject(ComplaintStore);
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
+  private readonly toast = inject(ToastService);
   private readonly labels = inject(CustomerFilterLabel);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
-  protected readonly query = listeSorgusuUrlSenkronu(COMPLAINT_LIST);
+  protected readonly query = listQueryUrlSync(COMPLAINT_LIST);
   protected readonly columns = complaintColumns(this.t);
   protected readonly rowId = (r: Complaint) => r.id;
-  protected readonly customers = sunucuSecimKaynagi('musteri');
-  protected readonly staff = sunucuSecimKaynagi('personel');
+  protected readonly customers = serverSelectionSource('musteri');
+  protected readonly staff = serverSelectionSource('personel');
   protected readonly rentals = rentalPickSource();
   protected readonly channels = COMPLAINT_CHANNELS;
 
@@ -118,13 +118,13 @@ export class ComplaintList implements KaydedilmemisDegisiklikSahibi {
     teslimAlan: new FormControl<SecimSecenegi | null>(null),
     teslimEden: new FormControl<SecimSecenegi | null>(null),
     puan: new FormControl<number | null>(null, [Validators.min(1), Validators.max(5)]),
-    tarih: new FormControl<GunMetni | null>(null),
+    tarih: new FormControl<DayText | null>(null),
     konu: new FormControl<string | null>(null, [Validators.required, Validators.maxLength(256)]),
     detay: new FormControl<string | null>(null, Validators.maxLength(2048)),
     durum: new FormControl<string | null>('Acik', Validators.required),
     cozum: new FormControl<string | null>(null, Validators.maxLength(2048)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
   protected readonly offices = suggestionList(
     this.form.controls.cikisOfisi,
     officeSuggestionFetch(this.api),
@@ -147,15 +147,15 @@ export class ComplaintList implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: this.query.apiParametreleri,
       yukle: (p) => {
         this.store.list.yukle(p);
         this.store.counts.yukle(p);
       },
       sifirla: () => {
-        this.store.list.sifirla();
-        this.store.counts.sifirla();
+        this.store.list.reset();
+        this.store.counts.reset();
       },
       sekmeyeDonunce: 'yenile',
     });
@@ -173,10 +173,10 @@ export class ComplaintList implements KaydedilmemisDegisiklikSahibi {
         }),
       );
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 

@@ -262,7 +262,7 @@
             {{ 'finansBelge.kapat' | transloco }}
           </button>
         </div>
-      } @else if (store.detail.yukleniyor()) {
+      } @else if (store.detail.isLoading()) {
         <p class="not" id="rc-ceza-detay" aria-busy="true">
           {{ 'finansBelge.yukleniyor' | transloco }}
         </p>

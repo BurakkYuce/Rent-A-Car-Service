@@ -5,6 +5,6 @@ export interface SecenekOgesi<T> {
   readonly pasif?: boolean;
 }
 
-export type Karsilastirici<T> = (a: T | null, b: T | null) => boolean;
+export type Comparer<T> = (a: T | null, b: T | null) => boolean;
 
-export const ayniDeger: Karsilastirici<unknown> = (a, b) => Object.is(a, b);
+export const sameValue: Comparer<unknown> = (a, b) => Object.is(a, b);

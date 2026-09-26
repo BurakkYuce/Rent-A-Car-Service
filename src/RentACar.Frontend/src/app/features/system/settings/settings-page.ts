@@ -14,23 +14,23 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import type { Sema } from '@core/api/ui-tipleri';
-import { sayfaTerkKorumasi } from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
+import type { Schema } from '@core/api/ui-tipleri';
+import { pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { translationFunction } from '@core/i18n/ceviri';
 import { Alan } from '@shared/form/alan/alan';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { OnayKutusu } from '@shared/form/kontroller/onay-kutusu';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
-import { Secim } from '@shared/form/kontroller/secim';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { Checkbox } from '@shared/form/kontroller/checkbox';
+import { NumberInput } from '@shared/form/kontroller/number-input';
+import { Selection } from '@shared/form/kontroller/selection';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
 
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 import { mergeServerValues } from '../shared/version-merge';
 import {
   COLOR_FIELDS,
@@ -49,7 +49,7 @@ import {
 import { SettingsActions } from './settings-actions';
 
 const ROOT = '/api/ui/v1/ayarlar' as const;
-type VehicleGroupPage = Sema<'SayfaOfVehicleGroupDto'>;
+type VehicleGroupPage = Schema<'SayfaOfVehicleGroupDto'>;
 
 /** Uç sınırları (`ValidateSettings`) — istemci yalnız erken uyarır; asıl kural sunucuda. */
 const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
@@ -88,15 +88,15 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
   selector: 'rc-settings-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     TranslocoPipe,
     Alan,
-    FormHatalari,
-    MetinGirdisi,
-    OnayKutusu,
-    SayiGirdisi,
-    Secim,
+    FormErrors,
+    TextInput,
+    Checkbox,
+    NumberInput,
+    Selection,
     SettingsActions,
   ],
   styleUrl: '../system.scss',
@@ -104,12 +104,12 @@ const MAX_LENGTH: Readonly<Partial<Record<string, number>>> = {
 })
 export class SettingsPage {
   private readonly api = inject(ApiIstemcisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly confirm = inject(OnayServisi);
+  private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly t = ceviriFonksiyonu();
+  private readonly t = translationFunction();
 
   protected readonly form = new FormGroup({
     ...(Object.fromEntries(
@@ -130,7 +130,7 @@ export class SettingsPage {
   /** Sunucunun son okunan hâli (birleştirme tabanı + `surum` + sır bayrakları). */
   protected readonly dto = signal<SettingsDto | null>(null);
   protected readonly loadError = signal<string | null>(null);
-  protected readonly submit = formGonderimi();
+  protected readonly submit = formSubmission();
 
   protected readonly priceTypes: readonly SecenekOgesi<string>[] = PRICE_TYPES.map((p) => ({
     deger: p,
@@ -159,7 +159,7 @@ export class SettingsPage {
   });
 
   constructor() {
-    sayfaTerkKorumasi(() => this.kaydedilmemisDegisiklikVar());
+    pageLeaveGuard(() => this.hasUnsavedChanges());
     this.load();
     this.api
       .get<VehicleGroupPage>('/api/ui/v1/arac-gruplari', {
@@ -172,7 +172,7 @@ export class SettingsPage {
       .subscribe({ next: (l) => this.groups.set(l), error: () => this.groups.set([]) });
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
@@ -185,7 +185,7 @@ export class SettingsPage {
     const clearing = secretsToClear(value);
     if (clearing.length > 0) {
       const names = clearing.map((f) => this.t(`sistem.ayarlar.alan.${f}`)).join(', ');
-      const yes = await this.confirm.sor({
+      const yes = await this.confirm.ask({
         baslik: this.t('sistem.ayarlar.sirSilOnayBaslik'),
         mesaj: this.t('sistem.ayarlar.sirSilOnayMesaj', { alanlar: names }),
         onayEtiketi: this.t('sistem.ayarlar.sirSilOnayla'),
@@ -233,7 +233,7 @@ export class SettingsPage {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (dto) => this.apply(dto),
-        error: (e: unknown) => this.loadError.set(apiHatasinaCevir(e).detay),
+        error: (e: unknown) => this.loadError.set(toApiError(e).detay),
       });
   }
 

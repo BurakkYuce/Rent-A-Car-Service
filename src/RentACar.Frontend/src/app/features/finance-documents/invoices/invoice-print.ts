@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-import { TAM_SAYFA_GEZINMESI } from '@core/form/kaydedilmemis-degisiklik';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { FULL_PAGE_NAVIGATION } from '@core/form/kaydedilmemis-degisiklik';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -19,7 +19,7 @@ export function invoicePdfPath(id: string | null | undefined): string | null {
 @Component({
   selector: 'rc-invoice-print',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SayfaBandi, TranslocoPipe],
+  imports: [PageBand, TranslocoPipe],
   template: `
     <rc-sayfa-bandi [baslik]="'finansBelge.fatura.yazdirBaslik' | transloco" ikon="printer" />
     <div class="rc-sayfa">
@@ -40,6 +40,6 @@ export class InvoicePrint {
   protected readonly path = invoicePdfPath(inject(ActivatedRoute).snapshot.paramMap.get('id'));
 
   constructor() {
-    if (this.path) inject(TAM_SAYFA_GEZINMESI)(this.path);
+    if (this.path) inject(FULL_PAGE_NAVIGATION)(this.path);
   }
 }

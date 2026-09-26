@@ -14,41 +14,41 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { finalize } from 'rxjs';
 
-import { apiHatasinaCevir } from '@core/api/api-hatasi';
+import { toApiError } from '@core/api/api-hatasi';
 import { ApiIstemcisi } from '@core/api/api-istemcisi';
-import {
-  type KaydedilmemisDegisiklikSahibi,
-  sayfaTerkKorumasi,
-} from '@core/form/kaydedilmemis-degisiklik';
-import { OnayServisi } from '@core/geri-bildirim/onay-servisi';
-import { ToastServisi } from '@core/geri-bildirim/toast-servisi';
-import { UyariBandiServisi } from '@core/geri-bildirim/uyari-bandi-servisi';
-import { ceviriFonksiyonu } from '@core/i18n/ceviri';
-import { trKucukHarf } from '@core/metin/tr-normalize';
-import { genelGosterilir } from '@core/oturum/oturum-interceptor';
-import { sekmeBaglami } from '@core/sekme/sekme-durumu';
+import { type UnsavedChangesOwner, pageLeaveGuard } from '@core/form/kaydedilmemis-degisiklik';
+import { ConfirmService } from '@core/geri-bildirim/confirm-service';
+import { ToastService } from '@core/geri-bildirim/toast-service';
+import { WarningBannerService } from '@core/geri-bildirim/warning-banner-service';
+import { translationFunction } from '@core/i18n/ceviri';
+import { trLowerCase } from '@core/metin/tr-normalize';
+import { genelGosterilir } from '@core/oturum/session-interceptor';
+import { tabContext } from '@core/sekme/tab-state';
 import { FetchPolicy } from '@core/veri/fetch-policy';
-import { sunucuDegerleriniBirlestir } from '@features/planlama-ortak/form-yardimcilari';
+import { mergeServerValues } from '@features/planlama-ortak/form-yardimcilari';
 import { suggestionList } from '@features/vehicles/suggestions';
 import { toNumber } from '@features/vehicles/vehicle-model';
-import { secimSuggestionFetch, vehicleSuggestionFetch } from '@features/vehicles/vehicle.store';
-import { ParaPipe } from '@shared/bicim/bicim-pipe';
+import { selectionSuggestionFetch, vehicleSuggestionFetch } from '@features/vehicles/vehicle.store';
+import { MoneyPipe } from '@shared/bicim/bicim-pipe';
 import { Alan } from '@shared/form/alan/alan';
-import { AramaSecim } from '@shared/form/arama-secim/arama-secim';
-import { type SecimSecenegi, sunucuSecimKaynagi } from '@shared/form/arama-secim/secim-kaynagi';
-import { formGonderimi } from '@shared/form/form-gonderimi';
-import { FormHatalari } from '@shared/form/form-hatalari';
-import { MetinGirdisi } from '@shared/form/kontroller/metin-girdisi';
-import { ParaGirdisi } from '@shared/form/kontroller/para-girdisi';
-import { SayiGirdisi } from '@shared/form/kontroller/sayi-girdisi';
+import { SearchSelection } from '@shared/form/arama-secim/search-selection';
+import {
+  type SecimSecenegi,
+  serverSelectionSource,
+} from '@shared/form/arama-secim/selection-source';
+import { formSubmission } from '@shared/form/form-submission';
+import { FormErrors } from '@shared/form/form-errors';
+import { TextInput } from '@shared/form/kontroller/text-input';
+import { MoneyInput } from '@shared/form/kontroller/money-input';
+import { NumberInput } from '@shared/form/kontroller/number-input';
 import type { SecenekOgesi } from '@shared/form/kontroller/secenek';
-import { Secim } from '@shared/form/kontroller/secim';
-import { TarihSecici } from '@shared/form/tarih/tarih-secici';
+import { Selection } from '@shared/form/kontroller/selection';
+import { DatePicker } from '@shared/form/tarih/date-picker';
 
 import { ORDER_CURRENCIES, type OrderDetail } from '../finance-model';
 import { ORDERS, OrderFormStore, recordPath } from '../finance.store';
 import { type OrderFormValue, emptyOrder, orderRequest, orderToForm } from './order-form-model';
-import { SayfaBandi } from '../../../kabuk/sayfa-bandi/sayfa-bandi';
+import { PageBand } from '../../../kabuk/sayfa-bandi/page-band';
 
 type Transition = 'onayla' | 'teslim-al' | 'iptal';
 
@@ -61,41 +61,41 @@ type Transition = 'onayla' | 'teslim-al' | 'iptal';
   selector: 'rc-order-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SayfaBandi,
+    PageBand,
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
     Alan,
-    AramaSecim,
-    FormHatalari,
-    MetinGirdisi,
-    ParaGirdisi,
-    ParaPipe,
-    SayiGirdisi,
-    Secim,
-    TarihSecici,
+    SearchSelection,
+    FormErrors,
+    TextInput,
+    MoneyInput,
+    MoneyPipe,
+    NumberInput,
+    Selection,
+    DatePicker,
   ],
   providers: [FetchPolicy, OrderFormStore],
   templateUrl: './order-form.html',
   styleUrl: '../vehicle-finance.scss',
 })
-export class OrderForm implements KaydedilmemisDegisiklikSahibi {
+export class OrderForm implements UnsavedChangesOwner {
   protected readonly store = inject(OrderFormStore);
   private readonly api = inject(ApiIstemcisi);
   private readonly router = inject(Router);
-  private readonly confirm = inject(OnayServisi);
-  private readonly toast = inject(ToastServisi);
-  private readonly banner = inject(UyariBandiServisi);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
+  private readonly banner = inject(WarningBannerService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly tab = sekmeBaglami();
-  private readonly t = ceviriFonksiyonu();
+  private readonly tab = tabContext();
+  private readonly t = translationFunction();
 
   protected readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id');
   protected readonly isNew = this.id === null;
   protected readonly base = signal<OrderDetail | null>(null);
   protected readonly transitioning = signal(false);
   protected readonly num = toNumber;
-  protected readonly customers = sunucuSecimKaynagi('musteri');
+  protected readonly customers = serverSelectionSource('musteri');
 
   protected readonly form = new FormGroup({
     tedarikci: new FormControl<string | null>(null, [
@@ -133,7 +133,7 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
     kur: new FormControl<number | null>(null),
     aciklama: new FormControl<string | null>(null, Validators.maxLength(512)),
   });
-  protected readonly submission = formGonderimi();
+  protected readonly submission = formSubmission();
 
   protected readonly currency = toSignal(this.form.controls.doviz.valueChanges, {
     initialValue: this.form.controls.doviz.value,
@@ -152,7 +152,7 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
     const out: string[] = [];
     for (const s of this.store.suppliers.veri()?.kayitlar ?? []) {
       const name = s.tedarikci.trim();
-      const key = trKucukHarf(name);
+      const key = trLowerCase(name);
       if (name !== '' && !seen.has(key)) {
         seen.add(key);
         out.push(name);
@@ -170,7 +170,7 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
   );
   protected readonly groupSuggestions = suggestionList(
     this.form.controls.grup,
-    secimSuggestionFetch(this.api, 'arac-grubu'),
+    selectionSuggestionFetch(this.api, 'arac-grubu'),
   );
   /** Blazor datalist'leriyle aynı sabit öneriler (serbest metin de kabul). */
   protected readonly sourceTypes = ['ÖzMal', 'Kiralık', 'Filo'] as const;
@@ -183,7 +183,7 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
 
   constructor() {
     const policy = inject(FetchPolicy);
-    policy.baglan({
+    policy.connect({
       parametre: signal(0).asReadonly(),
       yukle: () => {
         this.store.loans.yukle();
@@ -191,10 +191,10 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
       },
     });
     if (this.id !== null) {
-      policy.baglan({
+      policy.connect({
         parametre: signal(this.id).asReadonly(),
         yukle: (id) => this.store.order.yukle(id),
-        sifirla: () => this.store.order.sifirla(),
+        sifirla: () => this.store.order.reset(),
       });
       effect(() => {
         const d = this.store.order.durum();
@@ -209,17 +209,17 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
         editable ? this.form.enable({ emitEvent: false }) : this.form.disable({ emitEvent: false }),
       );
     });
-    sayfaTerkKorumasi(() => this.form.dirty);
+    pageLeaveGuard(() => this.form.dirty);
   }
 
-  kaydedilmemisDegisiklikVar(): boolean {
+  hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
 
   protected save(): void {
     if (!this.editable()) return;
     const base = this.base();
-    if (!this.isNew && (base === null || this.store.order.yukleniyor())) return;
+    if (!this.isNew && (base === null || this.store.order.isLoading())) return;
     const body = orderRequest(this.form.getRawValue() as OrderFormValue, base);
     const id = this.id;
     this.submission.gonder(
@@ -256,7 +256,7 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
     const d = this.base();
     if (!d || this.transitioning()) return;
     if (kind === 'iptal') {
-      const yes = await this.confirm.sor({
+      const yes = await this.confirm.ask({
         baslik: this.t('aracFinans.siparis.iptalBaslik'),
         mesaj: this.t(
           d.durum === 'Onaylandi'
@@ -282,7 +282,7 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
           this.orderArrived(fresh);
         },
         error: (raw: unknown) => {
-          const error = apiHatasinaCevir(raw);
+          const error = toApiError(raw);
           if (!genelGosterilir(error)) this.toast.hata(error.detay);
           this.store.order.yenile();
         },
@@ -300,14 +300,14 @@ export class OrderForm implements KaydedilmemisDegisiklikSahibi {
     if (!this.form.dirty || previous === null) {
       this.form.reset({ ...orderToForm(d) });
     } else {
-      const conflicts = sunucuDegerleriniBirlestir(
+      const conflicts = mergeServerValues(
         this.form,
         { ...orderToForm(d) },
         { ...orderToForm(previous) },
         this.t('aracFinans.cakismaAlan'),
       );
       if (conflicts.length > 0)
-        this.banner.goster({
+        this.banner.show({
           tur: 'uyari',
           mesaj: this.t('aracFinans.cakismaBant', { sayi: conflicts.length }),
           kod: 'cakisma',

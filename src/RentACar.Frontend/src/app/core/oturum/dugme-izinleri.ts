@@ -1,9 +1,9 @@
-import type { Izin } from './oturum-tipleri';
+import type { Permission } from './oturum-tipleri';
 
 /** Bir düğmenin (ya da bağlantının) görünürlük kapısı ve tetiklediği sunucu ucu. */
 export interface DugmeIzni {
   /** Düğme yalnız bu izinlerin HEPSİ varsa görünür (`ben.izinler`, rol değil etkin izin). */
-  readonly izinler: readonly Izin[];
+  readonly izinler: readonly Permission[];
   /** Tetiklenen uç: `YÖNTEM /sunucu/rota/şablonu` (ASP.NET rota şablonu, `{id:guid}` dahil). */
   readonly uc: string;
 }
@@ -41,4 +41,4 @@ export const DUGME_IZINLERI = {
   kiraSecimPersonel: { izinler: ['OperationsWrite'], uc: 'GET /api/ui/v1/secim/personel' },
 } as const satisfies Readonly<Record<string, DugmeIzni>>;
 
-export type DugmeAdi = keyof typeof DUGME_IZINLERI;
+export type ButtonName = keyof typeof DUGME_IZINLERI;

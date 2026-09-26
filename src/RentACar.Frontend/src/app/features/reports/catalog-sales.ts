@@ -1,4 +1,4 @@
-import type { Sema } from '@core/api/ui-tipleri';
+import type { Schema } from '@core/api/ui-tipleri';
 
 import {
   VIEW_REPORTS,
@@ -27,9 +27,9 @@ export const scorecardLink = (id: string | null | undefined) =>
 
 // ── Kârlılık (+ boyut özeti) ────────────────────────────────────────────────────────────────
 const ka = cardsFor<SummaryOf<`${typeof R}/karlilik`>>();
-const kaSatir = columnsFor<RowOf<`${typeof R}/karlilik`>>();
+const kaRow = columnsFor<RowOf<`${typeof R}/karlilik`>>();
 const ko = cardsFor<SummaryOf<`${typeof R}/karlilik/ozet`>>();
-const koSatir = columnsFor<Sema<'KarlilikOzetSatirDto'>>();
+const koRow = columnsFor<Schema<'KarlilikOzetSatirDto'>>();
 export const PROFITABILITY = defineReport({
   kod: 'karlilik',
   baslik: 'rapor.baslik.karlilik',
@@ -62,34 +62,34 @@ export const PROFITABILITY = defineReport({
         siralanabilir: ['plaka', 'gelir', 'gider', 'netKar', 'sube', 'grup', 'dolulukYuzde'],
         satirKimligi: (r) => r.vehicleId ?? `plaka:${r.plaka}`,
         sutunlar: [
-          kaSatir.field('plaka', 'metin', {
+          kaRow.field('plaka', 'metin', {
             sirala: true,
             sabit: true,
             bag: (r) => scorecardLink(r.vehicleId),
           }),
-          kaSatir.field('sube', 'metin', { sirala: true }),
-          kaSatir.field('grup', 'metin', { sirala: true }),
-          kaSatir.field('segment', 'metin', { gizli: true }),
-          kaSatir.field('sipp', 'metin', { gizli: true }),
-          kaSatir.field('gelir', 'para', { sirala: true }),
-          kaSatir.field('gider', 'para', { sirala: true }),
-          kaSatir.field('netKar', 'para', { sirala: true }),
-          kaSatir.field('dolulukYuzde', 'yuzde', { sirala: true }),
-          kaSatir.field('revPacd', 'para'),
-          kaSatir.field('adr', 'para'),
-          kaSatir.field('kiraAdet', 'tamsayi'),
-          kaSatir.field('kiralananGun', 'tamsayi'),
-          kaSatir.field('sahiplikGun', 'tamsayi', { gizli: true }),
-          kaSatir.field('potansiyelGelir', 'para', { gizli: true }),
-          kaSatir.field('referansAylikMaliyet', 'para', { gizli: true }),
-          kaSatir.field('referansFiloYonetimMaliyeti', 'para', { gizli: true }),
-          kaSatir.field('referansToplamMaliyet', 'para', { gizli: true }),
-          kaSatir.field('hesaplananKdv', 'para', { gizli: true }),
-          kaSatir.field('gelirKdvDahil', 'para', { gizli: true }),
-          kaSatir.field('otopark', 'metin', { gizli: true }),
-          kaSatir.field('rezKaynagi', 'metin', { gizli: true }),
-          kaSatir.field('cariAd', 'metin', { gizli: true, baslik: 'rapor.alan.cari' }),
-          kaSatir.field('cariBakiye', 'para', { gizli: true }),
+          kaRow.field('sube', 'metin', { sirala: true }),
+          kaRow.field('grup', 'metin', { sirala: true }),
+          kaRow.field('segment', 'metin', { gizli: true }),
+          kaRow.field('sipp', 'metin', { gizli: true }),
+          kaRow.field('gelir', 'para', { sirala: true }),
+          kaRow.field('gider', 'para', { sirala: true }),
+          kaRow.field('netKar', 'para', { sirala: true }),
+          kaRow.field('dolulukYuzde', 'yuzde', { sirala: true }),
+          kaRow.field('revPacd', 'para'),
+          kaRow.field('adr', 'para'),
+          kaRow.field('kiraAdet', 'tamsayi'),
+          kaRow.field('kiralananGun', 'tamsayi'),
+          kaRow.field('sahiplikGun', 'tamsayi', { gizli: true }),
+          kaRow.field('potansiyelGelir', 'para', { gizli: true }),
+          kaRow.field('referansAylikMaliyet', 'para', { gizli: true }),
+          kaRow.field('referansFiloYonetimMaliyeti', 'para', { gizli: true }),
+          kaRow.field('referansToplamMaliyet', 'para', { gizli: true }),
+          kaRow.field('hesaplananKdv', 'para', { gizli: true }),
+          kaRow.field('gelirKdvDahil', 'para', { gizli: true }),
+          kaRow.field('otopark', 'metin', { gizli: true }),
+          kaRow.field('rezKaynagi', 'metin', { gizli: true }),
+          kaRow.field('cariAd', 'metin', { gizli: true, baslik: 'rapor.alan.cari' }),
+          kaRow.field('cariBakiye', 'para', { gizli: true }),
         ],
       },
     }),
@@ -123,15 +123,15 @@ export const PROFITABILITY = defineReport({
           baslik: 'rapor.bolum.boyutKirilimi',
           satirlar: (s) => s.satirlar,
           sutunlar: [
-            koSatir.field('boyut', 'metin', { baslik: 'rapor.alan.kirilim' }),
-            koSatir.field('aracAdet', 'tamsayi'),
-            koSatir.field('gelir', 'para'),
-            koSatir.field('gider', 'para'),
-            koSatir.field('netKar', 'para'),
-            koSatir.field('aracBasiGelir', 'para'),
-            koSatir.field('dolulukYuzde', 'yuzde'),
-            koSatir.field('potansiyelGelir', 'para'),
-            koSatir.field('referansToplamMaliyet', 'para'),
+            koRow.field('boyut', 'metin', { baslik: 'rapor.alan.kirilim' }),
+            koRow.field('aracAdet', 'tamsayi'),
+            koRow.field('gelir', 'para'),
+            koRow.field('gider', 'para'),
+            koRow.field('netKar', 'para'),
+            koRow.field('aracBasiGelir', 'para'),
+            koRow.field('dolulukYuzde', 'yuzde'),
+            koRow.field('potansiyelGelir', 'para'),
+            koRow.field('referansToplamMaliyet', 'para'),
           ],
         }),
       ],
@@ -141,27 +141,27 @@ export const PROFITABILITY = defineReport({
 
 // ── Ek hizmet (özet + araç pivotu + satır detayı) ───────────────────────────────────────────
 const eh = cardsFor<SummaryOf<`${typeof R}/ek-hizmet`>>();
-const ehSatir = columnsFor<Sema<'EkHizmetRaporRowDto'>>();
+const ehRow = columnsFor<Schema<'EkHizmetRaporRowDto'>>();
 const pv = cardsFor<SummaryOf<`${typeof R}/ek-hizmet/arac-pivot`>>();
-type PivotRow = Sema<'EkHizmetAracPivotSatir'>;
-const pvSatir = columnsFor<PivotRow>();
+type PivotRow = Schema<'EkHizmetAracPivotSatir'>;
+const pvRow = columnsFor<PivotRow>();
 const dt = cardsFor<SummaryOf<`${typeof R}/ek-hizmet/detay`>>();
-const dtSatir = columnsFor<RowOf<`${typeof R}/ek-hizmet/detay`>>();
+const dtRow = columnsFor<RowOf<`${typeof R}/ek-hizmet/detay`>>();
 
 /** Pivot sütunları sunucunun `kolonlar` sırasıyla (hizmet adı başlık; metin sözlükte değil — veri). */
-function pivotColumns(kolonlar: readonly string[]): readonly ReportColumn<PivotRow>[] {
+function pivotColumns(columns: readonly string[]): readonly ReportColumn<PivotRow>[] {
   return [
-    pvSatir.field('plaka', 'metin', { sabit: true }),
-    pvSatir.field('grup', 'metin'),
-    pvSatir.field('sipp', 'metin'),
-    ...kolonlar.map((ad, i) =>
-      pvSatir.computed(`k${i}`, 'para', (r) => r.hucreler[i], {
+    pvRow.field('plaka', 'metin', { sabit: true }),
+    pvRow.field('grup', 'metin'),
+    pvRow.field('sipp', 'metin'),
+    ...columns.map((name, i) =>
+      pvRow.computed(`k${i}`, 'para', (r) => r.hucreler[i], {
         baslik: 'rapor.alan.hizmet',
-        baslikMetni: ad,
+        baslikMetni: name,
       }),
     ),
-    pvSatir.field('toplam', 'para'),
-    pvSatir.field('kalemAdet', 'tamsayi'),
+    pvRow.field('toplam', 'para'),
+    pvRow.field('kalemAdet', 'tamsayi'),
   ];
 }
 
@@ -189,12 +189,12 @@ export const ADDON_SALES = defineReport({
           baslik: 'rapor.bolum.hizmetler',
           satirlar: (s) => s.satirlar,
           sutunlar: [
-            ehSatir.field('ad', 'metin', { baslik: 'rapor.alan.hizmet' }),
-            ehSatir.field('toplamMiktar', 'sayi'),
-            ehSatir.field('net', 'para'),
-            ehSatir.field('kdv', 'para'),
-            ehSatir.field('brut', 'para'),
-            ehSatir.field('kiraAdet', 'tamsayi'),
+            ehRow.field('ad', 'metin', { baslik: 'rapor.alan.hizmet' }),
+            ehRow.field('toplamMiktar', 'sayi'),
+            ehRow.field('net', 'para'),
+            ehRow.field('kdv', 'para'),
+            ehRow.field('brut', 'para'),
+            ehRow.field('kiraAdet', 'tamsayi'),
           ],
         }),
       ],
@@ -239,30 +239,30 @@ export const ADDON_SALES = defineReport({
         siralanabilir: ['eklenmeTarihi', 'sozlesmeNo', 'ad', 'plaka', 'brut'],
         satirKimligi: (r) => r.addOnId,
         sutunlar: [
-          dtSatir.field('eklenmeTarihi', 'tarihSaat', { sirala: true }),
-          dtSatir.field('sozlesmeNo', 'metin', {
+          dtRow.field('eklenmeTarihi', 'tarihSaat', { sirala: true }),
+          dtRow.field('sozlesmeNo', 'metin', {
             sirala: true,
             sabit: true,
             bag: (r) => ['/kiralar', r.rentalId],
           }),
-          dtSatir.field('basTar', 'tarih'),
-          dtSatir.field('bitTar', 'tarih'),
-          dtSatir.field('plaka', 'metin', { sirala: true }),
-          dtSatir.field('musteriAd', 'metin', { baslik: 'rapor.alan.musteri' }),
-          dtSatir.field('rezKaynagi', 'metin', { gizli: true }),
-          dtSatir.field('cikisOfisi', 'metin', { gizli: true }),
-          dtSatir.field('ad', 'metin', { sirala: true, baslik: 'rapor.alan.hizmet' }),
-          dtSatir.field('miktar', 'sayi'),
-          dtSatir.field('birimNetFiyat', 'para'),
-          dtSatir.computed('kdvOrani', 'yuzde', (r) => fractionToPercent(r.kdvOrani), {
+          dtRow.field('basTar', 'tarih'),
+          dtRow.field('bitTar', 'tarih'),
+          dtRow.field('plaka', 'metin', { sirala: true }),
+          dtRow.field('musteriAd', 'metin', { baslik: 'rapor.alan.musteri' }),
+          dtRow.field('rezKaynagi', 'metin', { gizli: true }),
+          dtRow.field('cikisOfisi', 'metin', { gizli: true }),
+          dtRow.field('ad', 'metin', { sirala: true, baslik: 'rapor.alan.hizmet' }),
+          dtRow.field('miktar', 'sayi'),
+          dtRow.field('birimNetFiyat', 'para'),
+          dtRow.computed('kdvOrani', 'yuzde', (r) => fractionToPercent(r.kdvOrani), {
             baslik: 'rapor.alan.kdvOrani',
           }),
-          dtSatir.field('net', 'para'),
-          dtSatir.field('kdv', 'para'),
-          dtSatir.field('brut', 'para', { sirala: true }),
-          dtSatir.field('satanPersonel', 'metin'),
-          dtSatir.field('ilkTahsilat', 'para', { gizli: true }),
-          dtSatir.field('sistemKalemi', 'bayrak', { gizli: true }),
+          dtRow.field('net', 'para'),
+          dtRow.field('kdv', 'para'),
+          dtRow.field('brut', 'para', { sirala: true }),
+          dtRow.field('satanPersonel', 'metin'),
+          dtRow.field('ilkTahsilat', 'para', { gizli: true }),
+          dtRow.field('sistemKalemi', 'bayrak', { gizli: true }),
         ],
       },
     }),
