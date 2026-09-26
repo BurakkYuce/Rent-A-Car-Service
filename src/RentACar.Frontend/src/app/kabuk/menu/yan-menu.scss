@@ -19,13 +19,14 @@
 
 // ---- kısayol çifti
 .kisayol {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  // Tek kısayol (izne göre) satırı doldurur; çiftte içerik oranında paylaşılır.
+  display: flex;
   gap: var(--rc-bosluk-1-5);
   margin-block-end: var(--rc-bosluk-3);
 }
 
 .kisayol__dugme {
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -188,7 +189,7 @@
   padding-inline: var(--rc-bosluk-1-5);
 
   .kisayol {
-    grid-template-columns: minmax(0, 1fr);
+    flex-direction: column;
   }
 
   .kisayol__dugme {
