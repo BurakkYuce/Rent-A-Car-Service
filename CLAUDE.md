@@ -6,8 +6,11 @@
 `referans-sistem.example` adresindeki **referans sistem** (ASP.NET WebForms, ~155 ekran, rent-a-car/filo ERP) yazılımının **sıfırdan, fonksiyonel eşdeğeri**. Hedef: **çok-kiracılı (multi-tenant) SaaS**, .NET 10 üzerinde temiz mimari.
 
 ## 2. Yığın (locked — değiştirmeyin)
-- **.NET 10 (LTS)**, ASP.NET Core, **Blazor Server *statik* SSR** (interaktif circuit DEĞİL — formlar `method="post"` minimal-API uçlarına gider).
-- **ARAYÜZ GEÇİŞİ SÜRÜYOR (2026-09-21):** Blazor arayüzü **dondurulmuştur** — yeni özellik girmez, yalnız kritik düzeltme. Arayüz modül modül **Angular 21 SPA**'ya taşınıyor: `src/RentACar.Frontend/` (bu repo), veri `/api/ui/v1` (Web sunucusu, aynı `racar.session` çerezi). Faz sırası KİLİTLİ; plan ve her fazın sayfa/uç envanteri `docs/roadmap/` (README + `F0`–`F13.md`). Sıra değişikliği yalnız kullanıcı kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla. Backend (Domain/Application/Infrastructure) bu geçişte yalnız eklemeli değişir.
+- **.NET 10 (LTS)**, ASP.NET Core Web sunucusu (`src/RentACar.Web`) — **arayüz sunmaz**, JSON API + dosya uçları sunar.
+- **Arayüz: Angular 21 SPA** (`src/RentACar.Frontend/`, `/app` altında Web sunucusundan statik barınır — `Spa/SpaHosting.cs`). Veri **yalnız `/api/ui/v1`** (aynı `racar.session` çerezi, `X-XSRF-TOKEN` CSRF, ProblemDetails; her uçta `IzinMetadata`/`IzinMuaf`). Web'de yazma ucu yalnız `/api/ui/v1`'de (+ eski `POST /auth/logout`, makine webhook'u `/internal/alert`; `UcIzinKapsamaTests` kilitler); `/api/ui` dışındaki GET'ler dosya/indirme uçları (PDF, export, belge indir, `/sozlesme/{token}`, iCal).
+- **Blazor SÖKÜLDÜ (F13, 2026-09-26, #348–#350):** `Components/`, `wwwroot/`, Radzen, form POST uçları ve pilot kapısı yok (`@page` = 0). Eski Blazor adresleri `Spa/Cutover.cs` haritasıyla **301** → `/app/...`; giriş `/app/giris`, 401/403/404/500 tarayıcıda SPA'ya (`Cutover.StatusTarget`/`ErrorTarget`, Panel + `?hata=` bandı). `TenantSettings.YeniArayuzPilot` kolonu kullanılmıyor (ayrı migration'la düşecek). Harici JWT API `src/RentACar.Api` (`/api/v1`) ve halka açık site `src/RentACar.PublicSite` (kendi Blazor'u) AYRI projelerdir, bu söküme dahil değil.
+- **YAYIN NOTU:** söküm main'de; canlıya yayın, F2.2 sunucu adımları (`docs/ops/f2-2-sunucu-adimlari.md`) tamamlanıp `/app`'in üretimde çalıştığı doğrulanana kadar YAPILMAZ (kullanıcı kararı, `docs/roadmap/DEGISIKLIKLER.md`). Aksi halde kullanıcılar arayüzsüz kalır.
+- Geçiş planı ve kararlar `docs/roadmap/` (README + `F0`–`F13.md`, `DEGISIKLIKLER.md`). Backend (Domain/Application/Infrastructure) geçiş boyunca yalnız eklemeli değişti.
 - **EF Core 10 + PostgreSQL (Npgsql)**. Para = `decimal`/`numeric`.
 - **Temiz mimari**, katmanlar: `RentACar.Domain` → `Application` → `Infrastructure` → `Web` (+ `tests/RentACar.IntegrationTests`). Bağımlılık yönü içe doğru; Domain hiçbir şeye bağımlı değil.
 - Central Package Management (`Directory.Packages.props`), `.slnx` çözüm dosyası.
@@ -62,10 +65,9 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 5. `IXRepository` (Application) + `XRepository` (Infrastructure, `IDbContextFactory<AppDbContext>`, `AsNoTracking`).
 6. `XService` (Application) — doğrulama + guard + iş kuralı.
 7. DI: `Application/DependencyInjection.cs` (`AddScoped<XService>`) + `Infrastructure/DependencyInjection.cs` (`AddScoped<IXRepository, XRepository>`).
-8. Web: `Components/Pages/.../XList.razor` + `X/XEndpoints.cs` + `Program.cs` `MapXEndpoints()` + `_Imports.razor` using + `MainLayout.razor` nav.
-9. Test: `tests/…/XTests.cs` — bağımsız oracle (CRUD + benzersizlik + **tenant izolasyon** `racar_app` ile + yetki).
-
-**Tuzak:** opsiyonel `decimal?`/`int?`/`DateTimeOffset?` form alanları boş string ("") gelince `[FromForm]` 400 verir → web ucunda `string?` parametre alıp `FormParse.Dec/Int/Date/Id` ile çevir.
+8. Web (API): `src/RentACar.Web/Api/<Modül>/XApi.cs` — `/api/ui/v1` grubuna uçlar (`UiApiExtensions.MapUiApi` ya da `IUiApiEndpointRegistration`); her uçta `RequirePermission`/`IzinMetadata` ya da `IzinMuaf`; alt kayıtta üst kaydın şube kapsamı, kapsam kontrolü durum kontrolünden ÖNCE; alan hataları `errors[alan]`; uç sınırları (`numeric(19,4)`, varchar); tam değiştirme PUT'unda `surum` + 409 `cakisma`. Sonra `RACAR_OPENAPI_GUNCELLE=1` ile `UiApiOpenApiTests` ve frontend'de `npm run tipler`.
+9. SPA ekranı: `src/RentACar.Frontend/src/app/features/<modül>/` (çekirdek bileşenler, form seti, `TemelStore`; kurallar `src/RentACar.Frontend/AGENTS.md`), rota `sayfalar.ts` (tembel parça), çeviri kendi i18n bloğunda (`npm run i18n:tipler`), menü `Api/Menu/MenuKaydi.cs`. Yıkıcı çağrı onaylı olmalı (`npm run yikici`, lint zincirinde).
+10. Test: `tests/…/XTests.cs` — bağımsız oracle (CRUD + benzersizlik + **tenant izolasyon** `racar_app` ile + yetki: başka şube 403, başka kiracı 404) + SPA Vitest/e2e.
 
 ## 6. Mevcut durum (2026-07-15, PR #76 itibarıyla — 1242 entegrasyon testi yeşil)
 **Tamam (ilk seri Faz 1–5, ~29 PR):**
@@ -115,6 +117,8 @@ Kullanıcı **C# kodunu incelemez**. Doğruluk şuradan gelir:
 
 - **F1 — `/api/ui/v1` temeli TAMAM (2026-09-21, PR #238–#245):** hata sözleşmesi `ValidationException` alt tipleri — `NoPermissionException` (403 `yetki_yok`), `DuplicateOperationException` (409 `mukerrer`), çakışma istisnaları (409 `cakisma`); `Web/Api/UiError.cs` kod tablosu (+`xsrf_gecersiz`). **xUnit `Assert.ThrowsAsync<T>` birebir tip eşler** — yetki reddini `ThrowsAsync<NoPermissionException>` ile bekle. Mükerrer sınıflandırması KISIT ADIYLA (`IdempotencyConstraint`: `_IslemAnahtari`/`_Anahtar`/`_Idem` + iki açık ad). `/api/ui`: JSON ProblemDetails, CSRF her ortamda (`X-XSRF-TOKEN`), `no-store`, pilot kapısı (`TenantSettings.YeniArayuzPilot`), her uçta `IzinMetadata`/`IzinMuaf` (yapısal test). Idempotency envanteri `docs/api/idempotency-envanteri.md`: sessiz başarı YALNIZ hedef+tutar birebir aynıysa, farklı içerik → 409. Testlerde SABİT KİMLİK BİLGİSİ YOK (GitGuardian; seed parolası canlı bir hesapla aynı) — kullanıcıyı çalışma anında rastgele parolayla üret (`WebFixture`).
 
+- **F13 — BLAZOR SÖKÜLDÜ, ANGULAR GEÇİŞİ KAPANDI (2026-09-26, #348–#351):** F4–F12 kodu ve kesişleri main'de; F13.0 karar kaydı + F12 kesiş (#348), F13.1a 145 `@page` rotası + 345 form yazma ucu (#349; yapısal çitler SPA'ya: `scripts/yikici-onay-denetimi.mjs`, `NonApiEndpointAuthorizationTests`), F13.1b kabuk + pilot kapısı + 301 + SPA'ya bağlı giriş/yetki/hata yolları (#350), F13.2 belgeler. Pilot doğrulaması beklenmeden (kullanıcı kararı); **canlıya yayın F2.2 sunucu adımlarından sonra**. Yukarıdaki F0.2 maddesindeki Blazor kuralları (data-confirm, rc-ui.js kilidi, `YikiciFormOnayTests`) tarihseldir — karşılıkları SPA'da.
+
 **Bilerek ertelendi (kullanıcı kararıyla):**
 - **Gerçek entegrasyonlar** (e-Fatura/GİB, gerçek HGS/banka/POS) — **stub**; kimlik/credential gerektirir, açmadan önce kullanıcıya sor. (SMS ve e-posta 2026-08-17'de kapandı.)
 - **Canlı referans sistem kuruş-kalibrasyonu** (fiyat motoru oranlarının canlıyla birebir doğrulanması).
@@ -132,7 +136,7 @@ brew services start postgresql@15
 ASPNETCORE_URLS=http://localhost:5220 dotnet run --project src/RentACar.Web
 ```
 **Bağlantı (appsettings.json):** runtime = `racar_app`, migrator = `racar_owner`, db `racar`, port 5432.
-**Giriş (seed):** firma `yucerent` / kullanıcı `umit` (Admin) ve `operator` (Operatör); firma `demo` / `umit` (Admin). **Parola repoda YOK** (eski sabit parola gerçek bir dış sistemle çakışıyordu; `SabitParolaYokTests` çiti): `Seed:Parola` user-secret'ı (`dotnet user-secrets set Seed:Parola '<parola>' --project src/RentACar.Web`, ya da ortamda `Seed__Parola`) verilirse o; verilmezse Development'ta ilk kurulumda rastgele üretilir ve açılış logunda `Seed kullanıcı parolası: …` WARNING satırı olarak BİR KEZ basılır. Seed yalnız BOŞ DB'de koşar → mevcut kullanıcıların parolası hiçbir açılışta değişmez. Development dışında `Seed:Parola` yoksa demo firma/kullanıcı hiç oluşturulmaz. Platform konsolu (`/platform`): kullanıcı `admin`; `Platform:AdminPasswordHash` yoksa parola her açılışta üretilip `Platform operatörü parolası` WARNING satırında basılır.
+**Giriş (seed):** firma `yucerent` / kullanıcı `umit` (Admin) ve `operator` (Operatör); firma `demo` / `umit` (Admin). **Parola repoda YOK** (eski sabit parola gerçek bir dış sistemle çakışıyordu; `SabitParolaYokTests` çiti): `Seed:Parola` user-secret'ı (`dotnet user-secrets set Seed:Parola '<parola>' --project src/RentACar.Web`, ya da ortamda `Seed__Parola`) verilirse o; verilmezse Development'ta ilk kurulumda rastgele üretilir ve açılış logunda `Seed kullanıcı parolası: …` WARNING satırı olarak BİR KEZ basılır. Seed yalnız BOŞ DB'de koşar → mevcut kullanıcıların parolası hiçbir açılışta değişmez. Development dışında `Seed:Parola` yoksa demo firma/kullanıcı hiç oluşturulmaz. **Arayüz:** `http://localhost:5220/app/` (Angular derlemesi gerekir — `src/RentACar.Frontend/AGENTS.md` yerel çalıştırma bölümü, `Spa:Dizin`); kök ve eski Blazor adresleri oraya 301 verir. Platform konsolu (`/app/platform`, eski `/platform` 301): kullanıcı `admin`; `Platform:AdminPasswordHash` yoksa parola her açılışta üretilip `Platform operatörü parolası` WARNING satırında basılır.
 
 ## 8. Test
 ```bash

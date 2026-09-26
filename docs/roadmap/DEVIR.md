@@ -19,10 +19,12 @@ açık kararıyla ve `docs/roadmap/DEGISIKLIKLER.md` kaydıyla olur. Çekirdekte
 
 ## 1. Durum (her merge'den sonra güncelle)
 
-Güncelleme: 2026-09-25 akşam. **F4–F11'in KODU ve KESİŞİ main'de**; F12'nin ekranları main'de. Tenant sayfalarından
-Blazor'da yalnız `/yetkisiz` ve `/hata` kaldı (hepsinin SPA karşılığı var). Kalan: F12 kesiş (canlı parite
-kullanıcıda), F13 söküm (pilot sonrası), birkaç Low. Faz sırası kilidi F6–F12 için GEVŞETİLDİ (`DEGISIKLIKLER.md`).
-**Pilot kapalı** — kullanıcılar hâlâ Blazor; kesiş yönlendirmeleri yalnız pilot kiracıda çalışır.
+Güncelleme: 2026-09-26. **ANGULAR GEÇİŞİ KODDA KAPANDI: F4–F12 ve F13 söküm main'de** (#348 F13.0 karar + F12 kesiş,
+#349 F13.1a sayfalar + form uçları, #350 F13.1b kabuk + pilot kapısı + 301, F13.2 belgeler). Web'de Blazor yok (`@page`
+= 0); arayüz yalnız `/app` (Angular), veri yalnız `/api/ui/v1`; eski adresler herkes için 301. Pilot kapısı kalktı
+(`YeniArayuzPilot` kolonu kullanılmıyor, ayrı migration'la düşecek). **CANLIYA YAYIN YOK** — F2.2 sunucu adımları
+(`docs/ops/f2-2-sunucu-adimlari.md`) ve `/app` üretim doğrulaması kullanıcıda; yayından önce canlı duman testi (README
+"Doğrulama"). Ajanlar `deploy/yayinla.sh` çalıştırmaz. Kalan: Low'lar (§6), aşağıdaki "Sırada".
 
 **DEVAM EDERKEN İLK İŞ:** `rtk gh pr list --state open` ile açık PR'lara bak (aşağıdaki "Açık PR" satırı bayatlamış
 olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
@@ -108,26 +110,39 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
   Açık küçükler: kira listesinde iki satırlı araç/müşteri hücresi API alanı ister; panelde "Tümü" çipi/göz ikonu yok;
   birkaç para formunda birden çok dolu düğme (davranış korunsun diye bilinçli).
 - **2026-09-26: İngilizce kod adları (#343–#346)** — bkz. Sırada madde 4.
+- **2026-09-26: F12 kesiş + F13 söküm (#348–#350 + F13.2 belgeler)** — kullanıcı kararı: pilot beklenmeden, canlı
+  parite olmadan; yayın F2.2 sonrası (`DEGISIKLIKLER.md`).
+  - #348: F12 platform sayfaları SPA'ya (pilotsuz).
+  - #349: 145 `@page` rotası + 345 form yazma ucu silindi; Blazor-only testler servis / `/api/ui`'ye taşındı (CRM şube
+    kapsamı, denetim maskesi, kira paneli). Yapısal çitler SPA'ya: `scripts/yikici-onay-denetimi.mjs` (lint; yıkıcı
+    çağrı onaysız olamaz) ve `NonApiEndpointAuthorizationTests` (Api dışı her uçta açık yetki kararı).
+  - #350: kabuk, Radzen, circuit kimliği (`HttpContextIdentity` tek kaynak), `wwwroot` silindi; eski adresler herkes
+    için 301; LoginPath `/app/giris`, 403/404/500 → `/app/panel?hata=`; `/auth/login` silindi, `/auth/logout` SPA
+    girişine; pilot kapısı ve platform pilot anahtarı kalktı. Güvenlik incelemesi hedefleri PR açıklamasında.
 
 ### ⏳ Açık PR
-- Yok (2026-09-25 akşam). Gerçek durum için `rtk gh pr list --state open`.
+- F13 PR'ları merge edildikten sonra: yok. Gerçek durum için `rtk gh pr list --state open`.
 
 ### ⬜ Sırada (başlamadı)
-1. **F12 kesiş:** canlı parite kontrolü kullanıcıda; sonra kesiş PR'ı.
+1. ~~F12 kesiş~~ ve ~~F13 söküm~~ **BİTTİ (2026-09-26).** Yayın öncesi (kullanıcıda): F2.2 sunucu adımları → `/app`
+   üretim doğrulaması → canlı duman testi (README "Doğrulama"; 301'ler, giriş, 403/404 bandı, platform konsolu). Ayrı
+   küçük temizlikler: SPA'daki ölü `ben.pilot === false` dalı; `YeniArayuzPilot` kolonunu düşüren migration;
+   `PlatformIsolation` atlama listesindeki `/_blazor|_framework|_content`.
 2. **Low kalıntıları** (§6 "2026-09-25 Low'ları" — kalanlar: #320 L2 tekrar-öncesi doğrulama ile POST arası TOCTOU
    [kalıcı çözüm sunucuda beklenen kullanıcı başlığı], #331 L1 başarısız sekmeler arası yenilemede yeniden deneme yok,
    #318 L2 isteğe bağlı "diğer formun tahsilatı yazıldı" notu, ofis adı normalize tekilliği [migration + mevcut çift
    kayıt kararı], `AccountRef` bileşik FK'leri).
-3. **F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm:** YALNIZ pilotta 10 iş günü P1 olmadıktan SONRA. Blazor'da
-   kapatılmamış bilinen okuma sızıntıları F13'e kadar canlı: CRM liste sayfaları tüm şubeleri gösteriyor,
-   `CustomerEdit.razor` anonimleştirme maskesi uygulamıyor.
+3. ~~F4.6b / F5–F11 Blazor sayfa silme ve F13 söküm~~ **BİTTİ (#349, #350)** — kullanıcı kararıyla pilot beklenmeden.
+   Blazor'daki bilinen okuma sızıntıları (CRM listeleri tüm şubeler, `CustomerEdit.razor` maskesi, `/cariler/{id}/ekstre`
+   operatöre açık — Karar (7)) sayfalarla birlikte KAPANDI (yayından sonra canlıda da).
 4. ~~İngilizce adlandırma toplu dönüşümü~~ **KOD ADLARI BİTTİ (2026-09-26, #343–#346):** Roslyn/ts-morph semantik
    yeniden adlandırma (graphify envanteri) — ~18.700 sembol, sözleşmeler (entity/DTO özellikleri, JSON, DB, enum
    üyeleri, i18n, CSS, seçiciler) DOKUNULMADI. Kalan (ayrı küçük PR'lar): Türkçe namespace/klasörler (78 + Angular
    klasörleri), bilinçli atlanan ~840 frontend adı (çakışma / betik-test okuması) ve `ICurrentUser.EkIzinler/YasakIzinler`.
 
 ### 🧑 Kullanıcıda bekleyenler (cevap gelmeden ilgili işe dokunma)
-- **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok, pilot açılamaz.
+- **F2.2 sunucu adımları:** `docs/ops/f2-2-sunucu-adimlari.md`. Bitmeden `/app` üretimde yok. **F13 söküm main'de
+  olduğu için bu adımlar ve `/app` üretim doğrulaması tamamlanmadan HİÇBİR YAYIN YAPILMAZ** (yoksa arayüz kalmaz).
 - referans sistem parolası değişimi + GitGuardian olayı 37502190'ın kapatılması.
 - **GitGuardian 37582605 YANLIŞ ALARM** — `IlkKesisTests.cs` yönlendirme yol listesinde `"kullanicilar"` ile
   `"profil/sifre-degistir"` yan yana; kimlik bilgisi yok. Main'i birleştiren her PR'da kırmızı görünür; panelde
@@ -173,10 +188,10 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
   ```
 - **GitGuardian 37612217 YANLIŞ ALARM** — #326 testindeki sahte "sır" dizeleri; dal tek commit'e ezilip çalışma anında
   üretilen değerlerle yeniden yazıldı, geçmişte yok. Panelde "false positive" işaretlenmeli.
-- **Karar (7): Blazor `/cariler/{id}/ekstre` + cari detay bakiyesi operatöre hâlâ açık** (F13'e kadar; #327 review
-  LOW-3). Karar (5) yalnız API'yi kapattı. "Kritik düzeltme" olarak şimdi kapatılsın mı (iki sayfaya izin kapısı ya da
-  `CashService.GetStatementAsync` içinde guard)? Karar gelmeden dokunma.
-- Pilotu platform konsolundan açma (Platform → kiracı detay → "Yeni Arayüz") + canlı duman testi (README "Doğrulama").
+- ~~**Karar (7): Blazor `/cariler/{id}/ekstre` + cari detay bakiyesi operatöre hâlâ açık**~~ **KONUSU KALMADI (F13.1a
+  #349):** Blazor sayfaları silindi; SPA ve API tarafı zaten FinanceWrite ∨ ViewReports kapılı (Karar (5)).
+- ~~Pilotu platform konsolundan açma~~ **KALKTI (F13.1b #350):** pilot kapısı yok. Yayından önce canlı duman testi
+  (README "Doğrulama") kullanıcıda.
 - Üretimde #265 etkisini PR'daki iki SQL ile doğrulama.
 
 ## 2. Bir PR'ı baştan sona yürütme (tek ajan)
@@ -465,21 +480,13 @@ Etiketsiz madde açıktır.
 - Blazor müsaitlik ekranı saati UTC sayıyor — bilgi; Blazor F13'te kalkar, düzeltilmez.
 - ~~#271 Low-1 filo künye tarihi~~ KAPANDI (#273).
 
-## 7. Faz haritası (kalan)
+## 7. Faz haritası
 
-| Faz | Kapsam | PR | Para |
-|---|---|---|---|
-| F4 | kod ✔ (#263, #264, #270); pilot sonrası F4.6b | — | ✔ |
-| F5 | Rezervasyon, takvim, müsaitlik, rez şartları, teklifler, filo kiralama (6 sayfa) — sürüyor | 5 (2a/2b bölündü) | — |
-| F6 | Araçlar (14) — F6.1a/F6.1b sürüyor | 6 (1a/1b bölündü) | ✔ kredi + müşteri taksit |
-| F7 | Cariler & CRM (8) | 3 | — |
-| F8 | Finans + cari ekstre + fatura yazdır (19) | 6 | ✔ her PR |
-| F9 | Servis & sigorta + vade + fiyat & tarife (15) | 5 | ✔ ödeme ve yansıtma |
-| F10 | Raporlar (26; ortak rapor şablonu) | 4 | — |
-| F11 | Tanımlar (genel CRUD) + sistem + web sitesi (~47) | 6 | — |
-| F12 | Platform konsolu (4 + `/api/ui/v1/platform/*`) | 2 | — |
-| F13 | Blazor söküm + belgeler | 2 | — |
+**Tüm fazların KODU main'de (2026-09-26).** Kalan tek adım yayın: F2.2 sunucu adımları → `/app` üretim doğrulaması →
+canlı duman testi (kullanıcıda). Ayrıntı ve PR listesi `docs/roadmap/README.md` tablosunda ve her `F*.md` durum satırında.
 
-Her modül fazı: (1) backend uçları, fazın kendi seçim/typeahead uçları dahil → (2) ekranlar → (3) parite + e2e →
-(4) kesiş PR'ı (yönlendirme şablonları + menü sahibi `spa` + guard testleri devri; Blazor sayfalarının silinmesi
-pilot doğrulamasından sonra). Ayrıntı her `F*.md` "Kalıp" bölümünde.
+| Faz | Kapsam | Durum |
+|---|---|---|
+| F4–F11 | Panel/Kira, Rezervasyon, Araçlar, Cariler & CRM, Finans, Servis & Sigorta & Fiyat, Raporlar, Tanımlar/Sistem/Web | ✔ kod + kesiş; Blazor sayfaları F13'te silindi |
+| F12 | Platform konsolu | ✔ (#281 #293 + kesiş #348) |
+| F13 | Blazor söküm + belgeler | ✔ (#348–#350 + F13.2); yayın F2.2 sonrası |
