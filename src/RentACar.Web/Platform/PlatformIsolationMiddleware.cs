@@ -11,7 +11,7 @@ namespace RentACar.Web.Platform;
 /// UI'ına hiç ihtiyacı yok. Çözüm: platform admin bir tenant sayfasına giderse konsola geri yönlendir.
 /// Ters yön (tenant kullanıcısı → /platform) zaten PlatformAdmin policy'siyle kapalı.
 /// Skip-path'ler TenantActiveMiddleware ile AYNI (kanıtlanmış set): altyapı yolları atlanır — özellikle
-/// /auth (logout ÇALIŞMALI) ve /platform (konsolun kendisi → döngü olmasın).
+/// oturum uçları (çıkış ÇALIŞMALI) ve /platform (konsolun kendisi → döngü olmasın).
 /// </summary>
 public sealed class PlatformIsolationMiddleware : IMiddleware
 {
@@ -43,10 +43,8 @@ public sealed class PlatformIsolationMiddleware : IMiddleware
         var p = path.Value ?? "";
         return p.StartsWith("/platform", StringComparison.OrdinalIgnoreCase)  // konsolun kendisi
             || p.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
-            || p.StartsWith("/auth", StringComparison.OrdinalIgnoreCase)        // logout ÇALIŞMALI
-            || p.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)
-            || p.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
-            || p.StartsWith("/_content", StringComparison.OrdinalIgnoreCase)
+            // F13 sonrası: /auth (eski form çıkışı) ve Blazor altyapı yolları (/_blazor, /_framework, /_content)
+            // kalktı; çıkış yeni arayüzün oturum ucunda (aşağıda SessionPath).
             || p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
             // F1.2: yeni arayüzün oturum uçları (giriş/çıkış çalışmalı; ben → 401 "firma oturumu yok").
             || RentACar.Web.Api.UiApiExtensions.SessionPath(path)

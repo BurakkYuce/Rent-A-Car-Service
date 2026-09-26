@@ -56,9 +56,12 @@ public sealed class ValidationErrorMiddleware(ILogger<ValidationErrorMiddleware>
                 return;
             }
 
-            // F13.1b: Blazor /hata sayfası yerine yeni arayüzün Panel'i + hata bandı (?hata=).
+            // F13.1b: Blazor /hata sayfası yerine yeni arayüzün Panel'i + hata bandı. F13 sonrası güvenlik: URL'de serbest
+            // metin YOK, yalnız kod (yetki reddi ayrı kod; ayrıntı yukarıdaki logda).
             ctx.Response.Clear();
-            ctx.Response.Redirect(RentACar.Web.Spa.Cutover.ErrorTarget(message));
+            ctx.Response.Redirect(RentACar.Web.Spa.Cutover.ErrorTarget(ex is NoPermissionException
+                ? RentACar.Web.Spa.Cutover.ErrorCode.NoPermission
+                : RentACar.Web.Spa.Cutover.ErrorCode.Validation));
         }
     }
 

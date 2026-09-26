@@ -175,16 +175,7 @@ export class SessionService {
     this.deger.set(ben);
     this.initialLoadPromise = Promise.resolve(ben);
     this.tema.applyTenantColors(ben.renkler);
-    if (!ben.pilot) {
-      this.bant.show({
-        tur: 'uyari',
-        mesaj: this.t('oturum.pilotDegil'),
-        kod: 'pilot_degil',
-        kalici: true,
-      });
-    } else if (this.bant.bant()?.kod === 'pilot_degil') {
-      this.bant.kapat();
-    }
+    // F13 sonrası: "pilot değil" bandı kalktı — sunucu pilot kapısını kaldırdı (`ben.pilot` hep true).
   }
 
   private clearStore(getStore: () => Storage | undefined, preserved: string | null): void {

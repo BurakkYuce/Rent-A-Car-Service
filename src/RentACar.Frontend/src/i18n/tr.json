@@ -78,6 +78,21 @@
     "kapat": "Kapat",
     "sunucuHatasi": "Beklenmeyen bir sunucu hatası oluştu. İşlem kaydedilmemiş olabilir; kontrol edip yeniden deneyin.",
     "agHatasi": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.",
+    "sorgu": {
+      "hata": {
+        "yetki_yok": "Bu işlem için yetkiniz yok.",
+        "bulunamadi": "Aradığınız sayfa ya da kayıt bulunamadı.",
+        "oturum_yok": "Oturumunuz kapandı; yeniden giriş yapın.",
+        "dogrulama": "İşlem yapılamadı: istek geçerli değil ya da kayıt kapsamınız dışında.",
+        "beklenmeyen": "Beklenmeyen bir hata oluştu; son işleminiz tamamlanmamış olabilir. Tekrar denemeden önce kaydın oluşup oluşmadığını kontrol edin.",
+        "genel": "İşlem tamamlanamadı."
+      },
+      "bilgi": {
+        "kaydedildi": "Kaydedildi.",
+        "genel": "İşlem tamamlandı."
+      },
+      "destekKodu": "Destek kodu: {{kod}}"
+    },
     "mukerrerBaslik": "Mükerrer işlem",
     "mukerrerYenilendi": "Kayıt yeniden yüklendi.",
     "zatenKaydedildi": "İşlem zaten kaydedildi",

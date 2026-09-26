@@ -32,6 +32,8 @@ public sealed class PlatformIsolationTests
     [InlineData("/kiralar/yeni")]     // kira formu
     [InlineData("/cariler/x/ekstre")] // cari ekstre
     [InlineData("/gibberish-yol")]    // olmayan tenant yolu da konsola (404 yerine)
+    [InlineData("/_blazor")]          // F13 sonrası: Blazor altyapı yolları artık muaf değil
+    [InlineData("/auth/logout")]      // eski form çıkış ucu kalktı; muafiyet de
     [InlineData("/app/panel")]        // F12.2: yeni arayüzün FİRMA ekranları kapalı kalır
     [InlineData("/app/platformx")]    // F12.2: /app/platform muafiyeti segment eşleşmesidir, önek değil
     public async Task Platform_admin_tenant_sayfasindan_konsola_yonlendirilir(string path)
@@ -45,11 +47,9 @@ public sealed class PlatformIsolationTests
     [Theory]
     [InlineData("/platform/tenants")]      // konsolun kendisi — döngü olmamalı
     [InlineData("/platform/tenants/abc")]  // detay sayfası
-    [InlineData("/auth/logout")]           // ÇIKIŞ çalışmalı (yoksa platform admin kilitlenir)
+    [InlineData("/api/ui/v1/oturum/cikis")] // ÇIKIŞ çalışmalı (yoksa platform admin kilitlenir); eski /auth/logout kalktı
     [InlineData("/login")]
-    [InlineData("/app.css")]               // statik varlık
-    [InlineData("/js/rc-ui.js")]
-    [InlineData("/_framework/blazor.web.js")]
+    [InlineData("/app.css")]               // statik varlık (uzantılı)
     [InlineData("/app/platform")]                 // F12.2: SPA platform ekranları (derin bağlantı/yenileme)
     [InlineData("/app/platform/kiracilar")]
     [InlineData("/app/Platform/kiracilar/abc")]   // ASP.NET yönlendirmesi gibi büyük/küçük harf duyarsız

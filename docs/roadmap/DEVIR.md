@@ -117,8 +117,7 @@ olabilir). Açık PR yoksa "Sırada" listesinin ilk maddesi.
     kapsamı, denetim maskesi, kira paneli). Yapısal çitler SPA'ya: `scripts/yikici-onay-denetimi.mjs` (lint; yıkıcı
     çağrı onaysız olamaz) ve `NonApiEndpointAuthorizationTests` (Api dışı her uçta açık yetki kararı).
   - #350: kabuk, Radzen, circuit kimliği (`HttpContextIdentity` tek kaynak), `wwwroot` silindi; eski adresler herkes
-    için 301; LoginPath `/app/giris`, 403/404/500 → `/app/panel?hata=`; `/auth/login` silindi, `/auth/logout` SPA
-    girişine; pilot kapısı ve platform pilot anahtarı kalktı. Güvenlik incelemesi hedefleri PR açıklamasında.
+    için 301; LoginPath `/app/giris`, 403/404/500 → `/app/panel?hata=`; `/auth/login` silindi (`/auth/logout` #352'de: CSRF'siz, kaldırıldı); pilot kapısı ve platform pilot anahtarı kalktı. Güvenlik incelemesi hedefleri PR açıklamasında.
 
 ### ⏳ Açık PR
 - F13 PR'ları merge edildikten sonra: yok. Gerçek durum için `rtk gh pr list --state open`.

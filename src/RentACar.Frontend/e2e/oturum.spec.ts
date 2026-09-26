@@ -257,16 +257,27 @@ test('çıkış: tam temizlik (tema tercihi kalır) ve giriş sayfası', async (
   expect(await page.evaluate(() => localStorage.getItem('rc.tema'))).toBe('koyu');
 });
 
-test('?bilgi= toast, ?hata= bant olarak BİR kez gösterilir ve URL’den silinir (#sekme korunur)', async ({
+test('?bilgi= toast, ?hata= bant: yalnız KOD çevrilir, BİR kez gösterilir, URL’den silinir (#sekme korunur)', async ({
   page,
 }) => {
   await logIn(page);
-  await page.goto(
-    `${SHOWCASE}?bilgi=Kira%20kaydedildi.&hata=Tahsilat%20yap%C4%B1lamad%C4%B1.&y=2#sekme=odeme`,
-  );
-  await expect(page.getByRole('status').filter({ hasText: 'Kira kaydedildi.' })).toBeVisible();
-  await expect(page.locator('rc-uyari-bandi')).toContainText('Tahsilat yapılamadı.');
+  await page.goto(`${SHOWCASE}?bilgi=kaydedildi&hata=yetki_yok&y=2#sekme=odeme`);
+  await expect(page.getByRole('status').filter({ hasText: 'Kaydedildi.' })).toBeVisible();
+  await expect(page.locator('rc-uyari-bandi')).toContainText('Bu işlem için yetkiniz yok.');
   await expect(page).toHaveURL(/\/app\/vitrin\/geri-bildirim\?y=2#sekme=odeme$/);
+});
+
+test('içerik sahteciliği: ?hata= / ?bilgi= serbest metni ekranda GÖRÜNMEZ (genel metin)', async ({
+  page,
+}) => {
+  await logIn(page);
+  const phishing = 'Hesabınız askıya alındı, 0850 000 00 00 numarasını arayın';
+  await page.goto(
+    `${SHOWCASE}?hata=${encodeURIComponent(phishing)}&bilgi=${encodeURIComponent(phishing)}`,
+  );
+  await expect(page.locator('rc-uyari-bandi')).toContainText('İşlem tamamlanamadı.');
+  await expect(page.getByRole('status').filter({ hasText: 'İşlem tamamlandı.' })).toBeVisible();
+  await expect(page.getByText('0850 000 00 00')).toHaveCount(0);
 });
 
 test('onay diyaloğu: odak kilidi, Esc = vazgeç; onay = true', async ({ page }) => {

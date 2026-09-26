@@ -337,14 +337,13 @@ public sealed class GuvenliDonusTests
     }
 
     [Fact]
-    public void Blazor_giris_ucu_yok_cikis_ucu_SPA_girisine_doner()
+    public void Eski_form_giris_ve_cikis_uclari_yok()
     {
-        // F13.1b: POST /auth/login (Blazor formu) silindi; giriş yalnız /api/ui/v1/oturum/giris'te. Çıkış ucu sabit
-        // SPA girişine döner (kullanıcı girdisi taşımaz — açık yönlendirme yok).
-        var endpoint = File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Identity/AuthEndpoints.cs"));
-        Assert.DoesNotContain("\"/auth/login\"", endpoint, StringComparison.Ordinal);
-        Assert.Contains("MapPost(\"/auth/logout\"", endpoint, StringComparison.Ordinal);
-        Assert.Contains("Results.Redirect(RentACar.Web.Spa.Cutover.SpaLogin", endpoint, StringComparison.Ordinal);
+        // F13.1b: POST /auth/login silindi; F13 sonrası güvenlik düzeltmesi: POST /auth/logout da (üretimde CSRF'siz).
+        // Giriş/çıkış yalnız /api/ui/v1/oturum/* (X-XSRF-TOKEN zorunlu).
+        Assert.False(File.Exists(Path.Combine(RepoRoot(), "src/RentACar.Web/Identity/AuthEndpoints.cs")));
+        Assert.DoesNotContain("MapAuthEndpoints", File.ReadAllText(Path.Combine(RepoRoot(), "src/RentACar.Web/Program.cs")),
+            StringComparison.Ordinal);
     }
 
     [Fact]

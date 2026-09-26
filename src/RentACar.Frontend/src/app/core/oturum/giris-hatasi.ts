@@ -65,25 +65,22 @@ function isSpaUrl(address: string): boolean {
 }
 
 /**
- * F4.6 tek giriş — girişten (ya da girişliyken giriş sayfası açılınca) nereye gidilir. `returnUrl` bir SİTE
- * yoludur: `/app/…` yeni arayüz, diğerleri Blazor ekranı (sunucunun `/login` → `/app/giris` yönlendirmesi ve
- * `oturumGuard` böyle yazar).
- * - Pilot + (dönüş yok | `/app` dönüşü) → SPA rotası; varsayılan Panel, `/app/giris` (döngü) → Panel.
- * - Pilot DEĞİL + (dönüş yok | `/app` dönüşü) → Blazor Panel (`/`): yeni arayüz bu firmada kapalı.
- * - Blazor dönüşü (pilot olsun olmasın) → `/login?ReturnUrl=…`. Sunucu girişli kullanıcıyı
- *   `YetkiYonlendirme.GuvenliDonus` çitinden geçirir, pilotsa haritadaki SPA karşılığına çevirir. Açık
- *   yönlendirme kararı TEK yerde (sunucuda) kalır; istemci Blazor adresini kendisi açmaz.
+ * Tek giriş — girişten (ya da girişliyken giriş sayfası açılınca) nereye gidilir. `returnUrl` bir SİTE yoludur:
+ * `/app/…` yeni arayüz, diğerleri eski adres ya da sunucu uç yolu (sunucunun 401 yönlendirmesi böyle yazar).
+ * - Dönüş yok | `/app` dönüşü → SPA rotası; varsayılan Panel, `/app/giris` (döngü) → Panel.
+ * - Eski adres dönüşü → `/login?ReturnUrl=…`. Sunucu girişli kullanıcıyı `PermissionRedirect.SafeReturn` çitinden
+ *   geçirir ve haritadaki SPA karşılığına çevirir. Açık yönlendirme kararı TEK yerde (sunucuda) kalır.
+ * F13 sonrası: pilot ayrımı kalktı (sunucu `ben.pilot`'u hep `true` döner; alan sözleşmede).
  */
-export function postLoginTarget(pilot: boolean, returnInfo: unknown): LoginTarget {
+export function postLoginTarget(returnInfo: unknown): LoginTarget {
   const raw = typeof returnInfo === 'string' ? returnInfo.trim() : '';
   if (raw && raw !== '/' && !isSpaUrl(raw)) {
     if (raw.startsWith('/') && !raw.startsWith('//') && !raw.includes('\\')) {
       return { tur: 'sunucu', adres: `${SERVER_LOGIN}?ReturnUrl=${encodeURIComponent(raw)}` };
     }
     // Kök-göreli olmayan (dış adres, şema) dönüş hiç taşınmaz.
-    return pilot ? { tur: 'spa', yol: PILOT_LANDING } : { tur: 'sunucu', adres: '/' };
+    return { tur: 'spa', yol: PILOT_LANDING };
   }
-  if (!pilot) return { tur: 'sunucu', adres: '/' };
   const path = isSpaUrl(raw) ? safeReturnUrl(raw) : '/';
   return { tur: 'spa', yol: path === '/' ? PILOT_LANDING : path };
 }
